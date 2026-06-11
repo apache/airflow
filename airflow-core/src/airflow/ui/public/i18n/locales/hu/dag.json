@@ -40,9 +40,37 @@
     "parseDuration": "Feldolgozás időtartama:",
     "parsedAt": "Feldolgozás ideje:"
   },
+  "deadlineAlerts": {
+    "completionRule": "A(z) {{interval}}-on belül kell teljesíteni a(z) {{reference}}-hoz képest",
+    "count_one": "{{count}} határidő",
+    "count_other": "{{count}} határidő",
+    "referenceType": {
+      "AverageRuntimeDeadline": "átlagos futási idő",
+      "DagRunLogicalDateDeadline": "logikai dátum",
+      "DagRunQueuedAtDeadline": "sorba állítás ideje"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "Tényleges",
+    "expected": "Várt",
+    "finishedEarly": "határidő előtt befejezve ennyivel: {{duration}}",
+    "finishedLate": "határidő után befejezve ennyivel: {{duration}}",
+    "label": "Határidő",
+    "met": "Teljesítve",
+    "missed": "Elmulasztva",
+    "missedCount_one": "{{count}} elmulasztott határidő",
+    "missedCount_other": "{{count}} elmulasztott határidő",
+    "mixedCount": "{{missedCount}} elmulasztott, {{upcomingCount}} közelgő",
+    "stillRunning": "Még fut",
+    "upcoming": "Közelgő",
+    "upcomingCount_one": "{{count}} közelgő határidő",
+    "upcomingCount_other": "{{count}} közelgő határidő"
+  },
   "extraLinks": "Extra hivatkozások",
   "grid": {
     "buttons": {
+      "newerRuns": "Újabb futások",
+      "olderRuns": "Régebbi futások",
       "resetToLatest": "Visszaállítás a legutóbbira",
       "toggleGroup": "Csoport váltása"
     },
@@ -52,6 +80,9 @@
     "buttons": {
       "advanced": "Haladó",
       "dagDocs": "Dag dokumentáció"
+    },
+    "status": {
+      "deactivated": "Inaktív"
     }
   },
   "logs": {
@@ -66,12 +97,18 @@
     },
     "info": "INFO",
     "noTryNumber": "Nincs próbálkozási szám",
+    "search": {
+      "matchCount": "{{current}} / {{total}}",
+      "noMatches": "Nincs találat",
+      "placeholder": "Keresés a naplókban..."
+    },
     "settings": "Naplóbeállítások",
     "viewInExternal": "Naplók megtekintése itt: {{name}} (próbálkozás: {{attempt}})",
     "warning": "FIGYELMEZTETÉS"
   },
   "navigation": {
     "navigation": "Navigáció: {{arrow}}",
+    "openGraphFilters": "Feladat szűrők: Ctrl+Shift+F",
     "toggleGroup": "Csoport váltása: Szóköz"
   },
   "notFound": {
@@ -93,6 +130,10 @@
       "assetEvent_one": "Létrehozott adatkészlet esemény",
       "assetEvent_other": "Létrehozott adatkészlet események"
     },
+    "deadlines": {
+      "showAll": "Összes megjelenítése",
+      "title": "Határidők"
+    },
     "failedLogs": {
       "hideLogs": "Napló elrejtése",
       "showLogs": "Napló mutatása",
@@ -104,8 +145,8 @@
     "buttons": {
       "options": "Beállítások",
       "showGantt": "Gantt-diagram megjelenítése",
-      "showGraphShortcut": "Gráf megjelenítése (Press g)",
-      "showGridShortcut": "Rács megjelenítése (Press g)"
+      "showGraphShortcut": "Gráf megjelenítése (g megnyomása)",
+      "showGridShortcut": "Rács megjelenítése (g megnyomása)"
     },
     "dagRuns": {
       "label": "Dag futások száma"
@@ -121,6 +162,16 @@
     },
     "graphDirection": {
       "label": "Gráf iránya"
+    },
+    "graphFilters": {
+      "clearFilters": "Szűrők törlése",
+      "durationGte": "Min. időtartam (s)",
+      "durationGteHint": "A leképezett feladatoknál az összes példány teljes időtartamát mutatja",
+      "mapIndex": "Min. map index",
+      "mapIndexHint": "A leképezett feladatokat legalább eddig az indexig bontja ki",
+      "selectStatus": "Állapot kiválasztása",
+      "selectTaskGroup": "Feladatcsoport kiválasztása",
+      "title": "Feladat szűrők"
     },
     "showVersionIndicator": {
       "label": "Verziójelző megjelenítése",
@@ -139,13 +190,13 @@
       "direction": "Irány",
       "label": "Szűrő",
       "mode": "Mód",
-      "modeTooltip": "A statikus mód megtartja az aktuális nézetet, amikor más feladatokra navigál, míg a navigációs mód automatikusan frissíti az aktív szűrőt a kattintott feladatra a DAG könnyebb bejárásához.",
       "modes": {
         "static": "Statikus",
-        "traverse": "Navigációs"
+        "traverse": "Bejárás"
       },
+      "modeTooltip": "A statikus mód megtartja az aktuális nézetet, míg a bejárás mód automatikusan frissíti a szűrőt.",
       "options": {
-        "both": "Mind upstream & downstream",
+        "both": "Mindkét irány",
         "downstream": "Downstream",
         "upstream": "Upstream"
       },
@@ -156,12 +207,12 @@
   "parse": {
     "toaster": {
       "error": {
-        "description": "A Dag feldolgozási kérelem meghiúsult. Lehetnek még feldolgozásra váró kérelmek.",
+        "description": "A Dag feldolgozási kérelem meghiúsult.",
         "title": "Dag újrafeldolgozása sikertelen"
       },
       "success": {
-        "description": "A Dag újrafeldolgozása hamarosan.",
-        "title": "Újrafeldolgozási kérelem sikeresen elküldve"
+        "description": "A Dag újrafeldolgozása hamarosan megtörténik.",
+        "title": "Újrafeldolgozási kérelem elküldve"
       }
     }
   },
@@ -179,12 +230,34 @@
     "renderedTemplates": "Renderelt sablonok",
     "requiredActions": "Szükséges műveletek",
     "runs": "Futások",
-    "taskInstances": "Feladatpéldányok",
+    "storage": "Tárhely",
+    "taskInstances": "TODO: translate: Task Instances",
+    "taskStore": "Feladat tároló",
     "tasks": "Feladatok",
     "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "Összes feladatcsoport összecsukása",
     "expandAll": "Összes feladatcsoport kinyitása"
+  },
+  "taskStore": {
+    "add": "Új feladat tároló hozzáadása",
+    "clearAll": {
+      "resource": "összes feladat tároló",
+      "title": "Összes feladat tároló törlése",
+      "warning": "Az összes feladat tároló törlődik. A feladatok nem tudják folytatni az állapotukat."
+    },
+    "delete": "Feladat tároló törlése",
+    "deleteWarning": "A feladat elveszíti ezt a perzisztens memóriát.",
+    "edit": "Feladat tároló szerkesztése",
+    "emptyStore": "A feladat tároló értékeket tart fenn a próbálkozások között.",
+    "expiresAt": {
+      "column": "Lejárat",
+      "custom": "Egyéni",
+      "default": "Alapértelmezett ({{interval}})",
+      "label": "Lejárat",
+      "never": "Soha"
+    },
+    "title": "Feladat tároló"
   }
 }

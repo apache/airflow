@@ -2,7 +2,19 @@
   "additional_data": "További adatok",
   "asset_many": "Adatkészletek",
   "asset_one": "Adatkészlet",
-  "asset_other": "Adatkészlet",
+  "assetStore": {
+  "add": "Adatkészlet-tároló hozzáadása",
+  "clearAll": {
+    "resource": "összes adatkészlet-tároló",
+    "title": "Összes adatkészlet-tároló törlése",
+    "warning": "Minden adatkészlet-tároló törlésre kerül. Azok a feladatok, amelyek ezt a tárolót használják a munkafolyamatok összehangolására, elveszítik a megőrzött állapotukat."
+  },
+  "delete": "Adatkészlet-tároló törlése",
+  "deleteWarning": "Az adatkészlet elveszíti ezt a megőrzött tárolóbejegyzést.",
+  "edit": "Adatkészlet-tároló szerkesztése",
+  "emptyState": "Az adatkészlet-tároló az adatkészlet azonosítójához tartozó értékeket tárolja, amelyek megosztásra kerültek minden Dag-futtatás között. A végrehajtók a Task SDK segítségével írhatnak az adatkészlet-tárolóba.",
+  "title": "Adatkészlet-tároló"
+},
   "consumingDags": "Fogyasztó Dag-ek",
   "consumingTasks": "Fogyasztó feladatok",
   "createEvent": {
@@ -26,6 +38,7 @@
     },
     "title": "Adatkészlet (asset) esemény létrehozása {{name}} számára"
   },
+  "events": "TODO: translate: Events",
   "extra": "Kiegészítő adatok",
   "group": "Csoport",
   "lastAssetEvent": "Utolsó Adatkészlet (asset) esemény",
