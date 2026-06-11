@@ -38,10 +38,9 @@ class TestDb2Dialect:
         self.test_db_hook.escape_word_format = '"{}"'
         self.test_db_hook.escape_column_names = False
 
-        # Mock inspector for primary key detection (default returns ["ID"])
-        mock_inspector = MagicMock()
-        mock_inspector.get_pk_constraint.return_value = {"constrained_columns": ["ID"]}
-        self.test_db_hook.inspector = mock_inspector
+        # Mock get_records for primary key detection (default returns ["ID"])
+        # This will be called by get_primary_keys() in the Dialect
+        self.test_db_hook.get_records.return_value = [("ID",)]
 
     def test_placeholder(self):
         """Test placeholder property."""
@@ -66,10 +65,8 @@ class TestDb2Dialect:
 
     def test_generate_replace_sql_with_composite_key(self):
         """Test MERGE SQL generation with composite primary key."""
-        # Override inspector to return composite primary key
-        self.test_db_hook.inspector.get_pk_constraint.return_value = {
-            "constrained_columns": ["DEPT_ID", "EMP_ID"]
-        }
+        # Override get_records to return composite primary key
+        self.test_db_hook.get_records.return_value = [("DEPT_ID",), ("EMP_ID",)]
 
         sql = Db2Dialect(self.test_db_hook).generate_replace_sql(
             table="TEST_TABLE",
@@ -106,8 +103,8 @@ class TestDb2Dialect:
 
     def test_generate_replace_sql_no_pk_no_replace_index(self):
         """Test that MERGE SQL generation fails without primary key or replace_index."""
-        # Override inspector to return no primary key
-        self.test_db_hook.inspector.get_pk_constraint.return_value = {"constrained_columns": []}
+        # Override get_records to return no primary key
+        self.test_db_hook.get_records.return_value = []
 
         with pytest.raises(ValueError, match="no primary key found and no replace_index provided"):
             Db2Dialect(self.test_db_hook).generate_replace_sql(
@@ -127,8 +124,8 @@ class TestDb2Dialect:
 
     def test_generate_replace_sql_all_columns_are_pk(self):
         """Test MERGE SQL when all columns are part of primary key (no UPDATE needed)."""
-        # Override inspector to return both columns as PK
-        self.test_db_hook.inspector.get_pk_constraint.return_value = {"constrained_columns": ["ID", "NAME"]}
+        # Override get_records to return both columns as PK
+        self.test_db_hook.get_records.return_value = [("ID",), ("NAME",)]
 
         sql = Db2Dialect(self.test_db_hook).generate_replace_sql(
             table="TEST_TABLE",
@@ -156,3 +153,131 @@ class TestDb2Dialect:
         assert '"ID"' in sql
         assert '"NAME"' in sql
         assert '"VALUE"' in sql
+
+    def test_get_column_names_excludes_identity_columns(self):
+        """Test that get_column_names() excludes identity columns by default."""
+        # Create a fresh hook for this test to avoid cache issues
+        test_hook = MagicMock(spec=DbApiHook)
+        test_hook.__class__ = DbApiHook
+        test_hook.placeholder = "?"
+        test_hook.escape_word_format = '"{}"'
+        test_hook.escape_column_names = False
+
+        # Mock get_records to return DB2 system catalog rows
+        test_hook.get_records.return_value = [
+            ("ID", "INTEGER", "N", None, "Y"),  # Identity column - should be excluded
+            ("NAME", "VARCHAR", "N", None, "N"),
+            ("VALUE", "INTEGER", "Y", None, "N"),
+        ]
+
+        dialect = Db2Dialect(test_hook)
+        columns = dialect.get_column_names("TEST_TABLE", schema="TESTSCHEMA")
+
+        # Verify identity column is excluded
+        assert columns == ["NAME", "VALUE"]
+        assert "ID" not in columns
+
+    def test_get_column_names_includes_all_when_no_identity(self):
+        """Test that get_column_names() includes all columns when none are identity columns."""
+        # Create a fresh hook for this test
+        test_hook = MagicMock(spec=DbApiHook)
+        test_hook.__class__ = DbApiHook
+        test_hook.placeholder = "?"
+        test_hook.escape_word_format = '"{}"'
+        test_hook.escape_column_names = False
+
+        # Mock get_records to return columns without identity
+        test_hook.get_records.return_value = [
+            ("ID", "INTEGER", "N", None, "N"),
+            ("NAME", "VARCHAR", "N", None, "N"),
+            ("VALUE", "INTEGER", "Y", None, "N"),
+        ]
+
+        dialect = Db2Dialect(test_hook)
+        columns = dialect.get_column_names("TEST_TABLE", schema="TESTSCHEMA")
+
+        # Verify all columns are included
+        assert columns == ["ID", "NAME", "VALUE"]
+
+    def test_get_column_names_with_custom_predicate(self):
+        """Test get_column_names() with custom predicate."""
+        # Create a fresh hook for this test
+        test_hook = MagicMock(spec=DbApiHook)
+        test_hook.__class__ = DbApiHook
+        test_hook.placeholder = "?"
+        test_hook.escape_word_format = '"{}"'
+        test_hook.escape_column_names = False
+
+        # Mock get_records to return columns
+        test_hook.get_records.return_value = [
+            ("ID", "INTEGER", "N", None, "N"),
+            ("NAME", "VARCHAR", "N", None, "N"),
+            ("VALUE", "INTEGER", "Y", None, "N"),  # Nullable
+        ]
+
+        dialect = Db2Dialect(test_hook)
+        # Custom predicate: only non-nullable columns
+        columns = dialect.get_column_names(
+            "TEST_TABLE", schema="TESTSCHEMA", predicate=lambda col: not col["nullable"]
+        )
+
+        # Verify only non-nullable columns are included
+        assert columns == ["ID", "NAME"]
+        assert "VALUE" not in columns
+
+    def test_get_primary_keys_single(self):
+        """Test get_primary_keys() with single primary key."""
+        # Create a fresh hook for this test
+        test_hook = MagicMock(spec=DbApiHook)
+        test_hook.__class__ = DbApiHook
+        test_hook.placeholder = "?"
+        test_hook.escape_word_format = '"{}"'
+        test_hook.escape_column_names = False
+
+        # Mock get_records to return single primary key column
+        test_hook.get_records.return_value = [("ID",)]
+
+        dialect = Db2Dialect(test_hook)
+        pk_columns = dialect.get_primary_keys("TEST_TABLE", schema="TESTSCHEMA")
+
+        assert pk_columns == ["ID"]
+
+    def test_get_primary_keys_composite(self):
+        """Test get_primary_keys() with composite primary key."""
+        # Create a fresh hook for this test
+        test_hook = MagicMock(spec=DbApiHook)
+        test_hook.__class__ = DbApiHook
+        test_hook.placeholder = "?"
+        test_hook.escape_word_format = '"{}"'
+        test_hook.escape_column_names = False
+
+        # Mock get_records to return composite primary key
+        test_hook.get_records.return_value = [("DEPT_ID",), ("EMP_ID",)]
+
+        dialect = Db2Dialect(test_hook)
+        pk_columns = dialect.get_primary_keys("TEST_TABLE", schema="TESTSCHEMA")
+
+        assert pk_columns == ["DEPT_ID", "EMP_ID"]
+        assert len(pk_columns) == 2
+
+    def test_get_primary_keys_no_pk(self):
+        """Test get_primary_keys() when table has no primary key."""
+        # Create a fresh hook for this test
+        test_hook = MagicMock(spec=DbApiHook)
+        test_hook.__class__ = DbApiHook
+        test_hook.placeholder = "?"
+        test_hook.escape_word_format = '"{}"'
+        test_hook.escape_column_names = False
+
+        # Mock get_records to return empty list
+        test_hook.get_records.return_value = []
+
+        dialect = Db2Dialect(test_hook)
+        pk_columns = dialect.get_primary_keys("TEST_TABLE", schema="TESTSCHEMA")
+
+        assert pk_columns is None
+
+    def test_dialect_name_property(self):
+        """Test that dialect has correct name property."""
+        dialect = Db2Dialect(self.test_db_hook)
+        assert dialect.name == "db2"

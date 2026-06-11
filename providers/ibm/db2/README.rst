@@ -34,8 +34,8 @@ Requirements
 
 This provider requires the following packages:
 
-- ``ibm-db>=3.0.0`` - IBM Db2 Python driver
-- ``ibm-db-sa>=0.4.0`` - SQLAlchemy dialect for Db2
+- `ibm-db>=3.0.0 <https://pypi.org/project/ibm-db/>`_ - IBM Db2 Python driver
+- `ibm-db-sa>=0.4.0 <https://pypi.org/project/ibm-db-sa/>`_ - SQLAlchemy dialect for Db2
 
 Configuration
 -------------

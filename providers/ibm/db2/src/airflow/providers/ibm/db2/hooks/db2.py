@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
+from urllib.parse import quote_plus, urlencode
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.ibm.db2.dialects.db2 import Db2Dialect
@@ -75,14 +76,16 @@ class Db2Hook(DbApiHook):
             "password": conn.password or "",
         }
 
-    def get_conn(self) -> Any:
+    def get_conn_str(self) -> str:
         """
-        Return ibm_db_dbi connection object.
+        Build and return the DB2 connection string.
 
-        :return: Db2 connection object
+        Constructs a connection string from the connection parameters including
+        host, port, database, credentials, and any extra parameters from the
+        connection's extra field.
+
+        :return: DB2 connection string
         """
-        import ibm_db_dbi
-
         conn = self.get_connection(self.get_conn_id())
         defaults = self._get_default_values(conn)
 
@@ -109,9 +112,17 @@ class Db2Hook(DbApiHook):
                     converted_value = value
                 conn_str_parts.append(f"{key.upper()}={converted_value}")
 
-        conn_str = ";".join(conn_str_parts) + ";"
+        return ";".join(conn_str_parts) + ";"
 
-        return ibm_db_dbi.connect(conn_str, "", "")
+    def get_conn(self) -> Any:
+        """
+        Return ibm_db_dbi connection object.
+
+        :return: Db2 connection object
+        """
+        import ibm_db_dbi
+
+        return ibm_db_dbi.connect(self.get_conn_str(), "", "")
 
     def get_uri(self) -> str:
         """
@@ -121,8 +132,6 @@ class Db2Hook(DbApiHook):
 
         :return: SQLAlchemy connection URI
         """
-        from urllib.parse import quote_plus, urlencode
-
         conn = self.get_connection(self.get_conn_id())
         defaults = self._get_default_values(conn)
 
@@ -147,40 +156,3 @@ class Db2Hook(DbApiHook):
             return f"{base_uri}?{query_string}"
 
         return base_uri
-
-    def get_column_names(self, table: str, schema: str | None = None) -> list[str]:
-        """
-        Get column names for a table, excluding identity columns.
-
-        Uses SQLAlchemy inspector to detect identity columns via the autoincrement flag.
-        Identity columns (GENERATED ALWAYS AS IDENTITY) are automatically excluded
-        from the returned list, as they should not be specified in INSERT statements.
-
-        :param table: Table name
-        :param schema: Schema name (optional, uses connection schema if not provided)
-        :return: List of column names excluding identity columns
-        """
-        # Get all columns from SQLAlchemy inspector
-        columns = self.inspector.get_columns(table, schema=schema)
-
-        # Filter out identity columns (those with autoincrement=True)
-        column_names = [col["name"] for col in columns if not col.get("autoincrement", False)]
-
-        self.log.debug("Column names for table '%s' (excluding identity columns): %s", table, column_names)
-        return column_names
-
-    def get_primary_keys(self, table: str, schema: str | None = None) -> list[str]:
-        """
-        Get primary key column names for a table.
-
-        Uses SQLAlchemy inspector to retrieve primary key information from the database.
-
-        :param table: Table name
-        :param schema: Schema name (optional, uses connection schema if not provided)
-        :return: List of primary key column names
-        """
-        pk_constraint = self.inspector.get_pk_constraint(table, schema=schema)
-        pk_columns = pk_constraint.get("constrained_columns", [])
-
-        self.log.debug("Primary key columns for table '%s': %s", table, pk_columns)
-        return pk_columns
