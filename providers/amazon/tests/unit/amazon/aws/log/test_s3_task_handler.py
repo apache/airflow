@@ -216,9 +216,9 @@ class TestS3RemoteLogIO:
         body = boto3.resource("s3").Object("bucket", self.remote_log_key).get()["Body"].read()
         assert body == b"cycle 1\ncycle 2\ncycle 3\n"
 
-    @conf_vars({("logging", "object_store_write_mode"): "replace"})
+    @conf_vars({("aws", "s3_log_write_mode"): "replace"})
     def test_upload_replace_mode(self):
-        """When object_store_write_mode is 'replace', S3 is overwritten without downloading."""
+        """When s3_log_write_mode is 'replace', S3 is overwritten without downloading."""
         self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"old content\n")
 
         local_log = self.subject.base_log_folder / "1.log"

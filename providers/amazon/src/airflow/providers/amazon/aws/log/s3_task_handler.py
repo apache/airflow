@@ -58,7 +58,7 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
 
         if local_loc.is_file():
             log = local_loc.read_text()
-            append = conf.get("logging", "object_store_write_mode", fallback="append") != "replace"
+            append = conf.get("aws", "s3_log_write_mode", fallback="append") != "replace"
             has_uploaded = self.write(log, remote_loc, append=append)
             if has_uploaded and self.delete_local_copy:
                 shutil.rmtree(os.path.dirname(local_loc))

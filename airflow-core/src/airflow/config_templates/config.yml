@@ -779,18 +779,6 @@ logging:
       type: string
       example: ~
       default: "False"
-    object_store_write_mode:
-      description: |
-        Controls how remote log handlers write to the remote location. In ``append`` mode
-        (the default), the handler downloads the existing remote content and concatenates the
-        new log content onto it. In ``replace`` mode, the handler overwrites the remote
-        content with the full local log file without downloading first. Use ``replace`` when
-        the local log file is authoritative (e.g. shared filesystem) and you want to avoid
-        the download-and-concatenate overhead.
-      version_added: 3.3.0
-      type: string
-      example: ~
-      default: "append"
     google_key_path:
       description: |
         Path to Google Credential JSON file. If omitted, authorization based on `the Application Default
