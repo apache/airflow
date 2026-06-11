@@ -282,6 +282,7 @@ Example:
             pool_slots=1,
             queue="default",
             priority_weight=1,
+            executor_config=None,
         ),
         dag_rel_path=PurePosixPath("mock.py"),
         bundle_info=BundleInfo(name="n/a", version="no matter"),
