@@ -205,67 +205,151 @@ Best regards,
 ## Verify the release candidate by PMC members
 
 PMC members should verify the integrity and provenance of the SVN artifacts before casting a binding
-vote. The files live at
-https://dist.apache.org/repos/dist/dev/airflow/apache-airflow-mypy/<VERSION>rc<RC>/
-and are versioned without the `rc` suffix (`apache_airflow_mypy-<VERSION>-*`).
+vote. The artifacts are versioned without the `rc` suffix (`apache_airflow_mypy-<VERSION>-*`) and live
+in the `apache-airflow-mypy/<VERSION>rc<RC>/` sub-folder of the
+[Airflow dev dist area](https://dist.apache.org/repos/dist/dev/airflow/apache-airflow-mypy).
+
+### Setup Verification
+
+Go to the directory where your Airflow sources are checked out and set the following environment
+variables:
+
+```shell script
+export AIRFLOW_REPO_ROOT="$(pwd -P)"
+VERSION=0.1.0
+VERSION_SUFFIX=rc1
+VERSION_RC=${VERSION}${VERSION_SUFFIX}
+```
+
+Check out the SVN dist area (as a PMC member you can clone it) and export the path to it. Do this from
+the parent of your Airflow checkout:
+
+```shell script
+cd ..
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow/apache-airflow-mypy
+
+export PATH_TO_AIRFLOW_SVN="${PWD}/asf-dist/dev/airflow/"
+```
+
+Or update it if you already have it checked out:
+
+```shell script
+svn update "${PATH_TO_AIRFLOW_SVN}/apache-airflow-mypy"
+```
 
 ### SVN check
 
-Check out the candidate and confirm the expected 6 files are present (`.tar.gz` and
-`-py3-none-any.whl`, each with `.asc` + `.sha512`):
+The following 6 files should be present in the release directory (`.tar.gz` and `-py3-none-any.whl`,
+each with `.asc` + `.sha512`):
 
 ```shell script
-svn co https://dist.apache.org/repos/dist/dev/airflow/apache-airflow-mypy/<VERSION>rc<RC> mypy-rc
-cd mypy-rc
-ls -1
+cd "${PATH_TO_AIRFLOW_SVN}/apache-airflow-mypy/${VERSION_RC}"
+ls -la
+```
+
+Output should be like below
+
+```shell
+(apache-airflow) bugra@dev:~/PycharmProjects/asf-dist/dev/airflow/apache-airflow-mypy/0.1.0rc2$ ls -la
+total 48
+drwxrwxr-x 2 bugra bugra  4096 Jun 10 19:00 .
+drwxrwxr-x 3 bugra bugra  4096 Jun 10 19:00 ..
+-rw-rw-r-- 1 bugra bugra 11070 Jun 10 19:00 apache_airflow_mypy-0.1.0-py3-none-any.whl
+-rw-rw-r-- 1 bugra bugra   906 Jun 10 19:00 apache_airflow_mypy-0.1.0-py3-none-any.whl.asc
+-rw-rw-r-- 1 bugra bugra   173 Jun 10 19:00 apache_airflow_mypy-0.1.0-py3-none-any.whl.sha512
+-rw-rw-r-- 1 bugra bugra  9116 Jun 10 19:00 apache_airflow_mypy-0.1.0.tar.gz
+-rw-rw-r-- 1 bugra bugra   906 Jun 10 19:00 apache_airflow_mypy-0.1.0.tar.gz.asc
+-rw-rw-r-- 1 bugra bugra   163 Jun 10 19:00 apache_airflow_mypy-0.1.0.tar.gz.sha512
 ```
 
 ### Signature check
 
-Import the Airflow KEYS file (it must contain the Release Manager's key) and verify each signature:
+Import the Airflow KEYS file (it must contain the Release Manager's key):
 
 ```shell script
-curl -fsS https://dist.apache.org/repos/dist/release/airflow/KEYS | gpg --import
-for i in *.asc; do echo "Checking $i"; gpg --verify "$i"; done
+wget -q https://dist.apache.org/repos/dist/release/airflow/KEYS -O /tmp/airflow-KEYS
+gpg --import /tmp/airflow-KEYS
 ```
 
-You should see `Good signature from ...` for each file.
+Then verify each signature:
+
+```shell script
+cd "${PATH_TO_AIRFLOW_SVN}/apache-airflow-mypy/${VERSION_RC}"
+for i in *.asc
+do
+   echo -e "Checking $i\n"; gpg --verify $i
+done
+```
+
+The "Good signature from ..." line indicates the signatures are correct. The "not certified with a
+trusted signature" warning is expected for self-signed release-manager keys.
 
 ### SHA512 check
 
 ```shell script
-for i in *.sha512; do echo "Checking $i"; shasum -a 512 "$(basename "$i" .sha512)" | diff - "$i"; done
-```
-
-### Version check
-
-Confirm the version embedded in the artifacts is the final version, with no `rc` suffix:
-
-```shell script
-unzip -p apache_airflow_mypy-<VERSION>-py3-none-any.whl '*.dist-info/METADATA' | grep '^Version:'
-tar -xzOf apache_airflow_mypy-<VERSION>.tar.gz '*/PKG-INFO' | grep '^Version:'
+cd "${PATH_TO_AIRFLOW_SVN}/apache-airflow-mypy/${VERSION_RC}"
+for i in *.sha512
+do
+    echo "Checking $i"; shasum -a 512 `basename $i .sha512` | diff - $i
+done
 ```
 
 ### Reproducible package builds check
 
-Rebuild the packages from the tagged source and confirm they are byte-identical to the SVN ones:
+`apache-airflow-mypy` supports reproducible builds: packages built from the same sources are binary
+identical. Rebuild from the tagged source and confirm the packages match the SVN ones. Build
+**without** a version suffix so the file names and embedded metadata match the (non-suffixed) SVN
+artifacts.
+
+Check out the tag (the commands assume the standard remote naming convention `upstream` →
+`apache/airflow`):
 
 ```shell script
-cd ${AIRFLOW_REPO_ROOT}
-git fetch apache --tags --force
-git checkout apache-airflow-mypy-<VERSION>rc<RC>
+cd "${AIRFLOW_REPO_ROOT}"
+git fetch upstream --tags
+git checkout "apache-airflow-mypy-${VERSION_RC}"
 rm -rf dist/*
 breeze release-management prepare-mypy-distributions --distribution-format both --version-suffix ""
-for i in apache_airflow_mypy-<VERSION>*.tar.gz apache_airflow_mypy-<VERSION>*.whl; do
-    echo -n "$i: "; diff "${PATH_TO_MYPY_RC}/$i" "dist/$i" && echo "No diff found"
+```
+
+Then compare the packages you built with the ones in SVN:
+
+```shell script
+cd "${PATH_TO_AIRFLOW_SVN}/apache-airflow-mypy/${VERSION_RC}"
+for i in ${AIRFLOW_REPO_ROOT}/dist/*
+do
+  echo "Checking if $(basename $i) is the same as $i"
+  diff "$(basename $i)" "$i" && echo "OK"
 done
 ```
 
+The output should show `OK` for every file (they are identical).
+
 ### Licence check
 
-Run the Apache RAT tool against the unpacked sdist (download the jar from
-https://creadur.apache.org/rat/download_rat.cgi). There should be no files reported as Unknown or
-Unapproved.
+This can be done with the Apache RAT tool. There should be no files reported as `Unknown` or
+`Unapproved`.
+
+Download the latest jar (including checksum verification for your own security):
+
+```shell script
+# Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz.sha512
+wget -q https://archive.apache.org/dist/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz -O /tmp/apache-rat-0.18-bin.tar.gz
+echo "315b16536526838237c42b5e6b613d29adc77e25a6e44a866b2b7f8b162e03d3629d49c9faea86ceb864a36b2c42838b8ce43d6f2db544e961f2259e242748f4  /tmp/apache-rat-0.18-bin.tar.gz" | sha512sum -c -
+tar -xzf /tmp/apache-rat-0.18-bin.tar.gz -C /tmp
+```
+
+Unpack the sdist and run the check, reusing the repository `.rat-excludes` file:
+
+```shell script
+rm -rf /tmp/apache-airflow-mypy-src && mkdir -p /tmp/apache-airflow-mypy-src
+tar -xzf "${PATH_TO_AIRFLOW_SVN}/apache-airflow-mypy/${VERSION_RC}/apache_airflow_mypy-${VERSION}.tar.gz" --strip-components 1 -C /tmp/apache-airflow-mypy-src
+cp "${AIRFLOW_REPO_ROOT}/.rat-excludes" /tmp/apache-airflow-mypy-src/.rat-excludes
+java -jar /tmp/apache-rat-0.18/apache-rat-0.18.jar --input-exclude-file /tmp/apache-airflow-mypy-src/.rat-excludes /tmp/apache-airflow-mypy-src/
+```
+
+You should see no files reported as `Unknown` or with wrong licence.
 
 ## Verify the release candidate by Contributors
 

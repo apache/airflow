@@ -1379,6 +1379,22 @@ class SerializedDAG:
             # Yes, having `+=` doesn't make sense, but this was the existing behaviour
             state += [TaskInstanceState.RUNNING]
 
+        if task_ids is not None:
+            plain_task_ids: set[str] = {tid[0] if isinstance(tid, tuple) else tid for tid in task_ids}
+            if plain_task_ids:
+                added_ids = (
+                    set(
+                        self.partial_subset(
+                            task_ids=plain_task_ids,
+                            include_downstream=False,
+                            include_upstream=False,
+                        ).task_dict
+                    )
+                    - plain_task_ids
+                )
+                if added_ids:
+                    task_ids = [*task_ids, *added_ids]
+
         tis_result = self._get_task_instances(
             task_ids=task_ids,
             start_date=start_date,

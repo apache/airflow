@@ -23,6 +23,7 @@ import pytest
 
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper, RollupMapper
 from airflow.sdk.definitions.partition_mappers.fixed_key import FixedKeyMapper
+from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
 from airflow.sdk.definitions.partition_mappers.temporal import StartOfDayMapper
 from airflow.sdk.definitions.partition_mappers.window import (
     DayWindow,
@@ -94,6 +95,39 @@ class TestSdkDirectionValidation:
     def test_invalid_direction_raises_value_error(self, bad_value):
         with pytest.raises(ValueError, match=r"is not a valid Window\.Direction"):
             WeekWindow(direction=bad_value)
+
+
+class TestSdkPartitionMapperMaxDownstreamKeysValidator:
+    """Verify the max_downstream_keys attrs field validator on the SDK PartitionMapper base.
+
+    Uses IdentityMapper as the most lightweight concrete subclass — the
+    validator lives on the base class so any subclass exercises it.
+    Mirrors core's TestPartitionMapperMaxDownstreamKeysValidator (6 cases).
+    """
+
+    def test_max_downstream_keys_none_is_accepted(self):
+        """Default (None) leaves max_downstream_keys as None."""
+        mapper = IdentityMapper()
+        assert mapper.max_downstream_keys is None
+
+    def test_max_downstream_keys_one_is_accepted(self):
+        """Minimum positive integer value is accepted."""
+        mapper = IdentityMapper(max_downstream_keys=1)
+        assert mapper.max_downstream_keys == 1
+
+    @pytest.mark.parametrize(
+        "bad_value",
+        [
+            pytest.param(0, id="zero"),
+            pytest.param(-1, id="negative"),
+            pytest.param(1.0, id="float"),
+            pytest.param("5", id="string"),
+        ],
+    )
+    def test_max_downstream_keys_invalid_raises(self, bad_value):
+        """0, negative integers, floats, and strings are all rejected."""
+        with pytest.raises(ValueError, match="max_downstream_keys"):
+            IdentityMapper(max_downstream_keys=bad_value)  # type: ignore[arg-type]
 
 
 class TestSdkWindowExpectedDecodedType:

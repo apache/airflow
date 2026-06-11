@@ -19,6 +19,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, ClassVar
 
+import attrs
+
 from airflow.sdk._shared.timezones.timezone import parse_timezone
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
 
@@ -28,24 +30,31 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.partition_mappers.window import Window
 
 
+def _timezone_converter(value: str | Timezone | FixedTimezone) -> Timezone | FixedTimezone:
+    if isinstance(value, str):
+        return parse_timezone(value)
+    return value
+
+
+@attrs.define
 class _BaseTemporalMapper(PartitionMapper):
     """Base class for Temporal Partition Mappers."""
 
-    default_output_format: str
+    default_output_format: ClassVar[str]
     expected_decoded_type: ClassVar[type] = datetime
 
-    def __init__(
-        self,
-        *,
-        timezone: str | Timezone | FixedTimezone = "UTC",
-        input_format: str = "%Y-%m-%dT%H:%M:%S",
-        output_format: str | None = None,
-    ) -> None:
-        self.input_format = input_format
-        self.output_format = output_format or self.default_output_format
-        if isinstance(timezone, str):
-            timezone = parse_timezone(timezone)
-        self._timezone = timezone
+    _timezone: str | Timezone | FixedTimezone = attrs.field(
+        alias="timezone",
+        default="UTC",
+        kw_only=True,
+        converter=_timezone_converter,
+    )
+    input_format: str = attrs.field(default="%Y-%m-%dT%H:%M:%S", kw_only=True)
+    output_format: str | None = attrs.field(default=None, kw_only=True)
+
+    def __attrs_post_init__(self) -> None:
+        if not self.output_format:
+            self.output_format = self.default_output_format
 
 
 class StartOfHourMapper(_BaseTemporalMapper):
@@ -108,6 +117,7 @@ class StartOfYearMapper(_BaseTemporalMapper):
     default_output_format = "%Y"
 
 
+@attrs.define(init=False)
 class FanOutMapper(PartitionMapper):
     """
     Partition mapper that fans one upstream key out into multiple downstream keys.
@@ -161,6 +171,25 @@ class FanOutMapper(PartitionMapper):
         "YearWindow": StartOfMonthMapper,
     }
 
+    upstream_mapper: PartitionMapper = attrs.field(kw_only=True)
+    window: Window = attrs.field(kw_only=True)
+    downstream_mapper: PartitionMapper = attrs.field(kw_only=True)
+
+    def __init__(
+        self,
+        *,
+        upstream_mapper: PartitionMapper,
+        window: Window,
+        downstream_mapper: PartitionMapper | None = None,
+        max_downstream_keys: int | None = None,
+    ) -> None:
+        self.__attrs_init__(
+            upstream_mapper=upstream_mapper,
+            window=window,
+            downstream_mapper=downstream_mapper or type(self)._resolve_default_downstream_mapper(window),
+            max_downstream_keys=max_downstream_keys,
+        )
+
     @classmethod
     def _resolve_default_downstream_mapper(cls, window: Window) -> PartitionMapper:
         """
@@ -179,14 +208,3 @@ class FanOutMapper(PartitionMapper):
                 f"{type(window).__name__}; pass downstream_mapper explicitly."
             )
         return mapper_cls()
-
-    def __init__(
-        self,
-        *,
-        upstream_mapper: PartitionMapper,
-        window: Window,
-        downstream_mapper: PartitionMapper | None = None,
-    ) -> None:
-        self.upstream_mapper = upstream_mapper
-        self.window = window
-        self.downstream_mapper = downstream_mapper or self._resolve_default_downstream_mapper(window)
