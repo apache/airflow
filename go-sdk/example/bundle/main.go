@@ -62,6 +62,31 @@ func main() {
 
 func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, error) {
 	log.Info("Hello from task")
+
+	// Log every field the runtime context exposes. The fields are namespaced
+	// under a "context" group (so they serialise as context.ti.* /
+	// context.dag_run.* dotted keys) to avoid colliding with the reserved
+	// task_id/run_id/etc. keys the supervisor strips from its log view.
+	rc := sdk.CurrentContext(ctx)
+	log.InfoContext(ctx, "task runtime context",
+		slog.Group("context",
+			slog.Group("ti",
+				"dag_id", rc.TI.DagID,
+				"run_id", rc.TI.RunID,
+				"task_id", rc.TI.TaskID,
+				"map_index", rc.TI.MapIndex,
+				"try_number", rc.TI.TryNumber,
+			),
+			slog.Group("dag_run",
+				"dag_id", rc.DagRun.DagID,
+				"run_id", rc.DagRun.RunID,
+				"logical_date", rc.DagRun.LogicalDate,
+				"data_interval_start", rc.DagRun.DataIntervalStart,
+				"data_interval_end", rc.DagRun.DataIntervalEnd,
+			),
+		),
+	)
+
 	conn, err := client.GetConnection(ctx, "test_http")
 	if err != nil {
 		log.ErrorContext(ctx, "unable to get conn", "error", err)

@@ -62,7 +62,7 @@ from airflow.sdk import (
     timezone,
 )
 from airflow.sdk._shared.observability.metrics.base_stats_logger import StatsLogger
-from airflow.sdk._shared.state import TaskScope
+from airflow.sdk._shared.state import AssetScope, TaskScope
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     AssetResponse,
@@ -4987,6 +4987,8 @@ class TestTriggerDagRunOperator:
         mock_supervisor_comms.send.side_effect = [
             # Set RTIF
             None,
+            # Account for the extra link XCom message sent by TriggerDagRunLink
+            None,
             # Successful Dag Run trigger
             OKResponse(ok=True),
             # Set XCOM,
@@ -5005,6 +5007,16 @@ class TestTriggerDagRunOperator:
         assert msg.state == expected_task_state
 
         expected_calls = [
+            mock.call.send(
+                msg=SetXCom(
+                    key="_link_TriggerDagRunLink",
+                    value="/dags/test_dag/runs/test_run_id",
+                    dag_id="test_handle_trigger_dag_run_wait_for_completion",
+                    task_id="test_task",
+                    run_id="test_run",
+                    map_index=-1,
+                ),
+            ),
             mock.call.send(
                 msg=TriggerDagRun(
                     dag_id="test_dag",
@@ -5357,6 +5369,55 @@ class TestTaskInstanceMetrics:
                 tags={**stats_tags, "operator_name": "PythonOperator"},
             )
             backend.incr.assert_any_call("ti_failures", tags=stats_tags)
+
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags_extra"),
+        [
+            pytest.param("my_team", {"team_name": "my_team"}, id="with_team"),
+            pytest.param(None, {}, id="without_team"),
+        ],
+    )
+    def test_ti_start_metric_respects_team_name(
+        self, team_name, expected_tags_extra, create_runtime_ti, mock_supervisor_comms
+    ):
+        task = PythonOperator(task_id="test", python_callable=lambda: "success")
+        ti = create_runtime_ti(task=task)
+        if team_name:
+            ti._ti_context_from_server.dag_run.team_name = team_name
+
+        with mock.patch("airflow.sdk._shared.observability.metrics.stats._get_backend") as mock_get_backend:
+            backend = mock.MagicMock(spec=StatsLogger)
+            mock_get_backend.return_value = backend
+            run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+            expected = {"dag_id": ti.dag_id, "task_id": ti.task_id, **expected_tags_extra}
+            backend.incr.assert_any_call("ti.start", tags=expected)
+
+    @pytest.mark.parametrize(
+        ("task_callable", "operator_metric", "ti_metric"),
+        [
+            pytest.param(lambda: "success", "operator_successes", "ti_successes", id="success"),
+            pytest.param(lambda: 1 / 0, "operator_failures", "ti_failures", id="failure"),
+        ],
+    )
+    def test_operator_metrics_respect_team_name(
+        self, task_callable, operator_metric, ti_metric, create_runtime_ti, mock_supervisor_comms
+    ):
+        task = PythonOperator(task_id="test", python_callable=task_callable)
+        ti = create_runtime_ti(task=task)
+        ti._ti_context_from_server.dag_run.team_name = "team_a"
+
+        with mock.patch("airflow.sdk._shared.observability.metrics.stats._get_backend") as mock_get_backend:
+            backend = mock.MagicMock(spec=StatsLogger)
+            mock_get_backend.return_value = backend
+            run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+            stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id, "team_name": "team_a"}
+            backend.incr.assert_any_call(
+                operator_metric,
+                tags={**stats_tags, "operator_name": "PythonOperator"},
+            )
+            backend.incr.assert_any_call(ti_metric, tags=stats_tags)
 
 
 class TestDetailSpan:
@@ -5817,7 +5878,7 @@ class TestTaskInstanceStateOperations:
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         mock_backend.serialize_asset_store_to_ref.assert_called_once_with(
-            value="2026-05-01", key="watermark", asset_ref="my_asset"
+            value="2026-05-01", key="watermark", scope=AssetScope(name="my_asset", uri=None)
         )
         mock_supervisor_comms.send.assert_any_call(
             SetAssetStoreByName(
@@ -5843,7 +5904,13 @@ class TestTaskInstanceStateOperations:
         mock_supervisor_comms.send.side_effect = TestTaskInstanceStateOperations._watcher_side_effect
 
         mock_backend = mock.MagicMock()
-        ref = f"mem://{runtime_ti.id}/job_id"
+        scope = TaskScope(
+            dag_id=runtime_ti.dag_id,
+            run_id=runtime_ti.run_id,
+            task_id=runtime_ti.task_id,
+            map_index=runtime_ti.map_index,
+        )
+        ref = f"mem://{scope.dag_id}/{scope.run_id}/{scope.task_id}/{scope.map_index}/job_id"
         mock_backend.serialize_task_store_to_ref.return_value = ref
 
         with mock.patch(
@@ -5852,7 +5919,7 @@ class TestTaskInstanceStateOperations:
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         mock_backend.serialize_task_store_to_ref.assert_called_once_with(
-            value="app_001", key="job_id", ti_id=str(runtime_ti.id)
+            value="app_001", key="job_id", scope=scope
         )
         mock_supervisor_comms.send.assert_any_call(
             SetTaskStore(

@@ -10,9 +10,12 @@
     "maxRuns": "Maksimum Aktif Çalıştırma",
     "missingAndErroredRuns": "Eksik ve Hata Almış Dag Çalıştırmaları",
     "missingRuns": "Eksik Dag Çalıştırmaları",
+    "overrideExistingParams": "Mevcut çalıştırmalardaki parametreleri geçersiz kıl",
     "permissionDenied": "Ön çalıştırma başarısız oldu: İzin reddedildi. Lütfen gerekli izinlere sahip olduğunuzdan emin olun.",
     "reprocessBehavior": "Yeniden İşleme Davranışı",
     "run": "Geriye Dönük Çalıştır",
+    "scheduleNotBackfillable": "Bu Dag'ın zamanlaması geriye dönük çalıştırmaları desteklemiyor",
+    "schedulerPriorityHint": "Geriye dönük Dag çalıştırmaları, tüm zamanlayıcı döngüsünde geriye dönük olmayan Dag çalıştırmalarından sonra sıralanır. Başka geriye dönük olmayan çalıştırmalar varsa, geriye dönük çalıştırmalar daha uzun süre kuyrukta kalabilir.",
     "selectDescription": "Bu Dag'ı bir tarih aralığı için çalıştır",
     "selectLabel": "Geriye Dönük Çalıştırma",
     "title": "Geriye Doldurma Çalıştır",
@@ -45,7 +48,6 @@
   },
   "dagWarnings": {
     "error_one": "1 Hata",
-    "error_other": "{{count}} Hata(lar)",
     "errorAndWarning": "1 Hata ve {{warningText}}",
     "warning_one": "1 Uyarı",
     "warning_other": "{{count}} Uyarı"
@@ -72,6 +74,7 @@
     "files_other": "{{count}} dosya"
   },
   "flexibleForm": {
+    "durationPlaceholder": "Süreyi ISO 8601 formatında girin",
     "placeholder": "Değer Seçin",
     "placeholderArray": "Metinleri yeni satır olarak girin",
     "placeholderExamples": "Seçenekleri görmek için yazmaya başlayın",
@@ -79,6 +82,7 @@
     "validationErrorArrayNotArray": "Değer bir dizi olmalıdır.",
     "validationErrorArrayNotNumbers": "Dizideki tüm öğeler sayı olmalıdır.",
     "validationErrorArrayNotObject": "Dizideki tüm öğeler nesne olmalıdır.",
+    "validationErrorDuration": "Geçersiz ISO 8601 süre formatı",
     "validationErrorRequired": "Bu alan zorunludur"
   },
   "graph": {
@@ -92,7 +96,8 @@
     "otherDagRuns": "+Diğer Dag Çalıştırmaları",
     "taskCount_one": "{{count}} Görev",
     "taskCount_other": "{{count}} Görev",
-    "taskGroup": "Görev Grubu"
+    "taskGroup": "Görev Grubu",
+    "zoomToTask": "Seçili göreve yakınlaş"
   },
   "limitedList": "+{{count}} daha",
   "limitedList.allItems": "Tüm {{count}} öğeler:",

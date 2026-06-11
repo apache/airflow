@@ -919,6 +919,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         AIRFLOW_V_3_0_PLUS,
         AIRFLOW_V_3_1_PLUS,
         AIRFLOW_V_3_2_PLUS,
+        AIRFLOW_V_3_3_PLUS,
         NOTSET,
     )
 
@@ -941,7 +942,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             from airflow.models import DagBag
 
             # Keep all the serialized dags we've created in this test
-            self.dagbag = DagBag(os.devnull, include_examples=False)
+            if AIRFLOW_V_3_3_PLUS:
+                self.dagbag = DagBag(os.devnull)
+            else:
+                self.dagbag = DagBag(os.devnull, include_examples=False)  # type: ignore[call-arg]
 
         def __enter__(self):
             self.serialized_model = None
@@ -1189,7 +1193,9 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:
-                if AIRFLOW_V_3_0_PLUS:
+                if AIRFLOW_V_3_3_PLUS:
+                    ti.refresh_from_task(dag.get_task(ti.task_id), dag_run=self.dag_run)
+                elif AIRFLOW_V_3_0_PLUS:
                     ti.refresh_from_task(dag.get_task(ti.task_id))
                 else:
                     ti.refresh_from_task(self.dag.get_task(ti.task_id))
@@ -1741,7 +1747,11 @@ def get_test_dag():
         from airflow import settings
         from airflow.models.serialized_dag import SerializedDagModel
 
-        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+        from tests_common.test_utils.version_compat import (
+            AIRFLOW_V_3_0_PLUS,
+            AIRFLOW_V_3_2_PLUS,
+            AIRFLOW_V_3_3_PLUS,
+        )
 
         if AIRFLOW_V_3_2_PLUS:
             from airflow.dag_processing.dagbag import DagBag
@@ -1749,7 +1759,10 @@ def get_test_dag():
             from airflow.models.dagbag import DagBag  # type: ignore[no-redef, attribute-defined]
 
         dag_file = AIRFLOW_CORE_TESTS_PATH / "unit" / "dags" / f"{dag_id}.py"
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        if AIRFLOW_V_3_3_PLUS:
+            dagbag = DagBag(dag_folder=dag_file)
+        else:
+            dagbag = DagBag(dag_folder=dag_file, include_examples=False)  # type: ignore[call-arg]
 
         dag = dagbag.get_dag(dag_id)
 

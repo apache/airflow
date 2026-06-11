@@ -565,6 +565,12 @@ downstream Dag partition key:
   passes the key through unchanged if valid.
   For example, ``AllowedKeyMapper(["us", "eu", "apac"])`` accepts only those
   region keys and rejects all others.
+* ``FixedKeyMapper`` collapses every upstream key onto a fixed downstream key,
+  regardless of the upstream value.
+* ``SegmentWindow`` declares a fixed categorical set of string keys (e.g. regions,
+  tenants) that constitute one downstream period; paired with ``FixedKeyMapper``
+  inside a ``RollupMapper`` it holds the downstream run until every declared segment
+  has arrived (see :ref:`segment-rollup <segment-categorical-rollup>`).
 
 Example of per-asset mapper configuration and composite-key mapping:
 
@@ -732,6 +738,83 @@ day has only twenty-three real hours (one window member never has a matching eve
 so the run is held indefinitely) and the fall-back day has twenty-five (the repeated
 hour is dropped). Use a UTC-based upstream mapper for any rollup that crosses a DST
 boundary; see the ``DayWindow`` class docstring for the full discussion.
+
+.. _segment-categorical-rollup:
+
+Segment (categorical) rollup
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. versionadded:: 3.3.0
+
+For categorical partitioning — regions, tenants, experiment variants — compose a
+``RollupMapper`` from two primitives:
+
+* ``SegmentWindow(["us", "eu", "apac"])`` declares the fixed set of string keys
+  that constitute one downstream period; ``to_upstream`` returns the full set
+  regardless of the downstream anchor.
+* ``FixedKeyMapper("all_regions")`` collapses every upstream key onto the single
+  downstream partition key ``"all_regions"``.
+
+The scheduler holds the downstream Dag run until every declared segment has arrived
+from the upstream producer, then fires once. All the segment events accumulate into
+one ``AssetPartitionDagRun``; the fired run's ``partition_key`` is the value passed
+to ``FixedKeyMapper``. This composition only makes sense under ``WAIT_FOR_ALL``
+semantics (the default).
+
+.. code-block:: python
+
+    from airflow.sdk import (
+        DAG,
+        Asset,
+        FixedKeyMapper,
+        PartitionAtRuntime,
+        PartitionedAssetTimetable,
+        RollupMapper,
+        SegmentWindow,
+        asset,
+        task,
+    )
+
+
+    @asset(
+        uri="file://incoming/player-stats/multi-region.csv",
+        schedule=PartitionAtRuntime(),
+    )
+    def multi_region_player_stats(self, outlet_events):
+        # Emit one event per region in a single run.
+        outlet_events[self].add_partitions(["us", "eu", "apac"])
+
+
+    # Consumer: fires once all three region partitions have arrived.
+    with DAG(
+        dag_id="segment_region_stats_rollup",
+        schedule=PartitionedAssetTimetable(
+            assets=Asset.ref(name="multi_region_player_stats"),
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=FixedKeyMapper("all_regions"),
+                window=SegmentWindow(["us", "eu", "apac"]),
+            ),
+        ),
+        catchup=False,
+    ):
+
+        @task
+        def aggregate_all_regions(dag_run=None):
+            # dag_run.partition_key is the downstream key once all segments arrive.
+            print(dag_run.partition_key)
+
+        aggregate_all_regions()
+
+Construction validates both components: ``SegmentWindow`` raises ``ValueError`` for
+an empty list, non-string items, or empty-string keys; duplicate entries are silently
+deduplicated. ``FixedKeyMapper`` raises ``ValueError`` if its argument is not a
+non-empty string. Pass a distinct ``FixedKeyMapper`` key when one consumer Dag rolls
+up more than one asset, so each rollup uses a distinct bucket and they do not collide
+on the same ``(target_dag_id, partition_key)``.
+
+For a segment set that must be computed at runtime, do not encode it here — evaluate
+completeness in a consumer-side task instead (the scheduler must not run user code to
+decide a partition set).
 
 Setting partition keys at runtime
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
