@@ -1241,6 +1241,13 @@ def get_provider_info():
                         "type": "string",
                         "version_added": "3.1.1",
                     },
+                    "s3_log_write_mode": {
+                        "description": "Controls how the S3 remote log handler writes to S3. In ``append`` mode (the\ndefault), the handler downloads the existing S3 object and concatenates the new\nlog content onto it. In ``replace`` mode, the handler overwrites the S3 object\nwith the full local log file without downloading first. Use ``replace`` when the\nlocal log file is authoritative (e.g. shared filesystem) and you want to avoid\nthe download-and-concatenate overhead.\n",
+                        "type": "string",
+                        "version_added": None,
+                        "example": None,
+                        "default": "append",
+                    },
                     "cloudwatch_task_handler_json_serializer": {
                         "description": "By default, when logging non-string messages, all non-json objects are logged as `null`.\nExcept `datetime` objects which are ISO formatted. Users can optionally use a `repr` serializer or\nprovide their own JSON serializer for any non-JSON-serializable objects in the logged message.\n\n* `airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize` uses `repr` (be aware\n  there is the potential of logging sensitive data depending on the `repr` method of logged objects)\n* `airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize_legacy` uses `null`.\n\nIf a custom serializer is provided, it must adhere to `Callable[[Any], str | None]`, where `None`\nserializes to `null` (e.g. `def my_serializer(o: Any) -> str | None`). Since this is on the logging\npath and it's possible there's an exception being handled, special care should be taken to fail\ngracefully without raising a new exception inside of your serializer.\n",
                         "type": "string",
