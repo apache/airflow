@@ -23,11 +23,6 @@ set -euo pipefail
 
 common::get_colors
 
-# Keep these in sync:
-# - jvmTarget, languageVersion, and sourceCompatibility in java-sdk/build.gradle.kts
-# - TEMURIN_VERSION in scripts/docker/install_jdk.sh
-# - JAVA_VERSION in .github/workflows/ci-amd.yml and .github/workflows/ci-arm.yml
-# - java-version in .github/workflows/codeql-analysis.yml
 readonly TEMURIN_VERSION="11"
 
 # Fast path: skip if the right JDK is already on PATH (e.g. repeated container starts

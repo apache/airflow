@@ -44,11 +44,6 @@ env:
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_USERNAME: ${{ github.actor }}
-  # Keep these in sync:
-  # - jvmTarget, languageVersion, and sourceCompatibility in java-sdk/build.gradle.kts
-  # - TEMURIN_VERSION in scripts/docker/install_jdk.sh
-  # - JAVA_VERSION in .github/workflows/ci-amd.yml and .github/workflows/ci-arm.yml
-  # - java-version in .github/workflows/codeql-analysis.yml
   JAVA_VERSION: '11'
   SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
   VERBOSE: "true"
