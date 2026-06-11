@@ -302,11 +302,10 @@
       "class": "Trigger class",
       "createdAt": "Trigger creation time",
       "id": "Trigger ID",
+      "job": "Triggerer Job",
       "latestHeartbeat": "Latest triggerer heartbeat",
       "title": "Triggerer Info"
     },
-    "triggererJob": "Triggerer Job",
-    "tryNumber": "Try Number",
     "unixname": "Unix Name"
   },
   "taskInstance_one": "Task Instance",

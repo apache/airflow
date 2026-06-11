@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Flex, Heading, HStack, Table } from "@chakra-ui/react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
@@ -25,6 +26,7 @@ import {
   useTaskInstanceServiceGetTaskInstanceTryDetails,
 } from "openapi/queries";
 import { DagVersionDetails } from "src/components/DagVersionDetails";
+import RenderedJsonField from "src/components/RenderedJsonField";
 import { StateBadge } from "src/components/StateBadge";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 import Time from "src/components/Time";
@@ -84,9 +86,13 @@ export const Details = () => {
     },
   );
 
-  const renderValue = (value: unknown): string => {
+  const renderValue = (value: unknown): ReactNode => {
     if (value === null || value === undefined || value === "") {
       return translate("common:none", { defaultValue: "None" });
+    }
+
+    if (typeof value === "object") {
+      return <RenderedJsonField content={value} />;
     }
 
     if (typeof value === "string") {
@@ -97,11 +103,7 @@ export const Details = () => {
       return value.toString();
     }
 
-    if (typeof value === "object") {
-      return JSON.stringify(value, undefined, 2);
-    }
-
-    return "";
+    return translate("common:none", { defaultValue: "None" });
   };
 
   // omit kwargs from trigger
@@ -111,11 +113,11 @@ export const Details = () => {
 
   const rawTaskInstanceDetails: Array<{ label: string; value: unknown }> = [
     { label: translate("taskInstance.id"), value: taskInstance?.id },
-    { label: translate("taskInstance.tryNumber"), value: tryInstance?.try_number },
+    { label: translate("tryNumber"), value: tryInstance?.try_number },
     { label: translate("taskInstance.maxTries"), value: tryInstance?.max_tries },
     { label: translate("dagId"), value: tryInstance?.dag_id },
     { label: translate("taskInstance.trigger"), value: triggerWithoutKwargs },
-    { label: translate("taskInstance.triggererJob"), value: taskInstance?.triggerer_job },
+    { label: translate("taskInstance.triggerer.job"), value: taskInstance?.triggerer_job },
   ];
 
   return (
@@ -266,14 +268,21 @@ export const Details = () => {
 
         <Table.Root striped>
           <Table.Body>
-            {rawTaskInstanceDetails.map(({ label, value }) => (
-              <Table.Row key={label}>
-                <Table.Cell>{label}</Table.Cell>
-                <Table.Cell fontFamily={typeof value === "object" ? "mono" : undefined} whiteSpace="pre-wrap">
-                  {renderValue(value)}
-                </Table.Cell>
-              </Table.Row>
-            ))}
+            {rawTaskInstanceDetails.map(({ label, value }) => {
+              const isObject = typeof value === "object" && value !== null;
+
+              return (
+                <Table.Row key={label}>
+                  <Table.Cell>{label}</Table.Cell>
+                  <Table.Cell
+                    fontFamily={isObject ? undefined : "mono"}
+                    whiteSpace={isObject ? undefined : "pre-wrap"}
+                  >
+                    {renderValue(value)}
+                  </Table.Cell>
+                </Table.Row>
+              );
+            })}
           </Table.Body>
         </Table.Root>
       </Box>
