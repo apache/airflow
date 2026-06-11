@@ -19,13 +19,21 @@ from __future__ import annotations
 import contextlib
 from contextlib import contextmanager
 
+from alembic import op as alembic_op
+
+
+def get_dialect_name(op) -> str:
+    conn = op.get_bind()
+    return conn.dialect.name if conn is not None else op.get_context().dialect.name
+
 
 @contextmanager
 def disable_sqlite_fkeys(op):
-    if op.get_bind().dialect.name == "sqlite":
-        op.execute("PRAGMA foreign_keys=off")
-        yield op
-        op.execute("PRAGMA foreign_keys=on")
+    if get_dialect_name(op) == "sqlite":
+        with contextlib.ExitStack() as exit_stack:
+            op.execute("PRAGMA foreign_keys=off")
+            exit_stack.callback(op.execute, "PRAGMA foreign_keys=on")
+            yield op
     else:
         yield op
 
@@ -56,8 +64,6 @@ def mysql_drop_foreignkey_if_exists(constraint_name, table_name, op):
 
 
 def ignore_sqlite_value_error():
-    from alembic import op
-
-    if op.get_bind().dialect.name == "sqlite":
+    if get_dialect_name(alembic_op) == "sqlite":
         return contextlib.suppress(ValueError)
     return contextlib.nullcontext()
