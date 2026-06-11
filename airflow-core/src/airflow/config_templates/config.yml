@@ -3241,15 +3241,16 @@ state_store:
       default: "0"
     max_value_storage_bytes:
       description: |
-        Only applicable to MetastoreStoreBackend. Maximum size in bytes that a single task or asset store
-        value written via the core or execution API can have. Values that exceed this limit are rejected
-        at the API boundary.
+        Maximum size in bytes that a single task or asset store value may have when written via
+        the public REST API. Values that exceed this limit are rejected with a 422 error.
 
-        Workers writing via the execution API log a warning to use custom backends when this limit
-        is exceeded but the write is allowed to avoid interrupting a task mid execution.
+        Workers writing via the execution API are not blocked, they log a warning and the write
+        proceeds, so tasks are never interrupted mid-execution. Set to 0 to disable the limit entirely.
 
-        The default of 65535 bytes (64 KB) is appropriate for coordination state values such as
-        job IDs, cursors, and small status maps. For larger payloads, use a custom state backends.
+        The default of 65535 bytes (64 KB) is a policy default suited for coordination state such as
+        job IDs, cursors, and small status maps — the underlying database column (MEDIUMTEXT on MySQL,
+        unbounded Text on Postgres) does not enforce this limit. For larger payloads, configure a custom
+        [workers] state_store_backend to offload values to external storage.
       version_added: 3.3.0
       type: integer
       example: "1048576"

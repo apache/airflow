@@ -609,7 +609,7 @@ class TaskStoreAccessor:
             if serialized_size > limit:
                 log.warning(
                     "Task store value for key %r is %d bytes, which exceeds configured max_value_storage_bytes=%d. "
-                    "Consider using a custom [state_store] backend to offload large payloads.",
+                    "Consider configuring [workers] state_store_backend to offload large payloads.",
                     key,
                     serialized_size,
                     limit,
@@ -745,7 +745,7 @@ class AssetStoreAccessor:
             if serialized_size > limit:
                 log.warning(
                     "Asset store value for key %r is %d bytes, which exceeds configured max_value_storage_bytes=%d. "
-                    "Consider using a custom [state_store] backend to offload large payloads.",
+                    "Consider configuring [workers] state_store_backend to offload large payloads.",
                     key,
                     serialized_size,
                     limit,

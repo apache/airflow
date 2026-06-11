@@ -69,7 +69,7 @@ class TaskStoreBody(StrictBaseModel):
         if limit > 0 and len(serialized) > limit:
             raise ValueError(
                 f"value exceeds max_value_storage_bytes ({limit}); "
-                "for large payloads configure a custom [state_store] backend"
+                "raise [state_store] max_value_storage_bytes or set it to 0 to disable the limit"
             )
         return v
 
@@ -92,6 +92,6 @@ class TaskStorePatchBody(StrictBaseModel):
         if limit > 0 and len(serialized) > limit:
             raise ValueError(
                 f"value exceeds max_value_storage_bytes ({limit}); "
-                "for large payloads configure a custom [state_store] backend"
+                "raise [state_store] max_value_storage_bytes or set it to 0 to disable the limit"
             )
         return v
