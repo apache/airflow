@@ -183,6 +183,97 @@ func TestRunTaskHonorsContextCancellation(t *testing.T) {
 	assert.Equal(t, "failed", result["state"])
 }
 
+func TestRunTaskInjectsRuntimeContext(t *testing.T) {
+	logical := time.Date(2026, 6, 9, 12, 0, 0, 0, time.UTC)
+	start := logical
+	end := logical.Add(time.Hour)
+
+	var got sdk.TIRunContext
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("ctxgrab",
+			func(ctx sdk.TIRunContext) error {
+				got = ctx
+				return nil
+			})
+	})
+
+	details := &StartupDetails{
+		TI: TaskInstanceInfo{
+			ID:        "550e8400-e29b-41d4-a716-446655440000",
+			DagID:     "test_dag",
+			TaskID:    "ctxgrab",
+			RunID:     "run1",
+			TryNumber: 2,
+			MapIndex:  -1,
+		},
+		BundleInfo: BundleInfoMsg{Name: "test", Version: "1.0"},
+		TIContext: TIRunContext{
+			LogicalDate:       &logical,
+			DataIntervalStart: &start,
+			DataIntervalEnd:   &end,
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	require.Equal(t, "SucceedTask", result["type"])
+
+	require.NotNil(
+		t,
+		got,
+		"the task must receive a TIRunContext backed by the live task context",
+	)
+	ti := got.TaskInstance()
+	assert.Equal(t, "test_dag", ti.DagID)
+	assert.Equal(t, "run1", ti.RunID)
+	assert.Equal(t, "ctxgrab", ti.TaskID)
+	assert.Equal(t, 2, ti.TryNumber)
+	assert.Nil(t, ti.MapIndex, "an unmapped task (map_index -1) must surface as nil")
+
+	dagRun := got.DagRun()
+	assert.Equal(t, "test_dag", dagRun.DagID)
+	assert.Equal(t, "run1", dagRun.RunID)
+	require.NotNil(t, dagRun.LogicalDate)
+	assert.Equal(t, logical, *dagRun.LogicalDate)
+	require.NotNil(t, dagRun.DataIntervalStart)
+	assert.Equal(t, start, *dagRun.DataIntervalStart)
+	require.NotNil(t, dagRun.DataIntervalEnd)
+	assert.Equal(t, end, *dagRun.DataIntervalEnd)
+}
+
+func TestRunTaskRuntimeContextMappedIndex(t *testing.T) {
+	var got sdk.TIRunContext
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("ctxgrab",
+			func(ctx sdk.TIRunContext) error {
+				got = ctx
+				return nil
+			})
+	})
+
+	details := &StartupDetails{
+		TI: TaskInstanceInfo{
+			ID:       "550e8400-e29b-41d4-a716-446655440000",
+			DagID:    "test_dag",
+			TaskID:   "ctxgrab",
+			RunID:    "run1",
+			MapIndex: 5,
+		},
+		BundleInfo: BundleInfoMsg{Name: "test", Version: "1.0"},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	require.Equal(t, "SucceedTask", result["type"])
+
+	require.NotNil(t, got.TaskInstance().MapIndex, "a mapped task must surface its index")
+	assert.Equal(t, 5, *got.TaskInstance().MapIndex)
+}
+
 // --- End-to-end Serve test against a fake supervisor ---
 
 // fakeProvider implements bundlev1.BundleProvider; it lets a test inject the

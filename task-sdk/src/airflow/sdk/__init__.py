@@ -55,6 +55,7 @@ __all__ = [
     "EventsTimetable",
     "ExceptionRetryPolicy",
     "FanOutMapper",
+    "FixedKeyMapper",
     "HourWindow",
     "IdentityMapper",
     "Label",
@@ -77,6 +78,7 @@ __all__ = [
     "RetryPolicy",
     "RetryRule",
     "RollupMapper",
+    "SegmentWindow",
     "SkipMixin",
     "SyncCallback",
     "StartOfDayMapper",
@@ -154,6 +156,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
     from airflow.sdk.definitions.partition_mappers.base import PartitionMapper, RollupMapper
     from airflow.sdk.definitions.partition_mappers.chain import ChainMapper
+    from airflow.sdk.definitions.partition_mappers.fixed_key import FixedKeyMapper
     from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
     from airflow.sdk.definitions.partition_mappers.product import ProductMapper
     from airflow.sdk.definitions.partition_mappers.temporal import (
@@ -170,6 +173,7 @@ if TYPE_CHECKING:
         HourWindow,
         MonthWindow,
         QuarterWindow,
+        SegmentWindow,
         WeekWindow,
         Window,
         YearWindow,
@@ -244,6 +248,7 @@ __lazy_imports: dict[str, str] = {
     "EventsTimetable": ".definitions.timetables.events",
     "ExceptionRetryPolicy": ".definitions.retry_policy",
     "FanOutMapper": ".definitions.partition_mappers.temporal",
+    "FixedKeyMapper": ".definitions.partition_mappers.fixed_key",
     "HourWindow": ".definitions.partition_mappers.window",
     "IdentityMapper": ".definitions.partition_mappers.identity",
     "Label": ".definitions.edges",
@@ -266,6 +271,7 @@ __lazy_imports: dict[str, str] = {
     "RetryRule": ".definitions.retry_policy",
     "RollupMapper": ".definitions.partition_mappers.base",
     "SecretCache": ".execution_time.cache",
+    "SegmentWindow": ".definitions.partition_mappers.window",
     "SkipMixin": ".bases.skipmixin",
     "SyncCallback": ".definitions.callback",
     "StartOfDayMapper": ".definitions.partition_mappers.temporal",

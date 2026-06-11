@@ -1619,8 +1619,8 @@ class InMemoryStoreBackend(BaseStoreBackend):
         self._actual_key_value_store: dict[str, str] = {}  # key -> actual value
         self.reference: dict[str, str] = {}  # key -> stored ref (mem:// URI)
 
-    def serialize_task_store_to_ref(self, *, value, key: str, ti_id: str) -> str:
-        ref = f"mem://{ti_id}/{key}"
+    def serialize_task_store_to_ref(self, *, value, key: str, scope) -> str:
+        ref = f"mem://{scope.dag_id}/{scope.run_id}/{scope.task_id}/{scope.map_index}/{key}"
         self._actual_key_value_store[key] = value
         self.reference[key] = ref
         return ref
@@ -1629,8 +1629,8 @@ class InMemoryStoreBackend(BaseStoreBackend):
         key = stored.rsplit("/", 1)[-1]
         return self._actual_key_value_store.get(key, stored)
 
-    def serialize_asset_store_to_ref(self, *, value, key: str, asset_ref: str) -> str:
-        ref = f"mem://{asset_ref}/{key}"
+    def serialize_asset_store_to_ref(self, *, value, key: str, scope) -> str:
+        ref = f"mem://{scope.name or scope.uri}/{key}"
         self._actual_key_value_store[key] = value
         self.reference[key] = ref
         return ref
@@ -1672,7 +1672,7 @@ class TestTaskStoreAccessorWithCustomBackend:
     def test_set_returns_reference_to_storage(self, mock_supervisor_comms, backend, time_machine):
         """set() stores actual value in backend and sends mem:// reference via comms."""
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
-        expected_ref = f"mem://{self.TI_ID}/job_id"
+        expected_ref = f"mem://{self.SCOPE.dag_id}/{self.SCOPE.run_id}/{self.SCOPE.task_id}/{self.SCOPE.map_index}/job_id"
 
         frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
         time_machine.move_to(frozen_dt, tick=False)
@@ -1693,7 +1693,9 @@ class TestTaskStoreAccessorWithCustomBackend:
 
     def test_get_resolves_reference_to_actual_value(self, mock_supervisor_comms, backend):
         """get() fetches mem:// reference from DB, resolves it to actual value via backend."""
-        ref = _wrap_external_ref(f"mem://{self.TI_ID}/job_id")
+        ref = _wrap_external_ref(
+            f"mem://{self.SCOPE.dag_id}/{self.SCOPE.run_id}/{self.SCOPE.task_id}/{self.SCOPE.map_index}/job_id"
+        )
         backend._actual_key_value_store["job_id"] = "app_001"
         mock_supervisor_comms.send.return_value = TaskStoreResult(value=ref)
 

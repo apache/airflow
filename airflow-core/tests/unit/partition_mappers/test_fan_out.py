@@ -36,8 +36,12 @@ from airflow.partition_mappers.window import (
     MonthWindow,
     QuarterWindow,
     WeekWindow,
+    Window,
     YearWindow,
 )
+from airflow.serialization.decoders import decode_partition_mapper
+from airflow.serialization.encoders import encode_partition_mapper
+from airflow.serialization.enums import Encoding
 
 
 class TestFanOutMapper:
@@ -233,3 +237,103 @@ class TestFanOutMapper:
         assert isinstance(restored.window, window_cls)
         assert isinstance(restored.downstream_mapper, expected_downstream_cls)
         assert list(restored.to_downstream(upstream_key)) == list(mapper.to_downstream(upstream_key))
+
+    @pytest.mark.parametrize(
+        ("direction", "expected"),
+        [
+            pytest.param(
+                Window.Direction.FORWARD,
+                [
+                    "2024-03-04",
+                    "2024-03-05",
+                    "2024-03-06",
+                    "2024-03-07",
+                    "2024-03-08",
+                    "2024-03-09",
+                    "2024-03-10",
+                ],
+                id="forward",
+            ),
+            pytest.param(
+                Window.Direction.BACKWARD,
+                [
+                    "2024-02-27",
+                    "2024-02-28",
+                    "2024-02-29",
+                    "2024-03-01",
+                    "2024-03-02",
+                    "2024-03-03",
+                    "2024-03-04",
+                ],
+                id="backward",
+            ),
+        ],
+    )
+    def test_fan_out_with_directional_window(self, direction, expected):
+        """WeekWindow direction selects the period relative to the upstream Monday.
+
+        2024-03-04 is a Monday; StartOfWeekMapper normalises it to itself.
+        FORWARD yields the 7 days starting at that Monday (03-04 Mon … 03-10 Sun);
+        BACKWARD yields the trailing 7 days ending at it (02-27 Tue … 03-04 Mon,
+        including the leap-year Feb 29).
+        """
+        mapper = FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(),
+            window=WeekWindow(direction=direction),
+            downstream_mapper=StartOfDayMapper(),
+        )
+        result = list(mapper.to_downstream("2024-03-04T00:00:00"))
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "direction",
+        [Window.Direction.FORWARD, Window.Direction.BACKWARD],
+    )
+    def test_fan_out_with_directional_window_resolves_default_downstream_mapper(self, direction):
+        """A directional WeekWindow is still a WeekWindow — default downstream lookup works unchanged."""
+        mapper = FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(),
+            window=WeekWindow(direction=direction),
+        )
+        assert isinstance(mapper.downstream_mapper, StartOfDayMapper)
+
+    @pytest.mark.parametrize(
+        "direction",
+        [Window.Direction.FORWARD, Window.Direction.BACKWARD],
+    )
+    def test_fan_out_with_directional_window_serialize_roundtrip(self, direction):
+        """A directional WeekWindow survives serialize → deserialize (direction and output preserved)."""
+        mapper = FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(),
+            window=WeekWindow(direction=direction),
+        )
+        restored = FanOutMapper.deserialize(mapper.serialize())
+        assert isinstance(restored, FanOutMapper)
+        assert isinstance(restored.window, WeekWindow)
+        assert restored.window.direction is direction
+        assert list(restored.to_downstream("2024-03-04T00:00:00")) == list(
+            mapper.to_downstream("2024-03-04T00:00:00")
+        )
+
+    def test_max_downstream_keys_encode_decode_roundtrip(self):
+        """max_downstream_keys=5 survives encode_partition_mapper → decode_partition_mapper."""
+        mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow(), max_downstream_keys=5)
+        restored = decode_partition_mapper(encode_partition_mapper(mapper))
+        assert restored.max_downstream_keys == 5
+
+    def test_max_downstream_keys_absent_from_default_encoded_payload(self):
+        """max_downstream_keys must NOT appear in the encoded payload when not set (zero-bloat contract)."""
+        mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
+        encoded_var = encode_partition_mapper(mapper)[Encoding.VAR]
+        assert "max_downstream_keys" not in encoded_var
+
+    def test_max_downstream_keys_defaults_to_none_when_absent(self):
+        """A payload lacking max_downstream_keys (e.g. serialized by an older Airflow) decodes to None.
+
+        This is the real backward-compatibility path: the scheduler reads
+        ``mapper.max_downstream_keys`` directly, so the attribute must always
+        exist — ``deserialize`` defaults it to None when the key is absent.
+        """
+        mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
+        restored = decode_partition_mapper(encode_partition_mapper(mapper))
+        assert restored.max_downstream_keys is None

@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from datetime import datetime
 
     from airflow.partition_mappers.window import Window
 
@@ -34,6 +35,15 @@ class PartitionMapper(ABC):
     """
 
     is_rollup: ClassVar[bool] = False
+
+    def __init__(self, *, max_downstream_keys: int | None = None) -> None:
+        if max_downstream_keys is not None and (
+            not isinstance(max_downstream_keys, int) or max_downstream_keys < 1
+        ):
+            raise ValueError(
+                f"max_downstream_keys must be a positive integer or None, got {max_downstream_keys!r}"
+            )
+        self.max_downstream_keys = max_downstream_keys
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -92,12 +102,27 @@ class PartitionMapper(ABC):
         """
         return decoded
 
+    def to_partition_date(self, downstream_key: str) -> datetime | None:
+        """
+        Return the temporal anchor (period-start datetime) for *downstream_key*.
+
+        The scheduler stamps this on the asset-triggered Dag run as its
+        ``partition_date``. The base implementation returns ``None`` — a plain
+        partition key carries no temporal meaning. Temporal mappers override to
+        decode the key into its window anchor; composite mappers
+        (:class:`RollupMapper`, :class:`~airflow.partition_mappers.temporal.FanOutMapper`)
+        delegate to whichever child owns the downstream key's identity.
+        """
+        return None
+
     def serialize(self) -> dict[str, Any]:
-        return {}
+        if self.max_downstream_keys is None:
+            return {}
+        return {"max_downstream_keys": self.max_downstream_keys}
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
-        return cls()
+        return cls(max_downstream_keys=data.get("max_downstream_keys"))
 
 
 class RollupMapper(PartitionMapper):
@@ -112,7 +137,9 @@ class RollupMapper(PartitionMapper):
 
     is_rollup: ClassVar[bool] = True
 
-    def __init__(self, *, upstream_mapper: PartitionMapper, window: Window) -> None:
+    def __init__(
+        self, *, upstream_mapper: PartitionMapper, window: Window, max_downstream_keys: int | None = None
+    ) -> None:
         decode_overridden = type(upstream_mapper).decode_downstream is not PartitionMapper.decode_downstream
         if not decode_overridden and window.expected_decoded_type is not str:
             raise TypeError(
@@ -124,6 +151,7 @@ class RollupMapper(PartitionMapper):
                 f"{window.expected_decoded_type.__name__}, or use a window whose "
                 f"'expected_decoded_type' accepts str."
             )
+        super().__init__(max_downstream_keys=max_downstream_keys)
         self.upstream_mapper = upstream_mapper
         self.window = window
 
@@ -138,13 +166,21 @@ class RollupMapper(PartitionMapper):
             for expected_upstream in self.window.to_upstream(decoded)
         )
 
+    def to_partition_date(self, downstream_key: str) -> datetime | None:
+        # The downstream key is in upstream_mapper's format (to_downstream delegates
+        # to it), so the anchor is the upstream_mapper's to resolve.
+        return self.upstream_mapper.to_partition_date(downstream_key)
+
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_partition_mapper, encode_window
 
-        return {
+        data: dict[str, Any] = {
             "upstream_mapper": encode_partition_mapper(self.upstream_mapper),
             "window": encode_window(self.window),
         }
+        if self.max_downstream_keys is not None:
+            data["max_downstream_keys"] = self.max_downstream_keys
+        return data
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
@@ -153,6 +189,7 @@ class RollupMapper(PartitionMapper):
         return cls(
             upstream_mapper=decode_partition_mapper(data["upstream_mapper"]),
             window=decode_window(data["window"]),
+            max_downstream_keys=data.get("max_downstream_keys"),
         )
 
 
