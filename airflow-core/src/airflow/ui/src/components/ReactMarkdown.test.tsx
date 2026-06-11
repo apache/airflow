@@ -26,16 +26,16 @@ import { BaseWrapper } from "src/utils/Wrapper";
 import { katexStyleLoader } from "./KatexStyleLoader";
 import ReactMarkdown from "./ReactMarkdown";
 
-const { renderDiagramMock } = vi.hoisted(() => ({
-  renderDiagramMock: vi.fn().mockResolvedValue('<svg data-testid="mermaid-svg"></svg>'),
+const { renderMermaidDiagramMock } = vi.hoisted(() => ({
+  renderMermaidDiagramMock: vi.fn().mockResolvedValue('<svg data-testid="mermaid-svg"></svg>'),
 }));
 
 vi.mock("src/context/colorMode", () => ({
   useColorMode: () => ({ colorMode: "light" }),
 }));
 
-vi.mock("src/context/mermaid", () => ({
-  useMermaid: () => ({ renderDiagram: renderDiagramMock }),
+vi.mock("src/utils/renderMermaid", () => ({
+  renderMermaidDiagram: renderMermaidDiagramMock,
 }));
 
 describe("ReactMarkdown", () => {
@@ -74,7 +74,7 @@ describe("ReactMarkdown", () => {
   });
 
   it("falls back to a code block when mermaid rendering fails", async () => {
-    renderDiagramMock.mockRejectedValueOnce(new Error("mermaid render failed"));
+    renderMermaidDiagramMock.mockRejectedValueOnce(new Error("mermaid render failed"));
 
     const markdown = ["```mermaid", "graph TD", "  A-->B", "```"].join("\n");
 
@@ -86,7 +86,7 @@ describe("ReactMarkdown", () => {
 
     await waitFor(() => expect(screen.getByTestId("markdown-copy-button")).toBeInTheDocument());
 
-    expect(renderDiagramMock).toHaveBeenCalled();
+    expect(renderMermaidDiagramMock).toHaveBeenCalled();
     expect(screen.queryByTestId("markdown-mermaid-copy-button")).not.toBeInTheDocument();
     expect(screen.queryByTestId("markdown-mermaid-diagram")).not.toBeInTheDocument();
     expect(screen.getByTestId("markdown-code-scroll-area")).toHaveTextContent("A-->B");

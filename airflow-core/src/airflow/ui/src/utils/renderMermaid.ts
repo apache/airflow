@@ -16,16 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useContext } from "react";
+import type { Mermaid } from "mermaid";
 
-import { MermaidContext } from "./Context";
+type MermaidTheme = "dark" | "default";
 
-export const useMermaid = () => {
-  const context = useContext(MermaidContext);
+let initializedTheme: MermaidTheme | undefined;
+let mermaidModulePromise: Promise<Mermaid> | undefined;
 
-  if (context === undefined) {
-    throw new Error("useMermaid must be used within a MermaidProvider");
+export const renderMermaidDiagram = async ({
+  chart,
+  diagramId,
+  theme,
+}: {
+  readonly chart: string;
+  readonly diagramId: string;
+  readonly theme: MermaidTheme;
+}): Promise<string> => {
+  mermaidModulePromise ??= import("mermaid").then((module) => module.default);
+
+  const mermaid = await mermaidModulePromise;
+
+  if (initializedTheme !== theme) {
+    mermaid.initialize({ securityLevel: "strict", startOnLoad: false, theme });
+    initializedTheme = theme;
   }
 
-  return context;
+  const { svg } = await mermaid.render(diagramId, chart);
+
+  return svg;
 };
