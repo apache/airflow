@@ -877,15 +877,15 @@ def test_dagruninfo_backward_compatibility() -> None:
 
 
 @pytest.mark.parametrize(
-    ("run_offset", "earliest_utc", "latest_utc", "expected_triples"),
+    ("run_offset", "earliest_date", "latest_date", "expected_triples"),
     [
         pytest.param(
             0,
             # "0 0 * * *" UTC+8 (Asia/Taipei): ticks at 16:00 UTC each day.
-            # start_label=2026-02-18 → earliest = 2026-02-17T16:00Z
-            # end_label=2026-02-20 → latest = resolve_day_bound(2026-02-21) = 2026-02-20T16:00Z
-            pendulum.datetime(2026, 2, 17, 16, tz="UTC"),
-            pendulum.datetime(2026, 2, 20, 16, tz="UTC"),
+            # earliest_date=2026-02-18 (local label) → UTC bound 2026-02-17T16:00Z
+            # latest_date=2026-02-20 (inclusive) → UTC upper bound 2026-02-20T16:00Z
+            datetime.date(2026, 2, 18),
+            datetime.date(2026, 2, 20),
             [
                 (
                     pendulum.datetime(2026, 2, 17, 16, tz="UTC"),
@@ -908,9 +908,9 @@ def test_dagruninfo_backward_compatibility() -> None:
         pytest.param(
             1,
             # offset=1: run_after = partition_date (same axis in new design)
-            # ticks at 16:00Z; same three days as offset=0.
-            pendulum.datetime(2026, 2, 17, 16, tz="UTC"),
-            pendulum.datetime(2026, 2, 20, 16, tz="UTC"),
+            # same three days as offset=0.
+            datetime.date(2026, 2, 18),
+            datetime.date(2026, 2, 20),
             [
                 (
                     pendulum.datetime(2026, 2, 17, 16, tz="UTC"),
@@ -933,8 +933,8 @@ def test_dagruninfo_backward_compatibility() -> None:
         pytest.param(
             -1,
             # offset=-1: run_after = partition_date (same axis in new design)
-            pendulum.datetime(2026, 2, 17, 16, tz="UTC"),
-            pendulum.datetime(2026, 2, 20, 16, tz="UTC"),
+            datetime.date(2026, 2, 18),
+            datetime.date(2026, 2, 20),
             [
                 (
                     pendulum.datetime(2026, 2, 17, 16, tz="UTC"),
@@ -957,7 +957,7 @@ def test_dagruninfo_backward_compatibility() -> None:
     ],
 )
 def test_iter_partition_dagrun_infos_full_sequence(
-    run_offset, earliest_utc, latest_utc, expected_triples
+    run_offset, earliest_date, latest_date, expected_triples
 ) -> None:
     """iter_partition_dagrun_infos yields (partition_date, run_after, partition_key) full sequence.
 
@@ -966,11 +966,7 @@ def test_iter_partition_dagrun_infos_full_sequence(
     formats as the next calendar day's midnight.
     """
     timetable = CoreCronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei", run_offset=run_offset)
-    infos = list(
-        timetable.iter_partition_dagrun_infos(
-            earliest_partition_date=earliest_utc, latest_partition_date=latest_utc
-        )
-    )
+    infos = list(timetable.iter_partition_dagrun_infos(earliest_date=earliest_date, latest_date=latest_date))
     actual = [(info.partition_date, info.run_after, info.partition_key) for info in infos]
     assert actual == expected_triples
     # Invariants for every tick: run_after == partition_date (all offsets) and data_interval is None.
@@ -983,78 +979,67 @@ def test_iter_partition_dagrun_infos_full_sequence(
 
 
 def test_iter_partition_dagrun_infos_empty_window() -> None:
-    """Empty window (earliest >= latest) yields an empty sequence."""
+    """Empty window (earliest_date > latest_date) yields an empty sequence."""
     timetable = CoreCronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei", run_offset=0)
-    # earliest == latest: half-open [t, t) is empty.
-    t = pendulum.datetime(2026, 2, 18, 16, tz="UTC")
-    infos = list(timetable.iter_partition_dagrun_infos(earliest_partition_date=t, latest_partition_date=t))
-    assert infos == []
-    # earliest > latest: also empty.
     infos = list(
         timetable.iter_partition_dagrun_infos(
-            earliest_partition_date=pendulum.datetime(2026, 2, 20, 16, tz="UTC"),
-            latest_partition_date=pendulum.datetime(2026, 2, 18, 16, tz="UTC"),
+            earliest_date=datetime.date(2026, 2, 20),
+            latest_date=datetime.date(2026, 2, 18),
         )
     )
     assert infos == []
 
 
 def test_iter_partition_dagrun_infos_endpoint_not_on_tick() -> None:
-    """When earliest is not on a cron tick, _align_to_next moves to the next tick."""
-    # "0 0 * * *" Asia/Taipei ticks at 16:00Z. earliest = 17:00Z is not a tick.
-    timetable = CoreCronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei", run_offset=0)
-    earliest = pendulum.datetime(2026, 2, 17, 17, tz="UTC")  # between ticks
-    latest = pendulum.datetime(2026, 2, 19, 16, tz="UTC")  # exclusive: 2026-02-20 Taipei midnight
+    """When the UTC bound from resolve_day_bound is not on a cron tick, _align_to_next moves to the next tick.
+
+    "0 6 * * *" Asia/Taipei ticks at 06:00 local = 22:00Z (previous UTC day).
+    resolve_day_bound(2026-02-18) = 2026-02-17T16:00Z (local midnight), which is NOT a tick.
+    _align_to_next(2026-02-17T16:00Z) moves to 2026-02-17T22:00Z (first 06:00 Taipei tick).
+    """
+    timetable = CoreCronPartitionTimetable("0 6 * * *", timezone="Asia/Taipei", run_offset=0)
     infos = list(
-        timetable.iter_partition_dagrun_infos(earliest_partition_date=earliest, latest_partition_date=latest)
+        timetable.iter_partition_dagrun_infos(
+            earliest_date=datetime.date(2026, 2, 18),
+            latest_date=datetime.date(2026, 2, 18),
+        )
     )
-    # First tick aligned to next: 2026-02-18T16:00Z (Taipei 2026-02-19 midnight).
+    # Only one tick in the window: 2026-02-17T22:00Z (Taipei 2026-02-18T06:00).
     assert len(infos) == 1
-    assert infos[0].partition_date == pendulum.datetime(2026, 2, 18, 16, tz="UTC")
-    assert infos[0].partition_key == "2026-02-19T00:00:00"
+    assert infos[0].partition_date == pendulum.datetime(2026, 2, 17, 22, tz="UTC")
+    assert infos[0].partition_key == "2026-02-18T06:00:00"
 
 
 def test_iter_partition_dagrun_infos_inclusive_endpoint_pair() -> None:
-    """End-label inclusive endpoint pair.
+    """Both endpoints are inclusive calendar dates.
 
-    For end_label=2026-02-19 (Asia/Taipei), the caller passes:
-      latest = resolve_day_bound(2026-02-20) = 2026-02-19T16:00Z
-
-    The last tick of 2026-02-19 (local) is 2026-02-19T16:00Z.
-    Half-open [earliest, latest) means < latest, so 2026-02-19T16:00Z is NOT included.
-    The first tick of the day after end_label (2026-02-20 local = 2026-02-19T16:00Z UTC) is also excluded.
-
-    Concretely:
-    - end_label=2026-02-19 → latest = 2026-02-19T16:00Z → last included tick = 2026-02-18T16:00Z
-    - end_label=2026-02-20 → latest = 2026-02-20T16:00Z → last included tick = 2026-02-19T16:00Z
+    latest_date=2026-02-18: window covers local day 2026-02-18 only (one tick).
+    latest_date=2026-02-19: window extends to include 2026-02-19 (two ticks).
+    The tick for the day after latest_date is always absent.
     """
     timetable = CoreCronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei", run_offset=0)
 
-    # Window covering 2026-02-18 only (as local label).
-    # resolve_day_bound(2026-02-18) = 2026-02-17T16Z; resolve_day_bound(2026-02-19) = 2026-02-18T16Z.
-    earliest = pendulum.datetime(2026, 2, 17, 16, tz="UTC")
-    latest_for_one_day = pendulum.datetime(2026, 2, 18, 16, tz="UTC")
-
     infos_one = list(
         timetable.iter_partition_dagrun_infos(
-            earliest_partition_date=earliest, latest_partition_date=latest_for_one_day
+            earliest_date=datetime.date(2026, 2, 18),
+            latest_date=datetime.date(2026, 2, 18),
         )
     )
     assert len(infos_one) == 1
     assert infos_one[0].partition_key == "2026-02-18T00:00:00"
 
-    # Extending latest by one more day (2026-02-19) adds exactly one more tick.
-    latest_for_two_days = pendulum.datetime(2026, 2, 19, 16, tz="UTC")
+    # Extending latest_date by one calendar day adds exactly one more tick.
     infos_two = list(
         timetable.iter_partition_dagrun_infos(
-            earliest_partition_date=earliest, latest_partition_date=latest_for_two_days
+            earliest_date=datetime.date(2026, 2, 18),
+            latest_date=datetime.date(2026, 2, 19),
         )
     )
     assert len(infos_two) == 2
     assert [i.partition_key for i in infos_two] == ["2026-02-18T00:00:00", "2026-02-19T00:00:00"]
 
-    # The tick AT latest (2026-02-19T16:00Z) is NOT included (half-open upper bound).
-    assert not any(i.partition_date == latest_for_two_days for i in infos_two)
+    # The tick for 2026-02-20 (the day after latest_date) is NOT included.
+    assert not any(i.partition_key == "2026-02-20T00:00:00" for i in infos_two)
 
 
 def test_iter_partition_dagrun_infos_taipei_local_midnight_vs_utc_day() -> None:
@@ -1066,11 +1051,12 @@ def test_iter_partition_dagrun_infos_taipei_local_midnight_vs_utc_day() -> None:
     instant and the local key correctly reflect the timezone relationship.
     """
     timetable = CoreCronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei", run_offset=0)
-    # Single-tick window: earliest = Taipei midnight 2026-02-18 (in UTC = 2026-02-17T16Z).
-    earliest = pendulum.datetime(2026, 2, 17, 16, tz="UTC")
-    latest = pendulum.datetime(2026, 2, 18, 16, tz="UTC")  # Taipei midnight 2026-02-19 (exclusive)
+    # Single calendar-day window for 2026-02-18 (local Taipei date).
     infos = list(
-        timetable.iter_partition_dagrun_infos(earliest_partition_date=earliest, latest_partition_date=latest)
+        timetable.iter_partition_dagrun_infos(
+            earliest_date=datetime.date(2026, 2, 18),
+            latest_date=datetime.date(2026, 2, 18),
+        )
     )
     assert len(infos) == 1
     info = infos[0]
@@ -1089,12 +1075,11 @@ def test_iter_partition_dagrun_infos_dst_america_new_york_spring_forward() -> No
     Both ticks must appear in the iteration; no duplicates.
     """
     timetable = CoreCronPartitionTimetable("0 0 * * *", timezone="America/New_York", run_offset=0)
-    # resolve_day_bound(2026-03-07) = 2026-03-07T05:00Z (NY midnight)
-    # resolve_day_bound(2026-03-09) = 2026-03-09T04:00Z (NY midnight, EDT=UTC-4 after spring-forward)
-    earliest = pendulum.datetime(2026, 3, 7, 5, tz="UTC")  # NY midnight 2026-03-07
-    latest = pendulum.datetime(2026, 3, 9, 4, tz="UTC")  # NY midnight 2026-03-09 (exclusive, EDT)
     infos = list(
-        timetable.iter_partition_dagrun_infos(earliest_partition_date=earliest, latest_partition_date=latest)
+        timetable.iter_partition_dagrun_infos(
+            earliest_date=datetime.date(2026, 3, 7),
+            latest_date=datetime.date(2026, 3, 8),
+        )
     )
     partition_keys = [i.partition_key for i in infos]
     assert partition_keys == ["2026-03-07T00:00:00", "2026-03-08T00:00:00"]

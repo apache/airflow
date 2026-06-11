@@ -3427,8 +3427,8 @@ def test_iter_dagrun_infos_between_partitioned_timetable():
     core_timetable = scheduler_dag.timetable
     expected = list(
         core_timetable.iter_partition_dagrun_infos(
-            earliest_partition_date=core_timetable.resolve_day_bound(from_dt.date()),
-            latest_partition_date=core_timetable.resolve_day_bound(to_dt.date() + datetime.timedelta(days=1)),
+            earliest_date=from_dt.date(),
+            latest_date=to_dt.date(),
         )
     )
 
