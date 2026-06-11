@@ -1365,14 +1365,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if not tis_with_right_state:
             stats.gauge("scheduler.executor_events.batch_size", num_events)
             stats.incr("scheduler.executor_events.processed", num_events)
-            return num_events
+            return len(event_buffer)
 
         # Check state of finished tasks
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
         if filter_for_tis is None:
             stats.gauge("scheduler.executor_events.batch_size", num_events)
             stats.incr("scheduler.executor_events.processed", num_events)
-            return num_events
+            return len(event_buffer)
         asset_loader, alias_loader = _eager_load_dag_run_for_validation()
         query = (
             select(TI)
@@ -1597,7 +1597,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         stats.gauge("scheduler.executor_events.batch_size", num_events)
         stats.incr("scheduler.executor_events.processed", num_events)
-        return num_events
+        return len(event_buffer)
 
     def _execute(self) -> int | None:
         import os
@@ -3365,8 +3365,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             len(to_reset),
                             tags={"reason": "adopt_failure"},
                         )
-
-                    if to_reset:
                         task_instance_str = "\n\t".join(reset_tis_message)
                         self.log.info(
                             "Reset the following %s orphaned TaskInstances:\n\t%s",
