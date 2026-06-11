@@ -16,8 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, HStack } from "@chakra-ui/react";
-import type { PropsWithChildren } from "react";
+import { Box, HStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdExpandMore } from "react-icons/md";
@@ -32,25 +31,6 @@ type Props = {
   readonly note: string | null;
   readonly onSave: () => void;
   readonly setNote: (value: string) => void;
-};
-
-// Compact heading overrides — same visual weight as body text, just bold
-const compactHeadingComponents = {
-  h1: ({ children }: PropsWithChildren) => (
-    <Heading as="h1" fontSize="1em" fontWeight="bold" my={1}>
-      {children}
-    </Heading>
-  ),
-  h2: ({ children }: PropsWithChildren) => (
-    <Heading as="h2" fontSize="0.9em" fontWeight="bold" my={1}>
-      {children}
-    </Heading>
-  ),
-  h3: ({ children }: PropsWithChildren) => (
-    <Heading as="h3" fontSize="0.85em" fontWeight="bold" my={1}>
-      {children}
-    </Heading>
-  ),
 };
 
 const NoteAccordion = ({ note, onSave, setNote }: Props) => {
@@ -98,7 +78,7 @@ const NoteAccordion = ({ note, onSave, setNote }: Props) => {
               whiteSpace: "normal",
             }}
           >
-            <ReactMarkdown components={compactHeadingComponents}>{firstLine}</ReactMarkdown>
+            <ReactMarkdown>{firstLine}</ReactMarkdown>
           </Box>
         ) : undefined}
 
@@ -118,7 +98,6 @@ const NoteAccordion = ({ note, onSave, setNote }: Props) => {
           <Box maxH="240px" overflow="auto">
             <EditableMarkdownArea
               autoSize
-              components={compactHeadingComponents}
               mdContent={note}
               onBlur={() => {
                 setIsEditing(false);

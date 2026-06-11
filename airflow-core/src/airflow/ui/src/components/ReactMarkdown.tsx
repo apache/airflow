@@ -146,7 +146,7 @@ const createCodeComponent =
     );
   };
 
-const ReactMarkdown = (props: Options) => {
+const ReactMarkdown = ({ components: componentOverrides, ...restProps }: Options) => {
   const { colorMode } = useColorMode();
   const style = colorMode === "dark" ? oneDark : oneLight;
 
@@ -180,7 +180,14 @@ const ReactMarkdown = (props: Options) => {
     ul: UlComponent,
   };
 
-  return <ReactMD components={components as Components} {...props} remarkPlugins={[remarkGfm]} skipHtml />;
+  return (
+    <ReactMD
+      components={{ ...components, ...componentOverrides } as Components}
+      {...restProps}
+      remarkPlugins={[remarkGfm]}
+      skipHtml
+    />
+  );
 };
 
 export default ReactMarkdown;
