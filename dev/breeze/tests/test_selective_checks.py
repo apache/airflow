@@ -2691,13 +2691,8 @@ def test_upgrade_to_newer_dependencies(
             ("providers/common/sql/src/airflow/providers/common/sql/common_sql_python.py",),
             {
                 "docs-list-as-string": "amazon apache.drill apache.druid apache.hive apache.iceberg "
-<<<<<<< informatica-provider-v0.2.0
-                "apache.impala apache.pinot common.ai common.compat common.sql databricks elasticsearch "
-                "exasol google informatica jdbc microsoft.mssql mysql odbc openlineage "
-=======
                 "apache.impala apache.pinot clickhousedb common.ai common.compat common.sql databricks elasticsearch "
-                "exasol google jdbc microsoft.mssql mysql odbc openlineage "
->>>>>>> main
+                "exasol google informatica jdbc microsoft.mssql mysql odbc openlineage "
                 "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica ydb",
             },
             id="Common SQL provider package python files changed",
