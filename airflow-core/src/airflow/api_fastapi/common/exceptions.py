@@ -110,20 +110,13 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
 
 class DataErrorHandler(BaseErrorHandler[DataError]):
     """
-    Translate ``sqlalchemy.exc.DataError`` into a 422 response.
+    Translate ``sqlalchemy.exc.DataError`` into a 422.
 
-    ``DataError`` wraps the database rejecting an INSERT/UPDATE because a value
-    is invalid for its target column: too long for the declared type (MySQL
-    ``1406 Data too long``, Postgres ``value too long for type``), out of range
-    (MySQL ``1264 Out of range value``, Postgres ``numeric field overflow``), or
-    the wrong type (MySQL ``1366 Incorrect integer value``, Postgres ``invalid
-    input syntax``). The rejected value came from request input that passed
-    Pydantic validation, so the failure is a client problem — return a 422
-    rather than a generic 500.
-
-    The statement and the underlying database error are logged under a lookup id
-    and only echoed back to the caller when ``[api] expose_stacktrace`` is set,
-    mirroring ``_UniqueConstraintErrorHandler``.
+    The database rejected a value that passed Pydantic validation (too long, out
+    of range, or the wrong type for its column), so it is a client error, not a
+    500. The statement and underlying DB error are logged under a lookup id and
+    returned to the caller only when ``[api] expose_stacktrace`` is set, mirroring
+    ``_UniqueConstraintErrorHandler``.
     """
 
     def __init__(self):

@@ -315,9 +315,7 @@ def ti_run(
             context.next_kwargs = ti.next_kwargs
             context.start_date = ti.start_date
     except DataError:
-        # Re-raise unchanged so the app-level DataErrorHandler can translate it to a 422.
-        # The database rejected the payload, so the caller should get a 4xx, not the
-        # opaque 500 below.
+        # Let the app-level DataErrorHandler return a 422 (not the opaque 500 below).
         raise
     except SQLAlchemyError:
         log.exception("Error marking Task Instance state as running")
@@ -444,9 +442,7 @@ def ti_update_state(
             dag_bag=dag_bag,
         )
     except DataError:
-        # Re-raise unchanged so the app-level DataErrorHandler can translate it to a 422.
-        # The database rejected the payload; the caller should see a 4xx rather than have
-        # the task silently marked FAILED by the broad handler below.
+        # Let DataErrorHandler return a 422 instead of silently marking the TI FAILED below.
         raise
     except Exception:
         # Set a task to failed in case any unexpected exception happened during task state update
@@ -484,8 +480,7 @@ def ti_update_state(
             )
         )
     except DataError:
-        # Re-raise unchanged so the app-level DataErrorHandler can translate it to a 422,
-        # not the opaque 500 below.
+        # Let DataErrorHandler return a 422 (not the opaque 500 below).
         raise
     except SQLAlchemyError as e:
         log.error("Error updating Task Instance state", error=str(e))
