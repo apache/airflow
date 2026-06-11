@@ -30,6 +30,7 @@ from uuid import UUID
 import attrs
 import structlog
 
+from airflow.sdk._shared.state import AssetScope
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
 from airflow.sdk.definitions._internal.types import NOTSET
@@ -595,7 +596,7 @@ class TaskStoreAccessor:
         backend = _get_worker_state_store_backend()
         stored: JsonValue = value
         if backend is not None:
-            ref: str = backend.serialize_task_store_to_ref(value=value, key=key, ti_id=str(self._ti_id))
+            ref: str = backend.serialize_task_store_to_ref(value=value, key=key, scope=self._scope)
             # wrap the value with a marker to indicate that it's stored externally, and include the ref to the external storage
             stored = _wrap_external_ref(ref)
 
@@ -717,10 +718,10 @@ class AssetStoreAccessor:
         # if custom backend is configured, store the value on the custom backend, and return the reference
         # to the stored value to store in the DB
         backend = _get_worker_state_store_backend()
-        asset_ref = self._name or self._uri or ""
         stored: JsonValue = value
         if backend is not None:
-            ref = backend.serialize_asset_store_to_ref(value=value, key=key, asset_ref=asset_ref)
+            scope = AssetScope(name=self._name, uri=self._uri)
+            ref = backend.serialize_asset_store_to_ref(value=value, key=key, scope=scope)
             stored = _wrap_external_ref(ref)
 
         msg: ToSupervisor

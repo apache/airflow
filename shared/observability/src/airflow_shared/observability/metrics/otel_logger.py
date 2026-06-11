@@ -192,6 +192,18 @@ class SafeOtelLogger:
         self.stat_name_handler = stat_name_handler
         self.statsd_influxdb_enabled = statsd_influxdb_enabled
 
+    def _is_recordable(self, stat: str | None) -> bool:
+        """
+        Return True if ``stat`` may be recorded: non-empty, allowed by the validator, and OTel-safe.
+
+        Every recording method must gate on this before emitting; otherwise an unsafe name reaches
+        the OTel SDK, which raises and crashes the emitting process. Keeping the check in one place
+        stops a new recording method from silently omitting it.
+        """
+        if not stat:
+            return False
+        return self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat)
+
     def incr(
         self,
         stat: str,
@@ -213,7 +225,7 @@ class SafeOtelLogger:
         if count < 0:
             raise ValueError("count must be a positive value.")
 
-        if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
+        if self._is_recordable(stat):
             counter = self.metrics_map.get_counter(full_name(prefix=self.prefix, name=stat), attributes=tags)
             counter.add(count, attributes=tags)
             return counter
@@ -239,7 +251,7 @@ class SafeOtelLogger:
         if count < 0:
             raise ValueError("count must be a positive value.")
 
-        if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
+        if self._is_recordable(stat):
             counter = self.metrics_map.get_counter(full_name(prefix=self.prefix, name=stat))
             counter.add(-count, attributes=tags)
             return counter
@@ -270,12 +282,12 @@ class SafeOtelLogger:
         if _skip_due_to_rate(rate):
             return
 
-        if back_compat_name and self.metrics_validator.test(back_compat_name):
+        if self._is_recordable(back_compat_name):
             self.metrics_map.set_gauge_value(
                 full_name(prefix=self.prefix, name=back_compat_name), value, delta, tags
             )
 
-        if self.metrics_validator.test(stat):
+        if self._is_recordable(stat):
             self.metrics_map.set_gauge_value(full_name(prefix=self.prefix, name=stat), value, delta, tags)
 
     def timing(
@@ -286,7 +298,7 @@ class SafeOtelLogger:
         tags: Attributes = None,
     ) -> None:
         """Record a timing observation as a Histogram to preserve distribution information."""
-        if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
+        if self._is_recordable(stat):
             if isinstance(dt, datetime.timedelta):
                 dt = dt.total_seconds() * 1000.0
             self.metrics_map.record_histogram_value(full_name(prefix=self.prefix, name=stat), float(dt), tags)
@@ -299,7 +311,8 @@ class SafeOtelLogger:
         **kwargs,
     ) -> Timer:
         """Timer context manager returns the duration and can be cancelled."""
-        return _OtelTimer(self, stat, tags)
+        safe_stat = stat if self._is_recordable(stat) else None
+        return _OtelTimer(self, safe_stat, tags)
 
 
 class InternalGauge:
