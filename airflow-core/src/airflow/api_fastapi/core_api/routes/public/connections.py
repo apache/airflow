@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import os
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, Header, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
@@ -70,6 +70,9 @@ from airflow.models.connection_test import ConnectionTestRequest
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.db import create_default_connections as db_create_default_connections
 from airflow.utils.strings import get_random_string
+
+if TYPE_CHECKING:
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
 
 connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
 
@@ -353,7 +356,7 @@ def enqueue_connection_test(
     else:
         effective_team = test_body.team_name
 
-    auth_method = "PUT" if existing is not None and test_body.commit_on_success else "POST"
+    auth_method: ResourceMethod = "PUT" if existing is not None and test_body.commit_on_success else "POST"
     if not get_auth_manager().is_authorized_connection(
         method=auth_method,
         details=ConnectionDetails(conn_id=test_body.connection_id, team_name=effective_team),
