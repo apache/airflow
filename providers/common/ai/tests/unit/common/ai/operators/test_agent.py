@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
@@ -23,8 +24,9 @@ import pytest
 from pydantic import BaseModel
 from pydantic_ai.usage import UsageLimits
 
-from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink
+from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink, _build_code_mode
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
@@ -207,6 +209,69 @@ class TestAgentOperatorExecute:
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         assert create_call[1]["retries"] == 3
         assert create_call[1]["model_settings"] == {"temperature": 0}
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_code_mode_default_off_no_capabilities(self, mock_hook_cls):
+        """code_mode defaults to False, so no capabilities are injected."""
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent("ok")
+
+        op = AgentOperator(task_id="t", prompt="hi", llm_conn_id="my_llm", toolsets=[MagicMock()])
+        op.execute(context=MagicMock())
+
+        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
+        assert "capabilities" not in create_call[1]
+
+    @patch("airflow.providers.common.ai.operators.agent._build_code_mode", return_value="CM")
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_code_mode_injects_capability(self, mock_hook_cls, mock_build):
+        """code_mode=True appends a CodeMode capability passed to create_agent."""
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent("ok")
+
+        op = AgentOperator(
+            task_id="t", prompt="hi", llm_conn_id="my_llm", toolsets=[MagicMock()], code_mode=True
+        )
+        op.execute(context=MagicMock())
+
+        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
+        assert create_call[1]["capabilities"] == ["CM"]
+        mock_build.assert_called_once()
+
+    @patch("airflow.providers.common.ai.operators.agent._build_code_mode", return_value="CM")
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_code_mode_appends_to_existing_capabilities(self, mock_hook_cls, mock_build):
+        """A user-supplied capability via agent_params is preserved alongside CodeMode."""
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent("ok")
+
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="my_llm",
+            code_mode=True,
+            agent_params={"capabilities": ["existing"]},
+        )
+        op.execute(context=MagicMock())
+
+        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
+        assert create_call[1]["capabilities"] == ["existing", "CM"]
+
+    def test_build_code_mode_missing_harness_raises(self):
+        """_build_code_mode raises the optional-feature error when harness is absent."""
+        with patch.dict(sys.modules, {"pydantic_ai_harness": None}):
+            with pytest.raises(AirflowOptionalProviderFeatureException, match="code-mode"):
+                _build_code_mode()
+
+    @patch("airflow.providers.common.ai.operators.agent._build_code_mode")
+    def test_code_mode_not_built_at_init(self, mock_build):
+        """code_mode is serialization-safe: the CodeMode capability is built lazily in
+        _build_agent, never at construction time (so nothing non-serializable is stored)."""
+        op = AgentOperator(task_id="t", prompt="hi", llm_conn_id="my_llm", code_mode=True)
+        mock_build.assert_not_called()
+        assert op.code_mode is True
+
+    def test_durable_and_code_mode_rejected(self):
+        """durable and code_mode cannot be combined (durable replay assumes stable step order)."""
+        with pytest.raises(ValueError, match="durable=True and code_mode=True"):
+            AgentOperator(task_id="t", prompt="hi", llm_conn_id="my_llm", durable=True, code_mode=True)
 
     @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
