@@ -81,7 +81,9 @@ class TestBaseXCom:
     @pytest.mark.asyncio
     async def test_aget_one_returns_value(self, mock_supervisor_comms):
         """aget_one awaits asend and returns the deserialized value."""
-        mock_supervisor_comms.asend.return_value = XComResult(key="test_key", value="test_value")
+        mock_supervisor_comms.asend = mock.AsyncMock(
+            return_value=XComResult(key="test_key", value="test_value")
+        )
 
         result = await BaseXCom.aget_one(
             key="test_key",
@@ -107,7 +109,7 @@ class TestBaseXCom:
     @pytest.mark.asyncio
     async def test_aget_one_returns_none_when_not_found(self, mock_supervisor_comms):
         """aget_one returns None when XCom value is not found."""
-        mock_supervisor_comms.asend.return_value = XComResult(key="test_key", value=None)
+        mock_supervisor_comms.asend = mock.AsyncMock(return_value=XComResult(key="test_key", value=None))
 
         result = await BaseXCom.aget_one(
             key="test_key",
@@ -121,7 +123,9 @@ class TestBaseXCom:
     @pytest.mark.asyncio
     async def test_aget_one_with_include_prior_dates(self, mock_supervisor_comms):
         """aget_one passes include_prior_dates parameter correctly."""
-        mock_supervisor_comms.asend.return_value = XComResult(key="test_key", value="prior_value")
+        mock_supervisor_comms.asend = mock.AsyncMock(
+            return_value=XComResult(key="test_key", value="prior_value")
+        )
 
         result = await BaseXCom.aget_one(
             key="test_key",
@@ -146,7 +150,7 @@ class TestBaseXCom:
     @pytest.mark.asyncio
     async def test_aget_one_raises_on_invalid_response(self, mock_supervisor_comms):
         """aget_one raises TypeError when receiving unexpected response type."""
-        mock_supervisor_comms.asend.return_value = "invalid_response"
+        mock_supervisor_comms.asend = mock.AsyncMock(return_value="invalid_response")
 
         with pytest.raises(TypeError, match="Expected XComResult"):
             await BaseXCom.aget_one(
@@ -159,8 +163,8 @@ class TestBaseXCom:
     @pytest.mark.asyncio
     async def test_aget_all_returns_values(self, mock_supervisor_comms):
         """aget_all awaits asend and returns deserialized values from all map indexes."""
-        mock_supervisor_comms.asend.return_value = XComSequenceSliceResult(
-            root=["value1", "value2", "value3"]
+        mock_supervisor_comms.asend = mock.AsyncMock(
+            return_value=XComSequenceSliceResult(root=["value1", "value2", "value3"])
         )
 
         result = await BaseXCom.aget_all(
@@ -188,7 +192,7 @@ class TestBaseXCom:
     @pytest.mark.asyncio
     async def test_aget_all_returns_none_when_empty(self, mock_supervisor_comms):
         """aget_all returns None when no XCom values are found."""
-        mock_supervisor_comms.asend.return_value = XComSequenceSliceResult(root=[])
+        mock_supervisor_comms.asend = mock.AsyncMock(return_value=XComSequenceSliceResult(root=[]))
 
         result = await BaseXCom.aget_all(
             key="test_key",
@@ -202,7 +206,9 @@ class TestBaseXCom:
     @pytest.mark.asyncio
     async def test_aget_all_with_include_prior_dates(self, mock_supervisor_comms):
         """aget_all passes include_prior_dates parameter correctly."""
-        mock_supervisor_comms.asend.return_value = XComSequenceSliceResult(root=["prior_value"])
+        mock_supervisor_comms.asend = mock.AsyncMock(
+            return_value=XComSequenceSliceResult(root=["prior_value"])
+        )
 
         result = await BaseXCom.aget_all(
             key="test_key",
@@ -229,7 +235,7 @@ class TestBaseXCom:
     @pytest.mark.asyncio
     async def test_aget_all_raises_on_invalid_response(self, mock_supervisor_comms):
         """aget_all raises TypeError when receiving unexpected response type."""
-        mock_supervisor_comms.asend.return_value = "invalid_response"
+        mock_supervisor_comms.asend = mock.AsyncMock(return_value="invalid_response")
 
         with pytest.raises(TypeError, match="Expected XComSequenceSliceResult"):
             await BaseXCom.aget_all(
@@ -242,7 +248,9 @@ class TestBaseXCom:
     @pytest.mark.asyncio
     async def test_aget_value_calls_aget_one(self, mock_supervisor_comms):
         """aget_value delegates to aget_one with ti_key fields."""
-        mock_supervisor_comms.asend.return_value = XComResult(key="test_key", value="test_value")
+        mock_supervisor_comms.asend = mock.AsyncMock(
+            return_value=XComResult(key="test_key", value="test_value")
+        )
 
         ti_key = TaskInstanceKey(
             dag_id="test_dag",
