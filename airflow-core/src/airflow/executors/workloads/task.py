@@ -37,10 +37,13 @@ class TaskInstanceDTO(TaskInstance):
     """
     The versioned execution API ``TaskInstance`` schema plus executor-only fields.
 
-    The base class is the single source of truth for the fields a worker
-    receives; the fields added here are excluded from serialization and never
-    leave the executor.
+    The base class is the single source of truth for the fields a worker needs;
+    the fields added here are executor concerns (queueing order and pool
+    accounting) the worker never reads.
     """
+
+    pool_slots: int
+    priority_weight: int
 
     external_executor_id: str | None = Field(default=None, exclude=True)
     executor_config: dict | None = Field(default=None, exclude=True)

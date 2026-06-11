@@ -4835,16 +4835,6 @@
           "default": "default",
           "title": "Queue",
           "type": "string"
-        },
-        "pool_slots": {
-          "default": 1,
-          "title": "Pool Slots",
-          "type": "integer"
-        },
-        "priority_weight": {
-          "default": 1,
-          "title": "Priority Weight",
-          "type": "integer"
         }
       },
       "required": [

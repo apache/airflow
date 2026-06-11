@@ -44,16 +44,12 @@ class AddConnectionTestEndpoint(VersionChange):
     )
 
 
-class AddTaskInstanceQueueFields(VersionChange):
-    """Add the `queue`, `pool_slots` and `priority_weight` fields to the TaskInstance model."""
+class AddTaskInstanceQueueField(VersionChange):
+    """Add the `queue` field to the TaskInstance model."""
 
     description = __doc__
 
-    instructions_to_migrate_to_previous_version = (
-        schema(TaskInstance).field("queue").didnt_exist,
-        schema(TaskInstance).field("pool_slots").didnt_exist,
-        schema(TaskInstance).field("priority_weight").didnt_exist,
-    )
+    instructions_to_migrate_to_previous_version = (schema(TaskInstance).field("queue").didnt_exist,)
 
 
 class AddAwaitingInputStatePayload(VersionChange):

@@ -1315,11 +1315,9 @@ components:
         pool_slots:
           type: integer
           title: Pool Slots
-          default: 1
         priority_weight:
           type: integer
           title: Priority Weight
-          default: 1
       type: object
       required:
       - id
@@ -1328,16 +1326,18 @@ components:
       - run_id
       - try_number
       - dag_version_id
+      - pool_slots
+      - priority_weight
       title: TaskInstanceDTO
       description: 'The versioned execution API ``TaskInstance`` schema plus executor-only
         fields.
 
 
-        The base class is the single source of truth for the fields a worker
+        The base class is the single source of truth for the fields a worker needs;
 
-        receives; the fields added here are excluded from serialization and never
+        the fields added here are executor concerns (queueing order and pool
 
-        leave the executor.'
+        accounting) the worker never reads.'
     TaskInstanceState:
       type: string
       enum:
