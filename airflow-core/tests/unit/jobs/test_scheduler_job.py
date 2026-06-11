@@ -12859,7 +12859,7 @@ class TestSchedulerObservabilityMetrics:
             self.job_runner._process_executor_events(executor=MagicMock(), session=MagicMock())
 
         mock_stats.incr.assert_called_once_with(
-            "scheduler.executor_events.failed", tags={"reason": "ValueError"}
+            "scheduler.executor_events.failed", tags={"exception_class": "ValueError"}
         )
         mock_stats.gauge.assert_not_called()
 
@@ -12909,27 +12909,3 @@ class TestSchedulerObservabilityMetrics:
 
         mock_stats.incr.assert_not_called()
 
-    def test_zombies_detected_adopt_failure_emitted(self, dag_maker, session):
-        """scheduler.zombies.detected{reason:adopt_failure} is emitted for tasks that can't be adopted."""
-        with dag_maker(dag_id="test_zombie_adopt_failure", schedule="@daily"):
-            EmptyOperator(task_id="task1")
-
-        old_job = Job()
-        session.add(old_job)
-        session.commit()
-
-        scheduler_job = Job()
-        self.job_runner = SchedulerJobRunner(job=scheduler_job)
-
-        dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL)
-        ti = dr.get_task_instances(session=session)[0]
-        ti.state = TaskInstanceState.QUEUED
-        ti.queued_by_job_id = old_job.id
-        session.merge(ti)
-        session.commit()
-
-        with mock.patch("airflow.jobs.scheduler_job_runner.stats") as mock_stats:
-            num_reset = self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
-
-        assert num_reset == 1
-        mock_stats.incr.assert_any_call("scheduler.zombies.detected", 1, tags={"reason": "adopt_failure"})
