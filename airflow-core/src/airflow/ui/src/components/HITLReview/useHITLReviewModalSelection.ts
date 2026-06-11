@@ -22,13 +22,21 @@ import type { HITLDetail } from "openapi/requests/types.gen.ts";
 
 export const useHITLReviewModalSelection = ({ hitlDetails }: { readonly hitlDetails: Array<HITLDetail> }) => {
   const [selectedKey, setSelectedKey] = useState<string | undefined>(undefined);
-  const selectedIndexFromKey = hitlDetails.findIndex(
-    (hitlDetail) => hitlDetail.task_instance.id === selectedKey,
-  );
-  const selectedIndex =
-    hitlDetails.length > 0 ? (selectedIndexFromKey === -1 ? 0 : selectedIndexFromKey) : -1;
-  const selectedDetail = selectedIndex === -1 ? undefined : hitlDetails[selectedIndex];
-  const hasNext = selectedIndex !== -1 && selectedIndex < hitlDetails.length - 1;
+
+  const selectedIndex = (() => {
+    if (hitlDetails.length === 0) {
+      return -1;
+    }
+
+    const selectedIndexFromKey = hitlDetails.findIndex(
+      (hitlDetail) => hitlDetail.task_instance.id === selectedKey,
+    );
+
+    return selectedIndexFromKey === -1 ? 0 : selectedIndexFromKey;
+  })();
+  const isSelected = selectedIndex !== -1;
+
+  const hasNext = isSelected && selectedIndex < hitlDetails.length - 1;
   const hasPrevious = selectedIndex > 0;
 
   const selectHitl = (hitl?: HITLDetail) => setSelectedKey(hitl?.task_instance.id);
@@ -51,7 +59,6 @@ export const useHITLReviewModalSelection = ({ hitlDetails }: { readonly hitlDeta
     onNext,
     onPrevious,
     onSelect: selectHitl,
-    selectedDetail,
-    selectedKey: selectedDetail?.task_instance.id,
+    selectedDetail: isSelected ? hitlDetails[selectedIndex] : undefined,
   };
 };

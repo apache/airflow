@@ -56,10 +56,9 @@ export const HITLReviewModal = ({
   const enabledFilter = completedHitlDetails.length > 0;
   const showAllActions = enabledFilter && selectedFilter === "all";
   const visibleHitls = showAllActions ? [...pendingHitlDetails, ...completedHitlDetails] : pendingHitlDetails;
-  const { hasNext, hasPrevious, onNext, onPrevious, onSelect, selectedDetail, selectedKey } =
-    useHITLReviewModalSelection({
-      hitlDetails: visibleHitls,
-    });
+  const { hasNext, hasPrevious, onNext, onPrevious, onSelect, selectedDetail } = useHITLReviewModalSelection({
+    hitlDetails: visibleHitls,
+  });
   const handleClose = () => {
     setSelectedFilter("pending");
     onClose();
@@ -139,7 +138,7 @@ export const HITLReviewModal = ({
                     count: pendingHitlDetails.length,
                   })}
                   onSelect={onSelect}
-                  selectedKey={selectedKey}
+                  selectedKey={selectedDetail?.task_instance.id}
                 />
                 {showAllActions ? (
                   <HITLReviewListSection
@@ -148,7 +147,7 @@ export const HITLReviewModal = ({
                       count: completedHitlDetails.length,
                     })}
                     onSelect={onSelect}
-                    selectedKey={selectedKey}
+                    selectedKey={selectedDetail?.task_instance.id}
                   />
                 ) : undefined}
               </VStack>
