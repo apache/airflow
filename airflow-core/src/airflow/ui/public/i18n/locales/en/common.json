@@ -281,6 +281,7 @@
   "taskGroup_other": "Task Groups",
   "taskId": "Task ID",
   "taskInstance": {
+    "additionalAttributes": "Additional Task Instance Attributes",
     "dagVersion": "Dag Version",
     "executor": "Executor",
     "executorConfig": "Executor Config",
@@ -294,6 +295,7 @@
     "queuedWhen": "Queued At",
     "renderedMapIndex": "Rendered Map Index",
     "scheduledWhen": "Scheduled At",
+    "trigger": "Trigger",
     "triggerer": {
       "assigned": "Assigned triggerer",
       "class": "Trigger class",
@@ -302,6 +304,8 @@
       "latestHeartbeat": "Latest triggerer heartbeat",
       "title": "Triggerer Info"
     },
+    "triggererJob": "Triggerer Job",
+    "tryNumber": "Try Number",
     "unixname": "Unix Name"
   },
   "taskInstance_one": "Task Instance",

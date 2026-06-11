@@ -84,24 +84,32 @@ export const Details = () => {
     },
   );
 
-  const renderValue = (value: unknown) => {
+  const renderValue = (value: unknown): string => {
     if (value === null || value === undefined || value === "") {
       return translate("common:none", { defaultValue: "None" });
+    }
+
+    if (typeof value === "string") {
+      return value;
+    }
+
+    if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+      return value.toString();
     }
 
     if (typeof value === "object") {
       return JSON.stringify(value, undefined, 2);
     }
 
-    return String(value);
+    return "";
   };
 
   const rawTaskInstanceDetails: Array<{ label: string; value: unknown }> = [
-    { label: "Try Number", value: tryInstance?.try_number },
-    { label: "Max Tries", value: tryInstance?.max_tries },
-    { label: "DAG ID", value: tryInstance?.dag_id },
-    { label: "Trigger", value: taskInstance?.trigger },
-    { label: "Triggerer Job", value: taskInstance?.triggerer_job },
+    { label: translate("taskInstance.tryNumber"), value: tryInstance?.try_number },
+    { label: translate("taskInstance.maxTries"), value: tryInstance?.max_tries },
+    { label: translate("dagId"), value: tryInstance?.dag_id },
+    { label: translate("taskInstance.trigger"), value: taskInstance?.trigger },
+    { label: translate("taskInstance.triggererJob"), value: taskInstance?.triggerer_job },
   ];
 
   return (
@@ -117,7 +125,7 @@ export const Details = () => {
       )}
       <ExtraLinks refetchInterval={isStatePending(tryInstance?.state) ? refetchInterval : false} />
       {taskInstance === undefined ||
-        ![null, "queued", "scheduled"].includes(taskInstance.state) ? undefined : (
+      ![null, "queued", "scheduled"].includes(taskInstance.state) ? undefined : (
         <BlockingDeps
           refetchInterval={isStatePending(tryInstance?.state) ? refetchInterval : false}
           taskInstance={taskInstance}
@@ -246,8 +254,8 @@ export const Details = () => {
         </Table.Body>
       </Table.Root>
       <Box mt={6}>
-        <Heading as="h3" size="sm" mb={3}>
-          Additional Task Instance Attributes
+        <Heading as="h3" mb={3} size="sm">
+          {translate("taskInstance.additionalAttributes")}
         </Heading>
 
         <Table.Root striped>
@@ -255,10 +263,7 @@ export const Details = () => {
             {rawTaskInstanceDetails.map(({ label, value }) => (
               <Table.Row key={label}>
                 <Table.Cell>{label}</Table.Cell>
-                <Table.Cell
-                  whiteSpace="pre-wrap"
-                  fontFamily={typeof value === "object" ? "mono" : undefined}
-                >
+                <Table.Cell fontFamily={typeof value === "object" ? "mono" : undefined} whiteSpace="pre-wrap">
                   {renderValue(value)}
                 </Table.Cell>
               </Table.Row>
