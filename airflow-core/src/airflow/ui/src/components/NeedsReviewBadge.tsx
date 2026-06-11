@@ -47,7 +47,11 @@ export const NeedsReviewBadge = ({ pendingActions }: Props) => {
           </StateBadge>
         </Button>
       </Tooltip>
-      <HITLReviewModal hitlDetails={pendingActions} onClose={onClose} open={open} />
+      <HITLReviewModal
+        onClose={onClose}
+        open={open}
+        pendingHitl={{ data: pendingActions, isError: false, isLoading: false }}
+      />
     </>
   );
 };

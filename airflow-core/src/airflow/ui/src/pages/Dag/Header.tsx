@@ -133,7 +133,7 @@ export const Header = ({
         dag === undefined ? undefined : (
           <>
             <DeadlineAlertsBadge dagId={dag.dag_id} />
-            <NeedsReviewButtonWithModal dagId={dag.dag_id} includeCompletedHitl />
+            <NeedsReviewButtonWithModal dagId={dag.dag_id} />
             {dag.doc_md === null ? undefined : (
               <DisplayMarkdownButton
                 header={translate("dagDetails.documentation")}

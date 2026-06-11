@@ -39,7 +39,11 @@ const usePendingHitl = ({
 }) => {
   const refetchInterval = useAutoRefresh({ checkPendingRuns: true, dagId });
 
-  const { data: pendingHitlData, isLoading } = useTaskInstanceServiceGetHitlDetails(
+  const {
+    data: pendingHitlData,
+    isError,
+    isLoading,
+  } = useTaskInstanceServiceGetHitlDetails(
     {
       dagId: dagId ?? "~",
       dagRunId: runId ?? "~",
@@ -55,6 +59,7 @@ const usePendingHitl = ({
   );
 
   return {
+    isError,
     isLoading,
     pendingHitlData,
   };
@@ -69,7 +74,11 @@ const useCompletedHitl = ({
   readonly enabled: boolean;
   readonly runId?: string;
 }) => {
-  const { data: completedHitlData } = useTaskInstanceServiceGetHitlDetails(
+  const {
+    data: completedHitlData,
+    isError,
+    isLoading,
+  } = useTaskInstanceServiceGetHitlDetails(
     {
       dagId: dagId ?? "~",
       dagRunId: runId ?? "~",
@@ -82,7 +91,7 @@ const useCompletedHitl = ({
     },
   );
 
-  return { completedHitlData };
+  return { completedHitlData, isError, isLoading };
 };
 
 const NeedsReviewButtonCard = ({
@@ -142,11 +151,9 @@ export const NeedsReviewButton = ({
 
 export const NeedsReviewButtonWithModal = ({
   dagId,
-  includeCompletedHitl = false,
   runId,
 }: {
   readonly dagId?: string;
-  readonly includeCompletedHitl?: boolean;
   readonly runId?: string;
 }) => {
   const { onClose, onOpen, open } = useDisclosure();
@@ -154,10 +161,14 @@ export const NeedsReviewButtonWithModal = ({
     onClose,
     onOpen,
   });
-  const { isLoading, pendingHitlData } = usePendingHitl({ dagId, runId });
-  const { completedHitlData } = useCompletedHitl({
+  const { isError: pendingHitlIsError, isLoading, pendingHitlData } = usePendingHitl({ dagId, runId });
+  const {
+    completedHitlData,
+    isError: completedHitlIsError,
+    isLoading: isLoadingCompletedHitl,
+  } = useCompletedHitl({
     dagId,
-    enabled: open && includeCompletedHitl,
+    enabled: open,
     runId,
   });
   const hitlTIsCount = pendingHitlData?.hitl_details.length ?? 0;
@@ -166,12 +177,21 @@ export const NeedsReviewButtonWithModal = ({
     <>
       <NeedsReviewButtonCard hitlTIsCount={hitlTIsCount} isLoading={isLoading} onClick={onOpen} />
       <HITLReviewModal
+        completedHitl={{
+          data: completedHitlData?.hitl_details ?? [],
+          isError: completedHitlIsError,
+          isLoading: isLoadingCompletedHitl,
+        }}
         headerAction={
           dagId === undefined ? <ViewAllHITLReviewsButton onClick={onCloseHITLReview} /> : undefined
         }
-        hitlDetails={[...(pendingHitlData?.hitl_details ?? []), ...(completedHitlData?.hitl_details ?? [])]}
         onClose={onCloseHITLReview}
         open={open}
+        pendingHitl={{
+          data: pendingHitlData?.hitl_details ?? [],
+          isError: pendingHitlIsError,
+          isLoading,
+        }}
       />
     </>
   );
