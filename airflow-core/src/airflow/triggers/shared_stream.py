@@ -41,9 +41,13 @@ which yields ``(raw_event, broker_payload)`` tuples, and hands
 ``(raw_event, token)`` pairs — where ``token`` is an :class:`AckToken` — to
 each subscriber's queue instead of the raw event alone. A subscriber calls
 ``await token.ack()`` once it has accepted the event, or
-``await token.nack()`` to opt out. When every subscriber that was online at
-broadcast time has resolved the event (by ``ack()``, ``nack()``,
-unsubscribing, or being force-failed), the manager calls
+``await token.nack()`` to opt out. An ack completes the subscriber's
+resolution only after the subscriber has moved past the event (pulled the
+next raw event, or unsubscribed) and every
+:class:`~airflow.triggers.base.TriggerEvent` it derived from the event has
+been confirmed persisted to the metadata database; ``nack()`` and
+force-failure resolve immediately. When every subscriber that was online
+at broadcast time has resolved the event, the manager calls
 ``await producer.advance(broker_payload, outcome)`` exactly once — this is
 where the producer commits / deletes / acks on the broker. The
 :class:`AdvanceOutcome` carries per-event counts of how the subscribers
@@ -60,15 +64,32 @@ once, best-effort.
 frozen at broadcast time. A subscriber that joins after the event was
 broadcast is not added to that event's pending set.
 
+**Persistence-gated advance**: the trigger events a subscriber derives
+from a raw event are assigned sequence numbers as they leave the runner;
+the supervisor confirms each one after the event is stored in the
+metadata database, and the confirmation reaches the runner on the next
+state sync (typically one sync round, a second or two — well within the
+ack timeout). The subscriber's ack only completes once all of its
+sequence numbers for the event are confirmed. If a confirmation never arrives — the persist
+failed, or the triggerer crashed in between — the ack timeout fails the
+event, the producer does not commit, and the broker redelivers. The
+binding between a trigger event and the raw event it came from relies on
+the filter yielding each derived event before pulling the next raw event
+from the shared stream (the natural way to write a filter).
+
 **Per-event ack timeout**: a background task scans outstanding events.
 Any subscriber that has not acknowledged within ``ack_timeout`` seconds is
 force-failed via the existing :class:`_PollFailure` path (exception type
-:class:`AckTimeout`). Other subscribers are not affected; once the
+:class:`AckTimeout`). The same timeout backstops persist confirmations
+that never arrive. Other subscribers are not affected; once the
 remaining acks arrive the producer advances normally.
 
 **Triggerer restart**: outstanding acks are in-memory only. After a
 triggerer restart, the broker will redeliver unacknowledged events.
-Subscribers must therefore be idempotent.
+Subscribers must therefore be idempotent. The same applies when a group
+stops while events are still awaiting persist confirmation (for example,
+the last subscriber unsubscribes right after producing an event): the
+pending advances are abandoned and the broker redelivers those events.
 
 **``shared_stream_subscriber_queue_size`` in ack mode**: the bound is
 still "unprocessed raw events per subscriber". The manager does **not**
@@ -115,13 +136,14 @@ maintained synchronously:
 from __future__ import annotations
 
 import asyncio
+import itertools
 import time
 import weakref
 from abc import ABC, abstractmethod
 from collections import deque
-from collections.abc import AsyncGenerator, AsyncIterator, Callable, Hashable
+from collections.abc import AsyncGenerator, AsyncIterator, Callable, Hashable, Iterable, Iterator
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
 import structlog
@@ -204,10 +226,12 @@ class AdvanceOutcome:
     Every subscriber that was online when the event was broadcast is counted
     in exactly one field:
 
-    * ``acked`` — called ``token.ack()``, or unsubscribed while the event was
-      outstanding (implicit ack-out).
+    * ``acked`` — called ``token.ack()`` (or unsubscribed while the event
+      was outstanding — implicit ack-out) and every trigger event derived
+      from the event was confirmed persisted.
     * ``nacked`` — called ``token.nack()``.
-    * ``failed`` — force-failed by the manager (ack timeout or queue overflow).
+    * ``failed`` — force-failed by the manager (ack timeout — including a
+      persist confirmation that never arrived — or queue overflow).
 
     An event broadcast while no subscribers were online carries all-zero
     counts and is clean.
@@ -294,6 +318,22 @@ class SharedStreamProducer(ABC):
         """
 
 
+@dataclass(slots=True)
+class _TokenBinding:
+    """
+    Per-(event, subscriber) resolution bookkeeping for one :class:`AckToken`.
+
+    A subscriber resolves as ``acked`` only when all three hold: ``ack()``
+    was called (explicitly or implicitly on unsubscribe), the binding window
+    is closed (the subscriber moved past the event), and every trigger event
+    seq the subscriber derived from the event has been confirmed persisted.
+    """
+
+    acked: bool = False
+    window_closed: bool = False
+    unconfirmed_seqs: set[int] = field(default_factory=set)
+
+
 @dataclass
 class _OutstandingEntry:
     """State for one outstanding (broadcast-but-not-yet-advanced) event."""
@@ -302,6 +342,9 @@ class _OutstandingEntry:
     created_at: float  # monotonic clock at broadcast (via injectable _now)
     broker_payload: Any
     lane: Hashable  # producer.get_advance_lane(broker_payload), taken at fan-out
+    # Per-subscriber ack bookkeeping, created at fan-out alongside ``pending``
+    # and removed by ``_resolve_subscriber`` when the subscriber resolves.
+    bindings: dict[int, _TokenBinding] = field(default_factory=dict)
     # Resolution counts; together they form the event's AdvanceOutcome.
     acked: int = 0
     nacked: int = 0
@@ -316,6 +359,12 @@ class AckToken:
     ``await token.nack()`` to opt out — the resolution is reported to the
     producer through the event's :class:`AdvanceOutcome`. Repeated calls are
     no-ops. After the group stops, calls silently do nothing.
+
+    An ``ack()`` does not complete the subscriber's resolution on its own:
+    the event counts as ``acked`` only after the subscriber has moved past it
+    (pulled the next raw event or unsubscribed) and every trigger event the
+    subscriber derived from it has been confirmed persisted to the metadata
+    database. ``nack()`` resolves immediately.
     """
 
     __slots__ = ("_event_id", "_trigger_id", "_group_ref", "_resolved")
@@ -338,17 +387,21 @@ class AckToken:
             return
         self._resolved = True
         group = self._group_ref()
-        if group is not None:
-            group._resolve_subscriber(
-                event_id=self._event_id, trigger_id=self._trigger_id, resolution=resolution
-            )
+        if group is None:
+            return
+        if resolution == "acked":
+            group._record_ack(event_id=self._event_id, trigger_id=self._trigger_id)
+        else:
+            group._record_nack(event_id=self._event_id, trigger_id=self._trigger_id)
 
     async def ack(self) -> None:
         """
         Notify the producer that this subscriber has accepted the event.
 
         Declared ``async`` so the token API leaves room for awaitable
-        implementations; the in-process implementation resolves synchronously.
+        implementations. The broker advance the ack feeds into may happen
+        later: it waits until the trigger events derived from this event are
+        persisted to the metadata database.
         """
         self._resolve("acked")
 
@@ -359,8 +412,8 @@ class AckToken:
         How the broker reacts is the producer's decision inside
         :meth:`SharedStreamProducer.advance` — commit anyway, skip, or
         trigger a redeliver. Declared ``async`` so the token API leaves room
-        for awaitable implementations; the in-process implementation
-        resolves synchronously.
+        for awaitable implementations. A ``nack()`` resolves the subscriber
+        immediately, without waiting for any persistence confirmation.
         """
         self._resolve("nacked")
 
@@ -415,6 +468,13 @@ class _SharedStreamGroup:
         # Per-lane FIFO index over _outstanding: event ids in fan-out order,
         # keyed by the lane each event's producer assigned at fan-out.
         self._lane_queues: dict[Hashable, deque[int]] = {}
+        # seq -> (event_id, trigger_id) for trigger events awaiting persist
+        # confirmation; entries are removed on confirmation or when the
+        # owning binding resolves (late confirmations then no-op).
+        self._seq_index: dict[int, tuple[int, int]] = {}
+        # Per subscriber: the token whose binding window is currently open —
+        # trigger events the subscriber emits now bind to this token.
+        self._current_token: dict[int, AckToken] = {}
         self._next_event_id: int = 0
         self._ack_timeout_task: asyncio.Task | None = None
         # Advance pump: a single task dispatches broker advances in per-lane
@@ -548,6 +608,7 @@ class _SharedStreamGroup:
                         created_at=self._now(),
                         broker_payload=broker_payload,
                         lane=lane,
+                        bindings={trigger_id: _TokenBinding() for trigger_id in snapshot},
                     )
                     lane_queue.append(event_id)
                     if not snapshot:
@@ -642,11 +703,21 @@ class _SharedStreamGroup:
         are the pump's job, so advances stay in per-lane fan-out order. Duplicate
         calls for the same (event_id, trigger_id) are no-ops, which keeps
         every subscriber counted exactly once per event.
+
+        This is the single cleanup point for the subscriber's ack
+        bookkeeping: the binding is popped and its unconfirmed seqs leave
+        ``_seq_index``, so a persist confirmation arriving after the fact
+        (e.g. after an ack timeout already failed the subscriber) finds
+        nothing and no-ops.
         """
         entry = self._outstanding.get(event_id)
         if entry is None or trigger_id not in entry.pending:
             return  # already resolved, already advanced, or never existed
         entry.pending.discard(trigger_id)
+        binding = entry.bindings.pop(trigger_id, None)
+        if binding is not None:
+            for seq in binding.unconfirmed_seqs:
+                self._seq_index.pop(seq, None)
         if resolution == "acked":
             entry.acked += 1
         elif resolution == "nacked":
@@ -655,6 +726,105 @@ class _SharedStreamGroup:
             entry.failed += 1
         if not entry.pending:
             self._advance_wakeup.set()
+
+    def _record_ack(self, *, event_id: int, trigger_id: int) -> None:
+        """
+        Record that the subscriber called ``ack()`` for one event.
+
+        The subscriber resolves as acked only once the binding window is
+        closed and every bound seq is confirmed persisted; until then the
+        event stays outstanding (the ack timeout is the backstop).
+        """
+        entry = self._outstanding.get(event_id)
+        if entry is None:
+            return
+        binding = entry.bindings.get(trigger_id)
+        if binding is None:
+            return  # already resolved (e.g. force-failed before the ack landed)
+        binding.acked = True
+        self._maybe_complete(event_id=event_id, trigger_id=trigger_id)
+
+    def _record_nack(self, *, event_id: int, trigger_id: int) -> None:
+        """Resolve the subscriber as nacked immediately; no persistence gating applies."""
+        self._resolve_subscriber(event_id=event_id, trigger_id=trigger_id, resolution="nacked")
+
+    def _maybe_complete(self, *, event_id: int, trigger_id: int) -> None:
+        """Resolve the subscriber as acked once ack, window close, and all persist confirmations are in."""
+        entry = self._outstanding.get(event_id)
+        if entry is None:
+            return
+        binding = entry.bindings.get(trigger_id)
+        if binding is None:
+            return
+        if binding.acked and binding.window_closed and not binding.unconfirmed_seqs:
+            self._resolve_subscriber(event_id=event_id, trigger_id=trigger_id, resolution="acked")
+
+    def _close_binding_window(self, token: AckToken) -> None:
+        """
+        Close the binding window of one yielded token.
+
+        Called by ``_ack_drain`` the moment the subscriber pulls the next
+        item — trigger events the subscriber emits from here on belong to
+        the next token, and an ack recorded for this one can now complete
+        (subject to persist confirmations).
+        """
+        trigger_id = token._trigger_id
+        if self._current_token.get(trigger_id) is token:
+            del self._current_token[trigger_id]
+        entry = self._outstanding.get(token._event_id)
+        if entry is None:
+            return
+        binding = entry.bindings.get(trigger_id)
+        if binding is None:
+            return
+        binding.window_closed = True
+        self._maybe_complete(event_id=token._event_id, trigger_id=trigger_id)
+
+    def bind_pending_event(self, *, trigger_id: int, seq_counter: Iterator[int]) -> int | None:
+        """
+        Bind one just-emitted trigger event to the subscriber's open binding window.
+
+        Returns the seq the broker advance must wait on, or ``None`` when
+        there is nothing to bind to — no window open (not in ack mode, or
+        the event was emitted outside any raw event's window) or the
+        binding already resolved (nacked or force-failed). A seq is only
+        drawn from ``seq_counter`` when the event actually binds.
+        """
+        token = self._current_token.get(trigger_id)
+        if token is None:
+            return None
+        entry = self._outstanding.get(token._event_id)
+        if entry is None:
+            return None
+        binding = entry.bindings.get(trigger_id)
+        if binding is None:
+            return None
+        seq = next(seq_counter)
+        binding.unconfirmed_seqs.add(seq)
+        self._seq_index[seq] = (token._event_id, trigger_id)
+        return seq
+
+    def confirm_persisted(self, seqs: Iterable[int]) -> None:
+        """
+        Record persist confirmations for trigger event seqs bound in this group.
+
+        Seqs that are not (or no longer) in ``_seq_index`` — another group's
+        seqs, or bindings that already resolved through nack / timeout —
+        are ignored.
+        """
+        for seq in seqs:
+            bound = self._seq_index.pop(seq, None)
+            if bound is None:
+                continue
+            event_id, trigger_id = bound
+            entry = self._outstanding.get(event_id)
+            if entry is None:
+                continue
+            binding = entry.bindings.get(trigger_id)
+            if binding is None:
+                continue
+            binding.unconfirmed_seqs.discard(seq)
+            self._maybe_complete(event_id=event_id, trigger_id=trigger_id)
 
     def _fail_subscriber_in_outstanding(self, trigger_id: int) -> None:
         """
@@ -708,12 +878,35 @@ class _SharedStreamGroup:
                     # owns entry deletion and the ordered broker advance.
                     self._fail_subscriber_in_outstanding(trigger_id)
 
+    async def _ack_drain(self, trigger_id: int, queue: asyncio.Queue) -> AsyncGenerator[Any, None]:
+        """
+        Ack-mode counterpart of :func:`_drain`, tracking the binding window.
+
+        Between yielding ``(raw_event, token)`` and the subscriber pulling
+        the next item, the token's binding window is open: trigger events
+        the subscriber emits bind to it via :meth:`bind_pending_event`. The
+        window closes the moment the subscriber resumes this generator —
+        before we wait on the queue again — so a filtered-out event (acked,
+        nothing yielded) resolves as soon as the filter loops back for the
+        next raw event.
+        """
+        while True:
+            item = await queue.get()
+            if isinstance(item, _PollFailure):
+                raise item.exc
+            _, token = item
+            self._current_token[trigger_id] = token
+            yield item
+            self._close_binding_window(token)
+
     def subscribe(self, trigger_id: int) -> AsyncIterator[Any]:
         """Register ``trigger_id`` as a subscriber and return its raw event stream."""
         if trigger_id in self._subscribers:
             raise RuntimeError(f"Trigger {trigger_id} already subscribed to shared stream {self.key!r}")
         queue: asyncio.Queue = asyncio.Queue(maxsize=self._max_subscriber_queue)
         self._subscribers[trigger_id] = queue
+        if self._is_ack_required():
+            return self._ack_drain(trigger_id, queue)
         return _drain(queue)
 
     def unsubscribe(self, trigger_id: int) -> None:
@@ -721,11 +914,22 @@ class _SharedStreamGroup:
         # (Airflow's standard idiom); dropping the queue is enough here.
         self._subscribers.pop(trigger_id, None)
         self._failed_subscribers.discard(trigger_id)
-        # Resolve in all outstanding entries — implicit ack-out (counted as
-        # acked) to prevent the producer waiting forever for a subscriber
-        # that has left.
-        for event_id in list(self._outstanding):
-            self._resolve_subscriber(event_id=event_id, trigger_id=trigger_id, resolution="acked")
+        self._current_token.pop(trigger_id, None)
+        # Implicit ack-out: leaving counts as accepting every outstanding
+        # event, so the producer never waits forever for a subscriber that
+        # has left. The broker advance still waits for persist confirmation
+        # of any trigger events this subscriber derived from the event; with
+        # nothing unconfirmed the subscriber resolves immediately.
+        for event_id, entry in list(self._outstanding.items()):
+            binding = entry.bindings.get(trigger_id)
+            if binding is None:
+                # No live binding (already resolved, or pre-ack-mode entry);
+                # _resolve_subscriber no-ops unless still pending.
+                self._resolve_subscriber(event_id=event_id, trigger_id=trigger_id, resolution="acked")
+                continue
+            binding.acked = True
+            binding.window_closed = True
+            self._maybe_complete(event_id=event_id, trigger_id=trigger_id)
 
     def _fail_overflowed_subscriber(self, trigger_id: int, queue: asyncio.Queue) -> None:
         """
@@ -826,6 +1030,9 @@ class SharedStreamManager:
         self._ack_timeout = ack_timeout
         self._now = _now
         self._groups: dict[Hashable, _SharedStreamGroup] = {}
+        # Allocator for trigger-event persist-confirmation seqs; unique per
+        # manager (= per runner process), shared across groups. Gaps are fine.
+        self._seq_counter: Iterator[int] = itertools.count()
 
     def subscribe(
         self,
@@ -859,6 +1066,35 @@ class SharedStreamManager:
             group.start()
             self.log.debug("Shared stream group started", key=key)
         return group.subscribe(trigger_id)
+
+    def bind_pending_event(self, *, trigger_id: int, key: Hashable) -> int | None:
+        """
+        Bind a trigger event the subscriber just emitted to its shared-stream ack state.
+
+        Returns the persist-confirmation seq the runner must report through
+        :meth:`confirm_persisted` once the event is stored, or ``None`` when
+        there is nothing to gate — the group is gone, the stream is not in
+        ack mode, or the subscriber has no open binding window. Synchronous
+        and O(1); call it between taking the event off the trigger and
+        queueing it outbound, with no ``await`` in between.
+        """
+        if (group := self._groups.get(key)) is None:
+            return None
+        return group.bind_pending_event(trigger_id=trigger_id, seq_counter=self._seq_counter)
+
+    def confirm_persisted(self, seqs: Iterable[int]) -> None:
+        """
+        Record that the trigger events behind ``seqs`` were persisted.
+
+        Broadcast to every live group; each group resolves the sequence
+        numbers it owns and ignores the rest. Sequence numbers whose binding
+        already resolved (``nack()``, timeout) or whose group has stopped
+        are ignored.
+        """
+        # Materialize so a one-shot iterator is not exhausted by the first group.
+        seq_list = list(seqs)
+        for group in self._groups.values():
+            group.confirm_persisted(seq_list)
 
     async def unsubscribe(self, trigger_id: int, key: Hashable) -> None:
         """

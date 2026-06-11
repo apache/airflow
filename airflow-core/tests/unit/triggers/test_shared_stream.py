@@ -20,7 +20,7 @@ import asyncio
 import time
 import weakref
 from collections.abc import Callable
-from contextlib import suppress
+from contextlib import asynccontextmanager, suppress
 from unittest.mock import MagicMock
 
 import pytest
@@ -753,6 +753,72 @@ async def _collect_ack_stream(trigger, stream, *, n: int) -> list:
     return out
 
 
+class _BackgroundCollector:
+    """
+    Items collected from a stream that is consumed like a real filter loop.
+
+    Use via :func:`_consume_in_background`. The consuming task never breaks
+    out of its ``async for``, so after each item the stream generator is
+    resumed and the item's binding window closes — exactly what a production
+    ``filter_shared_stream`` loop does when it goes back for the next raw
+    event. Breaking out of the loop instead would leave the generator
+    suspended at its yield with the binding window open, so an ack could
+    never complete.
+    """
+
+    def __init__(self) -> None:
+        self.items: list = []
+        # The exception (e.g. an injected AckTimeout) that ended the stream,
+        # if any; the consuming task records it here instead of propagating.
+        self.error: BaseException | None = None
+
+    @property
+    def tokens(self) -> list[AckToken]:
+        """The AckTokens collected so far (ack-mode raw streams only)."""
+        return [token for _raw, token in self.items]
+
+    async def wait_for(self, n: int, *, timeout: float = 1.0) -> list:
+        """Wait until ``n`` items have been collected and return them."""
+        deadline = asyncio.get_event_loop().time() + timeout
+        while len(self.items) < n:
+            if self.error is not None:
+                raise self.error
+            assert asyncio.get_event_loop().time() < deadline, (
+                f"collector got {len(self.items)} of {n} items within {timeout}s"
+            )
+            await asyncio.sleep(0)
+        return self.items[:n]
+
+
+@asynccontextmanager
+async def _consume_in_background(stream):
+    """
+    Consume ``stream`` in a background task, the way a real subscriber would.
+
+    Yields a :class:`_BackgroundCollector`; the consuming task is cancelled
+    on exit. A stream failure is recorded on ``collector.error`` rather than
+    propagating out of the task.
+    """
+    collector = _BackgroundCollector()
+
+    async def consume() -> None:
+        try:
+            async for item in stream:
+                collector.items.append(item)
+        except asyncio.CancelledError:
+            raise
+        except BaseException as exc:
+            collector.error = exc
+
+    task = asyncio.create_task(consume())
+    try:
+        yield collector
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+
+
 @pytest.mark.parametrize(
     ("override_level", "expected"),
     [
@@ -816,27 +882,20 @@ async def test_ack_required_producer_advances_after_all_subscribers_ack():
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
         s2 = manager.subscribe(trigger_id=2, trigger=t2, key=key)
 
-        tokens: list[AckToken] = []
-
-        async def collect_token(stream, trigger):
-            async for _raw, token in stream:
-                tokens.append(token)
-                break
-
         # Collect the (event, token) tuples without acking yet.
-        await asyncio.gather(
-            asyncio.wait_for(collect_token(s1, t1), timeout=1.0),
-            asyncio.wait_for(collect_token(s2, t2), timeout=1.0),
-        )
+        async with _consume_in_background(s1) as c1, _consume_in_background(s2) as c2:
+            await c1.wait_for(1)
+            await c2.wait_for(1)
+            tokens: list[AckToken] = [c1.tokens[0], c2.tokens[0]]
 
-        assert len(cls.advanced) == 0, "advance must not fire before all acks"
+            assert len(cls.advanced) == 0, "advance must not fire before all acks"
 
-        await tokens[0].ack()
-        assert len(cls.advanced) == 0, "advance must not fire after only one ack"
+            await tokens[0].ack()
+            assert len(cls.advanced) == 0, "advance must not fire after only one ack"
 
-        await tokens[1].ack()
-        await asyncio.sleep(0)  # let the advance pump run
-        assert cls.advanced == ["receipt-1"], "advance must fire exactly once after all acks"
+            await tokens[1].ack()
+            await asyncio.sleep(0)  # let the advance pump run
+            assert cls.advanced == ["receipt-1"], "advance must fire exactly once after all acks"
     finally:
         await manager.unsubscribe(1, key)
         await manager.unsubscribe(2, key)
@@ -914,46 +973,44 @@ async def test_ack_timeout_force_fails_slow_subscriber_only():
         s_fast = manager.subscribe(trigger_id=1, trigger=t_fast, key=key)
         s_slow = manager.subscribe(trigger_id=2, trigger=t_slow, key=key)
 
-        token_fast = None
-
-        async def grab_fast(stream):
-            nonlocal token_fast
-            async for _raw, token in stream:
-                token_fast = token
-                break
-
         async def drain_slow(stream):
-            # Collect from slow stream — we expect AckTimeout to appear.
+            # Pull the (event, token) pair off the slow stream but never ack —
+            # the deliberately stalled subscriber the timeout must catch.
             async for _ in stream:
                 break
 
-        await asyncio.gather(
-            asyncio.wait_for(grab_fast(s_fast), timeout=1.0),
-            asyncio.wait_for(drain_slow(s_slow), timeout=1.0),
-        )
+        async with _consume_in_background(s_fast) as fast_collector:
+            await fast_collector.wait_for(1)
+            await asyncio.wait_for(drain_slow(s_slow), timeout=1.0)
+            token_fast = fast_collector.tokens[0]
 
-        # fast acks; slow doesn't.
-        await token_fast.ack()
+            # fast acks; slow doesn't.
+            await token_fast.ack()
 
-        # Advance fake clock past ack_timeout; the timeout loop sees now() - created_at >= 0.1.
-        fake_clock[0] = 0.2
-        slow_queue = manager._groups[key]._subscribers.get(2)
-        # Let _run_ack_timeout_loop tick through a few cadence cycles (cadence=0.01s real).
-        await asyncio.sleep(0.05)
+            # Advance fake clock past ack_timeout; the timeout loop sees now() - created_at >= 0.1.
+            fake_clock[0] = 0.2
+            slow_queue = manager._groups[key]._subscribers.get(2)
+            # Let _run_ack_timeout_loop tick through a few cadence cycles (cadence=0.01s real).
+            await asyncio.sleep(0.05)
 
-        assert slow_queue is not None
-        sentinel = slow_queue.get_nowait()
-        assert isinstance(sentinel, _PollFailure)
-        assert isinstance(sentinel.exc, AckTimeout)
+            assert slow_queue is not None
+            sentinel = slow_queue.get_nowait()
+            assert isinstance(sentinel, _PollFailure)
+            assert isinstance(sentinel.exc, AckTimeout)
 
-        # Fast subscriber (already acked) must not have received a spurious AckTimeout.
-        fast_queue = manager._groups[key]._subscribers.get(1)
-        assert fast_queue is not None
-        assert fast_queue.empty(), "fast (already-acked) subscriber must not receive a spurious AckTimeout"
+            # Fast subscriber (already acked) must not have received a spurious AckTimeout.
+            fast_queue = manager._groups[key]._subscribers.get(1)
+            assert fast_queue is not None
+            assert fast_queue.empty(), (
+                "fast (already-acked) subscriber must not receive a spurious AckTimeout"
+            )
+            assert fast_collector.error is None, (
+                "fast (already-acked) subscriber must not receive a spurious AckTimeout"
+            )
 
-        # After timeout the advance should have fired (pending emptied).
-        await asyncio.sleep(0)
-        assert cls.advanced == ["receipt-timeout"]
+            # After timeout the advance should have fired (pending emptied).
+            await asyncio.sleep(0)
+            assert cls.advanced == ["receipt-timeout"]
     finally:
         await manager.stop_all()
 
@@ -982,30 +1039,25 @@ async def test_ack_timeout_at_cap_boundary_does_not_timeout():
     try:
         stream = manager.subscribe(trigger_id=1, trigger=t1, key=key)
 
-        token_ref = None
+        async with _consume_in_background(stream) as collector:
+            await collector.wait_for(1)
+            token_ref = collector.tokens[0]
 
-        async def grab_token(s):
-            nonlocal token_ref
-            async for _raw, token in s:
-                token_ref = token
-                break
+            # Advance fake clock to 99 ms — strictly inside the 100 ms ack_timeout window.
+            # now() - created_at = 0.099 < 0.1, so the timeout loop must NOT fire.
+            fake_clock[0] = 0.099
+            # Let the timeout loop tick a few cadence cycles (cadence = max(0.01, 0.1/10) = 0.01s real).
+            await asyncio.sleep(0.05)
 
-        await asyncio.wait_for(grab_token(stream), timeout=1.0)
+            subscriber_queue = manager._groups[key]._subscribers.get(1)
+            assert subscriber_queue is not None
+            assert subscriber_queue.empty(), "subscriber must not have been force-failed at t=99ms"
+            assert collector.error is None, "subscriber must not have been force-failed at t=99ms"
 
-        # Advance fake clock to 99 ms — strictly inside the 100 ms ack_timeout window.
-        # now() - created_at = 0.099 < 0.1, so the timeout loop must NOT fire.
-        fake_clock[0] = 0.099
-        # Let the timeout loop tick a few cadence cycles (cadence = max(0.01, 0.1/10) = 0.01s real).
-        await asyncio.sleep(0.05)
-
-        subscriber_queue = manager._groups[key]._subscribers.get(1)
-        assert subscriber_queue is not None
-        assert subscriber_queue.empty(), "subscriber must not have been force-failed at t=99ms"
-
-        # Now ack — advance should fire.
-        await token_ref.ack()
-        await asyncio.sleep(0)
-        assert cls.advanced == ["receipt-boundary"]
+            # Now ack — advance should fire.
+            await token_ref.ack()
+            await asyncio.sleep(0)
+            assert cls.advanced == ["receipt-boundary"]
     finally:
         await manager.stop_all()
 
@@ -1167,12 +1219,13 @@ async def test_late_subscriber_does_not_block_advance_of_earlier_event():
         assert 2 not in entry.pending, "late subscriber must not be in the pending set of earlier event"
 
         # Collect from early subscriber (filter acks immediately).
-        events = await asyncio.wait_for(_collect_ack_stream(t_early, s_early, n=1), timeout=1.0)
-        assert len(events) == 1
+        async with _consume_in_background(t_early.filter_shared_stream(s_early)) as collector:
+            events = await collector.wait_for(1)
+            assert len(events) == 1
 
-        await asyncio.sleep(0)
-        # The late subscriber did not participate in ack set; advance must have fired.
-        assert _LateTrigger.advanced == ["receipt-late"]
+            await asyncio.sleep(0)
+            # The late subscriber did not participate in ack set; advance must have fired.
+            assert _LateTrigger.advanced == ["receipt-late"]
     finally:
         await manager.unsubscribe(1, key)
         await manager.unsubscribe(2, key)
@@ -1196,29 +1249,21 @@ async def test_nack_removes_subscriber_from_ack_set_without_redeliver():
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
         s2 = manager.subscribe(trigger_id=2, trigger=t2, key=key)
 
-        tokens: list[AckToken] = []
+        async with _consume_in_background(s1) as c1, _consume_in_background(s2) as c2:
+            await c1.wait_for(1)
+            await c2.wait_for(1)
 
-        async def grab_token(stream):
-            async for _raw, token in stream:
-                tokens.append(token)
-                break
+            # t1 acks, t2 nacks.
+            await c1.tokens[0].ack()
+            await c2.tokens[0].nack()
+            await asyncio.sleep(0)
 
-        await asyncio.gather(
-            asyncio.wait_for(grab_token(s1), timeout=1.0),
-            asyncio.wait_for(grab_token(s2), timeout=1.0),
-        )
+            assert cls.advanced == ["receipt-nack"], "advance must fire after ack + nack"
 
-        # t1 acks, t2 nacks.
-        await tokens[0].ack()
-        await tokens[1].nack()
-        await asyncio.sleep(0)
-
-        assert cls.advanced == ["receipt-nack"], "advance must fire after ack + nack"
-
-        # No redelivery — the manager has no redeliver mechanism.
-        group = manager._groups.get(key)
-        if group:
-            assert len(group._outstanding) == 0
+            # No redelivery — the manager has no redeliver mechanism.
+            group = manager._groups.get(key)
+            if group:
+                assert len(group._outstanding) == 0
     finally:
         await manager.unsubscribe(1, key)
         await manager.unsubscribe(2, key)
@@ -1241,25 +1286,19 @@ async def test_double_ack_is_noop():
     try:
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
 
-        token = None
+        async with _consume_in_background(s1) as collector:
+            await collector.wait_for(1)
+            token = collector.tokens[0]
+            assert token is not None
 
-        async def grab_token(stream):
-            nonlocal token
-            async for _raw, tk in stream:
-                token = tk
-                break
+            await token.ack()
+            await asyncio.sleep(0)
+            assert cls.advanced == ["receipt-double"]
 
-        await asyncio.wait_for(grab_token(s1), timeout=1.0)
-        assert token is not None
-
-        await token.ack()
-        await asyncio.sleep(0)
-        assert cls.advanced == ["receipt-double"]
-
-        # Second ack — must be a no-op, not raise, not double-advance.
-        await token.ack()
-        await asyncio.sleep(0)
-        assert cls.advanced == ["receipt-double"], "second ack must not trigger a second advance"
+            # Second ack — must be a no-op, not raise, not double-advance.
+            await token.ack()
+            await asyncio.sleep(0)
+            assert cls.advanced == ["receipt-double"], "second ack must not trigger a second advance"
     finally:
         await manager.unsubscribe(1, key)
 
@@ -1288,28 +1327,22 @@ async def test_cross_order_double_call_is_noop(first, second):
     try:
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
 
-        token = None
+        async with _consume_in_background(s1) as collector:
+            await collector.wait_for(1)
+            token = collector.tokens[0]
+            assert token is not None
 
-        async def grab_token(stream):
-            nonlocal token
-            async for _raw, tk in stream:
-                token = tk
-                break
+            # First call — should resolve the token and advance.
+            await getattr(token, first)()
+            await asyncio.sleep(0)
+            assert cls.advanced == ["receipt-cross"]
 
-        await asyncio.wait_for(grab_token(s1), timeout=1.0)
-        assert token is not None
-
-        # First call — should resolve the token and advance.
-        await getattr(token, first)()
-        await asyncio.sleep(0)
-        assert cls.advanced == ["receipt-cross"]
-
-        # Second call (opposite) — must be a no-op; advance must not fire again.
-        await getattr(token, second)()
-        await asyncio.sleep(0)
-        assert cls.advanced == ["receipt-cross"], (
-            f"{second}() after {first}() must not trigger a second advance"
-        )
+            # Second call (opposite) — must be a no-op; advance must not fire again.
+            await getattr(token, second)()
+            await asyncio.sleep(0)
+            assert cls.advanced == ["receipt-cross"], (
+                f"{second}() after {first}() must not trigger a second advance"
+            )
     finally:
         await manager.unsubscribe(1, key)
 
@@ -1332,27 +1365,18 @@ async def test_subscriber_unsubscribe_during_outstanding_ack():
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
         s2 = manager.subscribe(trigger_id=2, trigger=t2, key=key)
 
-        tokens: list[AckToken] = []
+        async with _consume_in_background(s1) as c1, _consume_in_background(s2) as c2:
+            await c1.wait_for(1)
+            await c2.wait_for(1)
 
-        async def grab_token(stream):
-            async for _raw, token in stream:
-                tokens.append(token)
-                break
+            # t1 acks; t2 leaves without acking (implicit ack-out via unsubscribe).
+            await c1.tokens[0].ack()
+            await manager.unsubscribe(2, key)
+            await asyncio.sleep(0)
 
-        await asyncio.gather(
-            asyncio.wait_for(grab_token(s1), timeout=1.0),
-            asyncio.wait_for(grab_token(s2), timeout=1.0),
-        )
-
-        assert len(tokens) == 2
-        # t1 acks; t2 leaves without acking (implicit ack-out via unsubscribe).
-        await tokens[0].ack()
-        await manager.unsubscribe(2, key)
-        await asyncio.sleep(0)
-
-        assert cls.advanced == ["receipt-unsub"], (
-            "unsubscribe must trigger implicit ack-out so producer can advance"
-        )
+            assert cls.advanced == ["receipt-unsub"], (
+                "unsubscribe must trigger implicit ack-out so producer can advance"
+            )
     finally:
         await manager.unsubscribe(1, key)
 
@@ -1378,13 +1402,6 @@ async def test_ack_mode_queue_full_during_fanout_does_not_break_iteration():
             ("filler", AckToken(event_id=-1, trigger_id=1, group_ref=weakref.ref(group)))
         )
 
-        # t_ok: drive its ack stream and collect the real event.
-        ok_result: list = []
-
-        async def collect_ok():
-            events = await _collect_ack_stream(t_ok, s_ok, n=1)
-            ok_result.extend(events)
-
         # t_full: its queue will be drained + replaced by _PollFailure(_SubscriberOverflow).
         # _drain() raises the inner exception, so we expect _SubscriberOverflow here.
         full_exc: list[BaseException] = []
@@ -1396,22 +1413,22 @@ async def test_ack_mode_queue_full_during_fanout_does_not_break_iteration():
             except Exception as exc:
                 full_exc.append(exc)
 
-        await asyncio.gather(
-            asyncio.wait_for(collect_full(), timeout=2.0),
-            asyncio.wait_for(collect_ok(), timeout=2.0),
-        )
+        # t_ok: drive its ack stream and collect the real event.
+        async with _consume_in_background(t_ok.filter_shared_stream(s_ok)) as ok_collector:
+            await asyncio.wait_for(collect_full(), timeout=2.0)
+            ok_result = await ok_collector.wait_for(1)
 
-        # Give the advance pump a tick to run.
-        await asyncio.sleep(0)
+            # Give the advance pump a tick to run.
+            await asyncio.sleep(0)
 
-        # t_full got an overflow failure (not a RuntimeError from set mutation).
-        assert len(full_exc) == 1
-        assert isinstance(full_exc[0], _SubscriberOverflow)
+            # t_full got an overflow failure (not a RuntimeError from set mutation).
+            assert len(full_exc) == 1
+            assert isinstance(full_exc[0], _SubscriberOverflow)
 
-        # t_ok got the real event and acknowledged it → advance was triggered.
-        assert len(ok_result) == 1
-        assert ok_result[0].payload == {"msg": "burst"}
-        assert cls.advanced == ["receipt-burst"]
+            # t_ok got the real event and acknowledged it → advance was triggered.
+            assert len(ok_result) == 1
+            assert ok_result[0].payload == {"msg": "burst"}
+            assert cls.advanced == ["receipt-burst"]
     finally:
         await manager.stop_all()
 
@@ -1497,27 +1514,29 @@ async def test_producer_advance_exception_is_logged():
         group.log = MagicMock()
         group.log.error = mock_log_error
 
-        # Consume the first event — this triggers an ack and schedules advance.
-        events1 = await asyncio.wait_for(_collect_ack_stream(t1, s1, n=1), timeout=1.0)
-        assert len(events1) == 1
+        async with _consume_in_background(t1.filter_shared_stream(s1)) as collector:
+            # Consume the first event — this triggers an ack and schedules advance.
+            events1 = await collector.wait_for(1)
+            assert len(events1) == 1
 
-        # Give the advance pump a tick to run and raise.
-        await asyncio.sleep(0.05)
+            # Give the advance pump a tick to run and raise.
+            await asyncio.sleep(0.05)
 
-        # log.error must have been called with a message about the failed advance.
-        assert mock_log_error.called, "log.error must be called when producer.advance raises"
-        call_args = mock_log_error.call_args
-        assert "broker advance failed" in call_args[0][0], (
-            f"log.error message must mention 'broker advance failed', got: {call_args[0][0]}"
-        )
+            # log.error must have been called with a message about the failed advance.
+            assert mock_log_error.called, "log.error must be called when producer.advance raises"
+            call_args = mock_log_error.call_args
+            assert "broker advance failed" in call_args[0][0], (
+                f"log.error message must mention 'broker advance failed', got: {call_args[0][0]}"
+            )
 
-        # The poll group is still alive — the exception must not have killed it.
-        assert key in manager._groups, "group must survive a producer.advance exception"
+            # The poll group is still alive — the exception must not have killed it.
+            assert key in manager._groups, "group must survive a producer.advance exception"
 
-        # A second event can still be produced and consumed.
-        proceed_flag.set()
-        events2 = await asyncio.wait_for(_collect_ack_stream(t1, s1, n=1), timeout=1.0)
-        assert len(events2) == 1
+            # A second event can still be produced and consumed (the collector
+            # count is cumulative across both events).
+            proceed_flag.set()
+            events2 = await collector.wait_for(2)
+            assert len(events2) == 2
     finally:
         await manager.stop_all()
 
@@ -1564,18 +1583,19 @@ async def test_stop_drains_in_flight_advance():
 
     s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
 
-    # Drive the one event through so the advance is dispatched.
-    events = await asyncio.wait_for(_collect_ack_stream(t1, s1, n=1), timeout=1.0)
-    assert len(events) == 1
+    async with _consume_in_background(t1.filter_shared_stream(s1)) as collector:
+        # Drive the one event through so the advance is dispatched.
+        events = await collector.wait_for(1)
+        assert len(events) == 1
 
-    # Wait for producer.advance to actually start (confirms the advance is in-flight).
-    await asyncio.wait_for(advance_started.wait(), timeout=1.0)
+        # Wait for producer.advance to actually start (confirms the advance is in-flight).
+        await asyncio.wait_for(advance_started.wait(), timeout=1.0)
 
-    # Unblock the advance hook and stop; advance still has a 50 ms sleep so stop()
-    # must genuinely await the task rather than racing past it.
-    advance_may_finish.set()
-    await manager.stop_all()
-    stop_returned_at = time.monotonic()
+        # Unblock the advance hook and stop; advance still has a 50 ms sleep so stop()
+        # must genuinely await the task rather than racing past it.
+        advance_may_finish.set()
+        await manager.stop_all()
+        stop_returned_at = time.monotonic()
 
     # stop_all() must have waited for the in-flight advance to complete.
     assert _SlowAdvanceTrigger.advanced == ["receipt-slow"], (
@@ -1714,18 +1734,19 @@ async def test_out_of_order_resolve_still_advances_in_fanout_order():
     try:
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
 
-        tokens: list[AckToken] = []
-        await asyncio.wait_for(_grab_tokens(s1, tokens, n=3), timeout=1.0)
+        async with _consume_in_background(s1) as collector:
+            await collector.wait_for(3)
+            tokens = collector.tokens
 
-        # Resolve events 2 and 3 first — nothing may advance while event 1 is pending.
-        await tokens[1].ack()
-        await tokens[2].ack()
-        await asyncio.sleep(0)
-        assert cls.advanced == [], "no advance may run while the head event is unresolved"
+            # Resolve events 2 and 3 first — nothing may advance while event 1 is pending.
+            await tokens[1].ack()
+            await tokens[2].ack()
+            await asyncio.sleep(0)
+            assert cls.advanced == [], "no advance may run while the head event is unresolved"
 
-        await tokens[0].ack()
-        await asyncio.sleep(0)
-        assert cls.advanced == ["p1", "p2", "p3"], "advances must run in fan-out order"
+            await tokens[0].ack()
+            await asyncio.sleep(0)
+            assert cls.advanced == ["p1", "p2", "p3"], "advances must run in fan-out order"
     finally:
         await manager.unsubscribe(1, key)
 
@@ -1766,26 +1787,27 @@ async def test_pump_serializes_advance_calls():
     try:
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
 
-        tokens: list[AckToken] = []
-        await asyncio.wait_for(_grab_tokens(s1, tokens, n=2), timeout=1.0)
+        async with _consume_in_background(s1) as collector:
+            await collector.wait_for(2)
+            tokens = collector.tokens
 
-        # Resolve both events; the pump starts the first advance, which blocks.
-        await tokens[0].ack()
-        await tokens[1].ack()
-        for _ in range(5):
-            await asyncio.sleep(0)
-        assert state["in_flight"] == 1, "exactly one advance may be in flight"
-        assert advanced == []
+            # Resolve both events; the pump starts the first advance, which blocks.
+            await tokens[0].ack()
+            await tokens[1].ack()
+            for _ in range(5):
+                await asyncio.sleep(0)
+            assert state["in_flight"] == 1, "exactly one advance may be in flight"
+            assert advanced == []
 
-        release.set()
-        deadline = asyncio.get_event_loop().time() + 1.0
-        while asyncio.get_event_loop().time() < deadline:
-            if len(advanced) >= 2:
-                break
-            await asyncio.sleep(0)
+            release.set()
+            deadline = asyncio.get_event_loop().time() + 1.0
+            while asyncio.get_event_loop().time() < deadline:
+                if len(advanced) >= 2:
+                    break
+                await asyncio.sleep(0)
 
-        assert advanced == ["p1", "p2"]
-        assert state["max_in_flight"] == 1, "advance calls must never overlap"
+            assert advanced == ["p1", "p2"]
+            assert state["max_in_flight"] == 1, "advance calls must never overlap"
     finally:
         await manager.unsubscribe(1, key)
 
@@ -1817,28 +1839,29 @@ async def test_lanes_advance_independently():
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
         group = manager._groups[key]
 
-        tokens: list[AckToken] = []
-        await asyncio.wait_for(_grab_tokens(s1, tokens, n=4), timeout=1.0)
+        async with _consume_in_background(s1) as collector:
+            await collector.wait_for(4)
+            tokens = collector.tokens
 
-        # Resolve lane "b" completely while lane "a" is fully unresolved.
-        await tokens[1].ack()  # b1
-        await tokens[3].ack()  # b2
-        for _ in range(5):
-            await asyncio.sleep(0)
-        assert cls.advanced == ["b1", "b2"], "lane b must advance without waiting for lane a's head"
+            # Resolve lane "b" completely while lane "a" is fully unresolved.
+            await tokens[1].ack()  # b1
+            await tokens[3].ack()  # b2
+            for _ in range(5):
+                await asyncio.sleep(0)
+            assert cls.advanced == ["b1", "b2"], "lane b must advance without waiting for lane a's head"
 
-        await tokens[0].ack()  # a1
-        await tokens[2].ack()  # a2
-        for _ in range(5):
-            await asyncio.sleep(0)
+            await tokens[0].ack()  # a1
+            await tokens[2].ack()  # a2
+            for _ in range(5):
+                await asyncio.sleep(0)
 
-        # Contract: full per-lane projections in fan-out order. The global
-        # interleaving across lanes is a pump implementation detail.
-        assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2"]
-        assert [p for p in cls.advanced if p[0] == "b"] == ["b1", "b2"]
-        assert len(cls.advanced) == 4
-        # All lanes drained → the per-lane index is garbage-collected.
-        assert group._lane_queues == {}
+            # Contract: full per-lane projections in fan-out order. The global
+            # interleaving across lanes is a pump implementation detail.
+            assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2"]
+            assert [p for p in cls.advanced if p[0] == "b"] == ["b1", "b2"]
+            assert len(cls.advanced) == 4
+            # All lanes drained → the per-lane index is garbage-collected.
+            assert group._lane_queues == {}
     finally:
         await manager.unsubscribe(1, key)
 
@@ -1864,24 +1887,25 @@ async def test_lane_internal_fifo_with_out_of_order_resolve():
     try:
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
 
-        tokens: list[AckToken] = []
-        await asyncio.wait_for(_grab_tokens(s1, tokens, n=4), timeout=1.0)
+        async with _consume_in_background(s1) as collector:
+            await collector.wait_for(4)
+            tokens = collector.tokens
 
-        # Resolve a2 and a3 (head a1 stays pending) plus the noise lane.
-        await tokens[2].ack()  # a2
-        await tokens[3].ack()  # a3
-        await tokens[1].ack()  # b1
-        for _ in range(5):
-            await asyncio.sleep(0)
-        assert cls.advanced == ["b1"], "lane a may not advance while its own head is unresolved"
+            # Resolve a2 and a3 (head a1 stays pending) plus the noise lane.
+            await tokens[2].ack()  # a2
+            await tokens[3].ack()  # a3
+            await tokens[1].ack()  # b1
+            for _ in range(5):
+                await asyncio.sleep(0)
+            assert cls.advanced == ["b1"], "lane a may not advance while its own head is unresolved"
 
-        await tokens[0].ack()  # a1
-        for _ in range(5):
-            await asyncio.sleep(0)
+            await tokens[0].ack()  # a1
+            for _ in range(5):
+                await asyncio.sleep(0)
 
-        assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2", "a3"]
-        assert [p for p in cls.advanced if p[0] == "b"] == ["b1"]
-        assert len(cls.advanced) == 4
+            assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2", "a3"]
+            assert [p for p in cls.advanced if p[0] == "b"] == ["b1"]
+            assert len(cls.advanced) == 4
     finally:
         await manager.unsubscribe(1, key)
 
@@ -1925,26 +1949,27 @@ async def test_max_in_flight_one_across_lanes():
     try:
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
 
-        tokens: list[AckToken] = []
-        await asyncio.wait_for(_grab_tokens(s1, tokens, n=2), timeout=1.0)
+        async with _consume_in_background(s1) as collector:
+            await collector.wait_for(2)
+            tokens = collector.tokens
 
-        # Resolve both lanes; the pump starts one advance, which blocks.
-        await tokens[0].ack()
-        await tokens[1].ack()
-        for _ in range(5):
-            await asyncio.sleep(0)
-        assert state["in_flight"] == 1, "the other lane's advance must not start while one is in flight"
-        assert advanced == []
+            # Resolve both lanes; the pump starts one advance, which blocks.
+            await tokens[0].ack()
+            await tokens[1].ack()
+            for _ in range(5):
+                await asyncio.sleep(0)
+            assert state["in_flight"] == 1, "the other lane's advance must not start while one is in flight"
+            assert advanced == []
 
-        release.set()
-        deadline = asyncio.get_event_loop().time() + 1.0
-        while asyncio.get_event_loop().time() < deadline:
-            if len(advanced) >= 2:
-                break
-            await asyncio.sleep(0)
+            release.set()
+            deadline = asyncio.get_event_loop().time() + 1.0
+            while asyncio.get_event_loop().time() < deadline:
+                if len(advanced) >= 2:
+                    break
+                await asyncio.sleep(0)
 
-        assert sorted(advanced) == ["a1", "b1"]
-        assert state["max_in_flight"] == 1, "advance calls must never overlap, even across lanes"
+            assert sorted(advanced) == ["a1", "b1"]
+            assert state["max_in_flight"] == 1, "advance calls must never overlap, even across lanes"
     finally:
         await manager.unsubscribe(1, key)
 
@@ -2465,27 +2490,25 @@ async def test_outcome_classification(second_action, expected, expected_clean):
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
         s2 = manager.subscribe(trigger_id=2, trigger=t2, key=key)
 
-        tokens: list[AckToken] = []
-        await asyncio.gather(
-            asyncio.wait_for(_grab_tokens(s1, tokens, n=1), timeout=1.0),
-            asyncio.wait_for(_grab_tokens(s2, tokens, n=2), timeout=1.0),
-        )
+        async with _consume_in_background(s1) as c1, _consume_in_background(s2) as c2:
+            await c1.wait_for(1)
+            await c2.wait_for(1)
 
-        await tokens[0].ack()
-        if second_action == "ack":
-            await tokens[1].ack()
-        elif second_action == "nack":
-            await tokens[1].nack()
-        else:
-            await manager.unsubscribe(2, key)
-        await asyncio.sleep(0)
+            await c1.tokens[0].ack()
+            if second_action == "ack":
+                await c2.tokens[0].ack()
+            elif second_action == "nack":
+                await c2.tokens[0].nack()
+            else:
+                await manager.unsubscribe(2, key)
+            await asyncio.sleep(0)
 
-        assert cls.advanced == ["receipt-outcome"]
-        assert cls.outcomes == [expected]
-        assert cls.outcomes[0].is_clean is expected_clean
-        # Invariant: every subscriber in the broadcast snapshot is counted exactly once.
-        outcome = cls.outcomes[0]
-        assert outcome.acked + outcome.nacked + outcome.failed == 2
+            assert cls.advanced == ["receipt-outcome"]
+            assert cls.outcomes == [expected]
+            assert cls.outcomes[0].is_clean is expected_clean
+            # Invariant: every subscriber in the broadcast snapshot is counted exactly once.
+            outcome = cls.outcomes[0]
+            assert outcome.acked + outcome.nacked + outcome.failed == 2
     finally:
         await manager.unsubscribe(1, key)
         if second_action != "unsubscribe":
@@ -2512,21 +2535,19 @@ async def test_outcome_counts_timeout_as_failed():
         s_fast = manager.subscribe(trigger_id=1, trigger=t_fast, key=key)
         s_slow = manager.subscribe(trigger_id=2, trigger=t_slow, key=key)
 
-        tokens: list[AckToken] = []
-        await asyncio.gather(
-            asyncio.wait_for(_grab_tokens(s_fast, tokens, n=1), timeout=1.0),
-            # Pull the (event, token) pair off the slow stream but never resolve it.
-            asyncio.wait_for(_grab_tokens(s_slow, tokens, n=2), timeout=1.0),
-        )
+        # The slow collector pulls its (event, token) pair but never resolves it.
+        async with _consume_in_background(s_fast) as c_fast, _consume_in_background(s_slow) as c_slow:
+            await c_fast.wait_for(1)
+            await c_slow.wait_for(1)
 
-        await tokens[0].ack()
-        fake_clock[0] = 0.2
-        # Let the timeout loop tick (cadence = 0.01s real) and the pump dispatch.
-        await asyncio.sleep(0.05)
+            await c_fast.tokens[0].ack()
+            fake_clock[0] = 0.2
+            # Let the timeout loop tick (cadence = 0.01s real) and the pump dispatch.
+            await asyncio.sleep(0.05)
 
-        assert cls.advanced == ["receipt-to"]
-        assert cls.outcomes == [AdvanceOutcome(acked=1, nacked=0, failed=1)]
-        assert not cls.outcomes[0].is_clean
+            assert cls.advanced == ["receipt-to"]
+            assert cls.outcomes == [AdvanceOutcome(acked=1, nacked=0, failed=1)]
+            assert not cls.outcomes[0].is_clean
     finally:
         await manager.stop_all()
 
@@ -2544,15 +2565,16 @@ async def test_double_resolve_counts_once():
     try:
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
 
-        tokens: list[AckToken] = []
-        await asyncio.wait_for(_grab_tokens(s1, tokens, n=1), timeout=1.0)
+        async with _consume_in_background(s1) as collector:
+            await collector.wait_for(1)
+            token = collector.tokens[0]
 
-        await tokens[0].ack()
-        await tokens[0].nack()
-        await asyncio.sleep(0)
+            await token.ack()
+            await token.nack()
+            await asyncio.sleep(0)
 
-        assert cls.advanced == ["receipt-double-resolve"]
-        assert cls.outcomes == [AdvanceOutcome(acked=1, nacked=0, failed=0)]
+            assert cls.advanced == ["receipt-double-resolve"]
+            assert cls.outcomes == [AdvanceOutcome(acked=1, nacked=0, failed=0)]
     finally:
         await manager.unsubscribe(1, key)
 
@@ -2658,17 +2680,20 @@ async def test_pump_continues_after_advance_raises():
         group = manager._groups[key]
         group.log = MagicMock()
 
-        tokens: list[AckToken] = []
-        await asyncio.wait_for(_grab_tokens(s1, tokens, n=2), timeout=1.0)
-        await tokens[0].ack()
-        await tokens[1].ack()
-        for _ in range(5):
-            await asyncio.sleep(0)
+        async with _consume_in_background(s1) as collector:
+            await collector.wait_for(2)
+            tokens = collector.tokens
+            await tokens[0].ack()
+            await tokens[1].ack()
+            for _ in range(5):
+                await asyncio.sleep(0)
 
-        assert attempted == ["p1", "p2"], "the pump must move on to event 2 after event 1's advance raised"
-        error_calls = group.log.error.mock_calls
-        assert len(error_calls) == 1
-        assert "broker advance failed" in error_calls[0].args[0]
+            assert attempted == ["p1", "p2"], (
+                "the pump must move on to event 2 after event 1's advance raised"
+            )
+            error_calls = group.log.error.mock_calls
+            assert len(error_calls) == 1
+            assert "broker advance failed" in error_calls[0].args[0]
     finally:
         await manager.unsubscribe(1, key)
 
@@ -2716,32 +2741,33 @@ async def test_force_fail_clears_subscriber_from_all_outstanding_entries():
         manager.subscribe(trigger_id=1, trigger=t_dead, key=key)
         s_live = manager.subscribe(trigger_id=2, trigger=t_live, key=key)
 
-        tokens: list[AckToken] = []
         # Live subscriber acks events 1 and 2; the dead subscriber never consumes.
-        await asyncio.wait_for(_grab_tokens(s_live, tokens, n=2), timeout=1.0)
-        await tokens[0].ack()
-        await tokens[1].ack()
-        await asyncio.sleep(0)
-        assert _GatedTrigger.advanced == [], "events 1-2 still wait on the dead subscriber"
-
-        # Event 3 overflows the dead subscriber's queue → force-fail clears it
-        # from ALL outstanding entries, so events 1-2 advance without waiting
-        # for their ack timeouts.
-        gate.set()
-        deadline = asyncio.get_event_loop().time() + 1.0
-        while asyncio.get_event_loop().time() < deadline:
-            if len(_GatedTrigger.advanced) >= 2:
-                break
+        async with _consume_in_background(s_live) as collector:
+            await collector.wait_for(2)
+            tokens = collector.tokens
+            await tokens[0].ack()
+            await tokens[1].ack()
             await asyncio.sleep(0)
-        assert _GatedTrigger.advanced == ["p1", "p2"]
-        assert _GatedTrigger.outcomes == [AdvanceOutcome(acked=1, nacked=0, failed=1)] * 2
+            assert _GatedTrigger.advanced == [], "events 1-2 still wait on the dead subscriber"
 
-        # The live subscriber resolves event 3 and it advances too.
-        await asyncio.wait_for(_grab_tokens(s_live, tokens, n=3), timeout=1.0)
-        await tokens[2].ack()
-        await asyncio.sleep(0)
-        assert _GatedTrigger.advanced == ["p1", "p2", "p3"]
-        assert _GatedTrigger.outcomes[2] == AdvanceOutcome(acked=1, nacked=0, failed=1)
+            # Event 3 overflows the dead subscriber's queue → force-fail clears it
+            # from ALL outstanding entries, so events 1-2 advance without waiting
+            # for their ack timeouts.
+            gate.set()
+            deadline = asyncio.get_event_loop().time() + 1.0
+            while asyncio.get_event_loop().time() < deadline:
+                if len(_GatedTrigger.advanced) >= 2:
+                    break
+                await asyncio.sleep(0)
+            assert _GatedTrigger.advanced == ["p1", "p2"]
+            assert _GatedTrigger.outcomes == [AdvanceOutcome(acked=1, nacked=0, failed=1)] * 2
+
+            # The live subscriber resolves event 3 and it advances too.
+            await collector.wait_for(3)
+            await collector.tokens[2].ack()
+            await asyncio.sleep(0)
+            assert _GatedTrigger.advanced == ["p1", "p2", "p3"]
+            assert _GatedTrigger.outcomes[2] == AdvanceOutcome(acked=1, nacked=0, failed=1)
     finally:
         await manager.stop_all()
 
@@ -2832,8 +2858,6 @@ async def test_stop_drains_resolved_prefix_and_abandons_unresolved():
     # ...and must not advance the unresolved event 2 (left to broker redelivery).
     assert advanced == ["p1"]
     assert sum(aclose_calls) == 1, "the producer must still be closed after the drain"
-<<<<<<< HEAD
-=======
 
 
 async def _pull_pair(stream_iter):
@@ -3001,7 +3025,7 @@ async def test_ack_before_yield_still_gates_advance_on_confirmation():
 
 @pytest.mark.asyncio
 async def test_unsubscribe_with_unconfirmed_seq_waits_for_confirmation():
-    """Regression: a subscriber leaving right after producing an event must not bypass the persist gate."""
+    """Guard: a subscriber leaving right after producing an event must not bypass the persist gate."""
     cls = _make_ack_required_trigger_class([({"n": 1}, "p1")])
     cls.advanced.clear()
     cls.outcomes.clear()
@@ -3195,4 +3219,3 @@ async def test_group_stop_abandons_unconfirmed_advance():
     assert manager._groups == {}
     assert cls.advanced == [], "an unconfirmed advance must be abandoned at group stop"
     assert cls.aclose_calls == 1
->>>>>>> e927a603b1 (fixup! fixup! feat(triggers): add producer-side ack channel to shared-stream triggers)
