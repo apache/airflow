@@ -19,7 +19,7 @@
 import { Box, Button, Heading, Input, RadioCard, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import tz from "dayjs/plugin/timezone";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -79,6 +79,10 @@ export const TaskStoreModal = ({
   const [customExpiresAt, setCustomExpiresAt] = useState("");
   const isEditMode = mode === "edit";
   const isValueValid = isJsonValid(value);
+  const minDateTime = useMemo(
+    () => dayjs().tz(selectedTimezone).format("YYYY-MM-DDTHH:mm"),
+    [selectedTimezone],
+  );
 
   const { data: existingState, isLoading: isFetchingExisting } = useTaskStoreServiceGetTaskStore(
     { dagId, dagRunId: runId, key: storeKey ?? "", mapIndex, taskId },
@@ -92,11 +96,14 @@ export const TaskStoreModal = ({
       if (existingState.expires_at === null) {
         setExpiresAt("never");
       } else {
+        // The API always returns an absolute datetime — there is no way to distinguish
+        // the default value from value saved as custom datetime. Show it as
+        // Custom pre-filled with the resolved date so the user can adjust it.
         setExpiresAt("custom");
-        setCustomExpiresAt(existingState.expires_at);
+        setCustomExpiresAt(dayjs(existingState.expires_at).tz(selectedTimezone).format("YYYY-MM-DDTHH:mm"));
       }
     }
-  }, [existingState, isEditMode]);
+  }, [existingState, isEditMode, selectedTimezone]);
 
   const { isPending, mutate: setTaskStore } = useTaskStoreServiceSetTaskStore(
     useStoreMutation({
@@ -191,7 +198,7 @@ export const TaskStoreModal = ({
                 </RadioCard.Root>
                 {expiresAt === "custom" && (
                   <DateTimeInput
-                    min={dayjs().tz(selectedTimezone).format("YYYY-MM-DDTHH:mm")}
+                    min={minDateTime}
                     mt={2}
                     onChange={(ev) => setCustomExpiresAt(ev.target.value)}
                     value={customExpiresAt}
