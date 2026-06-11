@@ -24,6 +24,8 @@ import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { Stat } from "src/components/Stat";
 import { StateBadge } from "src/components/StateBadge";
 
+import { DagDeactivatedBanner } from "./DagDeactivatedBanner";
+
 type Props = {
   readonly actions?: ReactNode;
   readonly icon: ReactNode;
@@ -37,26 +39,35 @@ export const HeaderCard = ({ actions, icon, state, stats, subTitle, title }: Pro
   const { t: translate } = useTranslation();
 
   return (
-    <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} data-testid="header-card" p={2}>
-      <Flex alignItems="center" flexWrap="wrap" justifyContent="space-between" mb={2}>
-        <Flex alignItems="center" flexWrap="wrap" gap={2}>
-          <Heading size="xl">{icon}</Heading>
-          <Heading size="lg">{title}</Heading>
-          <Heading size="lg">{subTitle}</Heading>
-          {state === undefined ? undefined : (
-            <StateBadge state={state}>{state ? translate(`common:states.${state}`) : undefined}</StateBadge>
-          )}
+    <Box
+      borderColor="border.emphasized"
+      borderRadius={8}
+      borderWidth={1}
+      data-testid="header-card"
+      overflow="hidden"
+    >
+      <DagDeactivatedBanner />
+      <Box p={2}>
+        <Flex alignItems="center" flexWrap="wrap" justifyContent="space-between" mb={2}>
+          <Flex alignItems="center" flexWrap="wrap" gap={2}>
+            <Heading size="xl">{icon}</Heading>
+            <Heading size="lg">{title}</Heading>
+            <Heading size="lg">{subTitle}</Heading>
+            {state === undefined ? undefined : (
+              <StateBadge state={state}>{state ? translate(`common:states.${state}`) : undefined}</StateBadge>
+            )}
+          </Flex>
+          <HStack gap={1}>{actions}</HStack>
         </Flex>
-        <HStack gap={1}>{actions}</HStack>
-      </Flex>
 
-      <HStack alignItems="flex-start" flexWrap="wrap" gap={5} justifyContent="space-between" my={2}>
-        {stats.map(({ label, value }) => (
-          <GridItem key={label}>
-            <Stat label={label}>{value}</Stat>
-          </GridItem>
-        ))}
-      </HStack>
+        <HStack alignItems="flex-start" flexWrap="wrap" gap={5} justifyContent="space-between" my={2}>
+          {stats.map(({ label, value }) => (
+            <GridItem key={label}>
+              <Stat label={label}>{value}</Stat>
+            </GridItem>
+          ))}
+        </HStack>
+      </Box>
     </Box>
   );
 };
