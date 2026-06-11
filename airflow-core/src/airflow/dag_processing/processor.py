@@ -535,8 +535,6 @@ class DagFileProcessorProcess(WatchedSubprocess):
     decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
     had_callbacks: bool = False  # Track if this process was started with callbacks to prevent stale DAG detection false positives
 
-    """The HTTP client to use for communication with the API server."""
-
     bundle_name: str
     dag_file_rel_path: str
 
