@@ -60,9 +60,7 @@ def _make_ti(dag_id: str = "tutorial_dag", queue: str = "socket") -> TaskInstanc
         run_id="run_1",
         try_number=1,
         map_index=-1,
-        pool_slots=1,
         queue=queue,
-        priority_weight=1,
     )
 
 

@@ -54,9 +54,7 @@ def _make_ti(dag_id: str = "test_dag", queue: str = "java") -> TaskInstance:
         run_id="run_1",
         try_number=1,
         map_index=-1,
-        pool_slots=1,
         queue=queue,
-        priority_weight=1,
     )
 
 

@@ -2481,7 +2481,7 @@ def supervise_task(
         raise ValueError("dag_path is required")
 
     try:
-        coordinator = get_coordinator_manager().for_queue(ti.queue)
+        coordinator = get_coordinator_manager().for_queue(ti.queue or "default")
     except:
         log.exception(
             "Failed to initialize coordinator for task",

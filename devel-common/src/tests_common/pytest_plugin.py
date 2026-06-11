@@ -2674,9 +2674,7 @@ def create_runtime_ti(mocked_parse):
                 try_number=try_number,
                 map_index=map_index,  # type: ignore[arg-type]
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             dag_rel_path="",
             bundle_info=BundleInfo(name="anything", version="any"),
