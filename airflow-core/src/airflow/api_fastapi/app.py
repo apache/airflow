@@ -75,17 +75,6 @@ def _initialize_task_sdk_stats() -> None:
     """
     Initialize the Task SDK ``Stats`` singleton in the API server process.
 
-    Unlike the scheduler, triggerer, dag-processor, executors and task runner, the API server
-    never called ``Stats.initialize(...)``. Since the auto-initializing ``Stats`` was removed
-    (#63932) that singleton stays a ``NoStatsLogger`` in the API server process, so any metric
-    emitted through the Task SDK ``Stats`` singleton from code served by the API server is
-    silently dropped.
-
-    The case that surfaced this is the Edge Worker REST API (``/edge_worker/v1/...``): its
-    heartbeat handler records ``edge_worker.*`` metrics through the Task SDK ``Stats`` singleton
-    (resolved by the Edge provider via ``airflow.providers.common.compat``), but the problem is
-    not specific to Edge.
-
     Initialization is guarded so a metrics misconfiguration can never prevent the API server
     from starting.
     """
