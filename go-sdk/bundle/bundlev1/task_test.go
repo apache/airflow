@@ -117,3 +117,45 @@ func (s *TaskSuite) TestArgumentBinding() {
 		})
 	}
 }
+
+// TestXComInputRegistration checks that AddTask/NewTaskFunction surfaces the
+// binding package's signature analysis: a valid xcom-input struct registers,
+// and a wiring mistake fails at registration. The decoding/pull behaviour
+// itself is covered by the binding package's own tests.
+func (s *TaskSuite) TestXComInputRegistration() {
+	cases := map[string]struct {
+		fn          any
+		errContains string
+	}{
+		"valid-input-struct": {
+			fn: func(in struct {
+				Extracted string `xcom:"extract"`
+			},
+			) error {
+				return nil
+			},
+		},
+		"untagged-field": {
+			fn: func(in struct {
+				Extracted string
+			},
+			) error {
+				return nil
+			},
+			errContains: "has no `xcom` tag",
+		},
+	}
+
+	for name, tt := range cases {
+		s.Run(name, func() {
+			_, err := NewTaskFunction(tt.fn)
+			if tt.errContains != "" {
+				if s.Error(err) {
+					s.Contains(err.Error(), tt.errContains)
+				}
+				return
+			}
+			s.NoError(err)
+		})
+	}
+}

@@ -206,6 +206,14 @@ func (c *CoordinatorClient) GetXCom(
 		return nil, fmt.Errorf("decoding xcom result: %w", err)
 	}
 
+	if result.Value == nil {
+		// The supervisor returns a null value for an absent XCom (Airflow's
+		// xcom_pull yields None when the key is missing), so surface it as
+		// not-found, matching how the HTTP client maps a 404 and how
+		// GetVariable handles the same condition above.
+		return nil, fmt.Errorf("%w: %q", sdk.XComNotFound, key)
+	}
+
 	return result.Value, nil
 }
 
