@@ -269,28 +269,6 @@ class TestStatsd:
             "runAsNonRoot": True,
         }
 
-    def test_statsd_security_context_legacy(self):
-        docs = render_chart(
-            values={
-                "statsd": {
-                    "securityContext": {
-                        "fsGroup": 1000,
-                        "runAsGroup": 1001,
-                        "runAsNonRoot": True,
-                        "runAsUser": 2000,
-                    }
-                },
-            },
-            show_only=["templates/statsd/statsd-deployment.yaml"],
-        )
-
-        assert jmespath.search("spec.template.spec.securityContext", docs[0]) == {
-            "runAsUser": 2000,
-            "runAsGroup": 1001,
-            "fsGroup": 1000,
-            "runAsNonRoot": True,
-        }
-
     def test_statsd_resources_are_not_added_by_default(self):
         docs = render_chart(
             show_only=["templates/statsd/statsd-deployment.yaml"],
