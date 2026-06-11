@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
     from typing_extensions import Self
 
-    from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
+    from airflow.sdk.api.datamodels._generated import TaskInstance
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.java")
 
@@ -219,7 +219,7 @@ class JavaCoordinator(SubprocessCoordinator):
     )
     main_class: str = ""
 
-    def _build_execute_task_command(self, *, what: TaskInstanceDTO) -> tuple[list[str], str | None]:
+    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         jar = _JarInfo.find(self.jars_root, self.main_class)
         command = [
             self.java_executable,
