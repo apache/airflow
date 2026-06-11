@@ -304,6 +304,12 @@ def _do_delete(
             raise
         finally:
             if target_table is not None and skip_archive:
+                # Drop the archive table on the session's own connection. Binding
+                # the drop to ``session.get_bind()`` (the Engine) would check out a
+                # *second* pooled connection, and on MySQL its ``DROP TABLE`` blocks
+                # indefinitely on the metadata lock still held by this session's
+                # open transaction when the DELETE above failed -- the ``db clean``
+                # hang reported in #66177.
                 target_table.drop(bind=session.connection())
                 session.commit()
 
