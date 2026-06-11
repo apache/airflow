@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Text } from "@chakra-ui/react";
+import { Flex, Link, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
-import { useParams } from "react-router-dom";
+import { Link as RouterLink, useParams } from "react-router-dom";
 
 import { useAssetStoreServiceListAssetStore } from "openapi/queries";
 import type { AssetStoreResponse } from "openapi/requests";
@@ -55,6 +55,43 @@ const getColumns = ({ assetId, translate }: ColumnsProps): Array<ColumnDef<Asset
     accessorKey: "updated_at",
     cell: ({ row: { original } }) => <Time datetime={original.updated_at} />,
     header: translate("common:table.updatedAt"),
+  },
+  {
+    accessorKey: "last_updated_by",
+    cell: ({ row: { original } }) => {
+      const writer = original.last_updated_by;
+
+      if (!writer) {
+        return <Text color="fg.muted">—</Text>;
+      }
+      if (
+        writer.kind === "task" &&
+        writer.dag_id !== null &&
+        writer.run_id !== null &&
+        writer.task_id !== null
+      ) {
+        const mapSuffix =
+          writer.map_index !== null && writer.map_index !== undefined && writer.map_index >= 0
+            ? `/mapped/${writer.map_index}`
+            : "";
+        const path = `/dags/${writer.dag_id}/runs/${writer.run_id}/tasks/${writer.task_id}${mapSuffix}`;
+
+        return (
+          <Flex direction="column">
+            <Link asChild color="fg.info">
+              <RouterLink to={path}>{writer.task_id}</RouterLink>
+            </Link>
+            <Text color="fg.muted" fontSize="xs">
+              {writer.dag_id}
+            </Text>
+          </Flex>
+        );
+      }
+
+      return <Text>{writer.kind === "api" ? "API" : "Watcher"}</Text>;
+    },
+    enableSorting: false,
+    header: translate("assets:assetStore.lastUpdatedBy"),
   },
   {
     accessorKey: "actions",
