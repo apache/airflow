@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { MdDetails, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
+import { useDagRunServiceGetDagRun } from "openapi/queries";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 
@@ -29,7 +30,16 @@ import { Header } from "./Header";
 export const MappedTaskInstance = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
   const { t: translate } = useTranslation("dag");
-  const { summariesByRunId } = useGridTiSummariesStream({ dagId, runIds: runId ? [runId] : [] });
+  // Pass the run state so the summaries stream keeps auto-refreshing while the run is running;
+  // without it the Header and Details tab would freeze on the first fetch.
+  const { data: dagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId: runId }, undefined, {
+    enabled: Boolean(runId),
+  });
+  const { summariesByRunId } = useGridTiSummariesStream({
+    dagId,
+    runIds: runId ? [runId] : [],
+    states: dagRun ? [dagRun.state] : undefined,
+  });
   const gridTISummaries = summariesByRunId.get(runId);
 
   const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
