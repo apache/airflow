@@ -62,9 +62,10 @@ export const HITLReviewModal = ({
 }) => {
   const { t: translate } = useTranslation("hitl");
   const [selectedFilter, setSelectedFilter] = useState<HITLReviewFilterMode>(HITLReviewFilterMode.PENDING);
+  const shouldShowCompletedHitl = completedHitl !== undefined;
   const visibleHitls =
-    selectedFilter === HITLReviewFilterMode.ALL
-      ? [...pendingHitl.data, ...(completedHitl?.data ?? [])]
+    shouldShowCompletedHitl && selectedFilter === HITLReviewFilterMode.ALL
+      ? [...pendingHitl.data, ...completedHitl.data]
       : pendingHitl.data;
 
   const { hasNext, hasPrevious, onNext, onPrevious, onSelect, selectedDetail } = useHITLReviewModalSelection({
@@ -96,15 +97,17 @@ export const HITLReviewModal = ({
             </Heading>
             <HStack gap={2}>
               {headerAction}
-              <ButtonGroupToggle<HITLReviewFilterMode>
-                onChange={setSelectedFilter}
-                options={HITL_REVIEW_FILTER_OPTIONS.map((option) => ({
-                  label: translate(option.labelKey),
-                  value: option.value,
-                }))}
-                size="xs"
-                value={selectedFilter}
-              />
+              {shouldShowCompletedHitl ? (
+                <ButtonGroupToggle<HITLReviewFilterMode>
+                  onChange={setSelectedFilter}
+                  options={HITL_REVIEW_FILTER_OPTIONS.map((option) => ({
+                    label: translate(option.labelKey),
+                    value: option.value,
+                  }))}
+                  size="xs"
+                  value={selectedFilter}
+                />
+              ) : undefined}
               <HStack gap={1}>
                 <IconButton
                   disabled={!hasPrevious}
@@ -151,14 +154,14 @@ export const HITLReviewModal = ({
                   onSelect={onSelect}
                   selectedDetail={selectedDetail}
                 />
-                {selectedFilter === HITLReviewFilterMode.ALL ? (
+                {shouldShowCompletedHitl && selectedFilter === HITLReviewFilterMode.ALL ? (
                   <HITLReviewListSection
-                    details={completedHitl?.data ?? []}
+                    details={completedHitl.data}
                     heading={translate("review.list.completedRequiredActions", {
-                      count: (completedHitl?.data ?? []).length,
+                      count: completedHitl.data.length,
                     })}
-                    isError={completedHitl?.isError}
-                    isLoading={completedHitl?.isLoading}
+                    isError={completedHitl.isError}
+                    isLoading={completedHitl.isLoading}
                     onSelect={onSelect}
                     selectedDetail={selectedDetail}
                   />
