@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import time
 import weakref
+from collections.abc import Callable
 from contextlib import suppress
 from unittest.mock import MagicMock
 
@@ -695,14 +696,20 @@ async def test_fail_overflowed_subscriber_drains_full_queue_before_putting_senti
 class _RecordingProducer(SharedStreamProducer):
     """Producer that records advance/aclose activity onto its trigger class."""
 
-    def __init__(self, trigger_cls, events_with_payloads: list[tuple]):
+    def __init__(self, trigger_cls, events_with_payloads: list[tuple], *, lane_for: Callable | None = None):
         self._trigger_cls = trigger_cls
         self._events_with_payloads = events_with_payloads
+        self._lane_for = lane_for
 
     async def open_stream(self):
         for event, broker_payload in self._events_with_payloads:
             yield event, broker_payload
         await asyncio.Event().wait()
+
+    def get_advance_lane(self, broker_payload):
+        if self._lane_for is None:
+            return None
+        return self._lane_for(broker_payload)
 
     async def advance(self, broker_payload, outcome):
         self._trigger_cls.advanced.append(broker_payload)
@@ -712,7 +719,7 @@ class _RecordingProducer(SharedStreamProducer):
         self._trigger_cls.aclose_calls += 1
 
 
-def _make_ack_required_trigger_class(events_with_payloads: list[tuple]):
+def _make_ack_required_trigger_class(events_with_payloads: list[tuple], *, lane_for: Callable | None = None):
     """
     Return a fresh trigger class whose ``create_shared_stream_producer``
     returns a :class:`_RecordingProducer` yielding ``(event, broker_payload)``
@@ -726,7 +733,7 @@ def _make_ack_required_trigger_class(events_with_payloads: list[tuple]):
 
         @classmethod
         def create_shared_stream_producer(cls, kwargs):
-            return _RecordingProducer(cls, events_with_payloads)
+            return _RecordingProducer(cls, events_with_payloads, lane_for=lane_for)
 
         async def filter_shared_stream(self, shared_stream):
             async for raw, token in shared_stream:
@@ -1781,6 +1788,331 @@ async def test_pump_serializes_advance_calls():
         assert state["max_in_flight"] == 1, "advance calls must never overlap"
     finally:
         await manager.unsubscribe(1, key)
+
+
+# ---------------------------------------------------------------------------
+# Advance lanes (get_advance_lane)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_lanes_advance_independently():
+    """A lane whose events are resolved does not wait for another lane's unresolved head."""
+    cls = _make_ack_required_trigger_class(
+        [
+            ({"n": "a1"}, "a1"),
+            ({"n": "b1"}, "b1"),
+            ({"n": "a2"}, "a2"),
+            ({"n": "b2"}, "b2"),
+        ],
+        lane_for=lambda payload: payload[0],
+    )
+    cls.advanced.clear()
+    cls.outcomes.clear()
+
+    t1 = cls()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+    try:
+        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+        group = manager._groups[key]
+
+        tokens: list[AckToken] = []
+        await asyncio.wait_for(_grab_tokens(s1, tokens, n=4), timeout=1.0)
+
+        # Resolve lane "b" completely while lane "a" is fully unresolved.
+        await tokens[1].ack()  # b1
+        await tokens[3].ack()  # b2
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert cls.advanced == ["b1", "b2"], "lane b must advance without waiting for lane a's head"
+
+        await tokens[0].ack()  # a1
+        await tokens[2].ack()  # a2
+        for _ in range(5):
+            await asyncio.sleep(0)
+
+        # Contract: full per-lane projections in fan-out order. The global
+        # interleaving across lanes is a pump implementation detail.
+        assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2"]
+        assert [p for p in cls.advanced if p[0] == "b"] == ["b1", "b2"]
+        assert len(cls.advanced) == 4
+        # All lanes drained → the per-lane index is garbage-collected.
+        assert group._lane_queues == {}
+    finally:
+        await manager.unsubscribe(1, key)
+
+
+@pytest.mark.asyncio
+async def test_lane_internal_fifo_with_out_of_order_resolve():
+    """Out-of-order resolves within a lane still advance in fan-out order, per lane."""
+    cls = _make_ack_required_trigger_class(
+        [
+            ({"n": "a1"}, "a1"),
+            ({"n": "b1"}, "b1"),
+            ({"n": "a2"}, "a2"),
+            ({"n": "a3"}, "a3"),
+        ],
+        lane_for=lambda payload: payload[0],
+    )
+    cls.advanced.clear()
+    cls.outcomes.clear()
+
+    t1 = cls()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+    try:
+        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+
+        tokens: list[AckToken] = []
+        await asyncio.wait_for(_grab_tokens(s1, tokens, n=4), timeout=1.0)
+
+        # Resolve a2 and a3 (head a1 stays pending) plus the noise lane.
+        await tokens[2].ack()  # a2
+        await tokens[3].ack()  # a3
+        await tokens[1].ack()  # b1
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert cls.advanced == ["b1"], "lane a may not advance while its own head is unresolved"
+
+        await tokens[0].ack()  # a1
+        for _ in range(5):
+            await asyncio.sleep(0)
+
+        assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2", "a3"]
+        assert [p for p in cls.advanced if p[0] == "b"] == ["b1"]
+        assert len(cls.advanced) == 4
+    finally:
+        await manager.unsubscribe(1, key)
+
+
+@pytest.mark.asyncio
+async def test_max_in_flight_one_across_lanes():
+    """Even with multiple lanes ready, at most one advance call is ever in flight."""
+    release = asyncio.Event()
+    state = {"in_flight": 0, "max_in_flight": 0}
+    advanced: list = []
+
+    class _BlockingLaneProducer(SharedStreamProducer):
+        async def open_stream(self):
+            yield {"n": "a1"}, "a1"
+            yield {"n": "b1"}, "b1"
+            await asyncio.Event().wait()
+
+        def get_advance_lane(self, broker_payload):
+            return broker_payload[0]
+
+        async def advance(self, broker_payload, outcome):
+            state["in_flight"] += 1
+            state["max_in_flight"] = max(state["max_in_flight"], state["in_flight"])
+            await release.wait()
+            advanced.append(broker_payload)
+            state["in_flight"] -= 1
+
+    class _BlockingLaneTrigger(_ProgrammableSharedStreamTrigger):
+        @classmethod
+        def create_shared_stream_producer(cls, kwargs):
+            return _BlockingLaneProducer()
+
+        async def filter_shared_stream(self, shared_stream):
+            async for raw, token in shared_stream:
+                await token.ack()
+                yield TriggerEvent(raw)
+
+    t1 = _BlockingLaneTrigger()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+    try:
+        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+
+        tokens: list[AckToken] = []
+        await asyncio.wait_for(_grab_tokens(s1, tokens, n=2), timeout=1.0)
+
+        # Resolve both lanes; the pump starts one advance, which blocks.
+        await tokens[0].ack()
+        await tokens[1].ack()
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert state["in_flight"] == 1, "the other lane's advance must not start while one is in flight"
+        assert advanced == []
+
+        release.set()
+        deadline = asyncio.get_event_loop().time() + 1.0
+        while asyncio.get_event_loop().time() < deadline:
+            if len(advanced) >= 2:
+                break
+            await asyncio.sleep(0)
+
+        assert sorted(advanced) == ["a1", "b1"]
+        assert state["max_in_flight"] == 1, "advance calls must never overlap, even across lanes"
+    finally:
+        await manager.unsubscribe(1, key)
+
+
+@pytest.mark.asyncio
+async def test_empty_snapshot_routes_through_lane():
+    """Born-resolved events (no subscribers online) keep per-lane fan-out order."""
+    cls = _make_ack_required_trigger_class(
+        [
+            ({"n": "a1"}, "a1"),
+            ({"n": "b1"}, "b1"),
+            ({"n": "a2"}, "a2"),
+            ({"n": "b2"}, "b2"),
+        ],
+        lane_for=lambda payload: payload[0],
+    )
+    cls.advanced.clear()
+    cls.outcomes.clear()
+
+    t1 = cls()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+
+    # Subscribe then immediately unsubscribe so the group exists but has zero
+    # subscribers when the events arrive.
+    s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+    manager._groups[key].unsubscribe(1)  # remove without stopping the poll task
+
+    deadline = asyncio.get_event_loop().time() + 1.0
+    while asyncio.get_event_loop().time() < deadline:
+        if len(cls.advanced) >= 4:
+            break
+        await asyncio.sleep(0.01)
+
+    assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2"]
+    assert [p for p in cls.advanced if p[0] == "b"] == ["b1", "b2"]
+    assert len(cls.advanced) == 4
+    assert cls.outcomes == [AdvanceOutcome(0, 0, 0)] * 4
+
+    del s1  # silence unused-variable warning
+    await manager.stop_all()
+
+
+@pytest.mark.asyncio
+async def test_get_advance_lane_raise_terminates_poll():
+    """A get_advance_lane that raises fails the poll like any other poll failure."""
+    proceed_flag = asyncio.Event()
+    aclose_calls: list[int] = []
+    advanced: list = []
+
+    class _RaisingLaneProducer(SharedStreamProducer):
+        async def open_stream(self):
+            yield {"n": 1}, "p1"
+            await proceed_flag.wait()
+            yield {"n": 2}, "p2"
+            await asyncio.Event().wait()  # pragma: no cover
+
+        def get_advance_lane(self, broker_payload):
+            if broker_payload == "p2":
+                raise RuntimeError("lane boom")
+            return None
+
+        async def advance(self, broker_payload, outcome):
+            advanced.append(broker_payload)
+
+        async def aclose(self):
+            aclose_calls.append(1)
+
+    class _RaisingLaneTrigger(_ProgrammableSharedStreamTrigger):
+        @classmethod
+        def create_shared_stream_producer(cls, kwargs):
+            return _RaisingLaneProducer()
+
+        async def filter_shared_stream(self, shared_stream):
+            async for raw, token in shared_stream:
+                await token.ack()
+                yield TriggerEvent(raw)
+
+    t1 = _RaisingLaneTrigger()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+
+    s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+    poll_task = manager._groups[key]._poll_task
+    assert poll_task is not None
+
+    # Consume and ack the first event, then release the event whose
+    # get_advance_lane raises.
+    events1 = await asyncio.wait_for(_collect_ack_stream(t1, s1, n=1), timeout=1.0)
+    assert len(events1) == 1
+    proceed_flag.set()
+
+    async def consume():
+        async for _ in s1:
+            pass
+
+    with pytest.raises(RuntimeError, match="lane boom"):
+        await asyncio.wait_for(consume(), timeout=1.0)
+
+    assert key not in manager._groups, "the group must be evicted when get_advance_lane raises"
+    await asyncio.wait_for(poll_task, timeout=1.0)
+    assert sum(aclose_calls) == 1
+    # The first event was resolved before the failure → drained on the stop path.
+    assert advanced == ["p1"]
+    await manager.unsubscribe(1, key)
+
+
+@pytest.mark.asyncio
+async def test_stop_drains_all_lanes():
+    """On stop the pump keeps draining until every resolved event in every lane is advanced."""
+    release = asyncio.Event()
+    advanced: list = []
+
+    class _SlowFirstAdvanceProducer(SharedStreamProducer):
+        async def open_stream(self):
+            yield {"n": "a1"}, "a1"
+            yield {"n": "a2"}, "a2"
+            yield {"n": "b1"}, "b1"
+            yield {"n": "b2"}, "b2"
+            await asyncio.Event().wait()
+
+        def get_advance_lane(self, broker_payload):
+            return broker_payload[0]
+
+        async def advance(self, broker_payload, outcome):
+            if broker_payload == "a1":
+                await release.wait()
+            advanced.append(broker_payload)
+
+    class _SlowFirstAdvanceTrigger(_ProgrammableSharedStreamTrigger):
+        @classmethod
+        def create_shared_stream_producer(cls, kwargs):
+            return _SlowFirstAdvanceProducer()
+
+        async def filter_shared_stream(self, shared_stream):
+            async for raw, token in shared_stream:
+                await token.ack()
+                yield TriggerEvent(raw)
+
+    t1 = _SlowFirstAdvanceTrigger()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+
+    s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+    tokens: list[AckToken] = []
+    await asyncio.wait_for(_grab_tokens(s1, tokens, n=4), timeout=1.0)
+
+    # Start a1's advance and let it block in flight.
+    await tokens[0].ack()
+    for _ in range(5):
+        await asyncio.sleep(0)
+
+    # Resolve everything else while a1's advance is still in flight, then
+    # stop the group before the pump has a chance to dispatch them.
+    await tokens[1].ack()
+    await tokens[2].ack()
+    await tokens[3].ack()
+    stop_task = asyncio.create_task(manager.unsubscribe(1, key))
+    for _ in range(5):
+        await asyncio.sleep(0)
+    release.set()
+    await asyncio.wait_for(stop_task, timeout=1.0)
+
+    # Drain-on-stop: a single harvesting pass would miss a2 and b2, which
+    # only become lane heads after the first pass already visited their lanes.
+    assert [p for p in advanced if p[0] == "a"] == ["a1", "a2"]
+    assert [p for p in advanced if p[0] == "b"] == ["b1", "b2"]
+    assert len(advanced) == 4
 
 
 @pytest.mark.asyncio
