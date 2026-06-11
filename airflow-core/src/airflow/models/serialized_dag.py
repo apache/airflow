@@ -544,15 +544,18 @@ class SerializedDagModel(Base):
         if not dag_id_list:
             return {}
 
-        # Fetch latest serialized_dag (last_updated, dag_hash) per dag_id
-        # using a window function to pick the most recent row.
+        # Fetch the serialized_dag (last_updated, dag_hash) of the latest DagVersion per dag_id,
+        # ordering by version_number so it stays consistent with the DagVersion picked by dv_subq.
         sd_subq = (
             select(
                 cls.dag_id.label("dag_id"),
                 cls.last_updated.label("last_updated"),
                 cls.dag_hash.label("dag_hash"),
-                func.row_number().over(partition_by=cls.dag_id, order_by=cls.created_at.desc()).label("rn"),
+                func.row_number()
+                .over(partition_by=cls.dag_id, order_by=DagVersion.version_number.desc())
+                .label("rn"),
             )
+            .join(DagVersion, cls.dag_version_id == DagVersion.id)
             .where(cls.dag_id.in_(dag_id_list))
             .subquery()
         )
@@ -563,14 +566,13 @@ class SerializedDagModel(Base):
             row.dag_id: (row.last_updated, row.dag_hash) for row in sd_rows
         }
 
-        # Fetch latest DagVersion per dag_id using a window function,
-        # matching the original write_dag ordering (ORDER BY created_at DESC).
+        # Fetch latest DagVersion per dag_id, ordering by version_number to match write_dag.
         dv_subq = (
             select(
                 DagVersion.id.label("id"),
                 DagVersion.dag_id.label("dag_id"),
                 func.row_number()
-                .over(partition_by=DagVersion.dag_id, order_by=DagVersion.created_at.desc())
+                .over(partition_by=DagVersion.dag_id, order_by=DagVersion.version_number.desc())
                 .label("rn"),
             )
             .where(DagVersion.dag_id.in_(dag_id_list))
