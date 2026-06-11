@@ -47,9 +47,6 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.definitions.context import Context
     from airflow.serialization.serialized_objects import SerializedBaseOperator
-
-    # Deferred to type-checking time: shared_stream imports this module at
-    # runtime, so a runtime import here would be circular.
     from airflow.triggers.shared_stream import SharedStreamProducer
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
