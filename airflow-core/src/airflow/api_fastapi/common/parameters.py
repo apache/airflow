@@ -639,24 +639,29 @@ class SortParam(BaseParam[list[str]]):
         Extract the sort-key value for ``name`` from a result row.
 
         Resolves the accessor through ``to_replace`` for string aliases
-        (e.g. ``{"dag_run_id": "run_id"}``); otherwise reads ``name`` directly.
+        (e.g. ``{"dag_run_id": "run_id"}``). For column-form mappings
+        (e.g. ``{"run_after": DagRun.run_after}``), resolves through the
+        primary model's attribute so association proxies can still be used
+        for cursor values. Raises ``NotImplementedError`` when the model
+        exposes no such attribute rather than emitting a ``None`` cursor token.
         """
         if self.to_replace:
             replacement = self.to_replace.get(name)
             if isinstance(replacement, str):
                 return getattr(row, replacement, None)
             if replacement is not None and not isinstance(replacement, list):
-                # TODO: Column-form ``to_replace`` (e.g. ``{"last_run_state": DagRun.state}``)
-                # isn't supported for cursor pagination — no endpoint that uses cursor
-                # pagination needs it today. When one does, decide how the row exposes the
-                # value (projected label on the SELECT, eagerly loaded relationship, etc.)
-                # and wire it up here. Raising loudly so a future caller doesn't silently
-                # get ``None`` cursor tokens.
-                raise NotImplementedError(
-                    f"Cursor pagination does not support column-form ``to_replace`` mapping for "
-                    f"``{name}``. Use a string alias in ``to_replace`` or sort by a primary-model "
-                    f"attribute."
-                )
+                # Column-form mapping resolves through the primary model's attribute,
+                # often an association proxy onto the joined entity
+                # (``TaskInstance.run_after`` -> ``dag_run.run_after``). Fail loudly if the
+                # model exposes no such attribute, rather than emitting a ``None`` cursor token.
+                try:
+                    return getattr(row, name)
+                except AttributeError:
+                    raise NotImplementedError(
+                        f"Cursor pagination cannot resolve column-form ``to_replace`` for "
+                        f"``{name}``: the primary model exposes no such attribute. Add an "
+                        f"association proxy, use a string alias, or sort by a primary-model column."
+                    )
             # List-form replacements are expanded in _resolve() into individual entries
             # each using the column's own ORM key as attr_name, so ``name`` at this point
             # is already a concrete model attribute (e.g. ``_rendered_map_index`` or
