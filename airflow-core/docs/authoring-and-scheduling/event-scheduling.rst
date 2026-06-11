@@ -79,7 +79,7 @@ cadence. See "Suitable upstreams" below for the precise scope.
 trigger keeps its own DB row, its own ``run_trigger`` task, and its own per-instance filtering. To participate, a
 subclass overrides three hooks:
 
-* :py:meth:`~airflow.triggers.base.BaseEventTrigger.shared_stream_key` — return a key identifying the shared
+* :meth:`~airflow.triggers.base.BaseEventTrigger.shared_stream_key` — return a key identifying the shared
   upstream (typically a tuple of strings). Triggers whose key compares equal will share one poll. Returning ``None``
   (the default) opts out — the trigger runs its own independent ``run()`` loop, exactly as before. The return value
   is read **once** when the triggerer starts this trigger; changing it mid-lifetime has no effect on group
@@ -87,11 +87,11 @@ subclass overrides three hooks:
   The key must be deterministic — derive it from configuration fields, never from per-call values such as
   ``time.time()`` or ``uuid.uuid4()``, because the comparison must be stable across the lifetime of the group.
 
-* :py:meth:`~airflow.triggers.base.BaseEventTrigger.open_shared_stream` — a ``@classmethod`` coroutine the triggerer
+* :meth:`~airflow.triggers.base.BaseEventTrigger.open_shared_stream` — a ``@classmethod`` coroutine the triggerer
   drives **once per shared-stream group** to yield raw events from the upstream. Because the triggerer reuses one
   trigger's kwargs to drive the shared poll, only rely on fields whose values participate in ``shared_stream_key``.
 
-* :py:meth:`~airflow.triggers.base.BaseEventTrigger.filter_shared_stream` — an instance method that consumes the
+* :meth:`~airflow.triggers.base.BaseEventTrigger.filter_shared_stream` — an instance method that consumes the
   broadcast raw stream and yields the ``TriggerEvent`` instances this trigger should fire. Per-trigger filtering
   (e.g. only events matching this instance's ``filename``) lives here.
 
@@ -165,8 +165,8 @@ Producer-side ack channel
 
 For upstreams where the producer must advance (commit, delete, or ack) only
 after all subscribers have processed an event, override
-:py:meth:`~airflow.triggers.base.BaseEventTrigger.create_shared_stream_producer`
-to return a :py:class:`~airflow.triggers.shared_stream.SharedStreamProducer`.
+:meth:`~airflow.triggers.base.BaseEventTrigger.create_shared_stream_producer`
+to return a :class:`~airflow.triggers.shared_stream.SharedStreamProducer`.
 When this factory is overridden, the manager enters **ack mode**:
 
 1. The manager calls ``create_shared_stream_producer(kwargs)`` once per
@@ -184,7 +184,7 @@ When this factory is overridden, the manager enters **ack mode**:
    queue), the manager calls
    ``await producer.advance(broker_payload, outcome)`` — commit the offset,
    delete the SQS message, etc. The ``outcome`` is an
-   :py:class:`~airflow.triggers.shared_stream.AdvanceOutcome` carrying
+   :class:`~airflow.triggers.shared_stream.AdvanceOutcome` carrying
    per-event counts of how the subscribers resolved.
 
 **Ordering guarantee**: by default every event belongs to the same lane,
@@ -370,7 +370,7 @@ If subscribers repeatedly overflow, there are two ways to address this:
 
 * Raise ``[triggerer] shared_stream_subscriber_queue_size`` to give the
   filter more slack before the overflow threshold is reached.
-* Redesign :py:meth:`~airflow.triggers.base.BaseEventTrigger.shared_stream_key` so fewer
+* Redesign :meth:`~airflow.triggers.base.BaseEventTrigger.shared_stream_key` so fewer
   sibling triggers share a single group — a narrower group reduces the rate at which any
   one subscriber needs to consume events.
 
