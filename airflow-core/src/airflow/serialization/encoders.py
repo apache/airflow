@@ -43,6 +43,7 @@ from airflow.sdk import (
     DeltaTriggerTimetable,
     EventsTimetable,
     FanOutMapper,
+    FixedKeyMapper,
     HourWindow,
     IdentityMapper,
     MonthWindow,
@@ -51,6 +52,7 @@ from airflow.sdk import (
     ProductMapper,
     QuarterWindow,
     RollupMapper,
+    SegmentWindow,
     StartOfDayMapper,
     StartOfHourMapper,
     StartOfMonthMapper,
@@ -437,6 +439,7 @@ class _Serializer:
         AllowedKeyMapper: "airflow.partition_mappers.allowed_key.AllowedKeyMapper",
         ChainMapper: "airflow.partition_mappers.chain.ChainMapper",
         FanOutMapper: "airflow.partition_mappers.temporal.FanOutMapper",
+        FixedKeyMapper: "airflow.partition_mappers.fixed_key.FixedKeyMapper",
         IdentityMapper: "airflow.partition_mappers.identity.IdentityMapper",
         ProductMapper: "airflow.partition_mappers.product.ProductMapper",
         RollupMapper: "airflow.partition_mappers.base.RollupMapper",
@@ -458,11 +461,21 @@ class _Serializer:
 
     @serialize_partition_mapper.register
     def _(self, partition_mapper: ChainMapper) -> dict[str, Any]:
-        return {"mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers]}
+        data: dict[str, Any] = {"mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers]}
+        if partition_mapper.max_downstream_keys is not None:
+            data["max_downstream_keys"] = partition_mapper.max_downstream_keys
+        return data
 
     @serialize_partition_mapper.register
     def _(self, partition_mapper: IdentityMapper) -> dict[str, Any]:
-        return {}
+        data: dict[str, Any] = {}
+        if partition_mapper.max_downstream_keys is not None:
+            data["max_downstream_keys"] = partition_mapper.max_downstream_keys
+        return data
+
+    @serialize_partition_mapper.register
+    def _(self, partition_mapper: FixedKeyMapper) -> dict[str, Any]:
+        return {"downstream_key": partition_mapper.downstream_key}
 
     @serialize_partition_mapper.register(StartOfHourMapper)
     @serialize_partition_mapper.register(StartOfDayMapper)
@@ -479,37 +492,52 @@ class _Serializer:
         | StartOfQuarterMapper
         | StartOfYearMapper,
     ) -> dict[str, Any]:
-        return {
+        data: dict[str, Any] = {
             "timezone": encode_timezone(partition_mapper._timezone),
             "input_format": partition_mapper.input_format,
             "output_format": partition_mapper.output_format,
         }
+        if partition_mapper.max_downstream_keys is not None:
+            data["max_downstream_keys"] = partition_mapper.max_downstream_keys
+        return data
 
     @serialize_partition_mapper.register
     def _(self, partition_mapper: ProductMapper) -> dict[str, Any]:
-        return {
+        data: dict[str, Any] = {
             "delimiter": partition_mapper.delimiter,
             "mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers],
         }
+        if partition_mapper.max_downstream_keys is not None:
+            data["max_downstream_keys"] = partition_mapper.max_downstream_keys
+        return data
 
     @serialize_partition_mapper.register
     def _(self, partition_mapper: AllowedKeyMapper) -> dict[str, Any]:
-        return {"allowed_keys": partition_mapper.allowed_keys}
+        data: dict[str, Any] = {"allowed_keys": partition_mapper.allowed_keys}
+        if partition_mapper.max_downstream_keys is not None:
+            data["max_downstream_keys"] = partition_mapper.max_downstream_keys
+        return data
 
     @serialize_partition_mapper.register
     def _(self, partition_mapper: RollupMapper) -> dict[str, Any]:
-        return {
+        data: dict[str, Any] = {
             "upstream_mapper": encode_partition_mapper(partition_mapper.upstream_mapper),
             "window": encode_window(partition_mapper.window),
         }
+        if partition_mapper.max_downstream_keys is not None:
+            data["max_downstream_keys"] = partition_mapper.max_downstream_keys
+        return data
 
     @serialize_partition_mapper.register
     def _(self, partition_mapper: FanOutMapper) -> dict[str, Any]:
-        return {
+        data: dict[str, Any] = {
             "upstream_mapper": encode_partition_mapper(partition_mapper.upstream_mapper),
             "window": encode_window(partition_mapper.window),
             "downstream_mapper": encode_partition_mapper(partition_mapper.downstream_mapper),
         }
+        if partition_mapper.max_downstream_keys is not None:
+            data["max_downstream_keys"] = partition_mapper.max_downstream_keys
+        return data
 
     BUILTIN_WINDOWS: dict[type, str] = {
         HourWindow: "airflow.partition_mappers.window.HourWindow",
@@ -517,6 +545,7 @@ class _Serializer:
         WeekWindow: "airflow.partition_mappers.window.WeekWindow",
         MonthWindow: "airflow.partition_mappers.window.MonthWindow",
         QuarterWindow: "airflow.partition_mappers.window.QuarterWindow",
+        SegmentWindow: "airflow.partition_mappers.window.SegmentWindow",
         YearWindow: "airflow.partition_mappers.window.YearWindow",
     }
 
@@ -536,7 +565,11 @@ class _Serializer:
         self,
         window: HourWindow | DayWindow | WeekWindow | MonthWindow | QuarterWindow | YearWindow,
     ) -> dict[str, Any]:
-        return {}
+        return window.serialize()
+
+    @serialize_window.register
+    def _(self, window: SegmentWindow) -> dict[str, Any]:
+        return {"segments": sorted(window._segments)}
 
 
 _serializer = _Serializer()
