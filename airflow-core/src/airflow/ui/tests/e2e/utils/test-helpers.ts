@@ -371,7 +371,7 @@ export async function setupHITLFlowViaAPI(
 
   await waitForTaskInstanceState(request, {
     dagId,
-    expectedState: "deferred",
+    expectedState: "awaiting_input",
     runId: dagRunId,
     taskId: "wait_for_input",
   });
@@ -385,7 +385,7 @@ export async function setupHITLFlowViaAPI(
 
   await waitForTaskInstanceState(request, {
     dagId,
-    expectedState: "deferred",
+    expectedState: "awaiting_input",
     runId: dagRunId,
     taskId: "wait_for_option",
   });
@@ -398,7 +398,7 @@ export async function setupHITLFlowViaAPI(
 
   await waitForTaskInstanceState(request, {
     dagId,
-    expectedState: "deferred",
+    expectedState: "awaiting_input",
     runId: dagRunId,
     taskId: "wait_for_multiple_options",
   });
@@ -431,7 +431,7 @@ export async function setupHITLFlowViaAPI(
 
   await waitForTaskInstanceState(request, {
     dagId,
-    expectedState: "deferred",
+    expectedState: "awaiting_input",
     runId: dagRunId,
     taskId: "valid_input_and_options",
   });
@@ -451,7 +451,7 @@ export async function setupHITLFlowViaAPI(
   if (approve) {
     await waitForTaskInstanceState(request, {
       dagId,
-      expectedState: "deferred",
+      expectedState: "awaiting_input",
       runId: dagRunId,
       taskId: "choose_a_branch_to_run",
     });

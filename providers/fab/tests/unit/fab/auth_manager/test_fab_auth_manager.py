@@ -831,6 +831,17 @@ class TestFabAuthManager:
                 [(ACTION_CAN_ACCESS_MENU, RESOURCE_AUDIT_LOG), (ACTION_CAN_READ, RESOURCE_VARIABLE)],
                 [MenuItem.AUDIT_LOG],
             ),
+            *(
+                [
+                    (
+                        [MenuItem.DEADLINES],
+                        [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG_RUN)],
+                        [MenuItem.DEADLINES],
+                    )
+                ]
+                if hasattr(MenuItem, "DEADLINES")
+                else []
+            ),
             (
                 [],
                 [],
@@ -1287,3 +1298,29 @@ class TestFabAuthManagerSessionCleanupErrorHandling:
             mock_session.remove.assert_called()
             mock_log.warning.assert_called()
             assert response is not None
+
+
+class TestFabGetCliUser:
+    """``get_cli_user`` reuses an existing ``Admin`` user for the local CLI token."""
+
+    @mock.patch("airflow.utils.session.create_session")
+    def test_returns_admin_user(self, mock_create_session, auth_manager):
+        admin_user = MagicMock()
+        session = MagicMock()
+        session.scalars.return_value.first.return_value = admin_user
+        mock_create_session.return_value.__enter__.return_value = session
+
+        result = auth_manager.get_cli_user()
+
+        assert result is admin_user
+        # The user is detached so its attributes survive the session closing.
+        session.expunge.assert_called_once_with(admin_user)
+
+    @mock.patch("airflow.utils.session.create_session")
+    def test_raises_when_no_admin_user(self, mock_create_session, auth_manager):
+        session = MagicMock()
+        session.scalars.return_value.first.return_value = None
+        mock_create_session.return_value.__enter__.return_value = session
+
+        with pytest.raises(AirflowConfigException, match="Admin"):
+            auth_manager.get_cli_user()

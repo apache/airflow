@@ -28,6 +28,7 @@ from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.models import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 
@@ -66,12 +67,18 @@ class TestDagRunTrigger:
         assert dag_run.run_type == DagRunType.OPERATOR_TRIGGERED
 
     def test_trigger_dag_run_with_partition_key(self, client, session, dag_maker):
+        """partition_key accepted when Dag uses a partitioned timetable (happy-path guard)."""
         dag_id = "test_trigger_dag_run_partition_key"
         run_id = "test_run_id"
         logical_date = timezone.datetime(2025, 2, 20)
         partition_key = "2025-02-20"
 
-        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+        with dag_maker(
+            dag_id=dag_id,
+            schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+            session=session,
+            serialized=True,
+        ):
             EmptyOperator(task_id="test_task")
 
         session.commit()
@@ -91,6 +98,33 @@ class TestDagRunTrigger:
         assert dag_run.conf == {"key1": "value1"}
         assert dag_run.logical_date == logical_date
         assert dag_run.partition_key == partition_key
+
+    def test_trigger_dag_run_partition_key_for_non_partitioned_dag(self, client, session, dag_maker):
+        """partition_key on a non-partitioned Dag via Execution API must return 400."""
+        dag_id = "test_trigger_non_partitioned_partition_key"
+        run_id = "test_run_id_np"
+        logical_date = timezone.datetime(2025, 2, 20)
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        session.commit()
+
+        response = client.post(
+            f"/execution/dag-runs/{dag_id}/{run_id}",
+            json={
+                "logical_date": logical_date.isoformat(),
+                "partition_key": "2025-02-20",
+            },
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "detail": {
+                "reason": "not_partitioned",
+                "message": f"Dag '{dag_id}' is not a partitioned Dag and does not accept a partition_key.",
+            }
+        }
 
     def test_trigger_dag_run_dag_not_found(self, client):
         """Test that a DAG that does not exist cannot be triggered."""

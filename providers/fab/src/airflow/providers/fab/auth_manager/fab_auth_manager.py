@@ -168,6 +168,9 @@ if AIRFLOW_V_3_1_PLUS:
     _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.REQUIRED_ACTIONS] = RESOURCE_HITL_DETAIL
     _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE[DagAccessEntity.HITL_DETAIL] = (RESOURCE_HITL_DETAIL,)
 
+if hasattr(MenuItem, "DEADLINES"):
+    _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DEADLINES] = RESOURCE_DAG_RUN
+
 
 class FabAuthManager(BaseAuthManager[User]):
     """
@@ -296,6 +299,30 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}
+
+    def get_cli_user(self) -> User:
+        """
+        Return an existing ``Admin`` user for the local CLI to mint a token for.
+
+        The Airflow CLI mints a short-lived, in-memory JWT for this user so it can talk to
+        the API server. FAB tokens reference a real database user, so we reuse an existing
+        ``Admin`` user rather than fabricating one. If none exists, the operator must
+        create one or provide a token via the ``AIRFLOW_CLI_TOKEN`` environment variable.
+        """
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            user = session.scalars(select(User).join(User.roles).where(Role.name == "Admin").limit(1)).first()
+            if user is None:
+                raise AirflowConfigException(
+                    "No user with the 'Admin' role exists in the FAB database. Create one "
+                    "(e.g. `airflow fab create-user --role Admin ...`) or set the "
+                    "AIRFLOW_CLI_TOKEN environment variable with a valid API token."
+                )
+            # Detach so attributes stay accessible after the session closes (and is not
+            # expired on commit) while the CLI serializes the user to mint the token.
+            session.expunge(user)
+        return user
 
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""

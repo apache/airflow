@@ -705,7 +705,6 @@ class EdgeWorker:
                         break
             await self._push_logs_in_chunks(job)
 
-            logger.info("The code is changed: %s", job.edge_job.identifier)
             if job.is_success:
                 logger.info("Job completed: %s", job.edge_job.identifier)
                 await jobs_set_state(job.edge_job.key, TaskInstanceState.SUCCESS)

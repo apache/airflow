@@ -19,9 +19,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+import structlog.testing
 
+from airflow.sdk import ResumableJobMixin
 from airflow.sdk.bases.operator import BaseOperator
-from airflow.sdk.bases.resumablemixin import ResumableJobMixin
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
@@ -45,7 +46,7 @@ class ConcreteResumableOperator(ResumableJobMixin, BaseOperator):
         self.submitted_ids.append(self._next_id)
         return self._next_id
 
-    def get_job_status(self, external_id: JsonValue) -> str:
+    def get_job_status(self, external_id: JsonValue, context) -> str:
         return self._status_map.get(str(external_id), "UNKNOWN")
 
     def is_job_active(self, status: str) -> bool:
@@ -197,3 +198,32 @@ class TestExternalIdKey:
         op.execute_resumable(make_context(task_state))
 
         assert task_state.get("my_custom_key") == "job-001"
+
+
+class TestLogging:
+    def test_warning_when_task_store_unavailable(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        with structlog.testing.capture_logs() as logs:
+            op.execute_resumable(make_context(task_store=None))
+        warnings = [entry for entry in logs if entry["log_level"] == "warning"]
+        assert any("crash recovery is disabled" in entry["event"] for entry in warnings)
+
+    @pytest.mark.parametrize(
+        ("status", "event_fragment", "log_level", "extra_fields"),
+        [
+            ("RUNNING", "Reconnecting", "info", {"external_id_key": "test_job_id", "status": "RUNNING"}),
+            ("SUCCEEDED", "already completed", "info", {"external_id_key": "test_job_id"}),
+            ("FAILED", "terminal state", "warning", {"status": "FAILED"}),
+        ],
+    )
+    def test_log_fields_for_stored_job(self, status, event_fragment, log_level, extra_fields):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = status
+        with structlog.testing.capture_logs() as logs:
+            op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
+        entry = next((e for e in logs if event_fragment in e["event"]), None)
+        assert entry is not None
+        assert entry["log_level"] == log_level
+        assert entry["external_id"] == "job-001"
+        for key, val in extra_fields.items():
+            assert entry[key] == val

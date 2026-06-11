@@ -79,7 +79,8 @@ class TestCliTasks:
 
     @classmethod
     def setup_class(cls):
-        parse_and_sync_to_db(os.devnull, include_examples=True)
+        with conf_vars({("core", "load_examples"): "True"}):
+            parse_and_sync_to_db(os.devnull)
         cls.parser = cli_parser.get_parser()
         clear_db_runs()
 
@@ -451,7 +452,20 @@ class TestCliTasks:
         )
 
     def test_task_states_for_dag_run(self):
-        dag2 = DagBag().dags["example_python_operator"]
+        # Build a minimal DAG inline rather than importing one from the
+        # standard provider's example_dags. The test only asserts CLI
+        # behaviour around a known dag_id/task_id pair, so reproducing the
+        # name and a single task is enough and keeps this core test
+        # decoupled from the standard provider's example DAGs.
+        from airflow.sdk import DAG
+
+        with DAG(
+            dag_id="example_python_operator",
+            schedule=None,
+            start_date=timezone.datetime(2021, 1, 1),
+        ) as dag2:
+            BashOperator(task_id="print_the_context", bash_command="echo hello")
+
         lazy_deserialized_dag2 = LazyDeserializedDAG.from_dag(dag2)
 
         SerializedDagModel.write_dag(lazy_deserialized_dag2, bundle_name="testing")

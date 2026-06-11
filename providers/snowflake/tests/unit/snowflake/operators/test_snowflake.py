@@ -342,6 +342,23 @@ class TestSnowflakeSqlApiOperator:
         with pytest.raises(RuntimeError):
             operator.execute(context=None)
 
+    def test_poll_on_queries_raises_runtime_error_on_status_check_failure(
+        self, mock_execute_query, mock_get_sql_api_query_status
+    ):
+        """Tests poll_on_queries raises RuntimeError when status check fails."""
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id="snowflake_default",
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            do_xcom_push=False,
+        )
+        operator.query_ids = ["uuid1", "uuid2"]
+        mock_get_sql_api_query_status.side_effect = RuntimeError("connection timeout")
+
+        with pytest.raises(RuntimeError, match="Failed to get status for query uuid1"):
+            operator.poll_on_queries()
+
     @pytest.mark.parametrize(
         ("mock_sql", "statement_count"),
         [pytest.param(SQL_MULTIPLE_STMTS, 4, id="multi"), pytest.param(SINGLE_STMT, 1, id="single")],
