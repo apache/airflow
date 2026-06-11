@@ -24,7 +24,6 @@ import itertools
 import operator
 import re
 import weakref
-from datetime import timedelta
 from typing import TYPE_CHECKING, TypedDict, cast, overload
 
 import attrs
@@ -486,11 +485,9 @@ class SerializedDAG:
         latest = coerce_datetime(latest)
 
         if self.timetable.partitioned:
-            earliest_partition_date = self.timetable.resolve_day_bound(earliest.date())
-            latest_partition_date = self.timetable.resolve_day_bound(latest.date() + timedelta(days=1))
             yield from self.timetable.iter_partition_dagrun_infos(
-                earliest_partition_date=earliest_partition_date,
-                latest_partition_date=latest_partition_date,
+                earliest_date=earliest.date(),
+                latest_date=latest.date(),
             )
             return
 
