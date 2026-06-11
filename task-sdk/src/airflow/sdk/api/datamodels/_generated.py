@@ -560,6 +560,7 @@ class TaskInstance(BaseModel):
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
     hostname: Annotated[str | None, Field(title="Hostname")] = None
     context_carrier: Annotated[dict[str, Any] | None, Field(title="Context Carrier")] = None
+    queue: Annotated[str | None, Field(title="Queue")] = "default"
 
 
 class BundleInfo(BaseModel):
