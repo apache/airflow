@@ -17,6 +17,8 @@
  * under the License.
  */
 import { Box, Button, Heading, Input, RadioCard, Text, VStack } from "@chakra-ui/react";
+import dayjs from "dayjs";
+import tz from "dayjs/plugin/timezone";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -26,9 +28,13 @@ import {
   useTaskStoreServiceListTaskStoreKey,
   useTaskStoreServiceSetTaskStore,
 } from "openapi/queries";
+import { DateTimeInput } from "src/components/DateTimeInput";
 import { JsonEditor } from "src/components/JsonEditor";
 import { Dialog, ProgressBar } from "src/components/ui";
+import { useTimezone } from "src/context/timezone";
 import { useStoreMutation } from "src/queries/useStoreMutation";
+
+dayjs.extend(tz);
 
 type Props = {
   readonly dagId: string;
@@ -66,9 +72,11 @@ export const TaskStoreModal = ({
   taskId,
 }: Props) => {
   const { t: translate } = useTranslation(["dag", "common"]);
+  const { selectedTimezone } = useTimezone();
   const [key, setKey] = useState("");
   const [value, setValue] = useState("");
-  const [expiresAt, setExpiresAt] = useState<"default" | "never">("default");
+  const [expiresAt, setExpiresAt] = useState<"custom" | "default" | "never">("default");
+  const [customExpiresAt, setCustomExpiresAt] = useState("");
   const isEditMode = mode === "edit";
   const isValueValid = isJsonValid(value);
 
@@ -81,7 +89,12 @@ export const TaskStoreModal = ({
   useEffect(() => {
     if (isEditMode && existingState !== undefined) {
       setValue(JSON.stringify(existingState.value, null, 2));
-      setExpiresAt(existingState.expires_at === null ? "never" : "default");
+      if (existingState.expires_at === null) {
+        setExpiresAt("never");
+      } else {
+        setExpiresAt("custom");
+        setCustomExpiresAt(existingState.expires_at);
+      }
     }
   }, [existingState, isEditMode]);
 
@@ -100,7 +113,10 @@ export const TaskStoreModal = ({
       dagRunId: runId,
       key: isEditMode ? (storeKey ?? "") : key,
       mapIndex,
-      requestBody: { expires_at: expiresAt === "never" ? null : "default", value: JSON.parse(value) },
+      requestBody: {
+        expires_at: expiresAt === "never" ? null : expiresAt === "custom" ? customExpiresAt : "default",
+        value: JSON.parse(value),
+      },
       taskId,
     });
   };
@@ -140,7 +156,7 @@ export const TaskStoreModal = ({
                   {translate("dag:taskStore.expiresAt.label")}
                 </Text>
                 <RadioCard.Root
-                  onValueChange={(ev) => setExpiresAt(ev.value as "default" | "never")}
+                  onValueChange={(ev) => setExpiresAt(ev.value as "custom" | "default" | "never")}
                   value={expiresAt}
                 >
                   <RadioCard.Item value="default">
@@ -163,8 +179,7 @@ export const TaskStoreModal = ({
                       <RadioCard.ItemIndicator />
                     </RadioCard.ItemControl>
                   </RadioCard.Item>
-                  {/* TODO: Add a datetime picker for custom expiry once a picker component is available */}
-                  <RadioCard.Item disabled value="custom">
+                  <RadioCard.Item value="custom">
                     <RadioCard.ItemHiddenInput />
                     <RadioCard.ItemControl>
                       <RadioCard.ItemContent>
@@ -174,6 +189,14 @@ export const TaskStoreModal = ({
                     </RadioCard.ItemControl>
                   </RadioCard.Item>
                 </RadioCard.Root>
+                {expiresAt === "custom" && (
+                  <DateTimeInput
+                    min={dayjs().tz(selectedTimezone).format("YYYY-MM-DDTHH:mm")}
+                    mt={2}
+                    onChange={(ev) => setCustomExpiresAt(ev.target.value)}
+                    value={customExpiresAt}
+                  />
+                )}
               </Box>
             </VStack>
           )}
@@ -183,7 +206,12 @@ export const TaskStoreModal = ({
             {translate("common:modal.cancel")}
           </Button>
           <Button
-            disabled={isFetchingExisting || !isValueValid || (!isEditMode && key === "")}
+            disabled={
+              isFetchingExisting ||
+              !isValueValid ||
+              (!isEditMode && key === "") ||
+              (expiresAt === "custom" && !customExpiresAt)
+            }
             loading={isPending}
             onClick={onSave}
           >
