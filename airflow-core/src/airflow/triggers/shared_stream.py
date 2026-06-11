@@ -47,10 +47,14 @@ unsubscribing, or being force-failed), the manager calls
 ``await producer.advance(broker_payload, outcome)`` exactly once — this is
 where the producer commits / deletes / acks on the broker. The
 :class:`AdvanceOutcome` carries per-event counts of how the subscribers
-resolved. Advance calls are dispatched by a single pump task strictly in
-fan-out order: event N's ``advance`` is awaited only after event N-1's
-``advance`` returned (or raised and was logged). When the poll ends, the
-manager awaits ``producer.aclose()`` once, best-effort.
+resolved. Advance calls are dispatched by a single pump task: the
+producer's :meth:`~SharedStreamProducer.get_advance_lane` assigns each
+event to a lane, events in the same lane are advanced strictly in fan-out
+order, and events in different lanes do not wait for one another. At any
+moment at most one ``advance`` call is awaited globally; the default lane
+assignment (every event in the same lane) preserves the original single
+global order. When the poll ends, the manager awaits ``producer.aclose()``
+once, best-effort.
 
 **Snapshot-at-fan-out**: the set of subscribers that must ack an event is
 frozen at broadcast time. A subscriber that joins after the event was
@@ -73,9 +77,9 @@ stream; back-pressure is purely queue-bound — a subscriber whose queue is
 full is force-failed via :class:`_SubscriberOverflow`. The queue mainly
 protects against burst delivery before a subscriber's filter has had a
 chance to run. Broker advances, however, are dispatched by a single pump
-task strictly in event order: while the head event's subscribers are still
-pending, every later advance waits (the ack timeout is the backstop that
-bounds this head-of-line wait).
+task in per-lane order: while a lane's head event still has pending
+subscribers, every later advance in that same lane waits (the ack timeout
+is the backstop that bounds this per-lane head-of-line wait).
 
 Triggers that do **not** override ``create_shared_stream_producer`` run the
 **fast path**: no event IDs, no ack table, no AckToken — subscribers
@@ -114,6 +118,7 @@ import asyncio
 import time
 import weakref
 from abc import ABC, abstractmethod
+from collections import deque
 from collections.abc import AsyncGenerator, AsyncIterator, Callable, Hashable
 from contextlib import suppress
 from dataclasses import dataclass
@@ -247,13 +252,38 @@ class SharedStreamProducer(ABC):
         """
         Advance the broker for one fully resolved event.
 
-        Called with each event's ``broker_payload`` strictly in fan-out
-        order, one at a time: the call for event N is awaited only after the
-        call for event N-1 returned (or raised and was logged). This makes
-        cumulative schemes such as a Kafka offset commit safe. ``outcome``
-        carries the per-event resolution counts; use it to decide whether to
-        commit, skip, or trigger a broker-side redeliver.
+        Within a lane — events for which :meth:`get_advance_lane` returned
+        equal values — calls arrive strictly in fan-out order: the call for
+        event N is awaited only after the call for event N-1 returned (or
+        raised and was logged). Across lanes the relative order is not
+        guaranteed, but at any moment at most one ``advance`` call is
+        awaited globally. This makes cumulative schemes such as a Kafka
+        offset commit safe within a lane. ``outcome`` carries the per-event
+        resolution counts; use it to decide whether to commit, skip, or
+        trigger a broker-side redeliver.
         """
+
+    def get_advance_lane(self, broker_payload: Any) -> Hashable:
+        """
+        Return the advance lane for one event.
+
+        Events whose lane values compare equal are advanced strictly in
+        fan-out order relative to each other; events in different lanes do
+        not wait for one another. At any moment at most one ``advance`` call
+        is awaited globally, regardless of how many lanes exist. The default
+        implementation puts every event in the same lane, which preserves the
+        single global fan-out order.
+
+        Called synchronously once per event before fan-out, so it must be
+        cheap (O(1)) and must not block. If it raises, the whole poll is
+        treated as failed: the group terminates and the error propagates to
+        every subscriber.
+
+        Example: a Kafka producer can return ``(topic, partition)`` here —
+        a cumulative offset commit only needs ordering within a partition,
+        so a slow partition no longer delays commits on the others.
+        """
+        return None
 
     async def aclose(self) -> None:
         """
@@ -271,6 +301,7 @@ class _OutstandingEntry:
     pending: set[int]  # trigger_ids still awaiting ack
     created_at: float  # monotonic clock at broadcast (via injectable _now)
     broker_payload: Any
+    lane: Hashable  # producer.get_advance_lane(broker_payload), taken at fan-out
     # Resolution counts; together they form the event's AdvanceOutcome.
     acked: int = 0
     nacked: int = 0
@@ -381,9 +412,12 @@ class _SharedStreamGroup:
         # Ack mode state — populated only when create_shared_stream_producer
         # is overridden.
         self._outstanding: dict[int, _OutstandingEntry] = {}
+        # Per-lane FIFO index over _outstanding: event ids in fan-out order,
+        # keyed by the lane each event's producer assigned at fan-out.
+        self._lane_queues: dict[Hashable, deque[int]] = {}
         self._next_event_id: int = 0
         self._ack_timeout_task: asyncio.Task | None = None
-        # Advance pump: a single task dispatches broker advances strictly in
+        # Advance pump: a single task dispatches broker advances in per-lane
         # fan-out order, woken through this event whenever an entry resolves.
         self._advance_wakeup: asyncio.Event = asyncio.Event()
         self._pump_stopping: bool = False
@@ -400,7 +434,7 @@ class _SharedStreamGroup:
 
     def _request_pump_stop(self) -> None:
         """
-        Ask the advance pump to drain the already-resolved prefix and exit.
+        Ask the advance pump to drain the already-resolved lane heads and exit.
 
         Synchronous (no await) so it can run inside ``_poll``'s terminal
         section without yielding.
@@ -410,34 +444,54 @@ class _SharedStreamGroup:
 
     async def _run_advance_pump(self, producer: SharedStreamProducer) -> None:
         """
-        Dispatch broker advances strictly in fan-out order, one at a time.
+        Dispatch broker advances in per-lane fan-out order, one at a time.
 
-        A single task harvests the resolved prefix of ``_outstanding`` (dict
-        insertion order is event-id order) and awaits ``producer.advance``
-        for each entry in turn; an advance that raises is logged and the
-        pump moves on to the next entry. On stop the pump finishes the
-        resolved prefix, abandons unresolved entries to broker redelivery,
-        and exits.
+        A single task scans the lanes round-robin: each pass dispatches at
+        most one resolved head per lane, and passes repeat until one makes
+        no progress. An advance that raises is logged and the pump moves on.
+        On stop the pump keeps passing until every already-resolved
+        dispatchable event is drained, abandons unresolved entries to broker
+        redelivery, and exits.
         """
         while True:
             if not self._pump_stopping:
                 await self._advance_wakeup.wait()
             self._advance_wakeup.clear()
-            while self._outstanding:
-                event_id = next(iter(self._outstanding))
-                entry = self._outstanding[event_id]
-                if entry.pending:
-                    break
-                del self._outstanding[event_id]
-                outcome = AdvanceOutcome(acked=entry.acked, nacked=entry.nacked, failed=entry.failed)
-                try:
-                    await producer.advance(entry.broker_payload, outcome)
-                except Exception as exc:
-                    self.log.error(
-                        "Producer advance raised; broker advance failed",
-                        key=self.key,
-                        exc_info=exc,
-                    )
+            progress = True
+            while progress:
+                progress = False
+                # Snapshot: lanes are added (by _poll) while we await below.
+                # A lane inserted during an await is invisible to this pass,
+                # but its appearance always comes with a wakeup.set() (born
+                # resolved) or a later resolve, so the next progress pass or
+                # the next wakeup picks it up — nothing is lost. A no-progress
+                # pass costs O(#lanes) and falls back to wait().
+                for lane in list(self._lane_queues):
+                    lane_queue = self._lane_queues[lane]
+                    # The deque head is always present in _outstanding: entry
+                    # deletion belongs to the pump alone, and it removes the
+                    # deque slot and the dict entry together below — a
+                    # KeyError here would be a bug.
+                    head_id = lane_queue[0]
+                    entry = self._outstanding[head_id]
+                    if entry.pending:
+                        continue
+                    lane_queue.popleft()
+                    del self._outstanding[head_id]
+                    if not lane_queue:
+                        # Sole lane GC point; _poll recreates the lane on demand.
+                        del self._lane_queues[lane]
+                    outcome = AdvanceOutcome(acked=entry.acked, nacked=entry.nacked, failed=entry.failed)
+                    try:
+                        await producer.advance(entry.broker_payload, outcome)
+                    except Exception as exc:
+                        self.log.error(
+                            "Producer advance raised; broker advance failed",
+                            key=self.key,
+                            lane=lane,
+                            exc_info=exc,
+                        )
+                    progress = True
             if self._pump_stopping:
                 return
 
@@ -461,6 +515,9 @@ class _SharedStreamGroup:
                 # A factory failure flows through the terminal broadcast
                 # path below, like any other poll failure.
                 producer = self.trigger_class.create_shared_stream_producer(self.kwargs)
+                # Non-Optional alias for the fan-out section below; ``producer``
+                # itself stays Optional for the ``finally`` aclose.
+                ack_producer: SharedStreamProducer = producer
                 self._pump_task = asyncio.create_task(
                     self._run_advance_pump(producer),
                     name=f"shared-stream-advance-pump[{self.key!r}]",
@@ -475,6 +532,13 @@ class _SharedStreamGroup:
             async for item in event_source:
                 if ack_required:
                     raw_event, broker_payload = item
+                    # If get_advance_lane raises — or returns an unhashable
+                    # lane, which the setdefault below trips on — the event
+                    # has no entry yet and the exception flows through the
+                    # terminal broadcast path below, like any other poll
+                    # failure.
+                    lane = ack_producer.get_advance_lane(broker_payload)
+                    lane_queue = self._lane_queues.setdefault(lane, deque())
                     # Snapshot the subscriber set at fan-out time.
                     snapshot = set(self._subscribers.keys()) - self._failed_subscribers
                     event_id = self._next_event_id
@@ -483,11 +547,13 @@ class _SharedStreamGroup:
                         pending=snapshot.copy(),
                         created_at=self._now(),
                         broker_payload=broker_payload,
+                        lane=lane,
                     )
+                    lane_queue.append(event_id)
                     if not snapshot:
                         # No subscribers to ack — the entry is born resolved;
                         # route it through the pump so broker advances stay
-                        # in fan-out order.
+                        # in per-lane fan-out order.
                         self._advance_wakeup.set()
                         continue
                     group_ref: weakref.ref[_SharedStreamGroup] = weakref.ref(self)
@@ -533,7 +599,7 @@ class _SharedStreamGroup:
             if self._ack_timeout_task is not None and not self._ack_timeout_task.done():
                 self._ack_timeout_task.cancel()
                 cancelled_ack_task = self._ack_timeout_task
-            # Synchronous: flags the pump to drain its resolved prefix and exit.
+            # Synchronous: flags the pump to drain its resolved lane heads and exit.
             self._request_pump_stop()
             if terminal_exc is not None:
                 # Synchronous: evict from the manager and broadcast the
@@ -550,8 +616,8 @@ class _SharedStreamGroup:
                 with suppress(asyncio.CancelledError):
                     await cancelled_ack_task
             if self._pump_task is not None:
-                # The pump exits by itself once it has dispatched the already
-                # resolved prefix; the suppress is defensive.
+                # The pump exits by itself once it has dispatched everything
+                # already resolved and dispatchable; the suppress is defensive.
                 with suppress(asyncio.CancelledError):
                     await self._pump_task
             if producer is not None:
@@ -573,7 +639,7 @@ class _SharedStreamGroup:
         Removes ``trigger_id`` from the pending set of ``event_id`` and adds
         it to the matching outcome count. If the set empties, wakes the
         advance pump — deleting the entry and dispatching the broker advance
-        are the pump's job, so advances stay in fan-out order. Duplicate
+        are the pump's job, so advances stay in per-lane fan-out order. Duplicate
         calls for the same (event_id, trigger_id) are no-ops, which keeps
         every subscriber counted exactly once per event.
         """

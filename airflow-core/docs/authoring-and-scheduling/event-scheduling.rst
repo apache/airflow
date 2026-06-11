@@ -187,10 +187,15 @@ When this factory is overridden, the manager enters **ack mode**:
    :py:class:`~airflow.triggers.shared_stream.AdvanceOutcome` carrying
    per-event counts of how the subscribers resolved.
 
-**Ordering guarantee**: advance calls are dispatched strictly in event
-order — ``advance`` for event N is awaited only after event N-1's
-``advance`` returned (or failed and was logged). When the poll ends, the
-manager calls ``await producer.aclose()`` once, best-effort.
+**Ordering guarantee**: by default every event belongs to the same lane,
+so advance calls are dispatched strictly in event order — ``advance`` for
+event N is awaited only after event N-1's ``advance`` returned (or failed
+and was logged). A producer can override ``get_advance_lane`` to narrow
+that ordering to within a lane: events whose lane values compare equal
+are advanced in event order relative to each other, while events in
+different lanes do not wait for one another. Either way, at most one
+``advance`` call is awaited at a time. When the poll ends, the manager
+calls ``await producer.aclose()`` once, best-effort.
 
 Example — SQS-like producer:
 
@@ -257,27 +262,37 @@ Example — SQS-like producer:
         async def run(self):  # pragma: no cover
             yield TriggerEvent({})
 
-Example — Kafka cumulative commit. A Kafka commit acknowledges every offset
-up to the committed one, so it is only safe if no later event can be
-committed while an earlier one is still pending. The ordering guarantee
-above provides exactly that, which makes ``commit(offset + 1)`` correct:
+Example — Kafka cumulative commit across partitions. A Kafka commit
+acknowledges every offset up to the committed one within a partition, so
+it is only safe if no later event from the same partition can be committed
+while an earlier one is still pending — events on other partitions do not
+matter. Returning ``(topic, partition)`` from ``get_advance_lane`` narrows
+the ordering guarantee to exactly that granularity: each partition's
+commits stay in order, and a slow partition no longer delays commits on
+the other partitions:
 
 .. code-block:: python
 
     class KafkaSharedStreamProducer(SharedStreamProducer):
-        def __init__(self, topic: str):
-            self.topic = topic
+        def __init__(self, topics: list[str]):
+            self.topics = topics
             self.consumer = None
 
         async def open_stream(self):
-            self.consumer = await create_kafka_consumer(self.topic)
+            self.consumer = await create_kafka_consumer(self.topics)
             async for message in self.consumer:
-                yield message.value, message.offset
+                yield message.value, (message.topic, message.partition, message.offset)
+
+        def get_advance_lane(self, broker_payload):
+            topic, partition, _offset = broker_payload
+            return topic, partition
 
         async def advance(self, broker_payload, outcome):
-            # Advance calls arrive in event order, so this cumulative commit
-            # can never skip past an event that is still pending.
-            await self.consumer.commit(broker_payload + 1)
+            topic, partition, offset = broker_payload
+            # Within one lane — here, one partition — advance calls arrive in
+            # event order, so this cumulative commit can never skip past an
+            # event that is still pending.
+            await self.consumer.commit(topic, partition, offset + 1)
 
         async def aclose(self):
             if self.consumer is not None:
@@ -321,9 +336,10 @@ still governs unprocessed raw events per subscriber. The manager does
 **not** wait for outstanding acks before pulling the next upstream event;
 back-pressure is queue-bound — a subscriber whose queue is full is
 force-failed. The queue primarily guards against burst delivery before a
-subscriber's filter runs. Broker advances, by contrast, are dispatched
-strictly in event order: an event whose acks are still pending delays the
-advance of every later event, with the ack timeout bounding that wait.
+subscriber's filter runs. Broker advances, by contrast, are dispatched in
+order within each lane: an event whose acks are still pending delays the
+advance of every later event in the same lane, with the ack timeout
+bounding that wait.
 
 Verifying that sharing is active
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
