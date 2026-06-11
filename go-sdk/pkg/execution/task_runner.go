@@ -89,22 +89,26 @@ func RunTask(
 		},
 	}
 
-	runtimeContext := sdk.RuntimeContext{
-		TI: sdk.TaskInstance{
+	// Carries the task runtime context for sdk.TIRunContext injection. The
+	// base context is a placeholder; bundlev1.Execute rebuilds the value
+	// around the live task context when binding the parameter.
+	runtimeContext := sdk.NewTIRunContext(
+		context.Background(),
+		sdk.TaskInstance{
 			DagID:     details.TI.DagID,
 			RunID:     details.TI.RunID,
 			TaskID:    details.TI.TaskID,
 			MapIndex:  mapIndexPtr(details.TI.MapIndex),
 			TryNumber: details.TI.TryNumber,
 		},
-		DagRun: sdk.DagRun{
+		sdk.DagRun{
 			DagID:             details.TI.DagID,
 			RunID:             details.TI.RunID,
 			LogicalDate:       details.TIContext.LogicalDate,
 			DataIntervalStart: details.TIContext.DataIntervalStart,
 			DataIntervalEnd:   details.TIContext.DataIntervalEnd,
 		},
-	}
+	)
 
 	ctx = context.WithValue(ctx, sdkcontext.WorkloadContextKey, workload)
 	ctx = context.WithValue(ctx, sdkcontext.SdkClientContextKey, sdk.Client(client))

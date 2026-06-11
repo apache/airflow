@@ -20,34 +20,35 @@ package sdk
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 )
 
-func TestCurrentContext(t *testing.T) {
-	logical := time.Date(2026, 6, 9, 12, 0, 0, 0, time.UTC)
-	want := RuntimeContext{
-		TI: TaskInstance{
-			DagID:     "dag1",
-			RunID:     "run1",
-			TaskID:    "task1",
-			MapIndex:  ptr(3),
-			TryNumber: 2,
-		},
-		DagRun: DagRun{
-			DagID:       "dag1",
-			RunID:       "run1",
-			LogicalDate: &logical,
-		},
-	}
+type ctxKey struct{}
 
-	ctx := context.WithValue(context.Background(), sdkcontext.RuntimeContextKey, want)
-	assert.Equal(t, want, CurrentContext(ctx))
+func TestNewTIRunContext(t *testing.T) {
+	ti := TaskInstance{DagID: "dag1", RunID: "run1", TaskID: "task1", TryNumber: 2}
+	dagRun := DagRun{DagID: "dag1", RunID: "run1"}
+
+	base := context.WithValue(context.Background(), ctxKey{}, "probe-value")
+	ctx := NewTIRunContext(base, ti, dagRun)
+
+	assert.Equal(t, ti, ctx.TaskInstance())
+	assert.Equal(t, dagRun, ctx.DagRun())
+	assert.Equal(
+		t,
+		"probe-value",
+		ctx.Value(ctxKey{}),
+		"context behaviour must delegate to the base context",
+	)
 }
 
-func TestCurrentContextAbsentReturnsZero(t *testing.T) {
-	assert.Equal(t, RuntimeContext{}, CurrentContext(context.Background()))
+// A nil base context is a programming error: the runtime always binds the
+// live task context, so the constructor must fail loudly rather than hand out
+// a value that panics later.
+func TestNewTIRunContextNilBase(t *testing.T) {
+	var nilBase context.Context
+	assert.Panics(t, func() {
+		NewTIRunContext(nilBase, TaskInstance{}, DagRun{})
+	})
 }
