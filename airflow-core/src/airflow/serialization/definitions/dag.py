@@ -33,7 +33,13 @@ from sqlalchemy import func, or_, select, tuple_
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, DagNotFound, DagNotPartitionedError, NodeNotFound, TaskNotFound
+from airflow.exceptions import (
+    AirflowException,
+    DagNotFound,
+    DagNotPartitionedError,
+    NodeNotFound,
+    TaskNotFound,
+)
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
