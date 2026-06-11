@@ -41,7 +41,7 @@ export const HITLReviewDetail = ({
     return (
       <VStack alignItems="center" gap={2} justifyContent="center" minH="240px" width="100%">
         <Text color="fg.muted" fontSize="sm">
-          {translate("review.selectRequiredAction")}
+          {translate("review.detail.selectRequiredAction")}
         </Text>
       </VStack>
     );
@@ -56,7 +56,7 @@ export const HITLReviewDetail = ({
 
       <Button alignSelf="flex-end" asChild size="sm" variant="outline">
         <Link onClick={onNavigate} to={taskLink}>
-          {translate("review.openTask")}
+          {translate("review.detail.openTask")}
         </Link>
       </Button>
 

@@ -58,11 +58,11 @@ export const HITLReviewListSection = ({
       >
         {isLoading ? (
           <Text color="fg.muted" fontSize="sm" px={3} py={2}>
-            {translate("review.loadingActions")}
+            {translate("review.list.loadingActions")}
           </Text>
         ) : isError ? (
           <Text color="fg.error" fontSize="sm" px={3} py={2}>
-            {translate("review.loadError")}
+            {translate("review.list.loadError")}
           </Text>
         ) : (
           <Box overflowX="auto" width="100%">

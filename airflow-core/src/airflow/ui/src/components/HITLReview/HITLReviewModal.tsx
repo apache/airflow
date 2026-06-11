@@ -34,8 +34,8 @@ import { useHITLReviewModalSelection } from "./useHITLReviewModalSelection.ts";
 type HITLReviewFilterMode = "all" | "pending";
 
 const HITL_REVIEW_FILTER_OPTIONS: Array<{ labelKey: string; value: HITLReviewFilterMode }> = [
-  { labelKey: "review.filter.pending", value: "pending" },
-  { labelKey: "review.filter.all", value: "all" },
+  { labelKey: "filters.response.pending", value: "pending" },
+  { labelKey: "filters.response.all", value: "all" },
 ];
 
 export const HITLReviewModal = ({
@@ -135,14 +135,18 @@ export const HITLReviewModal = ({
               <VStack alignItems="stretch" gap={4} width="100%">
                 <HITLReviewListSection
                   details={pendingHitlDetails}
-                  heading={`${translate("review.pendingHitl")} (${pendingHitlDetails.length})`}
+                  heading={translate("review.list.pendingRequiredActions", {
+                    count: pendingHitlDetails.length,
+                  })}
                   onSelect={onSelect}
                   selectedKey={selectedKey}
                 />
                 {showAllActions ? (
                   <HITLReviewListSection
                     details={completedHitlDetails}
-                    heading={`${translate("review.completedHitl")} (${completedHitlDetails.length})`}
+                    heading={translate("review.list.completedRequiredActions", {
+                      count: completedHitlDetails.length,
+                    })}
                     onSelect={onSelect}
                     selectedKey={selectedKey}
                   />
