@@ -101,7 +101,7 @@ The full release process follows the
 Edit `gradle.properties` and set the version for this release:
 
 ```properties
-sdkVersion=1.0.0
+projectVersion=1.0.0
 ```
 
 Commit the change and push it to the release branch.
@@ -112,8 +112,21 @@ Before touching any remote repository, publish to your local Maven cache and
 inspect the generated POM:
 
 ```bash
-./gradlew :sdk:publishToMavenLocal
-cat ~/.m2/repository/org/apache/airflow/airflow-sdk/*/airflow-sdk-*.pom
+rm -rf ~/.m2/repository/org/apache/airflow/  # Start clean.
+
+./gradlew publishToMavenLocal
+
+# The airflow-sdk runtime.
+less ~/.m2/repository/org/apache/airflow/airflow-sdk/*/airflow-sdk-*.pom
+
+# The annotation processor for the builder pattern.
+less ~/.m2/repository/org/apache/airflow/airflow-sdk-processor/*/airflow-sdk-*.pom
+
+# The Gradle plugin for bundling.
+less ~/.m2/repository/org/apache/airflow/airflow-sdk-gradle-plugin/*/airflow-sdk-*.pom
+
+# The Gradle plugin's registration.
+less ~/.m2/repository/org/apache/airflow/sdk/org.apache.airflow.sdk.gradle.plugin/*/*.pom
 ```
 
 Check that the coordinates, description, license, SCM, and organization fields
@@ -125,8 +138,9 @@ To test the full publish flow without touching ASF infrastructure, override the
 repository URL to a local directory
 
 ```bash
-./gradlew :sdk:publish -PmavenUrl=file:///tmp/local-maven-repo -PskipSigning
-ls /tmp/local-maven-repo/org/apache/airflow/airflow-sdk/
+./gradlew publish -PmavenUrl=file:///tmp/local-maven-repo -PskipSigning
+ls /tmp/local-maven-repo/org/apache/airflow/
+# This should contain the same components in ~/.m2 as inspected in the previous step.
 ```
 
 *NOTE:* Signing is not required since nothing goes to Maven Central. If you want
@@ -147,7 +161,7 @@ signing.password=your-gpg-key-passphrase
 Then run the publish task.
 
 ```bash
-./gradlew :sdk:publish -P"signing.key=$(gpg --armor --export-secret-keys your-gpg-key-fingerprint)"
+./gradlew publish -P"signing.key=$(gpg --armor --export-secret-keys your-gpg-key-fingerprint)"
 ```
 
 *NOTE:* The signing key is supplied through the command line since it contains

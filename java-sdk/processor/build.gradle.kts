@@ -18,29 +18,38 @@
  */
 
 plugins {
-    application
+    `java-library`
+    id("airflow-publish")
 }
 
 dependencies {
-    annotationProcessor(project(":processor"))
+    compileOnly("javax.annotation:javax.annotation-api:1.3.2")
     implementation(project(":sdk"))
-    implementation("org.slf4j:slf4j-simple:2.0.17")
+    implementation("com.squareup:javapoet:1.13.0")
+
+    testImplementation(kotlin("test"))
+    testImplementation("com.google.testing.compile:compile-testing:0.23.0")
 }
 
-sourceSets {
-    main {
-        java.srcDir("src/java")
-    }
+java {
+    withSourcesJar()
 }
 
-application {
-    mainClass = "org.apache.airflow.example.ExampleBundleBuilder"
+tasks.withType<Test> {
+    useJUnitPlatform()
 }
 
-tasks.withType<Jar> {
-    manifest {
-        attributes(
-            "Main-Class" to application.mainClass.get(),
-        )
+publishing {
+    publications {
+        create<MavenPublication>("mavenJava") {
+            artifactId = "airflow-sdk-processor"
+            from(components["java"])
+            pom {
+                name = "Apache Airflow Java SDK — Annotation Processor"
+                description =
+                    "Annotation processor for the Apache Airflow Java SDK; " +
+                    "generates *Builder classes from @Builder.Dag-annotated sources."
+            }
+        }
     }
 }

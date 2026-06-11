@@ -18,29 +18,9 @@
  */
 
 plugins {
-    application
+    `kotlin-dsl`
 }
 
-dependencies {
-    annotationProcessor(project(":processor"))
-    implementation(project(":sdk"))
-    implementation("org.slf4j:slf4j-simple:2.0.17")
-}
-
-sourceSets {
-    main {
-        java.srcDir("src/java")
-    }
-}
-
-application {
-    mainClass = "org.apache.airflow.example.ExampleBundleBuilder"
-}
-
-tasks.withType<Jar> {
-    manifest {
-        attributes(
-            "Main-Class" to application.mainClass.get(),
-        )
-    }
+repositories {
+    mavenCentral()
 }
