@@ -1030,7 +1030,9 @@ class TestSparkSubmitOperatorK8sTracking:
 
     def test_k8s_poll_until_complete_writes_succeeded_to_task_store(self):
         operator = self._make_operator(track_driver_via_k8s_api=True)
-        operator._hook = self._make_k8s_hook()
+        hook = self._make_k8s_hook()
+        hook._poll_k8s_driver_via_api.return_value = "Succeeded"
+        operator._hook = hook
         task_store = FakeTaskState()
 
         operator.poll_until_complete("mynamespace:spark-abc-driver", {"task_store": task_store})
@@ -1039,7 +1041,9 @@ class TestSparkSubmitOperatorK8sTracking:
 
     def test_k8s_polling_does_not_write_task_store_when_reconnect_disabled(self):
         operator = self._make_operator(track_driver_via_k8s_api=True, reconnect_on_retry=False)
-        operator._hook = self._make_k8s_hook()
+        hook = self._make_k8s_hook()
+        hook._poll_k8s_driver_via_api.return_value = "Succeeded"
+        operator._hook = hook
         task_store = FakeTaskState()
 
         operator.poll_until_complete("mynamespace:spark-abc-driver", {"task_store": task_store})
