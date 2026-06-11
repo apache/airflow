@@ -19,7 +19,7 @@
 import { Text } from "@chakra-ui/react";
 import type { ColumnDef, PaginationState } from "@tanstack/react-table";
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ChakraWrapper } from "src/utils/ChakraWrapper.tsx";
@@ -232,6 +232,72 @@ describe("DataTable", () => {
     );
 
     expect(screen.getByLabelText(/toggleTableView/iu)).toBeInTheDocument();
+  });
+
+  it("calls onRowClick when a table row is selected", () => {
+    const handleRowClick = vi.fn();
+
+    render(
+      <DataTable
+        columns={columns}
+        data={data}
+        initialState={{ pagination, sorting: [] }}
+        modelName="task"
+        onRowClick={handleRowClick}
+        total={2}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    fireEvent.click(screen.getByRole("row", { name: "John Doe" }));
+
+    expect(handleRowClick).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["Enter", " "])("calls onRowClick when pressing %s on a table row", (key) => {
+    const handleRowClick = vi.fn();
+
+    render(
+      <DataTable
+        columns={columns}
+        data={data}
+        initialState={{ pagination, sorting: [] }}
+        modelName="task"
+        onRowClick={handleRowClick}
+        total={2}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    fireEvent.keyDown(screen.getByRole("row", { name: "John Doe" }), { key });
+
+    expect(handleRowClick).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["Enter", " "])("does not call onRowClick when pressing %s on an interactive element", (key) => {
+    const handleRowClick = vi.fn();
+
+    render(
+      <DataTable
+        columns={[
+          {
+            cell: ({ row }) => <button type="button">Open {row.original.name}</button>,
+            header: "Actions",
+            id: "actions",
+          },
+        ]}
+        data={data}
+        initialState={{ pagination, sorting: [] }}
+        modelName="task"
+        onRowClick={handleRowClick}
+        total={2}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "Open John Doe" }), { key });
+
+    expect(handleRowClick).not.toHaveBeenCalled();
   });
 
   it("does not render display toggle without showDisplayToggle", () => {
