@@ -349,9 +349,9 @@ class _VaultClient(LoggingMixin):
         import time
 
         # Determine service account email
-        service_account_email = getattr(credentials, "service_account_email", None) or getattr(
-            credentials, "client_email", None
-        )
+        service_account_email = getattr(credentials, "service_account_email", None)
+        if service_account_email in (None, "default"):
+            service_account_email = getattr(credentials, "client_email", None) or None
 
         if service_account_email is None:
             # Fallback for Compute Engine credentials if email is not yet populated
@@ -373,6 +373,8 @@ class _VaultClient(LoggingMixin):
                 f"Could not determine service account email from credentials. "
                 f"Expected string, got {type(service_account_email).__name__}"
             )
+        if service_account_email == "default":
+            raise VaultError("Could not determine service account email from Compute Engine credentials.")
 
         # Generate a payload for subsequent "signJwt()" call.
         # The 'sub' claim must be the service account email.
