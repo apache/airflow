@@ -40,11 +40,16 @@ in a non-Python implementation.
      - :class:`task-sdk:airflow.sdk.coordinators.java.JavaCoordinator`
      - JRE 17
      - :doc:`java`
+   * - Go
+     - :class:`task-sdk:airflow.sdk.coordinators.executable.ExecutableCoordinator`
+     - None (native binary)
+     - :doc:`go`
 
 .. toctree::
    :hidden:
 
    java
+   go
 
 How it works
 ------------
@@ -160,3 +165,25 @@ Both settings can be supplied as environment variables using the standard Airflo
 
     AIRFLOW__SDK__COORDINATORS='{"my-coordinator": {...}}'
     AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"jdk17": "my-coordinator"}'
+
+.. _language-sdks/bundle-spec:
+
+Implementing a new compiled language SDK
+----------------------------------------
+
+:class:`task-sdk:airflow.sdk.coordinators.executable.ExecutableCoordinator` runs a task by executing the
+bundle file directly. It therefore fits **only compiled languages whose build artifact is a standalone
+binary the worker can execute with no additional runtime dependency** - that is, no language runtime,
+virtual machine, or interpreter has to be installed on the worker for the binary to run (Go, Rust, C, C++,
+Zig, ...). Languages whose artifact still needs a runtime present at execution time do not fit this
+coordinator; JVM languages, for example, compile to bytecode that requires a JRE, and are served by the
+:class:`task-sdk:airflow.sdk.coordinators.java.JavaCoordinator` instead.
+
+To support a new such language, produce a *bundle* in the shared on-disk format the coordinator consumes and
+speak the coordinator IPC protocol (the ``--comm`` / ``--logs`` socket arguments). That format - the
+``AFBNDL01`` footer appended to the executable, the binary integrity hash, and the ``airflow-metadata.yaml``
+manifest of ``dag_id``\ s and ``task_id``\ s - is specified, together with the reader algorithm and the
+compatibility/versioning rules, in :doc:`task-sdk:executable-bundle-spec`. That page also publishes a
+machine-readable JSON Schema for the manifest, for use by build tooling and validators. Follow the spec to
+make a new language's bundles discoverable by Airflow with no change to the scheduler, worker, or UI; the
+:doc:`Go SDK <go>` is a worked reference implementation.

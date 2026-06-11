@@ -387,7 +387,7 @@ class TestCurrentContext:
         for i in range(max_stack_depth):
             # Create all contexts in ascending order
             new_context = {"ContextId": i}
-            # Like 15 nested with Storements
+            # Like 15 nested with statements
             ctx_obj = set_current_context(new_context)
             ctx_obj.__enter__()
             ctx_list.append(ctx_obj)
@@ -395,7 +395,7 @@ class TestCurrentContext:
             # Iterate over contexts in reverse order - stack is LIFO
             ctx = get_current_context()
             assert ctx["ContextId"] == i
-            # End of with Storement
+            # End of with statement
             ctx_list[i].__exit__(None, None, None)
 
 
@@ -1123,6 +1123,24 @@ class TestTaskStoreAccessor:
 
         assert result is None
 
+    def test_get_returns_default_when_key_missing(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.TASK_STORE_NOT_FOUND, detail={"key": "job_id"}
+        )
+
+        result = TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("job_id", default="default-id")
+
+        assert result == "default-id"
+
+    def test_get_ignores_default_when_key_exists(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = TaskStoreResult(value="job-001")
+
+        result = TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get(
+            "job_id", default="do-not-start-here"
+        )
+
+        assert result == "job-001"
+
     def test_get_raises_on_error(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = ErrorResponse(
             error=ErrorType.GENERIC_ERROR, detail={"message": "server error"}
@@ -1130,6 +1148,10 @@ class TestTaskStoreAccessor:
 
         with pytest.raises(AirflowRuntimeError):
             TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("some_key")
+
+    def test_set_none_raises(self, mock_supervisor_comms):
+        with pytest.raises(ValueError, match="Cannot set value as None"):
+            TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", None)
 
     def test_set_operation_with_global_retention(self, mock_supervisor_comms, time_machine):
         """set() with no retention uses global default_retention_days config."""
@@ -1191,6 +1213,12 @@ class TestTaskStoreAccessor:
             SetTaskStore(ti_id=self.TI_ID, key="job_id", value="app_001", expires_at=None)
         )
 
+    def test_set_raises_on_negative_retention_days(self, mock_supervisor_comms):
+        """set() raises ValueError when default_retention_days is negative."""
+        with conf_vars({("state_store", "default_retention_days"): "-1"}):
+            with pytest.raises(ValueError, match="default_retention_days must be >= 0"):
+                TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001")
+
     def test_delete_operation(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
@@ -1234,7 +1262,7 @@ class TestTaskStoreAccessor:
         backend.serialize_task_store_to_ref.return_value = "s3://bucket/ti_123/job_id"
 
         with (
-            patch("airflow.sdk.execution_time.context._get_worker_state_backend", return_value=backend),
+            patch("airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend),
             conf_vars({("state_store", "default_retention_days"): "0"}),
         ):
             TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "spark_001")
@@ -1257,7 +1285,9 @@ class TestTaskStoreAccessor:
         backend = MagicMock(spec=BaseStoreBackend)
         backend.deserialize_task_store_from_ref.return_value = {"rows": 123}
 
-        with patch("airflow.sdk.execution_time.context._get_worker_state_backend", return_value=backend):
+        with patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend
+        ):
             result = TaskStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).get("job_id")
 
         assert result == {"rows": 123}
@@ -1287,6 +1317,26 @@ class TestAssetStoreAccessor:
 
         assert result is None
 
+    def test_get_returns_default_when_key_missing(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.ASSET_STORE_NOT_FOUND, detail={"key": "watermark"}
+        )
+
+        result = AssetStoreAccessor(name=self.ASSET_NAME).get(
+            "watermark", default="2026-01-01T00:00:00+00:00"
+        )
+
+        assert result == "2026-01-01T00:00:00+00:00"
+
+    def test_get_ignores_default_when_key_exists(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = AssetStoreResult(value="2026-06-01T00:00:00+00:00")
+
+        result = AssetStoreAccessor(name=self.ASSET_NAME).get(
+            "watermark", default="2026-01-01T00:00:00+00:00"
+        )
+
+        assert result == "2026-06-01T00:00:00+00:00"
+
     def test_get_raises_on_error(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = ErrorResponse(
             error=ErrorType.GENERIC_ERROR, detail={"message": "server error"}
@@ -1303,6 +1353,10 @@ class TestAssetStoreAccessor:
         mock_supervisor_comms.send.assert_called_once_with(
             SetAssetStoreByName(name=self.ASSET_NAME, key="watermark", value="2026-04-30T00:00:00Z")
         )
+
+    def test_set_none_raises(self, mock_supervisor_comms):
+        with pytest.raises(ValueError, match="Cannot set value as None"):
+            AssetStoreAccessor(name=self.ASSET_NAME).set("watermark", None)
 
     def test_delete_operation(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
@@ -1362,7 +1416,9 @@ class TestAssetStoreAccessor:
         backend = MagicMock(spec=BaseStoreBackend)
         backend.serialize_asset_store_to_ref.return_value = "s3://bucket/assets/orders/watermark"
 
-        with patch("airflow.sdk.execution_time.context._get_worker_state_backend", return_value=backend):
+        with patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend
+        ):
             AssetStoreAccessor(name=self.ASSET_NAME).set("watermark", "2026-05-01")
 
         mock_supervisor_comms.send.assert_called_once_with(
@@ -1382,7 +1438,9 @@ class TestAssetStoreAccessor:
         backend = MagicMock(spec=BaseStoreBackend)
         backend.deserialize_asset_store_from_ref.return_value = "2026-05-01"
 
-        with patch("airflow.sdk.execution_time.context._get_worker_state_backend", return_value=backend):
+        with patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend
+        ):
             result = AssetStoreAccessor(name=self.ASSET_NAME).get("watermark")
 
         assert result == "2026-05-01"
@@ -1561,8 +1619,8 @@ class InMemoryStoreBackend(BaseStoreBackend):
         self._actual_key_value_store: dict[str, str] = {}  # key -> actual value
         self.reference: dict[str, str] = {}  # key -> stored ref (mem:// URI)
 
-    def serialize_task_store_to_ref(self, *, value, key: str, ti_id: str) -> str:
-        ref = f"mem://{ti_id}/{key}"
+    def serialize_task_store_to_ref(self, *, value, key: str, scope) -> str:
+        ref = f"mem://{scope.dag_id}/{scope.run_id}/{scope.task_id}/{scope.map_index}/{key}"
         self._actual_key_value_store[key] = value
         self.reference[key] = ref
         return ref
@@ -1571,8 +1629,8 @@ class InMemoryStoreBackend(BaseStoreBackend):
         key = stored.rsplit("/", 1)[-1]
         return self._actual_key_value_store.get(key, stored)
 
-    def serialize_asset_store_to_ref(self, *, value, key: str, asset_ref: str) -> str:
-        ref = f"mem://{asset_ref}/{key}"
+    def serialize_asset_store_to_ref(self, *, value, key: str, scope) -> str:
+        ref = f"mem://{scope.name or scope.uri}/{key}"
         self._actual_key_value_store[key] = value
         self.reference[key] = ref
         return ref
@@ -1606,7 +1664,7 @@ class TestTaskStoreAccessorWithCustomBackend:
     def backend(self):
         b = InMemoryStoreBackend()
         with mock.patch(
-            "airflow.sdk.execution_time.context._get_worker_state_backend",
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend",
             return_value=b,
         ):
             yield b
@@ -1614,7 +1672,7 @@ class TestTaskStoreAccessorWithCustomBackend:
     def test_set_returns_reference_to_storage(self, mock_supervisor_comms, backend, time_machine):
         """set() stores actual value in backend and sends mem:// reference via comms."""
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
-        expected_ref = f"mem://{self.TI_ID}/job_id"
+        expected_ref = f"mem://{self.SCOPE.dag_id}/{self.SCOPE.run_id}/{self.SCOPE.task_id}/{self.SCOPE.map_index}/job_id"
 
         frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
         time_machine.move_to(frozen_dt, tick=False)
@@ -1635,7 +1693,9 @@ class TestTaskStoreAccessorWithCustomBackend:
 
     def test_get_resolves_reference_to_actual_value(self, mock_supervisor_comms, backend):
         """get() fetches mem:// reference from DB, resolves it to actual value via backend."""
-        ref = _wrap_external_ref(f"mem://{self.TI_ID}/job_id")
+        ref = _wrap_external_ref(
+            f"mem://{self.SCOPE.dag_id}/{self.SCOPE.run_id}/{self.SCOPE.task_id}/{self.SCOPE.map_index}/job_id"
+        )
         backend._actual_key_value_store["job_id"] = "app_001"
         mock_supervisor_comms.send.return_value = TaskStoreResult(value=ref)
 
@@ -1675,7 +1735,7 @@ class TestAssetStoreAccessorWithCustomBackend:
     def backend(self):
         b = InMemoryStoreBackend()
         with mock.patch(
-            "airflow.sdk.execution_time.context._get_worker_state_backend",
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend",
             return_value=b,
         ):
             yield b

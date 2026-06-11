@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
@@ -109,6 +110,28 @@ class TestListAssetState(TestAssetStateEndpoint):
         assert "updated_at" in item
         assert item["key"] == "watermark"
 
+    def test_last_updated_by_returned_when_set(self, test_client, create_task_instance):
+        ti = create_task_instance()
+        row = AssetStoreModel(
+            asset_id=self.asset.id,
+            key="watermark",
+            value='"v"',
+            last_updated_by_kind="task",
+            last_updated_by_dag_id=ti.dag_id,
+            last_updated_by_run_id=ti.run_id,
+            last_updated_by_task_id=ti.task_id,
+            last_updated_by_map_index=ti.map_index,
+        )
+        self._session.add(row)
+        self._session.commit()
+
+        item = test_client.get(self._base_url).json()["asset_store"][0]
+        assert item["last_updated_by"]["kind"] == "task"
+        assert item["last_updated_by"]["dag_id"] == ti.dag_id
+        assert item["last_updated_by"]["run_id"] == ti.run_id
+        assert item["last_updated_by"]["task_id"] == ti.task_id
+        assert item["last_updated_by"]["map_index"] == ti.map_index
+
     def test_pagination_limit(self, test_client):
         for k in ("watermark", "file_count", "last_run"):
             _create_asset_state(self._session, self.asset.id, k, "v")
@@ -144,6 +167,29 @@ class TestGetAssetState(TestAssetStateEndpoint):
         assert data["key"] == "watermark"
         assert data["value"] == "2026-05-01"
         assert "updated_at" in data
+        assert data["last_updated_by"] is None
+
+    def test_last_updated_by_returned_in_get(self, test_client, create_task_instance):
+        ti = create_task_instance()
+        row = AssetStoreModel(
+            asset_id=self.asset.id,
+            key="watermark",
+            value='"v"',
+            last_updated_by_kind="task",
+            last_updated_by_dag_id=ti.dag_id,
+            last_updated_by_run_id=ti.run_id,
+            last_updated_by_task_id=ti.task_id,
+            last_updated_by_map_index=ti.map_index,
+        )
+        self._session.add(row)
+        self._session.commit()
+
+        data = test_client.get(f"{self._base_url}/watermark").json()
+        assert data["last_updated_by"]["kind"] == "task"
+        assert data["last_updated_by"]["dag_id"] == ti.dag_id
+        assert data["last_updated_by"]["run_id"] == ti.run_id
+        assert data["last_updated_by"]["task_id"] == ti.task_id
+        assert data["last_updated_by"]["map_index"] == ti.map_index
 
     def test_missing_key_returns_404(self, test_client):
         assert test_client.get(f"{self._base_url}/nonexistent").status_code == 404
@@ -207,6 +253,17 @@ class TestSetAssetState(TestAssetStateEndpoint):
         )
         assert row is not None
         assert row.value == expected_db
+
+    def test_put_records_api_kind(self, test_client):
+        """PUT via the Core API sets last_updated_by.kind='api' in the response."""
+        test_client.put(f"{self._base_url}/watermark", json={"value": "v"})
+
+        data = test_client.get(f"{self._base_url}/watermark").json()
+        assert data["last_updated_by"]["kind"] == "api"
+        assert data["last_updated_by"]["dag_id"] is None
+        assert data["last_updated_by"]["run_id"] is None
+        assert data["last_updated_by"]["task_id"] is None
+        assert data["last_updated_by"]["map_index"] is None
 
     @pytest.mark.parametrize("value", [42, True, {"rows": 100}, [1, "two"], "hello"])
     def test_core_api_write_read_roundtrip(self, test_client, value):
@@ -299,3 +356,26 @@ class TestClearAssetState(TestAssetStateEndpoint):
 
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.delete(self._base_url).status_code == 401
+
+
+class TestRoutesNeverCallCustomBackend(TestAssetStateEndpoint):
+    """Tests to validate that core API routes must use MetastoreStateBackend directly."""
+
+    @pytest.mark.parametrize(
+        ("method", "path_suffix", "kwargs"),
+        [
+            ("get", "", {}),
+            ("get", "/watermark", {}),
+            ("put", "/watermark", {"json": {"value": "v2"}}),
+            ("delete", "/watermark", {}),
+            ("delete", "", {}),
+        ],
+    )
+    def test_route_never_calls_get_state_backend(self, test_client, method, path_suffix, kwargs):
+        _create_asset_state(self._session, self.asset.id, "watermark", "v1")
+        self._session.commit()
+
+        with patch("airflow.state.get_state_backend") as mock_get_backend:
+            getattr(test_client, method)(f"{self._base_url}{path_suffix}", **kwargs)
+
+        mock_get_backend.assert_not_called()

@@ -29,7 +29,7 @@ from airflow.providers.common.compat.openlineage.facet import (
     ExternalQueryRunFacet,
     SQLJobFacet,
 )
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, timezone
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.providers.databricks.utils.openlineage import (
@@ -41,7 +41,6 @@ from airflow.providers.databricks.utils.openlineage import (
     emit_openlineage_events_for_databricks_queries,
 )
 from airflow.providers.openlineage.conf import namespace
-from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
 

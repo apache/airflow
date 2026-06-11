@@ -236,6 +236,48 @@ class TaskDeferred(BaseException):
         return f"<TaskDeferred trigger={self.trigger} method={self.method_name}>"
 
 
+class TaskAwaitingInput(BaseException):
+    """
+    Signal an operator parking the task in awaiting_input state (Human-in-the-loop).
+
+    Raised to signal that the operator wishes to pause until external human input arrives,
+    WITHOUT creating a trigger or involving the triggerer. Resumption is driven by the Core API
+    response handler (or the scheduler timeout sweep) flipping the task instance back to SCHEDULED
+    with ``next_method`` / ``next_kwargs`` intact, after which the worker calls
+    ``resume_execution(method_name, kwargs)``.
+
+    Subclasses ``BaseException`` (like ``TaskDeferred``) so that a user ``except Exception`` in
+    ``execute()`` cannot accidentally swallow the park signal.
+    """
+
+    def __init__(
+        self,
+        *,
+        method_name: str,
+        kwargs: dict[str, Any] | None = None,
+        timeout=None,
+    ):
+        super().__init__()
+        self.method_name = method_name
+        self.kwargs = kwargs
+        self.timeout = timeout
+
+    def serialize(self):
+        cls = self.__class__
+        return (
+            f"{cls.__module__}.{cls.__name__}",
+            (),
+            {
+                "method_name": self.method_name,
+                "kwargs": self.kwargs,
+                "timeout": self.timeout,
+            },
+        )
+
+    def __repr__(self) -> str:
+        return f"<TaskAwaitingInput method={self.method_name}>"
+
+
 class TaskDeferralError(AirflowException):
     """Raised when a task failed during deferral for some reason."""
 

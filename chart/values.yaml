@@ -43,12 +43,6 @@ revisionHistoryLimit: ~
 uid: 50000
 gid: 0
 
-# Default security context for Airflow (deprecated, use `securityContexts` instead)
-securityContext: {}
-#  runAsUser: 50000
-#  fsGroup: 0
-#  runAsGroup: 0
-
 # Detailed default security context for Airflow Deployments
 securityContexts:
   pod: {}
@@ -139,20 +133,19 @@ labels: {}
 # Whenever service links should be added to each pod.
 enableServiceLinks: false
 
+# Specify the ip family policy to configure dual-stack networking for all Services.
+# See https://kubernetes.io/docs/concepts/services-networking/dual-stack/
+ipFamilyPolicy: ~
+
+# List of IP families for all Services (e.g., ["IPv4"] or ["IPv6"] or ["IPv4","IPv6"]).
+ipFamilies: []
+
 # List of existing Kubernetes secrets containing Base64 encoded credentials to connect to private
 # registries. Items can be either strings or {name: secret} objects.
 imagePullSecrets: []
 
 # Ingress configuration
 ingress:
-  # Enable all ingress resources
-  # (deprecated, use
-  #   `ingress.web.enabled`,
-  #   `ingress.apiServer.enabled` and/or
-  #   `ingress.flower.enabled`
-  # instead)
-  enabled: ~
-
   # Configs for the Ingress of the API Server (Airflow 3+)
   apiServer:
     # Enable API Server ingress resource
@@ -167,9 +160,6 @@ ingress:
     # The pathType for the above path
     pathType: "ImplementationSpecific"
 
-    # The hostname for the API Server Ingress (deprecated, use `ingress.apiServer.hosts` instead)
-    host: ""
-
     # The hostnames or hosts configuration for the API Server Ingress (templated)
     hosts: []
     # - name: ""
@@ -182,13 +172,6 @@ ingress:
 
     # The Ingress Class for the API Server Ingress
     ingressClassName: ""
-
-    # Configs for API Server Ingress TLS (deprecated, use `ingress.apiServer.hosts[*].tls` instead)
-    tls:
-      # Enable TLS termination for the API Server Ingress
-      enabled: false
-      # The name of a pre-created Secret containing a TLS private key and certificate
-      secretName: ""
 
     # HTTP paths to add to the API Server Ingress before the default path
     precedingPaths: []
@@ -210,9 +193,6 @@ ingress:
     # The pathType for the above path
     pathType: "ImplementationSpecific"
 
-    # The hostname for the web Ingress (deprecated, use `ingress.web.hosts` instead)
-    host: ""
-
     # The hostnames or hosts configuration for the web Ingress (templated)
     hosts: []
     # - name: ""
@@ -225,13 +205,6 @@ ingress:
 
     # The Ingress Class for the web Ingress
     ingressClassName: ""
-
-    # Configs for web Ingress TLS (deprecated, use `ingress.web.hosts[*].tls` instead)
-    tls:
-      # Enable TLS termination for the web Ingress
-      enabled: false
-      # The name of a pre-created Secret containing a TLS private key and certificate
-      secretName: ""
 
     # HTTP paths to add to the web Ingress before the default path
     precedingPaths: []
@@ -253,9 +226,6 @@ ingress:
     # The pathType for the above path
     pathType: "ImplementationSpecific"
 
-    # The hostname for the flower Ingress (deprecated, use `ingress.flower.hosts` instead)
-    host: ""
-
     # The hostnames or hosts configuration for the flower Ingress (templated)
     hosts: []
     # - name: ""
@@ -267,13 +237,6 @@ ingress:
 
     # The Ingress Class for the flower Ingress
     ingressClassName: ""
-
-    # Configs for flower Ingress TLS (deprecated, use `ingress.flower.hosts[*].tls` instead)
-    tls:
-      # Enable TLS termination for the flower Ingress
-      enabled: false
-      # The name of a pre-created Secret containing a TLS private key and certificate
-      secretName: ""
 
   # Configs for the Ingress of the StatsD Service
   statsd:
@@ -288,9 +251,6 @@ ingress:
 
     # The pathType for the above path
     pathType: "ImplementationSpecific"
-
-    # The hostname for the StatsD Ingress (deprecated, use `ingress.statsd.hosts` instead)
-    host: ""
 
     # The hostnames or hosts configuration for the StatsD Ingress (templated)
     hosts: []
@@ -317,9 +277,6 @@ ingress:
 
     # The pathType for the above path
     pathType: "ImplementationSpecific"
-
-    # The hostname for the PgBouncer Ingress (deprecated, use `ingress.pgbouncer.hosts` instead)
-    host: ""
 
     # The hostnames or hosts configuration for the PgBouncer Ingress (templated)
     hosts: []
@@ -371,10 +328,10 @@ env: []
 # - name: ""
 #   value: ""
 
-# Volumes for all Airflow containers
+# Volumes for all Airflow containers (templated)
 volumes: []
 
-# VolumeMounts for all Airflow containers
+# VolumeMounts for all Airflow containers (templated)
 volumeMounts: []
 
 # Secrets for all Airflow containers
@@ -688,14 +645,6 @@ workers:
   # Allow relaxing ordering guarantees for Airflow Celery worker while preserving its uniqueness and identity
   # (deprecated, use `workers.celery.podManagementPolicy` instead)
   # podManagementPolicy: Parallel
-
-  # When not set, the values defined in the global securityContext will
-  # be used in Airflow Celery workers and pod-template-file
-  # (deprecated, use `workers.celery.securityContexts` and/or `workers.kubernetes.securityContexts` instead)
-  securityContext: {}
-  #  runAsUser: 50000
-  #  fsGroup: 0
-  #  runAsGroup: 0
 
   # Detailed default security context for the
   # Airflow Celery workers and pod-template-file on container and pod level
@@ -1804,13 +1753,6 @@ scheduler:
   # (when not using LocalExecutor and `workers.persistence`)
   strategy: ~
 
-  # When not set, the values defined in the global `securityContext` will be used
-  # (deprecated, use `scheduler.securityContexts` instead)
-  securityContext: {}
-  #  runAsUser: 50000
-  #  fsGroup: 0
-  #  runAsGroup: 0
-
   # Detailed default security context for scheduler Deployments for container and pod level
   securityContexts:
     pod: {}
@@ -2036,13 +1978,6 @@ createUserJob:
   # Labels specific to `createUserJob` objects and pods
   labels: {}
 
-  # When not set, the values defined in the global `securityContext` will be used
-  # (deprecated, use `createUserJob.securityContexts` instead)
-  securityContext: {}
-  #  runAsUser: 50000
-  #  fsGroup: 0
-  #  runAsGroup: 0
-
   # Detailed default security context for `createUserJob` for container and pod level
   securityContexts:
     pod: {}
@@ -2139,13 +2074,6 @@ migrateDatabaseJob:
 
   # Labels specific to migrate database job objects and pods
   labels: {}
-
-  # When not set, the values defined in the global `securityContext` will be used
-  # (deprecated, use `migrateDatabaseJob.securityContexts` instead)
-  securityContext: {}
-  #  runAsUser: 50000
-  #  fsGroup: 0
-  #  runAsGroup: 0
 
   # Detailed default security context for `migrateDatabaseJob` for container and pod level
   securityContexts:
@@ -2470,13 +2398,6 @@ triggerer:
     # Annotations to add to triggerer Kubernetes Service Account.
     annotations: {}
 
-  # When not set, the values defined in the global `securityContext` will be used
-  # (deprecated, use `triggerer.securityContexts` instead)
-  securityContext: {}
-  #  runAsUser: 50000
-  #  fsGroup: 0
-  #  runAsGroup: 0
-
   # Detailed default security context for triggerer for container and pod level
   securityContexts:
     pod: {}
@@ -2765,13 +2686,6 @@ dagProcessor:
       maxUnavailable: 1
       # minAvailable: 1
 
-  # When not set, the values defined in the global `securityContext` will be used
-  # (deprecated, use `dagProcessor.securityContexts` instead)
-  securityContext: {}
-  #  runAsUser: 50000
-  #  fsGroup: 0
-  #  runAsGroup: 0
-
   # Detailed default security context for dagProcessor for container and pod level
   securityContexts:
     pod: {}
@@ -2958,13 +2872,6 @@ flower:
   #     cpu: 100m
   #     memory: 128Mi
 
-  # When not set, the values defined in the global `securityContext` will be used
-  # (deprecated, use `flower.securityContexts` instead)
-  securityContext: {}
-  #  runAsUser: 50000
-  #  fsGroup: 0
-  #  runAsGroup: 0
-
   # Detailed default security context for flower for container and pod level
   securityContexts:
     pod: {}
@@ -3132,12 +3039,6 @@ statsd:
     annotations: {}
 
   uid: 65534
-
-  # (deprecated, use `statsd.securityContexts` instead)
-  securityContext: {}
-  #  runAsUser: 65534
-  #  fsGroup: 0
-  #  runAsGroup: 0
 
   # Detailed default security context for StatsD Deployments for container and pod level
   securityContexts:
@@ -3351,7 +3252,7 @@ pgbouncer:
   # Maximum clients that can connect to PgBouncer (higher = more file descriptors)
   maxClientConn: 100
 
-  # Supply the name of existing secret with 'pgbouncer.ini' and 'users.txt' defined
+  # Supply the name of existing secret with 'pgbouncer.ini' and 'users.txt' defined (templated)
   configSecretName: ~
   # Secret example:
   #  apiVersion: v1
@@ -3604,11 +3505,6 @@ redis:
   # Set to 0 for backwards-compatibility
   uid: 0
 
-  # (deprecated, use `redis.securityContexts` instead)
-  securityContext: {}
-  #  runAsUser: 999
-  #  runAsGroup: 0
-
   # Detailed default security context for redis for container and pod level
   securityContexts:
     pod: {}
@@ -3775,12 +3671,6 @@ cleanup:
 
       # Audience for the token
       audience: ~
-
-  # When not set, the values defined in the global `securityContext` will be used
-  # (deprecated, use `cleanup.securityContexts` instead)
-  securityContext: {}
-  #  runAsUser: 50000
-  #  runAsGroup: 0
 
   env: []
 
@@ -4105,12 +3995,6 @@ dags:
 
     containerName: git-sync
     uid: 65533
-
-    # When not set, the values defined in the global `securityContext` will be used
-    # (deprecated, use `dags.gitSync.securityContexts` instead)
-    securityContext: {}
-    #  runAsUser: 65533
-    #  runAsGroup: 0
 
     securityContexts:
       container: {}

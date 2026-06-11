@@ -11,6 +11,24 @@
     },
     "title": "Denetim Günlüğü"
   },
+  "deadlines": {
+    "columns": {
+      "alertName": "Uyarı Adı",
+      "deadlineTime": "Son Tarih Zamanı",
+      "status": "Durum"
+    },
+    "deadline_one": "Son Tarih",
+    "deadline_other": "Son Tarihler",
+    "filters": {
+      "status": "Durum",
+      "statusOptions": {
+        "all": "Tümü",
+        "missed": "Kaçırılan",
+        "pending": "Beklemede"
+      }
+    },
+    "title": "Son Tarihler"
+  },
   "xcom": {
     "add": {
       "error": "XCom ekleme başarısız",
