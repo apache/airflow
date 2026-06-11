@@ -657,6 +657,7 @@ def trigger_dag_run(
             triggering_user_name=user.get_name(),
             state=DagRunState.QUEUED,
             partition_key=params["partition_key"],
+            partition_date=params["partition_date"],
             session=session,
         )
     except (ParamValidationError, ValueError) as e:

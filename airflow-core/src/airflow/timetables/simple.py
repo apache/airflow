@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from contextlib import suppress
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 import structlog
@@ -354,6 +355,36 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
                 mapper = self.get_partition_mapper(uri=s_asset_ref.uri)
                 entries.append(PartitionMapperInfo(uri=s_asset_ref.uri, is_rollup=mapper.is_rollup))
         return entries
+
+    def _decode_partition_date(self, partition_key: str) -> datetime | None:
+        """
+        Decode *partition_key* into the period-start datetime shared by all asset mappers.
+
+        Iterates every asset (and asset ref) reachable from the asset condition, asks
+        each mapper for the temporal anchor of *partition_key*, and returns it when all
+        temporal mappers agree. Returns ``None`` when no mapper is temporal or when the
+        mappers disagree — consistent with how the scheduler resolves ``partition_date``
+        for asset-triggered runs.
+        """
+        anchors: set[datetime] = set()
+        for unique_key, _ in self.asset_condition.iter_assets():
+            mapper = self.get_partition_mapper(name=unique_key.name, uri=unique_key.uri)
+            anchor = mapper.to_partition_date(partition_key)
+            if anchor is not None:
+                anchors.add(anchor)
+        for s_asset_ref in self.asset_condition.iter_asset_refs():
+            if isinstance(s_asset_ref, SerializedAssetNameRef):
+                mapper = self.get_partition_mapper(name=s_asset_ref.name)
+            elif isinstance(s_asset_ref, SerializedAssetUriRef):
+                mapper = self.get_partition_mapper(uri=s_asset_ref.uri)
+            else:
+                continue
+            anchor = mapper.to_partition_date(partition_key)
+            if anchor is not None:
+                anchors.add(anchor)
+        if len(anchors) == 1:
+            return anchors.pop()
+        return None
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_asset_like
