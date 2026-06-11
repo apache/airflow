@@ -121,7 +121,7 @@
       "nameMaxLength": "A név maximum 256 karakter hosszú lehet",
       "nameRequired": "Név megadása kötelező",
       "slots": "Slotok",
-      "slotsHelperText": "Korátlan számú slot-hoy adjon meg -1 értéket"
+      "slotsHelperText": "Korátlan számú slot-hoz adjon meg -1 értéket"
     },
     "noPoolsFound": "Nem található pool",
     "pool_one": "Pool",
