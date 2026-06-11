@@ -100,6 +100,29 @@ class TestBaseHook:
         with pytest.raises(AirflowNotFoundException, match="The conn_id `test_conn` isn't defined"):
             await hook.aget_connection(conn_id=conn_id)
 
+    @pytest.mark.asyncio
+    async def test_aget_hook(self, mock_supervisor_comms):
+        """aget_hook() must use the async connection path and return the hook for the connection."""
+        conn = ConnectionResult(
+            conn_id="test_conn",
+            conn_type="http",
+            host="https://example.com",
+            login="user",
+            password="password",
+            port=443,
+        )
+
+        mock_supervisor_comms.asend.return_value = conn
+
+        result = await BaseHook.aget_hook(conn_id="test_conn")
+
+        # asend() must have been called — never the blocking send()
+        mock_supervisor_comms.asend.assert_called_once_with(
+            msg=GetConnection(conn_id="test_conn"),
+        )
+        mock_supervisor_comms.send.assert_not_called()
+        assert result is not None
+
     def test_get_connection_secrets_backend_configured(self, mock_supervisor_comms, tmp_path):
         path = tmp_path / "conn.env"
         path.write_text("CONN_A=mysql://host_a")
