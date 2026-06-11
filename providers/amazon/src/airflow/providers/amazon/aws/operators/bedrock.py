@@ -1592,7 +1592,14 @@ class BedrockCreateEvaluationJobOperator(AwsBaseOperator[BedrockHook]):
     """
 
     aws_hook_class = BedrockHook
-    template_fields: Sequence[str] = aws_template_fields("job_name", "role_arn", "job_description")
+    template_fields: Sequence[str] = aws_template_fields(
+        "job_name",
+        "role_arn",
+        "job_description",
+        "evaluation_config",
+        "inference_config",
+        "output_data_config",
+    )
 
     def __init__(
         self,

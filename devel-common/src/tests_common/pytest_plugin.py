@@ -1193,7 +1193,9 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:
-                if AIRFLOW_V_3_0_PLUS:
+                if AIRFLOW_V_3_3_PLUS:
+                    ti.refresh_from_task(dag.get_task(ti.task_id), dag_run=self.dag_run)
+                elif AIRFLOW_V_3_0_PLUS:
                     ti.refresh_from_task(dag.get_task(ti.task_id))
                 else:
                     ti.refresh_from_task(self.dag.get_task(ti.task_id))

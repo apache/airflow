@@ -16,11 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime, timezone as dt_timezone
+
 import pendulum
 import pytest
+from pendulum.tz.exceptions import InvalidTimezone
 
 from airflow import sdk
+from airflow.partition_mappers.base import RollupMapper
+from airflow.partition_mappers.identity import IdentityMapper
 from airflow.partition_mappers.temporal import (
+    FanOutMapper,
     StartOfDayMapper,
     StartOfHourMapper,
     StartOfMonthMapper,
@@ -30,8 +36,10 @@ from airflow.partition_mappers.temporal import (
     _BaseTemporalMapper,
     _compile_output_format_regex,
 )
+from airflow.partition_mappers.window import HourWindow, WeekWindow
 from airflow.serialization.decoders import decode_partition_mapper
 from airflow.serialization.encoders import encode_partition_mapper
+from airflow.serialization.enums import Encoding
 
 
 class TestTemporalMappers:
@@ -291,8 +299,6 @@ class TestSdkTemporalMappersTimezoneSerialization:
     def test_sdk_constructor_invalid_timezone_raises_eagerly(self, sdk_mapper_name):
         """Passing an unknown timezone string must raise at construction time
         (via ``parse_timezone``), not silently fall back to UTC or fail later."""
-        from pendulum.tz.exceptions import InvalidTimezone
-
         sdk_cls = getattr(sdk, sdk_mapper_name)
         with pytest.raises(InvalidTimezone):
             sdk_cls(timezone="Not/A/Real/Zone")
@@ -352,3 +358,108 @@ class TestOutputFormatValidation:
         assert match is not None
         assert match.group("first") == "foo"
         assert match.group("last") == "bar"
+
+
+class TestTemporalMapperDecodeNormalizeRoundTrip:
+    """
+    ``normalize(decode_downstream(to_downstream(dt)))`` must equal the anchor
+    produced by ``normalize(dt)`` for every ``_BaseTemporalMapper`` subclass.
+
+    This is the "Step 2" semantic guarantee: ``decode_downstream`` reconstructs
+    the period-start, and ``normalize`` is idempotent, so the composed call
+    used in ``_resolve_partition_date`` must not drift from the direct anchor.
+    """
+
+    SAMPLE_DT = datetime(2024, 3, 15, 10, 42, 35)
+
+    @pytest.mark.parametrize(
+        "mapper",
+        [
+            StartOfHourMapper(),
+            StartOfDayMapper(),
+            StartOfWeekMapper(),
+            StartOfMonthMapper(),
+            StartOfQuarterMapper(),
+            StartOfYearMapper(),
+        ],
+    )
+    def test_round_trip_anchor_is_stable(self, mapper: _BaseTemporalMapper):
+        """``normalize(decode_downstream(to_downstream(dt)))`` == ``normalize(dt)``."""
+        downstream_key = mapper.to_downstream(self.SAMPLE_DT.strftime(mapper.input_format))
+        decoded = mapper.decode_downstream(downstream_key)
+        round_tripped = mapper.normalize(decoded)
+        direct_anchor = mapper.normalize(self.SAMPLE_DT)
+        assert round_tripped == direct_anchor, (
+            f"{type(mapper).__name__}: round-trip anchor {round_tripped!r} "
+            f"differs from direct anchor {direct_anchor!r}"
+        )
+
+    @pytest.mark.parametrize(
+        ("mapper", "expected_aware"),
+        [
+            # UTC mapper: UTC midnight stays at 00:00 UTC.
+            (
+                StartOfDayMapper(timezone="UTC"),
+                datetime(2024, 3, 15, 0, 0, 0, tzinfo=dt_timezone.utc),
+            ),
+            # Non-UTC mapper: NY midnight (EDT = UTC-4) → 04:00 UTC.
+            (
+                StartOfDayMapper(timezone="America/New_York"),
+                datetime(2024, 3, 15, 4, 0, 0, tzinfo=dt_timezone.utc),
+            ),
+        ],
+    )
+    def test_to_partition_date_uses_mapper_timezone(
+        self, mapper: _BaseTemporalMapper, expected_aware: datetime
+    ):
+        """``to_partition_date`` localises the anchor with ``mapper._timezone``, not the global default."""
+        downstream_key = mapper.to_downstream(self.SAMPLE_DT.strftime(mapper.input_format))
+        aware = mapper.to_partition_date(downstream_key)
+        # Convert to UTC for a timezone-neutral comparison.
+        aware_utc = aware.astimezone(dt_timezone.utc)
+        assert aware_utc == expected_aware, (
+            f"{type(mapper).__name__} (tz={mapper._timezone}): "
+            f"to_partition_date produced {aware_utc!r}, expected {expected_aware!r}"
+        )
+
+
+class TestToPartitionDateDelegation:
+    """Composite mappers delegate ``to_partition_date`` to the child that owns the downstream key."""
+
+    @pytest.mark.parametrize(
+        ("mapper", "downstream_key", "expected"),
+        [
+            # RollupMapper (fan-in): downstream key is the upstream_mapper's format → it owns it.
+            (
+                RollupMapper(upstream_mapper=StartOfHourMapper(), window=HourWindow()),
+                "2024-01-01T00",
+                datetime(2024, 1, 1, 0, 0, 0, tzinfo=dt_timezone.utc),
+            ),
+            # FanOutMapper (fan-out): downstream keys are the downstream_mapper's format → it owns them.
+            (
+                FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow()),
+                "2024-01-16",
+                datetime(2024, 1, 16, 0, 0, 0, tzinfo=dt_timezone.utc),
+            ),
+            # Non-temporal mapper → no anchor.
+            (IdentityMapper(), "anything", None),
+        ],
+    )
+    def test_to_partition_date(self, mapper, downstream_key, expected):
+        assert mapper.to_partition_date(downstream_key) == expected
+
+
+class TestTemporalMapperMaxDownstreamKeys:
+    """Round-trip and zero-bloat tests for max_downstream_keys on temporal mappers."""
+
+    def test_max_downstream_keys_encode_decode_roundtrip(self):
+        """max_downstream_keys=5 survives encode_partition_mapper → decode_partition_mapper."""
+        mapper = StartOfWeekMapper(max_downstream_keys=5)
+        restored = decode_partition_mapper(encode_partition_mapper(mapper))
+        assert restored.max_downstream_keys == 5
+
+    def test_max_downstream_keys_absent_from_default_encoded_payload(self):
+        """max_downstream_keys must NOT appear in the encoded payload when not set (zero-bloat contract)."""
+        mapper = StartOfWeekMapper()
+        encoded_var = encode_partition_mapper(mapper)[Encoding.VAR]
+        assert "max_downstream_keys" not in encoded_var
