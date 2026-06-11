@@ -25,22 +25,12 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from opentelemetry import metrics
-from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics._internal.export import (
-    ConsoleMetricExporter,
-    PeriodicExportingMetricReader,
-)
-from opentelemetry.sdk.metrics.view import ExponentialBucketHistogramAggregation, View
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
-from ..common import get_otel_data_exporter
-from ..otel_env_config import load_metrics_env_config
 from .protocols import Timer
 from .validators import (
     OTEL_NAME_MAX_LENGTH,
     ListValidator,
     PatternAllowListValidator,
-    get_validator,
     stat_name_otel_handler,
 )
 
@@ -415,99 +405,3 @@ def flush_otel_metrics():
 
 def atexit_register_metrics_flush():
     atexit.register(flush_otel_metrics)
-
-
-def get_otel_logger(
-    *,
-    host: str | None = None,
-    port: int | None = None,
-    prefix: str | None = None,
-    ssl_active: bool = False,
-    conf_interval: float | None = None,
-    debug: bool = False,
-    service_name: str | None = None,
-    metrics_allow_list: str | None = None,
-    metrics_block_list: str | None = None,
-    stat_name_handler: Callable[[str], str] | None = None,
-    statsd_influxdb_enabled: bool = False,
-) -> SafeOtelLogger:
-    """
-    Build and return a :class:`SafeOtelLogger` backed by a configured :class:`MeterProvider`.
-
-    Histogram instruments (used for ``timing()`` / ``timer()`` metrics) are aggregated with
-    :class:`~opentelemetry.sdk.metrics.view.ExponentialBucketHistogramAggregation`
-    so that bucket boundaries adapt automatically to the observed data range.  This avoids
-    the need to hand-tune explicit bucket boundaries for metrics that span very different
-    scales (milliseconds to hours).
-    """
-    otel_env_config = load_metrics_env_config()
-
-    effective_service_name: str = otel_env_config.service_name or service_name or "airflow"
-    effective_prefix: str = prefix or DEFAULT_METRIC_NAME_PREFIX
-    resource = Resource.create(attributes={SERVICE_NAME: effective_service_name})
-
-    # https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader
-    interval = otel_env_config.interval_ms or conf_interval
-
-    metric_exporter = get_otel_data_exporter(
-        otel_env_config=otel_env_config,
-        host=host,
-        port=port,
-        ssl_active=ssl_active,
-    )
-
-    readers = [
-        PeriodicExportingMetricReader(
-            exporter=metric_exporter,  # type: ignore[arg-type]
-            export_interval_millis=interval,  # type: ignore[arg-type]
-        )
-    ]
-
-    if otel_env_config.exporter:
-        debug = otel_env_config.exporter == "console"
-
-    if debug:
-        export_to_console = PeriodicExportingMetricReader(
-            ConsoleMetricExporter(),
-            export_interval_millis=interval,
-        )
-        readers.append(export_to_console)
-
-    # Reset the OTel SDK's Once() guard so set_meter_provider() can succeed.
-    # This is necessary when get_otel_logger() is called after a process fork:
-    # the parent's _METER_PROVIDER_SET_ONCE._done = True is inherited by the child,
-    # causing set_meter_provider() to silently fail with "Overriding of current
-    # MeterProvider is not allowed". The child then uses the parent's stale provider
-    # whose PeriodicExportingMetricReader thread is dead after fork.
-    # On first call (no fork), _done is already False so this is a no-op.
-    # See: https://github.com/apache/airflow/issues/64690
-    try:
-        import opentelemetry.metrics._internal as _metrics_internal
-
-        _metrics_internal._METER_PROVIDER_SET_ONCE._done = False
-        _metrics_internal._METER_PROVIDER = None
-    except (ImportError, AttributeError):
-        pass
-
-    metrics.set_meter_provider(
-        MeterProvider(
-            resource=resource,
-            metric_readers=readers,
-            views=[
-                View(
-                    instrument_type=metrics.Histogram,
-                    aggregation=ExponentialBucketHistogramAggregation(),
-                )
-            ],
-            shutdown_on_exit=False,
-        ),
-    )
-
-    # Register a hook that flushes any in-memory metrics at shutdown.
-    atexit_register_metrics_flush()
-
-    validator = get_validator(metrics_allow_list, metrics_block_list)
-
-    return SafeOtelLogger(
-        metrics.get_meter_provider(), effective_prefix, validator, stat_name_handler, statsd_influxdb_enabled
-    )

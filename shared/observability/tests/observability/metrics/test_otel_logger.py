@@ -21,14 +21,15 @@ import os
 import subprocess
 import sys
 import time
+from configparser import ConfigParser
 from unittest import mock
 
 import pytest
 from opentelemetry.metrics import MeterProvider
 from opentelemetry.sdk.metrics.view import ExponentialBucketHistogramAggregation, View
 
-from airflow_shared.observability.common import get_otel_data_exporter
 from airflow_shared.observability.exceptions import InvalidStatsNameException
+from airflow_shared.observability.metrics import _get_backcompat_config, configure_otel
 from airflow_shared.observability.metrics.otel_logger import (
     OTEL_NAME_MAX_LENGTH,
     UP_DOWN_COUNTERS,
@@ -37,13 +38,11 @@ from airflow_shared.observability.metrics.otel_logger import (
     _generate_key_name,
     _is_up_down_counter,
     full_name,
-    get_otel_logger,
 )
 from airflow_shared.observability.metrics.validators import (
     BACK_COMPAT_METRIC_NAMES,
     MetricNameLengthExemptionWarning,
 )
-from airflow_shared.observability.otel_env_config import load_metrics_env_config
 
 from tests_common.test_utils.config import env_vars
 
@@ -322,140 +321,99 @@ class TestOtelMetrics:
         self.meter.get_meter().create_histogram.assert_called_once_with(name=full_name(name), unit="ms")
 
     @pytest.mark.parametrize(
-        (
-            "provided_env_vars",
-            "airflow_conf_host",
-            "airflow_conf_port",
-            "expected_endpoint",
-            "expected_exporter_module",
-        ),
+        ("provided_env_vars", "airflow_conf_host", "airflow_conf_port", "expected_endpoint"),
         [
+            # When the standard OTel env var is set, the bridging is a no-op
+            # (the SDK reads the env var directly) — _get_backcompat_config
+            # returns endpoint=None.
             pytest.param(
-                {
-                    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:1234",
-                    "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
-                },
+                {"OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:1234"},
                 "breeze-otel-collector",
                 "4318",
-                "localhost:1234",
-                "grpc",
-                id="env_vars_with_grpc",
+                None,
+                id="env_endpoint_takes_precedence_no_bridging",
             ),
             pytest.param(
-                {
-                    "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
-                },
+                {"OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": "http://localhost:2222"},
                 "breeze-otel-collector",
                 "4318",
-                "http://breeze-otel-collector:4318/v1/metrics",
-                "http",
-                id="protocol_is_ignored_if_no_env_endpoint",
+                None,
+                id="env_metrics_endpoint_takes_precedence_no_bridging",
             ),
-            pytest.param(
-                {
-                    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:1234",
-                    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
-                },
-                "breeze-otel-collector",
-                "4318",
-                "http://localhost:1234/v1/metrics",
-                "http",
-                id="for_http_with_env_vars_otel_builds_full_url",
-            ),
+            # No env endpoint set → bridge the deprecated Airflow conf into a URL.
             pytest.param(
                 {},
                 "breeze-otel-collector",
                 "4318",
                 "http://breeze-otel-collector:4318/v1/metrics",
-                "http",
-                id="use_airflow_config",
+                id="airflow_conf_bridges_to_url",
             ),
+            # No env endpoint, no Airflow conf → no bridging.
             pytest.param(
-                {
-                    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:1234",
-                    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
-                },
+                {},
                 None,
                 None,
-                "http://localhost:1234/v1/metrics",
-                "http",
-                id="only_env_vars",
+                None,
+                id="neither_env_nor_airflow_conf",
             ),
-            pytest.param(
-                {
-                    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:1234",
-                    "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": "http://localhost:2222",
-                    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
-                    "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL": "grpc",
-                },
-                None,
-                None,
-                "localhost:2222",
-                "grpc",
-                id="type_specific_vars_take_precedence",
-            ),
+            # IPv6 hosts get bracketed per RFC 3986 §3.2.2.
             pytest.param(
                 {},
                 "::1",
                 "4318",
                 "http://[::1]:4318/v1/metrics",
-                "http",
-                id="airflow_config_ipv6_loopback_is_bracketed",
+                id="airflow_conf_ipv6_loopback_is_bracketed",
             ),
             pytest.param(
                 {},
                 "2001:db8::1",
                 "4318",
                 "http://[2001:db8::1]:4318/v1/metrics",
-                "http",
-                id="airflow_config_ipv6_literal_is_bracketed",
+                id="airflow_conf_ipv6_literal_is_bracketed",
             ),
             pytest.param(
                 {},
                 "[::1]",
                 "4318",
                 "http://[::1]:4318/v1/metrics",
-                "http",
-                id="airflow_config_already_bracketed_ipv6_is_preserved",
+                id="airflow_conf_already_bracketed_ipv6_is_preserved",
             ),
             pytest.param(
                 {},
                 "10.0.0.1",
                 "4318",
                 "http://10.0.0.1:4318/v1/metrics",
-                "http",
-                id="airflow_config_ipv4_literal_passes_through_unchanged",
+                id="airflow_conf_ipv4_literal_passes_through_unchanged",
             ),
         ],
     )
-    def test_config_priorities(
-        self,
-        provided_env_vars,
-        airflow_conf_host,
-        airflow_conf_port,
-        expected_endpoint,
-        expected_exporter_module,
+    def test_backcompat_endpoint_bridging(
+        self, provided_env_vars, airflow_conf_host, airflow_conf_port, expected_endpoint
     ):
+        """The bridging helper returns the right backcompat endpoint URL.
+
+        The contract: if the standard OTel env var is set, return ``None`` (the
+        SDK reads from env directly); otherwise, build the URL from the
+        deprecated Airflow conf with proper IPv6 bracketing.
+        """
         with env_vars(provided_env_vars):
-            otel_env_config = load_metrics_env_config()
+            conf = ConfigParser()
+            section = {"otel_on": "true"}
+            if airflow_conf_host:
+                section["otel_host"] = airflow_conf_host
+            if airflow_conf_port:
+                section["otel_port"] = airflow_conf_port
+            conf["metrics"] = section
 
-            otel_metric_exporter = get_otel_data_exporter(
-                otel_env_config=otel_env_config,
-                host=airflow_conf_host,
-                port=airflow_conf_port,
-            )
+            endpoint, _, _ = _get_backcompat_config(conf)
+            assert endpoint == expected_endpoint
 
-            assert otel_metric_exporter._endpoint == expected_endpoint
-
-            assert (
-                otel_metric_exporter.__class__.__module__
-                == f"opentelemetry.exporter.otlp.proto.{expected_exporter_module}.metric_exporter"
-            )
-
-    @mock.patch("airflow_shared.observability.metrics.otel_logger.metrics")
-    @mock.patch("airflow_shared.observability.metrics.otel_logger.MeterProvider")
-    def test_get_otel_logger_uses_exponential_histogram_view(self, mock_provider, mock_metrics):
-        get_otel_logger(host="localhost", port=4318)
+    @mock.patch("airflow_shared.observability.metrics.metrics")
+    @mock.patch("airflow_shared.observability.metrics.MeterProvider")
+    def test_configure_otel_uses_exponential_histogram_view(self, mock_provider, mock_metrics):
+        conf = ConfigParser()
+        conf["metrics"] = {"otel_on": "true", "otel_host": "localhost", "otel_port": "4318"}
+        configure_otel(conf)
 
         call_kwargs = mock_provider.call_args.kwargs
         views = call_kwargs["views"]
@@ -472,8 +430,14 @@ class TestOtelMetrics:
         Test that the hook runs and flushes the created stat at shutdown.
         """
         function_call_str = (
-            "from airflow_shared.observability.metrics.otel_logger import get_otel_logger; "
-            "logger = get_otel_logger(debug=True); "
+            "from configparser import ConfigParser; "
+            "from airflow_shared.observability.metrics import configure_otel; "
+            "c = ConfigParser(); "
+            "c['metrics'] = {"
+            "'otel_on': 'true', 'otel_debugging_on': 'true', "
+            "'otel_host': 'localhost', 'otel_port': '4318'"
+            "}; "
+            "logger = configure_otel(c); "
             "logger.incr('my_test_stat')"
         )
 
@@ -495,7 +459,7 @@ class TestOtelMetrics:
         )
 
     def test_reinit_after_fork_exports_metrics(self):
-        """Calling get_otel_logger() twice (simulating post-fork re-init) should still export metrics.
+        """Calling configure_otel() twice (simulating post-fork re-init) should still export metrics.
 
         Reproduces https://github.com/apache/airflow/issues/64690: the OTel SDK's Once()
         guard on set_meter_provider() survives fork, preventing the child from setting a
@@ -523,13 +487,24 @@ class TestOtelMetrics:
         )
 
 
+def _debug_conf() -> ConfigParser:
+    c = ConfigParser()
+    c["metrics"] = {
+        "otel_on": "true",
+        "otel_debugging_on": "true",
+        "otel_host": "localhost",
+        "otel_port": "4318",
+    }
+    return c
+
+
 def mock_service_run():
-    logger = get_otel_logger(debug=True)
+    logger = configure_otel(_debug_conf())
     logger.incr("my_test_stat")
 
 
 def mock_service_run_reinit():
-    """Simulate re-initialization after fork by calling get_otel_logger() twice.
+    """Simulate re-initialization after fork by calling configure_otel() twice.
 
     The first call sets the global MeterProvider and the Once() guard.
     The second call simulates what happens in a forked child: stats.py detects
@@ -537,7 +512,7 @@ def mock_service_run_reinit():
     set_meter_provider() silently fails and the child uses a stale provider.
     """
     # First init — sets Once._done = True
-    get_otel_logger(debug=True)
+    configure_otel(_debug_conf())
     # Second init — simulates post-fork re-initialization
-    logger = get_otel_logger(debug=True)
+    logger = configure_otel(_debug_conf())
     logger.incr("post_fork_stat")
