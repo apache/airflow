@@ -14,6 +14,8 @@
     "edit": "Edit Asset Store",
     "emptyState": "Asset store stores values scoped to an asset identity, shared across all Dag runs. Workers can write asset store via the Task SDK.",
     "lastUpdatedBy": "Last Updated By",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Watcher",
     "title": "Asset Store"
   },
   "consumingDags": "Consuming Dags",

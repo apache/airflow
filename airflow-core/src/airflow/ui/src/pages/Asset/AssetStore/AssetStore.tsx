@@ -22,17 +22,29 @@ import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams } from "react-router-dom";
 
 import { useAssetStoreServiceListAssetStore } from "openapi/queries";
-import type { AssetStoreResponse } from "openapi/requests";
+import type { AssetStoreLastUpdatedBy, AssetStoreResponse } from "openapi/requests";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StoreValueCell } from "src/components/StoreValueCell";
 import Time from "src/components/Time";
+import { getTaskInstanceLink } from "src/utils/links";
 
 import { AddAssetStoreButton } from "./AddAssetStoreButton";
 import { ClearAllAssetStoreButton } from "./ClearAllAssetStoreButton";
 import { DeleteAssetStoreButton } from "./DeleteAssetStoreButton";
 import { EditAssetStoreButton } from "./EditAssetStoreButton";
+
+type TaskWriter = { dag_id: string; run_id: string; task_id: string } & AssetStoreLastUpdatedBy;
+
+const isTaskWriter = (writer: AssetStoreLastUpdatedBy): writer is TaskWriter =>
+  writer.kind === "task" &&
+  writer.dag_id !== null &&
+  writer.dag_id !== undefined &&
+  writer.run_id !== null &&
+  writer.run_id !== undefined &&
+  writer.task_id !== null &&
+  writer.task_id !== undefined;
 
 type ColumnsProps = {
   readonly assetId: number;
@@ -64,17 +76,13 @@ const getColumns = ({ assetId, translate }: ColumnsProps): Array<ColumnDef<Asset
       if (!writer) {
         return <Text color="fg.muted">—</Text>;
       }
-      if (
-        writer.kind === "task" &&
-        writer.dag_id !== null &&
-        writer.run_id !== null &&
-        writer.task_id !== null
-      ) {
-        const mapSuffix =
-          writer.map_index !== null && writer.map_index !== undefined && writer.map_index >= 0
-            ? `/mapped/${writer.map_index}`
-            : "";
-        const path = `/dags/${writer.dag_id}/runs/${writer.run_id}/tasks/${writer.task_id}${mapSuffix}`;
+      if (isTaskWriter(writer)) {
+        const path = getTaskInstanceLink({
+          dagId: writer.dag_id,
+          dagRunId: writer.run_id,
+          mapIndex: writer.map_index ?? undefined,
+          taskId: writer.task_id,
+        });
 
         return (
           <Flex direction="column">
@@ -88,7 +96,13 @@ const getColumns = ({ assetId, translate }: ColumnsProps): Array<ColumnDef<Asset
         );
       }
 
-      return <Text>{writer.kind === "api" ? "API" : "Watcher"}</Text>;
+      return (
+        <Text>
+          {writer.kind === "api"
+            ? translate("assets:assetStore.lastUpdatedByApi")
+            : translate("assets:assetStore.lastUpdatedByWatcher")}
+        </Text>
+      );
     },
     enableSorting: false,
     header: translate("assets:assetStore.lastUpdatedBy"),
