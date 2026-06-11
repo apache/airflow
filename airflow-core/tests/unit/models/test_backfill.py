@@ -41,6 +41,7 @@ from airflow.models.backfill import (
     _create_backfill,
     _do_dry_run,
     _get_latest_dag_run_row_query,
+    _handle_clear_run,
 )
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import Asset
@@ -856,3 +857,59 @@ def test_create_backfill_from_date_after_to_date_raises(dag_maker, session):
             triggering_user_name="pytest",
             dag_run_conf={},
         )
+
+
+def test_handle_clear_run_preserves_partition_key(dag_maker, session):
+    """BackfillDagRun created via the clear/reprocess path carries partition_key from info."""
+    from airflow.timetables.base import DataInterval
+
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    logical_date = timezone.parse("2026-01-10")
+    dr = dag_maker.create_dagrun(
+        run_id="scheduled_2026-01-10",
+        logical_date=logical_date,
+        session=session,
+        state="failed",
+    )
+    session.commit()
+
+    # Create a Backfill row so the foreign-key constraint is satisfied.
+    backfill = Backfill(
+        dag_id=dag.dag_id,
+        from_date=logical_date,
+        to_date=logical_date,
+        dag_run_conf=None,
+        max_active_runs=1,
+        reprocess_behavior=ReprocessBehavior.FAILED,
+    )
+    session.add(backfill)
+    session.flush()
+
+    partition_key = "2026-01-10T00:00:00"
+    info = DagRunInfo(
+        run_after=logical_date,
+        data_interval=DataInterval(logical_date, logical_date),
+        partition_key=partition_key,
+        partition_date=None,
+    )
+
+    _handle_clear_run(
+        session=session,
+        dag=dag,
+        dr=dr,
+        info=info,
+        backfill_id=backfill.id,
+        sort_ordinal=1,
+    )
+    session.flush()
+
+    bdr = session.scalar(
+        select(BackfillDagRun).where(
+            BackfillDagRun.backfill_id == backfill.id,
+            BackfillDagRun.dag_run_id == dr.id,
+        )
+    )
+    assert bdr is not None
+    assert bdr.partition_key == partition_key
