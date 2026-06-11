@@ -209,11 +209,28 @@ cache:
 **How it works**
 
 1. On first execution, each LLM response and tool result is saved to a JSON
-   file as the agent progresses.
+   file as the agent progresses, together with a fingerprint of the request
+   that produced it (model, message history, settings, and tools for LLM
+   steps; tool name, arguments, and call id for tool steps).
 2. If the task fails and Airflow retries it, completed steps are loaded from
    the cache and returned without calling the model or tool. Steps not yet in
    the cache proceed normally.
-3. After successful completion, the cache file is deleted.
+3. Before a step is replayed, its stored fingerprint is compared against the
+   current request. If anything changed between attempts -- the system
+   prompt, the model, the toolset, model settings, or the conversation so
+   far -- the stale entry is discarded, a warning is logged, and the step
+   re-runs live. A divergence also invalidates the steps after it: re-running
+   an LLM step produces fresh tool call ids, so tool results recorded under
+   the old conversation no longer match. A changed agent costs a re-run; it
+   never replays responses that belong to a different conversation.
+4. After successful completion, the cache file is deleted.
+
+Replay verification compares the **requests** sent to models and tools, not
+the code behind them. Editing a tool's implementation between attempts does
+not invalidate an already-cached result for an identical call, and pointing
+``llm_conn_id`` at a different endpoint serving the same model name does not
+invalidate cached responses -- delete the cache file to force a fully fresh
+run.
 
 After the run, a single INFO summary line reports how many steps were
 replayed vs executed fresh. Per-step detail is available at DEBUG level.

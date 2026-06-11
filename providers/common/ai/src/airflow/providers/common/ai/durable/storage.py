@@ -99,24 +99,38 @@ class DurableStorage:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(self._cache))
 
-    def save_model_response(self, key: str, response: ModelResponse) -> None:
-        """Serialize and store a ModelResponse in the cache."""
+    def save_model_response(
+        self, key: str, response: ModelResponse, *, fingerprint: str | None = None
+    ) -> None:
+        """Serialize and store a ModelResponse with the request fingerprint that produced it."""
         cache = self._load_cache()
-        cache[key] = ModelMessagesTypeAdapter.dump_json([response]).decode()
+        data = ModelMessagesTypeAdapter.dump_json([response]).decode()
+        cache[key] = json.dumps({"fingerprint": fingerprint, "data": data})
         self._save_cache()
 
-    def load_model_response(self, key: str) -> ModelResponse | None:
-        """Load a cached ModelResponse, or return None if not cached."""
+    def load_model_response(self, key: str) -> tuple[ModelResponse | None, str | None]:
+        """
+        Load a cached ModelResponse and its stored request fingerprint.
+
+        Returns ``(None, None)`` if not cached. Entries written before
+        fingerprints existed load with a ``None`` fingerprint.
+        """
         cache = self._load_cache()
         raw = cache.get(key)
         if raw is None:
-            return None
-        messages = ModelMessagesTypeAdapter.validate_json(raw)
-        return messages[0]  # type: ignore[return-value]
+            return None, None
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict) and "data" in parsed:
+            data, fingerprint = parsed["data"], parsed.get("fingerprint")
+        else:
+            # Legacy entry: the adapter JSON (a list) was stored directly.
+            data, fingerprint = raw, None
+        messages = ModelMessagesTypeAdapter.validate_json(data)
+        return messages[0], fingerprint  # type: ignore[return-value]
 
-    def save_tool_result(self, key: str, result: Any) -> None:
+    def save_tool_result(self, key: str, result: Any, *, fingerprint: str | None) -> None:
         """
-        Store a tool call result in the cache.
+        Store a tool call result with the call fingerprint that produced it.
 
         Non-serializable results (e.g. BinaryContent from MCP tools) are
         skipped with a warning -- the tool call still succeeds, but won't
@@ -124,7 +138,7 @@ class DurableStorage:
         """
         cache = self._load_cache()
         try:
-            cache[key] = json.dumps({_SENTINEL: True, "value": result})
+            cache[key] = json.dumps({_SENTINEL: True, "value": result, "fingerprint": fingerprint})
         except TypeError:
             log.warning(
                 "Durable: skipping cache for non-serializable tool result",
@@ -134,20 +148,22 @@ class DurableStorage:
             return
         self._save_cache()
 
-    def load_tool_result(self, key: str) -> tuple[bool, Any]:
+    def load_tool_result(self, key: str) -> tuple[bool, Any, str | None]:
         """
-        Load a cached tool result.
+        Load a cached tool result and its stored call fingerprint.
 
-        Returns (found, value) tuple since the cached value itself could be None.
+        Returns a (found, value, fingerprint) tuple since the cached value
+        itself could be None. Entries written before fingerprints existed
+        load with a ``None`` fingerprint.
         """
         cache = self._load_cache()
         raw = cache.get(key)
         if raw is None:
-            return False, None
+            return False, None, None
         parsed = json.loads(raw)
         if not isinstance(parsed, dict) or _SENTINEL not in parsed:
-            return False, None
-        return True, parsed["value"]
+            return False, None, None
+        return True, parsed["value"], parsed.get("fingerprint")
 
     def cleanup(self) -> None:
         """Delete the cache file after successful execution."""

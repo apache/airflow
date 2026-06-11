@@ -16,10 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest.mock import patch
 
 import pytest
 from pydantic_ai.messages import (
+    ModelMessagesTypeAdapter,
     ModelResponse,
     TextPart,
 )
@@ -61,39 +63,76 @@ class TestDurableStorageInit:
 
 class TestSaveLoadModelResponse:
     def test_save_and_load_roundtrips(self, storage, sample_response):
-        storage.save_model_response("model_step_0", sample_response)
+        storage.save_model_response("model_step_0", sample_response, fingerprint="fp_abc")
 
         # Reset in-memory cache to force read from file
         storage._cache = None
-        loaded = storage.load_model_response("model_step_0")
+        loaded, fingerprint = storage.load_model_response("model_step_0")
 
         assert loaded is not None
         assert loaded.parts[0].content == "Hello!"
+        assert fingerprint == "fp_abc"
 
     def test_load_returns_none_when_no_cache(self, storage):
-        assert storage.load_model_response("model_step_0") is None
+        assert storage.load_model_response("model_step_0") == (None, None)
+
+    def test_legacy_entry_without_fingerprint_loads(self, storage, sample_response):
+        """Entries written before fingerprinting (raw adapter JSON) load with a None fingerprint."""
+        cache = storage._load_cache()
+        cache["model_step_0"] = ModelMessagesTypeAdapter.dump_json([sample_response]).decode()
+        storage._save_cache()
+        storage._cache = None
+
+        loaded, fingerprint = storage.load_model_response("model_step_0")
+
+        assert loaded is not None
+        assert loaded.parts[0].content == "Hello!"
+        assert fingerprint is None
 
 
 class TestSaveLoadToolResult:
     def test_save_and_load_roundtrips(self, storage):
-        storage.save_tool_result("tool_step_0", {"rows": [1, 2, 3]})
+        storage.save_tool_result("tool_step_0", {"rows": [1, 2, 3]}, fingerprint="fp")
 
         storage._cache = None
-        found, value = storage.load_tool_result("tool_step_0")
+        found, value, fingerprint = storage.load_tool_result("tool_step_0")
 
         assert found is True
         assert value == {"rows": [1, 2, 3]}
 
-    def test_load_returns_false_when_no_cache(self, storage):
-        found, value = storage.load_tool_result("tool_step_0")
-        assert found is False
-        assert value is None
-
-    def test_none_result_roundtrips(self, storage):
-        storage.save_tool_result("tool_step_0", None)
+    def test_fingerprint_roundtrips(self, storage):
+        storage.save_tool_result("tool_step_0", "result", fingerprint="fp_tool")
 
         storage._cache = None
-        found, value = storage.load_tool_result("tool_step_0")
+        found, value, fingerprint = storage.load_tool_result("tool_step_0")
+
+        assert found is True
+        assert fingerprint == "fp_tool"
+
+    def test_legacy_entry_without_fingerprint_loads(self, storage):
+        """Entries written before fingerprinting load with a None fingerprint."""
+        cache = storage._load_cache()
+        cache["tool_step_0"] = json.dumps({"__durable_cached__": True, "value": "old"})
+        storage._save_cache()
+        storage._cache = None
+
+        found, value, fingerprint = storage.load_tool_result("tool_step_0")
+
+        assert found is True
+        assert value == "old"
+        assert fingerprint is None
+
+    def test_load_returns_false_when_no_cache(self, storage):
+        found, value, fingerprint = storage.load_tool_result("tool_step_0")
+        assert found is False
+        assert value is None
+        assert fingerprint is None
+
+    def test_none_result_roundtrips(self, storage):
+        storage.save_tool_result("tool_step_0", None, fingerprint="fp")
+
+        storage._cache = None
+        found, value, fingerprint = storage.load_tool_result("tool_step_0")
 
         assert found is True
         assert value is None
@@ -101,7 +140,7 @@ class TestSaveLoadToolResult:
 
 class TestCleanup:
     def test_cleanup_deletes_file(self, storage, sample_response):
-        storage.save_model_response("model_step_0", sample_response)
+        storage.save_model_response("model_step_0", sample_response, fingerprint="fp")
         path = storage._get_path()
         assert path.exists()
 
@@ -114,9 +153,9 @@ class TestCleanup:
 
 class TestInMemoryCaching:
     def test_multiple_saves_write_single_file(self, storage, sample_response):
-        storage.save_model_response("model_step_0", sample_response)
-        storage.save_tool_result("tool_step_1", "result")
-        storage.save_model_response("model_step_2", sample_response)
+        storage.save_model_response("model_step_0", sample_response, fingerprint="fp")
+        storage.save_tool_result("tool_step_1", "result", fingerprint="fp")
+        storage.save_model_response("model_step_2", sample_response, fingerprint="fp")
 
         assert "model_step_0" in storage._cache
         assert "tool_step_1" in storage._cache
@@ -124,16 +163,16 @@ class TestInMemoryCaching:
 
     def test_cache_survives_reload(self, storage, sample_response):
         """Simulate retry: save cache, reset in-memory, reload from file."""
-        storage.save_model_response("model_step_0", sample_response)
-        storage.save_tool_result("tool_step_1", "tool result")
+        storage.save_model_response("model_step_0", sample_response, fingerprint="fp")
+        storage.save_tool_result("tool_step_1", "tool result", fingerprint="fp")
 
         # Simulate new DurableStorage instance (as on retry)
         storage._cache = None
 
-        loaded_response = storage.load_model_response("model_step_0")
+        loaded_response, _ = storage.load_model_response("model_step_0")
         assert loaded_response is not None
         assert loaded_response.parts[0].content == "Hello!"
 
-        found, value = storage.load_tool_result("tool_step_1")
+        found, value, _ = storage.load_tool_result("tool_step_1")
         assert found is True
         assert value == "tool result"
