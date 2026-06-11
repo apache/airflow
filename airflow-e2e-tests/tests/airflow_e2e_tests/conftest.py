@@ -285,6 +285,7 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
             "eclipse-temurin:17-jdk",
             "./gradlew",
             "publishToMavenLocal",
+            "-PskipSigning=true",
             "--no-daemon",
         ],
         check=True,

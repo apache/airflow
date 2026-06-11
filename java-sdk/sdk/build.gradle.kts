@@ -21,11 +21,12 @@ val airflowSupervisorSchemaVersion: String by project
 
 plugins {
     `java-library`
-    kotlin("plugin.serialization") version "2.3.0"
+    id("airflow-jvm-conventions")
+    id("airflow-publish")
     id("org.jetbrains.dokka") version "2.2.0"
     id("org.jetbrains.dokka-javadoc") version "2.2.0"
     id("org.jsonschema2pojo") version "1.2.2"
-    id("airflow-publish")
+    kotlin("plugin.serialization") version "2.3.0"
 }
 
 // TODO: Use a hosted file instead.

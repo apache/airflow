@@ -23,4 +23,11 @@ plugins {
 
 repositories {
     mavenCentral()
+    gradlePluginPortal()
+}
+
+dependencies {
+    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.0")
+    implementation("com.diffplug.spotless:spotless-plugin-gradle:7.2.1")
+    implementation("org.jlleitschuh.gradle:ktlint-gradle:14.0.1")
 }

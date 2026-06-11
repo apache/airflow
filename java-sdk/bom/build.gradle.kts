@@ -18,39 +18,29 @@
  */
 
 plugins {
-    `java-gradle-plugin`
-    id("airflow-jvm-conventions")
+    `java-platform`
     id("airflow-publish")
 }
 
-repositories {
-    gradlePluginPortal()
-}
+val projectVersion: String by project
+val airflowSupervisorSchemaVersion: String by project
 
 dependencies {
-    implementation("com.gradleup.shadow:shadow-gradle-plugin:9.1.0") // Last supporting Java 11.
-}
-
-gradlePlugin {
-    plugins {
-        create("airflowSdk") {
-            id = "org.apache.airflow.sdk"
-            implementationClass = "org.apache.airflow.sdk.plugin.AirflowSdkPlugin"
-            displayName = "Apache Airflow SDK Plugin"
-            description = "Pack a Dag bundle JAR for Airflow to consume."
-        }
+    constraints {
+        api("org.apache.airflow:airflow-sdk:$projectVersion")
+        api("org.apache.airflow:airflow-sdk-processor:$projectVersion")
     }
 }
 
 publishing {
     publications {
-        withType<MavenPublication>().configureEach {
-            if (name == "pluginMaven") {
-                artifactId = "airflow-sdk-gradle-plugin"
-                pom {
-                    name = "Apache Airflow SDK Gradle Plugin"
-                    description = "Gradle plugin for building Apache Airflow Dag bundle JARs."
-                }
+        create<MavenPublication>("mavenBom") {
+            artifactId = "airflow-sdk-bom"
+            from(components["javaPlatform"])
+            pom {
+                name = "Apache Airflow Java SDK BOM"
+                description = "Bill of Materials for the Apache Airflow Java SDK."
+                properties.put("airflow.supervisor.schema.version", airflowSupervisorSchemaVersion)
             }
         }
     }

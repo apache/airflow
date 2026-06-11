@@ -19,6 +19,7 @@
 
 plugins {
     `java-library`
+    id("airflow-jvm-conventions")
     id("airflow-publish")
 }
 

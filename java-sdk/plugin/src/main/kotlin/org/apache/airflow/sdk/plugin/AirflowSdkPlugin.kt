@@ -22,10 +22,10 @@ package org.apache.airflow.sdk.plugin
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.bundling.Jar
 import java.lang.reflect.Modifier
 import java.net.URLClassLoader
@@ -109,21 +109,21 @@ class AirflowSdkPlugin : Plugin<Project> {
     project.afterEvaluate {
       project.tasks.withType(Jar::class.java).configureEach { task ->
         task.doFirst {
-          task.manifest.attributes(mapOf("Main-Class" to ext.mainClass.get()))
+          ext.mainClass.orNull?.let { className ->
+            task.manifest.attributes(mapOf("Main-Class" to className))
+          }
         }
       }
 
       val classFiles =
         project.objects.fileCollection().from(
           project.extensions
-            .getByType(JavaPluginExtension::class.java)
-            .sourceSets
+            .getByType(SourceSetContainer::class.java)
             .getByName("main")
             .output
             .classesDirs,
           project.configurations.getByName("runtimeClasspath"),
         )
-      val className = ext.mainClass.get()
 
       val verifyTask =
         project.tasks.register("verifyBundleMainClass") { task ->
@@ -132,8 +132,11 @@ class AirflowSdkPlugin : Plugin<Project> {
             "Verifies that mainClass exists in the compiled output and declares a public static main method."
           task.dependsOn(project.tasks.named("classes"))
           task.inputs.files(classFiles).withPropertyName("classFiles")
-          task.inputs.property("mainClass", className)
+          task.inputs.property("mainClass", ext.mainClass)
           task.doLast {
+            val className =
+              ext.mainClass.orNull
+                ?: error("airflowBundle.mainClass is not set. Add it to your airflowBundle { } block.")
             val urls = classFiles.map { it.toURI().toURL() }.toTypedArray()
 
             URLClassLoader(urls, ClassLoader.getPlatformClassLoader()).use { loader ->

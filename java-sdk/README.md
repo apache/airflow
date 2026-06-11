@@ -46,7 +46,7 @@ This generates both an HTML representation and Javadoc.
 The SDK projects must first built and published:
 
 ```bash
-./gradlew publishToMavenLocal
+./gradlew publishToMavenLocal -PskipSigning=true
 ```
 
 After the build is successful, you should be able to see directories in `~/.m2/repository/org/apache/airflow/`.
@@ -124,7 +124,7 @@ inspect the generated POM:
 ```bash
 rm -rf ~/.m2/repository/org/apache/airflow/  # Start clean.
 
-./gradlew publishToMavenLocal
+./gradlew publishToMavenLocal -PskipSigning=true
 
 # The airflow-sdk runtime.
 less ~/.m2/repository/org/apache/airflow/airflow-sdk/*/airflow-sdk-*.pom
@@ -148,14 +148,14 @@ To test the full publish flow without touching ASF infrastructure, override the
 repository URL to a local directory
 
 ```bash
-./gradlew publish -PmavenUrl=file:///tmp/local-maven-repo -PskipSigning
+./gradlew publish -PmavenUrl=file:///tmp/local-maven-repo -PskipSigning=true
 ls /tmp/local-maven-repo/org/apache/airflow/
 # This should contain the same components in ~/.m2 as inspected in the previous step.
 ```
 
 *NOTE:* Signing is not required since nothing goes to Maven Central. If you want
 to test signing, set the GPG private key and passphrase as described in the next
-section, and remove `-PskipSigning` from the above command.
+section, and remove `-PskipSigning=true` from the above command.
 
 ### Publish to ASF Nexus staging
 
