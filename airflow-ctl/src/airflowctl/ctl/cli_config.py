@@ -220,6 +220,23 @@ ARG_OUTPUT = Arg(
     default="json",
     type=str,
 )
+ARG_TASK_DAG_ID = Arg(
+    flags=("--dag-id",),
+    type=str,
+    required=True,
+    help="The Dag ID.",
+)
+ARG_TASK_DAG_RUN_ID = Arg(
+    flags=("--dag-run-id",),
+    type=str,
+    required=True,
+    help="The Dag run ID.",
+)
+ARG_TASK_IDS = Arg(
+    flags=("--task-ids",),
+    type=string_list_type,
+    help="Comma-separated task IDs to clear.",
+)
 
 # Authentication arguments
 ARG_AUTH_URL = Arg(
@@ -1015,6 +1032,47 @@ VARIABLE_COMMANDS = (
     ),
 )
 
+TASK_COMMANDS = (
+    ActionCommand(
+        name="clear",
+        help="Clear task instances",
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.task_clear"),
+        args=(
+            ARG_TASK_DAG_ID,
+            ARG_TASK_DAG_RUN_ID,
+            ARG_TASK_IDS,
+            Arg(
+                flags=("--only-failed",),
+                action="store_true",
+                default=False,
+                help="Clear only failed tasks.",
+            ),
+            Arg(
+                flags=("--only-running",),
+                action="store_true",
+                default=False,
+                help="Clear only running tasks.",
+            ),
+            Arg(
+                flags=("--upstream",),
+                dest="include_upstream",
+                action="store_true",
+                default=False,
+                help="Include upstream tasks.",
+            ),
+            Arg(
+                flags=("--downstream",),
+                dest="include_downstream",
+                action="store_true",
+                default=False,
+                help="Include downstream tasks.",
+            ),
+            Arg(flags=("--dry-run",), action="store_true", default=False, help="Perform a dry run."),
+            ARG_OUTPUT,
+        ),
+    ),
+)
+
 core_commands: list[CLICommand] = [
     GroupCommand(
         name="auth",
@@ -1056,6 +1114,11 @@ core_commands: list[CLICommand] = [
         name="variables",
         help="Manage Airflow variables",
         subcommands=VARIABLE_COMMANDS,
+    ),
+    GroupCommand(
+        name="tasks",
+        help="Manage Airflow tasks",
+        subcommands=TASK_COMMANDS,
     ),
 ]
 # Add generated group commands
