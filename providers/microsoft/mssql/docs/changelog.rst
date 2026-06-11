@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+4.6.1
+.....
+
+Misc
+~~~~
+
+* ``Fix MSSQL connection schema field metadata (#66756)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 4.6.0
 .....
 

@@ -146,16 +146,56 @@ Curated toolset wrapping
 The ``DbApiHook`` is resolved lazily from ``db_conn_id`` on first tool call
 via ``BaseHook.get_connection(conn_id).get_hook()``.
 
+In read-only mode (``allow_writes=False``, the default) the ``query`` tool also
+accepts read-only metadata statements -- ``DESCRIBE``/``DESC`` and ``SHOW`` --
+in addition to SELECT-family queries. Agents commonly open with ``DESCRIBE`` to
+learn a table's columns, so permitting it keeps runs deterministic instead of
+hard-failing on schema discovery. The toolset passes the connection's dialect to
+the validator, so ``SHOW`` is recognized on databases that support it (Snowflake,
+MySQL, etc.); on databases without ``SHOW`` it stays rejected. Data-modifying
+statements remain blocked -- including ones hidden behind ``DESCRIBE``/``EXPLAIN``
+(e.g. ``EXPLAIN DELETE ...``, ``DESCRIBE DROP TABLE ...``), which the validator
+rejects by scanning the parsed statement for write operations. Like ``SELECT``,
+metadata statements are not scoped by ``allowed_tables`` (see
+:ref:`allowed-tables-limitation`) -- an agent can ``DESCRIBE`` a table outside the
+list, so rely on database permissions to restrict access.
+
+Multi-schema warehouses
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When an agent's tables live in several schemas of one database -- common on
+Snowflake -- list them with schema-qualified ``allowed_tables`` entries:
+
+.. code-block:: python
+
+    SQLToolset(
+        db_conn_id="snowflake_hq",
+        allowed_tables=["MODEL_ASTRO.DEPLOYMENT_IMAGE_DETAILS", "MODEL_CRM.SF_ASTRO_ORGS"],
+    )
+
+``list_tables`` then introspects each referenced schema and returns the matching
+tables fully qualified (e.g. ``MODEL_ASTRO.DEPLOYMENT_IMAGE_DETAILS``), and
+``get_schema`` routes each qualified name to its own schema. Without this, a
+single ``schema`` only covers one namespace, and leaving ``schema`` unset made
+introspection query a literal ``"None"`` schema and fail. Unqualified entries
+fall back to ``schema``, and table-name matching is case-insensitive (databases
+reflect identifiers in their own case). For tables in a different *database*, use
+a separate toolset whose connection points at that database.
+
 Parameters
 ^^^^^^^^^^
 
 - ``db_conn_id``: Airflow connection ID for the database.
 - ``allowed_tables``: Restrict which tables the agent can discover via
-  ``list_tables`` and ``get_schema``. ``None`` (default) exposes all tables.
+  ``list_tables`` and ``get_schema``. ``None`` (default) exposes all tables in
+  ``schema``. Entries may be schema-qualified (``"SCHEMA.TABLE"``) to span
+  multiple schemas; see above. Matching is case-insensitive.
   See :ref:`allowed-tables-limitation` for an important caveat.
-- ``schema``: Database schema/namespace for table listing and introspection.
+- ``schema``: Default schema/namespace for unqualified table listing and
+  introspection. Schema-qualified ``allowed_tables`` entries override it per table.
 - ``allow_writes``: Allow data-modifying SQL (INSERT, UPDATE, DELETE, etc.).
-  Default ``False`` — only SELECT-family statements are permitted.
+  Default ``False`` -- only SELECT-family and read-only metadata
+  (``DESCRIBE``/``SHOW``) statements are permitted.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
 
 ``DataFusionToolset``
@@ -272,6 +312,12 @@ Parameters
 - ``tool_prefix``: Optional prefix prepended to tool names to avoid
   collisions when using multiple MCP servers (e.g. ``"weather"`` produces
   ``"weather_get_forecast"``).
+- ``token_provider``: Optional zero-argument callable returning a bearer token.
+  When set, it overrides the connection's static ``password`` for the
+  ``Authorization`` header and is called each time the server connection is
+  established -- use it for short-lived or minted tokens (e.g. a Snowflake
+  managed MCP server authenticated with a key-pair JWT). See
+  :ref:`howto/connection:mcp`.
 
 Using Multiple MCP Servers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -407,6 +453,71 @@ resolves sources to local ``SKILL.md`` directories that any loader accepts:
 ``resolve_skills`` needs the Git provider (for ``GitSkills``) but not pydantic-ai,
 and removes any cloned directories when the ``with`` block exits.
 
+Working with LangChain
+----------------------
+
+Tools bridge in both directions between common.ai's toolsets and LangChain.
+
+**LangChain tools → ``AgentOperator``.** No Airflow code is needed. pydantic-ai
+ships `pydantic_ai.ext.langchain.LangChainToolset
+<https://ai.pydantic.dev/toolsets/>`__ upstream, which wraps existing LangChain
+tools as an ``AbstractToolset``. Drop it straight into ``AgentOperator``:
+
+.. code-block:: python
+
+    from pydantic_ai.ext.langchain import LangChainToolset
+
+    AgentOperator(
+        task_id="agent_with_langchain_tools",
+        prompt="Research the question and summarise.",
+        llm_conn_id="pydanticai_default",
+        toolsets=[LangChainToolset([my_langchain_tool])],
+    )
+
+**common.ai toolsets → LangChain.** The reverse direction is what
+:func:`~airflow.providers.common.ai.toolsets.langchain_bridge.airflow_toolset_to_langchain_tools`
+provides. It converts any pydantic-ai toolset -- including ``SQLToolset``,
+``HookToolset``, and ``MCPToolset`` -- into a list of LangChain
+``StructuredTool`` objects, so a LangChain agent or chain can call Airflow's
+curated, connection-managed tools:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_langchain_toolset_bridge.py
+    :language: python
+    :start-after: [START example_langchain_toolset_bridge]
+    :end-before: [END example_langchain_toolset_bridge]
+
+Each generated tool keeps the source tool's name, description, and argument
+schema, and routes calls back through the original toolset, so the toolset's own
+behaviour (connection resolution, ``SQLToolset``'s SQL validation, and
+``allowed_tables`` filtering) still applies. ``get_tools`` runs eagerly at
+conversion time to enumerate the tools.
+
+When a toolset raises pydantic-ai's ``ModelRetry`` to ask the model to correct
+its input (``SQLToolset`` does this on, for example, an unknown column), the
+bridge returns that message as the tool's output so the model sees it and tries
+again. ``ModelRetry`` is a feed-the-model-and-retry signal rather than a
+failure, so returning it preserves the self-correction the toolset was written
+for and works no matter how the agent is configured to handle tool errors
+(raising would abort the run under ``create_agent``'s default handling).
+
+The bridge does not hold a toolset session open across calls: ``get_tools`` and
+every tool call each run under their own event loop, so for ``MCPToolset`` the
+connection is opened and torn down around each call. It reconnects per call,
+which is fine for stateless tools but unsuitable for ``stdio`` MCP servers (or
+any server that keeps state between calls), since each call starts a fresh
+session.
+
+.. note::
+
+    Outside an agent run there is no live ``RunContext``, so the bridge builds a
+    minimal one with an inert placeholder model. The bundled toolsets ignore the
+    context, so this is transparent for them. A custom toolset that reads live
+    run state (``ctx.model``, ``ctx.messages``, ``ctx.usage``) will not behave
+    correctly when bridged standalone.
+
+Requires the ``langchain`` extra:
+``pip install "apache-airflow-providers-common-ai[langchain]"``
+
 
 Security
 --------
@@ -438,7 +549,9 @@ No single layer is sufficient — they work together.
      - Does not restrict what arguments the agent passes to allowed methods.
    * - **SQLToolset: read-only by default**
      - ``allow_writes=False`` (default) validates every SQL query through
-       ``validate_sql()`` and rejects INSERT, UPDATE, DELETE, DROP, etc.
+       ``validate_sql()``: SELECT-family and read-only metadata
+       (``DESCRIBE``/``SHOW``) statements pass; INSERT, UPDATE, DELETE, DROP,
+       and writes hidden behind ``EXPLAIN`` are rejected.
      - Does not prevent the agent from reading sensitive data that the
        database user has SELECT access to.
    * - **DataFusionToolset: read-only by default**

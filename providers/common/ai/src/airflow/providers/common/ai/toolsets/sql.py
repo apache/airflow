@@ -19,12 +19,14 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 try:
-    from airflow.providers.common.ai.utils.sql_validation import validate_sql as _validate_sql
+    from airflow.providers.common.ai.utils.sql_validation import (
+        resolve_sqlglot_dialect,
+        validate_sql as _validate_sql,
+    )
     from airflow.providers.common.sql.hooks.sql import DbApiHook
 except ImportError as e:
     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
@@ -86,31 +88,6 @@ _CHECK_QUERY_SCHEMA: dict[str, Any] = {
     "required": ["sql"],
 }
 
-_POSTGRES_RETRYABLE_EXCEPTIONS: tuple[type[Exception], ...] = ()
-with suppress(ImportError):
-    import psycopg2.errors as _psycopg2_errors
-
-    _POSTGRES_RETRYABLE_EXCEPTIONS += (
-        _psycopg2_errors.UndefinedColumn,
-        _psycopg2_errors.UndefinedTable,
-    )
-
-with suppress(ImportError):
-    from psycopg import errors as _psycopg3_errors
-
-    _POSTGRES_RETRYABLE_EXCEPTIONS += (
-        _psycopg3_errors.UndefinedColumn,
-        _psycopg3_errors.UndefinedTable,
-    )
-
-_SQLALCHEMY_RETRYABLE_EXCEPTIONS: tuple[type[Exception], ...] = ()
-with suppress(ImportError):
-    from sqlalchemy.exc import (
-        ProgrammingError as _SQLAlchemyProgrammingError,
-    )
-
-    _SQLALCHEMY_RETRYABLE_EXCEPTIONS = (_SQLAlchemyProgrammingError,)
-
 
 class SQLToolset(AbstractToolset[Any]):
     """
@@ -122,9 +99,22 @@ class SQLToolset(AbstractToolset[Any]):
     Uses a :class:`~airflow.providers.common.sql.hooks.sql.DbApiHook` resolved
     lazily from the given ``db_conn_id``.
 
+    When a tool fails, the database's error message is returned to the agent as a
+    retry (:class:`pydantic_ai.ModelRetry`) so the model can correct its SQL within
+    the run instead of failing the task. ``pydantic-ai`` bounds this by the tool's
+    ``max_retries``, so an unrecoverable error -- a bad connection or an auth
+    failure -- exhausts the retries and fails the task for Airflow to retry. The
+    toolset does not inspect the error type or message.
+
     :param db_conn_id: Airflow connection ID for the database.
     :param allowed_tables: Restrict which tables the agent can discover via
-        ``list_tables`` and ``get_schema``. ``None`` (default) exposes all tables.
+        ``list_tables`` and ``get_schema``. ``None`` (default) exposes all tables
+        in ``schema``. Entries may be schema-qualified (``"SCHEMA.TABLE"``) to span
+        multiple schemas in one database -- common on warehouses such as Snowflake.
+        ``list_tables`` then introspects each referenced schema and returns the
+        matching tables fully qualified, and ``get_schema`` routes to the table's
+        own schema. Unqualified entries use ``schema``. Matching is
+        case-insensitive, since databases reflect identifiers in their own case.
 
         .. note::
             ``allowed_tables`` controls metadata visibility only. It does **not**
@@ -133,7 +123,10 @@ class SQLToolset(AbstractToolset[Any]):
             restrictions, use database-level permissions (e.g. a read-only role
             with grants limited to specific tables).
 
-    :param schema: Database schema/namespace for table listing and introspection.
+    :param schema: Default schema/namespace for table listing and introspection,
+        used for unqualified ``allowed_tables`` entries and unqualified
+        ``get_schema`` calls. Schema-qualified ``allowed_tables`` entries override
+        it per table.
     :param allow_writes: Allow data-modifying SQL (INSERT, UPDATE, DELETE, etc.).
         Default ``False`` — only SELECT-family statements are permitted.
     :param max_rows: Maximum number of rows returned from the ``query`` tool.
@@ -152,12 +145,44 @@ class SQLToolset(AbstractToolset[Any]):
     ) -> None:
         self._db_conn_id = db_conn_id
         self._allowed_tables: frozenset[str] | None = frozenset(allowed_tables) if allowed_tables else None
+        # Case-folded view for membership tests: databases reflect identifiers in
+        # their own case (Snowflake stores unquoted names uppercase but reflects
+        # them lowercased), so a byte-exact match against the user's entries would
+        # silently miss. allowed_tables is a visibility hint, not access control,
+        # so case-insensitive matching is safe.
+        self._allowed_tables_ci: frozenset[str] | None = (
+            frozenset(t.casefold() for t in self._allowed_tables)
+            if self._allowed_tables is not None
+            else None
+        )
         self._schema = schema
         self._allow_writes = allow_writes
         self._max_rows = max_rows
         self._hook: DbApiHook | None = None
         self._explicit_dialect: str | None = dialect
         self._resolved_dialect: str | None = None
+
+        # Derive which schemas to introspect from schema-qualified allowed_tables.
+        # Qualified entries ("SCHEMA.TABLE") are listed under their own schema and
+        # returned fully qualified; unqualified entries (and allow-all) use the
+        # default ``schema``.
+        self._qualified_schemas: frozenset[str] = frozenset()
+        self._include_default_schema: bool = True
+        if self._allowed_tables is not None:
+            qualified_schemas: set[str] = set()
+            include_default = False
+            for entry in self._allowed_tables:
+                entry_schema, sep, _ = entry.rpartition(".")
+                if sep:
+                    qualified_schemas.add(entry_schema)
+                else:
+                    include_default = True
+            self._qualified_schemas = frozenset(qualified_schemas)
+            self._include_default_schema = include_default
+
+    def _is_table_allowed(self, name: str) -> bool:
+        """Case-insensitive membership test against ``allowed_tables`` (allow-all when unset)."""
+        return self._allowed_tables_ci is None or name.casefold() in self._allowed_tables_ci
 
     @property
     def id(self) -> str:
@@ -235,47 +260,93 @@ class SQLToolset(AbstractToolset[Any]):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        if name == "list_tables":
-            return self._list_tables()
-        if name == "get_schema":
-            return self._get_schema(tool_args["table_name"])
-        if name == "query":
-            return self._query(tool_args["sql"])
-        if name == "check_query":
+        if name not in ("list_tables", "get_schema", "query", "check_query"):
+            raise ValueError(f"Unknown tool: {name!r}")
+        try:
+            if name == "list_tables":
+                return self._list_tables()
+            if name == "get_schema":
+                return self._get_schema(tool_args["table_name"])
+            if name == "query":
+                return self._query(tool_args["sql"])
             return self._check_query(tool_args["sql"])
-        raise ValueError(f"Unknown tool: {name!r}")
+        except Exception as e:
+            # Hand the database's own error back to the agent as a retry so it can
+            # read the message and fix its SQL within the run. pydantic-ai bounds
+            # this by the tool's max_retries, so an unrecoverable error (a bad
+            # connection, an auth failure) exhausts the budget and fails the task
+            # for Airflow to retry, rather than being silently worked around.
+            raise ModelRetry(
+                f"The {name} tool failed: {e}\n"
+                "Use the list_tables and get_schema tools to inspect the database, "
+                "then fix the query and try again."
+            ) from e
 
     # ------------------------------------------------------------------
     # Tool implementations
     # ------------------------------------------------------------------
 
+    def _split_table_identifier(self, table_name: str) -> tuple[str | None, str]:
+        """Split ``"SCHEMA.TABLE"`` into ``(schema, table)``; unqualified uses the default schema."""
+        schema, sep, table = table_name.rpartition(".")
+        if not sep:
+            return self._schema, table_name
+        return schema, table
+
     def _list_tables(self) -> str:
         hook = self._get_db_hook()
-        tables: list[str] = hook.inspector.get_table_names(schema=self._schema)
-        if self._allowed_tables is not None:
-            tables = [t for t in tables if t in self._allowed_tables]
+        tables: list[str] = []
+        # Dedupe by (schema, table) so a table reachable both qualified and via the
+        # default schema (e.g. "public.users" and "users" with schema="public") is
+        # listed once. Case-folded because databases reflect identifiers in their case.
+        seen: set[tuple[str | None, str]] = set()
+
+        def add(schema: str | None, name: str, display: str) -> None:
+            key = (schema.casefold() if schema else None, name.casefold())
+            if self._is_table_allowed(display) and key not in seen:
+                seen.add(key)
+                tables.append(display)
+
+        # Schemas referenced by qualified allowed_tables entries: introspect each
+        # and return matching tables fully qualified so they round-trip to get_schema.
+        for schema in sorted(self._qualified_schemas):
+            for name in hook.inspector.get_table_names(schema=schema):
+                add(schema, name, f"{schema}.{name}")
+
+        # Default schema: used for allow-all and unqualified allowed_tables entries.
+        # Names stay bare to preserve the single-schema behaviour.
+        if self._include_default_schema:
+            for name in hook.inspector.get_table_names(schema=self._schema):
+                add(self._schema, name, name)
+
         return json.dumps(tables)
 
     def _get_schema(self, table_name: str) -> str:
-        if self._allowed_tables is not None and table_name not in self._allowed_tables:
+        if not self._is_table_allowed(table_name):
             return json.dumps({"error": f"Table {table_name!r} is not in the allowed tables list."})
         hook = self._get_db_hook()
-        columns = hook.get_table_schema(table_name, schema=self._schema)
+        schema, table = self._split_table_identifier(table_name)
+        columns = hook.get_table_schema(table, schema=schema)
         return json.dumps(columns)
 
-    def _query(self, sql: str) -> str:
-        if not self._allow_writes:
-            _validate_sql(sql, dialect=self.sqlglot_dialect)
-
+    def _dialect_for_validation(self) -> str | None:
+        """Resolve the hook's sqlglot dialect so DESCRIBE/SHOW validate correctly."""
         hook = self._get_db_hook()
-        try:
-            rows = hook.get_records(sql)
-        except Exception as e:
-            if self._is_retryable_query_error(hook, e):
-                raise ModelRetry(
-                    f"error: {e!s}, Use get_schema and list_tables tools for more details."
-                ) from e
-            raise
+        return resolve_sqlglot_dialect(getattr(hook, "dialect_name", None))
+
+    def _query(self, sql: str) -> str:
+        hook = self._get_db_hook()
+        if not self._allow_writes:
+            # allow_read_only_metadata lets agents inspect schemas with DESCRIBE/SHOW
+            # (a common first move) instead of hard-failing; the deep scan still
+            # rejects any data-modifying statement, including EXPLAIN <write>.
+            _validate_sql(
+                sql,
+                dialect=self._dialect_for_validation(),
+                allow_read_only_metadata=True,
+            )
+
+        rows = hook.get_records(sql)
         # Fetch column names from cursor description.
         col_names: list[str] | None = None
         if hook.last_description:
@@ -294,27 +365,14 @@ class SQLToolset(AbstractToolset[Any]):
             output["max_rows"] = self._max_rows
         return json.dumps(output, default=str)
 
-    @staticmethod
-    def _is_retryable_query_error(hook: DbApiHook, error: Exception) -> bool:
-        check_error = getattr(error, "orig", error)
-        conn_type = getattr(hook, "conn_type", None)
-        if conn_type == "postgres":
-            return bool(_POSTGRES_RETRYABLE_EXCEPTIONS) and isinstance(
-                check_error, _POSTGRES_RETRYABLE_EXCEPTIONS
-            )
-        if conn_type == "sqlite":
-            if isinstance(check_error, sqlite3.OperationalError):
-                message = str(check_error).lower()
-                return "no such column" in message or "no such table" in message
-            return False
-        if _SQLALCHEMY_RETRYABLE_EXCEPTIONS and isinstance(error, _SQLALCHEMY_RETRYABLE_EXCEPTIONS):
-            return True
-        # TODO: Add support for other databases.
-        return False
-
     def _check_query(self, sql: str) -> str:
+        # Resolve the dialect best-effort: if the connection can't be reached we
+        # still syntax-check dialect-agnostically rather than reporting invalid.
+        dialect: str | None = None
+        with suppress(Exception):
+            dialect = self._dialect_for_validation()
         try:
-            _validate_sql(sql, dialect=self.sqlglot_dialect)
+            _validate_sql(sql, dialect=dialect, allow_read_only_metadata=True)
             return json.dumps({"valid": True})
         except Exception as e:
             return json.dumps({"valid": False, "error": str(e)})

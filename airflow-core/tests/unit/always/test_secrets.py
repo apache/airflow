@@ -25,6 +25,7 @@ from airflow.configuration import ensure_secrets_loaded, initialize_secrets_back
 from airflow.models import Connection, Variable
 from airflow.sdk import SecretCache
 from airflow.sdk.exceptions import AirflowNotFoundException
+from airflow.secrets import BaseSecretsBackend
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_variables
@@ -225,6 +226,55 @@ class TestVariableFromSecrets:
     )
     def test_variable_env_var_do_not_access_team_specific(self):
         assert Variable.get_variable_from_secrets(key="_team___myvar") is None
+
+
+class _LegacyGetConnectionBackend(BaseSecretsBackend):
+    """Backend overriding ``get_connection`` with the pre-3.2 ``(self, conn_id)`` signature (e.g. Vault)."""
+
+    def __init__(self, conns: dict[str, Connection]):
+        self._conns = conns
+
+    def get_connection(self, conn_id):
+        return self._conns.get(conn_id)
+
+
+class _LegacyGetVariableBackend(BaseSecretsBackend):
+    """Backend overriding ``get_variable`` with the pre-3.2 ``(self, key)`` signature."""
+
+    def __init__(self, variables: dict[str, str]):
+        self._vars = variables
+
+    def get_variable(self, key):
+        return self._vars.get(key)
+
+
+@skip_if_force_lowest_dependencies_marker
+class TestLegacyBackendSignatureCompat:
+    """Backends whose overrides predate the ``team_name`` keyword must keep working (issue #1333)."""
+
+    def setup_method(self) -> None:
+        SecretCache.reset()
+
+    @pytest.mark.parametrize("team_name", [None, "team_a"])
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch.dict("sys.modules", {"airflow.sdk.execution_time.task_runner": None})
+    def test_get_connection_with_legacy_get_connection_override(self, team_name):
+        backend = _LegacyGetConnectionBackend(
+            {"legacy_conn": Connection(conn_id="legacy_conn", conn_type="mysql", host="h")}
+        )
+        with mock.patch("airflow.configuration.ensure_secrets_loaded", return_value=[backend]):
+            conn = Connection.get_connection_from_secrets("legacy_conn", team_name=team_name)
+
+        assert conn.conn_id == "legacy_conn"
+        assert conn.conn_type == "mysql"
+
+    @pytest.mark.parametrize("team_name", [None, "team_a"])
+    def test_get_variable_with_legacy_get_variable_override(self, team_name):
+        backend = _LegacyGetVariableBackend({"legacy_var": "secret_value"})
+        with mock.patch("airflow.models.variable.ensure_secrets_loaded", return_value=[backend]):
+            value = Variable.get_variable_from_secrets("legacy_var", team_name=team_name)
+
+        assert value == "secret_value"
 
 
 @skip_if_force_lowest_dependencies_marker

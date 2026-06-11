@@ -28,14 +28,13 @@ classifiers = [
 ]
 
 dependencies = [
-    "aioresponses>=0.7.6",
     "black>=26.1.0",
     "filelock>=3.13.0",
     "jmespath>=0.7.0",
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.15.14",
+    "ruff==0.15.16",
     "semver>=3.0.2",
     "typer>=0.22.0",
     "time-machine[dateutil]>=3.0.0",

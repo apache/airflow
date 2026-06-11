@@ -22,62 +22,18 @@ Thank you for installing Apache {{ title .Chart.Name }} {{ .Values.airflowVersio
 
 Your release is named {{ .Release.Name }}.
 
-{{- if or .Values.ingress.web.enabled .Values.ingress.flower.enabled .Values.ingress.enabled }}
+{{- if or .Values.ingress.web.enabled .Values.ingress.flower.enabled }}
 You can now access your service(s) by following defined Ingress urls:
 
-{{- if .Values.ingress.web.host }}
-
-DEPRECATION WARNING:
-   `ingress.web.host` has been renamed to `ingress.web.hosts` and is now an array.
-   Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if .Values.ingress.web.tls }}
-
-DEPRECATION WARNING:
-   `ingress.web.tls` has been renamed to `ingress.web.hosts[*].tls` and can be set per host.
-   Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if .Values.ingress.flower.host }}
-
-DEPRECATION WARNING:
-   `ingress.flower.host` has been renamed to `ingress.flower.hosts` and is now an array.
-   Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-
-{{- if .Values.ingress.flower.tls }}
-
-DEPRECATION WARNING:
-   `ingress.flower.tls` has been renamed to `ingress.flower.hosts[*].tls` and can be set per host.
-   Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if .Values.ingress.enabled }}
-
-DEPRECATION WARNING:
-   `ingress.enabled` has been deprecated. There are now separate flags to control the webserver and
-   flower individually, ``ingress.web.enabled`` and ``ingress.flower.enabled``.
-   Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if and (or .Values.ingress.flower.enabled .Values.ingress.enabled) (contains "CeleryExecutor" .Values.executor) }}
+{{- if and .Values.ingress.flower.enabled (contains "CeleryExecutor" .Values.executor) }}
 Flower Dashboard:
-{{- range .Values.ingress.flower.hosts | default (list .Values.ingress.flower.host) }}
-      {{- $tlsEnabled := $.Values.ingress.flower.tls.enabled -}}
-      {{- $hostname := $.Values.ingress.flower.host -}}
+{{- range .Values.ingress.flower.hosts }}
       {{- $path := $.Values.ingress.flower.path -}}
+      {{- $hostname := "" -}}
+      {{- $tlsEnabled := false -}}
       {{- if . | kindIs "string" | not }}
-      {{- $hostname = .name -}}
-      {{- if .tls }}
-      {{- $tlsEnabled = .tls.enabled -}}
-      {{- end }}
+      {{- $hostname := .name -}}
+      {{- $tlsEnabled := (and .tls .tls.enabled) -}}
       {{- end }}
       http{{ if $tlsEnabled }}s{{ end }}://{{ (tpl $hostname $) }}{{ $path }}{{ if (hasSuffix "/" $path) | not }}/{{ end }}
 {{- end }}
@@ -92,42 +48,6 @@ Airflow API Server:     kubectl port-forward svc/{{ include "airflow.fullname" .
 Flower Dashboard:      kubectl port-forward svc/{{ include "airflow.fullname" . }}-flower {{ .Values.ports.flowerUI }}:{{ .Values.ports.flowerUI }} --namespace {{ .Release.Namespace }}
 {{- end }}
 {{- end }}
-{{- end }}
-
-{{- if or .Values.ingress.apiServer.enabled .Values.ingress.enabled }}
-
-{{- if .Values.ingress.apiServer.host }}
-
-DEPRECATION WARNING:
-   `ingress.apiServer.host` has been renamed to `ingress.apiServer.hosts` and is now an array.
-   Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if .Values.ingress.apiServer.tls.enabled }}
-
-DEPRECATION WARNING:
-   `ingress.apiServer.tls` has been renamed to `ingress.apiServer.hosts[*].tls` and can be set per host.
-   Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- end }}
-
-{{- if and .Values.ingress.statsd.enabled .Values.ingress.statsd.host }}
-
-DEPRECATION WARNING:
-   `ingress.statsd.host` has been renamed to `ingress.statsd.hosts` and is now an array.
-   Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if and .Values.ingress.pgbouncer.enabled .Values.ingress.pgbouncer.host }}
-
-DEPRECATION WARNING:
-   `ingress.pgbouncer.host` has been renamed to `ingress.pgbouncer.hosts` and is now an array.
-   Please change your values as support for the old name will be dropped in a future release.
-
 {{- end }}
 
 {{- if .Values.createUserJob.enabled }}
@@ -190,31 +110,6 @@ https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#knownhos
 DEPRECATION WARNING:
    `flower.extraNetworkPolicies` has been renamed to `flower.networkPolicy.peers`.
    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-
-{{- if .Values.securityContext }}
-
- DEPRECATION WARNING:
-    `securityContext` has been renamed to `securityContexts`, to be enabled on container and pod level.
-    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if .Values.scheduler.securityContext }}
-
- DEPRECATION WARNING:
-    `scheduler.securityContext` has been renamed to `scheduler.securityContexts`.
-    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if .Values.statsd.securityContext }}
-
- DEPRECATION WARNING:
-    `statsd.securityContext` has been renamed to `statsd.securityContexts`.
-    Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}
 
@@ -318,14 +213,6 @@ DEPRECATION WARNING:
 
  DEPRECATION WARNING:
     `workers.podManagementPolicy` has been renamed to `workers.celery.podManagementPolicy`.
-    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if not (empty .Values.workers.securityContext) }}
-
- DEPRECATION WARNING:
-    `workers.securityContext` has been renamed to `workers.celery.securityContexts`/`workers.kubernetes.securityContexts`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}
@@ -935,14 +822,6 @@ DEPRECATION WARNING:
  DEPRECATION WARNING:
     Dags Git-Sync bevaiour with `dags.gitSync.recommendedProbeSetting` equal `false` is deprecated and will be removed in future.
     Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if (eq .Values.enableServiceLinks nil) }}
-
-  DEPRECATION WARNING:
-    The default for `enableServiceLinks` will become False in Chart 2.0.
-    If you relied on these environment variables, explicitly set ``enableServiceLinks: true``, or migrate your code to use dns based service lookups.
 
 {{- end }}
 

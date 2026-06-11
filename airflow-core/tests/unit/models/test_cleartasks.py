@@ -85,10 +85,10 @@ class TestClearTasks:
             # but it works for our case because we specifically constructed test DAGS
             # in the way that those two sort methods are equivalent
             qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
-            clear_task_instances(qry, session)
+            clear_task_instances(qry, session=session)
 
-            ti0.refresh_from_db(session)
-            ti1.refresh_from_db(session)
+            ti0.refresh_from_db(session=session)
+            ti1.refresh_from_db(session=session)
 
         # Next try to run will be try 2
         assert ti0.state is None
@@ -950,3 +950,66 @@ class TestClearTasks:
         )
 
         assert count == 0
+
+    def test_clear_normal_task_includes_setup_and_teardown(self, dag_maker):
+        with dag_maker("test_clear_normal_task_includes_setup_and_teardown") as dag:
+            setup_t = EmptyOperator(task_id="setup_t").as_setup()
+            normal_t = EmptyOperator(task_id="normal_t")
+            teardown_t = EmptyOperator(task_id="teardown_t").as_teardown(setups=setup_t)
+            setup_t >> normal_t >> teardown_t
+        dr = dag_maker.create_dagrun()
+        for ti in dr.get_task_instances():
+            ti.set_state(TaskInstanceState.SUCCESS)
+        dag_maker.session.flush()
+
+        cleared = dag.clear(
+            dry_run=True,
+            task_ids=["normal_t"],
+            run_id=dr.run_id,
+            session=dag_maker.session,
+        )
+
+        cleared_ids = {ti.task_id for ti in cleared}
+        assert cleared_ids == {"setup_t", "normal_t", "teardown_t"}
+
+    def test_clear_setup_includes_paired_teardown(self, dag_maker):
+        with dag_maker("test_clear_setup_includes_paired_teardown") as dag:
+            setup_t = EmptyOperator(task_id="setup_t").as_setup()
+            normal_t = EmptyOperator(task_id="normal_t")
+            teardown_t = EmptyOperator(task_id="teardown_t").as_teardown(setups=setup_t)
+            setup_t >> normal_t >> teardown_t
+        dr = dag_maker.create_dagrun()
+        for ti in dr.get_task_instances():
+            ti.set_state(TaskInstanceState.SUCCESS)
+        dag_maker.session.flush()
+
+        cleared = dag.clear(
+            dry_run=True,
+            task_ids=["setup_t"],
+            run_id=dr.run_id,
+            session=dag_maker.session,
+        )
+
+        cleared_ids = {ti.task_id for ti in cleared}
+        assert cleared_ids == {"setup_t", "teardown_t"}
+
+    def test_clear_teardown_does_not_include_setup(self, dag_maker):
+        with dag_maker("test_clear_teardown_does_not_include_setup") as dag:
+            setup_t = EmptyOperator(task_id="setup_t").as_setup()
+            normal_t = EmptyOperator(task_id="normal_t")
+            teardown_t = EmptyOperator(task_id="teardown_t").as_teardown(setups=setup_t)
+            setup_t >> normal_t >> teardown_t
+        dr = dag_maker.create_dagrun()
+        for ti in dr.get_task_instances():
+            ti.set_state(TaskInstanceState.SUCCESS)
+        dag_maker.session.flush()
+
+        cleared = dag.clear(
+            dry_run=True,
+            task_ids=["teardown_t"],
+            run_id=dr.run_id,
+            session=dag_maker.session,
+        )
+
+        cleared_ids = {ti.task_id for ti in cleared}
+        assert cleared_ids == {"teardown_t"}

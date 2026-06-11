@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, Flex, Heading, VStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { DagRunMutableStates, DAGRunResponse } from "openapi/requests/types.gen";
@@ -39,10 +39,29 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
   const { t: translate } = useTranslation();
 
   const [note, setNote] = useState<string | null>(dagRun.note);
-  const { isPending, mutate } = usePatchDagRun({ dagId, dagRunId, onSuccess: onClose });
+
+  useEffect(() => {
+    if (open) {
+      setNote(dagRun.note);
+    }
+  }, [dagRun.note, open]);
+
+  const handleClose = () => {
+    setNote(dagRun.note);
+    onClose();
+  };
+  const { isPending, mutate } = usePatchDagRun({ dagId, dagRunId, onSuccess: handleClose });
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open}>
+    <Dialog.Root
+      lazyMount
+      onOpenChange={(details) => {
+        if (!details.open) {
+          handleClose();
+        }
+      }}
+      open={open}
+    >
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>

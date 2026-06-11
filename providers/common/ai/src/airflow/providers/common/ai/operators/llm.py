@@ -21,23 +21,24 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary
-from airflow.providers.common.ai.utils.output_type import (
-    iter_base_model_classes,
-    rehydrate_pydantic_output,
-)
+from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.common.compat.sdk import BaseOperator
 
 try:
-    from airflow.sdk.serde import allow_class
-except ImportError:  # pragma: no cover - Airflow versions before allow_class shipped
-    allow_class = None  # type: ignore[assignment]
+    # New enough cores register an operator's declared ``output_type`` classes for
+    # XCom deserialization from a worker-side walk over the loaded DAG. On those
+    # cores the model instance flows through XCom unchanged. Older cores lack that
+    # walk, so the operator dumps to a dict instead (still deserializable anywhere).
+    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
+except ImportError:  # pragma: no cover - cores before the worker-side registration walk
+    _CORE_WALKER = False
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -95,6 +96,8 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         external system that expects JSON-style payloads).
     """
 
+    deserialization_allowed_class_fields: ClassVar[tuple[str, ...]] = ("output_type",)
+
     template_fields: Sequence[str] = (
         "prompt",
         "llm_conn_id",
@@ -126,12 +129,10 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         self.system_prompt = system_prompt
         self.output_type = output_type
         self.serialize_output = serialize_output
-        # Skip registration when the user opted into the dict form -- the wire
-        # carries a plain dict in that case and never hits the allow-list gate.
-        self._serialize_model_output = serialize_output or allow_class is None
-        if not serialize_output and allow_class is not None:
-            for model_cls in iter_base_model_classes(output_type):
-                allow_class(model_cls)
+        # Return the Pydantic instance when the core can register ``output_type``
+        # for deserialization (its worker-side DAG walk); otherwise, or when the
+        # user opts in, dump to a dict so the value is deserializable anywhere.
+        self._serialize_model_output = serialize_output or not _CORE_WALKER
         self.agent_params = agent_params or {}
         self.usage_limits = usage_limits
         self.require_approval = require_approval
@@ -173,9 +174,9 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
             self.defer_for_approval(context, output)  # type: ignore[misc]
 
         if self._serialize_model_output and isinstance(output, BaseModel):
-            # ``serialize_output=True`` was set explicitly, or this is an
-            # older Airflow version without ``airflow.sdk.serde.allow_class``.
-            # Either way, dump to dict so XCom carries a plain JSON payload.
+            # ``serialize_output=True``, or a core without the worker-side
+            # deserialization-class walk: dump to a dict so XCom carries a plain
+            # JSON payload that deserializes without an allow-list entry.
             output = output.model_dump()
 
         return output

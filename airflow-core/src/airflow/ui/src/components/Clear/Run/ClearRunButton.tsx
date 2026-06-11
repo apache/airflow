@@ -55,7 +55,7 @@ const ClearRunButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
       >
         <CgRedo />
       </IconButton>
-      {open ? <ClearRunDialog dagRun={dagRun} onClose={onClose} open={open} /> : undefined}
+      <ClearRunDialog dagRun={dagRun} onClose={onClose} open={open} />
     </>
   );
 };

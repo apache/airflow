@@ -20,10 +20,16 @@ from __future__ import annotations
 
 from airflow.providers.common.ai.toolsets.hook import HookToolset
 
-__all__ = ["BaseDQToolset", "HookToolset", "MCPToolset", "SQLDQToolset", "SQLToolset"]
+__all__ = ["BaseDQToolset", "HookToolset", "MCPToolset", "SQLDQToolset", "SQLToolset", "airflow_toolset_to_langchain_tools"]
 
 
 def __getattr__(name: str):
+    if name == "airflow_toolset_to_langchain_tools":
+        from airflow.providers.common.ai.toolsets.langchain_bridge import (
+            airflow_toolset_to_langchain_tools,
+        )
+
+        return airflow_toolset_to_langchain_tools
     if name == "BaseDQToolset":
         from airflow.providers.common.ai.toolsets.dataquality.base import BaseDQToolset
 
