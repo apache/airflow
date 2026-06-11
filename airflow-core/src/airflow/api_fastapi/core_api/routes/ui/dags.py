@@ -337,4 +337,5 @@ def get_dag_run_state_counts(
             DAGRunStateCountsResponse(dag_id=dag_id, state_counts=counts)
             for dag_id, counts in counts_by_dag.items()
         ],
+        state_count_limit=STATE_COUNT_CAP,
     )

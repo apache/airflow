@@ -39,9 +39,10 @@ type Props = {
   readonly dag: DAGWithLatestDagRunsResponse;
   readonly runStateCounts: Record<string, number> | undefined;
   readonly runStateCountsLoading: boolean;
+  readonly stateCountLimit: number | undefined;
 };
 
-export const DagCard = ({ dag, runStateCounts, runStateCountsLoading }: Props) => {
+export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCountLimit }: Props) => {
   const { t: translate } = useTranslation(["common", "dag"]);
   const [latestRun] = dag.latest_dag_runs;
 
@@ -121,7 +122,12 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading }: Props) =
           <RecentRuns latestRuns={dag.latest_dag_runs} />
         </GridItem>
         <GridItem alignSelf="end" gridColumn={1} gridRow={2}>
-          <DagRunStateCounts counts={runStateCounts} dagId={dag.dag_id} isLoading={runStateCountsLoading} />
+          <DagRunStateCounts
+            counts={runStateCounts}
+            dagId={dag.dag_id}
+            isLoading={runStateCountsLoading}
+            stateCountLimit={stateCountLimit}
+          />
         </GridItem>
       </Grid>
     </Box>
