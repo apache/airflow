@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Table } from "@chakra-ui/react";
+import { Box, Flex, Heading, HStack, Table } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
@@ -84,6 +84,26 @@ export const Details = () => {
     },
   );
 
+  const renderValue = (value: unknown) => {
+    if (value === null || value === undefined || value === "") {
+      return translate("common:none", { defaultValue: "None" });
+    }
+
+    if (typeof value === "object") {
+      return JSON.stringify(value, undefined, 2);
+    }
+
+    return String(value);
+  };
+
+  const rawTaskInstanceDetails: Array<{ label: string; value: unknown }> = [
+    { label: "Try Number", value: tryInstance?.try_number },
+    { label: "Max Tries", value: tryInstance?.max_tries },
+    { label: "DAG ID", value: tryInstance?.dag_id },
+    { label: "Trigger", value: taskInstance?.trigger },
+    { label: "Triggerer Job", value: taskInstance?.triggerer_job },
+  ];
+
   return (
     <Box p={2}>
       {taskInstance === undefined || tryNumber === undefined || taskInstance.try_number <= 1 ? (
@@ -97,7 +117,7 @@ export const Details = () => {
       )}
       <ExtraLinks refetchInterval={isStatePending(tryInstance?.state) ? refetchInterval : false} />
       {taskInstance === undefined ||
-      ![null, "queued", "scheduled"].includes(taskInstance.state) ? undefined : (
+        ![null, "queued", "scheduled"].includes(taskInstance.state) ? undefined : (
         <BlockingDeps
           refetchInterval={isStatePending(tryInstance?.state) ? refetchInterval : false}
           taskInstance={taskInstance}
@@ -225,6 +245,27 @@ export const Details = () => {
           </Table.Row>
         </Table.Body>
       </Table.Root>
+      <Box mt={6}>
+        <Heading as="h3" size="sm" mb={3}>
+          Additional Task Instance Attributes
+        </Heading>
+
+        <Table.Root striped>
+          <Table.Body>
+            {rawTaskInstanceDetails.map(({ label, value }) => (
+              <Table.Row key={label}>
+                <Table.Cell>{label}</Table.Cell>
+                <Table.Cell
+                  whiteSpace="pre-wrap"
+                  fontFamily={typeof value === "object" ? "mono" : undefined}
+                >
+                  {renderValue(value)}
+                </Table.Cell>
+              </Table.Row>
+            ))}
+          </Table.Body>
+        </Table.Root>
+      </Box>
     </Box>
   );
 };
