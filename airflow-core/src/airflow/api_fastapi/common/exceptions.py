@@ -113,29 +113,50 @@ class DataErrorHandler(BaseErrorHandler[DataError]):
     Translate ``sqlalchemy.exc.DataError`` into a 422 response.
 
     ``DataError`` wraps the database rejecting an INSERT/UPDATE because a value
-    exceeds the column's declared type (MySQL ``1406 Data too long``, Postgres
-    ``value too long for type``) or is out of range (MySQL ``1264 Out of range
-    value``, Postgres ``numeric field overflow``). The wrapped value came from
-    request input that passed Pydantic validation, so the failure is always a
-    client problem — translate to a 422 with the underlying database error
-    surfaced via ``orig_error`` rather than a generic 500.
+    is invalid for its target column: too long for the declared type (MySQL
+    ``1406 Data too long``, Postgres ``value too long for type``), out of range
+    (MySQL ``1264 Out of range value``, Postgres ``numeric field overflow``), or
+    the wrong type (MySQL ``1366 Incorrect integer value``, Postgres ``invalid
+    input syntax``). The rejected value came from request input that passed
+    Pydantic validation, so the failure is a client problem — return a 422
+    rather than a generic 500.
+
+    The statement and the underlying database error are logged under a lookup id
+    and only echoed back to the caller when ``[api] expose_stacktrace`` is set,
+    mirroring ``_UniqueConstraintErrorHandler``.
     """
 
     def __init__(self):
         super().__init__(DataError)
 
     def exception_handler(self, request: Request, exc: DataError):
+        """Handle DataError exception."""
+        exception_id = get_random_string()
+        stacktrace = ""
+        for tb in traceback.format_tb(exc.__traceback__):
+            stacktrace += tb
+
+        log_message = f"Error with id {exception_id}, statement: {exc.statement}\n{stacktrace}"
+        log.error(log_message)
+        if conf.get("api", "expose_stacktrace") == "True":
+            message = log_message
+            statement = str(exc.statement)
+            orig_error = str(exc.orig)
+        else:
+            message = (
+                "Serious error when handling your request. Check logs for more details - "
+                f"you will find it in api server when you look for ID {exception_id}"
+            )
+            statement = "hidden"
+            orig_error = "hidden"
+
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={
                 "reason": "Value rejected by database",
-                "statement": str(exc.statement),
-                "orig_error": str(exc.orig),
-                "message": (
-                    "Database rejected the payload. Reduce the field size, or "
-                    "ask an operator to widen the column type on MySQL "
-                    "(e.g. MEDIUMTEXT / LONGTEXT)."
-                ),
+                "statement": statement,
+                "orig_error": orig_error,
+                "message": message,
             },
         )
 
