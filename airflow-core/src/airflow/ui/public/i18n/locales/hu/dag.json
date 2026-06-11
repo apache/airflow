@@ -231,7 +231,7 @@
     "requiredActions": "Szükséges műveletek",
     "runs": "Futások",
     "storage": "Tárhely",
-    "taskInstances": "TODO: translate: Task Instances",
+    "taskInstances": "Feladatpéldányok",
     "taskStore": "Feladat tároló",
     "tasks": "Feladatok",
     "xcom": "XCom"

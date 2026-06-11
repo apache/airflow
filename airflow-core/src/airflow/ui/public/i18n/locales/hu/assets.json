@@ -38,7 +38,7 @@
     },
     "title": "Adatkészlet (asset) esemény létrehozása {{name}} számára"
   },
-  "events": "TODO: translate: Events",
+  "events": "Események",
   "extra": "Kiegészítő adatok",
   "group": "Csoport",
   "lastAssetEvent": "Utolsó Adatkészlet (asset) esemény",
