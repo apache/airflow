@@ -23,7 +23,7 @@ import { Link } from "react-router-dom";
 
 import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
 import { HITLReviewModal } from "src/components/HITLReview/HITLReviewModal.tsx";
-import { useHITLReviewRouteModalSync } from "src/components/HITLReview/useHITLReviewModal";
+import { useHITLReviewModalRouteSync } from "src/components/HITLReview/useHITLReviewModalRouteSync.ts";
 import { useAutoRefresh } from "src/utils/query";
 
 import { StatsCard } from "./StatsCard";
@@ -150,7 +150,7 @@ export const NeedsReviewButtonWithModal = ({
   readonly runId?: string;
 }) => {
   const { onClose, onOpen, open } = useDisclosure();
-  const { onCloseHITLReview } = useHITLReviewRouteModalSync({
+  const { onCloseHITLReview } = useHITLReviewModalRouteSync({
     onClose,
     onOpen,
   });

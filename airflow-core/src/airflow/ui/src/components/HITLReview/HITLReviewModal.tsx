@@ -29,7 +29,7 @@ import { ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import { Dialog } from "src/components/ui/Dialog";
 
 import { HITLReviewListSection } from "./HITLReviewListSection.tsx";
-import { useHITLSelection } from "./useHITLSelection.ts";
+import { useHITLReviewModalSelection } from "./useHITLReviewModalSelection.ts";
 
 type HITLReviewFilterMode = "all" | "pending";
 
@@ -57,7 +57,7 @@ export const HITLReviewModal = ({
   const showAllActions = enabledFilter && selectedFilter === "all";
   const visibleHitls = showAllActions ? [...pendingHitlDetails, ...completedHitlDetails] : pendingHitlDetails;
   const { hasNext, hasPrevious, onNext, onPrevious, onSelect, selectedDetail, selectedKey } =
-    useHITLSelection({
+    useHITLReviewModalSelection({
       hitlDetails: visibleHitls,
     });
   const handleClose = () => {

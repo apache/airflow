@@ -20,7 +20,7 @@ import { useState } from "react";
 
 import type { HITLDetail } from "openapi/requests/types.gen.ts";
 
-export const useHITLSelection = ({ hitlDetails }: { readonly hitlDetails: Array<HITLDetail> }) => {
+export const useHITLReviewModalSelection = ({ hitlDetails }: { readonly hitlDetails: Array<HITLDetail> }) => {
   const [selectedKey, setSelectedKey] = useState<string | undefined>(undefined);
   const selectedIndexFromKey = hitlDetails.findIndex(
     (hitlDetail) => hitlDetail.task_instance.id === selectedKey,

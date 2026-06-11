@@ -19,7 +19,7 @@
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-export const useHITLReviewRouteModalSync = ({
+export const useHITLReviewModalRouteSync = ({
   onClose,
   onOpen,
 }: {
@@ -28,21 +28,21 @@ export const useHITLReviewRouteModalSync = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const openedFromRouteRef = useRef(false);
+  const wasOpenedFromRouteRef = useRef(false);
   const isHITLReviewRoute = location.pathname.endsWith("/required_actions");
 
   useEffect(() => {
     if (isHITLReviewRoute) {
-      openedFromRouteRef.current = true;
+      wasOpenedFromRouteRef.current = true;
       onOpen();
-    } else if (openedFromRouteRef.current) {
-      openedFromRouteRef.current = false;
+    } else if (wasOpenedFromRouteRef.current) {
+      wasOpenedFromRouteRef.current = false;
       onClose();
     }
   }, [isHITLReviewRoute, onClose, onOpen]);
 
   const onCloseHITLReview = () => {
-    openedFromRouteRef.current = false;
+    wasOpenedFromRouteRef.current = false;
     onClose();
 
     if (isHITLReviewRoute) {
