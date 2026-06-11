@@ -32,6 +32,7 @@ import pytest
 from uuid6 import uuid7
 
 from airflow.sdk.api.client import Client, TaskInstanceOperations
+from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.coordinators._subprocess import (
     SubprocessCoordinator,
     _accept_connections,
@@ -43,7 +44,6 @@ from airflow.sdk.coordinators._subprocess import (
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
-from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
@@ -51,8 +51,8 @@ if not AIRFLOW_V_3_3_PLUS:
     pytest.skip("Coordinator is only compatible with Airflow >= 3.3.0", allow_module_level=True)
 
 
-def _make_ti(dag_id: str = "tutorial_dag", queue: str = "socket") -> TaskInstanceDTO:
-    return TaskInstanceDTO(
+def _make_ti(dag_id: str = "tutorial_dag", queue: str = "socket") -> TaskInstance:
+    return TaskInstance(
         id=uuid7(),
         dag_version_id=uuid7(),
         task_id="task_1",

@@ -21,5 +21,8 @@ from cadwyn import HeadVersion, Version, VersionBundle
 
 bundle = VersionBundle(
     HeadVersion(),
+    # The initial, not-yet-released version of the contract. Shape changes to
+    # registered models land directly in the head snapshot until this ships;
+    # no VersionChange entries are possible against the bundle floor.
     Version("2026-06-16"),
 )

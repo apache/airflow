@@ -18,12 +18,12 @@
 
 from __future__ import annotations
 
-import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
 from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
 from airflow.utils.state import TaskInstanceState
 
@@ -33,36 +33,17 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
 
 
-class BaseTaskInstanceDTO(BaseModel):
+class TaskInstanceDTO(TaskInstance):
     """
-    Base schema for TaskInstance with the minimal fields shared by Executors and the Task SDK.
+    The versioned execution API ``TaskInstance`` schema plus executor-only fields.
 
-    This definition is duplicated in :mod:`airflow.sdk.execution_time.workloads.task`
-    and the two are kept in sync by the ``check-task-instance-dto-sync`` prek
-    hook. Update both files together.
+    The base class is the single source of truth for the fields a worker
+    receives; the fields added here are excluded from serialization and never
+    leave the executor.
     """
-
-    id: uuid.UUID
-    dag_version_id: uuid.UUID
-    task_id: str
-    dag_id: str
-    run_id: str
-    try_number: int
-    map_index: int = -1
-
-    pool_slots: int
-    queue: str
-    priority_weight: int
-    executor_config: dict | None = Field(default=None, exclude=True)
-
-    parent_context_carrier: dict | None = None
-    context_carrier: dict | None = None
-
-
-class TaskInstanceDTO(BaseTaskInstanceDTO):
-    """TaskInstanceDTO with executor-specific ``external_executor_id`` field and ``key`` property."""
 
     external_executor_id: str | None = Field(default=None, exclude=True)
+    executor_config: dict | None = Field(default=None, exclude=True)
 
     # TODO: Task-SDK: Can we replace TaskInstanceKey with just the uuid across the codebase?
     @property

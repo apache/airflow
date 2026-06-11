@@ -65,6 +65,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunState,
     DagRunType,
     PreviousTIResponse,
+    TaskInstance,
     TaskInstanceState,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
@@ -172,7 +173,6 @@ from airflow.sdk.execution_time.supervisor import (
     supervise_task,
 )
 from airflow.sdk.execution_time.task_runner import run
-from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
 
 from tests_common.test_utils.config import conf_vars
 
@@ -235,7 +235,7 @@ class TestSupervisor:
         """
         Test that the supervisor validates server URL and dry_run parameter combinations correctly.
         """
-        ti = TaskInstanceDTO(
+        ti = TaskInstance(
             id=uuid7(),
             task_id="async",
             dag_id="super_basic_deferred_run",
@@ -271,7 +271,7 @@ class TestSupervisor:
         client_with_ti_start,
     ):
         """SIGTERM to the supervisor process is forwarded to the task subprocess."""
-        ti = TaskInstanceDTO(
+        ti = TaskInstance(
             id=uuid7(),
             task_id="signal_task",
             dag_id="signal_forward_test",
@@ -379,7 +379,7 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
@@ -457,7 +457,7 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
@@ -557,7 +557,7 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
@@ -589,7 +589,7 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
@@ -627,7 +627,7 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=uuid7(),
                 task_id="b",
                 dag_id="c",
@@ -674,7 +674,7 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=uuid7(),
                 task_id="b",
                 dag_id="c",
@@ -720,7 +720,7 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
@@ -765,7 +765,7 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
@@ -789,7 +789,7 @@ class TestWatchedSubprocess:
         time_machine.move_to(instant, tick=False)
 
         dagfile_path = test_dags_dir
-        ti = TaskInstanceDTO(
+        ti = TaskInstance(
             id=uuid7(),
             task_id="hello",
             dag_id="super_basic_run",
@@ -833,7 +833,7 @@ class TestWatchedSubprocess:
         """
         instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 0)
 
-        ti = TaskInstanceDTO(
+        ti = TaskInstance(
             id=uuid7(),
             task_id="async",
             dag_id="super_basic_deferred_run",
@@ -963,7 +963,7 @@ class TestWatchedSubprocess:
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
@@ -1049,7 +1049,7 @@ class TestWatchedSubprocess:
             ActivitySubprocess.start(
                 dag_rel_path=os.devnull,
                 bundle_info=FAKE_BUNDLE,
-                what=TaskInstanceDTO(
+                what=TaskInstance(
                     id=ti_id,
                     task_id="b",
                     dag_id="c",
@@ -1262,7 +1262,7 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
@@ -1425,7 +1425,7 @@ class TestWatchedSubprocessKill:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
@@ -3454,7 +3454,7 @@ class TestInProcessTestSupervisor:
         task.dag = DAG(dag_id="test_dag")
 
         # Create a simple TaskInstance datamodel to pass to the supervisor
-        ti = TaskInstanceDTO(
+        ti = TaskInstance(
             id=uuid7(),
             dag_version_id=uuid7(),
             dag_id="test_dag",
@@ -3880,7 +3880,7 @@ def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
     proc = ActivitySubprocess.start(
         dag_rel_path=os.devnull,
         bundle_info=FAKE_BUNDLE,
-        what=TaskInstanceDTO(
+        what=TaskInstance(
             id="4d828a62-a417-4936-a7a6-2b3fabacecab",
             task_id="b",
             dag_id="c",

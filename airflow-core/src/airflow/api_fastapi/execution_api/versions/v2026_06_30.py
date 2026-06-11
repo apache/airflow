@@ -19,7 +19,10 @@ from __future__ import annotations
 
 from cadwyn import VersionChange, endpoint, schema
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIAwaitingInputStatePayload
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    TaskInstance,
+    TIAwaitingInputStatePayload,
+)
 
 
 class AddVariableKeysEndpoint(VersionChange):
@@ -38,6 +41,18 @@ class AddConnectionTestEndpoint(VersionChange):
     instructions_to_migrate_to_previous_version = (
         endpoint("/connection-tests/{connection_test_id}", ["PATCH"]).didnt_exist,
         endpoint("/connection-tests/{connection_test_id}/connection", ["GET"]).didnt_exist,
+    )
+
+
+class AddTaskInstanceQueueFields(VersionChange):
+    """Add the `queue`, `pool_slots` and `priority_weight` fields to the TaskInstance model."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TaskInstance).field("queue").didnt_exist,
+        schema(TaskInstance).field("pool_slots").didnt_exist,
+        schema(TaskInstance).field("priority_weight").didnt_exist,
     )
 
 

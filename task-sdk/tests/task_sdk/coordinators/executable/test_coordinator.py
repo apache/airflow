@@ -31,6 +31,7 @@ import pytest
 import yaml
 from uuid6 import uuid7
 
+from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.coordinators.executable.coordinator import (
     FOOTER_MAGIC,
     FOOTER_SIZE,
@@ -41,7 +42,6 @@ from airflow.sdk.coordinators.executable.coordinator import (
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
-from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
@@ -111,8 +111,8 @@ def _make_executable(path: Path) -> Path:
     return path
 
 
-def _make_ti(dag_id: str = "tutorial_dag", queue: str = "executable") -> TaskInstanceDTO:
-    return TaskInstanceDTO(
+def _make_ti(dag_id: str = "tutorial_dag", queue: str = "executable") -> TaskInstance:
+    return TaskInstance(
         id=uuid7(),
         dag_version_id=uuid7(),
         task_id="task_1",

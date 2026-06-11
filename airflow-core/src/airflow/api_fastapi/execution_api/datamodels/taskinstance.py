@@ -286,6 +286,11 @@ class TaskInstance(BaseModel):
     map_index: int = -1
     hostname: str | None = None
     context_carrier: dict | None = None
+    # Defaults keep hand-built instances (tests, dry runs) valid; the executor
+    # workload always sends the real values.
+    queue: str = "default"
+    pool_slots: int = 1
+    priority_weight: int = 1
 
 
 class AssetReferenceAssetEventDagRun(StrictBaseModel):
