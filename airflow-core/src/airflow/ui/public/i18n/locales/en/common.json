@@ -286,6 +286,7 @@
     "executor": "Executor",
     "executorConfig": "Executor Config",
     "hostname": "Hostname",
+    "id": "Task Instance ID",
     "maxTries": "Max Tries",
     "pid": "PID",
     "pool": "Pool",

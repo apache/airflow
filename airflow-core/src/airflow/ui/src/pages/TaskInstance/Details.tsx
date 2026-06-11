@@ -104,11 +104,17 @@ export const Details = () => {
     return "";
   };
 
+  // omit kwargs from trigger
+  const triggerWithoutKwargs = taskInstance?.trigger
+    ? (({ kwargs, ...rest }) => rest)(taskInstance.trigger)
+    : undefined;
+
   const rawTaskInstanceDetails: Array<{ label: string; value: unknown }> = [
+    { label: translate("taskInstance.id"), value: taskInstance?.id },
     { label: translate("taskInstance.tryNumber"), value: tryInstance?.try_number },
     { label: translate("taskInstance.maxTries"), value: tryInstance?.max_tries },
     { label: translate("dagId"), value: tryInstance?.dag_id },
-    { label: translate("taskInstance.trigger"), value: taskInstance?.trigger },
+    { label: translate("taskInstance.trigger"), value: triggerWithoutKwargs },
     { label: translate("taskInstance.triggererJob"), value: taskInstance?.triggerer_job },
   ];
 
