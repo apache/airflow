@@ -18,13 +18,25 @@
  */
 
 plugins {
-    application
+    id("org.apache.airflow.sdk") version "${projectVersion}"
+}
+
+repositories {
+    mavenLocal()  // Not needed for your own project.
+    mavenCentral()
 }
 
 dependencies {
-    annotationProcessor(project(":processor"))
-    implementation(project(":sdk"))
+    annotationProcessor("org.apache.airflow:airflow-sdk-processor:${projectVersion}")
+    implementation("org.apache.airflow:airflow-sdk:${projectVersion}")
     implementation("org.slf4j:slf4j-simple:2.0.17")
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(11))
+    }
+    sourceCompatibility = JavaVersion.VERSION_11
 }
 
 sourceSets {
@@ -33,14 +45,6 @@ sourceSets {
     }
 }
 
-application {
+airflowBundle {
     mainClass = "org.apache.airflow.example.ExampleBundleBuilder"
-}
-
-tasks.withType<Jar> {
-    manifest {
-        attributes(
-            "Main-Class" to application.mainClass.get(),
-        )
-    }
 }

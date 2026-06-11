@@ -43,16 +43,26 @@ This generates both an HTML representation and Javadoc.
 
 ## Running the example
 
-* Put the [DAG with stub tasks](./dags) to somewhere Airflow can find.
+The SDK projects must first built and published:
+
+```bash
+./gradlew publishToMavenLocal
+```
+
+After the build is successful, you should be able to see directories in `~/.m2/repository/org/apache/airflow/`.
+
+Now `cd example` into the example project, and
+
+* Put the [DAG with stub tasks](./example/src/resources/dags) to somewhere Airflow can find.
 
 * Ensure the `java` command is available in the same environment the Airflow
   task worker is in.
 
-* Package the example and its dependencies into JARs in
-  `./example/build/install/example/lib`
+* Package the example to `./example/build/bundle`
 
   ```bash
-  ./gradlew :example:installDist
+  # We're now in the 'example' directory, so gradlew is in parent.
+  ../gradlew bundle
   ```
 
 * Configure Airflow to route tasks in the *java* queue to be run with Java:
@@ -61,7 +71,7 @@ This generates both an HTML representation and Javadoc.
   export AIRFLOW__SDK__COORDINATORS='{
     "java": {
       "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-      "kwargs": {"jars_root": ["/opt/airflow/java-sdk/example/build/install/example/lib"]}
+      "kwargs": {"jars_root": ["/opt/airflow/java-sdk/example/build/bundle"]}
     }
   }'
   export AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"java": "java"}'

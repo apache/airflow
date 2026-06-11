@@ -276,19 +276,21 @@ The Java SDK is distributed as a JAR. Use any build tool; Gradle is shown here.
 
 **Gradle setup**
 
-Add the SDK dependency to your ``build.gradle.kts``:
+Add the SDK dependency to your ``build.gradle``:
 
-.. code-block:: kotlin
+.. code-block:: groovy
 
-    dependencies {
-      implementation("org.apache.airflow:airflow-java-sdk:<version>")
-      annotationProcessor("org.apache.airflow:airflow-java-sdk:<version>")
+    plugins {
+        id("org.apache.airflow.sdk") version "${version}"
     }
 
-    tasks.withType<Jar> {
-      manifest {
-        attributes("Main-Class" to "com.example.Main")
-      }
+    dependencies {
+        annotationProcessor("org.apache.airflow:airflow-sdk-processor:${version}")
+        implementation("org.apache.airflow:airflow-sdk:${version}")
+    }
+
+    airflowBundle {
+        mainClass = "com.example.Main"  // Point to your main class instead.
     }
 
 .. note::
@@ -298,20 +300,22 @@ Add the SDK dependency to your ``build.gradle.kts``:
 
 .. note::
 
-  The ``Main-Class`` manifest value is needed for the coordinator to know how to run the JAR. You can choose
-  to set this *on the coordinator itself* too by adding the ``main_class`` kwarg in coordinator configuration.
+  The Airflow SDK plugin generates a "fat JAR" with the `Shadow <https://gradleup.com/shadow/>`__ plugin by
+  default. This is generally a good idea since you only deploy one JAR file to avoid dependency issues between
+  projects. If this does not suit you, set ``fatJar = false`` in ``airflowBundle`` to produce thin JARs
+  instead. The rest of the process stays the same, but you'll need to also put all dependency JARs somewhere
+  Airflow can find with ``jars_root``.
 
 Building a distribution
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: bash
 
-    ./gradlew :myproject:installDist
+    ./gradlew :myproject:bundle
 
-The ``lib/`` directory of the resulting distribution contains all required JARs. Copy or mount it into the
-directory pointed to by ``jars_root`` in the coordinator configuration.
-:class:`~airflow.sdk.coordinators.java.JavaCoordinator` scans ``jars_root``
-recursively and builds the classpath automatically.
+The ``build/bundle/`` directory contains all required JAR(s). Copy or mount it into the directory pointed to
+by ``jars_root`` in the coordinator configuration. :class:`~airflow.sdk.coordinators.java.JavaCoordinator`
+scans ``jars_root`` recursively and builds the classpath automatically.
 
 .. _java-sdk/coordinator-config:
 

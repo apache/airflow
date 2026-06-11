@@ -101,6 +101,8 @@ abstract class AirflowBundleExtension {
  */
 class AirflowSdkPlugin : Plugin<Project> {
   override fun apply(project: Project) {
+    project.plugins.apply("java")
+
     val ext = project.extensions.create("airflowBundle", AirflowBundleExtension::class.java)
     ext.fatJar.convention(true)
 
@@ -111,26 +113,28 @@ class AirflowSdkPlugin : Plugin<Project> {
         }
       }
 
+      val classFiles =
+        project.objects.fileCollection().from(
+          project.extensions
+            .getByType(JavaPluginExtension::class.java)
+            .sourceSets
+            .getByName("main")
+            .output
+            .classesDirs,
+          project.configurations.getByName("runtimeClasspath"),
+        )
+      val className = ext.mainClass.get()
+
       val verifyTask =
         project.tasks.register("verifyBundleMainClass") { task ->
           task.group = "verification"
           task.description =
             "Verifies that mainClass exists in the compiled output and declares a public static main method."
           task.dependsOn(project.tasks.named("classes"))
+          task.inputs.files(classFiles).withPropertyName("classFiles")
+          task.inputs.property("mainClass", className)
           task.doLast {
-            val className = ext.mainClass.get()
-            val classesDirs =
-              project.extensions
-                .getByType(JavaPluginExtension::class.java)
-                .sourceSets
-                .getByName("main")
-                .output
-                .classesDirs
-            val runtimeJars = project.configurations.getByName("runtimeClasspath").files
-            val urls =
-              (classesDirs.files + runtimeJars)
-                .map { it.toURI().toURL() }
-                .toTypedArray()
+            val urls = classFiles.map { it.toURI().toURL() }.toTypedArray()
 
             URLClassLoader(urls, ClassLoader.getPlatformClassLoader()).use { loader ->
               val klass =

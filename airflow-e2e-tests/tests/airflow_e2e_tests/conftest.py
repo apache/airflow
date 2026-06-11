@@ -45,8 +45,9 @@ from airflow_e2e_tests.constants import (
     GO_SDK_EXAMPLE_BUNDLE_PKG,
     JAVA_COMPOSE_PATH,
     JAVA_DOCKERFILE_PATH,
-    JAVA_SDK_DAGS_PATH,
+    JAVA_SDK_EXAMPLE_DAGS_PATH,
     JAVA_SDK_EXAMPLE_LIBS_PATH,
+    JAVA_SDK_MAVEN_CACHE_PATH,
     KAFKA_DIR_PATH,
     LOCALSTACK_PATH,
     LOGS_FOLDER,
@@ -253,14 +254,41 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     Java-capable Airflow worker image, copies the JARs into the temp directory,
     and writes the coordinator configuration.
     """
-    # Build the example bundle inside an ephemeral JDK container so the host
-    # does not need Java installed.
-    #
-    # --user keeps build outputs owned by the current user (not root).
-    # GRADLE_USER_HOME persists the Gradle distribution and dependency cache in
-    # java-sdk/.gradle/ (already gitignored) so the first run downloads once
-    # and subsequent runs skip straight to compilation.
-    # --no-daemon avoids a background JVM that would outlive the container.
+    # * --user keeps build outputs owned by the current user (not root).
+    # * --no-daemon avoids a background JVM that would outlive the container.
+    # * GRADLE_USER_HOME persists the Gradle distribution and dependency cache
+    #   in java-sdk/.gradle/ so subsequent runs skip straight to compilation.
+    # * HOME is set explicitly because --user runs as the host UID which has no
+    #   entry in the container's /etc/passwd; Docker would otherwise inherit the
+    #   image's HOME (/root) which the non-root process cannot write to.
+    # * files/m2 is mounted directly as ~/.m2 so publishToMavenLocal writes
+    #   there without nesting, and its contents are visible on the host.
+    console.print("[yellow]Publishing Java SDK artifacts to local Maven repository...")
+    JAVA_SDK_MAVEN_CACHE_PATH.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--user",
+            f"{os.getuid()}:{os.getgid()}",
+            "-e",
+            "GRADLE_USER_HOME=/repo/java-sdk/.gradle",
+            "-e",
+            "HOME=/workspace-home",
+            "-v",
+            f"{JAVA_SDK_MAVEN_CACHE_PATH}:/workspace-home/.m2",
+            "-v",
+            f"{AIRFLOW_ROOT_PATH}:/repo",
+            "-w",
+            "/repo/java-sdk",
+            "eclipse-temurin:17-jdk",
+            "./gradlew",
+            "publishToMavenLocal",
+            "--no-daemon",
+        ],
+        check=True,
+    )
     console.print("[yellow]Building Java SDK example bundle (eclipse-temurin:17-jdk)...")
     subprocess.run(
         [
@@ -271,14 +299,17 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
             f"{os.getuid()}:{os.getgid()}",
             "-e",
             "GRADLE_USER_HOME=/repo/java-sdk/.gradle",
-            # Mount java-sdk/ at /java-sdk (the Gradle root project).
+            "-e",
+            "HOME=/workspace-home",
+            "-v",
+            f"{JAVA_SDK_MAVEN_CACHE_PATH}:/workspace-home/.m2",
             "-v",
             f"{AIRFLOW_ROOT_PATH}:/repo",
             "-w",
-            "/repo/java-sdk",
+            "/repo/java-sdk/example",
             "eclipse-temurin:17-jdk",
-            "./gradlew",
-            ":example:installDist",
+            "../gradlew",
+            "bundle",
             "--no-daemon",
         ],
         check=True,
@@ -293,7 +324,7 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     copytree(JAVA_SDK_EXAMPLE_LIBS_PATH, tmp_dir / "jars")
 
     # Copy the Java SDK example Dag file so Airflow can discover it.
-    copyfile(JAVA_SDK_DAGS_PATH / "java_examples.py", tmp_dir / "dags" / "java_examples.py")
+    copyfile(JAVA_SDK_EXAMPLE_DAGS_PATH / "java_examples.py", tmp_dir / "dags" / "java_examples.py")
 
     # Build a local Docker image that extends DOCKER_IMAGE with a JRE.
     # We do this explicitly so testcontainers' DockerCompose.start() does not
