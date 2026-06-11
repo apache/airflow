@@ -38,6 +38,7 @@ from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 from pydantic_core import SchemaValidator, core_schema
 
+from airflow.providers.common.ai.utils.tool_definition import return_schema_kwargs
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
@@ -203,11 +204,14 @@ class SQLToolset(AbstractToolset[Any]):
         ):
             # sequential=True because all tools use a shared DbApiHook with
             # synchronous I/O — they must not run concurrently.
+            # return_schema is "string": every tool returns a JSON-encoded string
+            # (json.dumps), so code mode renders `-> str` instead of `-> Any`.
             tool_def = ToolDefinition(
                 name=name,
                 description=description,
                 parameters_json_schema=schema,
                 sequential=True,
+                **return_schema_kwargs({"type": "string"}),
             )
             tools[name] = ToolsetTool(
                 toolset=self,

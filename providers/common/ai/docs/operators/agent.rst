@@ -292,6 +292,46 @@ Capabilities compose with toolsets -- pydantic-ai merges tools from both.
     serializer hooks) is tracked as a follow-up.
 
 
+.. _code-mode:
+
+Code Mode (Monty sandbox)
+-------------------------
+
+Set ``code_mode=True`` to collapse the agent's tools into a single ``run_code``
+tool powered by the `Monty <https://github.com/pydantic/monty>`__ sandbox (via
+pydantic-ai-harness). Instead of one model round-trip per tool call, the model
+writes a single Python snippet that calls the tools as functions -- with loops,
+conditionals, and ``asyncio.gather`` -- in one turn. For multi-tool workflows
+this cuts round-trips and token use.
+
+The generated code runs in Monty's deny-by-default sandbox: it cannot read the
+filesystem, the network, or environment variables. It can only call the tools
+you registered. Code mode therefore does not widen what the agent can reach --
+the tools it calls still run in the worker -- it only changes how the model
+invokes them. See :ref:`Toolsets security <howto/toolsets>` for the tool
+boundary.
+
+Requires the ``code-mode`` extra::
+
+    pip install "apache-airflow-providers-common-ai[code-mode]"
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
+    :language: python
+    :start-after: [START howto_operator_agent_code_mode]
+    :end-before: [END howto_operator_agent_code_mode]
+
+Unlike passing a capability through ``agent_params`` (see
+:ref:`capabilities-passthrough`), ``code_mode`` is a plain boolean and is
+serialization-safe: the ``CodeMode`` capability is built at execution time, not
+stored on the serialized operator.
+
+.. note::
+
+    Monty is pre-1.0 and supports a subset of Python (notably, no third-party
+    imports). The ``code-mode`` extra is opt-in so its dependency churn never
+    affects the base provider install.
+
+
 Parameters
 ----------
 
@@ -322,6 +362,9 @@ Parameters
   tool results via ObjectStorage. On retry, cached steps are replayed instead of
   re-executing expensive LLM calls. Requires the ``[common.ai] durable_cache_path``
   config option to be set. Default ``False``.
+- ``code_mode``: When ``True``, wraps the agent's tools in a single ``run_code``
+  tool that the model drives by writing Python, executed in the Monty sandbox.
+  Requires the ``code-mode`` extra. Default ``False``. See :ref:`code-mode`.
 
 
 Logging

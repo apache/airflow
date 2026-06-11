@@ -24,6 +24,7 @@ import pytest
 from pydantic_ai.exceptions import ModelRetry
 
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
+from airflow.providers.common.ai.utils.tool_definition import _SUPPORTS_RETURN_SCHEMA
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
@@ -63,6 +64,16 @@ class TestSQLToolsetGetTools:
         tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
         for tool in tools.values():
             assert tool.tool_def.description
+
+    @pytest.mark.skipif(
+        not _SUPPORTS_RETURN_SCHEMA, reason="pydantic-ai too old for ToolDefinition.return_schema"
+    )
+    def test_tools_declare_string_return_schema(self):
+        # Every tool returns a JSON-encoded string, so code mode should see `-> str`.
+        ts = SQLToolset("pg_default")
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+        for tool in tools.values():
+            assert tool.tool_def.return_schema == {"type": "string"}
 
 
 class TestSQLToolsetListTables:
