@@ -383,7 +383,9 @@ class DagRun(Base, LoggingMixin):
         self.triggering_user_name = triggering_user_name
         self.scheduled_by_job_id = None
         self.context_carrier: dict[str, str] = new_dagrun_trace_carrier(
-            task_span_detail_level=self.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY, None)
+            task_span_detail_level=self.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY, None),
+            dag_id=getattr(self, "dag_id", None),
+            run_type=getattr(self, "run_type", None),
         )
 
         if not isinstance(partition_key, str | None):
@@ -1072,6 +1074,15 @@ class DagRun(Base, LoggingMixin):
         ctx = TraceContextTextMapPropagator().extract(self.context_carrier)
         span = trace.get_current_span(context=ctx)
         span_context = span.get_span_context()
+        # Honor the head-sampling decision recorded in the carrier. This is
+        # required because the span below is forced to be a root span
+        # (context=context.Context()), so the configured sampler would never see
+        # the carrier's flag otherwise. A valid-but-unsampled carrier means the
+        # run was head-sampled out; skip emission. An invalid/empty carrier
+        # (legacy DagRun created before tracing, NULL/backfilled) falls through
+        # and still emits a root span, preserving prior behavior.
+        if span_context.is_valid and not span_context.trace_flags.sampled:
+            return
         with override_ids(span_context.trace_id, span_context.span_id):
             attributes: dict[str, str] = {
                 "airflow.dag_id": str(self.dag_id),

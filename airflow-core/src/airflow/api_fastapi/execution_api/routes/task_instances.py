@@ -514,6 +514,13 @@ def _emit_task_span(ti, state):
     if not isinstance(ti.context_carrier, dict):
         return
     dr_ctx = TraceContextTextMapPropagator().extract(ti.dag_run.context_carrier)
+    # Honor the head-sampling decision recorded in the dag_run carrier. As a
+    # child of the carrier this would also be suppressed by ParentBased
+    # sampling, but the explicit guard is robust and cheap. A valid-but-unsampled
+    # carrier means the run was head-sampled out; skip emission.
+    dr_span_context = trace.get_current_span(context=dr_ctx).get_span_context()
+    if dr_span_context.is_valid and not dr_span_context.trace_flags.sampled:
+        return
 
     ti_ctx = TraceContextTextMapPropagator().extract(ti.context_carrier)
     ti_span = trace.get_current_span(context=ti_ctx)

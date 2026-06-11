@@ -4061,3 +4061,21 @@ class TestEmitTaskSpan:
 
         _emit_task_span(ti, TaskInstanceState.SUCCESS)
         assert len(self.exporter.get_finished_spans()) == 0
+
+    def test_emit_task_span_emits_when_dagrun_carrier_sampled(self):
+        """A SAMPLED dag_run carrier should allow the task span to emit."""
+        ti = self._make_ti()
+        # _make_carriers uses a default provider -> SAMPLED flag is set.
+        dr_ctx = TraceContextTextMapPropagator().extract(ti.dag_run.context_carrier)
+        assert otel_trace.get_current_span(dr_ctx).get_span_context().trace_flags.sampled
+        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+        assert len(self.exporter.get_finished_spans()) == 1
+
+    def test_emit_task_span_skips_when_dagrun_carrier_unsampled(self):
+        """A valid-but-unsampled dag_run carrier (flag 00) means the run was head-sampled out."""
+        ti = self._make_ti()
+        ti.dag_run.context_carrier = {
+            "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00"
+        }
+        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+        assert len(self.exporter.get_finished_spans()) == 0

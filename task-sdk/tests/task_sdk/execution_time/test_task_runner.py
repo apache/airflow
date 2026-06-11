@@ -5423,6 +5423,24 @@ class TestTaskInstanceMetrics:
 class TestDetailSpan:
     """Tests for the detail_span decorator / context manager."""
 
+    @pytest.fixture(autouse=True)
+    def _sampled_carrier_provider(self):
+        """Make new_dagrun_trace_carrier produce a SAMPLED carrier.
+
+        new_dagrun_trace_carrier consults the global tracer provider's sampler to
+        decide the carrier's SAMPLED flag. In the test process the global provider
+        is a no-op ProxyTracerProvider (no sampler) -> unsampled carrier, which
+        would make the parent span (and its detail children) non-recording. Patch
+        the lookup to a real SDK provider whose default sampler
+        (parentbased_always_on) samples the root, mirroring "otel on" in production.
+        """
+        provider = TracerProvider()
+        with mock.patch(
+            "airflow._shared.observability.traces.trace.get_tracer_provider",
+            return_value=provider,
+        ):
+            yield
+
     def test_level_1_no_child_span_as_context_manager(self):
         """At detail level 1, entering detail_span should not create a real recorded span."""
         exporter = InMemorySpanExporter()

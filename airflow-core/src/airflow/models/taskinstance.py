@@ -429,7 +429,9 @@ def clear_task_instances(
             dr.clear_number += 1
             dr.queued_at = timezone.utcnow()
             dr.context_carrier = new_dagrun_trace_carrier(
-                task_span_detail_level=dr.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY) if dr.conf else None
+                task_span_detail_level=dr.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY) if dr.conf else None,
+                dag_id=getattr(dr, "dag_id", None),
+                run_type=getattr(dr, "run_type", None),
             )
 
             _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)
