@@ -36,7 +36,7 @@ export const RequiredActionFilter = ({ needsReview, onToggle }: Props) => {
       onClick={onToggle}
       variant={needsReview ? "solid" : "outline"}
     >
-      <StateBadge colorPalette="deferred">
+      <StateBadge state="awaiting_input">
         <LuUserRoundPen />
       </StateBadge>
       {translate("requiredAction_other")}
