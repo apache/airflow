@@ -21,7 +21,7 @@ import { useState } from "react";
 import type { HITLDetail } from "openapi/requests/types.gen.ts";
 
 export const useHITLReviewModalSelection = ({ hitlDetails }: { readonly hitlDetails: Array<HITLDetail> }) => {
-  const [selectedKey, setSelectedKey] = useState<string | undefined>(undefined);
+  const [selectedHITLDetailKey, setSelectedHITLDetailKey] = useState<string | undefined>(undefined);
 
   const selectedIndex = (() => {
     if (hitlDetails.length === 0) {
@@ -29,7 +29,7 @@ export const useHITLReviewModalSelection = ({ hitlDetails }: { readonly hitlDeta
     }
 
     const selectedIndexFromKey = hitlDetails.findIndex(
-      (hitlDetail) => hitlDetail.task_instance.id === selectedKey,
+      (hitlDetail) => hitlDetail.task_instance.id === selectedHITLDetailKey,
     );
 
     return selectedIndexFromKey === -1 ? 0 : selectedIndexFromKey;
@@ -39,7 +39,7 @@ export const useHITLReviewModalSelection = ({ hitlDetails }: { readonly hitlDeta
   const hasNext = isSelected && selectedIndex < hitlDetails.length - 1;
   const hasPrevious = selectedIndex > 0;
 
-  const selectHitl = (hitl?: HITLDetail) => setSelectedKey(hitl?.task_instance.id);
+  const selectHitl = (hitl?: HITLDetail) => setSelectedHITLDetailKey(hitl?.task_instance.id);
 
   const onNext = () => {
     if (hasNext) {

@@ -29,14 +29,14 @@ export const HITLReviewListSection = ({
   isError = false,
   isLoading = false,
   onSelect,
-  selectedKey,
+  selectedDetail,
 }: {
   readonly details?: Array<HITLDetail>;
   readonly heading: string;
   readonly isError?: boolean;
   readonly isLoading?: boolean;
   readonly onSelect: (selection: HITLDetail) => void;
-  readonly selectedKey?: string;
+  readonly selectedDetail?: HITLDetail;
 }) => {
   const { t: translate } = useTranslation("hitl");
 
@@ -66,7 +66,7 @@ export const HITLReviewListSection = ({
           </Text>
         ) : (
           <Box overflowX="auto" width="100%">
-            <HITLReviewList details={details ?? []} onSelect={onSelect} selectedKey={selectedKey} />
+            <HITLReviewList details={details ?? []} onSelect={onSelect} selectedDetail={selectedDetail} />
           </Box>
         )}
       </VStack>

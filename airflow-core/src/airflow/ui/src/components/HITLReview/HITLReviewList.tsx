@@ -67,11 +67,11 @@ const getHitlGroupColor = (details: Array<HITLDetail>, index: number) => {
 export const HITLReviewList = ({
   details,
   onSelect,
-  selectedKey,
+  selectedDetail,
 }: {
   readonly details: Array<HITLDetail>;
   readonly onSelect: (selection: HITLDetail) => void;
-  readonly selectedKey?: string;
+  readonly selectedDetail?: HITLDetail;
 }) => {
   const { t: translate } = useTranslation(["hitl", "common"]);
   const { selectedTimezone } = useTimezone();
@@ -91,7 +91,7 @@ export const HITLReviewList = ({
         {details.length === 0
           ? null
           : details.map((detail, index) => {
-              const isSelected = selectedKey === detail.task_instance.id;
+              const isSelected = selectedDetail?.task_instance.id === detail.task_instance.id;
               const ti = detail.task_instance;
 
               return (

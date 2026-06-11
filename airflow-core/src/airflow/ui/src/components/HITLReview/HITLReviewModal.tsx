@@ -138,7 +138,7 @@ export const HITLReviewModal = ({
                     count: pendingHitlDetails.length,
                   })}
                   onSelect={onSelect}
-                  selectedKey={selectedDetail?.task_instance.id}
+                  selectedDetail={selectedDetail}
                 />
                 {showAllActions ? (
                   <HITLReviewListSection
@@ -147,7 +147,7 @@ export const HITLReviewModal = ({
                       count: completedHitlDetails.length,
                     })}
                     onSelect={onSelect}
-                    selectedKey={selectedDetail?.task_instance.id}
+                    selectedDetail={selectedDetail}
                   />
                 ) : undefined}
               </VStack>
