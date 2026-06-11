@@ -294,8 +294,10 @@ class messages:
         """
 
         type: Literal["TriggerStateChanges"] = "TriggerStateChanges"
+        # The third tuple element is the shared-stream persist-confirmation
+        # seq (None for events that do not gate a broker advance).
         events: Annotated[
-            list[tuple[int, DiscrimatedTriggerEvent]] | None,
+            list[tuple[int, DiscrimatedTriggerEvent, int | None]] | None,
             # We have to specify a default here, as otherwise Pydantic struggles to deal with the discriminated
             # union :shrug:
             Field(default=None),
@@ -309,6 +311,10 @@ class messages:
 
         to_create: list[workloads.RunTrigger]
         to_cancel: set[int]
+        # Seqs of shared-stream trigger events the supervisor has persisted
+        # since the previous sync; the runner releases the matching broker
+        # advances on receipt.
+        events_persisted: list[int] | None = None
 
 
 class HITLDetailResponseResult(HITLDetailResponse):
@@ -476,8 +482,13 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     # directly as all comms has to be initiated by the subprocess
     creating_triggers: deque[workloads.RunTrigger] = attrs.field(factory=deque, init=False)
 
-    # Outbound queue of events
-    events: deque[tuple[int, TriggerEvent]] = attrs.field(factory=deque, init=False)
+    # Outbound queue of events; the third element is the shared-stream
+    # persist-confirmation seq (None for non-shared-stream events).
+    events: deque[tuple[int, TriggerEvent, int | None]] = attrs.field(factory=deque, init=False)
+
+    # Seqs of shared-stream trigger events persisted since the last state
+    # sync; drained into TriggerStateSync.events_persisted.
+    persisted_event_seqs: deque[int] = attrs.field(factory=deque, init=False)
 
     # Outbound queue of failed triggers
     failed_triggers: deque[tuple[int, list[str] | None]] = attrs.field(factory=deque, init=False)
@@ -546,9 +557,15 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                         # handle leaks for every failed upload.
                         factory.close()
 
+            # Drain the persist confirmations accumulated since the last sync.
+            events_persisted: list[int] = []
+            while self.persisted_event_seqs:
+                events_persisted.append(self.persisted_event_seqs.popleft())
+
             response = messages.TriggerStateSync(
                 to_create=[],
                 to_cancel=self.cancelling_triggers,
+                events_persisted=events_persisted or None,
             )
 
             # Pull out of these dequeues in a thread-safe manner
@@ -679,10 +696,15 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     def handle_events(self):
         """Dispatch outbound events to the Trigger model which pushes them to the relevant task instances."""
         while self.events:
-            # Get the event and its trigger ID
-            trigger_id, event = self.events.popleft()
+            # Get the event, its trigger ID, and its persist-confirmation seq
+            trigger_id, event, seq = self.events.popleft()
             # Tell the model to wake up its tasks
             self.on_trigger_event(trigger_id=trigger_id, event=event)
+            # Only reached when on_trigger_event returned, i.e. the event was
+            # persisted; a raise above leaves the seq unconfirmed so the
+            # bound shared-stream advance fails out and the broker redelivers.
+            if seq is not None:
+                self.persisted_event_seqs.append(seq)
             # Emit stat event
             stats.incr("triggers.succeeded")
 
@@ -1072,8 +1094,9 @@ class TriggerRunner:
     # Inbound queue of deleted triggers
     to_cancel: deque[int]
 
-    # Outbound queue of events
-    events: deque[tuple[int, TriggerEvent]]
+    # Outbound queue of events; the third element is the shared-stream
+    # persist-confirmation seq (None for non-shared-stream events).
+    events: deque[tuple[int, TriggerEvent, int | None]]
 
     # Outbound queue of failed triggers
     failed_triggers: deque[tuple[int, BaseException | None]]
@@ -1363,12 +1386,12 @@ class TriggerRunner:
 
     def process_trigger_events(self, finished_ids: list[int]) -> messages.TriggerStateChanges:
         # Copy out of our dequeues in threadsafe manner to sync state with parent
-        events_to_send: list[tuple[int, DiscrimatedTriggerEvent]] = []
+        events_to_send: list[tuple[int, DiscrimatedTriggerEvent, int | None]] = []
         failures_to_send: list[tuple[int, list[str] | None]] = []
 
         while self.events:
-            trigger_id, trigger_event = self.events.popleft()
-            events_to_send.append((trigger_id, trigger_event))
+            trigger_id, trigger_event, seq = self.events.popleft()
+            events_to_send.append((trigger_id, trigger_event, seq))
 
         while self.failed_triggers:
             trigger_id, exc = self.failed_triggers.popleft()
@@ -1383,10 +1406,10 @@ class TriggerRunner:
 
     def sanitize_trigger_events(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateChanges:
         req_encoder = _new_encoder()
-        events_to_send: list[tuple[int, DiscrimatedTriggerEvent]] = []
+        events_to_send: list[tuple[int, DiscrimatedTriggerEvent, int | None]] = []
 
         if msg.events:
-            for trigger_id, trigger_event in msg.events:
+            for trigger_id, trigger_event, seq in msg.events:
                 try:
                     req_encoder.encode(trigger_event)
                 except Exception as e:
@@ -1395,9 +1418,13 @@ class TriggerRunner:
                         trigger_id,
                         trigger_event,
                     )
+                    # The dropped event's seq (if any) is never confirmed, so
+                    # the bound shared-stream advance times out as failed and
+                    # the broker redelivers — the safe direction for an event
+                    # that was never persisted.
                     self.failed_triggers.append((trigger_id, e))
                 else:
-                    events_to_send.append((trigger_id, trigger_event))
+                    events_to_send.append((trigger_id, trigger_event, seq))
 
         return messages.TriggerStateChanges(
             events=events_to_send if events_to_send else None,
@@ -1418,6 +1445,8 @@ class TriggerRunner:
         if resp:
             self.to_create.extend(resp.to_create)
             self.to_cancel.extend(resp.to_cancel)
+            if resp.events_persisted:
+                self._shared_streams.confirm_persisted(resp.events_persisted)
 
     async def asend(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateSync | None:
         try:
@@ -1527,7 +1556,13 @@ class TriggerRunner:
                         "Trigger fired event", name=self.triggers[trigger_id]["name"], result=event
                     )
                     self.triggers[trigger_id]["events"] += 1
-                    self.events.append((trigger_id, event))
+                    seq: int | None = None
+                    if shared_key is not None:
+                        # Bind and append back to back with no await in
+                        # between, so no other coroutine can observe the
+                        # event bound but not yet queued (or vice versa).
+                        seq = self._shared_streams.bind_pending_event(trigger_id=trigger_id, key=shared_key)
+                    self.events.append((trigger_id, event, seq))
                 span.set_status(Status(StatusCode.OK))
             except asyncio.CancelledError as e:
                 # A trigger can be cancelled for two reasons:

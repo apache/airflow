@@ -285,9 +285,10 @@ class BaseEventTrigger(BaseTrigger):
     broker connection, supplies events through its ``open_stream`` method
     (instead of :meth:`open_shared_stream`), and is told to advance the
     broker — commit, delete, or ack the message — once all subscribers that
-    were online at broadcast time have resolved an event. When this factory
-    is not overridden, the fast path is taken: no ack tokens are issued and
-    subscribers receive raw events exactly as before.
+    were online at broadcast time have resolved an event and the trigger
+    events they derived from it were persisted to the metadata database.
+    When this factory is not overridden, the fast path is taken: no ack
+    tokens are issued and subscribers receive raw events exactly as before.
 
     See :mod:`airflow.triggers.shared_stream` for the full ack-mode design,
     including snapshot-at-fan-out semantics, per-event timeout behavior, and
@@ -384,9 +385,10 @@ class BaseEventTrigger(BaseTrigger):
         :class:`~airflow.triggers.shared_stream.SharedStreamProducer` owns
         the broker connection for the lifetime of one poll — it supplies
         events through ``open_stream``, is told to advance the broker once
-        all subscribers have resolved an event, and is closed when the poll
-        ends. Do not open the broker connection here; open it lazily inside
-        the producer's ``open_stream``.
+        all subscribers have resolved an event and the trigger events they
+        derived from it were persisted, and is closed when the poll ends.
+        Do not open the broker connection here; open it lazily inside the
+        producer's ``open_stream``.
 
         Triggers that do not override this method run the fast path: no ack
         tokens are issued and subscribers receive raw events from

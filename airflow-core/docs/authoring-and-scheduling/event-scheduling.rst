@@ -181,7 +181,8 @@ When this factory is overridden, the manager enters **ack mode**:
    the event, or ``await token.nack()`` to opt out.
 4. Once every subscriber in the fan-out set has resolved an event (by
    ``ack()``, ``nack()``, unsubscribing, timing out, or overflowing its
-   queue), the manager calls
+   queue) **and** every ``TriggerEvent`` the subscribers derived from it
+   has been persisted to the metadata database, the manager calls
    ``await producer.advance(broker_payload, outcome)`` — commit the offset,
    delete the SQS message, etc. The ``outcome`` is an
    :class:`~airflow.triggers.shared_stream.AdvanceOutcome` carrying
@@ -298,12 +299,14 @@ the other partitions:
             if self.consumer is not None:
                 await self.consumer.stop()
 
-.. warning::
-   Always call ``await token.ack()`` or ``await token.nack()`` **before**
-   ``yield``-ing the ``TriggerEvent``. If you yield first and the caller
-   abandons the generator (the common single-event case), the token is
-   never resolved and the producer will not advance until the per-event
-   timeout expires.
+The order of ``ack()`` relative to ``yield`` does not affect correctness:
+an ack completes only after the subscriber has moved past the event and
+the trigger events it derived from it were persisted, so nothing depends
+on code running after the ``yield``. The one constraint on filter authors
+is the binding between raw events and the trigger events derived from
+them: yield every ``TriggerEvent`` derived from a raw event before pulling
+the next raw event from the shared stream — which is what a
+straightforward filter loop does anyway.
 
 **Snapshot-at-fan-out**: the set of subscribers that must ack a given event
 is frozen at the moment the event is broadcast. A subscriber that joins
@@ -312,8 +315,10 @@ after the event was dispatched is not added to that event's pending set.
 **Per-event ack timeout**: if a subscriber has not called ``ack()`` or
 ``nack()`` within the ack timeout (default 5 minutes, configurable via the
 ``[triggerer] shared_stream_ack_timeout`` config option), the manager force-fails that
-subscriber's trigger. Other subscribers are not affected; once their acks
-arrive, the producer advances normally. The ack timeout is a manager-level
+subscriber's trigger. The same timeout covers an ack that is waiting on a
+persistence confirmation that never arrives. Other subscribers are not
+affected; once their acks arrive, the producer advances normally. The ack
+timeout is a manager-level
 safety net and does not replace any native broker session or visibility timeout.
 From the subscriber's perspective the force-fail surfaces as an ``AckTimeout``
 (importable from ``airflow.triggers.shared_stream``) raised by the
@@ -324,6 +329,19 @@ only if the subscriber needs to run cleanup before failing.
 **Triggerer restart**: outstanding acks live in memory only. After a
 triggerer restart, the broker redelivers messages that were not yet
 acknowledged. Subscribers must therefore be idempotent.
+
+**Durability**: the broker advance is gated on persistence. A subscriber's
+``ack()`` completes only after every ``TriggerEvent`` it derived from the
+event has been stored in the metadata database; the confirmation reaches
+the trigger runner on the next state sync, typically within a second or
+two. If the confirmation never arrives — the triggerer crashed, or the
+event could not be persisted — the ack timeout fails the event, the
+producer does not commit, and the broker redelivers. A failure can
+therefore cause duplicate delivery but never a lost event; idempotent
+subscribers absorb the duplicates. The same trade-off applies when a
+group stops while events are still awaiting confirmation (for example,
+the last subscriber unsubscribes right after producing an event): the
+pending advances are abandoned and the broker redelivers those events.
 
 **nack() semantics**: ``nack()`` removes the subscriber from the pending
 ack set and is counted in the ``nacked`` field of the event's

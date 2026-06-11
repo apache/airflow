@@ -45,6 +45,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from pydantic import TypeAdapter
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
@@ -709,6 +710,12 @@ class TestTriggerRunner:
 
         assert trigger_runner.blocked_main_thread_warning_threshold == 0.5
 
+    @conf_vars({("triggerer", "shared_stream_ack_timeout"): "60.0"})
+    def test_shared_stream_ack_timeout_config_wiring(self) -> None:
+        """[triggerer] shared_stream_ack_timeout is wired into SharedStreamManager.ack_timeout."""
+        trigger_runner = TriggerRunner()
+        assert trigger_runner._shared_streams._ack_timeout == 60.0
+
     @pytest.mark.asyncio
     async def test_block_watchdog_does_not_log_when_threshold_is_not_exceeded(self) -> None:
         with conf_vars({("triggerer", "blocked_main_thread_warning_threshold"): "0.5"}):
@@ -901,14 +908,14 @@ class TestTriggerRunner:
 
         events = list(trigger_runner.events)
         assert len(events) == 1
-        trigger_id, event = events[0]
+        trigger_id, event, _seq = events[0]
         assert trigger_id == 1
         assert event.payload == {"region": "us"}
         # Group is torn down on unsubscribe.
         assert trigger_runner._shared_streams._groups == {}
 
     def test_shared_stream_ack_mode_integration(self, session) -> None:
-        """A BaseEventTrigger whose producer factory is overridden advances after all acks."""
+        """A BaseEventTrigger whose producer factory is overridden advances only after the acked event's persistence is confirmed."""
         from airflow.triggers.base import BaseEventTrigger, TriggerEvent
         from airflow.triggers.shared_stream import SharedStreamProducer
 
@@ -970,15 +977,24 @@ class TestTriggerRunner:
             state["trigger_runner"] = trigger_runner
 
             run_task = asyncio.create_task(trigger_runner.run_trigger(1, trigger))
-            # Wait until advance has fired — unambiguous signal that ack round-trip completed.
-            await asyncio.wait_for(advance_called.wait(), timeout=2.0)
-            # Advance is dispatched from the pump task, so it can run while run_trigger is
-            # still suspended between yielding the event and appending it to the outbound
-            # queue. Wait for the event to land before cancelling, like the non-ack test above.
+            # Wait until the event lands on the outbound queue with its
+            # persist-confirmation seq.
             for _ in range(100):
                 if trigger_runner.events:
                     break
                 await asyncio.sleep(0.01)
+            assert trigger_runner.events, "the trigger event must reach the outbound queue"
+            _trigger_id, _event, seq = trigger_runner.events[0]
+            assert seq is not None, "a shared ack trigger's event must carry a seq"
+
+            # The subscriber acked, but the advance is gated on persistence:
+            # nothing may advance before the confirmation arrives.
+            assert advanced == [], "advance must not run before the persist confirmation"
+
+            # Simulate the supervisor confirming the persist on the next sync.
+            trigger_runner._shared_streams.confirm_persisted([seq])
+            await asyncio.wait_for(advance_called.wait(), timeout=2.0)
+
             run_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await run_task
@@ -988,12 +1004,14 @@ class TestTriggerRunner:
 
         events = list(trigger_runner.events)
         assert len(events) == 1
-        trigger_id, event = events[0]
+        trigger_id, event, _seq = events[0]
         assert trigger_id == 1
         assert event.payload == {"region": "us"}
 
         # The producer's advance must have been called with the broker_payload.
-        assert advanced == ["receipt-handle-1"], "producer.advance must be called after the subscriber acks"
+        assert advanced == ["receipt-handle-1"], (
+            "producer.advance must be called once the acked event's persistence is confirmed"
+        )
         # Group is torn down on unsubscribe.
         assert trigger_runner._shared_streams._groups == {}
 
@@ -1120,9 +1138,9 @@ class TestTriggerRunner:
     async def test_sync_state_to_supervisor(self, supervisor_builder):
         trigger_runner = TriggerRunner()
         trigger_runner.comms_decoder = AsyncMock(spec=TriggerCommsDecoder)
-        trigger_runner.events.append((1, TriggerEvent(payload={"status": "SUCCESS"})))
-        trigger_runner.events.append((2, TriggerEvent(payload={"status": "FAILED"})))
-        trigger_runner.events.append((3, TriggerEvent(payload={"status": "SUCCESS", "data": object()})))
+        trigger_runner.events.append((1, TriggerEvent(payload={"status": "SUCCESS"}), None))
+        trigger_runner.events.append((2, TriggerEvent(payload={"status": "FAILED"}), None))
+        trigger_runner.events.append((3, TriggerEvent(payload={"status": "SUCCESS", "data": object()}), None))
 
         async def asend_side_effect(msg):
             if msg.events and len(msg.events) == 3:
@@ -1215,7 +1233,7 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     # This calls Trigger.submit_event, which will unlink the trigger from the task instance
 
     # Simulate this call: supervisor1._service_subprocess()
-    supervisor1.events.append((trigger_orm.id, TriggerEvent(True)))
+    supervisor1.events.append((trigger_orm.id, TriggerEvent(True), None))
     supervisor1.handle_events()
     trigger_orm = session.get(Trigger, trigger_orm.id)
     # This is the "pre"-condition we need to assert to test the race condition
@@ -1285,7 +1303,7 @@ async def test_trigger_firing():
             await asyncio.sleep(0.1)
             finished = await runner.cleanup_finished_triggers()
             if runner.events:
-                assert list(runner.events) == [(1, TriggerEvent(True))]
+                assert list(runner.events) == [(1, TriggerEvent(True), None)]
                 assert finished == [1]
                 break
             await asyncio.sleep(0.1)
@@ -2388,3 +2406,116 @@ async def test_unknown_frame_id_doesnt_crash_reader(decoder_pair):
 
     assert decoder._reader_task is not None
     assert not decoder._reader_task.done(), "reader loop crashed unexpectedly"
+
+
+# ---------------------------------------------------------------------------
+# Shared-stream persist confirmations (runner <-> supervisor)
+# ---------------------------------------------------------------------------
+
+
+def test_trigger_state_messages_round_trip_with_seqs():
+    """Event triples and persist confirmations survive the wire encode/decode."""
+    changes_adapter = TypeAdapter(ToTriggerSupervisor)
+    changes = messages.TriggerStateChanges(
+        events=[(1, TriggerEvent(True), 3), (2, TriggerEvent("x"), None)],
+        failures=None,
+        finished=None,
+    )
+    decoded = changes_adapter.validate_json(changes_adapter.dump_json(changes))
+    assert isinstance(decoded, messages.TriggerStateChanges)
+    assert decoded.events == [(1, TriggerEvent(True), 3), (2, TriggerEvent("x"), None)]
+
+    sync_adapter = TypeAdapter(ToTriggerRunner)
+    sync = messages.TriggerStateSync(to_create=[], to_cancel={5}, events_persisted=[3, 9])
+    decoded_sync = sync_adapter.validate_json(sync_adapter.dump_json(sync))
+    assert isinstance(decoded_sync, messages.TriggerStateSync)
+    assert decoded_sync.events_persisted == [3, 9]
+    assert decoded_sync.to_cancel == {5}
+
+
+def test_handle_events_records_persist_confirmations(jobless_supervisor):
+    """handle_events confirms the seq of a persisted event; events without a seq are not confirmed."""
+    event_with_seq = TriggerEvent(True)
+    event_without_seq = TriggerEvent("x")
+    jobless_supervisor.events.append((1, event_with_seq, 7))
+    jobless_supervisor.events.append((2, event_without_seq, None))
+
+    with mock.patch.object(TriggerRunnerSupervisor, "on_trigger_event", autospec=True) as mock_event:
+        jobless_supervisor.handle_events()
+
+    assert mock_event.mock_calls == [
+        mock.call(jobless_supervisor, trigger_id=1, event=event_with_seq),
+        mock.call(jobless_supervisor, trigger_id=2, event=event_without_seq),
+    ]
+    assert list(jobless_supervisor.persisted_event_seqs) == [7]
+    assert len(jobless_supervisor.events) == 0
+
+
+def test_handle_events_does_not_confirm_seq_when_persist_fails(jobless_supervisor):
+    """A seq whose event failed to persist is never confirmed, so the broker advance fails out."""
+    jobless_supervisor.events.append((1, TriggerEvent(True), 7))
+
+    with mock.patch.object(
+        TriggerRunnerSupervisor,
+        "on_trigger_event",
+        autospec=True,
+        side_effect=RuntimeError("db down"),
+    ):
+        with pytest.raises(RuntimeError, match="db down"):
+            jobless_supervisor.handle_events()
+
+    assert list(jobless_supervisor.persisted_event_seqs) == []
+
+
+def test_state_sync_carries_and_drains_persist_confirmations(jobless_supervisor):
+    """The state-sync response carries pending confirmations once, then None when there are none."""
+    jobless_supervisor.persisted_event_seqs.extend([3, 9])
+
+    with mock.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True) as mock_send:
+        jobless_supervisor._handle_request(
+            messages.TriggerStateChanges(events=None, failures=None, finished=None),
+            log=MagicMock(spec=FilteringBoundLogger),
+            req_id=1,
+        )
+
+    assert len(mock_send.mock_calls) == 1
+    response = mock_send.call_args.args[1]
+    assert isinstance(response, messages.TriggerStateSync)
+    assert response.events_persisted == [3, 9]
+    assert len(jobless_supervisor.persisted_event_seqs) == 0
+
+    # The next sync has nothing pending and carries None.
+    with mock.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True) as mock_send:
+        jobless_supervisor._handle_request(
+            messages.TriggerStateChanges(events=None, failures=None, finished=None),
+            log=MagicMock(spec=FilteringBoundLogger),
+            req_id=2,
+        )
+
+    response = mock_send.call_args.args[1]
+    assert isinstance(response, messages.TriggerStateSync)
+    assert response.events_persisted is None
+
+
+def test_run_trigger_appends_none_seq_for_non_shared_trigger():
+    """An event from a trigger outside any shared stream carries no persist-confirmation seq."""
+    trigger_runner = TriggerRunner()
+    trigger_runner.triggers = {
+        1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "t", "events": 0}
+    }
+    trigger = SuccessTrigger()
+    trigger.task_instance = MagicMock()
+    trigger.task_instance.map_index = -1
+
+    async def _drive():
+        # greenback.ensure_portal() inside run_trigger needs a real asyncio
+        # task, like the shared-stream tests above.
+        await asyncio.create_task(trigger_runner.run_trigger(1, trigger))
+
+    asyncio.run(_drive())
+
+    events = list(trigger_runner.events)
+    assert len(events) == 1
+    trigger_id, _event, seq = events[0]
+    assert trigger_id == 1
+    assert seq is None
