@@ -22,6 +22,7 @@ from importlib.metadata import PackageNotFoundError, metadata
 from unittest import mock
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -2006,3 +2007,44 @@ class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):
                 "method": "POST",
             },
         )
+
+
+def test_connection_body_port_validation():
+    with pytest.raises(ValidationError):
+        ConnectionBody(
+            connection_id="test_conn",
+            conn_type="http",
+            port=-1,
+        )
+
+    with pytest.raises(ValidationError):
+        ConnectionBody(
+            connection_id="test_conn",
+            conn_type="http",
+            port=0,
+        )
+
+    with pytest.raises(ValidationError):
+        ConnectionBody(
+            connection_id="test_conn",
+            conn_type="http",
+            port=65536,
+        )
+
+    ConnectionBody(
+        connection_id="test_conn",
+        conn_type="http",
+        port=1,
+    )
+
+    ConnectionBody(
+        connection_id="test_conn",
+        conn_type="http",
+        port=65535,
+    )
+
+    ConnectionBody(
+    connection_id="test_conn",
+    conn_type="http",
+    port=None,
+)
