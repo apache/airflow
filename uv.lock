@@ -5787,6 +5787,7 @@ dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "asgiref" },
+    { name = "pydantic" },
     { name = "requests" },
     { name = "requests-toolbelt" },
 ]
@@ -5809,6 +5810,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "asgiref", marker = "python_full_version < '3.14'", specifier = ">=2.3.0" },
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
+    { name = "pydantic", specifier = ">=2.11.0" },
     { name = "requests", specifier = ">=2.32.0,<3" },
     { name = "requests-toolbelt", specifier = ">=1.0.0" },
 ]
