@@ -55,7 +55,7 @@ describe("VariableForm", () => {
 
     fireEvent.change(screen.getByLabelText(/value/i), { target: { value: '{"enabled": true,' } });
 
-    await waitFor(() => expect(screen.getByText("Invalid JSON")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("variables.form.invalidJson")).toBeInTheDocument());
     expect(screen.getByRole("button", { name: /save/i })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
@@ -73,7 +73,7 @@ describe("VariableForm", () => {
 
     fireEvent.change(screen.getByLabelText(/value/i), { target: { value: "[DRAFT] plain string value" } });
 
-    await waitFor(() => expect(screen.getByText("Invalid JSON")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("variables.form.invalidJson")).toBeInTheDocument());
     expect(screen.getByRole("button", { name: /save/i })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
@@ -82,6 +82,24 @@ describe("VariableForm", () => {
       expect(manageMutate).toHaveBeenCalledWith({
         ...initialVariable,
         value: "[DRAFT] plain string value",
+      }),
+    );
+  });
+
+  it("allows saving Jinja template values", async () => {
+    const manageMutate = renderVariableForm();
+
+    fireEvent.change(screen.getByLabelText(/value/i), { target: { value: "{{ var.value.x }}" } });
+
+    await waitFor(() => expect(screen.getByText("variables.form.invalidJson")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /save/i })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+    await waitFor(() =>
+      expect(manageMutate).toHaveBeenCalledWith({
+        ...initialVariable,
+        value: "{{ var.value.x }}",
       }),
     );
   });

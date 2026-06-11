@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Field, HStack, Input, Spacer, Text, Textarea } from "@chakra-ui/react";
+import { Box, Button, Field, HStack, Input, Spacer, Textarea } from "@chakra-ui/react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { TeamSelector } from "src/components/TeamSelector.tsx";
+import { Alert } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig.tsx";
 
 export type VariableBody = {
@@ -104,18 +105,11 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
               <Field.Label fontSize="md">
                 {translate("columns.value")} <Field.RequiredIndicator />
               </Field.Label>
-              <Textarea
-                {...field}
-                borderColor={showJsonWarning ? "fg.warning" : undefined}
-                borderWidth={showJsonWarning ? "2px" : undefined}
-                size="sm"
-              />
+              <Textarea {...field} size="sm" />
               {showJsonWarning ? (
-                <Box bg="bg.warning" borderColor="fg.warning" borderRadius="md" borderWidth="1px" mt={2} px={3} py={2}>
-                  <Text color="fg.warning" fontSize="sm" fontWeight="medium">
-                    {translate("variables.form.invalidJson")}
-                  </Text>
-                </Box>
+                <Alert mt={2} status="warning">
+                  {translate("variables.form.invalidJson")}
+                </Alert>
               ) : undefined}
               {fieldState.error ? <Field.ErrorText>{fieldState.error.message}</Field.ErrorText> : undefined}
             </Field.Root>
