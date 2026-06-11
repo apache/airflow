@@ -126,8 +126,13 @@ const VariableForm = ({
         control={control}
         name="value"
         render={({ field, fieldState }) => {
-          return (
-            <Field.Root invalid={Boolean(fieldState.error)} mt={4} required>
+          const jsonValidation =
+  field.value?.startsWith("{") || field.value?.startsWith("[")
+    ? validateJson(field.value)
+    : { isValid: true };
+
+  return (
+    <Field.Root invalid={Boolean(fieldState.error)} mt={4} required>
               <Field.Label fontSize="md">
                 {translate("columns.value")} <Field.RequiredIndicator />
               </Field.Label>
@@ -136,6 +141,14 @@ const VariableForm = ({
                 size="sm"
                 value={field.value ?? ""}
               />
+              {!jsonValidation.isValid ? (
+                <Field.ErrorText>
+                  <FiAlertCircle />
+                  {translate("variables.form.invalidJson")}
+                  {" "}
+                  {jsonValidation.errorMessage}
+                </Field.ErrorText>
+              ) : undefined}
               {fieldState.error ? (
                 <Field.ErrorText>
                   <FiAlertCircle />
@@ -145,26 +158,9 @@ const VariableForm = ({
             </Field.Root>
           );
         }}
-        rules={{
-          required: translate("variables.form.valueRequired"),
-          validate: (value) => {
-            const looksLikeJson =
-              value.startsWith("{") || value.startsWith("[");
-
-            if (looksLikeJson) {
-              const { errorMessage, isValid: isValidJson } = validateJson(value);
-
-              if (!isValidJson) {
-                // Surface the exact SyntaxError location to help users fix it
-                return errorMessage
-                  ? `${translate("variables.form.invalidJson")}: ${errorMessage}`
-                  : translate("variables.form.invalidJson");
-              }
-            }
-
-            return true;
-          },
-        }}
+rules={{
+  required: translate("variables.form.valueRequired"),
+}}
       />
 
       {/* Description Field */}
