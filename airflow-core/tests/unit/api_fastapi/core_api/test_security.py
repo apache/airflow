@@ -23,6 +23,7 @@ import pytest
 from fastapi import HTTPException
 from jwt import ExpiredSignatureError, InvalidTokenError
 
+from airflow import settings
 from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -38,6 +39,7 @@ from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.api_fastapi.core_api.security import (
+    _build_dag_run_access_requests,
     get_user,
     is_safe_url,
     requires_access_backfill,
@@ -53,9 +55,48 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.models import Connection, Pool, Variable
 from airflow.models.dag import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags
+
+
+@pytest.mark.db_test
+def test_build_dag_run_access_requests_batches_team_lookup():
+    """The bulk dag-run team resolution must be a single query regardless of Dag count (no N+1)."""
+    entity_methods = [(f"dag_{i}", "GET") for i in range(25)]
+    with assert_queries_count(1):
+        requests = _build_dag_run_access_requests(entity_methods)
+    assert len(requests) == 25
+
+
+@pytest.mark.db_test
+def test_build_dag_run_access_requests_empty_skips_query():
+    with assert_queries_count(0):
+        assert _build_dag_run_access_requests([]) == []
+
+
+@pytest.mark.db_test
+def test_build_dag_run_access_requests_includes_team_name(testing_team):
+    """A team-owned Dag must surface its team name in the generated access request."""
+    session = settings.Session()
+    bundle = DagBundleModel(name="team-owned-bundle")
+    bundle.teams.append(testing_team)
+    session.add(bundle)
+    session.flush()
+    session.add(DagModel(dag_id="team_owned_dag", bundle_name="team-owned-bundle", is_stale=False))
+    session.flush()
+    try:
+        requests = _build_dag_run_access_requests([("team_owned_dag", "GET")])
+    finally:
+        clear_db_dags()
+        clear_db_dag_bundles()
+
+    assert len(requests) == 1
+    assert requests[0]["details"].id == "team_owned_dag"
+    assert requests[0]["details"].team_name == "testing"
 
 
 @pytest.mark.asyncio

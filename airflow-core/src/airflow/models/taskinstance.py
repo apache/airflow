@@ -386,7 +386,7 @@ def clear_task_instances(
             task_id = ti.task_id
             if ti_dag and ti_dag.has_task(task_id):
                 task = ti_dag.get_task(task_id)
-                ti.refresh_from_task(task)
+                ti.refresh_from_task(task, dag_run=dr)
                 if TYPE_CHECKING:
                     assert ti.task
                 ti.max_tries = ti.try_number + task.retries
@@ -732,7 +732,9 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     @property
     def stats_tags(self) -> dict[str, str]:
         """Returns task instance tags."""
-        return prune_dict({"dag_id": self.dag_id, "task_id": self.task_id})
+        return prune_dict(
+            {"dag_id": self.dag_id, "task_id": self.task_id, "team_name": getattr(self, "_team_name", None)}
+        )
 
     @staticmethod
     def insert_mapping(
@@ -930,12 +932,16 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         else:
             self.state = None
 
-    def refresh_from_task(self, task: Operator, pool_override: str | None = None) -> None:
+    def refresh_from_task(
+        self, task: Operator, pool_override: str | None = None, *, dag_run: DagRun | None = None
+    ) -> None:
         """
         Copy common attributes from the given task.
 
         :param task: The task object to copy from
         :param pool_override: Use the pool_override instead of task's pool
+        :param dag_run: the DagRun this task instance belongs to, forwarded to the mutation hook so a
+            cluster policy can route on ``dag_run.conf``; ``None`` when no run is available yet
         """
         self.task = task
         self.queue = task.queue
@@ -954,7 +960,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         op_name = getattr(task, "operator_name", None)
         self.custom_operator_name = op_name if isinstance(op_name, str) else ""
         # Re-apply cluster policy here so that task default do not overload previous data
-        task_instance_mutation_hook(self)
+        task_instance_mutation_hook(self, dag_run=dag_run)
 
     @property
     def key(self) -> TaskInstanceKey:
@@ -2415,7 +2421,19 @@ def _get_relevant_map_indexes(
     # and "ti_count == ancestor_ti_count" does not work, since the further
     # expansion may be of length 1.
     if not _is_further_mapped_inside(relative, common_ancestor):
-        return ancestor_map_index
+        # During mapped task group expansion, upstream placeholder task instances
+        # (map_index = -1) may already have been replaced by their first expanded
+        # successor (map_index = 0) while downstream task instances are still
+        # unexpanded and continue resolving dependencies against the placeholder index.
+        resolved_map_index = (
+            0
+            if _should_use_post_expansion_placeholder(
+                task=task, relative=relative, map_index=ancestor_map_index, run_id=run_id, session=session
+            )
+            else ancestor_map_index
+        )
+
+        return resolved_map_index
 
     # Otherwise we need a partial aggregation for values from selected task
     # instances in the ancestor's expansion context.
@@ -2487,6 +2505,48 @@ def find_relevant_relatives(
     _visit_relevant_relatives_for_normal(normal_tasks)
     _visit_relevant_relatives_for_mapped(mapped_tasks)
     return visited
+
+
+def _should_use_post_expansion_placeholder(
+    *,
+    task: Operator,
+    relative: Operator,
+    map_index: int,
+    run_id: str,
+    session: Session,
+) -> bool:
+    """
+    Determine whether upstream dependency resolution should use map_index = 0.
+
+    Returns True when the upstream placeholder task instance
+    (map_index = -1) has already been replaced by its post-expansion
+    successor (map_index = 0).
+    """
+    if map_index != -1:
+        return False
+
+    rows = session.execute(
+        select(TaskInstance.task_id, TaskInstance.map_index).where(
+            TaskInstance.dag_id == relative.dag_id,
+            TaskInstance.run_id == run_id,
+            TaskInstance.task_id.in_([task.task_id, relative.task_id]),
+            TaskInstance.map_index.in_([-1, 0]),
+        )
+    ).all()
+
+    task_to_map_indexes: dict[str, set[int]] = defaultdict(set)
+    for task_id, mi in rows:
+        task_to_map_indexes[task_id].add(mi)
+
+    # We only rewrite when:
+    # 1) the current task is still using the placeholder (-1)
+    # 2) the upstream placeholder (-1) no longer exists
+    # 3) the post-expansion placeholder (0) does exist
+    return (
+        -1 in task_to_map_indexes[task.task_id]
+        and -1 not in task_to_map_indexes[relative.task_id]
+        and 0 in task_to_map_indexes[relative.task_id]
+    )
 
 
 class TaskInstanceNote(Base):

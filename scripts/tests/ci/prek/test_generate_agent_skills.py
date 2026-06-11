@@ -14,10 +14,34 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Workload schemas for Task SDK execution-time communication."""
-
 from __future__ import annotations
 
-from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
+from ci.prek.generate_agent_skills import (
+    collect_blocks,
+    render_lines,
+)
 
-__all__ = ["TaskInstanceDTO"]
+
+def test_collect_blocks_finds_all_markers():
+    blocks = collect_blocks()
+
+    assert len(blocks) >= 3
+
+
+def test_collect_blocks_sorted_by_order():
+    blocks = collect_blocks()
+
+    orders = [b.order for b in blocks]
+    assert orders == sorted(orders)
+
+
+def test_render_lines_produces_bullet_list():
+    blocks = collect_blocks()
+    lines = render_lines(blocks)
+
+    assert len(lines) > 0
+    assert all(line.startswith("- **") for line in lines)
+    assert any("uv run --project <PROJECT> pytest" in line for line in lines)
+    assert any("breeze testing helm-tests" in line for line in lines)
+    assert any("prek run mypy-<project>" in line for line in lines)
+    assert any("breeze selective-checks" in line for line in lines)
