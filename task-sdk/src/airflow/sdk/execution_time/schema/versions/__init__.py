@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Supervisor wire-schema version bundle. See the AGENTS.md in the parent package for how to evolve it."""
 
 from __future__ import annotations
 
@@ -21,8 +22,5 @@ from cadwyn import HeadVersion, Version, VersionBundle
 
 bundle = VersionBundle(
     HeadVersion(),
-    # The initial, not-yet-released version of the contract. Shape changes to
-    # registered models land directly in the head snapshot until this ships;
-    # no VersionChange entries are possible against the bundle floor.
     Version("2026-06-16"),
 )
