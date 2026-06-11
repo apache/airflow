@@ -16,7 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.common.sql.dialects.dialect import Dialect
+from collections.abc import Callable
+
+from methodtools import lru_cache
+
+from airflow.providers.common.sql.dialects.dialect import Dialect, T
 
 
 class Db2Dialect(Dialect):
@@ -25,6 +29,93 @@ class Db2Dialect(Dialect):
 
     Provides Db2-specific SQL generation, particularly for MERGE (upsert) operations.
     """
+
+    @property
+    def name(self) -> str:
+        return "db2"
+
+    @lru_cache(maxsize=256)
+    def get_primary_keys(self, table: str, schema: str | None = None) -> list[str] | None:
+        """
+        Get the table's primary key columns using DB2 system catalog.
+
+        :param table: Name of the target table
+        :param schema: Name of the target schema (optional)
+        :return: Primary key columns list
+        """
+        if schema is None:
+            table, schema = self.extract_schema_from_table(table)
+        table = self.unescape_word(table) or table
+        schema = self.unescape_word(schema) if schema else None
+
+        # Query DB2 system catalog for primary key columns
+        query = """
+            SELECT COLNAME
+            FROM SYSCAT.KEYCOLUSE
+            WHERE TABSCHEMA = ? AND TABNAME = ? AND CONSTNAME IN (
+                SELECT CONSTNAME
+                FROM SYSCAT.TABCONST
+                WHERE TABSCHEMA = ? AND TABNAME = ? AND TYPE = 'P'
+            )
+            ORDER BY COLSEQ
+        """
+        pk_columns = [row[0] for row in self.get_records(query, (schema, table, schema, table))]
+        return pk_columns or None
+
+    @staticmethod
+    def _to_row(row):
+        """Convert DB2 system catalog row to column metadata dictionary."""
+        return {
+            "name": row[0],
+            "type": row[1],
+            "nullable": row[2] == "Y",
+            "default": row[3],
+            "identity": row[4] == "Y",
+        }
+
+    @lru_cache(maxsize=256)
+    def get_column_names(
+        self,
+        table: str,
+        schema: str | None = None,
+        predicate: Callable[[T], bool] | None = None,
+    ) -> list[str] | None:
+        """
+        Get column names for a table using DB2 system catalog.
+
+        By default, excludes identity columns (GENERATED ALWAYS AS IDENTITY)
+        as they should not be specified in INSERT statements.
+
+        :param table: Name of the target table
+        :param schema: Name of the target schema (optional)
+        :param predicate: Optional filter function for columns (defaults to excluding identity columns)
+        :return: List of column names
+        """
+        # Default predicate excludes identity columns
+        if predicate is None:
+            predicate = lambda col: not col["identity"]
+        if schema is None:
+            table, schema = self.extract_schema_from_table(table)
+        table = self.unescape_word(table) or table
+        schema = self.unescape_word(schema) if schema else None
+
+        # Query DB2 system catalog for column information
+        query = """
+            SELECT COLNAME, TYPENAME, NULLS, DEFAULT, IDENTITY
+            FROM SYSCAT.COLUMNS
+            WHERE TABSCHEMA = ? AND TABNAME = ?
+            ORDER BY COLNO
+        """
+        column_names = []
+        for row in map(
+            self._to_row,
+            self.get_records(query, (schema, table)),
+        ):
+            if predicate(row):
+                column_names.append(row["name"])
+
+        self.log.debug("Column names for table '%s': %s", table, column_names)
+        return column_names
 
     def generate_replace_sql(self, table, values, target_fields, **kwargs) -> str:
         """
