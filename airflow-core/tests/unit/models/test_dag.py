@@ -41,7 +41,7 @@ from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag
-from airflow.exceptions import AirflowException, DagNotPartitionedError
+from airflow.exceptions import AirflowException, DagNotPartitionedError, InvalidPartitionKeyError
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -1601,6 +1601,38 @@ class TestDag:
                 sdag.validate_partition_key(partition_key)
         else:
             sdag.validate_partition_key(partition_key)  # must not raise
+
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.parametrize(
+        ("partition_key", "exc_type", "match"),
+        [
+            ("", InvalidPartitionKeyError, "empty or whitespace-only"),
+            ("   ", InvalidPartitionKeyError, "empty or whitespace-only"),
+            ("a" * 251, InvalidPartitionKeyError, "at most 250 characters"),
+        ],
+        ids=["empty", "whitespace", "over_limit"],
+    )
+    def test_validate_partition_key_rejects_invalid_content(self, partition_key, exc_type, match, dag_maker):
+        """validate_partition_key raises InvalidPartitionKeyError for empty or over-length keys."""
+        with dag_maker(
+            "test_validate_partition_key_content",
+            schedule=CronPartitionTimetable("@daily", timezone="UTC"),
+        ):
+            ...
+        sdag = dag_maker.serialized_dag
+        with pytest.raises(exc_type, match=match):
+            sdag.validate_partition_key(partition_key)
+
+    @pytest.mark.need_serialized_dag
+    def test_validate_partition_key_accepts_exactly_max_length(self, dag_maker):
+        """validate_partition_key accepts a key of exactly 250 characters."""
+        with dag_maker(
+            "test_validate_partition_key_at_limit",
+            schedule=CronPartitionTimetable("@daily", timezone="UTC"),
+        ):
+            ...
+        sdag = dag_maker.serialized_dag
+        sdag.validate_partition_key("a" * 250)  # must not raise
 
     def test_dag_add_task_sets_default_task_group(self):
         dag = DAG(dag_id="test_dag_add_task_sets_default_task_group", schedule=None, start_date=DEFAULT_DATE)

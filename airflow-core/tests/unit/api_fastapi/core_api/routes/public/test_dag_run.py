@@ -2793,6 +2793,59 @@ class TestTriggerDagRun:
         )
         assert response.status_code == 200
 
+    def test_should_respond_400_when_empty_partition_key(self, test_client):
+        """An empty partition_key must return 400, not 500."""
+        now = timezone.utcnow().isoformat()
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={"logical_date": now, "partition_key": ""},
+        )
+        assert response.status_code == 400
+        assert "empty or whitespace-only" in response.json()["detail"]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_400_when_over_length_partition_key(self, dag_maker, test_client, session):
+        """A partition_key exceeding 250 characters must return 400, not 500."""
+        partitioned_dag_id = "test_over_length_partition_key"
+        with dag_maker(
+            dag_id=partitioned_dag_id,
+            schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{partitioned_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "a" * 251},
+        )
+        assert response.status_code == 400
+        assert "at most 250 characters" in response.json()["detail"]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_200_when_exactly_max_length_partition_key(self, dag_maker, test_client, session):
+        """A partition_key of exactly 250 characters must be accepted."""
+        partitioned_dag_id = "test_max_length_partition_key"
+        with dag_maker(
+            dag_id=partitioned_dag_id,
+            schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{partitioned_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "a" * 250},
+        )
+        assert response.status_code == 200
+
 
 class TestResolveRunOnLatestVersion:
     @pytest.mark.parametrize("explicit_value", [True, False])
