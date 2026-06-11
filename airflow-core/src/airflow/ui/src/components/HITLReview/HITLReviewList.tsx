@@ -29,7 +29,7 @@ import { useTimezone } from "src/context/timezone";
 dayjs.extend(utc);
 dayjs.extend(tz);
 
-const getHitlReviewListDateFormat = (datetime: string, showSeconds: boolean, timezone: string) => {
+const getHitlReviewListDateFormat = (datetime: string, timezone: string, showSeconds: boolean = false) => {
   if (dayjs(datetime).tz(timezone).isSame(dayjs().tz(timezone), "day")) {
     return `HH:mm${showSeconds ? ":ss" : ""}`;
   }
@@ -125,7 +125,7 @@ export const HITLReviewList = ({
                     <Text fontSize="xs">
                       <Time
                         datetime={ti.run_after}
-                        format={getHitlReviewListDateFormat(ti.run_after, true, selectedTimezone)}
+                        format={getHitlReviewListDateFormat(ti.run_after, selectedTimezone, true)}
                       />
                     </Text>
                   </Table.Cell>
@@ -143,7 +143,7 @@ export const HITLReviewList = ({
                     <Text fontSize="xs">
                       <Time
                         datetime={detail.created_at}
-                        format={getHitlReviewListDateFormat(detail.created_at, false, selectedTimezone)}
+                        format={getHitlReviewListDateFormat(detail.created_at, selectedTimezone)}
                       />
                     </Text>
                   </Table.Cell>
