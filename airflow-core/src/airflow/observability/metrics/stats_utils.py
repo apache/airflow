@@ -33,7 +33,7 @@ def get_stats_factory() -> Callable:
 
         return statsd_logger.get_statsd_logger
     if conf.getboolean("metrics", "otel_on"):
-        from airflow._shared.observability.metrics import configure_otel
+        from airflow._shared.observability.metrics.otel_logger import configure_otel
 
         return lambda: configure_otel(conf)
     return NoStatsLogger

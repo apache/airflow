@@ -28,14 +28,15 @@ import pytest
 from opentelemetry.metrics import MeterProvider
 from opentelemetry.sdk.metrics.view import ExponentialBucketHistogramAggregation, View
 
-from airflow_shared.observability.metrics import _get_backcompat_config, configure_otel
 from airflow_shared.observability.metrics.otel_logger import (
     OTEL_NAME_MAX_LENGTH,
     UP_DOWN_COUNTERS,
     MetricsMap,
     SafeOtelLogger,
     _generate_key_name,
+    _get_backcompat_config,
     _is_up_down_counter,
+    configure_otel,
     full_name,
 )
 from airflow_shared.observability.metrics.validators import (
@@ -446,8 +447,8 @@ class TestOtelMetrics:
             endpoint, _, _ = _get_backcompat_config(conf)
             assert endpoint == expected_endpoint
 
-    @mock.patch("airflow_shared.observability.metrics.metrics")
-    @mock.patch("airflow_shared.observability.metrics.MeterProvider")
+    @mock.patch("airflow_shared.observability.metrics.otel_logger.metrics")
+    @mock.patch("airflow_shared.observability.metrics.otel_logger.MeterProvider")
     def test_configure_otel_uses_exponential_histogram_view(self, mock_provider, mock_metrics):
         conf = ConfigParser()
         conf["metrics"] = {"otel_on": "true", "otel_host": "localhost", "otel_port": "4318"}
@@ -469,7 +470,7 @@ class TestOtelMetrics:
         """
         function_call_str = (
             "from configparser import ConfigParser; "
-            "from airflow_shared.observability.metrics import configure_otel; "
+            "from airflow_shared.observability.metrics.otel_logger import configure_otel; "
             "c = ConfigParser(); "
             "c['metrics'] = {"
             "'otel_on': 'true', 'otel_debugging_on': 'true', "
