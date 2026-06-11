@@ -124,6 +124,7 @@ class DagRunProtocol(Protocol):
     consumed_asset_events: list[AssetEventDagRunReference]
     partition_key: str | None
     note: str | None
+    team_name: str | None
 
 
 class RuntimeTaskInstanceProtocol(Protocol):
