@@ -140,6 +140,7 @@ class RuntimeTaskInstanceProtocol(Protocol):
     max_tries: int
     hostname: str | None = None
     start_date: AwareDatetime
+    queued_dttm: AwareDatetime | None = None
     end_date: AwareDatetime | None = None
     state: TaskInstanceState | None = None
     is_mapped: bool | None = None

@@ -240,6 +240,9 @@ class RuntimeTaskInstance(TaskInstance):
     start_date: AwareDatetime
     """Start date of the task instance."""
 
+    queued_dttm: AwareDatetime | None = None
+    """When the task was queued. Used to measure queue wait time."""
+
     end_date: AwareDatetime | None = None
 
     state: TaskInstanceState | None = None
@@ -969,6 +972,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         _ti_context_from_server=what.ti_context,
         max_tries=what.ti_context.max_tries,
         start_date=what.start_date,
+        queued_dttm=what.ti_context.queued_dttm,
         state=TaskInstanceState.RUNNING,
         sentry_integration=what.sentry_integration,
     )

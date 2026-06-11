@@ -246,6 +246,60 @@ def test_parse(test_dags_dir: Path, make_ti_context):
     assert ti.task.dag
 
 
+@mock.patch("airflow.sdk.execution_time.task_runner.DagBundlesManager")
+@mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
+@pytest.mark.parametrize(
+    "queued_dttm",
+    [
+        pytest.param(timezone.datetime(2026, 1, 1, 0, 0), id="with_queued_dttm"),
+        pytest.param(None, id="without_queued_dttm"),
+    ],
+)
+def test_parse_propagates_queued_dttm(mock_dagbag, mock_bundle_manager, make_ti_context, queued_dttm):
+    """queued_dttm from TIRunContext must land on RuntimeTaskInstance."""
+    # Mock the bundle
+    mock_bundle = mock.Mock()
+    mock_bundle.path = Path("/tmp")
+    mock_bundle_manager.return_value.get_bundle.return_value = mock_bundle
+
+    # Mock the task to "assign" to the DAG
+    mock_task = mock.Mock(spec=BaseOperator)
+    mock_task.deserialization_allowed_class_fields = ()
+
+    # Mock the DAG
+    mock_dag = mock.Mock(spec=DAG)
+    mock_dag.task_dict = {"a": mock_task}
+    mock_dag.tasks = [mock_task]
+
+    # Mock the DagBag
+    mock_bag_instance = mock.Mock()
+    mock_bag_instance.dags = {"super_basic": mock_dag}
+    mock_dagbag.return_value = mock_bag_instance
+
+    what = StartupDetails(
+        ti=TaskInstanceDTO(
+            id=uuid7(),
+            task_id="a",
+            dag_id="super_basic",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
+        ),
+        dag_rel_path="super_basic.py",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(queued_dttm=queued_dttm),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+
+    ti = parse(what, mock.Mock())
+
+    assert ti.queued_dttm == queued_dttm
+
+
 @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
 def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
     """Test that checks that the BundleDagBag is constructed as expected during parsing"""
