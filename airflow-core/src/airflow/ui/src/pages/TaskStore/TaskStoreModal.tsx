@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Heading, Input, RadioCard, Text, VStack } from "@chakra-ui/react";
+import { Box, Button, Flex, Heading, Input, RadioCard, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import tz from "dayjs/plugin/timezone";
 import { useEffect, useMemo, useState } from "react";
@@ -166,35 +166,41 @@ export const TaskStoreModal = ({
                   onValueChange={(ev) => setExpiresAt(ev.value as "custom" | "default" | "never")}
                   value={expiresAt}
                 >
-                  <RadioCard.Item value="default">
-                    <RadioCard.ItemHiddenInput />
-                    <RadioCard.ItemControl>
-                      <RadioCard.ItemContent>
-                        <RadioCard.ItemText>
-                          {translate("dag:taskStore.expiresAt.default", { interval: "30 days" })}
-                        </RadioCard.ItemText>
-                      </RadioCard.ItemContent>
-                      <RadioCard.ItemIndicator />
-                    </RadioCard.ItemControl>
-                  </RadioCard.Item>
-                  <RadioCard.Item value="never">
-                    <RadioCard.ItemHiddenInput />
-                    <RadioCard.ItemControl>
-                      <RadioCard.ItemContent>
-                        <RadioCard.ItemText>{translate("dag:taskStore.expiresAt.never")}</RadioCard.ItemText>
-                      </RadioCard.ItemContent>
-                      <RadioCard.ItemIndicator />
-                    </RadioCard.ItemControl>
-                  </RadioCard.Item>
-                  <RadioCard.Item value="custom">
-                    <RadioCard.ItemHiddenInput />
-                    <RadioCard.ItemControl>
-                      <RadioCard.ItemContent>
-                        <RadioCard.ItemText>{translate("dag:taskStore.expiresAt.custom")}</RadioCard.ItemText>
-                      </RadioCard.ItemContent>
-                      <RadioCard.ItemIndicator />
-                    </RadioCard.ItemControl>
-                  </RadioCard.Item>
+                  <Flex gap={2}>
+                    <RadioCard.Item flex={1} value="default">
+                      <RadioCard.ItemHiddenInput />
+                      <RadioCard.ItemControl>
+                        <RadioCard.ItemContent>
+                          <RadioCard.ItemText>
+                            {translate("dag:taskStore.expiresAt.default", { interval: "30 days" })}
+                          </RadioCard.ItemText>
+                        </RadioCard.ItemContent>
+                        <RadioCard.ItemIndicator />
+                      </RadioCard.ItemControl>
+                    </RadioCard.Item>
+                    <RadioCard.Item flex={1} value="never">
+                      <RadioCard.ItemHiddenInput />
+                      <RadioCard.ItemControl>
+                        <RadioCard.ItemContent>
+                          <RadioCard.ItemText>
+                            {translate("dag:taskStore.expiresAt.never")}
+                          </RadioCard.ItemText>
+                        </RadioCard.ItemContent>
+                        <RadioCard.ItemIndicator />
+                      </RadioCard.ItemControl>
+                    </RadioCard.Item>
+                    <RadioCard.Item flex={1} value="custom">
+                      <RadioCard.ItemHiddenInput />
+                      <RadioCard.ItemControl>
+                        <RadioCard.ItemContent>
+                          <RadioCard.ItemText>
+                            {translate("dag:taskStore.expiresAt.custom")}
+                          </RadioCard.ItemText>
+                        </RadioCard.ItemContent>
+                        <RadioCard.ItemIndicator />
+                      </RadioCard.ItemControl>
+                    </RadioCard.Item>
+                  </Flex>
                 </RadioCard.Root>
                 {expiresAt === "custom" && (
                   <DateTimeInput
