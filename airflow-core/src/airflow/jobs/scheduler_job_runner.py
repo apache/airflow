@@ -113,8 +113,8 @@ from airflow.partition_mappers.base import is_rollup
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import ACTIVE_STATES, EXECUTION_STATES
-from airflow.timetables.base import compute_rollup_fingerprint
-from airflow.timetables.simple import AssetTriggeredTimetable, PartitionedAssetTimetable
+from airflow.timetables.base import Timetable, compute_rollup_fingerprint
+from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -335,6 +335,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._parallelism = conf.getint("core", "parallelism")
         self._multi_team = conf.getboolean("core", "multi_team")
         self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
+        self._dag_id_to_team_name: dict[str, str | None] = {}
 
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
         self.executor: BaseExecutor = self.executors[0]
@@ -385,9 +386,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self, dag_ids: Collection[str], session: Session
     ) -> dict[str, str | None]:
         """
-        Batch query to resolve team names for multiple DAG IDs using the DAG > Bundle > Team relationship chain.
+        Resolve team names for DAG IDs via the DAG > Bundle > Team relationship.
 
-        DAG IDs > DagModel (via dag_id) > DagBundleModel (via bundle_name) > Team
+        Results are cached for the current scheduler loop iteration. The cache is cleared
+        at the start of each loop so all injection points within one heartbeat share
+        a single query, but changes are picked up on the next iteration.
 
         :param dag_ids: Collection of DAG IDs to resolve team names for
         :param session: Database session for queries
@@ -396,36 +399,35 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if not dag_ids:
             return {}
 
-        try:
-            # Query all team names for the given DAG IDs in a single query
-            query_results = session.execute(
-                select(DagModel.dag_id, Team.name)
-                .join(DagBundleModel.teams)  # Join Team to DagBundleModel via association table
-                .join(
-                    DagModel, DagModel.bundle_name == DagBundleModel.name
-                )  # Join DagBundleModel to DagModel
-                .where(DagModel.dag_id.in_(dag_ids))
-            ).all()
+        missing = [dag_id for dag_id in dag_ids if dag_id not in self._dag_id_to_team_name]
+        if missing:
+            try:
+                # Query all team names for the given DAG IDs in a single query
+                query_results = session.execute(
+                    select(DagModel.dag_id, Team.name)
+                    .join(DagBundleModel.teams)  # Join Team to DagBundleModel via association table
+                    .join(
+                        DagModel, DagModel.bundle_name == DagBundleModel.name
+                    )  # Join DagBundleModel to DagModel
+                    .where(DagModel.dag_id.in_(missing))
+                ).all()
 
-            # Create mapping from results
-            dag_id_to_team_name = {dag_id: team_name for dag_id, team_name in query_results}
+                # Create mapping from results
+                queried = {dag_id: team_name for dag_id, team_name in query_results}
 
-            # Ensure all requested dag_ids are in the result (with None for those not found)
-            result = {dag_id: dag_id_to_team_name.get(dag_id) for dag_id in dag_ids}
+                # Cache all results, including None for dag_ids with no team
+                for dag_id in missing:
+                    self._dag_id_to_team_name[dag_id] = queried.get(dag_id)
+                    self.log.debug("Cached team names for %d new dag_ids", len(missing))
 
-            self.log.debug(
-                "Resolved team names for %d DAGs: %s",
-                len([team for team in result.values() if team is not None]),
-                {dag_id: team for dag_id, team in result.items()},
-            )
+            except Exception:
+                # Log the error, explicitly don't fail the scheduling loop
+                self.log.exception("Failed to resolve team names for DAG IDs: %s", missing)
+                # Return dict with all None values to ensure graceful degradation
+                return {}
 
-            return result
-
-        except Exception:
-            # Log the error, explicitly don't fail the scheduling loop
-            self.log.exception("Failed to resolve team names for DAG IDs: %s", list(dag_ids))
-            # Return dict with all None values to ensure graceful degradation
-            return {}
+        # Ensure all requested dag_ids are in the result (with None for those not found)
+        return {dag_id: self._dag_id_to_team_name.get(dag_id) for dag_id in dag_ids}
 
     def _get_workload_team_name(self, workload: SchedulerWorkload, session: Session) -> str | None:
         """
@@ -716,6 +718,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     len(unique_dag_ids),
                     list(unique_dag_ids),
                 )
+                for ti in task_instances_to_examine:
+                    # Set team as a transient attribute; team lives on the Bundle, not
+                    # on the TI/DagRun schema, so we resolve it at scheduling time.
+                    if team := dag_id_to_team_name.get(ti.dag_id):
+                        ti._team_name = team
 
             executor_slots_available: dict[ExecutorName, int] = {}
             # First get a mapping of executor names to slots they have available
@@ -925,12 +932,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 loop_count,
             )
 
+        starving_pool_team_mapping = (
+            Pool.get_name_to_team_name_mapping(list(pool_num_starving_tasks.keys()), session=session)
+            if self._multi_team and pool_num_starving_tasks
+            else {}
+        )
         for pool_name, num_starving_tasks in pool_num_starving_tasks.items():
-            stats.gauge(
-                "pool.starving_tasks",
-                num_starving_tasks,
-                tags={"pool_name": pool_name},
-            )
+            starving_tags: dict[str, str] = {"pool_name": normalize_pool_name_for_stats(pool_name)}
+            if team := starving_pool_team_mapping.get(pool_name):
+                starving_tags["team_name"] = team
+            stats.gauge("pool.starving_tasks", num_starving_tasks, tags=starving_tags)
 
         stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
         stats.gauge("scheduler.tasks.executable", len(executable_tis))
@@ -1604,6 +1615,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .group_by(DagRun)
                 )
             )
+            if self._multi_team and paused_runs:
+                paused_dag_ids = {dr.dag_id for dr in paused_runs}
+                paused_team_mapping = self._get_team_names_for_dag_ids(paused_dag_ids, session)
+                for dr in paused_runs:
+                    if team := paused_team_mapping.get(dr.dag_id):
+                        dr._team_name = team
             for dag_run in paused_runs:
                 dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
                 if dag is not None:
@@ -1714,6 +1731,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         idle_count = 0
 
         for loop_count in itertools.count(start=1):
+            # Reset per-loop team name cache so changes to bundle-team assignments
+            # are picked up each iteration without requiring a scheduler restart.
+            self._dag_id_to_team_name = {}
             with stats.timer("scheduler.scheduler_loop_duration") as timer:
                 with create_session() as session:
                     # This will schedule for as many executors as possible.
@@ -1846,6 +1866,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # examining, rather than making one query per DagRun
             dag_runs = DagRun.get_running_dag_runs_to_examine(session=session)
 
+            if self._multi_team and dag_runs:
+                unique_dag_ids = {dr.dag_id for dr in dag_runs}
+                dr_team_mapping = self._get_team_names_for_dag_ids(unique_dag_ids, session)
+                for dr in dag_runs:
+                    if team := dr_team_mapping.get(dr.dag_id):
+                        dr._team_name = team
+
             callback_tuples = self._schedule_all_dag_runs(guard, dag_runs, session)
 
         # Send the callbacks after we commit to ensure the context is up to date when it gets run
@@ -1916,7 +1943,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         name: str,
         uri: str,
         apdr: AssetPartitionDagRun,
-        timetable: PartitionedAssetTimetable,
+        timetable: Timetable,
         actual_by_asset: dict[int, set[str]],
     ) -> bool:
         """
@@ -1952,6 +1979,68 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 asset_uri=uri,
             )
             return False
+
+    def _resolve_partition_date(
+        self,
+        *,
+        timetable: Timetable,
+        asset_infos: Iterable[tuple[str, str]],
+        partition_key: str,
+        dag_id: str,
+    ) -> datetime | None:
+        """
+        Return the temporal anchor (period-start datetime) for *partition_key*.
+
+        Resolves the temporal anchor (period-start datetime) for *partition_key*
+        across *asset_infos* — the ``(name, uri)`` pairs of the upstream assets
+        that contributed to it. Each upstream mapper resolves the key via
+        :meth:`~airflow.partition_mappers.base.PartitionMapper.to_partition_date`:
+        temporal mappers decode the key, composite mappers delegate to their
+        child, and non-temporal mappers (e.g.
+        :class:`~airflow.partition_mappers.identity.IdentityMapper`) return ``None``.
+
+        A partitioned consumer has a single partition identity, so every temporal
+        mapper feeding it must resolve the same key to the same instant. Anchors
+        are compared by instant (timezone-aware), so equivalent moments collapse
+        to one. When the temporal mappers agree, that anchor is returned; when
+        they disagree — a misconfiguration, e.g. assets mapping the same key under
+        different timezones — ``partition_date`` is left unset and a warning is
+        logged rather than silently picking one by scan order. Returns ``None`` if
+        no mapper is temporal.
+
+        A failure in any mapper aborts the whole resolution and returns ``None``
+        (logged) — anchors accumulated from earlier mappers are discarded rather
+        than used as a partial result, since a partial set could hide a conflict.
+        A broken mapper must not crash the scheduler tick.
+        """
+        anchors: set[datetime] = set()
+        try:
+            for name, uri in asset_infos:
+                mapper = timetable.get_partition_mapper(name=name, uri=uri)
+                anchor = mapper.to_partition_date(partition_key)
+                if anchor is not None:
+                    anchors.add(anchor)
+        except Exception:
+            self.log.exception(
+                "Failed to resolve partition_date for asset-triggered Dag run; partition_date will be None.",
+                dag_id=dag_id,
+                partition_key=partition_key,
+            )
+            return None
+
+        if not anchors:
+            return None
+        if len(anchors) > 1:
+            self.log.warning(
+                "Upstream partition mappers resolved conflicting partition_date values for the same "
+                "key; leaving partition_date unset. The consumer's assets likely use inconsistent "
+                "partition mappers.",
+                dag_id=dag_id,
+                partition_key=partition_key,
+                partition_dates=sorted(anchor.isoformat() for anchor in anchors),
+            )
+            return None
+        return anchors.pop()
 
     def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
         """
@@ -2119,8 +2208,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             for asset_id, (name, uri) in asset_info_per_apdr[apdr.id].items():
                 key = SerializedAssetUniqueKey(name=name, uri=uri)
                 if timetable.partitioned:
-                    if TYPE_CHECKING:
-                        assert isinstance(timetable, PartitionedAssetTimetable)
                     statuses[key] = self._resolve_asset_partition_status(
                         session=session,
                         asset_id=asset_id,
@@ -2137,6 +2224,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             partition_dag_ids.add(apdr.target_dag_id)
             run_after = timezone.utcnow()
+            partition_date: datetime | None = None
+            if timetable.partitioned:
+                partition_date = self._resolve_partition_date(
+                    timetable=timetable,
+                    asset_infos=asset_info_per_apdr[apdr.id].values(),
+                    partition_key=apdr.partition_key,
+                    dag_id=apdr.target_dag_id,
+                )
             dag_run = dag.create_dagrun(
                 run_id=DagRun.generate_run_id(
                     run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
@@ -2144,6 +2239,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 logical_date=None,
                 data_interval=None,
                 partition_key=apdr.partition_key,
+                partition_date=partition_date,
                 run_after=run_after,
                 run_type=DagRunType.ASSET_TRIGGERED,
                 triggered_by=DagRunTriggeredByType.ASSET,
@@ -3017,33 +3113,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         from airflow.models.pool import Pool
 
         pools = Pool.slots_stats(session=session)
+        pool_team_mapping = (
+            Pool.get_name_to_team_name_mapping(list(pools.keys()), session=session)
+            if self._multi_team
+            else {}
+        )
         for pool_name, slot_stats in pools.items():
-            normalized_pool_name = normalize_pool_name_for_stats(pool_name)
-            stats.gauge(
-                "pool.open_slots",
-                slot_stats["open"],
-                tags={"pool_name": normalized_pool_name},
-            )
-            stats.gauge(
-                "pool.queued_slots",
-                slot_stats["queued"],
-                tags={"pool_name": normalized_pool_name},
-            )
-            stats.gauge(
-                "pool.running_slots",
-                slot_stats["running"],
-                tags={"pool_name": normalized_pool_name},
-            )
-            stats.gauge(
-                "pool.deferred_slots",
-                slot_stats["deferred"],
-                tags={"pool_name": normalized_pool_name},
-            )
-            stats.gauge(
-                "pool.scheduled_slots",
-                slot_stats["scheduled"],
-                tags={"pool_name": normalized_pool_name},
-            )
+            metric_tags: dict[str, str] = {"pool_name": normalize_pool_name_for_stats(pool_name)}
+            if team := pool_team_mapping.get(pool_name):
+                metric_tags["team_name"] = team
+            stats.gauge("pool.open_slots", slot_stats["open"], tags=metric_tags)
+            stats.gauge("pool.queued_slots", slot_stats["queued"], tags=metric_tags)
+            stats.gauge("pool.running_slots", slot_stats["running"], tags=metric_tags)
+            stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags=metric_tags)
+            stats.gauge("pool.scheduled_slots", slot_stats["scheduled"], tags=metric_tags)
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, *, session: Session = NEW_SESSION) -> int:
@@ -3324,6 +3407,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if self._multi_team:
             unique_dag_ids = {ti.dag_id for ti in task_instances_without_heartbeats}
             dag_id_to_team_name = self._get_team_names_for_dag_ids(unique_dag_ids, session)
+            for ti in task_instances_without_heartbeats:
+                if team := dag_id_to_team_name.get(ti.dag_id):
+                    ti._team_name = team
         else:
             dag_id_to_team_name = {}
 
