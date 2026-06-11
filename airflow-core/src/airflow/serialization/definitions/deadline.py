@@ -38,6 +38,8 @@ if TYPE_CHECKING:
     from sqlalchemy import ColumnElement
     from sqlalchemy.orm import Session
 
+    from airflow.sdk.definitions.deadline import VariableInterval
+
 logger = logging.getLogger(__name__)
 
 
@@ -49,6 +51,7 @@ class DeadlineAlertFields:
     serializing DeadlineAlert instances to and from their dictionary representation.
     """
 
+    NAME = "name"
     REFERENCE = "reference"
     INTERVAL = "interval"
     CALLBACK = "callback"
@@ -306,9 +309,9 @@ class SerializedReferenceModels:
 
         @classmethod
         def deserialize_reference(cls, reference_data: dict):
-            from airflow._shared.module_loading import import_string
+            from airflow.serialization.helpers import find_registered_custom_deadline_reference
 
-            custom_class = import_string(reference_data["__class_path"])
+            custom_class = find_registered_custom_deadline_reference(reference_data["__class_path"])
             inner_ref = custom_class.deserialize_reference(reference_data)
             return cls(inner_ref)
 
@@ -365,5 +368,6 @@ class SerializedDeadlineAlert:
     """Serialized representation of a deadline alert."""
 
     reference: SerializedReferenceModels.SerializedBaseDeadlineReference
-    interval: timedelta
+    interval: timedelta | VariableInterval
     callback: Any
+    name: str | None = None

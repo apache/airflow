@@ -81,3 +81,22 @@ def test_trigger_dag_with_custom_run_type(dag_maker, session):
     )
 
     assert dag_run.run_type == DagRunType.ASSET_MATERIALIZATION
+
+
+def test_trigger_dag_operator_denied_when_only_manual_allowed(dag_maker, session):
+    with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *"):
+        EmptyOperator(task_id="mytask")
+    session.commit()
+    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == "TEST_DAG_1"))
+    dag_model.allowed_run_types = ["manual"]
+    session.commit()
+
+    with pytest.raises(
+        ValueError, match="Dag with dag_id: 'TEST_DAG_1' does not allow operator_triggered runs"
+    ):
+        trigger_dag(
+            dag_id="TEST_DAG_1",
+            run_type=DagRunType.OPERATOR_TRIGGERED,
+            triggered_by=DagRunTriggeredByType.OPERATOR,
+            session=session,
+        )

@@ -66,18 +66,25 @@ def generate_mprocs_config() -> str:
     use_airflow_version = get_env("USE_AIRFLOW_VERSION", "")
     if not use_airflow_version.startswith("2."):
         # API Server (Airflow 3.x+)
+        # Bind dual-stack (IPv6 + IPv4) so http://localhost:28080 works from browsers that
+        # resolve `localhost` to ::1 first (e.g. Chrome/Safari on macOS with OrbStack, which
+        # forwards both IPv4 and IPv6 host ports into the container). The default `0.0.0.0`
+        # binds IPv4 only, causing the IPv6 attempt to land inside the container with no
+        # listener and TCP RST → opaque chrome-error://chromewebdata/ page.
+
+        # If host is empty or None, uvicorn listens on all available (IPv4 and IPv6) interfaces.
+        api_host_arg = "--host ''"
         if get_env_bool("BREEZE_DEBUG_APISERVER"):
             port = get_env("BREEZE_DEBUG_APISERVER_PORT", "5679")
-            api_cmd = f"debugpy --listen 0.0.0.0:{port} --wait-for-client -m airflow api-server -d"
+            api_cmd = (
+                f"debugpy --listen 0.0.0.0:{port} --wait-for-client -m airflow api-server {api_host_arg} -d"
+            )
         else:
             dev_mode = get_env_bool("DEV_MODE")
-            api_cmd = "airflow api-server -d" if dev_mode else "airflow api-server"
-
-        procs["api_server"] = {
-            "shell": api_cmd,
-            "restart": "always",
-            "scrollback": 100000,
-        }
+            api_cmd = (
+                f"airflow api-server {api_host_arg} -d" if dev_mode else f"airflow api-server {api_host_arg}"
+            )
+        procs["api_server"] = {"shell": api_cmd, "restart": "always", "scrollback": 100000}
     else:
         # Webserver (Airflow 2.x)
         if get_env_bool("BREEZE_DEBUG_WEBSERVER"):
@@ -119,6 +126,34 @@ def generate_mprocs_config() -> str:
             "scrollback": 100000,
         }
 
+    if get_env("GO_WORKER") != "":
+        env = {}
+        env["AIRFLOW__EDGE__API_URL"] = "http://localhost:8080"
+        env["AIRFLOW__BUNDLES__FOLDER"] = "./bin"
+        env["AIRFLOW__LOGGING__BASE_LOG_FOLDER"] = "./logs"
+        env["AIRFLOW__EXECUTION__API_URL"] = "http://localhost:8080/execution/"
+
+        # Build command with environment cleanup
+        go_worker_cmd_parts = [
+            "export AIRFLOW__API_AUTH__SECRET_KEY=${AIRFLOW__API_AUTH__JWT_SECRET}",
+            "export AIRFLOW__LOGGING__SECRET_KEY=${AIRFLOW__API_AUTH__JWT_SECRET}",
+            "unset AIRFLOW__API_AUTH__JWT_SECRET || true",
+            "unset AIRFLOW__DATABASE__SQL_ALCHEMY_CONN || true",
+            "unset AIRFLOW__CELERY__RESULT_BACKEND || true",
+            "unset POSTGRES_HOST_PORT || true",
+            "unset BACKEND || true",
+            "unset POSTGRES_VERSION || true",
+            "export AIRFLOW__LOGGING__BASE_LOG_FOLDER=edge_logs",
+            "go run ./cmd/airflow-go-edge-worker/main.go run",
+        ]
+        go_worker_cmd = " && ".join(go_worker_cmd_parts)
+
+        procs["go_worker"] = {
+            "shell": go_worker_cmd,
+            "cwd": "go-sdk",
+            "env": env,
+        }
+
     # Flower (conditional)
     if get_env_bool("INTEGRATION_CELERY") and get_env_bool("CELERY_FLOWER"):
         if get_env_bool("BREEZE_DEBUG_FLOWER"):
@@ -152,11 +187,7 @@ def generate_mprocs_config() -> str:
             ]
             edge_cmd = " && ".join(edge_cmd_parts)
 
-        procs["edge_worker"] = {
-            "shell": edge_cmd,
-            "restart": "always",
-            "scrollback": 100000,
-        }
+        procs["edge_worker"] = {"shell": edge_cmd, "restart": "always", "scrollback": 100000}
 
     # Dag Processor (conditional)
     if get_env_bool("STANDALONE_DAG_PROCESSOR"):

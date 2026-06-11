@@ -30,17 +30,19 @@ import attrs
 import structlog
 from sqlalchemy import func, or_, select, tuple_
 
+from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, TaskNotFound
+from airflow.exceptions import AirflowException, DagNotPartitionedError, NodeNotFound, TaskNotFound
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
-from airflow.sdk._shared.observability.metrics.stats import Stats
+from airflow.sdk.definitions.deadline import VariableInterval
 from airflow.serialization.decoders import decode_deadline_alert
 from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
 from airflow.serialization.definitions.param import SerializedParamsDict
@@ -103,6 +105,7 @@ class SerializedDAG:
     allowed_run_types: list[str] | None = None
     description: str | None = None
     disable_bundle_versioning: bool = False
+    rerun_with_latest_version: bool | None = None
     doc_md: str | None = None
     edge_info: dict[str, dict[str, EdgeInfoType]] = attrs.field(factory=dict)
     end_date: datetime.datetime | None = None
@@ -152,6 +155,7 @@ class SerializedDAG:
                 "allowed_run_types",
                 "description",
                 "disable_bundle_versioning",
+                "rerun_with_latest_version",
                 "doc_md",
                 "edge_info",
                 "end_date",
@@ -180,6 +184,7 @@ class SerializedDAG:
         bundle_version: str | None,
         dags: Collection[DAG | LazyDeserializedDAG],
         parse_duration: float | None = None,
+        *,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -218,7 +223,11 @@ class SerializedDAG:
         asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
         session.flush()  # Activation is needed when we add trigger references.
 
-        asset_op.add_asset_trigger_references(orm_assets, session=session)
+        team_name: str | None = None
+        if airflow_conf.getboolean("core", "multi_team"):
+            team_name = DagBundleModel.get_team_name(bundle_name, session=session)
+
+        asset_op.add_asset_trigger_references(orm_assets, team_name=team_name, session=session)
         dag_op.update_dag_asset_expression(orm_dags=orm_dags, orm_assets=orm_assets)
         session.flush()
 
@@ -245,6 +254,14 @@ class SerializedDAG:
         if task_id in self.task_dict:
             return self.task_dict[task_id]
         raise TaskNotFound(f"Task {task_id} not found")
+
+    def __getitem__(self, node_id: str) -> SerializedOperator | SerializedTaskGroup:
+        """Return a task or task group by its fully-qualified ID."""
+        if (node := self.task_dict.get(node_id)) is not None:
+            return node
+        if (tg := self.task_group_dict.get(node_id)) is not None:
+            return tg
+        raise NodeNotFound(f"Task or group {node_id!r} not found")
 
     @property
     def task_group_dict(self):
@@ -471,7 +488,7 @@ class SerializedDAG:
             )
 
     @provide_session
-    def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
+    def get_concurrency_reached(self, *, session=NEW_SESSION) -> bool:
         """Return a boolean indicating whether the max_active_tasks limit for this DAG has been reached."""
         from airflow.models.taskinstance import TaskInstance
 
@@ -482,6 +499,26 @@ class SerializedDAG:
             )
         )
         return total_tasks >= self.max_active_tasks
+
+    def validate_partition_key(self, partition_key: str | None) -> None:
+        """
+        Raise ``DagNotPartitionedError`` if a partition key is supplied for a non-partitioned Dag.
+
+        A ``None`` value is always accepted. A non-``None`` value is accepted only when the
+        Dag's timetable sets ``partitioned=True`` or ``partitioned_at_runtime=True``.
+
+        :param partition_key: The partition key to validate, or ``None`` to skip validation.
+        :raises DagNotPartitionedError: When ``partition_key`` is not ``None`` and the Dag's
+            timetable is neither ``partitioned`` nor ``partitioned_at_runtime``.
+        """
+        if (
+            partition_key is not None
+            and not self.timetable.partitioned
+            and not self.timetable.partitioned_at_runtime
+        ):
+            raise DagNotPartitionedError(
+                f"Dag '{self.dag_id}' is not a partitioned Dag and does not accept a partition_key."
+            )
 
     @provide_session
     def create_dagrun(
@@ -548,6 +585,9 @@ class SerializedDAG:
         if not isinstance(run_id, str):
             raise ValueError(f"`run_id` should be a str, not {type(run_id)}")
 
+        if ".." in run_id and not airflow_conf.getboolean("core", "allow_double_dot_in_ids", fallback=False):
+            raise ValueError(f"The run_id '{run_id}' must not contain '..' to prevent path traversal")
+
         # This is also done on the DagRun model class, but SQLAlchemy column
         # validator does not work well for some reason.
         if not re.match(RUN_ID_REGEX, run_id):
@@ -565,6 +605,8 @@ class SerializedDAG:
                     f"A {run_type.value} DAG run cannot use ID {run_id!r} since it "
                     f"is reserved for {inferred_run_type.value} runs"
                 )
+
+        self.validate_partition_key(partition_key)
 
         # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
         copied_params = self.params.deep_merge(conf)
@@ -640,10 +682,15 @@ class SerializedDAG:
                 }
             )
 
+            interval = deserialized_deadline_alert.interval
+
+            if isinstance(interval, VariableInterval):
+                interval = interval.resolve()
+
             if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
                 deadline_time = deserialized_deadline_alert.reference.evaluate_with(
                     session=session,
-                    interval=deserialized_deadline_alert.interval,
+                    interval=interval,
                     # TODO : Pretty sure we can drop these last two; verify after testing is complete
                     dag_id=self.dag_id,
                     run_id=orm_dagrun.run_id,
@@ -657,9 +704,10 @@ class SerializedDAG:
                             dagrun_id=orm_dagrun.id,
                             deadline_alert_id=deadline_alert.id,
                             dag_id=orm_dagrun.dag_id,
+                            bundle_name=orm_dagrun.dag_model.bundle_name,
                         )
                     )
-                    Stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
+                    stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
 
     @provide_session
     def set_task_instance_state(
@@ -756,6 +804,109 @@ class SerializedDAG:
                 clear_kwargs["end_date"] = logical_date
                 exclude_run_id_stmt = exclude_run_id_stmt.where(DagRun.id < dr_id)
             subset.clear(exclude_run_ids=frozenset(session.scalars(exclude_run_id_stmt)), **clear_kwargs)
+        return altered
+
+    @provide_session
+    def set_task_group_state(
+        self,
+        *,
+        group_id: str,
+        run_id: str,
+        state: TaskInstanceState,
+        upstream: bool = False,
+        downstream: bool = False,
+        future: bool = False,
+        past: bool = False,
+        commit: bool = True,
+        session=NEW_SESSION,
+    ) -> list[TaskInstance]:
+        """
+        Set TaskGroup to the given state and clear downstream tasks in failed or upstream_failed state.
+
+        :param group_id: The group_id of the TaskGroup
+        :param run_id: The run_id of the TaskInstance
+        :param state: State to set the TaskInstance to
+        :param upstream: Include all upstream tasks of the given task_id
+        :param downstream: Include all downstream tasks of the given task_id
+        :param future: Include all future TaskInstances of the given task_id
+        :param past: Include all past TaskInstances of the given task_id
+        :param commit: Commit changes
+        :param session: database session
+        """
+        from airflow.api.common.mark_tasks import set_state
+        from airflow.utils.sqlalchemy import lock_rows
+
+        task_group = self.task_group_dict.get(group_id)
+        if task_group is None:
+            raise ValueError(f"TaskGroup {group_id} could not be found")
+
+        tasks_to_set_state: list[SerializedOperator | tuple[SerializedOperator, int]] = []
+        task_ids: list[str] = []
+        for task in task_group.iter_tasks():
+            task.dag = self
+            tasks_to_set_state.append(task)
+            task_ids.append(task.task_id)
+
+        dag_runs_query = select(DagRun.id).where(DagRun.dag_id == self.dag_id)
+
+        dr_id, logical_date = session.execute(
+            select(DagRun.id, DagRun.logical_date).where(
+                DagRun.run_id == run_id, DagRun.dag_id == self.dag_id
+            )
+        ).one()
+
+        if not future and not past:
+            dag_runs_query = dag_runs_query.where(DagRun.logical_date == logical_date)
+        else:
+            if past:
+                dag_runs_query = dag_runs_query.where(DagRun.logical_date <= logical_date)
+            if future:
+                dag_runs_query = dag_runs_query.where(DagRun.logical_date >= logical_date)
+
+        with lock_rows(dag_runs_query, session):
+            altered = set_state(
+                tasks=tasks_to_set_state,
+                run_id=run_id,
+                upstream=upstream,
+                downstream=downstream,
+                future=future,
+                past=past,
+                state=state,
+                commit=commit,
+                session=session,
+            )
+
+            if not commit:
+                return altered
+
+            # Clear downstream tasks that are in failed/upstream_failed state to resume them.
+            session.flush()
+            subset = self.partial_subset(
+                task_ids=task_ids,
+                include_downstream=True,
+                include_upstream=False,
+            )
+
+            clear_kwargs: dict = {
+                "only_failed": True,
+                "session": session,
+                "exclude_task_ids": frozenset(task_ids),
+            }
+            if not future and not past:
+                clear_kwargs["run_id"] = run_id
+                subset.clear(**clear_kwargs)
+            elif future and past:
+                subset.clear(**clear_kwargs)
+            else:
+                exclude_run_id_stmt = select(DagRun.run_id).where(DagRun.logical_date == logical_date)
+                if future:
+                    clear_kwargs["start_date"] = logical_date
+                    exclude_run_id_stmt = exclude_run_id_stmt.where(DagRun.id > dr_id)
+                else:
+                    clear_kwargs["end_date"] = logical_date
+                    exclude_run_id_stmt = exclude_run_id_stmt.where(DagRun.id < dr_id)
+                subset.clear(exclude_run_ids=frozenset(session.scalars(exclude_run_id_stmt)), **clear_kwargs)
+
         return altered
 
     @overload
@@ -948,6 +1099,23 @@ class SerializedDAG:
     def clear(
         self,
         *,
+        dry_run: Literal[True],
+        task_ids: Collection[str | tuple[str, int]] | None = None,
+        run_id: str,
+        only_failed: bool = False,
+        only_running: bool = False,
+        only_new: bool,
+        dag_run_state: DagRunState = DagRunState.QUEUED,
+        session: Session = NEW_SESSION,
+        exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
+        exclude_run_ids: frozenset[str] | None = frozenset(),
+        run_on_latest_version: bool = False,
+    ) -> set[str] | list[TaskInstance]: ...  # pragma: no cover
+
+    @overload
+    def clear(
+        self,
+        *,
         task_ids: Collection[str | tuple[str, int]] | None = None,
         run_id: str,
         only_failed: bool = False,
@@ -1060,6 +1228,22 @@ class SerializedDAG:
         if only_running:
             # Yes, having `+=` doesn't make sense, but this was the existing behaviour
             state += [TaskInstanceState.RUNNING]
+
+        if task_ids is not None:
+            plain_task_ids: set[str] = {tid[0] if isinstance(tid, tuple) else tid for tid in task_ids}
+            if plain_task_ids:
+                added_ids = (
+                    set(
+                        self.partial_subset(
+                            task_ids=plain_task_ids,
+                            include_downstream=False,
+                            include_upstream=False,
+                        ).task_dict
+                    )
+                    - plain_task_ids
+                )
+                if added_ids:
+                    task_ids = [*task_ids, *added_ids]
 
         tis_result = self._get_task_instances(
             task_ids=task_ids,

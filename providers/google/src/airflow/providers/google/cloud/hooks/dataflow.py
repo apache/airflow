@@ -50,8 +50,20 @@ from google.cloud.dataflow_v1beta3.types.jobs import ListJobsRequest
 from googleapiclient.discovery import Resource, build
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType, beam_options_to_args
-from airflow.providers.common.compat.sdk import AirflowException, timeout
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    timeout,
+)
+
+try:
+    from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType, beam_options_to_args
+except ImportError as e:
+    raise AirflowOptionalProviderFeatureException(
+        "Failed to import apache-airflow-providers-apache-beam. "
+        "To use the Dataflow service with Apache Beam pipelines, please install the apache-beam provider: "
+        "pip install apache-airflow-providers-apache-beam"
+    ) from e
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
@@ -640,12 +652,24 @@ class DataflowHook(GoogleBaseHook):
     def get_conn(self) -> Resource:
         """Return a Google Cloud Dataflow service object."""
         http_authorized = self._authorize()
-        return build("dataflow", "v1b3", http=http_authorized, cache_discovery=False)
+        return build(
+            "dataflow",
+            "v1b3",
+            http=http_authorized,
+            cache_discovery=False,
+            client_options=self.get_client_options(),
+        )
 
     def get_pipelines_conn(self) -> build:
         """Return a Google Cloud Data Pipelines service object."""
         http_authorized = self._authorize()
-        return build("datapipelines", "v1", http=http_authorized, cache_discovery=False)
+        return build(
+            "datapipelines",
+            "v1",
+            http=http_authorized,
+            cache_discovery=False,
+            client_options=self.get_client_options(),
+        )
 
     @_fallback_to_location_from_variables
     @_fallback_to_project_id_from_variables
@@ -708,7 +732,7 @@ class DataflowHook(GoogleBaseHook):
 
         if on_new_job_id_callback:
             warnings.warn(
-                "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback",
+                "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
@@ -885,7 +909,7 @@ class DataflowHook(GoogleBaseHook):
 
         if on_new_job_id_callback:
             warnings.warn(
-                "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback",
+                "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
@@ -1067,7 +1091,7 @@ class DataflowHook(GoogleBaseHook):
         if variables:
             warnings.warn(
                 "The variables parameter has been deprecated. You should pass project_id using "
-                "the project_id parameter.",
+                "the project_id parameter. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=4,
             )
@@ -1076,7 +1100,7 @@ class DataflowHook(GoogleBaseHook):
             location = DEFAULT_DATAFLOW_LOCATION
             warnings.warn(
                 "The location argument will be become mandatory in future versions, "
-                f"currently, it defaults to {DEFAULT_DATAFLOW_LOCATION}, please set the location explicitly.",
+                f"currently, it defaults to {DEFAULT_DATAFLOW_LOCATION}, please set the location explicitly. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=4,
             )
@@ -1416,9 +1440,12 @@ class AsyncDataflowHook(GoogleBaseAsyncHook, DataflowJobTerminalStateHelper):
         received from the method of the GoogleBaseHook class.
         :param client_class: Class of the Google cloud SDK
         """
-        credentials = (await self.get_sync_hook()).get_credentials()
+        sync_hook = await self.get_sync_hook()
+        credentials = sync_hook.get_credentials()
+        client_options = sync_hook.get_client_options()
         return client_class(
             credentials=credentials,
+            client_options=client_options,
         )
 
     async def get_project_id(self) -> str:

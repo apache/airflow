@@ -22,10 +22,10 @@ from unittest import mock
 import pytest
 
 from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest
-from airflow.configuration import conf
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.providers.celery.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
+from airflow.providers.common.compat.sdk import conf
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 

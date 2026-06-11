@@ -28,7 +28,7 @@ import Time from "src/components/Time";
 import { useParamStore } from "src/queries/useParamStore";
 import { useUpdateHITLDetail } from "src/queries/useUpdateHITLDetail";
 import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
-import { getHITLParamsDict, getHITLFormData, getPreloadHITLFormData } from "src/utils/hitl";
+import { getHITLParamsDict, getHITLFormData, getPreloadHITLFormData, isHITLPending } from "src/utils/hitl";
 
 type HITLResponseFormProps = {
   readonly hitlDetail: {
@@ -68,9 +68,9 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
     hitlDetail.options.length === 2;
 
   const shouldRenderOptionButton =
-    hitlDetail.options.length < 4 && !hitlDetail.multiple && preloadedHITLOptions.length === 0;
+    hitlDetail.options.length <= 4 && !hitlDetail.multiple && preloadedHITLOptions.length === 0;
 
-  const isPending = hitlDetail.task_instance.state === "deferred";
+  const isPending = isHITLPending(hitlDetail.task_instance.state);
 
   const { updateHITLResponse } = useUpdateHITLDetail({
     dagId: hitlDetail.task_instance.dag_id,
@@ -148,7 +148,6 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
             ))
           ) : hitlDetail.response_received ? undefined : (
             <Button
-              colorPalette="brand"
               disabled={errors || isSubmitting || !isPending}
               loading={isSubmitting}
               onClick={() => handleSubmit()}

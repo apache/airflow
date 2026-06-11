@@ -25,7 +25,7 @@ from flask import session
 from flask_appbuilder import expose
 from flask_appbuilder.security.views import AuthOAuthView
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 
 log = logging.getLogger(__name__)
 

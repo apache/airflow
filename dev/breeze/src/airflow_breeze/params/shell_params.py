@@ -196,6 +196,8 @@ class ShellParams:
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")
+    sdk: tuple[str, ...] = ()
+    worker_type: tuple[str, ...] = ()
     include_mypy_volume: bool = False
     install_airflow_version: str = ""
     install_airflow_python_client: bool = False
@@ -275,7 +277,7 @@ class ShellParams:
 
     @cached_property
     def airflow_version_for_production_image(self):
-        cmd = ["docker", "run", "--entrypoint", "/bin/bash", f"{self.airflow_image_name}"]
+        cmd = ["docker", "run", "--rm", "--entrypoint", "/bin/bash", f"{self.airflow_image_name}"]
         cmd.extend(["-c", 'echo "${AIRFLOW_VERSION}"'])
         output = run_command(cmd, capture_output=True, text=True)
         return output.stdout.strip() if output.stdout else "UNKNOWN_VERSION"
@@ -660,6 +662,10 @@ services:
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
         _set_var(_env, "GITHUB_TOKEN", self.github_token)
+        if "go" in self.worker_type:
+            _set_var(_env, "GO_WORKER", True)
+        if "java" in self.sdk:
+            _set_var(_env, "INSTALL_SDK_JAVA", True)
         _set_var(_env, "HOST_GROUP_ID", self.host_group_id)
         _set_var(_env, "HOST_OS", self.host_os)
         _set_var(_env, "HOST_USER_ID", self.host_user_id)

@@ -26,7 +26,7 @@ Your First Airflow Pull Request — 15-Minute Guide
 Purpose
 -------
 This page walks **new contributors** through opening their first
-Apache Airflow pull request (PR) in about five minutes.  We present *one*
+Apache Airflow pull request (PR) in about 15 minutes.  We present *one*
 local option (Breeze) and *one* fully-hosted option (GitHub Codespaces).
 Everything else lives in the advanced guides.
 
@@ -67,11 +67,11 @@ Option A – Breeze on Your Laptop
 
     git clone https://github.com/<you>/airflow.git
     cd airflow
-    uv tool install -e ./dev/breeze
+    ./scripts/tools/setup_breeze
 
 2. Setup your idea workspace to detect project src/ and tests/ folders as source roots.
 
-.. code-block:: text
+.. code-block:: bash
 
     # For IntelliJ IDEA and PyCharm
     uv run dev/ide_setup/setup_idea.py
@@ -79,38 +79,56 @@ Option A – Breeze on Your Laptop
     # For VS Code
     uv run dev/ide_setup/setup_vscode.py
 
-3.  **Start the development container** (first run builds the image)
+3. Create a branch for your change
+
+.. code-block:: bash
+
+    git checkout -b <your-branch-name>
+
+4.  **Start the development container** (first run builds the image)
 
 .. code-block:: bash
 
     breeze start-airflow
 
-The command starts a shell and launches multiple terminals using tmux
-and launches all Airflow necessary components in those terminals. To know more about tmux commands,
-check out this cheat sheet: https://tmuxcheatsheet.com/. Now You can also access Airflow UI on your local machine at `http://localhost:28080 <http://localhost:28080>`_ with user name ``admin`` and password ``admin``. To exit breeze, type ``stop_airflow`` in any
-of the tmux panes and hit Enter
+The command starts a shell and launches multiple terminals using ``mprocs`` by default
+and launches all Airflow necessary components in those terminals.
+You can also choose to use ``tmux`` via the ``--terminal-multiplexer tmux`` option.
+If you are using tmux, check out this cheat sheet to learn more about its commands: https://tmuxcheatsheet.com/.
 
-**Working with DAGs in Breeze:**
+Now you can also access the Airflow UI on your local machine at `http://localhost:28080 <http://localhost:28080>`_ with user name ``admin`` and password ``admin``.
 
-- **Adding your own DAGs**: Place your DAG files in the ``/files/dags/`` directory in your local Airflow repository. This directory is automatically mounted into the Breeze container and your DAGs will be visible in the Airflow UI.
+To exit breeze, press ``q`` in the ``mprocs`` interface (or in any of the tmux panes) and clean up the resources by running the following command:
 
-- **Loading example DAGs**: Use the ``--load-example-dags`` flag to load all example DAGs from the repository:
+.. code-block:: bash
+
+    breeze down
+
+**Working with Dags in Breeze:**
+
+- **Adding your own Dags**: Place your Dag files in the ``/files/dags/`` directory in your local Airflow repository. This directory is automatically mounted into the Breeze container and your Dags will be visible in the Airflow UI.
+
+- **Loading example Dags**: Use the ``--load-example-dags`` flag to load all example Dags from the repository:
 
 .. code-block:: bash
 
     breeze start-airflow --load-example-dags
 
-This flag enables configuration to load example DAGs when starting Airflow, which is useful for exploring Airflow's capabilities and testing.
+This flag enables configuration to load example Dags when starting Airflow, which is useful for exploring Airflow's capabilities and testing.
 
-4.  **Make a tiny change** – e.g. fix a typo in docs
+5. **Set up virtual environment and install dependencies**  - To run prek locally
 
-5.  **Run local checks**
+Install airflow dependencies from this `guide <03_contributors_quick_start.rst#setting-up-virtual-env>`__.
+
+6.  **Make a tiny change** – e.g. fix a typo in docs
+
+7.  **Run local checks**
 
 .. code-block:: bash
 
     prek --all-files
 
-6.  **Run tests**
+8.  **Run tests**
 
 Run tests related to your change **before** pushing:
 
@@ -122,15 +140,14 @@ Run tests related to your change **before** pushing:
 Run ``breeze testing --help`` to see all available test groups.
 For more on testing, see the `Testing Guide <09_testing.rst>`_.
 
-7.  **Commit & push**
+9.  **Commit & push**
 
 .. code-block:: bash
 
-    git checkout -b docs-typo
     git commit -am "fix typo in README"
-    git push -u origin docs-typo
+    git push -u origin <your-branch-name>
 
-8.  **Open the PR** – GitHub shows a "Compare & pull request" button.
+10.  **Open the PR** – GitHub shows a "Compare & pull request" button.
 
 *Syncing your branch*
 
@@ -178,7 +195,7 @@ Option B – One-Click GitHub Codespaces
       uv tool install prek
       prek install -f
       prek install -f --hook-type pre-push # for running mypy checks when pushing to repo
-      uv tool install -e ./dev/breeze
+      ./scripts/tools/setup_breeze
       uv run dev/ide_setup/setup_vscode.py
       breeze start-airflow
 
@@ -193,6 +210,14 @@ Review & Merge
 --------------
 Respond to reviewer comments, push updates (same commands as above).  Once
 CI is green and reviews are ✅, a committer will merge.  🎉
+
+Example Dag Review Checklist
+----------------------------
+
+To help maintain consistency and quality across example Dags,
+please refer to the example Dag review checklist:
+
+:doc:`28_example_dag_review_checklist`
 
 Next Steps
 ----------

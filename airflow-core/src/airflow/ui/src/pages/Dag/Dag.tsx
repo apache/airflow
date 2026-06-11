@@ -17,7 +17,7 @@
  * under the License.
  */
 import { ReactFlowProvider } from "@xyflow/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart, FiCode, FiUser, FiCalendar } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
@@ -32,7 +32,7 @@ import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useRefreshOnNewDagRuns } from "src/queries/useRefreshOnNewDagRuns";
-import { isStatePending, useAutoRefresh } from "src/utils";
+import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
 
 import { DagNotFound } from "./DagNotFound";
 import { Header } from "./Header";
@@ -59,6 +59,11 @@ export const Dag = () => {
 
   const refetchInterval = useAutoRefresh({ dagId });
   const [hasPendingRuns, setHasPendingRuns] = useState<boolean | undefined>(false);
+  const previousLatestRunIdRef = useRef<string>("");
+
+  useEffect(() => {
+    previousLatestRunIdRef.current = "";
+  }, [dagId]);
 
   const {
     data: dag,
@@ -81,9 +86,11 @@ export const Dag = () => {
     },
   );
 
+  useDocumentTitle(dag?.dag_display_name ?? dagId);
+
   // Ensures continuous refresh to detect new runs when there's no
   // pending state and new runs are initiated from other page
-  useRefreshOnNewDagRuns(dagId, hasPendingRuns);
+  useRefreshOnNewDagRuns(dagId, hasPendingRuns, dag?.is_paused);
 
   const {
     data: latestRun,
@@ -96,9 +103,19 @@ export const Dag = () => {
     undefined,
     {
       enabled: Boolean(dagId),
-      refetchInterval: (query) => {
-        if (query.state.data && isStatePending(query.state.data.state)) {
-          setHasPendingRuns(true);
+      refetchInterval: ({ state: { data } }) => {
+        if (data) {
+          const { run_id: runId, state } = data;
+          const runIdChanged =
+            previousLatestRunIdRef.current !== "" && previousLatestRunIdRef.current !== runId;
+
+          if (runIdChanged || isStatePending(state)) {
+            setHasPendingRuns(true);
+          }
+
+          previousLatestRunIdRef.current = runId;
+        } else {
+          previousLatestRunIdRef.current = "";
         }
 
         return hasPendingRuns ? refetchInterval : false;

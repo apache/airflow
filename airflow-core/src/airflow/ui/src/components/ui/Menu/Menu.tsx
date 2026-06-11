@@ -19,8 +19,12 @@
 import { Menu as ChakraMenu } from "@chakra-ui/react";
 
 import { Content } from "./MenuContent";
+import { Root } from "./MenuRoot";
+import { Trigger } from "./MenuTrigger";
 
 export const Menu = {
   ...ChakraMenu,
   Content,
+  Root,
+  Trigger,
 };

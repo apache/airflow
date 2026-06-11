@@ -209,7 +209,7 @@ Generating Airflow core Issue
 
 You can use Breeze to generate a Airflow core issue when you release new airflow.
 
-.. image:: ./images/output_release-management_generate-issue-content-providers.svg
+.. image:: ./images/output_release-management_generate-issue-content-core.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-issue-content-core.svg
   :width: 100%
   :alt: Breeze generate-issue-content-core
@@ -416,7 +416,7 @@ Generating helm chart Issue
 
 You can use Breeze to generate a helm chart issue when you release new helm chart.
 
-.. image:: ./images/output_release-management_generate-issue-content-providers.svg
+.. image:: ./images/output_release-management_generate-issue-content-helm-chart.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-issue-content-helm-chart.svg
   :width: 100%
   :alt: Breeze generate-issue-content-helm-chart
@@ -501,6 +501,28 @@ You can see all providers available by running this command:
 
 If you pass ``--tag`` fag, the distribution will create a source tarball release along with sdist.
 ``--tag`` flag corresponds to actual tag in git.
+
+.. note::
+
+    Before each provider is built, Breeze runs ``git clean -fdx -e .venv -e .idea -e .vscode``
+    inside the provider's source directory. This removes **all untracked and .gitignored**
+    files under that path — locally generated docs (``docs/_api``), sphinx caches,
+    ``__pycache__``, ``*.egg-info``, and any scratch files an RM produced while iterating.
+    The cleanup is necessary because the flit-based providers ship with explicit
+    ``[tool.flit.sdist]`` include lists that scan directories (``docs/``, ``tests/``,
+    ``src/``) rather than asking git, so any in-tree leftovers would otherwise leak into
+    the sdist/wheel and break reproducibility against the released artifacts on
+    dist.apache.org.
+
+    The top-level ``.venv``, ``.idea`` and ``.vscode`` directories at the **repository
+    root** are unaffected — they live outside any provider directory and are not in any
+    flit include path, so flit would never pick them up regardless. The ``-e .venv``,
+    ``-e .idea`` and ``-e .vscode`` excludes are a safety net for the rare case where
+    someone keeps a per-provider venv or IDE config **inside** the provider directory;
+    in that case the cleanup will still preserve them.
+
+    A dry-run pass (``git clean -ndx ...``) is printed first, so you see the list of
+    files that are about to be removed before the destructive pass runs.
 
 
 .. image:: ./images/output_release-management_prepare-provider-distributions.svg
@@ -893,6 +915,58 @@ If you pass ``--tag`` fag, the distribution will create a source tarball release
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-ctl-distributions.svg
   :width: 100%
   :alt: Breeze release-management prepare-airflow-ctl-distributions
+
+Generating airflowctl changelog
+""""""""""""""""""""""""""""""""
+
+You can generate the RST changelog for an airflowctl release and have it automatically prepended to
+``airflow-ctl/RELEASE_NOTES.rst``. The command reads the git log between two refs filtered to the
+``airflow-ctl/`` directory, fetches PR metadata from GitHub, and categorises each PR by title prefix.
+
+.. code-block:: bash
+
+     breeze release-management generate-airflowctl-changelog --previous-release "airflow-ctl/0.1.3" --version "0.1.4"
+
+``--current-release`` defaults to ``HEAD`` so you do not need to create the tag first. Pass
+``--output-file -`` to print to stdout instead of modifying ``RELEASE_NOTES.rst``.
+
+.. image:: ./images/output_release-management_generate-airflowctl-changelog.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-airflowctl-changelog.svg
+  :width: 100%
+  :alt: Breeze release-management generate-airflowctl-changelog
+
+Generating airflow-ctl issue
+""""""""""""""""""""""""""""
+
+You can use Breeze to generate an airflow-ctl issue when you release new airflow-ctl.
+
+.. image:: ./images/output_release-management_generate-issue-content-airflow-ctl.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-issue-content-airflow-ctl.svg
+  :width: 100%
+  :alt: Breeze release-management generate-issue-content-airflow-ctl
+
+Preparing Apache Airflow Mypy distributions
+""""""""""""""""""""""""""""""""""""""""""""
+
+You can prepare Apache Airflow Mypy distributions using Breeze:
+
+.. code-block:: bash
+
+     breeze release-management prepare-mypy-distributions
+
+This prepares Apache Airflow Mypy .whl package in the dist folder.
+
+You can specify the optional ``--distribution-format`` flag to build selected formats of the Mypy distributions.
+The default is ``wheel``.
+
+.. code-block:: bash
+
+     breeze release-management prepare-mypy-distributions --distribution-format=both
+
+.. image:: ./images/output_release-management_prepare-mypy-distributions.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-mypy-distributions.svg
+  :width: 100%
+  :alt: Breeze release-management prepare-mypy-distributions
 
 Publishing the documentation to S3
 """"""""""""""""""""""""""""""""""

@@ -27,17 +27,24 @@ export class TaskInstancePage extends BasePage {
 
   public constructor(page: Page) {
     super(page);
-    this.triggerButton = page.locator('button[aria-label="Trigger Dag"]:has-text("Trigger")');
-    this.confirmTriggerButton = page.locator('button:has-text("Trigger")').last();
+    this.triggerButton = page.getByTestId("trigger-dag-button");
+    this.confirmTriggerButton = page.getByTestId("trigger-dag-submit");
     this.stateBadge = page.getByTestId("state-badge").first();
   }
 
   public async navigateToDag(dagId: string): Promise<void> {
-    await this.navigateTo(`/dags/${dagId}`);
+    await expect(async () => {
+      await this.navigateTo(`/dags/${dagId}`);
+      await expect(this.triggerButton).toBeVisible({ timeout: 5000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public async navigateToTaskInstance(dagId: string, runId: string, taskId: string): Promise<void> {
-    await this.navigateTo(`/dags/${dagId}/runs/${runId}/tasks/${taskId}`);
+    await expect(async () => {
+      await this.navigateTo(`/dags/${dagId}/runs/${runId}/tasks/${taskId}`);
+      // #details-panel content depends on chained API calls that can be slow on WebKit.
+      await expect(this.page.locator("#details-panel")).toBeVisible();
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public async triggerDagAndWaitForSuccess(dagId: string): Promise<void> {

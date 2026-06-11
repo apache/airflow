@@ -44,6 +44,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.jdbc.hooks.jdbc.JdbcHook",
+                "hook-name": "JDBC Connection",
                 "connection-type": "jdbc",
                 "ui-field-behaviour": {
                     "hidden-fields": ["port", "schema"],

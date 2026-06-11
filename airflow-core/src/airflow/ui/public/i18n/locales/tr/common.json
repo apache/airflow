@@ -18,16 +18,21 @@
   "asset_other": "Varlıklar",
   "assetEvent_one": "Varlık Etkinliği",
   "assetEvent_other": "Varlık Etkinlikleri",
+  "assetInactive": {
+    "tooltip": "Yukarı akış varlığı devre dışı bırakıldı; zamanlayıcı yeniden etkinleştirilene kadar bölüm değerlendirmesini bekletiyor."
+  },
   "backfill_one": "Geriye Dönük Çalıştırma",
   "backfill_other": "Geriye Dönük Çalıştırmalar",
   "browse": {
     "auditLog": "Denetim Günlüğü",
+    "deadlines": "Son Tarihler",
     "jobs": "İşler",
     "requiredActions": "Gerekli Eylemler",
     "xcoms": "XCom'lar"
   },
   "collapseAllExtra": "Tüm ek JSON'ları daralt",
   "collapseDetailsPanel": "Detay Panelini Daralt",
+  "consumingAsset": "Tüketen Varlık",
   "createdAssetEvent_one": "Oluşturulan Varlık Etkinliği",
   "createdAssetEvent_other": "Oluşturulan Varlık Etkinlikleri",
   "dag_one": "Dag",
@@ -60,6 +65,11 @@
     "dagVersions": "Dag Versiyonu(ları)",
     "dataIntervalEnd": "Veri Aralığı Sonu",
     "dataIntervalStart": "Veri Aralığı Başlangıcı",
+    "durationStats": {
+      "mean": "Ortalama",
+      "mode": "Tepe Değer"
+    },
+    "expectedDuration": "Beklenen Süre",
     "lastSchedulingDecision": "Son Zamanlama Kararı",
     "mappedPartitionKey": "Haritalanmış Bölüm Anahtarı",
     "partitionKey": "Bölüm Anahtarı",
@@ -103,6 +113,12 @@
     "notFound": "Sayfa Bulunamadı",
     "title": "Hata"
   },
+  "errors": {
+    "forbidden": {
+      "description": "Bu eylemi gerçekleştirme izniniz yok.",
+      "title": "Erişim Reddedildi"
+    }
+  },
   "expand": {
     "collapse": "Daralt",
     "expand": "Genişlet",
@@ -125,9 +141,11 @@
     "logicalDateTo": "Mantıksal tarih bitişi",
     "runAfterFrom": "Şu tarihten sonra çalıştır (başlangıç)",
     "runAfterTo": "Şu tarihten sonra çalıştır (bitiş)",
+    "searchAsset": "Varlık Ara",
     "selectDateRange": "Lütfen bir tarih aralığı seçin",
     "startTime": "Başlangıç Zamanı"
   },
+  "generateToken": "Jeton Oluştur",
   "logicalDate": "Mantıksal Tarih",
   "logout": "Çıkış",
   "logoutConfirmation": "Uygulamadan çıkış yapmak üzeresiniz.",
@@ -171,6 +189,7 @@
   "reset": "Sıfırla",
   "runId": "Çalıştırma Kimliği",
   "runTypes": {
+    "asset_materialization": "Varlık Materyalizasyonu",
     "asset_triggered": "Varlık Tetiklemeli",
     "backfill": "Geriye Dönük Çalıştırma",
     "manual": "Manuel",
@@ -183,6 +202,12 @@
     },
     "tooltip": "{{direction}} kaydırmak için {{hotkey}} tuşuna basın"
   },
+  "search": {
+    "advanced": {
+      "description": "Değerin herhangi bir yerinde eşleştir (alt dize araması). Varsayılan B-tree indeksini kullanamadığı için büyük dağıtımlarda daha yavaştır. Ayrıntılar için özel meta veri indeksleri ile ilgili dokümantasyon bölümüne bakın.",
+      "title": "Herhangi bir yerde eşleştir"
+    }
+  },
   "security": {
     "actions": "Eylemler",
     "permissions": "İzinler",
@@ -191,6 +216,7 @@
     "users": "Kullanıcılar"
   },
   "selectLanguage": "Dil Seçin",
+  "selected": "Seçili",
   "showDetailsPanel": "Detay Panelini Göster",
   "signedInAs": "olarak giriş yapıldı",
   "source": {
@@ -203,6 +229,7 @@
   "startDate": "Başlangıç Tarihi",
   "state": "Durum",
   "states": {
+    "awaiting_input": "Girdi Bekleniyor",
     "deferred": "Ertelenmiş",
     "failed": "Başarısız",
     "no_status": "Durum Yok",
@@ -245,7 +272,11 @@
   },
   "task_one": "Görev",
   "task_other": "Görevler",
-  "taskGroup": "Görev Grubu",
+  "taskGroup": {
+    "documentation": "Görev Grubu Dokümantasyonu"
+  },
+  "taskGroup_one": "Görev Grubu",
+  "taskGroup_other": "Görev Grupları",
   "taskId": "Görev Kimliği",
   "taskInstance": {
     "dagVersion": "Dag Versiyonu",
@@ -259,6 +290,7 @@
     "priorityWeight": "Öncelik Ağırlığı",
     "queue": "Kuyruk",
     "queuedWhen": "Kuyruğa Alınma",
+    "renderedMapIndex": "İşlenmiş Harita İndeksi",
     "scheduledWhen": "Planlanma",
     "triggerer": {
       "assigned": "Atanmış tetikleyici",
@@ -291,11 +323,25 @@
     "utc": "UTC (Koordineli Evrensel Saat)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "Toplu {{resourceName}} Temizleme İsteği Başarısız",
+      "success": {
+        "description": "{{count}} {{resourceName}} başarıyla temizlendi. Anahtarlar: {{keys}}",
+        "title": "Toplu {{resourceName}} Temizleme İsteği Gönderildi"
+      }
+    },
     "bulkDelete": {
       "error": "Toplu {{resourceName}} Silme İsteği Başarısız",
       "success": {
         "description": "{{count}} {{resourceName}} başarıyla silindi. Anahtarlar: {{keys}}",
         "title": "Toplu {{resourceName}} Silme İsteği Gönderildi"
+      }
+    },
+    "bulkUpdate": {
+      "error": "Toplu {{resourceName}} Güncelleme İsteği Başarısız",
+      "success": {
+        "description": "{{count}} {{resourceName}} başarıyla güncellendi. Anahtarlar: {{keys}}",
+        "title": "Toplu {{resourceName}} Güncelleme İsteği Gönderildi"
       }
     },
     "create": {
@@ -327,10 +373,26 @@
       }
     }
   },
+  "tokenGeneration": {
+    "apiToken": "API Jetonu",
+    "cliToken": "CLI Jetonu",
+    "errorDescription": "Jeton oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.",
+    "errorTitle": "Jeton Oluşturma Başarısız",
+    "generate": "Oluştur",
+    "selectType": "Oluşturulacak jeton türünü seçin.",
+    "title": "Jeton Oluştur",
+    "tokenExpiresIn": "Bu jeton {{duration}} içinde sona erecek.",
+    "tokenGenerated": "Jetonunuz oluşturuldu.",
+    "tokenShownOnce": "Bu jeton yalnızca bir kez gösterilecek. Şimdi kopyalayın."
+  },
   "total": "Tümü {{state}}",
   "triggered": "Tetiklendi",
   "tryNumber": "Deneme Sayısı",
   "user": "Kullanıcı",
+  "validation": {
+    "mustBeAtLeast": "En az {{min}} olmalıdır.",
+    "mustBeValidNumber": "Geçerli bir sayı olmalıdır."
+  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "Kaydırmayı açıp kapatmak için {{hotkey}} tuşuna basın",

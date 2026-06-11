@@ -20,20 +20,23 @@ import { Box } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
+import { useParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import { ClearTaskInstanceButton } from "src/components/Clear";
 import { HeaderCard } from "src/components/HeaderCard";
 import Time from "src/components/Time";
 import { getDuration } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskInstanceSummary }) => {
+  const { dagId = "", runId = "" } = useParams();
   const { t: translate } = useTranslation();
   const entries: Array<{ label: string; value: number | ReactNode | string }> = [];
   let taskCount: number = 0;
 
-  Object.entries(taskInstance.child_states ?? {}).forEach(([taskState, count]) => {
+  Object.entries(taskInstance.child_states ?? {}).forEach(([state, count]) => {
     entries.push({
-      label: translate("total", { state: translate(`states.${taskState.toLowerCase()}`) }),
+      label: translate("total", { state: translate(`states.${state.toLowerCase()}`) }),
       value: count,
     });
     taskCount += count;
@@ -55,6 +58,15 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
   return (
     <Box>
       <HeaderCard
+        actions={
+          <ClearTaskInstanceButton
+            allMapped
+            dagId={dagId}
+            dagRunId={runId}
+            isHotkeyEnabled
+            taskId={taskInstance.task_id}
+          />
+        }
         icon={<MdOutlineTask />}
         state={taskInstance.state}
         stats={stats}

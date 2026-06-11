@@ -18,16 +18,21 @@
   "asset_other": "Assets",
   "assetEvent_one": "Asset Event",
   "assetEvent_other": "Asset Events",
+  "assetInactive": {
+    "tooltip": "Upstream asset has been deactivated; the scheduler is holding partition evaluation until it is reactivated."
+  },
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Audit Log",
+    "deadlines": "Deadlines",
     "jobs": "Jobs",
     "requiredActions": "Required Actions",
     "xcoms": "XComs"
   },
   "collapseAllExtra": "Collapse all extra JSON",
   "collapseDetailsPanel": "Collapse Details Panel",
+  "consumingAsset": "Consuming Asset",
   "createdAssetEvent_one": "Created Asset Event",
   "createdAssetEvent_other": "Created Asset Events",
   "dag_one": "Dag",
@@ -60,6 +65,11 @@
     "dagVersions": "Dag Version(s)",
     "dataIntervalEnd": "Data Interval End",
     "dataIntervalStart": "Data Interval Start",
+    "durationStats": {
+      "mean": "Mean",
+      "mode": "Mode"
+    },
+    "expectedDuration": "Expected Duration",
     "lastSchedulingDecision": "Last Scheduling Decision",
     "mappedPartitionKey": "Mapped Partition key",
     "partitionKey": "Partition key",
@@ -103,6 +113,12 @@
     "notFound": "Page Not Found",
     "title": "Error"
   },
+  "errors": {
+    "forbidden": {
+      "description": "You do not have permission to perform this action.",
+      "title": "Access Denied"
+    }
+  },
   "expand": {
     "collapse": "Collapse",
     "expand": "Expand",
@@ -125,10 +141,12 @@
     "logicalDateTo": "Logical Date To",
     "runAfterFrom": "Run After From",
     "runAfterTo": "Run After To",
+    "searchAsset": "Search Asset",
     "selectDateRange": "Select Date Range",
     "startTime": "Start Time"
   },
   "generateToken": "Generate Token",
+  "key": "Key",
   "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
@@ -185,6 +203,12 @@
     },
     "tooltip": "Press {{hotkey}} to scroll to {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Match anywhere in the value (substring search). Slower on large deployments because it can't use the default B-tree index. See the docs section on custom metadata indexes for details.",
+      "title": "Match anywhere"
+    }
+  },
   "security": {
     "actions": "Actions",
     "permissions": "Permissions",
@@ -193,6 +217,7 @@
     "users": "Users"
   },
   "selectLanguage": "Select Language",
+  "selected": "Selected",
   "showDetailsPanel": "Show Details Panel",
   "signedInAs": "Signed in as",
   "source": {
@@ -205,6 +230,7 @@
   "startDate": "Start Date",
   "state": "State",
   "states": {
+    "awaiting_input": "Awaiting Input",
     "deferred": "Deferred",
     "failed": "Failed",
     "no_status": "No Status",
@@ -237,7 +263,8 @@
       "any": "Any"
     },
     "tagPlaceholder": "Filter by tag",
-    "to": "To"
+    "to": "To",
+    "updatedAt": "Updated at"
   },
   "task": {
     "documentation": "Task Documentation",
@@ -247,7 +274,11 @@
   },
   "task_one": "Task",
   "task_other": "Tasks",
-  "taskGroup": "Task Group",
+  "taskGroup": {
+    "documentation": "Task Group Documentation"
+  },
+  "taskGroup_one": "Task Group",
+  "taskGroup_other": "Task Groups",
   "taskId": "Task ID",
   "taskInstance": {
     "dagVersion": "Dag Version",
@@ -261,6 +292,7 @@
     "priorityWeight": "Priority Weight",
     "queue": "Queue",
     "queuedWhen": "Queued At",
+    "renderedMapIndex": "Rendered Map Index",
     "scheduledWhen": "Scheduled At",
     "triggerer": {
       "assigned": "Assigned triggerer",
@@ -293,11 +325,25 @@
     "utc": "UTC (Coordinated Universal Time)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "Bulk Clear {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{count}} {{resourceName}} have been successfully cleared. Keys: {{keys}}",
+        "title": "Bulk Clear {{resourceName}} Request Submitted"
+      }
+    },
     "bulkDelete": {
       "error": "Bulk Delete {{resourceName}} Request Failed",
       "success": {
         "description": "{{count}} {{resourceName}} have been successfully deleted. Keys: {{keys}}",
         "title": "Bulk Delete {{resourceName}} Request Submitted"
+      }
+    },
+    "bulkUpdate": {
+      "error": "Bulk Update {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{count}} {{resourceName}} have been successfully updated. Keys: {{keys}}",
+        "title": "Bulk Update {{resourceName}} Request Submitted"
       }
     },
     "create": {
@@ -313,10 +359,6 @@
         "description": "{{resourceName}} has been successfully deleted.",
         "title": "Delete {{resourceName}} Request Submitted"
       }
-    },
-    "forbidden": {
-      "description": "You do not have permission to perform this action.",
-      "title": "Access Denied"
     },
     "import": {
       "error": "Import {{resourceName}} Request Failed",
@@ -349,6 +391,11 @@
   "triggered": "Triggered",
   "tryNumber": "Try Number",
   "user": "User",
+  "validation": {
+    "mustBeAtLeast": "Must be at least {{min}}.",
+    "mustBeValidNumber": "Must be a valid number."
+  },
+  "value": "Value",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Press {{hotkey}} to toggle wrap",

@@ -21,7 +21,7 @@ Common AI Operators
 Choosing the right operator
 ---------------------------
 
-The common-ai provider ships four operators (and matching ``@task`` decorators). Use this table
+The common-ai provider ships several operators (and matching ``@task`` decorators). Use this table
 to pick the one that fits your use case:
 
 .. list-table::
@@ -34,6 +34,9 @@ to pick the one that fits your use case:
    * - Single prompt → text or structured output
      - :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
      - ``@task.llm``
+   * - Analyze files, prefixes, images, or PDFs with one prompt
+     - :class:`~airflow.providers.common.ai.operators.llm_file_analysis.LLMFileAnalysisOperator`
+     - ``@task.llm_file_analysis``
    * - LLM picks which downstream task runs
      - :class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator`
      - ``@task.llm_branch``
@@ -43,10 +46,24 @@ to pick the one that fits your use case:
    * - Multi-turn reasoning with tools (DB queries, API calls, etc.)
      - :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`
      - ``@task.agent``
+   * - Parse files (PDF, DOCX, CSV, etc.) into document dicts for embedding
+     - :class:`~airflow.providers.common.ai.operators.document_loader.DocumentLoaderOperator`
+     - *(no decorator)*
+   * - Chunk documents and produce embedding vectors
+     - :class:`~airflow.providers.common.ai.operators.llamaindex_embedding.LlamaIndexEmbeddingOperator`
+     - *(no decorator)*
+   * - Retrieve relevant chunks from a vector index
+     - :class:`~airflow.providers.common.ai.operators.llamaindex_retrieval.LlamaIndexRetrievalOperator`
+     - *(no decorator)*
 
 **LLMOperator / @task.llm** — stateless, single-turn calls. Use this for classification,
 summarization, extraction, or any prompt that produces one response. Supports structured output
-via a ``response_format`` Pydantic model.
+via an ``output_type`` Pydantic model.
+
+**LLMFileAnalysisOperator / @task.llm_file_analysis** — stateless, single-turn file analysis.
+Use this when the prompt should reason over file contents or multimodal attachments already chosen
+by the DAG author. The operator resolves files via ``ObjectStoragePath`` and keeps the interaction
+read-only.
 
 **AgentOperator / @task.agent** — multi-turn tool-calling loop. The model decides which tools to
 invoke and when to stop. Use this when the LLM needs to take actions (query databases, call APIs,
@@ -54,6 +71,10 @@ read files) to produce its answer. You configure available tools through ``tools
 
 AgentOperator *works* without toolsets — pydantic-ai supports tool-less agents for multi-turn
 reasoning — but if you don't need tools, ``LLMOperator`` is simpler and more explicit.
+
+**DocumentLoaderOperator** — framework-agnostic file parsing. Use this to convert files
+(text, CSV, JSON, PDF, DOCX) into ``list[dict(text, metadata)]`` for downstream embedding.
+No AI framework dependency.
 
 Operator guides
 ---------------

@@ -120,6 +120,7 @@ class SerializedAsset(SerializedAssetBase):
     group: str
     extra: dict[str, Any]
     watchers: MutableSequence[SerializedAssetWatcher]
+    access_control: dict[str, Any] = attrs.field(factory=dict)
 
     def as_expression(self) -> Any:
         """

@@ -24,7 +24,7 @@
 def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-informatica",
-        "name": "Informatica Airflow",
+        "name": "Informatica",
         "description": "`Informatica <https://www.informatica.com//>`__\n",
         "integrations": [
             {
@@ -40,6 +40,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.informatica.hooks.edc.InformaticaEDCHook",
+                "hook-name": "Informatica EDC",
                 "connection-type": "informatica_edc",
             }
         ],

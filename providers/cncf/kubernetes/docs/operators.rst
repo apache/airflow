@@ -155,6 +155,38 @@ Example to fetch and display container log periodically
     :end-before: [END howto_operator_async_log]
 
 
+Pod cleanup on kill
+^^^^^^^^^^^^^^^^^^^
+
+The ``on_kill_action`` parameter controls what happens to the Kubernetes pod when a
+running task is killed (e.g. manually marked as success or failed from the Airflow UI).
+It accepts the same enum-style string values as ``on_finish_action``:
+
+- ``"delete_pod"`` (default) — the pod is deleted when the task is killed.
+- ``"keep_pod"`` — the pod is left running when the task is killed.
+
+In **sync mode**, ``on_kill_action`` gates the ``on_kill`` callback.
+
+In **deferrable mode**, ``on_kill_action`` is forwarded to the trigger. When the trigger
+is cancelled (e.g. the deferred task is manually marked as success or failed), the action
+is applied. The ``on_finish_action`` parameter is **not** consulted during a kill — it only
+governs cleanup after normal task completion.
+
+If you want to prevent the pod from being deleted when a task is killed (for example,
+for debugging), set ``on_kill_action="keep_pod"``:
+
+.. code-block:: python
+
+    k = KubernetesPodOperator(
+        task_id="long_running_task",
+        image="my-image:latest",
+        on_finish_action="delete_pod",
+        on_kill_action="keep_pod",  # pod will NOT be deleted when the task is killed
+    )
+
+The ``termination_grace_period`` parameter is also respected during cleanup, giving the
+pod time to shut down gracefully before being forcefully terminated.
+
 How does XCom work?
 ^^^^^^^^^^^^^^^^^^^
 The :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` handles
@@ -680,6 +712,29 @@ Instead of ``template`` parameter for Pod creating this operator uses :class:`~a
 It means that user can use all parameters from :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` in :class:`~airflow.providers.cncf.kubernetes.operators.job.KubernetesJobOperator`.
 
 More information about the Jobs here: `Kubernetes Job Documentation <https://kubernetes.io/docs/concepts/workloads/controllers/job/>`__
+
+Pod cleanup and ``on_finish_action``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When ``wait_until_job_complete=True``, the operator discovers Job pods via
+``get_pods()`` and streams logs/XCom from those pods while the Job runs.
+
+The inherited ``on_finish_action`` parameter controls what happens to these
+discovered pods at the end of the task:
+
+* ``delete_pod`` (default) — the pod is deleted after the task
+  finishes (success or failure).
+* ``delete_succeeded_pod`` — the pod is deleted only when the task
+  succeeded.
+* ``delete_active_pod`` — the pod is deleted only if it is still
+  active (``Pending`` or ``Running``).
+* ``keep_pod`` — the pod is kept (useful for offline log
+  inspection).
+
+When the task is killed, ``on_kill`` deletes the Job (with foreground cascade).
+For discovered pods, deletion is controlled by ``on_kill_action``:
+``delete_pod`` attempts direct pod deletion and ``keep_pod`` skips it.
+
 
 
 .. _howto/operator:KubernetesDeleteJobOperator:

@@ -18,18 +18,13 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient, TaskSDKClient
+from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 
 
 class TestBasicDagFunctionality:
     """Test basic DAG functionality using the Airflow REST API."""
 
     airflow_client = AirflowClient()
-
-    def test_dag_unpause(self):
-        self.airflow_client.un_pause_dag(
-            "example_xcom_test",
-        )
 
     def test_xcom_value(self):
         resp = self.airflow_client.trigger_dag(
@@ -46,13 +41,3 @@ class TestBasicDagFunctionality:
             run_id=resp["dag_run_id"],
         )
         assert xcom_value_resp["value"] == "manually_pushed_value", xcom_value_resp
-
-
-class TestTaskSDKBasicFunctionality:
-    """Test basic functionality of Task SDK using the Task SDK REST API."""
-
-    task_sdk_client = TaskSDKClient()
-
-    def test_task_sdk_health_check(self):
-        response = self.task_sdk_client.health_check()
-        assert response.status_code == 200

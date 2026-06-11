@@ -32,7 +32,7 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetUriRef,
 )
 from airflow.serialization.encoders import encode_asset_like, encode_partition_mapper
-from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+from airflow.timetables.base import DagRunInfo, DataInterval, PartitionMapperInfo, Timetable
 
 try:
     from airflow.sdk.definitions.asset import BaseAsset
@@ -93,6 +93,7 @@ class NullTimetable(_TrivialTimetable):
     """
 
     can_be_scheduled = False  # TODO (GH-52141): Find a way to keep this and one in Core in sync.
+    partitioned_at_runtime = False
     description: str = "Never, external triggers only"
 
     @property
@@ -181,6 +182,27 @@ class ContinuousTimetable(_TrivialTimetable):
             return None
 
         return DagRunInfo.interval(start, end)
+
+
+class PartitionAtRuntime(NullTimetable):
+    """
+    Timetable that never schedules anything; partition keys are set at runtime.
+
+    This corresponds to ``schedule=PartitionAtRuntime()``.
+
+    A run's ``partition_key`` (run-level provenance) must be supplied at trigger
+    time — for example via the REST API's ``partition_key`` field. Partition keys
+    discovered at task runtime populate the emitted :class:`~airflow.sdk.AssetEvent`
+    records but do **not** back-fill ``DagRun.partition_key`` after the run has
+    been created.
+    """
+
+    description: str = "Never, partition key(s) set at runtime"
+    partitioned_at_runtime = True
+
+    @property
+    def summary(self) -> str:
+        return "PartitionAtRuntime"
 
 
 class AssetTriggeredTimetable(_TrivialTimetable):
@@ -298,6 +320,40 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
                 return self._uri_to_partition_mapper[uri]
 
         return self.default_partition_mapper
+
+    @property
+    def partition_mapper_info(self) -> list[PartitionMapperInfo]:
+        """
+        JSON-serializable snapshot of partition mapper attributes per asset.
+
+        One :class:`~airflow.timetables.base.PartitionMapperInfo` entry per asset
+        (or asset ref) reachable from ``asset_condition``. Each entry uses the
+        mapper resolved by :meth:`get_partition_mapper`, so assets covered only
+        by ``default_partition_mapper`` (no ``partition_mapper_config`` entry)
+        still appear with the default mapper's ``is_rollup`` value. The UI reads
+        this from the cached ``DagModel.partition_mapper_info`` instead of
+        deserializing the timetable on each request.
+
+        Asset aliases are intentionally skipped: ``SerializedAssetAlias.iter_assets``
+        yields nothing (resolution happens at event time, not at parse time),
+        and :meth:`_build_name_uri_mapping` already warns that aliases are
+        unsupported as ``partition_mapper_config`` keys. The cache therefore
+        matches the alias-unsupported policy enforced elsewhere in this class.
+        """
+        entries: list[PartitionMapperInfo] = []
+        for unique_key, _ in self.asset_condition.iter_assets():
+            mapper = self.get_partition_mapper(name=unique_key.name, uri=unique_key.uri)
+            entries.append(
+                PartitionMapperInfo(name=unique_key.name, uri=unique_key.uri, is_rollup=mapper.is_rollup)
+            )
+        for s_asset_ref in self.asset_condition.iter_asset_refs():
+            if isinstance(s_asset_ref, SerializedAssetNameRef):
+                mapper = self.get_partition_mapper(name=s_asset_ref.name)
+                entries.append(PartitionMapperInfo(name=s_asset_ref.name, is_rollup=mapper.is_rollup))
+            elif isinstance(s_asset_ref, SerializedAssetUriRef):
+                mapper = self.get_partition_mapper(uri=s_asset_ref.uri)
+                entries.append(PartitionMapperInfo(uri=s_asset_ref.uri, is_rollup=mapper.is_rollup))
+        return entries
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_asset_like

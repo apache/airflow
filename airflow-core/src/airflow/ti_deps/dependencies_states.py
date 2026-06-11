@@ -23,6 +23,23 @@ EXECUTION_STATES = {
     TaskInstanceState.QUEUED,
 }
 
+# States counted for task-level concurrency limits (max_active_tis_per_dag /
+# max_active_tis_per_dagrun). DEFERRED is included because a deferred task
+# instance is still logically in-flight and must block additional instances
+# from being scheduled. This is intentionally separate from EXECUTION_STATES
+# so that DAG-level max_active_tasks and pool slot calculations are unaffected.
+ACTIVE_STATES = {
+    *EXECUTION_STATES,
+    TaskInstanceState.DEFERRED,
+    # AWAITING_INPUT (HITL) is logically in-flight like DEFERRED: it counts towards task-level
+    # concurrency (max_active_tis_per_dag / max_active_tis_per_dagrun) and, like DEFERRED, is
+    # excluded from DAG-run active-task accounting. It is also excluded from pool slot accounting,
+    # but -- unlike DEFERRED, which a pool can opt to count via ``include_deferred`` -- an
+    # awaiting_input task is *never* counted against pool slots: an open-ended human wait should
+    # not reserve one.
+    TaskInstanceState.AWAITING_INPUT,
+}
+
 # In order to be able to get queued a task must have one of these states
 SCHEDULEABLE_STATES = {
     None,

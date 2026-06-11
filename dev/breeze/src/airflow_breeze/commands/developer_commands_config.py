@@ -142,6 +142,12 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
+            "name": "Run experimental workers",
+            "options": [
+                "--worker-type",
+            ],
+        },
+        {
             "name": "Installing packages after entering shell",
             "options": [
                 "--airflow-constraints-location",
@@ -164,6 +170,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--allow-pre-releases",
                 "--use-distributions-from-dist",
                 "--install-airflow-python-client",
+                "--sdk",
             ],
         },
         {
@@ -247,12 +254,19 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--builder",
                 "--use-uv",
+                "--sdk",
             ],
         },
         {
             "name": "Mounting the sources and volumes",
             "options": [
                 "--mount-sources",
+            ],
+        },
+        {
+            "name": "Run experimental workers",
+            "options": [
+                "--worker-type",
             ],
         },
         {
@@ -335,11 +349,18 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--cleanup-build-cache",
             ],
         },
+        {
+            "name": "Project selection",
+            "options": [
+                "--all-projects",
+                "--project-name",
+            ],
+        },
     ],
     "breeze build-docs": [
         {
-            "name": "Build scope (default is to build docs and spellcheck)",
-            "options": ["--docs-only", "--spellcheck-only"],
+            "name": "Build scope (default is to build Python docs and spellcheck)",
+            "options": ["--docs-only", "--sdk-docs-only", "--spellcheck-only"],
         },
         {
             "name": "Type of build",
@@ -357,6 +378,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Filtering options",
             "options": [
+                "--sdk",
                 "--package-filter",
                 "--include-not-ready-providers",
                 "--include-removed-providers",

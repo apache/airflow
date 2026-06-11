@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -135,7 +136,6 @@ func (s *WorkerSuite) ExpectTaskState(taskId string, state api.TerminalTIState) 
 // TestTaskNotRegisteredErrors checks that when a task cannot be found we report "success" on the Workload but
 // report the task as failed to the Execution API server
 func (s *WorkerSuite) TestTaskNotRegisteredErrors() {
-	s.T().Parallel()
 	id := uuid.New().String()
 	testWorkload := newTestWorkLoad(id, id[:8])
 	s.ExpectTaskState(id, api.TerminalTIStateFailed)
@@ -151,7 +151,6 @@ func (s *WorkerSuite) TestTaskNotRegisteredErrors() {
 // TestStartContextErrorTaskDoesntStart checks that if the /run endpoint returns an error that task doesn't
 // start, but that it is logged
 func (s *WorkerSuite) TestStartContextErrorTaskDoesntStart() {
-	s.T().Parallel()
 	id := uuid.New().String()
 	testWorkload := newTestWorkLoad(id, id[:8])
 
@@ -189,9 +188,8 @@ func (s *WorkerSuite) TestTaskReturnErrorReportsFailedState() {
 }
 
 func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
-	s.T().Parallel()
 	id := uuid.New().String()
-	callCount := 0
+	var callCount atomic.Int32
 	testWorkload := newTestWorkLoad(id, id[:8])
 	s.registry.AddDag(testWorkload.TI.DagId).AddTaskWithName(testWorkload.TI.TaskId, func() error {
 		time.Sleep(time.Second)
@@ -204,7 +202,7 @@ func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
 		Heartbeat(mock.Anything, uuid.MustParse(id), mock.Anything).
 		RunAndReturn(func(ctx context.Context, taskInstanceId uuid.UUID, body *api.TIHeartbeatInfo) error {
 			if taskInstanceId.String() == id {
-				callCount += 1
+				callCount.Add(1)
 			}
 			return nil
 		})
@@ -215,8 +213,9 @@ func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
 
 	// Since we heartbeat every 100ms and run for 1 second, we should expect 10 heartbeat calls. But allow +/-
 	// 1 due to timing imprecision
+	count := callCount.Load()
 	s.Assert().
-		True(callCount <= 11 && callCount >= 9, fmt.Sprintf("Call count of %d was not within the margin of error of 10+/-1", callCount))
+		True(count <= 11 && count >= 9, fmt.Sprintf("Call count of %d was not within the margin of error of 10+/-1", count))
 }
 
 func (s *WorkerSuite) TestTaskHeartbeatErrorStopsTaskAndLogs() {

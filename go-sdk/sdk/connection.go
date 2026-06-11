@@ -26,6 +26,10 @@ import (
 	"github.com/apache/airflow/go-sdk/pkg/api"
 )
 
+// Connection is an Airflow Connection resolved for a task: the endpoint and
+// credentials registered in Airflow under a conn_id. Obtain one with
+// ConnectionClient.GetConnection. Optional fields are pointers so an absent
+// value (nil) is distinct from an empty one.
 type Connection struct {
 	ID string
 
@@ -47,6 +51,10 @@ type Connection struct {
 	Extra map[string]any
 }
 
+// GetURI renders the connection as a URL of the form
+// scheme://login:password@host:port/path?extra. It is the Go equivalent of
+// Python's Connection.get_uri and is handy when a client library wants a single
+// connection string rather than individual fields.
 func (c Connection) GetURI() *url.URL {
 	uri := &url.URL{}
 
@@ -110,7 +118,11 @@ func (c Connection) GetURI() *url.URL {
 	return uri
 }
 
-func connFromAPIResponse(resp *api.ConnectionResponse) (Connection, error) {
+// ConnFromAPIResponse converts an Execution-API ConnectionResponse into the
+// SDK's Connection type. It is exported so other internal SDK packages (for
+// example, the coordinator-mode runtime in bundlev1server/impl/coord) can
+// reuse the same conversion.
+func ConnFromAPIResponse(resp *api.ConnectionResponse) (Connection, error) {
 	var err error
 	conn := Connection{
 		ID:       resp.ConnId,

@@ -67,12 +67,12 @@ const XComModal = ({ dagId, isOpen, mapIndex, mode, onClose, runId, taskId, xcom
 
   // Populate form when editing
   useEffect(() => {
-    if (isEditMode && data?.value !== undefined) {
+    if (isOpen && isEditMode && data) {
       const val = data.value;
 
       setValue(typeof val === "string" ? val : JSON.stringify(val, undefined, 2));
     }
-  }, [data, isEditMode]);
+  }, [data, isEditMode, isOpen]);
 
   // Reset form when modal closes
   useEffect(() => {

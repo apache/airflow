@@ -17,7 +17,7 @@
 ---
 services:
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.3.1
     labels:
       breeze.description: "Integration required for Elasticsearch hooks."
     environment:

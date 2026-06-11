@@ -16,14 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Badge,
-  Box,
-  createListCollection,
-  HStack,
-  IconButton,
-  type SelectValueChangeDetails,
-} from "@chakra-ui/react";
+import { Badge, Box, createListCollection, HStack, type SelectValueChangeDetails } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import {
   MdAccessTime,
@@ -39,11 +32,13 @@ import { useSearchParams } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
-import { Menu, Select } from "src/components/ui";
+import { IconButton, Menu, Select } from "src/components/ui";
 import { LazyClipboard } from "src/components/ui/LazyClipboard";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { defaultSystem } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
+
+import { LogSearchInput, type LogSearchInputProps } from "./LogSearchInput";
 
 export type TaskLogHeaderProps = {
   readonly downloadLogs?: () => void;
@@ -51,6 +46,7 @@ export type TaskLogHeaderProps = {
   readonly getLogString: () => string;
   readonly isFullscreen?: boolean;
   readonly onSelectTryNumber: (tryNumber: number) => void;
+  readonly search: LogSearchInputProps;
   readonly showSource: boolean;
   readonly showTimestamp: boolean;
   readonly sourceOptions?: Array<string>;
@@ -70,6 +66,7 @@ export const TaskLogHeader = ({
   getLogString,
   isFullscreen = false,
   onSelectTryNumber,
+  search,
   showSource,
   showTimestamp,
   sourceOptions,
@@ -141,7 +138,7 @@ export const TaskLogHeader = ({
           taskInstance={taskInstance}
         />
       )}
-      <HStack justifyContent="space-between">
+      <HStack flexWrap="wrap" gap={2} justifyContent="space-between">
         <Select.Root
           collection={logLevelOptions}
           maxW="250px"
@@ -201,16 +198,11 @@ export const TaskLogHeader = ({
             </Select.Content>
           </Select.Root>
         ) : undefined}
+        <LogSearchInput {...search} />
         <HStack gap={1}>
-          <Menu.Root>
+          <Menu.Root tooltipLabel={translate("dag:logs.settings")}>
             <Menu.Trigger asChild>
-              <IconButton
-                aria-label={translate("dag:logs.settings")}
-                data-testid="log-settings-button"
-                size="md"
-                title={translate("dag:logs.settings")}
-                variant="ghost"
-              >
+              <IconButton aria-label={translate("dag:logs.settings")} data-testid="log-settings-button">
                 <MdSettings />
               </IconButton>
             </Menu.Trigger>
@@ -243,11 +235,8 @@ export const TaskLogHeader = ({
           </Menu.Root>
           {!isFullscreen && (
             <IconButton
-              aria-label={translate("dag:logs.fullscreen.button")}
+              label={translate("dag:logs.fullscreen.tooltip", { hotkey: "f" })}
               onClick={toggleFullscreen}
-              size="md"
-              title={translate("dag:logs.fullscreen.tooltip", { hotkey: "f" })}
-              variant="ghost"
             >
               <MdOutlineOpenInFull />
             </IconButton>
@@ -262,12 +251,9 @@ export const TaskLogHeader = ({
           />
 
           <IconButton
-            aria-label={translate("download.download")}
             data-testid="download-logs-button"
+            label={translate("download.tooltip", { hotkey: "d" })}
             onClick={downloadLogs}
-            size="md"
-            title={translate("download.tooltip", { hotkey: "d" })}
-            variant="ghost"
           >
             <MdOutlineFileDownload />
           </IconButton>

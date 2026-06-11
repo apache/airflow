@@ -17,11 +17,11 @@
  * under the License.
  */
 import { Alert, CloseButton, Container, Heading, Span, Text, Box, HStack } from "@chakra-ui/react";
-import type { LoginResponse } from "openapi-gen/requests/types.gen";
 import { useState } from "react";
 import { useCookies } from "react-cookie";
 import { useSearchParams } from "react-router-dom";
 
+import type { LoginResponse } from "openapi/requests/types.gen";
 import { AirflowPin } from "src/AirflowPin";
 import { ErrorAlert } from "src/alert/ErrorAlert";
 import { LoginForm } from "src/login/LoginForm";

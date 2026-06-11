@@ -84,6 +84,15 @@ class LLMApprovalMixin:
         from airflow.sdk.execution_time.hitl import upsert_hitl_detail
         from airflow.sdk.timezone import utcnow
 
+        if not isinstance(self.prompt, str):
+            raise TypeError(
+                "require_approval=True is not supported with a non-string prompt. "
+                "The approval review body renders the prompt as text; passing a "
+                "Sequence[UserContent] would expose object reprs (and any embedded "
+                "bytes) in the human review UI. Return a str prompt, or disable "
+                "require_approval."
+            )
+
         if isinstance(output, BaseModel):
             output = output.model_dump_json()
         if not isinstance(output, str):
@@ -168,8 +177,10 @@ class LLMApprovalMixin:
         output = generated_output
         params_input: dict[str, Any] = event.get("params_input") or {}
 
-        # If the reviewer provided modified output, return their version
-        if params_input:
+        # Only accept modified output when the operator explicitly allows modifications.
+        # Without this guard a reviewer could craft a request with params_input even
+        # when allow_modifications=False, bypassing the read-only approval flow.
+        if getattr(self, "allow_modifications", False) and params_input:
             modified = params_input.get("output")
             if modified is not None and modified != generated_output:
                 log.info("output=%s modified by the reviewer=%s ", modified, responded_by_user)

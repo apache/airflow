@@ -49,8 +49,6 @@ IGNORED = {
     "default_args",
     # Deprecated and is aliased to max_active_tis_per_dag.
     "task_concurrency",
-    # attrs internals.
-    "HIDE_ATTRS_FROM_UI",
     # Only on BaseOperator.
     "_dag",
     "output",

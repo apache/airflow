@@ -170,7 +170,7 @@ with DAG(
         if files := root_path["files"]:
             batch = service.new_batch_http_request()
             for file in files:
-                log.info("Preparing to remove file: {}", file)
+                log.info("Preparing to remove file: %s", file)
                 batch.add(service.files().delete(fileId=file["id"]))
             batch.execute()
             log.info("Selected files removed.")
@@ -209,5 +209,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

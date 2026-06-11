@@ -1,0 +1,118 @@
+---
+name: Airflow CTL issue report
+description: Report issues/bugs for Airflow CTL
+labels: ["kind:bug", "area:airflow-ctl", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      # yamllint disable rule:line-length
+      value: "
+        <img src='https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/logos/airflow_64x64_emoji_transparent.png' align='left' width='80' height='80'>
+        Thank you for finding the time to report a problem!
+        We really appreciate the community's efforts to improve Airflow.
+        Note, you do not need to create an issue if you have a change ready to submit!
+        You can open a [pull request](https://github.com/apache/airflow/pulls) immediately instead.
+        Please note that reporting a bug does not guarantee it will be fixed, as the implementation depends
+        on community interest and availability.
+        Therefore, please do not request or expect specific timelines or ETAs. The fastest way to fix bugs is
+        to submit a PR yourself.
+        For reporting security issues in any version, please **do not** use this form and refer to the
+        [Security Reporting Guidelines](https://github.com/apache/airflow/blob/main/.github/SECURITY.md)
+        instead.
+        <br clear='left'/>"
+      # yamllint enable rule:line-length
+  - type: dropdown
+    attributes:
+      label: Airflow CTL Version
+      description: Select the version of Airflow CTL you are using.
+      multiple: false
+      options:
+        - "Latest stable version"
+        - "main (development)"
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Airflow CTL Command
+      description: >
+        Enter the exact `airflowctl` command you ran when the issue occurred
+        (e.g., `airflowctl jobs list`).
+      placeholder: "airflowctl ..."
+    validations:
+      required: false
+
+  - type: input
+    attributes:
+      label: Keyring Backend / Version
+      description: >
+        Provide the keyring backend in use and its version (e.g., `keyrings.alt 4.2.0`,
+        `SecretService`, `macOS Keychain`). If the keyring is not installed enter "Keyring Backend/Headless"
+      placeholder: "e.g., keyrings.alt 4.2.0"
+    validations:
+      required: false
+
+  - type: dropdown
+    attributes:
+      label: Auth Type
+      description: Select the authentication method you are using with Airflow CTL.
+      multiple: false
+      options:
+        - "username:password"
+        - "Token"
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: What is the current behaviour?
+      description: >
+        A clear and concise description of what currently happens. Include any error
+        messages, stack traces, or unexpected output.
+      placeholder: "Describe what happens..."
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: What is the expected results?
+      description: >
+        A clear and concise description of what you expected to happen instead.
+      placeholder: "Describe what you expected..."
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Anything else?
+      description: Anything else we need to know?
+      placeholder: >
+        Any relevant logs to include? Put them here inside fenced
+        ``` ``` blocks or inside a foldable details tag if it's long:
+        <details><summary>x.log</summary> lots of stuff </details>
+
+  - type: checkboxes
+    attributes:
+      label: Are you willing to submit PR?
+      description: >
+        This is absolutely not required, but we are happy to guide you in the contribution process
+        especially if you already have a good understanding of how to implement the fix.
+        Airflow is a community-managed project and we love to bring new contributors in.
+        Find us in #new-contributors on Slack!
+      options:
+        - label: Yes I am willing to submit a PR!
+
+  - type: checkboxes
+    attributes:
+      label: Code of Conduct
+      description: >
+        The Code of Conduct helps create a safe space for everyone. We require
+        that everyone agrees to it.
+      options:
+        - label: >
+            I agree to follow this project's
+            [Code of Conduct](https://github.com/apache/airflow/blob/main/CODE_OF_CONDUCT.md)
+          required: true
+  - type: markdown
+    attributes:
+      value: "Thanks for completing our form!"

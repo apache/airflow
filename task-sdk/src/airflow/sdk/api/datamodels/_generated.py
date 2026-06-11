@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-03-31"
+API_VERSION: Final[str] = "2026-06-30"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -76,6 +76,52 @@ class ConnectionResponse(BaseModel):
     password: Annotated[str | None, Field(title="Password")] = None
     port: Annotated[int | None, Field(title="Port")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
+
+
+class ConnectionTestConnectionResponse(BaseModel):
+    """
+    Connection data returned to workers from a test request.
+    """
+
+    conn_id: Annotated[str, Field(title="Conn Id")]
+    conn_type: Annotated[str, Field(title="Conn Type")]
+    host: Annotated[str | None, Field(title="Host")] = None
+    login: Annotated[str | None, Field(title="Login")] = None
+    password: Annotated[str | None, Field(title="Password")] = None
+    schema_: Annotated[str | None, Field(alias="schema", title="Schema")] = None
+    port: Annotated[int | None, Field(title="Port")] = None
+    extra: Annotated[str | None, Field(title="Extra")] = None
+
+
+class ResultMessage(RootModel[str]):
+    root: Annotated[str, Field(max_length=2000, title="Result Message")]
+
+
+class ConnectionTestState(str, Enum):
+    """
+    All possible states of a connection test.
+    """
+
+    PENDING = "pending"
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
+class DagResponse(BaseModel):
+    """
+    Schema for DAG response.
+    """
+
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    is_paused: Annotated[bool, Field(title="Is Paused")]
+    bundle_name: Annotated[str | None, Field(title="Bundle Name")] = None
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
+    relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
+    owners: Annotated[str | None, Field(title="Owners")] = None
+    tags: Annotated[list[str], Field(title="Tags")]
+    next_dagrun: Annotated[AwareDatetime | None, Field(title="Next Dagrun")] = None
 
 
 class DagRunAssetReference(BaseModel):
@@ -128,6 +174,7 @@ class DagRunType(str, Enum):
     BACKFILL = "backfill"
     SCHEDULED = "scheduled"
     MANUAL = "manual"
+    OPERATOR_TRIGGERED = "operator_triggered"
     ASSET_TRIGGERED = "asset_triggered"
     ASSET_MATERIALIZATION = "asset_materialization"
 
@@ -139,6 +186,14 @@ class HITLUser(BaseModel):
 
     id: Annotated[str, Field(title="Id")]
     name: Annotated[str, Field(title="Name")]
+
+
+class HTTPExceptionResponse(BaseModel):
+    """
+    HTTPException Model used for error response.
+    """
+
+    detail: Annotated[str | dict[str, Any], Field(title="Detail")]
 
 
 class InactiveAssetsResponse(BaseModel):
@@ -160,6 +215,7 @@ class IntermediateTIState(str, Enum):
     UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     DEFERRED = "deferred"
+    AWAITING_INPUT = "awaiting_input"
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):
@@ -188,6 +244,21 @@ class PreviousTIResponse(BaseModel):
     try_number: Annotated[int, Field(title="Try Number")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
     duration: Annotated[float | None, Field(title="Duration")] = None
+
+
+class TIAwaitingInputStatePayload(BaseModel):
+    """
+    Schema for parking a TaskInstance in an awaiting_input state (Human-in-the-loop, no trigger).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: Annotated[Literal["awaiting_input"] | None, Field(title="State")] = "awaiting_input"
+    timeout: Annotated[timedelta | None, Field(title="Timeout")] = None
+    next_method: Annotated[str, Field(title="Next Method")]
+    next_kwargs: Annotated[dict[str, JsonValue] | None, Field(title="Next Kwargs")] = None
+    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
 class TIDeferredStatePayload(BaseModel):
@@ -259,6 +330,8 @@ class TIRetryStatePayload(BaseModel):
     state: Annotated[Literal["up_for_retry"] | None, Field(title="State")] = "up_for_retry"
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
+    retry_delay_seconds: Annotated[float | None, Field(title="Retry Delay Seconds")] = None
+    retry_reason: Annotated[str | None, Field(title="Retry Reason")] = None
 
 
 class TISkippedDownstreamTasksStatePayload(BaseModel):
@@ -325,6 +398,7 @@ class TaskInstanceState(str, Enum):
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
     DEFERRED = "deferred"
+    AWAITING_INPUT = "awaiting_input"
 
 
 class TaskStatesResponse(BaseModel):
@@ -333,6 +407,29 @@ class TaskStatesResponse(BaseModel):
     """
 
     task_states: Annotated[dict[str, Any], Field(title="Task States")]
+
+
+class TaskStorePutBody(BaseModel):
+    """
+    Request body for setting a task store value.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
+    expires_at: Annotated[AwareDatetime | None, Field(title="Expires At")] = None
+
+
+class TaskStoreResponse(BaseModel):
+    """
+    Task store value returned to a worker.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
 
 
 class TerminalStateNonSuccess(str, Enum):
@@ -355,6 +452,7 @@ class TriggerDAGRunPayload(BaseModel):
         extra="forbid",
     )
     logical_date: Annotated[AwareDatetime | None, Field(title="Logical Date")] = None
+    run_after: Annotated[AwareDatetime | None, Field(title="Run After")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
@@ -377,6 +475,18 @@ class ValidationError(BaseModel):
     type: Annotated[str, Field(title="Error Type")]
     input: Annotated[Any | None, Field(title="Input")] = None
     ctx: Annotated[dict[str, Any] | None, Field(title="Context")] = None
+
+
+class VariableKeysResponse(BaseModel):
+    """
+    Variable keys schema for list responses.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    keys: Annotated[list[str], Field(title="Keys")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
 
 
 class VariablePostBody(BaseModel):
@@ -520,6 +630,40 @@ class AssetResponse(BaseModel):
     extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
 
 
+class AssetStorePutBody(BaseModel):
+    """
+    Request body for setting an asset store value.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
+
+
+class AssetStoreResponse(BaseModel):
+    """
+    Asset store value returned to a worker.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
+
+
+class ConnectionTestResultBody(BaseModel):
+    """
+    Result a worker reports back for a connection test.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: ConnectionTestState
+    result_message: Annotated[ResultMessage | None, Field(title="Result Message")] = None
+
+
 class HITLDetailRequest(BaseModel):
     """
     Schema for the request part of a Human-in-the-loop detail for a specific task instance.
@@ -631,6 +775,7 @@ class DagRun(BaseModel):
     consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     note: Annotated[str | None, Field(title="Note")] = None
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
 class TIRunContext(BaseModel):
@@ -647,3 +792,4 @@ class TIRunContext(BaseModel):
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
     should_retry: Annotated[bool | None, Field(title="Should Retry")] = False
+    start_date: Annotated[AwareDatetime | None, Field(title="Start Date")] = None

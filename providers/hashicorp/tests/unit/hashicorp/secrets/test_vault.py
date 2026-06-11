@@ -23,8 +23,64 @@ from hvac.exceptions import InvalidPath, VaultError
 
 from airflow.providers.hashicorp.secrets.vault import VaultBackend
 
+from tests_common.test_utils.config import conf_vars
+
 
 class TestVaultSecrets:
+    @pytest.fixture
+    def secret_not_found(self):
+        return {"data": {"data": None}}
+
+    @pytest.fixture
+    def connection_result(self):
+        return {
+            "request_id": "94011e25-f8dc-ec29-221b-1f9c1d9ad2ae",
+            "lease_id": "",
+            "renewable": False,
+            "lease_duration": 0,
+            "data": {
+                "data": {
+                    "conn_type": "postgresql",
+                    "login": "airflow",
+                    "password": "airflow",
+                    "host": "host",
+                    "port": "5432",
+                    "schema": "airflow",
+                    "extra": '{"foo":"bar","baz":"taz"}',
+                },
+                "metadata": {
+                    "created_time": "2020-03-16T21:01:43.331126Z",
+                    "deletion_time": "",
+                    "destroyed": False,
+                    "version": 1,
+                },
+            },
+            "wrap_info": None,
+            "warnings": None,
+            "auth": None,
+        }
+
+    @pytest.fixture
+    def variable_result(self):
+        return {
+            "request_id": "2d48a2ad-6bcb-e5b6-429d-da35fdf31f56",
+            "lease_id": "",
+            "renewable": False,
+            "lease_duration": 0,
+            "data": {
+                "data": {"value": "world"},
+                "metadata": {
+                    "created_time": "2020-03-28T02:10:54.301784Z",
+                    "deletion_time": "",
+                    "destroyed": False,
+                    "version": 1,
+                },
+            },
+            "wrap_info": None,
+            "warnings": None,
+            "auth": None,
+        }
+
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_connection(self, mock_hvac):
         mock_client = mock.MagicMock()
@@ -66,6 +122,76 @@ class TestVaultSecrets:
 
         test_client = VaultBackend(**kwargs)
         connection = test_client.get_connection(conn_id="test_postgres")
+        assert connection.get_uri() == "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
+
+    @pytest.mark.parametrize(
+        ("side_effects", "extra_kwargs", "exp_paths", "team_name"),
+        [
+            pytest.param(["connection_result"], {}, ["/foo/test_postgres"], "foo", id="team_conn"),
+            pytest.param(["connection_result"], {}, ["/test_postgres"], None, id="conn_no_team"),
+            pytest.param(
+                ["connection_result"],
+                {
+                    "use_team_secrets_path": False,
+                },
+                ["/test_postgres"],
+                "foo",
+                id="team_conn_no_separation",
+            ),
+            pytest.param(
+                ["secret_not_found", "connection_result"],
+                {"global_secrets_path": "global"},
+                ["/foo/test_postgres", "/global/test_postgres"],
+                "foo",
+                id="fallback_global_conn",
+            ),
+            pytest.param(
+                ["connection_result"],
+                {"global_secrets_path": "global"},
+                ["/global/test_postgres"],
+                None,
+                id="global_conn_no_team",
+            ),
+        ],
+    )
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_connection_value_multi_team(
+        self, mock_hvac, side_effects, extra_kwargs, exp_paths, team_name, request
+    ):
+        read_secret_side_effects = []
+        for eft in side_effects:
+            # Populate side effects from fixtures
+            if eft is not None:
+                read_secret_side_effects.append(request.getfixturevalue(eft))
+            else:
+                read_secret_side_effects.append(None)
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v2.read_secret_version.side_effect = read_secret_side_effects
+
+        kwargs = dict(
+            connections_path="connections",
+            mount_point="airflow",
+            auth_type="token",
+            url="http://127.0.0.1:8200",
+            token="s.7AU0I51yv1Q1lxOIg1F3ZRAS",
+            **extra_kwargs,
+        )
+
+        test_client = VaultBackend(**kwargs)
+        connection = test_client.get_connection(conn_id="test_postgres", team_name=team_name)
+        mock_client.secrets.kv.v2.read_secret_version.assert_has_calls(
+            [
+                mock.call(
+                    path=test_client.connections_path + path,
+                    mount_point="airflow",
+                    version=None,
+                    raise_on_deleted_version=True,
+                )
+                for path in exp_paths
+            ]
+        )
         assert connection.get_uri() == "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -152,6 +278,76 @@ class TestVaultSecrets:
 
         test_client = VaultBackend(**kwargs)
         returned_uri = test_client.get_variable("hello")
+        assert returned_uri == "world"
+
+    @pytest.mark.parametrize(
+        ("side_effects", "extra_kwargs", "exp_paths", "team_name"),
+        [
+            pytest.param(["variable_result"], {}, ["/foo/hello"], "foo", id="team_var"),
+            pytest.param(["variable_result"], {}, ["/hello"], None, id="no_team_var"),
+            pytest.param(
+                ["variable_result"],
+                {
+                    "use_team_secrets_path": False,
+                },
+                ["/hello"],
+                "foo",
+                id="team_var_no_separation",
+            ),
+            pytest.param(
+                ["secret_not_found", "variable_result"],
+                {"global_secrets_path": "global"},
+                ["/foo/hello", "/global/hello"],
+                "foo",
+                id="fallback_global_var",
+            ),
+            pytest.param(
+                ["variable_result"],
+                {"global_secrets_path": "global"},
+                ["/global/hello"],
+                None,
+                id="global_var_no_team",
+            ),
+        ],
+    )
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_variable_value_multi_team(
+        self, mock_hvac, side_effects, extra_kwargs, exp_paths, team_name, request
+    ):
+        read_secret_side_effects = []
+        for eft in side_effects:
+            # Populate side effects from fixtures
+            if eft is not None:
+                read_secret_side_effects.append(request.getfixturevalue(eft))
+            else:
+                read_secret_side_effects.append(None)
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v2.read_secret_version.side_effect = read_secret_side_effects
+
+        kwargs = dict(
+            connections_path="connections",
+            mount_point="airflow",
+            auth_type="token",
+            url="http://127.0.0.1:8200",
+            token="s.7AU0I51yv1Q1lxOIg1F3ZRAS",
+            **extra_kwargs,
+        )
+
+        test_client = VaultBackend(**kwargs)
+        returned_uri = test_client.get_variable("hello", team_name)
+        mock_client.secrets.kv.v2.read_secret_version.assert_has_calls(
+            [
+                mock.call(
+                    path=test_client.variables_path + path,
+                    mount_point="airflow",
+                    version=None,
+                    raise_on_deleted_version=True,
+                )
+                for path in exp_paths
+            ]
+        )
         assert returned_uri == "world"
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")

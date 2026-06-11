@@ -58,12 +58,17 @@ class TestCloudFirestoreHookWithPassedProjectId:
         ):
             self.hook = CloudFirestoreHook(gcp_conn_id="test")
 
+    @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_client_options")
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook._authorize")
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.build")
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.build_from_document")
-    def test_client_creation(self, mock_build_from_document, mock_build, mock_authorize):
+    def test_client_creation(
+        self, mock_build_from_document, mock_build, mock_authorize, mock_get_client_options
+    ):
         result = self.hook.get_conn()
-        mock_build.assert_called_once_with("firestore", "v1", cache_discovery=False)
+        mock_build.assert_called_once_with(
+            "firestore", "v1", cache_discovery=False, client_options=mock_get_client_options.return_value
+        )
         mock_build_from_document.assert_called_once_with(
             mock_build.return_value._rootDesc, http=mock_authorize.return_value
         )
@@ -137,12 +142,17 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection:
         ):
             self.hook = CloudFirestoreHook(gcp_conn_id="test")
 
+    @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_client_options")
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook._authorize")
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.build")
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.build_from_document")
-    def test_client_creation(self, mock_build_from_document, mock_build, mock_authorize):
+    def test_client_creation(
+        self, mock_build_from_document, mock_build, mock_authorize, mock_get_client_options
+    ):
         result = self.hook.get_conn()
-        mock_build.assert_called_once_with("firestore", "v1", cache_discovery=False)
+        mock_build.assert_called_once_with(
+            "firestore", "v1", cache_discovery=False, client_options=mock_get_client_options.return_value
+        )
         mock_build_from_document.assert_called_once_with(
             mock_build.return_value._rootDesc, http=mock_authorize.return_value
         )

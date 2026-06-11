@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/* eslint-disable unicorn/no-null,max-lines */
 import { http, HttpResponse, type HttpHandler } from "msw";
 
 const ti = {
@@ -70,17 +68,21 @@ export const handlers: Array<HttpHandler> = [
   http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/generate/logs/1", () =>
     HttpResponse.json({
       content: [
+        { event: "::group::Log message source details" },
         {
-          event: "::group::Log message source details",
-          sources: [
+          event:
             "/home/airflow/logs/dag_id=tutorial_dag/run_id=manual__2025-02-28T05:18:54.249762+00:00/task_id=load/attempt=1.log",
-          ],
         },
         { event: "::endgroup::" },
         {
           event:
             "[2025-02-28T10:49:09.535+0530] {local_task_job_runner.py:120} INFO - ::group::Pre task execution logs",
           timestamp: "2025-02-28T10:49:09.535000+05:30",
+        },
+        {
+          event:
+            "[2025-02-28T10:49:09.673+0530] {taskinstance.py:2340} INFO - ::group::Dependency check details",
+          timestamp: "2025-02-28T10:49:09.673000+05:30",
         },
         {
           event:
@@ -91,6 +93,10 @@ export const handlers: Array<HttpHandler> = [
           event:
             "[2025-02-28T10:49:09.678+0530] {taskinstance.py:2348} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: tutorial_dag.load manual__2025-02-28T05:18:54.249762+00:00 [queued]>",
           timestamp: "2025-02-28T10:49:09.678000+05:30",
+        },
+        {
+          event: "[2025-02-28T10:49:09.679+0530] {taskinstance.py:2349} INFO - ::endgroup::",
+          timestamp: "2025-02-28T10:49:09.679000+05:30",
         },
         {
           event: "[2025-02-28T10:49:09.679+0530] {taskinstance.py:2589} INFO - Starting attempt 1 of 3",
@@ -193,6 +199,61 @@ export const handlers: Array<HttpHandler> = [
       continuation_token: null,
     }),
   ),
+  http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/ti_context/-1", () =>
+    HttpResponse.json({
+      ...ti,
+      dag_run_id: "manual__2025-02-18T12:19",
+      task_display_name: "ti_context",
+      task_id: "ti_context",
+    }),
+  ),
+  http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/ti_context/logs/1", () =>
+    HttpResponse.json({
+      content: [
+        { event: "::group::Log message source details" },
+        {
+          event:
+            "/home/airflow/logs/dag_id=log_grouping/run_id=manual__2025-02-18T12:19/task_id=ti_context/attempt=1.log",
+        },
+        { event: "::endgroup::" },
+        {
+          dag_id: "log_grouping",
+          event: "Task started",
+          level: "info",
+          map_index: -1,
+          run_id: "manual__2025-02-18T12:19",
+          task_id: "ti_context",
+          ti_id: "01951900-16f6-7c1c-ae66-91bdfe9e0cfd",
+          timestamp: "2025-02-18T12:19:56.263258Z",
+          try_number: 1,
+        },
+        { event: "::group::Pre Execute" },
+        {
+          event: "DAG bundles loaded: dags-folder, example_dags",
+          level: "info",
+          timestamp: "2025-02-18T12:19:56.400000Z",
+        },
+        {
+          event: "Filling up the DagBag from /files/dags/log_grouping.py",
+          level: "info",
+          timestamp: "2025-02-18T12:19:56.400000Z",
+        },
+        { event: "::endgroup::" },
+        {
+          dag_id: "log_grouping",
+          event: "Done. Returned value was: None",
+          level: "info",
+          map_index: -1,
+          run_id: "manual__2025-02-18T12:19",
+          task_id: "ti_context",
+          ti_id: "01951900-16f6-7c1c-ae66-91bdfe9e0cfd",
+          timestamp: "2025-02-18T12:19:56.467235Z",
+          try_number: 1,
+        },
+      ],
+      continuation_token: null,
+    }),
+  ),
   http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/log_source/-1", () =>
     HttpResponse.json({
       ...ti,
@@ -204,11 +265,10 @@ export const handlers: Array<HttpHandler> = [
   http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/log_source/logs/1", () =>
     HttpResponse.json({
       content: [
+        { event: "::group::Log message source details", timestamp: null },
         {
-          event: "::group::Log message source details",
-          sources: [
+          event:
             "/root/airflow/logs/dag_id=log_grouping/run_id=manual__2025-02-18T12:19/task_id=log_source/attempt=1.log",
-          ],
           timestamp: null,
         },
         { event: "::endgroup::", timestamp: null },

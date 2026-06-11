@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime
+import json
 import operator
 import os
 import pathlib
@@ -30,11 +31,17 @@ import pendulum
 import pytest
 import time_machine
 import uuid6
-from sqlalchemy import delete, func, select
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from sqlalchemy import delete, func, inspect as sa_inspect, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import load_only
+from sqlalchemy.orm.attributes import set_committed_value
 
 from airflow import settings
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
+from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_task_run_carrier
 from airflow._shared.timezones import timezone
 from airflow.exceptions import (
     AirflowException,
@@ -99,12 +106,14 @@ from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
+from airflow.timetables.simple import PartitionAtRuntime
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import (
@@ -432,7 +441,7 @@ class TestTaskInstance:
             )
 
     @provide_session
-    def test_ti_updates_with_task(self, dag_maker, create_task_instance, session):
+    def test_ti_updates_with_task(self, dag_maker, create_task_instance, *, session: Session):
         """
         test that updating the executor_config propagates to the TaskInstance DB
         """
@@ -462,7 +471,7 @@ class TestTaskInstance:
         run_task_instance(ti2, task2, session=session)
         # Ensure it's reloaded
         ti2.executor_config = None
-        ti2.refresh_from_db(session)
+        ti2.refresh_from_db(session=session)
         assert ti2.executor_config == {"bar": "baz"}
         session.rollback()
 
@@ -515,7 +524,7 @@ class TestTaskInstance:
         def run_with_error(ti):
             with contextlib.suppress(AirflowException):
                 dag_maker.run_ti(ti.task_id, ti.dag_run)
-            ti.refresh_from_db(session)
+            ti.refresh_from_db(session=session)
 
         ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = dag_maker.serialized_dag.get_task(ti.task_id)
@@ -722,6 +731,35 @@ class TestTaskInstance:
         date = ti.next_retry_datetime()
         period = ti.end_date.add(seconds=6000) - ti.end_date.add(seconds=1200)
         assert date in period
+
+    def test_next_retry_datetime_with_retry_delay_override(self, dag_maker):
+        """When retry_delay_override is set (by a RetryPolicy), it takes precedence over the standard calculation."""
+        with dag_maker(dag_id="fail_dag"):
+            task = BashOperator(
+                task_id="task_with_retry_override",
+                bash_command="exit 1",
+                retries=3,
+                retry_delay=datetime.timedelta(minutes=5),
+                retry_exponential_backoff=2.0,
+            )
+        ti = dag_maker.create_dagrun().task_instances[0]
+        ti.task = task
+        ti.end_date = pendulum.instance(timezone.utcnow())
+
+        # Without override: uses exponential backoff (would be > 5 minutes)
+        ti.retry_delay_override = None
+        date_normal = ti.next_retry_datetime()
+        assert date_normal > ti.end_date + datetime.timedelta(seconds=5)
+
+        # With override: uses the exact override value (10 seconds)
+        ti.retry_delay_override = 10.0
+        date_override = ti.next_retry_datetime()
+        assert date_override == ti.end_date + datetime.timedelta(seconds=10)
+
+        # Override of 0 means retry immediately
+        ti.retry_delay_override = 0.0
+        date_zero = ti.next_retry_datetime()
+        assert date_zero == ti.end_date
 
     @pytest.mark.usefixtures("test_pool")
     def test_mapped_task_reschedule_handling_clear_reschedules(self, dag_maker, task_reschedules_for_ti):
@@ -1376,7 +1414,8 @@ class TestTaskInstance:
         downstream_ti_state,
         expected_are_dependents_done,
         dag_maker,
-        session,
+        *,
+        session: Session,
     ):
         with dag_maker():
             EmptyOperator(task_id="0") >> EmptyOperator(task_id="downstream_task")
@@ -1384,11 +1423,11 @@ class TestTaskInstance:
         dr = dag_maker.create_dagrun()
         downstream_ti = dr.get_task_instance("downstream_task", session=session)
 
-        downstream_ti.set_state(downstream_ti_state, session)
+        downstream_ti.set_state(downstream_ti_state, session=session)
         session.flush()
 
         ti0 = dr.get_task_instance(task_id="0", session=session)
-        assert ti0.are_dependents_done(session) == expected_are_dependents_done
+        assert ti0.are_dependents_done(session=session) == expected_are_dependents_done
 
     def test_xcom_push_flag(self, dag_maker):
         """
@@ -1470,7 +1509,7 @@ class TestTaskInstance:
         assert ti_from_deserialized_task.try_number == 0
 
     @provide_session
-    def test_external_executor_id_accepts_long_values(self, create_task_instance, session):
+    def test_external_executor_id_accepts_long_values(self, create_task_instance, *, session: Session):
         """Test that external_executor_id can store values exceeding 250 characters."""
         # Kubernetes pod names and other executor IDs can exceed 250 chars
         long_executor_id = "k8s-pod-" + "a" * 300  # 308 characters total
@@ -1542,11 +1581,11 @@ class TestTaskInstance:
         ti.state = State.SUCCESS
         assert ti.try_number == 2  # unaffected by state
 
-    def test_get_num_running_task_instances(self, dag_maker, create_task_instance):
+    def test_get_num_active_task_instances(self, dag_maker, create_task_instance):
         session = settings.Session()
 
         ti1 = create_task_instance(
-            dag_id="test_get_num_running_task_instances", task_id="task1", session=session
+            dag_id="test_get_num_active_task_instances", task_id="task1", session=session
         )
 
         logical_date = DEFAULT_DATE + datetime.timedelta(days=1)
@@ -1565,7 +1604,7 @@ class TestTaskInstance:
         ti2.task = ti1.task
 
         ti3 = create_task_instance(
-            dag_id="test_get_num_running_task_instances_dummy", task_id="task2", session=session
+            dag_id="test_get_num_active_task_instances_dummy", task_id="task2", session=session
         )
         assert ti3 in session
         assert ti1 in session
@@ -1576,11 +1615,11 @@ class TestTaskInstance:
         assert ti3 in session
         session.commit()
 
-        assert ti1.get_num_running_task_instances(session=session) == 1
-        assert ti2.get_num_running_task_instances(session=session) == 1
-        assert ti3.get_num_running_task_instances(session=session) == 1
+        assert ti1.get_num_active_task_instances(session=session) == 1
+        assert ti2.get_num_active_task_instances(session=session) == 1
+        assert ti3.get_num_active_task_instances(session=session) == 1
 
-    def test_get_num_running_task_instances_per_dagrun(self, create_task_instance, dag_maker):
+    def test_get_num_active_task_instances_per_dagrun(self, create_task_instance, dag_maker):
         session = settings.Session()
 
         with dag_maker(dag_id="test_dag"):
@@ -1619,15 +1658,49 @@ class TestTaskInstance:
 
         session.commit()
 
-        assert tis1[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
-        assert tis1[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
-        assert tis1[("task_2", 0)].get_num_running_task_instances(session=session) == 2
-        assert tis1[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
+        assert tis1[("task_1", 0)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
+        assert tis1[("task_1", 1)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
+        assert tis1[("task_2", 0)].get_num_active_task_instances(session=session) == 2
+        assert tis1[("task_3", 0)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
 
-        assert tis2[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
-        assert tis2[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
-        assert tis2[("task_2", 0)].get_num_running_task_instances(session=session) == 2
-        assert tis2[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
+        assert tis2[("task_1", 0)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
+        assert tis2[("task_1", 1)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
+        assert tis2[("task_2", 0)].get_num_active_task_instances(session=session) == 2
+        assert tis2[("task_3", 0)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
+
+    def test_get_num_active_task_instances_includes_deferred(self, dag_maker, create_task_instance):
+        """
+        get_num_active_task_instances should count DEFERRED TIs.
+
+        Regression test for https://github.com/apache/airflow/issues/61700
+        """
+        session = settings.Session()
+
+        ti1 = create_task_instance(
+            dag_id="test_get_num_active_task_instances_deferred", task_id="task1", session=session
+        )
+
+        logical_date = DEFAULT_DATE + datetime.timedelta(days=1)
+        dr = dag_maker.create_dagrun(
+            logical_date=logical_date,
+            run_type=DagRunType.MANUAL,
+            state=None,
+            run_id="2",
+            session=session,
+            data_interval=(logical_date, logical_date),
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        ti2 = dr.task_instances[0]
+        ti2.task = ti1.task
+
+        ti1.state = TaskInstanceState.RUNNING
+        ti2.state = TaskInstanceState.DEFERRED
+        session.commit()
+
+        # Both RUNNING and DEFERRED should be counted
+        assert ti1.get_num_active_task_instances(session=session) == 2
+        assert ti2.get_num_active_task_instances(session=session) == 2
 
     def test_log_url(self, create_task_instance):
         ti = create_task_instance(dag_id="my_dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1))
@@ -2246,7 +2319,7 @@ class TestTaskInstance:
         assert ti_list[3].get_previous_ti(state=State.SUCCESS).run_id != ti_list[2].run_id
 
     @provide_session
-    def test_handle_failure_calls_listener(self, dag_maker, session):
+    def test_handle_failure_calls_listener(self, dag_maker, *, session: Session):
         class CustomOp(BaseOperator):
             def execute(self, context): ...
 
@@ -2304,12 +2377,15 @@ class TestTaskInstance:
         ti.handle_failure("test queued ti", test_mode=True)
         assert ti.state == State.UP_FOR_RETRY
 
-    @patch.object(Stats, "incr")
-    def test_handle_failure_no_task(self, Stats_incr, dag_maker):
+    @patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_handle_failure_no_task(self, mock_get_backend, dag_maker):
         """
         When a task instance heartbeat timeout is detected for a DAG with a parse error,
         we need to be able to run handle_failure _without_ ti.task being set
         """
+        mock_backend = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_backend
+
         session = settings.Session()
         with dag_maker():
             task = EmptyOperator(task_id="mytask", retries=1)
@@ -2332,9 +2408,9 @@ class TestTaskInstance:
         # try_number remains at 1
         assert ti.try_number == 1
 
-        Stats_incr.assert_any_call("ti_failures", tags=expected_stats_tags)
-        Stats_incr.assert_any_call("operator_failures_EmptyOperator", tags=expected_stats_tags)
-        Stats_incr.assert_any_call(
+        mock_backend.incr.assert_any_call("ti_failures", tags=expected_stats_tags)
+        mock_backend.incr.assert_any_call("operator_failures_EmptyOperator", tags=expected_stats_tags)
+        mock_backend.incr.assert_any_call(
             "operator_failures", tags={**expected_stats_tags, "operator_name": "EmptyOperator"}
         )
 
@@ -2477,6 +2553,8 @@ class TestTaskInstance:
             "dag_version_id": mock.ANY,
             "context_carrier": {},
             "span_status": SpanStatus.ENDED,
+            "retry_delay_override": 60.0,
+            "retry_reason": "Rate limit, backing off",
         }
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key}" for key in expected_values}
@@ -2601,6 +2679,81 @@ class TestTaskInstance:
         # the new try_id should be different from what's recorded in tih
         assert tih[0].task_instance_id == try_id
 
+    @pytest.mark.parametrize(
+        ("first_ti", "second_ti"),
+        [
+            pytest.param(
+                ("dag_1", "run_1", "task_1", -1),
+                ("dag_2", "run_1", "task_1", -1),
+                id="tasks_with_different_dags",
+            ),
+            pytest.param(
+                ("dag_1", "run_1", "task_1", -1),
+                ("dag_1", "run_2", "task_1", -1),
+                id="tasks_with_different_runs",
+            ),
+            # There are no cases with equal dag_id/run_id because create_task_instance()
+            # creates a DagRun each time, and DagRun has a unique (dag_id, run_id) constraint.
+        ],
+    )
+    def test_get_task_instance_disambiguates_by_dag_id_and_run_id(
+        self, create_task_instance, session, first_ti, second_ti
+    ):
+        dag_id_1, run_id_1, task_id_1, map_index_1 = first_ti
+        dag_id_2, run_id_2, task_id_2, map_index_2 = second_ti
+
+        ti1 = create_task_instance(
+            dag_id=dag_id_1,
+            run_id=run_id_1,
+            task_id=task_id_1,
+            map_index=map_index_1,
+            session=session,
+        )
+        ti2 = create_task_instance(
+            dag_id=dag_id_2,
+            run_id=run_id_2,
+            task_id=task_id_2,
+            map_index=map_index_2,
+            session=session,
+        )
+
+        # Regression setup for #64957: if dag_id is ignored, this lookup key becomes ambiguous.
+        if dag_id_1 != dag_id_2:
+            ambiguous_count = session.scalar(
+                select(func.count())
+                .select_from(TI)
+                .filter_by(run_id=run_id_1, task_id=task_id_1, map_index=map_index_1)
+            )
+            assert ambiguous_count == 2, "Setup failure: expected two TIs matching without dag_id filter"
+
+        # This case does not target the original regression directly (run_id was already filtered),
+        # but we keep it as defense-in-depth against future changes.
+        found_1 = TI.get_task_instance(
+            dag_id=dag_id_1,
+            run_id=run_id_1,
+            task_id=task_id_1,
+            map_index=map_index_1,
+            session=session,
+        )
+        found_2 = TI.get_task_instance(
+            dag_id=dag_id_2,
+            run_id=run_id_2,
+            task_id=task_id_2,
+            map_index=map_index_2,
+            session=session,
+        )
+
+        assert found_1 is not None
+        assert found_2 is not None
+
+        assert found_1.id == ti1.id
+        assert found_2.id == ti2.id
+
+        # Keep dag_id assertions explicit to document the regression intent (#64957):
+        # get_task_instance() must disambiguate identical run/task/map_index by dag_id.
+        assert found_1.dag_id == dag_id_1
+        assert found_2.dag_id == dag_id_2
+
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
 @pytest.mark.parametrize("queue_by_policy", [None, "forced_queue"])
@@ -2609,7 +2762,7 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
     expected_queue = queue_by_policy or default_queue
     if queue_by_policy:
         # Apply a dummy cluster policy to check if it is always applied
-        def mock_policy(task_instance: TaskInstance):
+        def mock_policy(task_instance: TaskInstance, dag_run=None):
             task_instance.queue = queue_by_policy
 
         monkeypatch.setattr("airflow.models.taskinstance.task_instance_mutation_hook", mock_policy)
@@ -2647,6 +2800,274 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
     ti.max_tries = expected_max_tries
     ti.refresh_from_task(ser_task)
     assert ti.max_tries == expected_max_tries
+
+
+@pytest.mark.parametrize(
+    ("weight_rule", "expected_weight"),
+    [
+        pytest.param("downstream", 10 + 5, id="downstream-sums-descendants"),
+        pytest.param("upstream", 10, id="upstream-no-ancestors"),
+        pytest.param("absolute", 10, id="absolute-self-only"),
+    ],
+)
+def test_refresh_from_task_with_non_serialized_operator(weight_rule, expected_weight):
+    """Regression: TaskInstance must work with non-serialized operators whose weight_rule is a WeightRule enum."""
+    with DAG(dag_id="test_dag"):
+        root = EmptyOperator(task_id="root", priority_weight=10, weight_rule=weight_rule)
+        child = EmptyOperator(task_id="child", priority_weight=5)
+        root >> child
+
+    ti = TI(root, run_id=None, dag_version_id=mock.MagicMock())
+
+    assert ti.priority_weight == expected_weight
+
+
+def test_defer_task_returns_false_when_no_start_from_trigger(create_task_instance):
+    session = mock.MagicMock()
+    ti = create_task_instance(
+        dag_id="test_defer_task",
+        task_id="test_defer_task_op",
+    )
+    assert not ti.defer_task(session=session)
+
+
+def test_defer_task_returns_false_when_no_start_trigger_args(create_task_instance):
+    session = mock.MagicMock()
+    ti = create_task_instance(
+        dag_id="test_defer_task",
+        task_id="test_defer_task",
+        start_from_trigger=True,
+    )
+    assert not ti.defer_task(session=session)
+
+
+def test_defer_task(create_task_instance):
+    from airflow.models.trigger import Trigger
+    from airflow.triggers.base import StartTriggerArgs
+
+    session = mock.MagicMock()
+    ti = create_task_instance(
+        dag_id="test_defer_task",
+        task_id="test_defer_task_op",
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls="trigger_cls",
+            next_method="next_method",
+            trigger_kwargs={"key": "value"},
+        ),
+    )
+    assert ti.defer_task(session=session)
+
+    # Check that session.add was called with a Trigger
+    assert session.add.call_count == 1
+    trigger_row = session.add.call_args[0][0]
+    assert isinstance(trigger_row, Trigger)
+    assert trigger_row.classpath == "trigger_cls"
+    assert trigger_row.kwargs == {"key": "value"}
+
+    # Check that session.flush was called
+    session.flush.assert_called_once()
+
+    # Check that TaskInstance state was updated
+    assert ti.state == TaskInstanceState.DEFERRED
+    assert ti.trigger_id == trigger_row.id
+    assert ti.next_method == "next_method"
+    assert ti.next_kwargs == {}
+
+    # Check trigger_timeout is set (should be None since no timeout provided)
+    assert ti.trigger_timeout is None
+
+
+def test_defer_task_stringifies_non_json_next_kwargs(create_task_instance):
+    from airflow.serialization.enums import stringify_encoding_keys
+    from airflow.triggers.base import StartTriggerArgs
+
+    session = mock.Mock(spec=["add", "flush"])
+    delay = datetime.timedelta(minutes=5)
+    start_at = timezone.utcnow()
+    ti = create_task_instance(
+        dag_id="test_defer_task_stringifies_non_json_next_kwargs",
+        task_id="test_defer_task_stringifies_non_json_next_kwargs_op",
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls="trigger_cls",
+            next_method="next_method",
+            trigger_kwargs={"key": "value"},
+            next_kwargs={"start_at": start_at, "delay": delay},
+        ),
+    )
+
+    assert ti.defer_task(session=session)
+    json.dumps(ti.next_kwargs)
+    assert ti.next_kwargs == stringify_encoding_keys(ti.start_trigger_args.next_kwargs)
+
+
+def test_defer_task_with_trigger_timeout(create_task_instance):
+    from airflow.models.trigger import Trigger
+    from airflow.triggers.base import StartTriggerArgs
+
+    session = mock.MagicMock()
+    timeout = datetime.timedelta(hours=1)
+    ti = create_task_instance(
+        dag_id="test_defer_task_with_trigger_timeout",
+        task_id="test_defer_task_with_trigger_timeout_op",
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls="trigger_cls",
+            next_method="next_method",
+            trigger_kwargs={"key": "value"},
+            timeout=timeout,
+        ),
+    )
+
+    # Save start_date to calculate expected trigger_timeout
+    now = timezone.utcnow()
+    ti.start_date = now
+
+    ti.defer_task(session=session)
+
+    # Check session interactions
+    assert session.add.call_count == 1
+    trigger_row = session.add.call_args[0][0]
+    assert isinstance(trigger_row, Trigger)
+    session.flush.assert_called_once()
+
+    # TaskInstance fields
+    assert ti.state == TaskInstanceState.DEFERRED
+    assert ti.trigger_id == trigger_row.id
+    assert ti.next_method == "next_method"
+    assert ti.next_kwargs == {}
+
+    # Check trigger_timeout is set correctly (within a small tolerance)
+    expected_timeout = now + timeout
+    assert abs((ti.trigger_timeout - expected_timeout).total_seconds()) < 5
+
+
+@pytest.mark.parametrize(
+    ("initial_state", "initial_try_number", "expected_try_number", "msg"),
+    [
+        (TaskInstanceState.DEFERRED, 1, 2, "try_number should increment if state is not UP_FOR_RESCHEDULE"),
+        (
+            TaskInstanceState.UP_FOR_RESCHEDULE,
+            5,
+            5,
+            "try_number should NOT increment if state is UP_FOR_RESCHEDULE",
+        ),
+    ],
+)
+def test_defer_task_try_number_increment_on_state(
+    create_task_instance, initial_state, initial_try_number, expected_try_number, msg
+):
+    """
+    Test that defer_task increments try_number only if the pre-deferral state is not UP_FOR_RESCHEDULE.
+    """
+    from airflow.triggers.base import StartTriggerArgs
+
+    session = mock.MagicMock()
+
+    ti = create_task_instance(
+        dag_id="test_defer_task_try_number",
+        task_id="test_defer_task_try_number_op",
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls="trigger_cls",
+            next_method="next_method",
+            trigger_kwargs={},
+        ),
+    )
+    ti.state = initial_state
+    ti.try_number = initial_try_number
+    ti.defer_task(session=session)
+    assert ti.try_number == expected_try_number, msg
+
+
+def _defer_ti_in_testing_bundle(create_task_instance, session, *, with_team):
+    """Create a deferrable TI whose Dag belongs to the ``testing`` bundle, then defer it."""
+    from sqlalchemy import update
+
+    from airflow.models.dag import DagModel
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.models.team import Team
+    from airflow.triggers.base import StartTriggerArgs
+
+    bundle = session.get(DagBundleModel, "testing")
+    bundle.teams = [session.get(Team, "testing")] if with_team else []
+    session.flush()
+
+    ti = create_task_instance(
+        dag_id="test_defer_team",
+        task_id="op",
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger",
+            next_method="execute_complete",
+            trigger_kwargs={"moment": "2024-01-01"},
+        ),
+        session=session,
+    )
+    session.execute(
+        update(DagModel).where(DagModel.dag_id == "test_defer_team").values(bundle_name="testing")
+    )
+    session.flush()
+
+    ti.defer_task(session=session)
+    return ti
+
+
+@pytest.mark.db_test
+@conf_vars({("core", "multi_team"): "True"})
+@pytest.mark.parametrize(
+    ("with_team", "expected_team_name"),
+    [
+        pytest.param(True, "testing", id="bundle-mapped-to-team"),
+        pytest.param(False, None, id="bundle-without-team"),
+    ],
+)
+def test_defer_task_populates_trigger_team_name(
+    create_task_instance, session, testing_dag_bundle, testing_team, with_team, expected_team_name
+):
+    from airflow.models.trigger import Trigger
+
+    _defer_ti_in_testing_bundle(create_task_instance, session, with_team=with_team)
+
+    trigger = session.scalars(select(Trigger)).one()
+    assert trigger.team_name == expected_team_name
+
+
+@pytest.mark.db_test
+@conf_vars({("core", "multi_team"): "False"})
+def test_defer_task_skips_trigger_team_name_when_multi_team_disabled(
+    create_task_instance, session, testing_dag_bundle, testing_team
+):
+    from airflow.models.trigger import Trigger
+
+    _defer_ti_in_testing_bundle(create_task_instance, session, with_team=True)
+
+    trigger = session.scalars(select(Trigger)).one()
+    assert trigger.team_name is None
+
+
+class TestTaskInstanceRelationships:
+    @pytest.mark.parametrize(
+        "attr",
+        ["rendered_task_instance_fields", "hitl_detail"],
+    )
+    def test_noload_relationships_raise_without_joinedload(self, dag_maker, session, attr):
+        """Accessing lazy='raise' relationships without joinedload should raise."""
+        from sqlalchemy.exc import InvalidRequestError
+
+        with dag_maker("test_dag", session=session):
+            EmptyOperator(task_id="task_1")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task_1")
+        session.merge(ti)
+        session.commit()
+
+        loaded_ti = session.scalar(select(TaskInstance).where(TaskInstance.id == ti.id))
+
+        with pytest.raises(InvalidRequestError):
+            getattr(loaded_ti, attr)
 
 
 class TestTaskInstanceRecordTaskMapXComPush:
@@ -3129,7 +3550,7 @@ def test_find_relevant_relatives_with_non_mapped_task_as_tuple(dag_maker, sessio
 
 def test_when_dag_run_has_partition_then_asset_does(dag_maker, session):
     asset = Asset(name="hello")
-    with dag_maker(dag_id="asset_event_tester", schedule=None) as dag:
+    with dag_maker(dag_id="asset_event_tester", schedule=PartitionAtRuntime()) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dr = dag_maker.create_dagrun(partition_key="abc123", session=session)
     assert dr.partition_key == "abc123"
@@ -3152,7 +3573,7 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
     session,
 ):
     asset = Asset(name="hello")
-    with dag_maker(dag_id="asset_event_tester", schedule=None, session=session) as dag:
+    with dag_maker(dag_id="asset_event_tester", schedule=PartitionAtRuntime(), session=session) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dag1_id = dag.dag_id
     dr = dag_maker.create_dagrun(partition_key="abc123", session=session)
@@ -3185,6 +3606,228 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
     assert pakl.asset_partition_dag_run_id == apdr.id
     assert pakl.source_partition_key == "abc123"
     assert pakl.target_dag_id == "asset_event_listener"
+
+
+def test_runtime_partition_key_does_not_backfill_dag_run_when_none(dag_maker, session):
+    """Task-emitted partition_key lands on the AssetEvent but does NOT back-fill DagRun.partition_key.
+
+    DagRun.partition_key (provenance) is set by the scheduler / trigger side, not by task
+    runtime emission. A run that started with partition_key=None should remain None even when
+    a task emits an outlet event carrying its own key.
+    """
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_backfill", schedule=None) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(session=session)
+    assert dr.partition_key is None
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "us"},
+        ],
+        session=session,
+    )
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    assert event.partition_key == "us"
+    session.refresh(dr)
+    assert dr.partition_key is None
+
+
+def test_runtime_partition_key_does_not_overwrite_scheduler_partition(dag_maker, session):
+    """Task-emitted key lands on the AssetEvent but does NOT overwrite a scheduler-set DagRun.partition_key."""
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_no_overwrite", schedule=PartitionAtRuntime()) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(partition_key="scheduler-key", session=session)
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "task-key"},
+        ],
+        session=session,
+    )
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    assert event.partition_key == "task-key"
+    session.refresh(dr)
+    assert dr.partition_key == "scheduler-key"
+
+
+def test_runtime_partition_keys_fan_out_to_one_event_per_key(dag_maker, session):
+    """Multiple distinct runtime keys produce one AssetEvent each; DagRun.partition_key stays None."""
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_fan_out", schedule=None) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(session=session)
+    assert dr.partition_key is None
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "us"},
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "eu"},
+        ],
+        session=session,
+    )
+    events = session.scalars(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id)).all()
+    assert {e.partition_key for e in events} == {"us", "eu"}
+    session.refresh(dr)
+    assert dr.partition_key is None
+
+
+def test_runtime_partition_key_inherits_dag_run_key_when_event_has_no_key(dag_maker, session):
+    """An outlet event without partition_key inherits DagRun.partition_key as the routing pointer.
+
+    When a task emits an outlet event that carries no explicit partition_key, the resulting
+    AssetEvent should inherit the DagRun's partition_key so that downstream partitioned consumers
+    can still be routed correctly.
+    """
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_none", schedule=PartitionAtRuntime()) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(partition_key="from-run", session=session)
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {"x": 1}},
+        ],
+        session=session,
+    )
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    assert event.partition_key == "from-run"
+
+
+def test_runtime_partition_key_mixed_events_for_same_asset(dag_maker, session):
+    """One event with an explicit key + one without produce two AssetEvents (explicit key + inherited run key)."""
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_mixed", schedule=PartitionAtRuntime()) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(partition_key="from-run", session=session)
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "us"},
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}},
+        ],
+        session=session,
+    )
+    events = session.scalars(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id)).all()
+    assert {e.partition_key for e in events} == {"us", "from-run"}
+    session.refresh(dr)
+    assert dr.partition_key == "from-run"
+
+
+def test_runtime_partition_key_event_stays_none_when_no_key_and_no_run_key(dag_maker, session):
+    """Task has no partition_key and run has no partition_key -> event.partition_key is None.
+
+    Pins the `is not None` guard: both sides are None so effective_pk stays None and no
+    routing pointer is written to the AssetEvent.
+    """
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_both_none", schedule=None) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(session=session)
+    assert dr.partition_key is None
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}},
+        ],
+        session=session,
+    )
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    assert event.partition_key is None
+
+
+def test_runtime_partition_key_does_not_backfill_partition_at_runtime_run(dag_maker, session):
+    """Task-emitted key lands on AssetEvent but does NOT back-fill DagRun.partition_key on a PartitionAtRuntime run.
+
+    Provenance contract: DagRun.partition_key is set only at run-creation/trigger time.
+    A PartitionAtRuntime Dag triggered via REST without a partition_key starts with
+    partition_key=None. Even when a task discovers a partition at runtime and emits an
+    outlet event carrying an explicit key, DagRun.partition_key must remain None — the
+    key belongs to the AssetEvent, not to the run's provenance.
+    """
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_par_backfill", schedule=PartitionAtRuntime()) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(session=session)
+    assert dr.partition_key is None
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "2025-01-01"},
+        ],
+        session=session,
+    )
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    assert event.partition_key == "2025-01-01"
+    session.refresh(dr)
+    assert dr.partition_key is None
+
+
+def test_when_runtime_partition_keys_and_downstreams_listening_then_tables_populated(
+    dag_maker,
+    session,
+):
+    """Runtime-emitted fan-out populates PartitionedAssetKeyLog + AssetPartitionDagRun per key."""
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_producer", schedule=None, session=session) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    producer_dag_id = dag.dag_id
+    dr = dag_maker.create_dagrun(session=session)
+    assert dr.partition_key is None
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
+
+    with dag_maker(
+        dag_id="rt_consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=Asset(name="hello"), default_partition_mapper=IdentityMapper()
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "us"},
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "eu"},
+        ],
+        session=session,
+    )
+    session.commit()
+    events = session.scalars(select(AssetEvent).where(AssetEvent.source_dag_id == producer_dag_id)).all()
+    assert {e.partition_key for e in events} == {"us", "eu"}
+    pakls = session.scalars(select(PartitionedAssetKeyLog)).all()
+    apdrs = session.scalars(select(AssetPartitionDagRun)).all()
+    assert {p.source_partition_key for p in pakls} == {"us", "eu"}
+    assert {p.target_partition_key for p in pakls} == {"us", "eu"}
+    assert {p.target_dag_id for p in pakls} == {"rt_consumer"}
+    assert {a.partition_key for a in apdrs} == {"us", "eu"}
+    assert {a.target_dag_id for a in apdrs} == {"rt_consumer"}
 
 
 async def empty_callback_for_deadline():
@@ -3279,11 +3922,6 @@ def test_get_dagrun_loaded_but_none_returns_dagrun(dag_maker, session):
     Test that `get_dagrun()` fetches `DagRun` from DB when the `dag_run`
     relationship is marked as loaded but unset (`None`).
     """
-    from sqlalchemy.orm.attributes import set_committed_value
-
-    from airflow.operators.empty import EmptyOperator
-    from airflow.utils.state import State
-
     with dag_maker(dag_id="test_get_dagrun_loaded_none"):
         EmptyOperator(task_id="test_task")
 
@@ -3298,3 +3936,193 @@ def test_get_dagrun_loaded_but_none_returns_dagrun(dag_maker, session):
 
     assert dr_from_ti is not None
     assert dr_from_ti == dr
+
+
+class TestMakeTaskCarrier:
+    """Tests for the _make_task_carrier helper."""
+
+    @pytest.fixture(autouse=True)
+    def sdk_tracer_provider(self):
+        provider = TracerProvider()
+        real_tracer = provider.get_tracer("airflow.models.taskinstance")
+        with (
+            mock.patch("airflow.models.taskinstance.tracer", real_tracer),
+            mock.patch("airflow._shared.observability.traces.tracer", real_tracer),
+        ):
+            yield
+
+    def test_make_task_carrier_returns_traceparent(self):
+        carrier = new_task_run_carrier(new_dagrun_trace_carrier())
+        assert isinstance(carrier, dict)
+        assert "traceparent" in carrier
+
+    def test_make_task_carrier_child_of_parent(self):
+        parent_carrier = new_dagrun_trace_carrier()
+        child_carrier = new_task_run_carrier(parent_carrier)
+
+        propagator = TraceContextTextMapPropagator()
+        parent_trace_id = (
+            trace.get_current_span(context=propagator.extract(parent_carrier)).get_span_context().trace_id
+        )
+        child_trace_id = (
+            trace.get_current_span(context=propagator.extract(child_carrier)).get_span_context().trace_id
+        )
+        assert child_trace_id == parent_trace_id
+        assert child_trace_id != 0
+
+    def test_make_task_carrier_with_none_carrier(self):
+        carrier = new_task_run_carrier(None)
+        assert isinstance(carrier, dict)
+        assert "traceparent" in carrier
+
+
+@pytest.mark.db_test
+def test_insert_mapping_includes_context_carrier(dag_maker, session):
+    """insert_mapping should include a context_carrier with a traceparent derived from the dag run."""
+    provider = TracerProvider()
+    real_tracer = provider.get_tracer("airflow.models.taskinstance")
+    with (
+        mock.patch("airflow.models.taskinstance.tracer", real_tracer),
+        mock.patch("airflow._shared.observability.traces.tracer", real_tracer),
+    ):
+        with dag_maker("test_insert_mapping_carrier"):
+            EmptyOperator(task_id="t1")
+        session.flush()
+
+        # Get the scheduler-side operator (has a proper PriorityWeightStrategy, not the enum weight_rule).
+        op = create_scheduler_operator(dag_maker.dag.get_task("t1"))
+
+        # Mock the DagRun to avoid inserting into the dag_run table (schema migrations may be pending).
+        dag_run = mock.MagicMock()
+        dag_run.context_carrier = new_dagrun_trace_carrier()
+
+        mapping = TaskInstance.insert_mapping(
+            run_id="test_run",
+            task=op,
+            map_index=0,
+            dag_version_id=None,
+            dag_run=dag_run,
+        )
+
+    assert "context_carrier" in mapping
+    assert mapping["context_carrier"] is not None
+    assert "traceparent" in mapping["context_carrier"]
+
+
+@pytest.mark.db_test
+def test_clear_task_instances_resets_context_carrier(dag_maker, session):
+    """clear_task_instances should assign fresh context carriers to both the TI and its dag run."""
+    provider = TracerProvider()
+    real_tracer = provider.get_tracer("airflow.models.taskinstance")
+    with (
+        mock.patch("airflow.models.taskinstance.tracer", real_tracer),
+        mock.patch("airflow._shared.observability.traces.tracer", real_tracer),
+    ):
+        with dag_maker("test_clear_carrier"):
+            EmptyOperator(task_id="t1")
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance("t1", session=session)
+        ti.state = TaskInstanceState.SUCCESS
+        # Set an explicit carrier so we can verify it changes.
+        ti.context_carrier = {"traceparent": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaa0001-bbbbbbbbbbbbbbbb-01"}
+        session.flush()
+
+        original_ti_traceparent = ti.context_carrier["traceparent"]
+        original_dr_traceparent = dag_run.context_carrier["traceparent"]
+
+        clear_task_instances([ti], session)
+
+    assert ti.context_carrier["traceparent"] != original_ti_traceparent
+    assert dag_run.context_carrier["traceparent"] != original_dr_traceparent
+
+
+@pytest.mark.db_test
+def test_clear_task_instances_preserves_detail_level(dag_maker, session):
+    """clear_task_instances should produce a new context_carrier that keeps the detail level from dag run conf."""
+    from airflow._shared.observability.traces import (
+        TASK_SPAN_DETAIL_LEVEL_KEY,
+        get_task_span_detail_level,
+    )
+
+    with dag_maker("test_clear_preserves_level"):
+        EmptyOperator(task_id="t1")
+    dag_run = dag_maker.create_dagrun(conf={TASK_SPAN_DETAIL_LEVEL_KEY: 2})
+    ti = dag_run.get_task_instance("t1", session=session)
+    ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+
+    clear_task_instances([ti], session)
+
+    new_ctx = TraceContextTextMapPropagator().extract(dag_run.context_carrier)
+    span = trace.get_current_span(new_ctx)
+    assert get_task_span_detail_level(span) == 2
+
+
+@pytest.mark.db_test
+def test_task_instance_repr_does_not_raise_for_deferred_columns(dag_maker, session):
+    """``TaskInstance.__repr__`` must survive *any* deferred column it reads.
+
+    Regression test for issue #67813: the scheduler's orphaned-task adoption loaded
+    TaskInstances via ``load_only`` and then called ``repr(ti)`` on detached instances.
+    ``__repr__`` reads ``map_index`` and ``state`` (among others); on a detached instance
+    a column that was not loaded raises ``DetachedInstanceError``. ``__repr__`` is used in
+    logging and must degrade gracefully — printing ``<deferred>`` — instead of crashing.
+    """
+    with dag_maker("test_repr_deferred_columns", session=session):
+        EmptyOperator(task_id="op1")
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id="op1", session=session)
+    ti.state = State.QUEUED
+    session.commit()
+    ti_id = ti.id
+
+    # Reload the row with ``map_index`` and ``state`` left as deferred columns, then detach
+    # the instance so that touching them would otherwise require a (now-impossible) DB load.
+    session.expunge_all()
+    reloaded = session.scalar(
+        select(TaskInstance)
+        .where(TaskInstance.id == ti_id)
+        .options(load_only(TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.run_id))
+    )
+    session.expunge(reloaded)
+    unloaded = sa_inspect(reloaded).unloaded
+    assert "map_index" in unloaded
+    assert "state" in unloaded
+
+    result = repr(reloaded)  # would raise DetachedInstanceError without the guard
+
+    assert "<deferred>" in result
+    assert "[queued]" not in result
+
+
+class TestTaskInstanceStatsTagsTeamName:
+    def test_stats_tags_without_team_name(self, dag_maker, session):
+        """stats_tags should not include team_name when _team_name is not set."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="my_task")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("my_task", session=session)
+        tags = ti.stats_tags
+        assert "team_name" not in tags
+        assert tags == {"dag_id": "test_dag", "task_id": "my_task"}
+
+    def test_stats_tags_with_team_name(self, dag_maker, session):
+        """stats_tags should include team_name when _team_name is set."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="my_task")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("my_task", session=session)
+        ti._team_name = "my_team"
+        tags = ti.stats_tags
+        assert tags["team_name"] == "my_team"
+        assert tags == {"dag_id": "test_dag", "task_id": "my_task", "team_name": "my_team"}
+
+    def test_stats_tags_with_none_team_name(self, dag_maker, session):
+        """stats_tags should not include team_name when _team_name is None."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="my_task")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("my_task", session=session)
+        ti._team_name = None
+        tags = ti.stats_tags
+        assert "team_name" not in tags

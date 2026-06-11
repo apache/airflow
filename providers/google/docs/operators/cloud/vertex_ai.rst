@@ -20,7 +20,7 @@ Google Cloud VertexAI Operators
 
 The `Google Cloud VertexAI <https://cloud.google.com/vertex-ai/docs>`__
 brings AutoML and AI Platform together into a unified API, client library, and user
-interface. AutoML lets you train models on image, tabular, text, and video datasets
+interface. AutoML lets you train models on image, tabular, and text datasets
 without writing code, while training in AI Platform lets you run custom training code.
 With Vertex AI, both AutoML training and custom training are available options.
 Whichever option you choose for training, you can save models, deploy models, and
@@ -212,12 +212,11 @@ If you wish to delete a Custom Training Job you can use
 Creating an AutoML Training Jobs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To create a Google Vertex AI Auto ML training jobs you have five operators
+To create a Google Vertex AI Auto ML training jobs you have four operators
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLForecastingTrainingJobOperator`
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLImageTrainingJobOperator`
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTabularTrainingJobOperator`
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`
 Each of them will wait for the operation to complete. The results of each operator will be a model
 which was trained by user using these operators.
 
@@ -264,23 +263,6 @@ put dataset id to ``dataset_id`` parameter in operator.
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_tabular_training_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_tabular_training_job_operator]
-
-.. warning::
-    This operator is deprecated and will be removed after March 24, 2026. Please use
-    :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`.
-
-How to run AutoML Video Training Job
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`
-
-Before start running this Job you must prepare and create ``Video`` dataset. After that you should
-put dataset id to ``dataset_id`` parameter in operator.
-
-Additionally, you can create new version of existing AutoML Video Training Job. In this case, the result will be new
-version of existing Model instead of new Model created in Model Registry. This can be done by specifying
-``parent_model`` parameter when running  AutoML Video Training Job.
-
-Also you can use vertex_ai AutoML model for video tracking.
-
 
 You can get a list of AutoML Training Jobs using
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.ListAutoMLTrainingJobOperator`.

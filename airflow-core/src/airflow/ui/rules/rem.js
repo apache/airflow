@@ -104,7 +104,6 @@ export const remPlugin = {
                     return fixer.replaceText(attr.value.expression, fixedValue);
                   }
 
-                  // eslint-disable-next-line unicorn/no-null
                   return null;
                 },
                 messageId: "noRemInProps",

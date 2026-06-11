@@ -27,6 +27,50 @@
 Changelog
 ---------
 
+9.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add uri sanitizers and asset factories for new schemes (#66426)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``refactor: word changed from DAG to Dag in providers/apache/ (#66153)``
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Add team name to task CTX (#65617)``
+   * ``Fix stale system test documentation links (#65071)``
+
+9.4.2
+.....
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+9.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Replace print with logger in Hive Hook kill method (#62990)``
+* ``Pass through user-provided password in HiveServer2Hook for all auth modes (#62888)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
 9.4.0
 .....
 

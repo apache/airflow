@@ -49,9 +49,11 @@ ANSWER = ""
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = (
+    "3.13"  # "highest complete" python version (where all providers are included)
+)
 
 
 # Maps each supported Python version to the minimum Airflow version that supports it.
@@ -99,6 +101,25 @@ DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM = [
     "trino",
     "ydb",
 ]
+# Maps each testable provider integration to the provider distribution (dotted id)
+# that "owns" it. Used by selective checks to only run a provider integration when
+# its owning provider is among the affected providers of a change.
+TESTABLE_PROVIDERS_INTEGRATION_OWNERS = {
+    "celery": "celery",
+    "cassandra": "apache.cassandra",
+    "drill": "apache.drill",
+    "elasticsearch": "elasticsearch",
+    "tinkerpop": "apache.tinkerpop",
+    "kafka": "apache.kafka",
+    "localstack": "amazon",
+    "mongo": "mongo",
+    "mssql": "microsoft.mssql",
+    "pinot": "apache.pinot",
+    "qdrant": "qdrant",
+    "redis": "redis",
+    "trino": "trino",
+    "ydb": "ydb",
+}
 KEYCLOAK_INTEGRATION = "keycloak"
 STATSD_INTEGRATION = "statsd"
 OTEL_INTEGRATION = "otel"
@@ -143,7 +164,29 @@ AUTOCOMPLETE_ALL_INTEGRATIONS = sorted(
 )
 ALLOWED_TTY = ["auto", "enabled", "disabled"]
 ALLOWED_TERMINAL_MULTIPLEXERS = ["mprocs", "tmux"]
-ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "prek", "docker-compose"]
+ALLOWED_DOCKER_COMPOSE_PROJECTS = [
+    "breeze",
+    "breeze-prek",
+    "breeze-quick-start",
+    "breeze-task-sdk-test",
+    "breeze-airflowctl-test",
+    "breeze-e2e-test",
+    "docker-compose",
+]
+
+# Every docker compose project name that any breeze command, prek hook, or
+# CI workflow uses. `breeze down` discovers running compose projects via the
+# `com.docker.compose.project` label and only touches the ones that match
+# either an exact entry in `KNOWN_DOCKER_COMPOSE_PROJECT_NAMES` or one of the
+# prefixes in `KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES`. When you add a new
+# project_name pattern anywhere (new breeze command, new prek hook, new CI
+# step), update this list so `breeze down` stays a one-shot cleanup.
+KNOWN_DOCKER_COMPOSE_PROJECT_NAMES = [
+    "breeze",  # default `breeze shell` / `breeze start-airflow`
+]
+KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES = [
+    "breeze-",  # breeze-registry-*, breeze-backfill-*, *-run-*
+]
 ALLOWED_LOG_LEVELS = ["INFO", "DEBUG", "WARNING", "ERROR", "CRITICAL"]
 DEFAULT_LOG_LEVEL = ALLOWED_LOG_LEVELS[0]
 
@@ -170,11 +213,17 @@ ALLOWED_EXECUTORS = [
 SIMPLE_AUTH_MANAGER = "SimpleAuthManager"
 FAB_AUTH_MANAGER = "FabAuthManager"
 
+GOLANG_WORKER = "go"
+
+JAVA_SDK = "java"
+ALLOWED_SDKS = [JAVA_SDK]
+
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 ALLOWED_AUTH_MANAGERS = [SIMPLE_AUTH_MANAGER, FAB_AUTH_MANAGER]
 START_AIRFLOW_ALLOWED_EXECUTORS = [LOCAL_EXECUTOR, CELERY_EXECUTOR, EDGE_EXECUTOR]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
 ALLOWED_CELERY_EXECUTORS = [CELERY_EXECUTOR, CELERY_K8S_EXECUTOR]
+ALLOWED_WORKER_TYPES = [GOLANG_WORKER]
 
 CONSTRAINTS_SOURCE_PROVIDERS = "constraints-source-providers"
 CONSTRAINTS = "constraints"
@@ -184,7 +233,7 @@ ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test
 ALLOWED_CONSTRAINTS_MODES_CI = [CONSTRAINTS_SOURCE_PROVIDERS, CONSTRAINTS, CONSTRAINTS_NO_PROVIDERS]
 ALLOWED_CONSTRAINTS_MODES_PROD = [CONSTRAINTS, CONSTRAINTS_NO_PROVIDERS, CONSTRAINTS_SOURCE_PROVIDERS]
 
-_FALLBACK_LLM_MODELS = [
+ALLOWED_LLM_MODELS = [
     # Claude models (via claude CLI)
     "claude/claude-opus-4-6",
     "claude/claude-sonnet-4-6",
@@ -199,46 +248,6 @@ _FALLBACK_LLM_MODELS = [
     "codex/o4-mini",
     "codex/gpt-4.1",
 ]
-
-# Model aliases — short names users can type instead of full model IDs
-_CLAUDE_ALIASES = ["claude/sonnet", "claude/opus", "claude/haiku"]
-_CODEX_ALIASES = ["codex/o3", "codex/o4-mini"]
-
-
-def get_allowed_llm_models() -> list[str]:
-    """Return the list of allowed LLM models, reading from cache if available.
-
-    Checks .build/llm_models_cache.json for a cached model list (refreshed at most
-    every 24 hours). Falls back to the hardcoded _FALLBACK_LLM_MODELS.
-    When generating command images for documentation, always uses the hardcoded
-    fallback list to ensure deterministic output.
-    """
-    import json
-    import time
-
-    from airflow_breeze.utils.recording import generating_command_images
-
-    if generating_command_images():
-        return list(_FALLBACK_LLM_MODELS)
-
-    try:
-        from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
-
-        cache_file = BUILD_CACHE_PATH / "llm_models_cache.json"
-        if cache_file.is_file():
-            data = json.loads(cache_file.read_text())
-            # Use cache if less than 24 hours old
-            if time.time() - data.get("timestamp", 0) < 86400:
-                models = data.get("models", [])
-                if models:
-                    return models
-    except Exception:
-        pass
-    return list(_FALLBACK_LLM_MODELS)
-
-
-# For backward compatibility and static option definition
-ALLOWED_LLM_MODELS = get_allowed_llm_models()
 
 ALLOWED_CELERY_BROKERS = ["rabbitmq", "redis"]
 DEFAULT_CELERY_BROKER = ALLOWED_CELERY_BROKERS[1]
@@ -275,8 +284,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
-PIP_VERSION = "26.0.1"
-UV_VERSION = "0.10.10"
+PIP_VERSION = "26.1.2"
+UV_VERSION = "0.11.19"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -373,7 +382,7 @@ def all_helm_test_packages() -> list[str]:
     return sorted(
         [
             candidate.name
-            for candidate in (AIRFLOW_ROOT_PATH / "helm-tests" / "tests" / "helm_tests").iterdir()
+            for candidate in (AIRFLOW_ROOT_PATH / "chart" / "tests" / "helm_tests").iterdir()
             if candidate.is_dir() and candidate.name != "__pycache__"
         ]
     )
@@ -441,7 +450,7 @@ ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 
 ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 
-ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
+ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
 
 GITHUB_REPO_BRANCH_PATTERN = r"^([^/]+)/([^/:]+):([^:]+)$"
 PR_NUMBER_PATTERN = r"^\d+$"
@@ -492,7 +501,7 @@ PRODUCTION_IMAGE = False
 # All python versions include all past python versions available in previous branches
 # Even if we remove them from the main version. This is needed to make sure we can cherry-pick
 # changes from main to the previous branch.
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 # All versions we can run against (Need to include versions for main branch and the current release branch)
 ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17", "18"]
@@ -513,6 +522,8 @@ PYTHON_3_7_TO_3_11 = ["3.7", "3.8", "3.9", "3.10", "3.11"]
 PYTHON_3_8_TO_3_11 = ["3.8", "3.9", "3.10", "3.11"]
 PYTHON_3_8_TO_3_12 = ["3.8", "3.9", "3.10", "3.11", "3.12"]
 PYTHON_3_9_TO_3_12 = ["3.9", "3.10", "3.11", "3.12"]
+PYTHON_3_10_TO_3_13 = ["3.10", "3.11", "3.12", "3.13"]
+PYTHON_3_10_TO_3_14 = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
 
 AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
@@ -566,6 +577,9 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.10.4": PYTHON_3_8_TO_3_12,
     "2.10.5": PYTHON_3_8_TO_3_12,
     "2.11.0": PYTHON_3_9_TO_3_12,
+    "3.0.0": PYTHON_3_9_TO_3_12,
+    "3.1.0": PYTHON_3_10_TO_3_13,
+    "3.2.0": PYTHON_3_10_TO_3_14,
 }
 
 DB_RESET = False
@@ -700,7 +714,7 @@ def get_task_sdk_version():
 def get_airflow_extras():
     airflow_dockerfile = AIRFLOW_ROOT_PATH / "Dockerfile"
     with open(airflow_dockerfile) as dockerfile:
-        for line_raw in dockerfile.readlines():
+        for line_raw in dockerfile:
             if "ARG AIRFLOW_EXTRAS=" in line_raw:
                 line = line_raw.split("=")[1].strip()
                 return line.replace('"', "")
@@ -797,7 +811,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
         "airflow-version": "2.11.1",
-        "remove-providers": "common.messaging edge3 fab git keycloak informatica common.ai",
+        "remove-providers": "common.messaging edge3 fab git keycloak informatica common.ai opensearch",
         "run-unit-tests": "true",
     },
     {
@@ -812,17 +826,27 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
         "remove-providers": "",
         "run-unit-tests": "true",
     },
+    {
+        "python-version": "3.10",
+        "airflow-version": "3.2.2",
+        "remove-providers": "",
+        "run-unit-tests": "true",
+    },
 ]
 
 ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
     "3.10": "3.10.20",
     "3.11": "3.11.15",
     "3.12": "3.12.13",
-    "3.13": "3.13.12",
+    "3.13": "3.13.13",
+    "3.14": "3.14.3",
 }
 
 # Number of slices for low dep tests
 NUMBER_OF_LOW_DEP_SLICES = 5
+
+# Number of slices for core test types (splitting reduces memory per xdist collection)
+NUMBER_OF_CORE_SLICES = 2
 
 # Milestone Tag Assistant configuration
 # Labels indicating a bug fix PR that should have a milestone

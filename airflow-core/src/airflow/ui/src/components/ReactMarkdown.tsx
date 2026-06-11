@@ -29,8 +29,8 @@ import {
   Text,
 } from "@chakra-ui/react";
 import type { PropsWithChildren, ReactNode } from "react";
-import type { Components, Options } from "react-markdown";
 import ReactMD from "react-markdown";
+import type { Components, Options } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { useColorMode } from "src/context/colorMode";

@@ -149,7 +149,7 @@ with DAG(
     # [START howto_operator_k8s_write_xcom]
     write_xcom = KubernetesPodOperator(
         namespace="default",
-        image="alpine",
+        image="alpine:3.24.0",
         cmds=["sh", "-c", "mkdir -p /airflow/xcom/;echo '[1,2,3,4]' > /airflow/xcom/return.json"],
         name="write-xcom",
         do_xcom_push=True,
@@ -175,5 +175,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

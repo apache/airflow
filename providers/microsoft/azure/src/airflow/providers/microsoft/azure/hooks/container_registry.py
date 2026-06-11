@@ -110,6 +110,13 @@ class AzureContainerRegistryHook(BaseHook):
             resource_group = self._get_field(extras, "resource_group")
             managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
             workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
+
+            if not conn.login:
+                raise ValueError(
+                    f"Connection {self.conn_id} must have a login/username configured "
+                    "when using Azure AD authentication"
+                )
+
             credential = get_sync_default_azure_credential(
                 managed_identity_client_id=managed_identity_client_id,
                 workload_identity_tenant_id=workload_identity_tenant_id,

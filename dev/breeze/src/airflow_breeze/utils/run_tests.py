@@ -90,7 +90,16 @@ def verify_an_image(
     if slim_image:
         env["TEST_SLIM_IMAGE"] = "true"
     command_result = run_command(
-        ["uv", "run", "--isolated", "pytest", test_path.as_posix(), *pytest_args, *extra_pytest_args],
+        [
+            "uv",
+            "run",
+            "--frozen",
+            "--isolated",
+            "pytest",
+            test_path.as_posix(),
+            *pytest_args,
+            *extra_pytest_args,
+        ],
         env=env,
         output=output,
         check=False,
@@ -177,7 +186,7 @@ def run_docker_compose_tests(
         env["INCLUDE_SUCCESS_OUTPUTS"] = "true"
     env["AIRFLOW_UID"] = str(os.getuid())
     command_result = run_command(
-        ["uv", "run", "pytest", *pytest_args],
+        ["uv", "run", "--frozen", "pytest", *pytest_args],
         env=env,
         check=False,
         cwd=cwd,
@@ -227,6 +236,44 @@ def get_excluded_test_provider_folders(python_version: str) -> list[str]:
     return get_test_folders(excluded_folders)
 
 
+def are_all_test_paths_excluded(
+    *,
+    test_group: GroupOfTests,
+    test_type: str,
+    python_version: str,
+    skip_db_tests: bool = False,
+    parallel_test_types_list: list[str] | None = None,
+    integration: tuple | None = None,
+) -> bool:
+    """Check if all test paths for the given test type are excluded or suspended.
+
+    Uses the same provider.yaml exclusion data as generate_args_for_pytest to determine
+    whether every test directory that would be generated for this test type is in the
+    excluded or suspended provider set.
+
+    Returns False when test_type is "None" (user provides explicit paths via extra_pytest_args)
+    or when any test path remains after exclusions.
+    """
+    if skip_db_tests and parallel_test_types_list:
+        initial_paths = convert_parallel_types_to_folders(
+            test_group=test_group,
+            parallel_test_types_list=parallel_test_types_list,
+        )
+    else:
+        initial_paths = convert_test_type_to_pytest_args(
+            test_group=test_group,
+            test_type=test_type,
+            integration=integration,
+        )
+    # Filter to only actual test directory paths (not pytest flags like -m, --include-quarantined)
+    test_dir_paths = [p for p in initial_paths if not p.startswith("-")]
+    if not test_dir_paths:
+        return False
+    excluded = set(get_excluded_test_provider_folders(python_version))
+    suspended = set(get_suspended_test_provider_folders())
+    return all(p in excluded | suspended for p in test_dir_paths)
+
+
 TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "Always": ["airflow-core/tests/unit/always"],
     "API": ["airflow-core/tests/unit/api", "airflow-core/tests/unit/api_fastapi"],
@@ -272,7 +319,7 @@ TEST_GROUP_TO_TEST_FOLDERS: dict[GroupOfTests, list[str]] = {
     GroupOfTests.PROVIDERS: ALL_PROVIDER_TEST_FOLDERS,
     GroupOfTests.TASK_SDK: ["task-sdk/tests"],
     GroupOfTests.CTL: ["airflow-ctl/tests"],
-    GroupOfTests.HELM: ["helm-tests"],
+    GroupOfTests.HELM: ["chart/tests"],
     GroupOfTests.INTEGRATION_CORE: ["airflow-core/tests/integration"],
     GroupOfTests.INTEGRATION_PROVIDERS: ALL_PROVIDER_INTEGRATION_TEST_FOLDERS,
     GroupOfTests.PYTHON_API_CLIENT: ["clients/python"],
@@ -351,7 +398,7 @@ def convert_test_type_to_pytest_args(
             sys.exit(1)
         helm_folder = TEST_GROUP_TO_TEST_FOLDERS[test_group][0]
         if test_type and test_type != ALL_TEST_TYPE:
-            return [f"{helm_folder}/tests/helm_tests/{test_type}"]
+            return [f"{helm_folder}/helm_tests/{test_type}"]
         return [helm_folder]
     if test_type == SelectiveCoreTestType.OTHER.value and test_group == GroupOfTests.CORE:
         return find_all_other_tests()

@@ -10,9 +10,11 @@
     "maxRuns": "Anzahl aktiver paralleler Läufe",
     "missingAndErroredRuns": "Fehlende und fehlgeschlagene Läufe",
     "missingRuns": "Fehlende Läufe",
+    "overrideExistingParams": "Parameter bei bestehenden Läufen überschreiben",
     "permissionDenied": "Testlauf fehlgeschlagen: Benutzer hat keine Berechtigung, Auffüllungen zu erstellen.",
     "reprocessBehavior": "Auffüll-Modus",
     "run": "Auffüllung starten",
+    "scheduleNotBackfillable": "Der Zeitplan des Dags unterstützt keine Auffüllungen.",
     "selectDescription": "Dieses Dag für einen Datumsbereich in der Vergangenheit ausführen",
     "selectLabel": "Auffüllen",
     "title": "Auffüllung starten",
@@ -22,7 +24,6 @@
         "title": "Auffüllung gestartet"
       }
     },
-    "tooltip": "Auffüllung benötigt eine Zeitplanung",
     "unpause": "Dag {{dag_display_name}} beim Start der Auffüllung aktiv schalten",
     "validation": {
       "datesRequired": "Sowohl Start- als auch Enddatum müssen angegeben werden.",
@@ -72,6 +73,7 @@
     "files_other": "{{count}} Dateien"
   },
   "flexibleForm": {
+    "durationPlaceholder": "Dauer im ISO-8601-Format (z.B. 'PT1H30M' für 1 Stunde und 30 Minuten)",
     "placeholder": "Wählen Sie einen Wert",
     "placeholderArray": "Fügen Sie einen Eintrag pro Zeile um eine Liste zu erzeugen",
     "placeholderExamples": "Tippen Sie ein paar Buchstaben für Vorschläge",
@@ -79,6 +81,7 @@
     "validationErrorArrayNotArray": "Die Daten sind keine Liste.",
     "validationErrorArrayNotNumbers": "Alle Elemente in der Liste müssen numerisch sein.",
     "validationErrorArrayNotObject": "Alle Elemente in der Liste müssen Objekte (Dictionary) sein.",
+    "validationErrorDuration": "Angegebene Dauer erfüllt das ISO-8601-Format nicht",
     "validationErrorRequired": "Dieses Feld ist ein Pflichtfeld und muss gefüllt werden"
   },
   "graph": {
@@ -87,12 +90,13 @@
     "directionRight": "Von Links nach Rechts",
     "directionUp": "Von Unten nach Oben",
     "downloadImage": "Graph-Bild herunterladen",
-    "downloadImageError": "Herunterladn des Graph-Bild fehlgeschlagen.",
+    "downloadImageError": "Herunterladen des Graph-Bildes fehlgeschlagen.",
     "downloadImageErrorTitle": "Herunterladen fehlgeschlagen",
     "otherDagRuns": "+Weitere Dag Läufe",
     "taskCount_one": "{{count}} Task",
     "taskCount_other": "{{count}} Tasks",
-    "taskGroup": "Task Gruppe"
+    "taskGroup": "Task Gruppe",
+    "zoomToTask": "Zum ausgewählten Task zoomen"
   },
   "limitedList": "+{{count}} mehr",
   "limitedList.allItems": "Alle {{count}} Einträge:",

@@ -137,7 +137,7 @@ with DAG(
         namespace="kubernetes_task_async_log",
         in_cluster=False,
         name="astro_k8s_test_pod",
-        image="ubuntu",
+        image="ubuntu:24.04",
         cmds=[
             "bash",
             "-cx",
@@ -180,7 +180,7 @@ with DAG(
     write_xcom_async = KubernetesPodOperator(
         task_id="kubernetes_write_xcom_task_async",
         namespace="default",
-        image="alpine",
+        image="alpine:3.24.0",
         cmds=["sh", "-c", "mkdir -p /airflow/xcom/;echo '[1,2,3,4]' > /airflow/xcom/return.json"],
         name="write-xcom",
         do_xcom_push=True,
@@ -206,5 +206,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

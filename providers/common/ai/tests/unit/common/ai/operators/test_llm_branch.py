@@ -79,7 +79,7 @@ class TestLLMBranchOperator:
 
         assert result == "task_a"
         mock_do_branch.assert_called_once_with(ctx, "task_a")
-        mock_agent.run_sync.assert_called_once_with("Pick a branch")
+        mock_agent.run_sync.assert_called_once_with("Pick a branch", usage_limits=None)
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)

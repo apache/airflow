@@ -29,7 +29,7 @@ from sqlalchemy import Boolean, ForeignKey, Index, Integer, Uuid, and_, func, in
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
 from airflow.models.callback import (
@@ -129,6 +129,7 @@ class Deadline(Base):
         dagrun_id: int,
         deadline_alert_id: UUID | None,
         dag_id: str | None = None,
+        bundle_name: str | None = None,
     ):
         super().__init__()
         self.deadline_time = deadline_time
@@ -137,6 +138,7 @@ class Deadline(Base):
         self.callback = Callback.create_from_sdk_def(
             callback_def=callback, prefix=CALLBACK_METRICS_PREFIX, dag_id=dag_id
         )
+        self.callback.bundle_name = bundle_name
         self.deadline_alert_id = deadline_alert_id
 
     def __repr__(self):
@@ -197,7 +199,7 @@ class Deadline(Base):
             if dagrun.end_date is not None and dagrun.end_date <= deadline.deadline_time:
                 # If the DagRun finished before the Deadline:
                 session.delete(deadline)
-                Stats.incr(
+                stats.incr(
                     "deadline_alerts.deadline_not_missed",
                     tags={"dag_id": dagrun.dag_id, "dagrun_id": dagrun.run_id},
                 )
@@ -240,7 +242,7 @@ class Deadline(Base):
                 "context": get_simple_context()
             }
 
-            self.callback.queue()
+            self.callback.queue(session=session)
             session.add(self.callback)
             session.flush()
 
@@ -263,7 +265,7 @@ class Deadline(Base):
 
         self.missed = True
         session.add(self)
-        Stats.incr(
+        stats.incr(
             "deadline_alerts.deadline_missed",
             tags={"dag_id": self.dagrun.dag_id, "dagrun_id": self.dagrun.run_id},
         )
@@ -490,7 +492,7 @@ DeadlineReferenceType = ReferenceModels.BaseDeadlineReference
 
 
 @provide_session
-def _fetch_from_db(model_reference: Mapped, session=None, **conditions) -> datetime | None:
+def _fetch_from_db(model_reference: Mapped, *, session=None, **conditions) -> datetime | None:
     """
     Fetch a datetime value from the database using the provided model reference and filtering conditions.
 

@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from airflow.triggers.base import BaseEventTrigger
 
 # [START queue_regexp]
-QUEUE_REGEXP = r"^https://sqs\.[^.]+\.amazonaws\.com/[0-9]+/.+"
+QUEUE_REGEXP = r"^https://sqs\.[^.]+\.amazonaws\.com(\.cn)?/[0-9]+/.+"
 # [END queue_regexp]
 
 

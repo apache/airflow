@@ -53,6 +53,22 @@ def get_provider_info():
                 "name": "snowpark",
             }
         ],
+        "asset-uris": [
+            {
+                "schemes": ["snowflake"],
+                "handler": "airflow.providers.snowflake.assets.snowflake.sanitize_uri",
+                "factory": "airflow.providers.snowflake.assets.snowflake.create_asset",
+                "to_openlineage_converter": "airflow.providers.snowflake.assets.snowflake.convert_asset_to_openlineage",
+            }
+        ],
+        "dataset-uris": [
+            {
+                "schemes": ["snowflake"],
+                "handler": "airflow.providers.snowflake.assets.snowflake.sanitize_uri",
+                "factory": "airflow.providers.snowflake.assets.snowflake.create_asset",
+                "to_openlineage_converter": "airflow.providers.snowflake.assets.snowflake.convert_asset_to_openlineage",
+            }
+        ],
         "hooks": [
             {
                 "integration-name": "Snowflake",
@@ -85,6 +101,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.snowflake.hooks.snowflake.SnowflakeHook",
+                "hook-name": "Snowflake",
                 "connection-type": "snowflake",
                 "ui-field-behaviour": {
                     "hidden-fields": ["port", "host"],

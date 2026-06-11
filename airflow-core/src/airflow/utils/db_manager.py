@@ -20,7 +20,6 @@ import inspect as _inspect
 import os
 from typing import TYPE_CHECKING
 
-from alembic import command
 from sqlalchemy import inspect
 
 from airflow import settings
@@ -48,6 +47,20 @@ def _callable_accepts_use_migration_files(callable_) -> bool:
     return any(
         parameter.kind == _inspect.Parameter.VAR_KEYWORD for parameter in signature.parameters.values()
     )
+
+
+def _get_alembic_command():
+    from alembic import command
+
+    return command
+
+
+class _AlembicCommandProxy:
+    def __getattr__(self, name):
+        return getattr(_get_alembic_command(), name)
+
+
+command = _AlembicCommandProxy()
 
 
 class BaseDBManager(LoggingMixin):
@@ -129,6 +142,37 @@ class BaseDBManager(LoggingMixin):
         command.stamp(config, "head")
         self.log.info("%s tables have been created from the ORM", self.__class__.__name__)
 
+    def _has_existing_manager_tables(self) -> bool:
+        """Return whether any table managed by this DB manager already exists."""
+        inspector = inspect(self.session.get_bind())
+        table_names_by_schema: dict[str | None, set[str]] = {}
+        for table in self.metadata.tables.values():
+            table_names_by_schema.setdefault(table.schema, set()).add(table.name)
+
+        for schema, table_names in table_names_by_schema.items():
+            existing_table_names = set(inspector.get_table_names(schema=schema))
+            if table_names.intersection(existing_table_names):
+                return True
+        return False
+
+    def _get_base_revision(self, config=None) -> str:
+        """Return the first/base Alembic revision for this DB manager."""
+        script = self.get_script_object(config)
+        for revision in script.walk_revisions():
+            if revision.down_revision is None:
+                return revision.revision
+        raise RuntimeError(f"No base revision found for {self.__class__.__name__}")
+
+    def _stamp_base_revision(self, config) -> None:
+        """Stamp the database to this DB manager's base Alembic revision."""
+        base_revision = self._get_base_revision(config)
+        self.log.info(
+            "%s tables already exist without an Alembic version; stamping base revision %s before upgrade",
+            self.__class__.__name__,
+            base_revision,
+        )
+        command.stamp(config, base_revision)
+
     def drop_tables(self, connection):
         if not self.supports_table_dropping:
             return
@@ -176,10 +220,15 @@ class BaseDBManager(LoggingMixin):
         self._release_metadata_locks_if_needed()
 
         if not current_revision and not to_revision and not use_migration_files and not show_sql_only:
-            self.create_db_from_orm()
-            return
+            if self._has_existing_manager_tables():
+                config = self.get_alembic_config()
+                self._stamp_base_revision(config)
+            else:
+                self.create_db_from_orm()
+                return
+        else:
+            config = self.get_alembic_config()
 
-        config = self.get_alembic_config()
         command.upgrade(config, revision=to_revision or "heads", sql=show_sql_only)
         self.log.info("Migrated the %s database", self.__class__.__name__)
 
@@ -196,16 +245,17 @@ class RunDBManager(LoggingMixin):
     """
 
     def __init__(self):
-        from airflow.api_fastapi.app import create_auth_manager
         from airflow.providers_manager import ProvidersManager
 
         super().__init__()
         self._managers: list[BaseDBManager] = []
 
-        # Start with auto-discovered DB managers from installed providers
+        # Start with auto-discovered DB managers from installed providers.
+        # ProvidersManager reads the ``db-managers`` key from each provider's
+        # get_provider_info() and is the primary source of truth.
         managers: list[str] = list(ProvidersManager().db_managers)
 
-        # Add any explicitly configured managers not already discovered
+        # Add any explicitly configured managers not already discovered.
         managers_config = conf.get("database", "external_db_managers", fallback=None)
         if managers_config:
             for m in managers_config.split(","):
@@ -213,10 +263,28 @@ class RunDBManager(LoggingMixin):
                     if stripped not in managers:
                         managers.append(stripped)
 
-        # Add DB manager declared by the configured auth manager (existing behavior, deduplicated)
-        auth_manager_db_manager = create_auth_manager().get_db_manager()
-        if auth_manager_db_manager and auth_manager_db_manager not in managers:
-            managers.append(auth_manager_db_manager)
+        # Add the DB manager declared by the configured auth manager as a
+        # final fallback for backward compatibility.
+        # This is wrapped in a try/except because in migration-only contexts
+        # (e.g. the Helm migrateDatabaseJob) the auth manager may not be fully
+        # initializable — a Flask app context or other runtime state may be
+        # absent.  A failure here must not silently drop the auth manager's DB
+        # manager from the migration list; ProvidersManager discovery above is
+        # the reliable path in those contexts.
+        try:
+            from airflow.api_fastapi.app import create_auth_manager
+
+            auth_manager_db_manager = create_auth_manager().get_db_manager()
+            if auth_manager_db_manager and auth_manager_db_manager not in managers:
+                managers.append(auth_manager_db_manager)
+        except Exception:
+            self.log.debug(
+                "Could not retrieve DB manager from auth manager during RunDBManager "
+                "initialisation. This is expected in migration-only contexts where the "
+                "auth manager cannot be fully initialised. DB managers discovered via "
+                "ProvidersManager will still be used.",
+                exc_info=True,
+            )
 
         for module in managers:
             manager = import_string(module.strip())

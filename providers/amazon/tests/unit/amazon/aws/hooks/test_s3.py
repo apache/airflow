@@ -101,6 +101,29 @@ class TestAwsS3Hook:
             S3Hook(transfer_config_args=transfer_config_args)
 
     @pytest.mark.parametrize(
+        ("transfer_config_args", "service_config"),
+        [
+            pytest.param(
+                {"use_threads": False},
+                {"transfer_config_args": {"use_threads": True}},
+                id="override_transfer_config_args",
+            ),
+            pytest.param(None, {"use_threads": True}, id="service_config_args"),
+        ],
+    )
+    def test_transfer_config_args_from_service_config(self, transfer_config_args, service_config):
+        conn = Connection(
+            conn_id="s3_conn",
+            conn_type="aws",
+            extra={
+                "service_config": {"s3": service_config},
+            },
+        )
+        with mock.patch.dict("os.environ", values={f"AIRFLOW_CONN_{conn.conn_id.upper()}": conn.get_uri()}):
+            hook = S3Hook(aws_conn_id=conn.conn_id, transfer_config_args=transfer_config_args)
+            assert hook.transfer_config.use_threads is True
+
+    @pytest.mark.parametrize(
         ("url", "expected"),
         [
             pytest.param(

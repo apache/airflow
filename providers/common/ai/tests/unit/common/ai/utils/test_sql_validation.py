@@ -19,7 +19,11 @@ from __future__ import annotations
 import pytest
 from sqlglot import exp
 
-from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError, validate_sql
+from airflow.providers.common.ai.utils.sql_validation import (
+    SQLSafetyError,
+    resolve_sqlglot_dialect,
+    validate_sql,
+)
 
 
 class TestValidateSQLAllowed:
@@ -159,3 +163,152 @@ class TestValidateSQLEdgeCases:
         """Trailing semicolon should not cause multi-statement error."""
         result = validate_sql("SELECT 1;")
         assert len(result) == 1
+
+
+class TestDataModifyingNodeDetection:
+    """Data-modifying operations hidden inside allowed statement types should be blocked."""
+
+    def test_cte_with_delete_blocked(self):
+        """DELETE inside a CTE bypasses top-level type check."""
+        with pytest.raises(SQLSafetyError, match="Data-modifying operation 'Delete'"):
+            validate_sql(
+                "WITH del AS (DELETE FROM users RETURNING *) SELECT * FROM del",
+                dialect="postgres",
+            )
+
+    def test_cte_with_insert_blocked(self):
+        """INSERT inside a CTE bypasses top-level type check."""
+        with pytest.raises(SQLSafetyError, match="Data-modifying operation 'Insert'"):
+            validate_sql(
+                "WITH ins AS (INSERT INTO users(name) VALUES ('x') RETURNING *) SELECT * FROM ins",
+                dialect="postgres",
+            )
+
+    def test_cte_with_update_blocked(self):
+        """UPDATE inside a CTE bypasses top-level type check."""
+        with pytest.raises(SQLSafetyError, match="Data-modifying operation 'Update'"):
+            validate_sql(
+                "WITH upd AS (UPDATE users SET name = 'x' RETURNING *) SELECT * FROM upd",
+                dialect="postgres",
+            )
+
+    def test_select_into_blocked(self):
+        """SELECT INTO creates a new table — should be blocked."""
+        with pytest.raises(SQLSafetyError, match="Data-modifying operation 'Into'"):
+            validate_sql("SELECT * INTO new_table FROM users")
+
+    def test_plain_cte_select_still_allowed(self):
+        """Normal read-only CTEs should not be affected."""
+        result = validate_sql("WITH t AS (SELECT id FROM users) SELECT * FROM t")
+        assert len(result) == 1
+
+    def test_nested_subquery_select_still_allowed(self):
+        """Subqueries that are pure reads should not be affected."""
+        result = validate_sql("SELECT * FROM users WHERE id IN (SELECT user_id FROM orders)")
+        assert len(result) == 1
+
+    def test_deep_scan_runs_with_explicit_default_types(self):
+        """Deep scan should also block when DEFAULT_ALLOWED_TYPES is passed explicitly."""
+        from airflow.providers.common.ai.utils.sql_validation import DEFAULT_ALLOWED_TYPES
+
+        with pytest.raises(SQLSafetyError, match="Data-modifying operation 'Delete'"):
+            validate_sql(
+                "WITH del AS (DELETE FROM users RETURNING *) SELECT * FROM del",
+                allowed_types=DEFAULT_ALLOWED_TYPES,
+                dialect="postgres",
+            )
+
+
+class TestReadOnlyMetadata:
+    """Read-only metadata statements (DESCRIBE/SHOW) with ``allow_read_only_metadata``."""
+
+    @pytest.mark.parametrize(
+        ("sql", "kwargs"),
+        [
+            ("DESCRIBE TABLE users", {}),
+            ("SHOW TABLES", {"dialect": "snowflake"}),
+        ],
+        ids=["describe", "show"],
+    )
+    def test_metadata_blocked_without_flag(self, sql, kwargs):
+        with pytest.raises(SQLSafetyError, match="not allowed"):
+            validate_sql(sql, **kwargs)
+
+    @pytest.mark.parametrize(
+        ("sql", "dialect", "expected_type"),
+        [
+            # DESCRIBE/DESC parse to exp.Describe in every dialect (dialect-agnostic).
+            ("DESCRIBE TABLE users", None, exp.Describe),
+            ("DESC users", None, exp.Describe),
+            # SHOW only parses to exp.Show when a supporting dialect is passed.
+            ("SHOW TABLES", "snowflake", exp.Show),
+            ("SHOW COLUMNS IN users", "snowflake", exp.Show),
+        ],
+    )
+    def test_metadata_allowed_with_flag(self, sql, dialect, expected_type):
+        result = validate_sql(sql, dialect=dialect, allow_read_only_metadata=True)
+        assert len(result) == 1
+        assert isinstance(result[0], expected_type)
+
+    def test_show_blocked_without_supporting_dialect(self):
+        """Without a dialect that supports SHOW, sqlglot falls back to exp.Command, still blocked."""
+        with pytest.raises(SQLSafetyError, match="Command.*not allowed"):
+            validate_sql("SHOW TABLES", allow_read_only_metadata=True)
+
+    def test_explain_wrapped_write_still_blocked(self):
+        """EXPLAIN <write> parses to exp.Describe but the deep scan rejects the inner write."""
+        with pytest.raises(SQLSafetyError, match="Data-modifying operation 'Delete'"):
+            validate_sql("EXPLAIN DELETE FROM users", dialect="mysql", allow_read_only_metadata=True)
+
+    @pytest.mark.parametrize(
+        ("sql", "node"),
+        [
+            ("DESCRIBE CREATE TABLE t (a int)", "Create"),
+            ("DESCRIBE DROP TABLE users", "Drop"),
+            ("DESCRIBE TRUNCATE TABLE users", "TruncateTable"),
+            ("DESCRIBE DELETE FROM users", "Delete"),
+        ],
+    )
+    def test_describe_wrapped_ddl_or_dml_blocked(self, sql, node):
+        """DESCRIBE <DDL/DML> parses to exp.Describe; the deep scan rejects the inner write."""
+        with pytest.raises(SQLSafetyError, match=f"Data-modifying operation '{node}'"):
+            validate_sql(sql, allow_read_only_metadata=True)
+
+    def test_metadata_flag_ignored_when_custom_types_supplied(self):
+        """When the caller supplies allowed_types it controls the allow-list; the flag is ignored."""
+        with pytest.raises(SQLSafetyError, match="Describe.*not allowed"):
+            validate_sql(
+                "DESCRIBE TABLE users",
+                allowed_types=(exp.Select,),
+                allow_read_only_metadata=True,
+            )
+
+    def test_select_still_allowed_with_flag(self):
+        result = validate_sql("SELECT 1", allow_read_only_metadata=True)
+        assert isinstance(result[0], exp.Select)
+
+    def test_writes_still_blocked_with_flag(self):
+        with pytest.raises(SQLSafetyError, match="Delete.*not allowed"):
+            validate_sql("DELETE FROM users WHERE id = 1", allow_read_only_metadata=True)
+
+
+class TestResolveSqlglotDialect:
+    """``resolve_sqlglot_dialect`` normalizes/validates SQLAlchemy dialect names."""
+
+    @pytest.mark.parametrize(
+        ("dialect_name", "expected"),
+        [
+            ("postgresql", "postgres"),
+            ("mssql", "tsql"),
+            ("mysql", "mysql"),
+            ("snowflake", "snowflake"),
+            ("sqlite", "sqlite"),
+            (None, None),
+            ("", None),
+            ("default", None),
+            ("not_a_real_dialect", None),
+            (123, None),
+        ],
+    )
+    def test_resolution(self, dialect_name, expected):
+        assert resolve_sqlglot_dialect(dialect_name) == expected

@@ -24,7 +24,7 @@ mainClass: explore-page
           </div>
           <div>
             <h2>{{ category.name }}</h2>
-            <p class="provider-count">{{ categoryProviders.length }}+ providers</p>
+            <p class="provider-count">{{ categoryProviders.length }} providers</p>
           </div>
         </div>
         <p class="category-description">{{ category.description }}</p>
@@ -59,7 +59,7 @@ mainClass: explore-page
         <div class="provider-list">
           {% set topProviders = [] %}
           {% for provider in providers.providers %}
-            {% set counts = provider.module_counts or {} %}
+            {% set counts = moduleCountsByProvider[provider.id] or {} %}
             {% set totalMods = (counts.operator or 0) + (counts.hook or 0) + (counts.sensor or 0) + (counts.trigger or 0) + (counts.transfer or 0) %}
             {% if totalMods > 0 %}
               {% set topProviders = (topProviders.push({provider: provider, total: totalMods}), topProviders) %}
@@ -99,7 +99,7 @@ mainClass: explore-page
           {% for provider in providers.providers %}
             {% set lc = provider.lifecycle or "production" %}
             {% if lc === 'incubation' %}
-              {% set counts = provider.module_counts or {} %}
+              {% set counts = moduleCountsByProvider[provider.id] or {} %}
               {% set totalMods = (counts.operator or 0) + (counts.hook or 0) + (counts.sensor or 0) + (counts.trigger or 0) + (counts.transfer or 0) %}
               {% set incubatingProviders = (incubatingProviders.push({provider: provider, total: totalMods}), incubatingProviders) %}
             {% endif %}

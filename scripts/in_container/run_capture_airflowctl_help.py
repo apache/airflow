@@ -47,6 +47,7 @@ COMMANDS = [
     "providers",
     "variables",
     "version",
+    "plugins",
 ]
 
 SUBCOMMANDS = [

@@ -50,6 +50,22 @@ def get_provider_info():
                 ],
             }
         ],
+        "asset-uris": [
+            {
+                "schemes": ["sftp"],
+                "handler": "airflow.providers.sftp.assets.sftp.sanitize_uri",
+                "factory": "airflow.providers.sftp.assets.sftp.create_asset",
+                "to_openlineage_converter": "airflow.providers.sftp.assets.sftp.convert_asset_to_openlineage",
+            }
+        ],
+        "dataset-uris": [
+            {
+                "schemes": ["sftp"],
+                "handler": "airflow.providers.sftp.assets.sftp.sanitize_uri",
+                "factory": "airflow.providers.sftp.assets.sftp.create_asset",
+                "to_openlineage_converter": "airflow.providers.sftp.assets.sftp.convert_asset_to_openlineage",
+            }
+        ],
         "hooks": [
             {
                 "integration-name": "SSH File Transfer Protocol (SFTP)",
@@ -59,6 +75,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.sftp.hooks.sftp.SFTPHook",
+                "hook-name": "SFTP",
                 "connection-type": "sftp",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema"],

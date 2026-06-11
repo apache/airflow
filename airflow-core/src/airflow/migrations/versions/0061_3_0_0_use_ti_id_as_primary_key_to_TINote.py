@@ -49,16 +49,19 @@ def upgrade():
             sa.Column("ti_id", sa.String(length=36).with_variant(postgresql.UUID(), "postgresql"))
         )
     if dialect_name == "postgresql":
-        op.execute("""
+        op.execute(
+            """
             UPDATE task_instance_note SET ti_id = task_instance.id
             FROM task_instance
             WHERE task_instance_note.task_id = task_instance.task_id
             AND task_instance_note.dag_id = task_instance.dag_id
             AND task_instance_note.run_id = task_instance.run_id
             AND task_instance_note.map_index = task_instance.map_index
-            """)
+            """
+        )
     elif dialect_name == "mysql":
-        op.execute("""
+        op.execute(
+            """
             UPDATE task_instance_note tin
             JOIN task_instance ti ON
                 tin.task_id = ti.task_id
@@ -66,15 +69,18 @@ def upgrade():
                 AND tin.run_id = ti.run_id
                 AND tin.map_index = ti.map_index
             SET tin.ti_id = ti.id
-            """)
+            """
+        )
     else:
-        op.execute("""
+        op.execute(
+            """
             UPDATE task_instance_note
             SET ti_id = (SELECT id FROM task_instance WHERE task_instance_note.task_id = task_instance.task_id
             AND task_instance_note.dag_id = task_instance.dag_id
             AND task_instance_note.run_id = task_instance.run_id
             AND task_instance_note.map_index = task_instance.map_index)
-            """)
+            """
+        )
     with op.batch_alter_table("task_instance_note", schema=None) as batch_op:
         batch_op.alter_column(
             "ti_id",
@@ -103,7 +109,8 @@ def downgrade():
         batch_op.add_column(sa.Column("map_index", sa.Integer(), nullable=True, server_default=sa.text("-1")))
 
     if dialect_name == "postgresql":
-        op.execute("""
+        op.execute(
+            """
             UPDATE task_instance_note
             SET dag_id = task_instance.dag_id,
                 task_id = task_instance.task_id,
@@ -111,9 +118,11 @@ def downgrade():
                 map_index = task_instance.map_index
             FROM task_instance
             WHERE task_instance_note.ti_id = task_instance.id
-            """)
+            """
+        )
     elif dialect_name == "mysql":
-        op.execute("""
+        op.execute(
+            """
             UPDATE task_instance_note tin
             JOIN task_instance ti ON
                 tin.ti_id = ti.id
@@ -121,15 +130,18 @@ def downgrade():
                 tin.task_id = ti.task_id,
                 tin.run_id = ti.run_id,
                 tin.map_index = ti.map_index
-            """)
+            """
+        )
     else:
-        op.execute("""
+        op.execute(
+            """
             UPDATE task_instance_note
             SET dag_id = (SELECT dag_id FROM task_instance WHERE task_instance_note.ti_id = task_instance.id),
                 task_id = (SELECT task_id FROM task_instance WHERE task_instance_note.ti_id = task_instance.id),
                 run_id = (SELECT run_id FROM task_instance WHERE task_instance_note.ti_id = task_instance.id),
                 map_index = (SELECT map_index FROM task_instance WHERE task_instance_note.ti_id = task_instance.id)
-            """)
+            """
+        )
     with op.batch_alter_table("task_instance_note", schema=None) as batch_op:
         batch_op.drop_constraint("task_instance_note_ti_fkey", type_="foreignkey")
         batch_op.drop_constraint("task_instance_note_pkey", type_="primary")

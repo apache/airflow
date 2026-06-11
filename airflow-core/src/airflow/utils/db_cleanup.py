@@ -26,8 +26,10 @@ from __future__ import annotations
 import csv
 import logging
 import os
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import and_, column, func, inspect, select, table, text
@@ -75,6 +77,7 @@ class _TableConfig:
         supply additional filters here (e.g. externally triggered dag runs)
     :param keep_last_group_by: if keeping the last record, can keep the last record for each group
     :param dependent_tables: list of tables which have FK relationship with this table
+    :param extra_filters: SQLAlchemy expressions ANDed with the recency filter; referenced columns must be in ``extra_columns``.
     """
 
     table_name: str
@@ -88,6 +91,7 @@ class _TableConfig:
     # because the relationships are unlikely to change and the number of tables is small.
     # Relying on automation here would increase complexity and reduce maintainability.
     dependent_tables: list[str] | None = None
+    extra_filters: list[Any] | None = None
 
     def __post_init__(self):
         self.recency_column = column(self.recency_column_name)
@@ -136,7 +140,7 @@ config_list: list[_TableConfig] = [
         keep_last=True,
         keep_last_filters=[column("run_type") != DagRunType.MANUAL],
         keep_last_group_by=["dag_id"],
-        dependent_tables=["task_instance", "deadline"],
+        dependent_tables=["task_instance", "task_store", "deadline"],
     ),
     _TableConfig(table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="import_error", recency_column_name="timestamp"),
@@ -150,6 +154,11 @@ config_list: list[_TableConfig] = [
     ),
     _TableConfig(
         table_name="task_instance_history", recency_column_name="start_date", dag_id_column_name="dag_id"
+    ),
+    _TableConfig(
+        table_name="task_store",
+        recency_column_name="expires_at",
+        dag_id_column_name="dag_id",
     ),
     _TableConfig(table_name="task_reschedule", recency_column_name="start_date", dag_id_column_name="dag_id"),
     _TableConfig(table_name="xcom", recency_column_name="timestamp", dag_id_column_name="dag_id"),
@@ -172,6 +181,14 @@ config_list: list[_TableConfig] = [
     ),
     _TableConfig(table_name="deadline", recency_column_name="deadline_time", dag_id_column_name="dag_id"),
     _TableConfig(table_name="revoked_token", recency_column_name="exp"),
+    _TableConfig(
+        table_name="connection_test_request",
+        recency_column_name="updated_at",
+        extra_columns=["state"],
+        extra_filters=[
+            column("state").in_(["success", "failed"]),
+        ],
+    ),
 ]
 
 # We need to have `fallback="database"` because this is executed at top level code and provider configuration
@@ -339,6 +356,7 @@ def _build_query(
     dag_id_column=None,
     dag_ids: list[str] | None = None,
     exclude_dag_ids: list[str] | None = None,
+    extra_filters: list[Any] | None = None,
     **kwargs,
 ) -> Select:
     base_table_alias = "base"
@@ -346,6 +364,9 @@ def _build_query(
     query = select(text(f"{base_table_alias}.*")).select_from(base_table)
     base_table_recency_col = base_table.c[recency_column.name]
     conditions = [base_table_recency_col < clean_before_timestamp]
+
+    if extra_filters:
+        conditions.extend(extra_filters)
 
     if (dag_ids or exclude_dag_ids) and dag_id_column is not None:
         base_table_dag_id_col = base_table.c[dag_id_column.name]
@@ -392,6 +413,7 @@ def _cleanup_table(
     skip_archive: bool = False,
     session: Session,
     batch_size: int | None = None,
+    extra_filters: list[Any] | None = None,
     **kwargs,
 ) -> None:
     print()
@@ -407,6 +429,7 @@ def _cleanup_table(
         keep_last_filters=keep_last_filters,
         keep_last_group_by=keep_last_group_by,
         clean_before_timestamp=clean_before_timestamp,
+        extra_filters=extra_filters,
         session=session,
     )
     logger.debug("old rows query:\n%s", query.selectable.compile())
@@ -475,11 +498,22 @@ def _print_config(*, configs: dict[str, _TableConfig]) -> None:
 
 
 @contextmanager
-def _suppress_with_logging(table: str, session: Session):
-    """Suppresses errors but logs them."""
+def _suppress_with_logging(table: str, session: Session) -> Generator[SimpleNamespace, None, None]:
+    """
+    Suppress per-table cleanup errors, log them, and expose failure state to the caller.
+
+    Yields a :class:`~types.SimpleNamespace` with a single attribute ``failed`` (bool).
+    When an :class:`~sqlalchemy.exc.OperationalError` or
+    :class:`~sqlalchemy.exc.ProgrammingError` is raised inside the ``with`` block the
+    exception is swallowed, ``ctx.failed`` is set to ``True``, a WARNING is emitted for
+    the table, and the session is rolled back.  The caller can inspect ``ctx.failed``
+    after the block to decide whether to surface the error upstream.
+    """
+    ctx = SimpleNamespace(failed=False)
     try:
-        yield
+        yield ctx
     except (OperationalError, ProgrammingError):
+        ctx.failed = True
         logger.warning("Encountered error when attempting to clean table '%s'. ", table)
         logger.debug("Traceback for table '%s'", table, exc_info=True)
         if session.is_active:
@@ -554,6 +588,7 @@ def run_cleanup(
     skip_archive: bool = False,
     session: Session = NEW_SESSION,
     batch_size: int | None = None,
+    error_on_cleanup_failure: bool = False,
 ) -> None:
     """
     Purges old records in airflow metadata database.
@@ -577,6 +612,9 @@ def run_cleanup(
     :param skip_archive: Set to True if you don't want the purged rows preserved in an archive table.
     :param session: Session representing connection to the metadata database.
     :param batch_size: Maximum number of rows to delete or archive in a single transaction.
+    :param error_on_cleanup_failure: If True, raise a RuntimeError after processing all tables
+        if any per-table cleanup encountered an error. By default errors are suppressed, a warning
+        summary is logged, and the command exits 0 even if some tables were not cleaned.
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
 
@@ -597,10 +635,11 @@ def run_cleanup(
             exclude_dag_ids=exclude_dag_ids,
         )
     existing_tables = reflect_tables(tables=None, session=session).tables
+    failed_tables: list[str] = []
 
     for table_name, table_config in effective_config_dict.items():
         if table_name in existing_tables:
-            with _suppress_with_logging(table_name, session):
+            with _suppress_with_logging(table_name, session) as ctx:
                 _cleanup_table(
                     clean_before_timestamp=clean_before_timestamp,
                     dag_ids=dag_ids,
@@ -612,9 +651,21 @@ def run_cleanup(
                     session=session,
                     batch_size=batch_size,
                 )
-                session.commit()
+            if ctx.failed:
+                failed_tables.append(table_name)
         else:
             logger.warning("Table %s not found.  Skipping.", table_name)
+
+    if failed_tables:
+        if error_on_cleanup_failure:
+            raise RuntimeError(
+                f"airflow db clean encountered errors on the following tables and did not clean them: "
+                f"{failed_tables}. Check the logs above for details."
+            )
+        logger.warning(
+            "The following tables were not cleaned due to errors: %s. Check the logs above for details.",
+            failed_tables,
+        )
 
 
 @provide_session
@@ -624,6 +675,7 @@ def export_archived_records(
     table_names: list[str] | None = None,
     drop_archives: bool = False,
     needs_confirm: bool = True,
+    *,
     session: Session = NEW_SESSION,
 ) -> None:
     """Export archived data to the given output path in the given format."""
@@ -652,7 +704,7 @@ def export_archived_records(
 
 @provide_session
 def drop_archived_tables(
-    table_names: list[str] | None, needs_confirm: bool, session: Session = NEW_SESSION
+    table_names: list[str] | None, needs_confirm: bool, *, session: Session = NEW_SESSION
 ) -> None:
     """Drop archived tables."""
     archived_table_names = _get_archived_table_names(table_names, session)

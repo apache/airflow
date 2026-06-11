@@ -49,9 +49,9 @@ Running E2E Tests
 Adding new E2E Tests
 --------------------
 
-1. To Add new DAGs for E2E tests, you can add them to the dags folder in ``./airflow-e2e-tests/tests/dags`` and update
-the DAG_IDS constant in ``./airflow-e2e-tests/tests/basic_tests/test_example_dags.py`` file to include the new DAGs ids.
-This will trigger DAG execution and validate the DAG run successfully.
+1. To Add new Dags for E2E tests, you can add them to the dags folder in ``./airflow-e2e-tests/tests/dags`` and update
+the DAG_IDS constant in ``./airflow-e2e-tests/tests/basic_tests/test_example_dags.py`` file to include the new Dags ids.
+This will trigger Dag execution and validate the Dag run successfully.
 
 2. To add new test cases, create a new test file or add it any existing files in the ``./airflow-e2e-tests/tests/*``
 

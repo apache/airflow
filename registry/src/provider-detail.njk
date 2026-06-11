@@ -9,9 +9,10 @@ eleventyExcludeFromCollections: true
 <!DOCTYPE html>
 <html>
 <head>
-  <meta http-equiv="refresh" content="0; url={{ '/providers/' | url }}{{ provider.id }}/{{ provider.version }}/">
   <link rel="canonical" href="{{ '/providers/' | url }}{{ provider.id }}/{{ provider.version }}/">
   <title>Redirecting to {{ provider.name }} {{ provider.version }}</title>
+  <script>window.location.replace("{{ '/providers/' | url }}{{ provider.id }}/{{ provider.version }}/" + window.location.hash);</script>
+  <noscript><meta http-equiv="refresh" content="0; url={{ '/providers/' | url }}{{ provider.id }}/{{ provider.version }}/"></noscript>
 </head>
 <body>
   <p>Redirecting to <a href="{{ '/providers/' | url }}{{ provider.id }}/{{ provider.version }}/">{{ provider.name }} {{ provider.version }}</a>...</p>

@@ -238,6 +238,18 @@ class TestCustomObjectLauncher:
     def test_start_spark_job_no_error(self, mock_pod_manager, mock_launcher):
         mock_launcher.start_spark_job()
 
+    @patch(
+        "airflow.providers.cncf.kubernetes.operators.custom_object_launcher.CustomObjectLauncher.delete_spark_job"
+    )
+    def test_start_spark_job_deletes_on_timeout(self, mock_delete_spark_job, mock_launcher):
+        mock_launcher.spark_job_not_running = MagicMock(return_value=True)
+        mock_launcher.check_pod_start_failure = MagicMock()
+
+        with pytest.raises(AirflowException):
+            mock_launcher.start_spark_job(startup_timeout=0)
+
+        mock_delete_spark_job.assert_called_once_with(spark_job_name=mock_launcher.name)
+
     @patch("airflow.providers.cncf.kubernetes.operators.custom_object_launcher.PodManager")
     def test_check_pod_start_failure_no_error(self, mock_pod_manager, mock_launcher):
         mock_pod_manager.return_value.read_pod.return_value.status = self.get_pod_status("ContainerCreating")

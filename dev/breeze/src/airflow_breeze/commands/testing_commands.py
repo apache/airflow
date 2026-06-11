@@ -114,6 +114,7 @@ from airflow_breeze.utils.parallel import (
 from airflow_breeze.utils.path_utils import AIRFLOW_CTL_ROOT_PATH, FILES_PATH, cleanup_python_generated_files
 from airflow_breeze.utils.run_tests import (
     TASK_SDK_INTEGRATION_TESTS_ROOT_PATH,
+    are_all_test_paths_excluded,
     file_name_from_test_type,
     generate_args_for_pytest,
     run_docker_compose_tests,
@@ -206,6 +207,15 @@ def _run_test(
             "[error]Only 'Providers' test type can specify actual tests with \\[\\][/]"
         )
         sys.exit(1)
+    if are_all_test_paths_excluded(
+        test_group=shell_params.test_group,
+        test_type=shell_params.test_type,
+        python_version=python_version,
+        skip_db_tests=shell_params.skip_db_tests,
+        parallel_test_types_list=shell_params.parallel_test_types_list,
+        integration=shell_params.integration,
+    ):
+        return 0, f"Skipped test, no tests needed: {shell_params.test_type}"
     compose_project_name, project_name = _get_project_names(shell_params)
     env = shell_params.env_variables_for_docker_commands
     down_cmd = [
@@ -266,7 +276,7 @@ def _run_test(
         )
         if result.returncode != 0:
             notify_on_unhealthy_backend_container(
-                project_name=project_name, backend=shell_params.backend, output=output
+                project_name=compose_project_name, backend=shell_params.backend, output=output
             )
         if os.environ.get("CI") == "true" and result.returncode != 0:
             get_console(output=output).print(f"[error]Test failed with {result.returncode}.[/]")
@@ -298,9 +308,9 @@ def _get_project_names(shell_params: ShellParams) -> tuple[str, str]:
     """Return compose project name and project name."""
     project_name = file_name_from_test_type(shell_params.test_type)
     if shell_params.test_type == ALL_TEST_TYPE:
-        compose_project_name = "airflow-test"
+        compose_project_name = "breeze-airflow-test"
     else:
-        compose_project_name = f"airflow-test-{project_name}"
+        compose_project_name = f"breeze-airflow-test-{project_name}"
     return compose_project_name, project_name
 
 
@@ -1403,7 +1413,16 @@ option_e2e_test_mode = click.option(
     show_default=True,
     envvar="E2E_TEST_MODE",
     type=click.Choice(
-        ["basic", "remote_log", "remote_log_elasticsearch", "xcom_object_storage"],
+        [
+            "basic",
+            "remote_log",
+            "remote_log_elasticsearch",
+            "remote_log_opensearch",
+            "xcom_object_storage",
+            "event_driven",
+            "java_sdk",
+            "go_sdk",
+        ],
         case_sensitive=False,
     ),
 )
@@ -1444,7 +1463,7 @@ def airflow_e2e_tests(
 
     console_print(f"[info]Running Airflow E2E tests with PROD image: {image_name}[/]")
     # If the image is used from docker hub, test container will pull that part of test.
-    skip_image_check = True if image_name.startswith("apache/airflow") else False
+    skip_image_check = bool(image_name and image_name.startswith("apache/airflow"))
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
         python_version=python,

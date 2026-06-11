@@ -37,6 +37,7 @@ from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.task_store import TaskStoreModel
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.db_cleanup import (
@@ -144,6 +145,25 @@ class TestDBCleanup:
         )
         cleanup_table_mock.assert_called_once()
         assert cleanup_table_mock.call_args.kwargs["batch_size"] == 1234
+
+    @patch("airflow.utils.db_cleanup.reflect_tables")
+    @patch("airflow.utils.db_cleanup._cleanup_table")
+    def test_run_cleanup_does_not_commit_after_cleanup_table(self, cleanup_table_mock, reflect_tables_mock):
+        """run_cleanup should not add an extra commit after _cleanup_table handles its own transaction."""
+        reflect_tables_mock.return_value.tables = {"log": object()}
+        session = MagicMock()
+
+        run_cleanup(
+            clean_before_timestamp=None,
+            table_names=["log"],
+            dry_run=False,
+            verbose=False,
+            confirm=False,
+            session=session,
+        )
+
+        cleanup_table_mock.assert_called_once()
+        session.commit.assert_not_called()
 
     @pytest.mark.parametrize(
         "table_names",
@@ -549,19 +569,25 @@ class TestDBCleanup:
         assert set(all_models) - exclusion_list.union(config_dict) == set()
         assert exclusion_list.isdisjoint(config_dict)
 
-    def test_no_failure_warnings(self, caplog):
+    def test_no_failure_warnings(self):
         """
         Ensure every table we have configured (and that is present in the db) can be cleaned successfully.
         For example, this checks that the recency column is actually a column.
         """
-        run_cleanup(clean_before_timestamp=timezone.utcnow(), dry_run=True)
-        assert "Encountered error when attempting to clean table" not in caplog.text
+        with patch("airflow.utils.db_cleanup.logger") as mock_logger:
+            run_cleanup(clean_before_timestamp=timezone.utcnow(), dry_run=True)
+            for call in mock_logger.warning.call_args_list:
+                assert "Encountered error when attempting to clean table" not in str(call)
 
         # Lets check we have the right error message just in case
-        caplog.clear()
-        with patch("airflow.utils.db_cleanup._cleanup_table", side_effect=OperationalError("oops", {}, None)):
+        with (
+            patch("airflow.utils.db_cleanup.logger") as mock_logger,
+            patch("airflow.utils.db_cleanup._cleanup_table", side_effect=OperationalError("oops", {}, None)),
+        ):
             run_cleanup(clean_before_timestamp=timezone.utcnow(), table_names=["task_instance"], dry_run=True)
-        assert "Encountered error when attempting to clean table" in caplog.text
+            mock_logger.warning.assert_any_call(
+                "Encountered error when attempting to clean table '%s'. ", "task_instance"
+            )
 
     @pytest.mark.parametrize(
         "drop_archive",
@@ -741,6 +767,83 @@ class TestDBCleanup:
         else:
             confirm_mock.assert_not_called()
 
+    @patch(
+        "airflow.utils.db_cleanup._cleanup_table",
+        side_effect=OperationalError("", {}, Exception("mock db error")),
+    )
+    def test_error_on_cleanup_failure_raises_when_flag_set(self, cleanup_table_mock):
+        """When error_on_cleanup_failure=True and a table fails, RuntimeError should be raised."""
+        with patch("airflow.utils.db_cleanup.logger") as mock_logger:
+            with pytest.raises(RuntimeError, match="airflow db clean encountered errors"):
+                run_cleanup(
+                    clean_before_timestamp=None,
+                    table_names=["log"],
+                    dry_run=False,
+                    verbose=False,
+                    confirm=False,
+                    error_on_cleanup_failure=True,
+                )
+
+            mock_logger.warning.assert_any_call(
+                "Encountered error when attempting to clean table '%s'. ", "log"
+            )
+            assert (
+                "The following tables were not cleaned due to errors: %s. Check the logs above for details.",
+                ["log"],
+            ) not in [call.args for call in mock_logger.warning.call_args_list]
+
+    @patch(
+        "airflow.utils.db_cleanup._cleanup_table",
+        side_effect=OperationalError("", {}, Exception("mock db error")),
+    )
+    def test_error_on_cleanup_failure_no_raise_by_default(self, cleanup_table_mock):
+        """When error_on_cleanup_failure=False (default) and a table fails, no exception is raised."""
+        with patch("airflow.utils.db_cleanup.logger") as mock_logger:
+            run_cleanup(
+                clean_before_timestamp=None,
+                table_names=["log"],
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+                error_on_cleanup_failure=False,
+            )
+            mock_logger.warning.assert_any_call(
+                "The following tables were not cleaned due to errors: %s. Check the logs above for details.",
+                ["log"],
+            )
+
+    @patch(
+        "airflow.utils.db_cleanup._cleanup_table",
+        side_effect=OperationalError("", {}, Exception("mock db error")),
+    )
+    def test_error_on_cleanup_failure_lists_failed_tables_in_warning(self, cleanup_table_mock):
+        """A warning naming the failed tables is emitted when error_on_cleanup_failure is not set."""
+        with patch("airflow.utils.db_cleanup.logger") as mock_logger:
+            run_cleanup(
+                clean_before_timestamp=None,
+                table_names=["log"],
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+            )
+            mock_logger.warning.assert_any_call(
+                "The following tables were not cleaned due to errors: %s. Check the logs above for details.",
+                ["log"],
+            )
+
+    @patch("airflow.utils.db_cleanup._cleanup_table")
+    def test_error_on_cleanup_failure_propagated_from_run_cleanup(self, cleanup_table_mock):
+        """Ensure error_on_cleanup_failure is accepted by run_cleanup without errors when no failures occur."""
+        run_cleanup(
+            clean_before_timestamp=None,
+            table_names=["log"],
+            dry_run=False,
+            verbose=False,
+            confirm=False,
+            error_on_cleanup_failure=True,
+        )
+        cleanup_table_mock.assert_called_once()
+
 
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
     from tests_common.test_utils.taskinstance import create_task_instance
@@ -774,3 +877,158 @@ def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
             session.add(dag_run)
             session.add(ti)
         session.commit()
+
+
+@pytest.mark.db_test
+class TestTaskStoreCleanup:
+    def test_expired_rows_deleted(self):
+        cfg = config_dict["task_store"]
+        now = pendulum.now(tz="UTC")
+        past = now.subtract(days=30)
+        future = now.add(days=30)
+
+        with create_session() as session:
+            bundle = DagBundleModel(name="ts_test_bundle")
+            session.add(bundle)
+            session.flush()
+
+            dag = DAG(dag_id="ts_test_dag")
+            dm = DagModel(dag_id="ts_test_dag", bundle_name="ts_test_bundle")
+            session.add(dm)
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="ts_test_bundle")
+
+            dag_run = DagRun(
+                "ts_test_dag",
+                run_id="ts_test_run",
+                run_type=DagRunType.SCHEDULED,
+                start_date=past,
+            )
+            session.add(dag_run)
+            session.flush()
+
+            expired = TaskStoreModel(
+                dag_run_id=dag_run.id,
+                task_id="t1",
+                map_index=-1,
+                key="job_id",
+                dag_id="ts_test_dag",
+                run_id="ts_test_run",
+                value="job-expired",
+                updated_at=past,
+                expires_at=past.subtract(days=1),
+            )
+            never_expire = TaskStoreModel(
+                dag_run_id=dag_run.id,
+                task_id="t1",
+                map_index=-1,
+                key="result",
+                dag_id="ts_test_dag",
+                run_id="ts_test_run",
+                value="job-never-expire",
+                updated_at=past,
+                expires_at=None,
+            )
+            not_yet_expired = TaskStoreModel(
+                dag_run_id=dag_run.id,
+                task_id="t1",
+                map_index=-1,
+                key="future_key",
+                dag_id="ts_test_dag",
+                run_id="ts_test_run",
+                value="job-future",
+                updated_at=past,
+                expires_at=future,
+            )
+            session.add_all([expired, never_expire, not_yet_expired])
+            session.commit()
+
+        cutoff = now.subtract(hours=1)
+        with create_session() as session:
+            _cleanup_table(
+                **cfg.__dict__,
+                clean_before_timestamp=cutoff,
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+                skip_archive=True,
+                session=session,
+            )
+
+        with create_session() as session:
+            not_deleted = {
+                row.key
+                for row in session.scalars(
+                    select(TaskStoreModel).where(TaskStoreModel.dag_id == "ts_test_dag")
+                ).all()
+            }
+
+        assert "job_id" not in not_deleted, "expired row should be deleted"
+        assert "result" in not_deleted, "NEVER_EXPIRE row (expires_at=NULL) must survive"
+        assert "future_key" in not_deleted, "not-yet-expired row must survive"
+
+
+@pytest.mark.db_test
+class TestConnectionTestRequestCleanup:
+    """Verify db_cleanup never deletes in-flight connection tests (kaxil r3169602754)."""
+
+    def setup_method(self):
+        from tests_common.test_utils.db import clear_db_connection_tests
+
+        clear_db_connection_tests()
+
+    def teardown_method(self):
+        from tests_common.test_utils.db import clear_db_connection_tests
+
+        clear_db_connection_tests()
+
+    def test_extra_filters_keep_in_flight_rows(self):
+        """Even past the cutoff, PENDING/QUEUED/RUNNING rows survive cleanup; SUCCESS/FAILED don't."""
+        from datetime import timezone
+
+        import uuid6
+
+        from airflow.models.connection_test import ConnectionTestRequest, ConnectionTestState
+        from airflow.utils.db_cleanup import config_dict
+        from airflow.utils.session import create_session
+
+        cfg = config_dict["connection_test_request"]
+        old = pendulum.now(tz="UTC").subtract(days=30)
+        seeded: dict[str, str] = {}
+        with create_session() as s:
+            for state in ConnectionTestState:
+                ct = ConnectionTestRequest(connection_id=f"cleanup_probe_{state.value}", conn_type="http")
+                ct.id = uuid6.uuid7()
+                ct.state = state
+                ct.updated_at = old.in_timezone(timezone.utc)
+                s.add(ct)
+                seeded[state.value] = str(ct.id)
+            s.commit()
+
+        # Run cleanup with a cutoff well past every seeded row.
+        cutoff = pendulum.now(tz="UTC").subtract(days=1)
+        with create_session() as session:
+            _cleanup_table(
+                **cfg.__dict__,
+                clean_before_timestamp=cutoff,
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+                skip_archive=True,
+                session=session,
+            )
+
+        with create_session() as s:
+            survivors = {
+                str(row.id)
+                for row in s.scalars(
+                    select(ConnectionTestRequest).where(
+                        ConnectionTestRequest.connection_id.like("cleanup_probe_%")
+                    )
+                ).all()
+            }
+
+        # In-flight states must still be present; terminal states must be gone.
+        for state in ("pending", "queued", "running"):
+            assert seeded[state] in survivors, f"{state} row should NOT be cleaned up"
+        for state in ("success", "failed"):
+            assert seeded[state] not in survivors, f"{state} row should be cleaned up"

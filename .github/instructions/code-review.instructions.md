@@ -2,6 +2,8 @@
 applyTo: "**"
 excludeAgent: "coding-agent"
 ---
+<!-- SPDX-License-Identifier: Apache-2.0
+     https://www.apache.org/licenses/LICENSE-2.0 -->
 
 # Airflow Code Review Instructions
 
@@ -11,7 +13,7 @@ Use these rules when reviewing pull requests to the Apache Airflow repository.
 
 - **Scheduler must never run user code.** It only processes serialized Dags. Flag any scheduler-path code that deserializes or executes Dag/task code.
 - **Flag any task execution code that accesses the metadata DB directly** instead of through the Execution API (`/execution` endpoints).
-- **Flag any code in Dag Processor or Triggerer that breaks process isolation** — these components run user code in isolated processes.
+- **Flag any code in Dag Processor or Triggerer that breaks process isolation** — these components run user code in separate processes from the Scheduler and API Server, but note that they potentially have direct metadata database access and potentially bypass JWT authentication via in-process Execution API transport. This is an intentional design choice documented in the security model, not a security vulnerability.
 - **Flag any provider importing core internals** like `SUPERVISOR_COMMS` or task-runner plumbing. Providers interact through the public SDK and execution API only.
 
 ## Database and Query Correctness
@@ -30,6 +32,7 @@ Use these rules when reviewing pull requests to the Apache Airflow repository.
 - **Flag any `@lru_cache(maxsize=None)`.** This creates an unbounded cache — every unique argument set is cached forever. Note: `@lru_cache()` without arguments defaults to `maxsize=128` and is fine.
 - **Flag any heavy import** (e.g., `kubernetes.client`) in multi-process code paths that is not behind a `TYPE_CHECKING` guard.
 - **Flag any file, connection, or session opened without a context manager or `try/finally`.**
+- **Flag any new `raise AirflowException` usage.** The community has stopped adding new ones (enforced by the `check-no-new-airflow-exceptions` prek hook) — prefer Python's standard exceptions (`ValueError`, `TypeError`, `OSError`), or a dedicated class in the appropriate `exceptions.py`. **Do not suggest changing specific exceptions back to `AirflowException`.**
 
 ## Testing Requirements
 

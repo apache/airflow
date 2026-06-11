@@ -168,6 +168,33 @@ class TIRescheduleStatePayload(StrictBaseModel):
     end_date: UtcDateTime
 
 
+class TIAwaitingInputStatePayload(StrictBaseModel):
+    """Schema for parking a TaskInstance in an awaiting_input state (Human-in-the-loop, no trigger)."""
+
+    state: Annotated[
+        Literal[IntermediateTIState.AWAITING_INPUT],
+        # Specify a default in the schema, but not in code, so Pydantic marks it as required.
+        WithJsonSchema(
+            {
+                "type": "string",
+                "enum": [IntermediateTIState.AWAITING_INPUT],
+                "default": IntermediateTIState.AWAITING_INPUT,
+            }
+        ),
+    ]
+    timeout: timedelta | None = None
+    """Optional response deadline (relative); converted to an absolute datetime server-side."""
+    next_method: str
+    """The name of the method on the operator to call in the worker after input is received."""
+    next_kwargs: Annotated[dict[str, JsonValue], Field(default_factory=dict)]
+    """
+    Kwargs to pass to the above method, either a plain dict or an encrypted string.
+
+    Both forms will be passed along to the TaskSDK upon resume, the server will not handle either.
+    """
+    rendered_map_index: str | None = None
+
+
 class TIRetryStatePayload(StrictBaseModel):
     """Schema for updating TaskInstance to up_for_retry."""
 
@@ -184,6 +211,8 @@ class TIRetryStatePayload(StrictBaseModel):
     ]
     end_date: UtcDateTime
     rendered_map_index: str | None = None
+    retry_delay_seconds: float | None = None
+    retry_reason: str | None = None
 
 
 class TISkippedDownstreamTasksStatePayload(StrictBaseModel):
@@ -214,6 +243,8 @@ def ti_state_discriminator(v: dict[str, str] | StrictBaseModel) -> str:
         return "deferred"
     if state == TIState.UP_FOR_RESCHEDULE:
         return "up_for_reschedule"
+    if state == TIState.AWAITING_INPUT:
+        return "awaiting_input"
     if state == TIState.UP_FOR_RETRY:
         return "up_for_retry"
     return "_other_"
@@ -227,6 +258,7 @@ TIStateUpdate = Annotated[
     | Annotated[TITargetStatePayload, Tag("_other_")]
     | Annotated[TIDeferredStatePayload, Tag("deferred")]
     | Annotated[TIRescheduleStatePayload, Tag("up_for_reschedule")]
+    | Annotated[TIAwaitingInputStatePayload, Tag("awaiting_input")]
     | Annotated[TIRetryStatePayload, Tag("up_for_retry")],
     Field(discriminator=ti_state_discriminator),
 ]
@@ -306,11 +338,17 @@ class DagRun(StrictBaseModel):
     consumed_asset_events: list[AssetEventDagRunReference]
     partition_key: str | None
     note: str | None = None
+    team_name: str | None = None
 
     @model_validator(mode="before")
     @classmethod
-    def extract_dag_run_note(cls, data: Any) -> Any:
-        """Extract the `note` (`str | None` from `association_proxy("dag_run_note", "content")`) relationship from `DagRun` to prevent `DetachedInstanceError` when constructing `DagRunContext` or `TIRunContext` models."""
+    def safe_extract_from_orm(cls, data: Any) -> Any:
+        """
+        Safely extract data from SQLAlchemy DagRun instances.
+
+        Handles the 'note' association proxy and provides defaults for unloaded relationships
+        to prevent DetachedInstanceError when the instance is not bound to a session.
+        """
         from sqlalchemy import inspect as sa_inspect
         from sqlalchemy.exc import NoInspectionAvailable
         from sqlalchemy.orm.state import InstanceState
@@ -325,19 +363,27 @@ class DagRun(StrictBaseModel):
             # Not a SQLAlchemy object, return as-is for Pydantic to handle
             return data
 
-        # Check if dag_run_note is already loaded (avoid lazy load on detached instance)
-        if "note" in insp.dict:
-            note_value: str | None = insp.dict["note"]
-        else:
-            note_value = None
+        values = {}
 
-        # Convert to dict to avoid further lazy loading issues
-        values = {
-            field_name: getattr(data, field_name, None)
-            for field_name in cls.model_fields
-            if field_name != "note"
-        }
-        values["note"] = note_value
+        for field_name in cls.model_fields:
+            if field_name in insp.dict:
+                values[field_name] = insp.dict[field_name]
+            elif field_name == "state":
+                if "_state" in insp.dict:
+                    values["state"] = insp.dict["_state"]
+                elif not insp.detached and (state_val := data._state) is not None:
+                    values["state"] = state_val
+
+        if "consumed_asset_events" not in values:
+            values["consumed_asset_events"] = []
+
+        # Check if dag_run_note is already loaded (avoid lazy load on detached instance)
+        if "note" not in values:
+            if "dag_run_note" in insp.dict:
+                values["note"] = data.note
+            else:
+                values["note"] = None
+
         return values
 
 
@@ -373,6 +419,15 @@ class TIRunContext(BaseModel):
 
     should_retry: bool = False
     """If the ti encounters an error, whether it should enter retry or failed state."""
+
+    start_date: UtcDateTime | None = None
+    """
+    The original start date of the task instance.
+
+    When resuming from deferral, this is set to the task's original ``start_date`` so the
+    supervisor uses it instead of ``datetime.now()``.  This ensures ``context["ti"].start_date``
+    always reflects when the task *first* started, not when it was rescheduled/resumed.
+    """
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):

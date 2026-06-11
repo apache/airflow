@@ -21,7 +21,7 @@
 ## Airflow Statsd Ingress
 #################################
 {{- if and .Values.statsd.enabled .Values.ingress.statsd.enabled }}
-{{- $fullname := (include "airflow.fullname" .) }}
+{{- $fullname := include "airflow.fullname" . }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -42,17 +42,15 @@ spec:
   {{- if and .Values.ingress.statsd.hosts (.Values.ingress.statsd.hosts | first | kindIs "string" | not) }}
   {{- $anyTlsHosts := false -}}
   {{- range .Values.ingress.statsd.hosts }}
-  {{- if .tls }}
-  {{- if .tls.enabled }}
+  {{- if and .tls .tls.enabled }}
   {{- $anyTlsHosts = true -}}
-  {{- end }}
+  {{- break }}
   {{- end }}
   {{- end }}
   {{- if $anyTlsHosts }}
   tls:
   {{- range .Values.ingress.statsd.hosts }}
-  {{- if .tls }}
-  {{- if .tls.enabled }}
+  {{- if and .tls .tls.enabled }}
     - hosts:
         - {{ tpl .name $ | quote }}
       secretName: {{ .tls.secretName }}
@@ -60,9 +58,8 @@ spec:
   {{- end }}
   {{- end }}
   {{- end }}
-  {{- end }}
   rules:
-    {{- range .Values.ingress.statsd.hosts | default (list .Values.ingress.statsd.host) }}
+    {{- range .Values.ingress.statsd.hosts | default (list "") }}
     - http:
         paths:
           - backend:

@@ -70,7 +70,7 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
 
     processors = ()
 
-    def upload(self, path: os.PathLike | str, ti: RuntimeTI):
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI | None = None) -> None:
         """Upload the given log path to the remote storage."""
         path = Path(path)
         if path.is_absolute():
@@ -95,7 +95,16 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
             try:
                 return GCSHook(gcp_conn_id=conn_id)
             except AirflowNotFoundException:
-                pass
+                # The operator configured a ``remote_log_conn_id`` that doesn't exist. We
+                # fall back to Application Default Credentials, but the operator almost
+                # certainly didn't mean that — a misconfigured remote-log connection is a
+                # security control failure (logs going through the wrong credentials) and
+                # must be visible in the worker log.
+                self.log.warning(
+                    "remote_log_conn_id %r is not configured; falling back to Application "
+                    "Default Credentials for GCS log handler.",
+                    conn_id,
+                )
         return None
 
     @cached_property
@@ -130,7 +139,19 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
             log = f"{old_log}\n{log}" if old_log else log
         except Exception as e:
             if not self.no_log_found(e):
-                self.log.warning("Error checking for previous log: %s", e)
+                # Read failed for a reason other than "object does not exist" (e.g. transient
+                # GCS outage, IAM glitch, network blip). Fall through to the upload would
+                # overwrite the existing blob with only the new content and *truncate* the
+                # prior log history. Fail closed instead: keep local logs and let the next
+                # heartbeat retry. ``no_log_found`` covers the 404 case, where it is safe to
+                # write the new content as a fresh blob.
+                self.log.warning(
+                    "Refusing to overwrite remote log %s: could not read existing content (%s). "
+                    "Keeping local logs for later retry.",
+                    remote_log_location,
+                    e,
+                )
+                return False
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
             blob.upload_from_string(log, content_type="text/plain")
