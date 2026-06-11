@@ -50,6 +50,7 @@ from structlog.typing import FilteringBoundLogger
 from airflow._shared.timezones import timezone
 from airflow.executors import workloads
 from airflow.executors.workloads.task import TaskInstanceDTO
+from airflow.executors.workloads.trigger import RunTrigger
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
     _USER_ACTION_CANCEL_MSG,
@@ -72,10 +73,19 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import DAG, BaseHook, BaseOperator
-from airflow.sdk.execution_time.comms import ToSupervisor, ToTask, _RequestFrame, _ResponseFrame
+from airflow.sdk import DAG, Asset, BaseHook, BaseOperator
+from airflow.sdk.execution_time.comms import (
+    AssetStoreResult,
+    GetAssetStoreByName,
+    SetAssetStoreByName,
+    ToSupervisor,
+    ToTask,
+    _RequestFrame,
+    _ResponseFrame,
+)
+from airflow.sdk.execution_time.context import AssetStoreAccessors
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -560,15 +570,15 @@ def test_create_workload_uses_supervisor_id_without_job(jobless_supervisor, mock
 
 def test_create_workload_sets_watched_assets_for_asset_only_trigger(jobless_supervisor, mocker):
     """_create_workload() should populate watched_assets when trigger.task_instance is None and assets exist."""
-    asset1 = mocker.Mock()
+    asset1 = mocker.Mock(spec=Asset)
     asset1.name = "my_asset"
     asset1.uri = "s3://bucket/key"
 
-    asset2 = mocker.Mock()
+    asset2 = mocker.Mock(spec=Asset)
     asset2.name = "other_asset"
     asset2.uri = "gs://bucket/path"
 
-    trigger = mocker.Mock()
+    trigger = mocker.Mock(spec=BaseEventTrigger)
     trigger.id = 42
     trigger.classpath = "some.path.Trigger"
     trigger.encrypted_kwargs = "encrypted"
@@ -588,7 +598,7 @@ def test_create_workload_sets_watched_assets_for_asset_only_trigger(jobless_supe
 
 def test_create_workload_watched_assets_none_when_no_assets(jobless_supervisor, mocker):
     """_create_workload() should set watched_assets=None when trigger.task_instance is None and assets is empty."""
-    trigger = mocker.Mock()
+    trigger = mocker.Mock(spec=BaseEventTrigger)
     trigger.id = 43
     trigger.classpath = "some.path.Trigger"
     trigger.encrypted_kwargs = "encrypted"
@@ -608,8 +618,6 @@ def test_create_workload_watched_assets_none_when_no_assets(jobless_supervisor, 
 
 def test_run_trigger_workload_includes_watched_assets_field():
     """RunTrigger workload should accept and store watched_assets."""
-    from airflow.executors.workloads.trigger import RunTrigger
-
     workload = RunTrigger(
         id=1,
         classpath="airflow.triggers.testing.SuccessTrigger",
@@ -621,8 +629,6 @@ def test_run_trigger_workload_includes_watched_assets_field():
 
 def test_run_trigger_workload_watched_assets_defaults_to_none():
     """RunTrigger workload watched_assets should default to None."""
-    from airflow.executors.workloads.trigger import RunTrigger
-
     workload = RunTrigger(
         id=1,
         classpath="airflow.triggers.testing.SuccessTrigger",
@@ -631,30 +637,35 @@ def test_run_trigger_workload_watched_assets_defaults_to_none():
     assert workload.watched_assets is None
 
 
+@pytest.fixture
+def make_watcher_trigger():
+    """Factory fixture: call with a list to get a BaseEventTrigger subclass that appends each new instance."""
+
+    def factory(injected_instances):
+        class WatcherTrigger(BaseEventTrigger):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                injected_instances.append(self)
+
+            def serialize(self):
+                return (f"{type(self).__module__}.{type(self).__qualname__}", {})
+
+            async def run(self):
+                yield TriggerEvent("done")
+
+        return WatcherTrigger
+
+    return factory
+
+
 @pytest.mark.asyncio
-@patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs", return_value={})
 @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
 async def test_create_triggers_injects_asset_store_for_base_event_trigger(
-    mock_get_classpath, mock_decrypt, session
+    mock_get_classpath, session, make_watcher_trigger
 ):
     """asset_store is populated on BaseEventTrigger instances when watched_assets is set."""
-    from airflow.sdk.execution_time.context import AssetStoreAccessors
-    from airflow.triggers.base import BaseEventTrigger, TriggerEvent
-
     injected_instances = []
-
-    class _WatcherTrigger(BaseEventTrigger):
-        def __init__(self, **kwargs):
-            super().__init__(**kwargs)
-            injected_instances.append(self)
-
-        def serialize(self):
-            return (f"{type(self).__module__}.{type(self).__qualname__}", {})
-
-        async def run(self):
-            yield TriggerEvent("done")
-
-    mock_get_classpath.return_value = _WatcherTrigger
+    mock_get_classpath.return_value = make_watcher_trigger(injected_instances)
 
     runner = TriggerRunner()
     runner.to_create.append(
@@ -662,7 +673,7 @@ async def test_create_triggers_injects_asset_store_for_base_event_trigger(
             id=10,
             ti=None,
             classpath="fake.WatcherTrigger",
-            encrypted_kwargs="fake",
+            encrypted_kwargs="{}",
             watched_assets={"my_asset": "s3://bucket/key"},
         )
     )
@@ -681,28 +692,13 @@ async def test_create_triggers_injects_asset_store_for_base_event_trigger(
 
 
 @pytest.mark.asyncio
-@patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs", return_value={})
 @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
 async def test_create_triggers_asset_store_none_when_no_watched_assets(
-    mock_get_classpath, mock_decrypt, session
+    mock_get_classpath, session, make_watcher_trigger
 ):
     """asset_store stays None when watched_assets is not set on the workload."""
-    from airflow.triggers.base import BaseEventTrigger, TriggerEvent
-
     injected_instances = []
-
-    class _WatcherTrigger(BaseEventTrigger):
-        def __init__(self, **kwargs):
-            super().__init__(**kwargs)
-            injected_instances.append(self)
-
-        def serialize(self):
-            return (f"{type(self).__module__}.{type(self).__qualname__}", {})
-
-        async def run(self):
-            yield TriggerEvent("done")
-
-    mock_get_classpath.return_value = _WatcherTrigger
+    mock_get_classpath.return_value = make_watcher_trigger(injected_instances)
 
     runner = TriggerRunner()
     runner.to_create.append(
@@ -710,7 +706,7 @@ async def test_create_triggers_asset_store_none_when_no_watched_assets(
             id=11,
             ti=None,
             classpath="fake.WatcherTrigger",
-            encrypted_kwargs="fake",
+            encrypted_kwargs="{}",
             watched_assets=None,
         )
     )
@@ -725,20 +721,15 @@ async def test_create_triggers_asset_store_none_when_no_watched_assets(
 
 
 @pytest.mark.asyncio
-@patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs", return_value={})
 @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
-async def test_create_triggers_skips_asset_store_for_non_event_trigger(
-    mock_get_classpath, mock_decrypt, session
-):
+async def test_create_triggers_skips_asset_store_for_non_event_trigger(mock_get_classpath, session):
     """asset_store injection is skipped for plain BaseTrigger (non-BaseEventTrigger) instances."""
-    from airflow.triggers.testing import SuccessTrigger
-
     mock_get_classpath.return_value = SuccessTrigger
 
     runner = TriggerRunner()
     runner.to_create.append(
         workloads.RunTrigger.model_construct(
-            id=12, ti=None, classpath="airflow.triggers.testing.SuccessTrigger", encrypted_kwargs="fake"
+            id=12, ti=None, classpath="airflow.triggers.testing.SuccessTrigger", encrypted_kwargs="{}"
         )
     )
 
@@ -752,28 +743,13 @@ async def test_create_triggers_skips_asset_store_for_non_event_trigger(
 
 
 @pytest.mark.asyncio
-@patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs", return_value={})
 @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
-async def test_create_triggers_asset_store_contains_correct_assets(mock_get_classpath, mock_decrypt, session):
+async def test_create_triggers_asset_store_contains_correct_assets(
+    mock_get_classpath, session, make_watcher_trigger
+):
     """AssetStoreAccessors built from watched_assets has entries for all provided name/URI pairs."""
-    from airflow.sdk.definitions.asset import Asset
-    from airflow.sdk.execution_time.context import AssetStoreAccessors
-    from airflow.triggers.base import BaseEventTrigger, TriggerEvent
-
     injected_instances = []
-
-    class _WatcherTrigger(BaseEventTrigger):
-        def __init__(self, **kwargs):
-            super().__init__(**kwargs)
-            injected_instances.append(self)
-
-        def serialize(self):
-            return (f"{type(self).__module__}.{type(self).__qualname__}", {})
-
-        async def run(self):
-            yield TriggerEvent("done")
-
-    mock_get_classpath.return_value = _WatcherTrigger
+    mock_get_classpath.return_value = make_watcher_trigger(injected_instances)
 
     runner = TriggerRunner()
     runner.to_create.append(
@@ -781,7 +757,7 @@ async def test_create_triggers_asset_store_contains_correct_assets(mock_get_clas
             id=13,
             ti=None,
             classpath="fake.WatcherTrigger",
-            encrypted_kwargs="fake",
+            encrypted_kwargs="{}",
             watched_assets={"asset_a": "s3://bucket/a", "asset_b": "gs://bucket/b"},
         )
     )
@@ -797,6 +773,47 @@ async def test_create_triggers_asset_store_contains_correct_assets(mock_get_clas
     assert store[Asset(name="asset_b", uri="gs://bucket/b")] is not None
 
     runner.triggers[13]["task"].cancel()
+    await runner.cleanup_finished_triggers()
+
+
+@pytest.mark.asyncio
+@patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
+async def test_create_triggers_asset_store_accessor_reads_and_writes(
+    mock_get_classpath, session, mock_supervisor_comms, make_watcher_trigger
+):
+    """asset_store accessor sends correct SUPERVISOR_COMMS messages on get() and set()."""
+    injected_instances = []
+    mock_get_classpath.return_value = make_watcher_trigger(injected_instances)
+
+    runner = TriggerRunner()
+    runner.to_create.append(
+        workloads.RunTrigger.model_construct(
+            id=14,
+            ti=None,
+            classpath="fake.WatcherTrigger",
+            encrypted_kwargs="{}",
+            watched_assets={"asset_a": "s3://bucket/a"},
+        )
+    )
+
+    await runner.create_triggers()
+
+    assert len(injected_instances) == 1
+    store = injected_instances[0].asset_store
+    accessor = store[Asset(name="asset_a", uri="s3://bucket/a")]
+
+    mock_supervisor_comms.send.return_value = AssetStoreResult(value="2026-01-01")
+    result = accessor.get("watermark")
+    assert result == "2026-01-01"
+
+    mock_supervisor_comms.send.assert_called_with(GetAssetStoreByName(name="asset_a", key="watermark"))
+
+    accessor.set("watermark", "2026-06-11")
+    mock_supervisor_comms.send.assert_called_with(
+        SetAssetStoreByName(name="asset_a", key="watermark", value="2026-06-11")
+    )
+
+    runner.triggers[14]["task"].cancel()
     await runner.cleanup_finished_triggers()
 
 
