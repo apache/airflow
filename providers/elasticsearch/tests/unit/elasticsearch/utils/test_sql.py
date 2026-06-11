@@ -22,9 +22,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.providers.elasticsearch.utils.sql import (
-    read_sql_to_polars,
-)
+from airflow.providers.elasticsearch.utils.sql import read_sql_to_polars, read_sql_to_polars_by_chunks
 
 COLUMNS = [
     {"name": "id", "type": "integer"},
@@ -177,5 +175,154 @@ def test_read_sql_to_polars_no_cursor_cleanup():
     )
 
     read_sql_to_polars(es, "SELECT *")
+
+    es.sql.clear_cursor.assert_not_called()
+
+
+def test_read_sql_to_polars_by_chunks_single_chunk():
+    es = _mock_es(
+        [
+            {
+                "columns": COLUMNS,
+                "rows": [[1, "a"], [2, "b"]],
+            }
+        ]
+    )
+
+    chunks = list(
+        read_sql_to_polars_by_chunks(
+            es,
+            "SELECT *",
+            chunksize=10,
+        )
+    )
+
+    assert len(chunks) == 1
+
+    df = chunks[0]
+    assert df.shape == (2, 2)
+    assert df.to_dict(as_series=False) == {
+        "id": [1, 2],
+        "name": ["a", "b"],
+    }
+
+
+def test_read_sql_to_polars_by_chunks_single_page_multiple_chunks():
+    es = _mock_es(
+        [
+            {
+                "columns": COLUMNS,
+                "rows": [
+                    [1, "a"],
+                    [2, "b"],
+                    [3, "c"],
+                ],
+            }
+        ]
+    )
+
+    chunks = list(
+        read_sql_to_polars_by_chunks(
+            es,
+            "SELECT *",
+            chunksize=2,
+        )
+    )
+
+    assert [chunk.shape for chunk in chunks] == [
+        (2, 2),
+        (1, 2),
+    ]
+
+    assert chunks[0].to_dict(as_series=False) == {
+        "id": [1, 2],
+        "name": ["a", "b"],
+    }
+
+    assert chunks[1].to_dict(as_series=False) == {
+        "id": [3],
+        "name": ["c"],
+    }
+
+
+def test_read_sql_to_polars_by_chunks_across_cursor_pages():
+    es = _mock_es(
+        [
+            {
+                "columns": COLUMNS,
+                "rows": [[1, "a"], [2, "b"]],
+                "cursor": "cursor_1",
+            },
+            {
+                "rows": [[3, "c"], [4, "d"]],
+                "cursor": None,
+            },
+        ]
+    )
+
+    chunks = list(
+        read_sql_to_polars_by_chunks(
+            es,
+            "SELECT *",
+            chunksize=3,
+        )
+    )
+
+    assert len(chunks) == 2
+
+    assert chunks[0].to_dict(as_series=False) == {
+        "id": [1, 2, 3],
+        "name": ["a", "b", "c"],
+    }
+
+    assert chunks[1].to_dict(as_series=False) == {
+        "id": [4],
+        "name": ["d"],
+    }
+
+
+def test_read_sql_to_polars_by_chunks_clears_cursor():
+    es = _mock_es(
+        [
+            {
+                "columns": COLUMNS,
+                "rows": [[1, "a"]],
+                "cursor": "cursor_1",
+            },
+            {
+                "rows": [[2, "b"]],
+                "cursor": None,
+            },
+        ]
+    )
+
+    list(
+        read_sql_to_polars_by_chunks(
+            es,
+            "SELECT *",
+            chunksize=1,
+        )
+    )
+
+    es.sql.clear_cursor.assert_called_once()
+
+
+def test_read_sql_to_polars_by_chunks_no_cursor_cleanup():
+    es = _mock_es(
+        [
+            {
+                "columns": COLUMNS,
+                "rows": [[1, "a"]],
+            }
+        ]
+    )
+
+    list(
+        read_sql_to_polars_by_chunks(
+            es,
+            "SELECT *",
+            chunksize=1,
+        )
+    )
 
     es.sql.clear_cursor.assert_not_called()
