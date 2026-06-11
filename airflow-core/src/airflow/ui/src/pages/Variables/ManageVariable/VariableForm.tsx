@@ -16,14 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Field, HStack, Input, Spacer, Text, Textarea } from "@chakra-ui/react";
+import { Box, Button, Field, HStack, Input, Spacer, Textarea } from "@chakra-ui/react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { FiSave } from "react-icons/fi";
+import { FiAlertCircle, FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { TeamSelector } from "src/components/TeamSelector.tsx";
-import { useConfig } from "src/queries/useConfig.tsx";
+import { TeamSelector } from "src/components/TeamSelector";
+import { useConfig } from "src/queries/useConfig";
 
 export type VariableBody = {
   description: string | undefined;
@@ -32,14 +32,21 @@ export type VariableBody = {
   value: string;
 };
 
-const isJsonString = (string: string) => {
+/**
+ * Attempts to parse the given string as JSON.
+ * Returns an object indicating whether the string is valid JSON,
+ * and if not, the SyntaxError message to help the user locate the issue.
+ */
+const validateJson = (string: string): { errorMessage?: string; isValid: boolean } => {
   try {
     JSON.parse(string);
-  } catch {
-    return false;
+    return { isValid: true };
+  } catch (e) {
+    if (e instanceof SyntaxError) {
+      return { errorMessage: e.message, isValid: false };
+    }
+    return { isValid: false };
   }
-
-  return true;
 };
 
 type VariableFormProps = {
@@ -50,7 +57,13 @@ type VariableFormProps = {
   readonly setError: (error: unknown) => void;
 };
 
-const VariableForm = ({ error, initialVariable, isPending, manageMutate, setError }: VariableFormProps) => {
+const VariableForm = ({
+  error,
+  initialVariable,
+  isPending,
+  manageMutate,
+  setError,
+}: VariableFormProps) => {
   const { t: translate } = useTranslation(["admin", "common"]);
   const {
     control,
@@ -58,10 +71,15 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
     handleSubmit,
     reset,
   } = useForm<VariableBody>({
-    defaultValues: initialVariable,
+    defaultValues: {
+      ...initialVariable,
+      team_name: initialVariable.team_name ?? "",
+    },
     mode: "onChange",
   });
-  const multiTeamEnabled = Boolean(useConfig("multi_team"));
+
+  const multiTeamConfig = useConfig("multi_team");
+  const multiTeamEnabled = Boolean(multiTeamConfig);
 
   const onSubmit = (data: VariableBody) => {
     manageMutate(data);
@@ -74,6 +92,7 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
 
   return (
     <>
+      {/* Key Field */}
       <Controller
         control={control}
         name="key"
@@ -82,50 +101,82 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
             <Field.Label fontSize="md">
               {translate("columns.key")} <Field.RequiredIndicator />
             </Field.Label>
-            <Input {...field} disabled={Boolean(initialVariable.key)} required size="sm" />
-            {fieldState.error ? <Field.ErrorText>{fieldState.error.message}</Field.ErrorText> : undefined}
+            <Input
+              {...field}
+              disabled={Boolean(initialVariable.key)}
+              size="sm"
+            />
+            {fieldState.error ? (
+              <Field.ErrorText>
+                <FiAlertCircle />
+                {fieldState.error.message}
+              </Field.ErrorText>
+            ) : undefined}
           </Field.Root>
         )}
         rules={{
           required: translate("variables.form.keyRequired"),
-          validate: (_value) => _value.length <= 250 || translate("variables.form.keyMaxLength"),
+          validate: (_value) =>
+            _value.length <= 250 || translate("variables.form.keyMaxLength"),
         }}
       />
 
+      {/* Value Field */}
       <Controller
         control={control}
         name="value"
         render={({ field, fieldState }) => {
-          const showJsonWarning =
-            field.value.startsWith("{") || field.value.startsWith("[") ? !isJsonString(field.value) : false;
-
           return (
             <Field.Root invalid={Boolean(fieldState.error)} mt={4} required>
               <Field.Label fontSize="md">
                 {translate("columns.value")} <Field.RequiredIndicator />
               </Field.Label>
-              <Textarea {...field} size="sm" />
-              {showJsonWarning ? (
-                <Text color="fg.warning" fontSize="xs">
-                  {translate("variables.form.invalidJson")}
-                </Text>
+              <Textarea
+                {...field}
+                size="sm"
+                value={field.value ?? ""}
+              />
+              {fieldState.error ? (
+                <Field.ErrorText>
+                  <FiAlertCircle />
+                  {fieldState.error.message}
+                </Field.ErrorText>
               ) : undefined}
-              {fieldState.error ? <Field.ErrorText>{fieldState.error.message}</Field.ErrorText> : undefined}
             </Field.Root>
           );
         }}
         rules={{
           required: translate("variables.form.valueRequired"),
+          validate: (value) => {
+            const looksLikeJson =
+              value.startsWith("{") || value.startsWith("[");
+
+            if (looksLikeJson) {
+              const { errorMessage, isValid: isValidJson } = validateJson(value);
+
+              if (!isValidJson) {
+                // Surface the exact SyntaxError location to help users fix it
+                return errorMessage
+                  ? `${translate("variables.form.invalidJson")}: ${errorMessage}`
+                  : translate("variables.form.invalidJson");
+              }
+            }
+
+            return true;
+          },
         }}
       />
 
+      {/* Description Field */}
       <Controller
         control={control}
         name="description"
         render={({ field }) => (
           <Field.Root mb={4} mt={4}>
-            <Field.Label fontSize="md">{translate("columns.description")}</Field.Label>
-            <Textarea {...field} size="sm" />
+            <Field.Label fontSize="md">
+              {translate("columns.description")}
+            </Field.Label>
+            <Textarea {...field} value={field.value ?? ""} size="sm" />
           </Field.Root>
         )}
       />
@@ -142,7 +193,10 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
             </Button>
           ) : undefined}
           <Spacer />
-          <Button disabled={!isValid || isPending} onClick={() => void handleSubmit(onSubmit)()}>
+          <Button
+            disabled={!isValid || isPending}
+            onClick={() => void handleSubmit(onSubmit)()}
+          >
             <FiSave /> {translate("formActions.save")}
           </Button>
         </HStack>
