@@ -27,7 +27,7 @@ import csv
 import logging
 import os
 from collections.abc import Generator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
@@ -295,7 +295,12 @@ def _do_delete(
             session.commit()
 
         except BaseException:
-            session.rollback()
+            # Roll back the failed transaction so its locks are released before
+            # the archive table is dropped in the ``finally`` block below.
+            # ``rollback()`` itself can raise (e.g. the connection died); suppress
+            # it so it does not shadow the original error being re-raised.
+            with suppress(Exception):
+                session.rollback()
             raise
         finally:
             if target_table is not None and skip_archive:
