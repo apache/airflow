@@ -125,6 +125,14 @@ class DagRunProtocol(Protocol):
     partition_key: str | None
     partition_date: AwareDatetime | None
     note: str | None
+    # Semantically ``team_name`` is a property of the Dag (resolved via the
+    # bundle that owns it) — every run of a given Dag has the same
+    # ``team_name``. It is denormalized onto the run here because the
+    # Execution API already includes it in the ``DagRun`` payload delivered
+    # as part of ``TIRunContext`` at task start, so exposing it on the run
+    # protocol keeps the SDK in sync with the server schema and saves the
+    # worker an extra ``get_dag()`` round trip.
+    team_name: str | None
 
 
 class RuntimeTaskInstanceProtocol(Protocol):
