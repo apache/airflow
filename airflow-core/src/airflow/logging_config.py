@@ -38,12 +38,19 @@ class _ActiveLoggingConfig:
     logging_config_loaded: bool = False
     remote_task_log: RemoteLogIO | None
     default_remote_conn_id: str | None = None
+    remote_logging_expected: bool = False
 
     @classmethod
-    def set(cls, remote_task_log: RemoteLogIO | None, default_remote_conn_id: str | None) -> None:
+    def set(
+        cls,
+        remote_task_log: RemoteLogIO | None,
+        default_remote_conn_id: str | None,
+        remote_logging_expected: bool = False,
+    ) -> None:
         """Set remote logging configuration atomically."""
         cls.remote_task_log = remote_task_log
         cls.default_remote_conn_id = default_remote_conn_id
+        cls.remote_logging_expected = remote_logging_expected
         cls.logging_config_loaded = True
 
 
@@ -97,7 +104,16 @@ def _load_logging_config() -> None:
         providers_manager=ProvidersManager(),
         import_string=import_string,
     )
-    _ActiveLoggingConfig.set(remote_task_log, default_remote_conn_id)
+
+    logging_class_path = (
+        conf.get("logging", "logging_config_class", fallback=DEFAULT_LOGGING_CONFIG_PATH)
+        or DEFAULT_LOGGING_CONFIG_PATH
+    )
+    remote_logging_expected = logging_class_path != DEFAULT_LOGGING_CONFIG_PATH or conf.getboolean(
+        "logging", "remote_logging", fallback=False
+    )
+
+    _ActiveLoggingConfig.set(remote_task_log, default_remote_conn_id, remote_logging_expected)
 
 
 def load_logging_config() -> tuple[dict[str, Any], str]:

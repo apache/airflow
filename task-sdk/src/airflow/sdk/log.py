@@ -44,12 +44,19 @@ class _ActiveLoggingConfig:
     logging_config_loaded = False
     remote_task_log: RemoteLogIO | None = None
     default_remote_conn_id: str | None = None
+    remote_logging_expected: bool = False
 
     @classmethod
-    def set(cls, remote_task_log: RemoteLogIO | None, default_remote_conn_id: str | None) -> None:
+    def set(
+        cls,
+        remote_task_log: RemoteLogIO | None,
+        default_remote_conn_id: str | None,
+        remote_logging_expected: bool = False,
+    ) -> None:
         """Set remote logging configuration."""
         cls.remote_task_log = remote_task_log
         cls.default_remote_conn_id = default_remote_conn_id
+        cls.remote_logging_expected = remote_logging_expected
         cls.logging_config_loaded = True
 
 
@@ -173,7 +180,7 @@ def init_log_file(local_relative_path: str) -> Path:
 
 def _load_logging_config() -> None:
     """Load and cache the remote logging configuration from SDK config."""
-    from airflow.sdk._shared.logging.factory import resolve_remote_task_log
+    from airflow.sdk._shared.logging.factory import DEFAULT_LOGGING_CONFIG_PATH, resolve_remote_task_log
     from airflow.sdk._shared.module_loading import import_string
     from airflow.sdk.configuration import conf
     from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
@@ -183,7 +190,16 @@ def _load_logging_config() -> None:
         providers_manager=ProvidersManagerTaskRuntime(),
         import_string=import_string,
     )
-    _ActiveLoggingConfig.set(remote_task_log, default_remote_conn_id)
+
+    logging_class_path = (
+        conf.get("logging", "logging_config_class", fallback=DEFAULT_LOGGING_CONFIG_PATH)
+        or DEFAULT_LOGGING_CONFIG_PATH
+    )
+    remote_logging_expected = logging_class_path != DEFAULT_LOGGING_CONFIG_PATH or conf.getboolean(
+        "logging", "remote_logging", fallback=False
+    )
+
+    _ActiveLoggingConfig.set(remote_task_log, default_remote_conn_id, remote_logging_expected)
 
 
 def load_remote_log_handler() -> RemoteLogIO | None:
@@ -234,11 +250,12 @@ def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI | None = None):
 
     handler = load_remote_log_handler()
     if not handler:
-        upload_log.warning(
-            "remote_log_handler_unavailable",
-            ti_id=ti_id,
-            note="Remote log handler could not be loaded; logs will be available locally only.",
-        )
+        if _ActiveLoggingConfig.remote_logging_expected:
+            upload_log.warning(
+                "remote_log_handler_unavailable",
+                ti_id=ti_id,
+                note="Remote log handler could not be loaded; logs will be available locally only.",
+            )
         return
 
     try:
