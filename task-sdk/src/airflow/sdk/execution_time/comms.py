@@ -246,44 +246,33 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         Send a request to the parent without blocking.
 
         Uses async lock for coroutine safety and thread lock for socket safety.
-
-        Both the socket write and the blocking read are executed inside a single
-        ``asyncio.to_thread`` call so that ``_thread_lock`` is held exclusively by
-        a thread-pool thread for the entire round-trip.  This prevents a deadlock
-        that occurred when the event loop thread itself tried to acquire
-        ``_thread_lock`` via the sync ``send()`` path (e.g. triggered by
-        ``BaseHook.get_connection()`` being called from an async task concurrently
-        with an in-flight ``asend()``).  Holding the lock across an ``await``
-        while the event loop was free to run other tasks meant that any sync
-        ``send()`` call on the event loop thread would block the loop permanently,
-        preventing ``asend()``'s ``finally`` block from ever releasing the lock.
         """
         frame_bytes = self._make_frame(msg).as_bytes()
 
         async with self._async_lock:
-            if isinstance(msg, ResendLoggingFD):
-                if recv_fds is None:
-                    return None
+            # Acquire the threading lock without blocking the event loop
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, self._thread_lock.acquire)
+            try:
+                # Async write to socket
+                await loop.sock_sendall(self.socket, frame_bytes)
 
-                def _send_and_receive_fds() -> tuple[_ResponseFrame, list[int]]:
-                    with self._thread_lock:
-                        self.socket.sendall(frame_bytes)
-                        return self._read_frame(maxfds=1)  # type: ignore[return-value]
+                if isinstance(msg, ResendLoggingFD):
+                    if recv_fds is None:
+                        return None
+                    # Blocking read in a thread
+                    frame, fds = await asyncio.to_thread(self._read_frame, maxfds=1)
+                    resp = self._from_frame(frame)
+                    if TYPE_CHECKING:
+                        assert isinstance(resp, SentFDs)
+                    resp.fds = fds
+                    return resp  # type: ignore[return-value]
 
-                frame, fds = await asyncio.to_thread(_send_and_receive_fds)
-                resp = self._from_frame(frame)
-                if TYPE_CHECKING:
-                    assert isinstance(resp, SentFDs)
-                resp.fds = fds
-                return resp  # type: ignore[return-value]
-
-            def _send_and_receive() -> _ResponseFrame:
-                with self._thread_lock:
-                    self.socket.sendall(frame_bytes)
-                    return self._read_frame()  # type: ignore[return-value]
-
-            frame = await asyncio.to_thread(_send_and_receive)
-            return self._from_frame(frame)
+                # Normal blocking read in a thread
+                frame = await asyncio.to_thread(self._read_frame)
+                return self._from_frame(frame)
+            finally:
+                self._thread_lock.release()
 
     @overload
     def _read_frame(self, maxfds: None = None) -> _ResponseFrame: ...

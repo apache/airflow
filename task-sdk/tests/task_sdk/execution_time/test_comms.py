@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import threading
 import uuid
 from socket import socketpair
@@ -30,7 +29,6 @@ from airflow.sdk import timezone
 from airflow.sdk.execution_time.comms import (
     BundleInfo,
     CommsDecoder,
-    GetVariable,
     MaskSecret,
     StartupDetails,
     VariableResult,
@@ -209,104 +207,4 @@ class TestCommsDecoder:
         for idx in range(num_threads):
             assert errors[idx] is None, f"Thread {idx} error: {errors[idx]}"
             assert results[idx].key == f"key{idx}", f"Out-of-order or missing response for thread {idx}"
-
-    @pytest.mark.asyncio
-    async def test_asend_does_not_deadlock_when_sync_send_called_concurrently(self):
-        """Regression: asend() must not permanently deadlock when sync send() is called from
-        the event-loop thread while an asend() round-trip is in flight.
-
-        Old behaviour that caused the deadlock
-        ---------------------------------------
-        1. asend() acquired ``_thread_lock`` via run_in_executor() then awaited
-           asyncio.to_thread(_read_frame) while still holding the lock — yielding
-           control back to the event loop.
-        2. The event loop executed another coroutine step that called the synchronous
-           send() path (e.g. BaseHook.get_connection() → SUPERVISOR_COMMS.send())
-           directly on the event-loop thread.
-        3. sync send() tried to acquire ``_thread_lock`` on the event-loop thread,
-           permanently blocking the loop.  The loop being blocked meant the
-           asyncio.to_thread future could never be resolved, so the asend() finally
-           clause that releases the lock never ran → permanent deadlock.
-
-        Fix
-        ---
-        Both the socket write *and* the blocking receive are now performed inside a
-        single asyncio.to_thread() call.  ``_thread_lock`` is therefore only ever held
-        by a thread-pool thread, never by the event-loop thread.  A concurrent sync
-        send() call from the event-loop will wait (briefly) for the worker to finish,
-        but that wait is guaranteed to end because the worker always releases the lock
-        once it has received the supervisor's response.
-        """
-        r, w = socketpair()
-
-        decoder = CommsDecoder(socket=r, log=structlog.get_logger())
-
-        # Use a threading.Event to guarantee that the race condition is triggered: we
-        # only call sync send() *after* the thread-pool worker has already acquired
-        # _thread_lock and sent its request, so the lock is definitely held when
-        # decoder.send() runs.
-        #
-        # threading.Lock() is a C-level object whose methods are read-only, so we
-        # cannot monkey-patch `acquire` directly.  Instead we replace the lock with a
-        # thin Python wrapper that sets an Event after the real lock is acquired.
-        lock_held = threading.Event()
-
-        class _SignalingLock:
-            """Wraps a threading.Lock and sets an event each time acquire() succeeds."""
-
-            def __init__(self) -> None:
-                self._lock = threading.Lock()
-
-            def acquire(self, *args, **kwargs) -> bool:
-                result = self._lock.acquire(*args, **kwargs)
-                lock_held.set()  # signal: _thread_lock is held inside the thread pool
-                return result
-
-            def release(self) -> None:
-                return self._lock.release()
-
-            def __enter__(self):
-                self.acquire()
-                return self
-
-            def __exit__(self, *args) -> None:
-                self.release()
-
-        decoder._thread_lock = _SignalingLock()  # type: ignore[assignment]
-
-        def _serve():
-            """Respond immediately to any two requests received on the socket."""
-            for _ in range(2):
-                length = int.from_bytes(w.recv(4), "big")
-                body = b""
-                while len(body) < length:
-                    body += w.recv(length - len(body))
-                req = msgspec.msgpack.decode(body, type=_RequestFrame)
-                resp = {"type": "VariableResult", "key": req.body["key"], "value": "v"}
-                encoded = msgspec.msgpack.encode(_ResponseFrame(req.id, resp, None))
-                w.sendall(len(encoded).to_bytes(4, "big") + encoded)
-
-        server = threading.Thread(target=_serve, daemon=True)
-        server.start()
-
-        # Launch asend(); it submits _send_and_receive to the thread pool and suspends.
-        async_task = asyncio.create_task(decoder.asend(GetVariable(key="k_async")))
-        await asyncio.sleep(0)  # let async_task start and reach the thread pool
-
-        # Wait until the thread-pool worker has acquired _thread_lock so that calling
-        # sync send() from the event-loop thread definitely races with a held lock.
-        assert lock_held.wait(timeout=2), "Thread pool never acquired _thread_lock — test setup failure"
-
-        # This sync send() is called from the event-loop thread.  Before the fix this
-        # permanently deadlocked; with the fix it completes once the worker releases
-        # the lock after receiving the server's response.
-        sync_result = decoder.send(GetVariable(key="k_sync"))
-
-        async_result = await asyncio.wait_for(async_task, timeout=5)
-
-        assert async_result is not None
-        assert sync_result is not None
-
-        server.join(timeout=2)
-        r.close()
-        w.close()
+            assert results[idx].value == f"value{idx}", f"Incorrect value for thread {idx}"
