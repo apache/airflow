@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -71,6 +72,44 @@ class AssetScope:
 
 
 StoreScope = TaskScope | AssetScope
+
+
+class AssetStoreWriterKind(str, Enum):
+    """
+    Identifies what kind of writer last updated an asset store entry.
+
+    ``TASK`` — written by a task via the execution API.
+    ``WATCHER`` — written by a ``BaseEventTrigger`` (no task instance).
+    ``API`` — written directly through the Core API (e.g. manual admin write).
+    """
+
+    TASK = "task"
+    WATCHER = "watcher"
+    API = "api"
+
+    def validate_writer_fields(
+        self,
+        dag_id: str | None,
+        run_id: str | None,
+        task_id: str | None,
+        map_index: int | None,
+    ) -> None:
+        task_fields = (dag_id, run_id, task_id, map_index)
+        match self:
+            case AssetStoreWriterKind.TASK:
+                if any(f is None for f in task_fields):
+                    raise ValueError(
+                        f"kind='task' requires dag_id, run_id, task_id, and map_index to all be set; "
+                        f"got dag_id={dag_id!r}, run_id={run_id!r}, task_id={task_id!r}, map_index={map_index!r}"
+                    )
+            case AssetStoreWriterKind.WATCHER | AssetStoreWriterKind.API:
+                if any(f is not None for f in task_fields):
+                    raise ValueError(
+                        f"kind={self.value!r} must not carry task fields; "
+                        f"got dag_id={dag_id!r}, run_id={run_id!r}, task_id={task_id!r}, map_index={map_index!r}"
+                    )
+            case _:
+                raise AssertionError(f"Unhandled AssetStoreWriterKind: {self!r}")
 
 
 class BaseStoreBackend(ABC):
@@ -208,7 +247,7 @@ class BaseStoreBackend(ABC):
         ``[state_store] default_retention_days``) and deciding what to delete.
         """
 
-    def serialize_task_store_to_ref(self, *, value: JsonValue, key: str, ti_id: str) -> str:
+    def serialize_task_store_to_ref(self, *, value: JsonValue, key: str, scope: TaskScope) -> str:
         """
         Serialize a task store value before it is sent to the execution API for db persistence.
 
@@ -221,7 +260,7 @@ class BaseStoreBackend(ABC):
         that wrapper before passing ``stored`` to ``deserialize_task_store_from_ref()``. Do not
         wrap the reference yourself.
 
-        The returned reference must be deterministic — given the same ``ti_id`` and ``key`` it
+        The returned reference must be deterministic — given the same ``scope`` and ``key`` it
         must always return the same string. Do not use timestamps or random UUIDs as part of
         the reference, otherwise ``delete()``/``clear()`` cannot reconstruct it and the external
         object will be orphaned. By default, it JSON dumps the value and returns a JSON string.
@@ -238,7 +277,7 @@ class BaseStoreBackend(ABC):
         """
         return json.loads(stored)
 
-    def serialize_asset_store_to_ref(self, *, value: JsonValue, key: str, asset_ref: str) -> str:
+    def serialize_asset_store_to_ref(self, *, value: JsonValue, key: str, scope: AssetScope) -> str:
         """
         Serialize an asset store value before it is sent to the Execution API for db persistence.
 
@@ -251,10 +290,7 @@ class BaseStoreBackend(ABC):
         that wrapper before passing ``stored`` to ``deserialize_asset_store_from_ref()``. Do not
         wrap the reference yourself.
 
-        ``asset_ref`` is either the asset name or URI, depending on how the accessor was
-        constructed. It may be a URI string if the task inlet was declared as ``AssetUriRef``.
-
-        The returned reference must be deterministic — given the same ``asset_ref`` and ``key`` it
+        The returned reference must be deterministic — given the same ``scope`` and ``key`` it
         must always return the same string. Do not use timestamps or random UUIDs as part of
         the reference, otherwise ``delete()``/``clear()`` cannot reconstruct it and the external
         object will be orphaned. By default, it JSON dumps the value and returns a JSON string.

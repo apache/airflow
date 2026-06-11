@@ -772,7 +772,6 @@ def test_encode_asset_with_access_control():
     encoded = encode_asset_like(asset)
     assert encoded["access_control"] == {
         "producer_teams": ["team_a"],
-        "consumer_teams": [],
         "allow_global": False,
     }
 
@@ -1105,6 +1104,74 @@ def test_decode_product_mapper():
     assert core_pm.to_downstream("2024-06-15T10:30:00|2024-06-15T10:30:00") == "2024-06-15T10|2024-06-15"
 
 
+def test_encode_fan_out_mapper():
+    from airflow.sdk import FanOutMapper, StartOfDayMapper, StartOfWeekMapper, WeekWindow
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = FanOutMapper(
+        upstream_mapper=StartOfWeekMapper(),
+        window=WeekWindow(),
+        downstream_mapper=StartOfDayMapper(),
+    )
+    assert encode_partition_mapper(partition_mapper) == {
+        Encoding.TYPE: "airflow.partition_mappers.temporal.FanOutMapper",
+        Encoding.VAR: {
+            "upstream_mapper": {
+                Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfWeekMapper",
+                Encoding.VAR: {
+                    "input_format": "%Y-%m-%dT%H:%M:%S",
+                    "output_format": "%Y-%m-%d (W%V)",
+                    "timezone": "UTC",
+                },
+            },
+            "window": {
+                Encoding.TYPE: "airflow.partition_mappers.window.WeekWindow",
+                Encoding.VAR: {"direction": "forward"},
+            },
+            "downstream_mapper": {
+                Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfDayMapper",
+                Encoding.VAR: {
+                    "input_format": "%Y-%m-%dT%H:%M:%S",
+                    "output_format": "%Y-%m-%d",
+                    "timezone": "UTC",
+                },
+            },
+        },
+    }
+
+
+def test_decode_fan_out_mapper():
+    from airflow.partition_mappers.temporal import (
+        FanOutMapper as CoreFanOutMapper,
+        StartOfDayMapper as CoreStartOfDayMapper,
+        StartOfWeekMapper as CoreStartOfWeekMapper,
+    )
+    from airflow.partition_mappers.window import WeekWindow as CoreWeekWindow
+    from airflow.sdk import FanOutMapper, StartOfWeekMapper, WeekWindow
+    from airflow.serialization.decoders import decode_partition_mapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
+    encoded_pm = encode_partition_mapper(partition_mapper)
+
+    core_pm = decode_partition_mapper(encoded_pm)
+
+    assert isinstance(core_pm, CoreFanOutMapper)
+    assert isinstance(core_pm.upstream_mapper, CoreStartOfWeekMapper)
+    assert isinstance(core_pm.window, CoreWeekWindow)
+    # downstream_mapper is auto-resolved to StartOfDayMapper for WeekWindow.
+    assert isinstance(core_pm.downstream_mapper, CoreStartOfDayMapper)
+    assert list(core_pm.to_downstream("2024-01-15T00:00:00")) == [
+        "2024-01-15",
+        "2024-01-16",
+        "2024-01-17",
+        "2024-01-18",
+        "2024-01-19",
+        "2024-01-20",
+        "2024-01-21",
+    ]
+
+
 def test_encode_chain_mapper():
     from airflow.sdk import ChainMapper, StartOfDayMapper, StartOfHourMapper
     from airflow.serialization.encoders import encode_partition_mapper
@@ -1302,7 +1369,7 @@ class TestKubernetesImportAvoidance:
     def test_serialize_v1pod_attempts_import_before_serializing(self, monkeypatch):
         """Regression test: V1Pod serialization must call _has_kubernetes(attempt_import=True)."""
         k8s = pytest.importorskip("kubernetes.client.models")
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+        from kubernetes.client.api_client import ApiClient
 
         calls = []
 
@@ -1312,7 +1379,7 @@ class TestKubernetesImportAvoidance:
 
         monkeypatch.setattr(serialized_objects, "_has_kubernetes", fake_has_kubernetes)
         monkeypatch.setattr(serialized_objects, "k8s", k8s, raising=False)
-        monkeypatch.setattr(serialized_objects, "PodGenerator", PodGenerator, raising=False)
+        monkeypatch.setattr(serialized_objects, "ApiClient", ApiClient, raising=False)
 
         pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="test-pod"))
         result = BaseSerialization.serialize(pod)
@@ -1320,6 +1387,37 @@ class TestKubernetesImportAvoidance:
         assert isinstance(result, dict), "V1Pod should serialize to a dict, not a string"
         assert result.get(Encoding.TYPE) == DAT.POD, "V1Pod should have type DAT.POD"
         assert True in calls
+
+    def test_v1pod_serde_without_cncf_kubernetes_provider(self, monkeypatch):
+        """V1Pod ser/deser must work when the cncf.kubernetes provider is not installed.
+
+        Regression test for the K8s executor ``pod_override`` getting stringified during DAG
+        serialization on deployments that install ``kubernetes`` but not
+        ``apache-airflow-providers-cncf-kubernetes``.
+        """
+        k8s = pytest.importorskip("kubernetes.client.models")
+
+        # Simulate the cncf.kubernetes provider being unimportable. Setting a module to ``None``
+        # in ``sys.modules`` makes importing it raise ``ModuleNotFoundError``. We must block the
+        # exact module the old code imported (``...pod_generator``) and not just the parent
+        # package: if the submodule is already cached in ``sys.modules`` from an earlier test,
+        # ``from ...pod_generator import PodGenerator`` resolves the cached leaf without ever
+        # touching the parent, so blocking only the parent would not exercise the regression.
+        monkeypatch.setitem(sys.modules, "airflow.providers.cncf.kubernetes", None)
+        monkeypatch.setitem(sys.modules, "airflow.providers.cncf.kubernetes.pod_generator", None)
+        _has_kubernetes.cache_clear()
+
+        pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="test-pod"))
+        encoded = BaseSerialization.serialize(pod)
+
+        assert isinstance(encoded, dict), "V1Pod should serialize to a dict, not a string"
+        assert encoded[Encoding.TYPE] == DAT.POD
+
+        decoded = BaseSerialization.deserialize(encoded)
+        assert isinstance(decoded, k8s.V1Pod)
+        assert decoded.metadata.name == "test-pod"
+
+        _has_kubernetes.cache_clear()
 
 
 @pytest.mark.db_test

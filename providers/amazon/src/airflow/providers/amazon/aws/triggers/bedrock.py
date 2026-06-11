@@ -18,7 +18,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook
+from airflow.providers.amazon.aws.hooks.bedrock import (
+    BedrockAgentCoreControlHook,
+    BedrockAgentHook,
+    BedrockHook,
+)
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.version_compat import NOTSET, ArgNotSet
 
@@ -183,6 +187,89 @@ class BedrockIngestionJobTrigger(AwsBaseWaiterTrigger):
 
     def hook(self) -> AwsGenericHook:
         return BedrockAgentHook(aws_conn_id=self.aws_conn_id)
+
+
+class BedrockAgentRuntimeReadyTrigger(AwsBaseWaiterTrigger):
+    """
+    Trigger when a Bedrock AgentCore Runtime reaches the READY state.
+
+    :param agent_runtime_id: The unique identifier of the AgentCore Runtime.
+    :param agent_runtime_version: The version of the AgentCore Runtime.
+    :param agent_runtime_arn: The ARN of the AgentCore Runtime.
+    :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 60)
+    :param waiter_max_attempts: The maximum number of attempts to be made. (default: 20)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    """
+
+    def __init__(
+        self,
+        *,
+        agent_runtime_id: str,
+        agent_runtime_version: str,
+        agent_runtime_arn: str,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 20,
+        aws_conn_id: str | None = None,
+    ) -> None:
+        super().__init__(
+            serialized_fields={
+                "agent_runtime_id": agent_runtime_id,
+                "agent_runtime_version": agent_runtime_version,
+                "agent_runtime_arn": agent_runtime_arn,
+            },
+            waiter_name="agent_runtime_ready",
+            waiter_args={
+                "agentRuntimeId": agent_runtime_id,
+                "agentRuntimeVersion": agent_runtime_version,
+            },
+            failure_message="Bedrock AgentCore Runtime creation failed.",
+            status_message="Status of Bedrock AgentCore Runtime is",
+            status_queries=["status"],
+            return_key="agent_runtime_arn",
+            return_value=agent_runtime_arn,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return BedrockAgentCoreControlHook(aws_conn_id=self.aws_conn_id)
+
+
+class BedrockAgentRuntimeDeletedTrigger(AwsBaseWaiterTrigger):
+    """
+    Trigger when a Bedrock AgentCore Runtime is deleted.
+
+    :param agent_runtime_id: The unique identifier of the AgentCore Runtime.
+    :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 60)
+    :param waiter_max_attempts: The maximum number of attempts to be made. (default: 20)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    """
+
+    def __init__(
+        self,
+        *,
+        agent_runtime_id: str,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 20,
+        aws_conn_id: str | None = None,
+    ) -> None:
+        super().__init__(
+            serialized_fields={"agent_runtime_id": agent_runtime_id},
+            waiter_name="agent_runtime_deleted",
+            waiter_args={"agentRuntimeId": agent_runtime_id},
+            failure_message="Bedrock AgentCore Runtime deletion failed.",
+            status_message="Status of Bedrock AgentCore Runtime is",
+            status_queries=["status"],
+            return_key="agent_runtime_id",
+            return_value=agent_runtime_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return BedrockAgentCoreControlHook(aws_conn_id=self.aws_conn_id)
 
 
 class BedrockBaseBatchInferenceTrigger(AwsBaseWaiterTrigger):

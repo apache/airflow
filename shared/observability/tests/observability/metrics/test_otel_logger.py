@@ -28,7 +28,6 @@ import pytest
 from opentelemetry.metrics import MeterProvider
 from opentelemetry.sdk.metrics.view import ExponentialBucketHistogramAggregation, View
 
-from airflow_shared.observability.exceptions import InvalidStatsNameException
 from airflow_shared.observability.metrics import _get_backcompat_config, configure_otel
 from airflow_shared.observability.metrics.otel_logger import (
     OTEL_NAME_MAX_LENGTH,
@@ -97,15 +96,54 @@ class TestOtelMetrics:
             ],
         ],
     )
-    def test_invalid_stat_names_are_caught(self, invalid_stat_combo):
+    def test_invalid_stat_names_are_skipped(self, invalid_stat_combo):
         prefix = invalid_stat_combo[0]
         name = invalid_stat_combo[1]
         self.stats.prefix = prefix
 
-        with pytest.raises(InvalidStatsNameException):
-            self.stats.incr(name)
+        result = self.stats.incr(name)
 
-        self.meter.assert_not_called()
+        assert result is None
+        self.meter.get_meter().create_counter.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "stat",
+        [
+            "dag.my_dag.preço_task.scheduled_duration",
+            "dag.my_dag.tâche_principale.duration",
+            "dag.my_dag.aufgäbe.duration",
+        ],
+    )
+    def test_non_ascii_stat_names_are_skipped_without_raising(self, stat):
+        result = self.stats.incr(stat)
+
+        assert result is None
+        self.meter.get_meter().create_counter.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "stat",
+        [
+            "dag_processing.last_run.seconds_ago.PBI_SKU_Performance copy",  # space in filename
+            "dag_processing.last_run.seconds_ago.mein_däg_file",  # non-ASCII in filename
+        ],
+    )
+    def test_gauge_with_invalid_stat_names_skipped_without_raising(self, stat):
+        self.stats.gauge(stat, value=1)
+
+        self.meter.get_meter().create_gauge.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "stat",
+        [
+            "dag.my_dag.preço_task.duration",  # non-ASCII
+            "dag.my_dag.task copy.duration",  # space
+        ],
+    )
+    def test_timer_with_invalid_stat_name_does_not_record(self, stat):
+        with self.stats.timer(stat):
+            pass
+
+        self.meter.get_meter().create_histogram.assert_not_called()
 
     def test_old_name_exception_works(self, caplog):
         name = "task_instance_created_OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit/task_instance_created_OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit/task_instance_created_OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit"

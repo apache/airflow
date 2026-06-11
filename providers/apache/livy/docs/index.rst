@@ -102,7 +102,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-http``           ``>=6.0.1``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``aiohttp``                                 ``>=3.9.2``
+``aiohttp``                                 ``>=3.14.0``
 ==========================================  ==================
 
 Cross provider package dependencies

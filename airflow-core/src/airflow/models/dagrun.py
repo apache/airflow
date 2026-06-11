@@ -250,6 +250,7 @@ class DagRun(Base, LoggingMixin):
         UniqueConstraint("dag_id", "logical_date", name="dag_run_dag_id_logical_date_key"),
         Index("idx_dag_run_dag_id", dag_id),
         Index("idx_dag_run_run_after", run_after),
+        Index("idx_dag_run_created_dag_version_id", created_dag_version_id),
         Index(
             "idx_dag_run_running_dags",
             "state",
@@ -500,7 +501,9 @@ class DagRun(Base, LoggingMixin):
 
     @property
     def stats_tags(self) -> dict[str, str]:
-        return prune_dict({"dag_id": self.dag_id, "run_type": self.run_type})
+        return prune_dict(
+            {"dag_id": self.dag_id, "run_type": self.run_type, "team_name": getattr(self, "_team_name", None)}
+        )
 
     def get_state(self):
         return self._state
@@ -1137,7 +1140,10 @@ class DagRun(Base, LoggingMixin):
                     and all(
                         getattr(t.task, "max_active_tis_per_dagrun", None) is None for t in self.tis if t.task
                     )
-                    and all(t.state != TaskInstanceState.DEFERRED for t in self.tis)
+                    and all(
+                        t.state not in (TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)
+                        for t in self.tis
+                    )
                 )
 
             def recalculate(self) -> _UnfinishedStates:
@@ -1372,6 +1378,18 @@ class DagRun(Base, LoggingMixin):
         execute: bool = False,
     ) -> DagCallbackRequest | None:
         """Create a callback request for the DAG, or execute the callbacks directly if instructed, and return None."""
+        # Historical task instances created before the dag_version table existed (migration
+        # 0047_3_0_0_add_dag_versioning) have dag_version_id=None. The TaskInstance datamodel used to
+        # build the callback context requires a non-null UUID, so passing such a TI as last_ti would
+        # raise a ValidationError and crash the scheduler. Drop last_ti in that case; the callback still
+        # fires with a minimal context (dag, run_id, reason).
+        if relevant_ti is not None and relevant_ti.dag_version_id is None:
+            self.log.warning(
+                "Task instance %s has no dag_version_id (pre-versioning record); "
+                "omitting last_ti from the dag callback context.",
+                relevant_ti,
+            )
+            relevant_ti = None
         if not execute:
             return DagCallbackRequest(
                 filepath=self.dag_model.relative_fileloc,
@@ -1706,7 +1724,7 @@ class DagRun(Base, LoggingMixin):
         # check for removed or restored tasks
         task_ids = set()
         for ti in tis:
-            ti_mutation_hook(ti)
+            ti_mutation_hook(ti, dag_run=self)
             task_ids.add(ti.task_id)
             try:
                 task = dag.get_task(ti.task_id)
@@ -1825,7 +1843,7 @@ class DagRun(Base, LoggingMixin):
             def create_ti(task: Operator, indexes: Iterable[int]) -> Iterator[TI]:
                 for map_index in indexes:
                     ti = TI(task, run_id=self.run_id, map_index=map_index, dag_version_id=dag_version_id)
-                    ti_mutation_hook(ti)
+                    ti_mutation_hook(ti, dag_run=self)
                     if ti.operator:
                         created_counts[ti.operator] += 1
                     yield ti
@@ -1964,9 +1982,9 @@ class DagRun(Base, LoggingMixin):
                 continue
             ti = TI(task, run_id=self.run_id, map_index=index, state=None, dag_version_id=dag_version_id)
             self.log.debug("Expanding TIs upserted %s", ti)
-            task_instance_mutation_hook(ti)
+            task_instance_mutation_hook(ti, dag_run=self)
             ti = session.merge(ti)
-            ti.refresh_from_task(task)
+            ti.refresh_from_task(task, dag_run=self)
             session.flush()
             yield ti
 
