@@ -64,6 +64,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.dags import (
     DAGWithLatestDagRunsResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.routes.ui.dashboard import STATE_COUNT_CAP
 from airflow.api_fastapi.core_api.security import (
     GetUserDep,
     ReadableDagsFilterDep,
@@ -311,16 +312,24 @@ def get_dag_run_state_counts(
     }
 
     if requested_dag_ids:
-        count_query = (
-            select(DagRun.dag_id, DagRun.state, func.count().label("cnt"))
-            .where(DagRun.dag_id.in_(requested_dag_ids))
-            .group_by(DagRun.dag_id, DagRun.state)
-        )
-        if run_after_gte is not None:
-            count_query = count_query.where(DagRun.run_after >= run_after_gte)
-        for row in session.execute(count_query):
-            if row.state is None:
-                continue
+        # Cap each (dag, state) count at STATE_COUNT_CAP via the (dag_id, state) index so a
+        # Dag with millions of runs is counted in ms, like the historical_metrics endpoint.
+        capped_branches = []
+        for dag_id in requested_dag_ids:
+            for state in DagRunState:
+                branch = select(DagRun.dag_id, DagRun.state).where(
+                    DagRun.dag_id == dag_id, DagRun.state == state
+                )
+                if run_after_gte is not None:
+                    branch = branch.where(DagRun.run_after >= run_after_gte)
+                capped = branch.limit(STATE_COUNT_CAP).subquery()
+                capped_branches.append(select(capped.c.dag_id, capped.c.state))
+        union_subq = union_all(*capped_branches).subquery()
+        for row in session.execute(
+            select(union_subq.c.dag_id, union_subq.c.state, func.count().label("cnt")).group_by(
+                union_subq.c.dag_id, union_subq.c.state
+            )
+        ):
             counts_by_dag[row.dag_id][DagRunState(row.state)] = row.cnt
 
     return DAGsRunStateCountsCollectionResponse(

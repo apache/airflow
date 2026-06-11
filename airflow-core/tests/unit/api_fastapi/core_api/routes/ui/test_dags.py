@@ -547,6 +547,33 @@ class TestGetDagRunStateCounts(TestPublicDagEndpoint):
         assert counts[DAG1_ID]["running"] == 1
         assert counts[DAG1_ID]["queued"] == 1
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @mock.patch("airflow.api_fastapi.core_api.routes.ui.dags.STATE_COUNT_CAP", 3)
+    def test_caps_counts_at_state_count_cap(self, test_client, session):
+        # Push SUCCESS over the (patched) cap while FAILED stays under it: states cap independently.
+        base = utcnow() - pendulum.duration(days=5)
+        for idx in range(5):
+            run_after = base + pendulum.duration(seconds=idx)
+            session.add(
+                DagRun(
+                    dag_id=DAG2_ID,
+                    run_id=f"{DAG2_ID}_cap_run_{idx}",
+                    run_type=DagRunType.MANUAL,
+                    start_date=run_after,
+                    logical_date=run_after,
+                    run_after=run_after,
+                    state=DagRunState.SUCCESS,
+                    triggered_by=DagRunTriggeredByType.TEST,
+                )
+            )
+        session.commit()
+
+        response = test_client.get("/dags/run_state_counts", params={"dag_ids": [DAG2_ID]})
+        assert response.status_code == 200
+        counts = {entry["dag_id"]: entry["state_counts"] for entry in response.json()["dags"]}
+        assert counts[DAG2_ID]["success"] == 3
+        assert counts[DAG2_ID]["failed"] == 1
+
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dags/run_state_counts", params={"dag_ids": [DAG1_ID]})
         assert response.status_code == 401
