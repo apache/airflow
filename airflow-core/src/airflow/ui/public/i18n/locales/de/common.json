@@ -180,6 +180,7 @@
     "placeholder": "Eine Notiz hinzufügen...",
     "taskInstance": "Notizen zu Task Instanzen"
   },
+  "overallStatus": "Gesamtstatus",
   "partitionedDagRun_one": "Partitionierter Dag Lauf",
   "partitionedDagRun_other": "Partitionierte Dag Läufe",
   "partitionedDagRunDetail": {
@@ -267,10 +268,13 @@
     "updatedAt": "Aktualisiert um"
   },
   "task": {
+    "dependsOnPast": "Abhängig von vorherigen Läufen",
     "documentation": "Task Dokumentation",
     "lastInstance": "Letzte Task Instanz",
     "operator": "Operator",
-    "triggerRule": "Auslöse-Regel"
+    "retries": "Wiederholungen",
+    "triggerRule": "Auslöse-Regel",
+    "waitForDownstream": "Auf nachgelagerte Tasks warten"
   },
   "task_one": "Task",
   "task_other": "Tasks",
