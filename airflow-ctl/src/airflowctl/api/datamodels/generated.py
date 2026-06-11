@@ -300,7 +300,7 @@ class ClearTaskInstancesBody(BaseModel):
         ),
     ] = None
     prevent_running_task: Annotated[bool | None, Field(title="Prevent Running Task")] = False
-    note: Annotated[Note | None, Field(title="Note")] = (None,)
+    note: Annotated[Note | None, Field(title="Note")] = None
     include_downstream_dags: Annotated[
         bool | None,
         Field(
