@@ -216,8 +216,8 @@
     "roles": "Szerepkörök",
     "users": "Felhasználók"
   },
-  "selected": "Kiválasztva",
   "selectLanguage": "Nyelv kiválasztása",
+  "selected": "Kiválasztva",
   "showDetailsPanel": "Részletek panel megjelenítése",
   "signedInAs": "Bejelentkezve mint",
   "source": {
