@@ -60,7 +60,7 @@ export const HITLReviewDetail = ({
         </Link>
       </Button>
 
-      <HITLResponseForm hitlDetail={detail} namespace={ti.id} onResponded={onResponded} />
+      <HITLResponseForm hitlDetail={detail} key={ti.id} namespace={ti.id} onResponded={onResponded} />
     </VStack>
   );
 };
