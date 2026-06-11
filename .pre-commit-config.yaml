@@ -224,6 +224,13 @@ repos:
         entry: ./scripts/ci/prek/check_min_python_version.py
         language: python
         require_serial: true
+      - id: update-notice-year
+        name: Update NOTICE files to current year (manual)
+        entry: ./scripts/ci/prek/update_notice_year.py
+        stages: ['manual']
+        language: python
+        pass_filenames: false
+        require_serial: true
       - id: check-notice-files
         name: Check NOTICE files for current year and ASF references
         entry: ./scripts/ci/prek/check_notice_files.py
@@ -439,7 +446,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: ed088a72e7773e24b3ed72a2c4323f594736aa39  # frozen: nightly
+    rev: 2bba271688c1abb1503097a064e6c3bc1d1b6a9b  # frozen: lychee-lib-v0.24.2
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script
@@ -546,7 +553,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.15']
+        additional_dependencies: ['ruff==0.15.16']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -917,6 +924,17 @@ repos:
           ^airflow-core/src/airflow/ui/public/i18n/locales/en/.*\.json$|
           ^\.agents/skills/airflow-translations/SKILL\.md$
         pass_filenames: false
+      - id: generate-agent-skills
+        name: Sync AGENTS.md commands from contributing docs
+        entry: ./scripts/ci/prek/generate_agent_skills.py
+        language: python
+        files: >
+          (?x)
+          ^contributing-docs/.*\.rst$|
+          ^AGENTS\.md$|
+          ^scripts/ci/prek/generate_agent_skills\.py$
+        pass_filenames: false
+        additional_dependencies: ['pyyaml', 'rich>=13.6.0']
       - id: update-pyproject-toml
         name: Update Airflow's meta-package pyproject.toml
         language: python

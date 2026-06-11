@@ -218,7 +218,9 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
       <GroupsProvider dagId={dagId}>
         <Box display="flex" flex={1} flexDirection="column" minH={0} minW={{ base: "1280px", md: "auto" }}>
           <HStack justifyContent="space-between" mb={2}>
-            <DagBreadcrumb />
+            <Flex alignItems="center" gap={1}>
+              <DagBreadcrumb />
+            </Flex>
             <Flex gap={1}>
               <SearchDagsButton />
               {dag === undefined ? undefined : (

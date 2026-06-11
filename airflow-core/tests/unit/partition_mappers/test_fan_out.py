@@ -39,6 +39,9 @@ from airflow.partition_mappers.window import (
     Window,
     YearWindow,
 )
+from airflow.serialization.decoders import decode_partition_mapper
+from airflow.serialization.encoders import encode_partition_mapper
+from airflow.serialization.enums import Encoding
 
 
 class TestFanOutMapper:
@@ -311,3 +314,26 @@ class TestFanOutMapper:
         assert list(restored.to_downstream("2024-03-04T00:00:00")) == list(
             mapper.to_downstream("2024-03-04T00:00:00")
         )
+
+    def test_max_downstream_keys_encode_decode_roundtrip(self):
+        """max_downstream_keys=5 survives encode_partition_mapper → decode_partition_mapper."""
+        mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow(), max_downstream_keys=5)
+        restored = decode_partition_mapper(encode_partition_mapper(mapper))
+        assert restored.max_downstream_keys == 5
+
+    def test_max_downstream_keys_absent_from_default_encoded_payload(self):
+        """max_downstream_keys must NOT appear in the encoded payload when not set (zero-bloat contract)."""
+        mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
+        encoded_var = encode_partition_mapper(mapper)[Encoding.VAR]
+        assert "max_downstream_keys" not in encoded_var
+
+    def test_max_downstream_keys_defaults_to_none_when_absent(self):
+        """A payload lacking max_downstream_keys (e.g. serialized by an older Airflow) decodes to None.
+
+        This is the real backward-compatibility path: the scheduler reads
+        ``mapper.max_downstream_keys`` directly, so the attribute must always
+        exist — ``deserialize`` defaults it to None when the key is absent.
+        """
+        mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
+        restored = decode_partition_mapper(encode_partition_mapper(mapper))
+        assert restored.max_downstream_keys is None

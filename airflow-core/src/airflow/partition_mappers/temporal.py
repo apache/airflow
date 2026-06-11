@@ -163,7 +163,9 @@ class _BaseTemporalMapper(PartitionMapper):
         timezone: str | Timezone | FixedTimezone = "UTC",
         input_format: str = "%Y-%m-%dT%H:%M:%S",
         output_format: str | None = None,
+        max_downstream_keys: int | None = None,
     ):
+        super().__init__(max_downstream_keys=max_downstream_keys)
         self.input_format = input_format
         self.output_format = output_format or self.default_output_format
         if isinstance(timezone, str):
@@ -198,6 +200,14 @@ class _BaseTemporalMapper(PartitionMapper):
         """
         return datetime.strptime(downstream_key, self.output_format)
 
+    def to_partition_date(self, downstream_key: str) -> datetime:
+        anchor = self.normalize(self.decode_downstream(downstream_key))
+        # decode_downstream returns a naive datetime; localise it with the mapper's
+        # own timezone, mirroring to_downstream, so the stored instant is correct.
+        if anchor.tzinfo is None:
+            anchor = make_aware(anchor, self._timezone)
+        return anchor
+
     def encode_upstream(self, dt: datetime) -> str:
         """
         Format *dt* as an upstream partition key string.
@@ -222,11 +232,14 @@ class _BaseTemporalMapper(PartitionMapper):
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_timezone
 
-        return {
+        result: dict[str, Any] = {
             "timezone": encode_timezone(self._timezone),
             "input_format": self.input_format,
             "output_format": self.output_format,
         }
+        if self.max_downstream_keys is not None:
+            result["max_downstream_keys"] = self.max_downstream_keys
+        return result
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
@@ -234,6 +247,7 @@ class _BaseTemporalMapper(PartitionMapper):
             timezone=parse_timezone(data.get("timezone", "UTC")),
             input_format=data["input_format"],
             output_format=data["output_format"],
+            max_downstream_keys=data.get("max_downstream_keys"),
         )
 
 
@@ -278,6 +292,7 @@ class StartOfWeekMapper(_BaseTemporalMapper):
         timezone: str | Timezone | FixedTimezone = "UTC",
         input_format: str = "%Y-%m-%dT%H:%M:%S",
         output_format: str | None = None,
+        max_downstream_keys: int | None = None,
     ) -> None:
         """
         Compile *output_format* eagerly so malformed patterns raise here.
@@ -294,7 +309,12 @@ class StartOfWeekMapper(_BaseTemporalMapper):
             **must** include ``%Y``, ``%m``, and ``%d`` so the week-start date
             can be recovered for ``to_upstream``.
         """
-        super().__init__(timezone=timezone, input_format=input_format, output_format=output_format)
+        super().__init__(
+            timezone=timezone,
+            input_format=input_format,
+            output_format=output_format,
+            max_downstream_keys=max_downstream_keys,
+        )
         # %V (ISO week) cannot be round-tripped through strptime without %G+%u,
         # so derive a named-group regex from output_format and pull out %Y/%m/%d.
         # Compile eagerly so a malformed output_format raises ValueError here
@@ -350,6 +370,7 @@ class StartOfQuarterMapper(_BaseTemporalMapper):
         timezone: str | Timezone | FixedTimezone = "UTC",
         input_format: str = "%Y-%m-%dT%H:%M:%S",
         output_format: str | None = None,
+        max_downstream_keys: int | None = None,
     ) -> None:
         """
         Compile *output_format* eagerly so malformed patterns raise here.
@@ -368,7 +389,12 @@ class StartOfQuarterMapper(_BaseTemporalMapper):
             and ``{quarter}`` so the quarter-start date can be recovered for
             ``to_upstream``.
         """
-        super().__init__(timezone=timezone, input_format=input_format, output_format=output_format)
+        super().__init__(
+            timezone=timezone,
+            input_format=input_format,
+            output_format=output_format,
+            max_downstream_keys=max_downstream_keys,
+        )
         # ``{quarter}`` is a Python-format placeholder, not a strftime directive,
         # so derive a named-group regex from output_format that handles both.
         # Compile eagerly so a malformed output_format raises ValueError here
@@ -503,7 +529,9 @@ class FanOutMapper(PartitionMapper):
         upstream_mapper: PartitionMapper,
         window: Window,
         downstream_mapper: PartitionMapper | None = None,
+        max_downstream_keys: int | None = None,
     ) -> None:
+        super().__init__(max_downstream_keys=max_downstream_keys)
         self.upstream_mapper = upstream_mapper
         self.window = window
         self.downstream_mapper = downstream_mapper or self._resolve_default_downstream_mapper(window)
@@ -522,14 +550,21 @@ class FanOutMapper(PartitionMapper):
         coarse = self.upstream_mapper.decode_downstream(formatted)
         return [_format_with(self.downstream_mapper, item) for item in self.window.to_upstream(coarse)]
 
+    def to_partition_date(self, downstream_key: str) -> datetime | None:
+        # Fan-out keys are formatted by downstream_mapper, so it owns the anchor.
+        return self.downstream_mapper.to_partition_date(downstream_key)
+
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_partition_mapper, encode_window
 
-        return {
+        result: dict[str, Any] = {
             "upstream_mapper": encode_partition_mapper(self.upstream_mapper),
             "window": encode_window(self.window),
             "downstream_mapper": encode_partition_mapper(self.downstream_mapper),
         }
+        if self.max_downstream_keys is not None:
+            result["max_downstream_keys"] = self.max_downstream_keys
+        return result
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
@@ -539,6 +574,7 @@ class FanOutMapper(PartitionMapper):
             upstream_mapper=decode_partition_mapper(data["upstream_mapper"]),
             window=decode_window(data["window"]),
             downstream_mapper=decode_partition_mapper(data["downstream_mapper"]),
+            max_downstream_keys=data.get("max_downstream_keys"),
         )
 
 
