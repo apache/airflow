@@ -98,6 +98,10 @@ export const TableList = <TData,>({
               cursor={onRowClick === undefined ? undefined : "pointer"}
               onClick={onRowClick === undefined ? undefined : () => onRowClick(row)}
               onKeyDown={(event) => {
+                if (event.target !== event.currentTarget) {
+                  return;
+                }
+
                 if ((event.key === "Enter" || event.key === " ") && onRowClick !== undefined) {
                   event.preventDefault();
                   onRowClick(row);

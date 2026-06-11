@@ -97,10 +97,12 @@ const useCompletedHitl = ({
 const NeedsReviewButtonCard = ({
   hitlTIsCount,
   isLoading,
+  link,
   onClick,
 }: {
   readonly hitlTIsCount: number;
   readonly isLoading: boolean;
+  readonly link?: string;
   readonly onClick?: () => void;
 }) => {
   const { i18n, t: translate } = useTranslation("hitl");
@@ -116,6 +118,7 @@ const NeedsReviewButtonCard = ({
         isLoading={isLoading}
         isRTL={isRTL}
         label={translate("requiredAction_other")}
+        link={link}
         onClick={onClick}
       />
     </Box>
@@ -146,7 +149,13 @@ export const NeedsReviewButton = ({
   const { isLoading, pendingHitlData } = usePendingHitl({ dagId, runId, taskId });
   const hitlTIsCount = pendingHitlData?.hitl_details.length ?? 0;
 
-  return <NeedsReviewButtonCard hitlTIsCount={hitlTIsCount} isLoading={isLoading} />;
+  return (
+    <NeedsReviewButtonCard
+      hitlTIsCount={hitlTIsCount}
+      isLoading={isLoading}
+      link="required_actions?response_received=false"
+    />
+  );
 };
 
 export const NeedsReviewButtonWithModal = ({
