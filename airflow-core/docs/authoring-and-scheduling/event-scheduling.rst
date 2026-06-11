@@ -260,7 +260,7 @@ Example — SQS-like producer:
                 else:
                     await token.nack()
 
-        async def run(self):  # pragma: no cover
+        async def run(self):
             yield TriggerEvent({})
 
 Example — Kafka cumulative commit across partitions. A Kafka commit
@@ -280,7 +280,10 @@ the other partitions:
             self.consumer = None
 
         async def open_stream(self):
-            self.consumer = await create_kafka_consumer(self.topics)
+            # Auto-commit must be off (the Kafka default is on), or the
+            # consumer commits on its own schedule and the ack channel
+            # no longer controls what the broker considers delivered.
+            self.consumer = await create_kafka_consumer(self.topics, enable_auto_commit=False)
             async for message in self.consumer:
                 yield message.value, (message.topic, message.partition, message.offset)
 
