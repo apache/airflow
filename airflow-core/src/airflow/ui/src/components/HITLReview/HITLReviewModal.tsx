@@ -59,7 +59,6 @@ export const HITLReviewModal = ({
   const { hasNext, hasPrevious, onNext, onPrevious, onSelect, selectedDetail, selectedKey } =
     useHITLSelection({
       hitlDetails: visibleHitls,
-      open,
     });
   const handleClose = () => {
     setSelectedFilter("pending");
@@ -68,6 +67,7 @@ export const HITLReviewModal = ({
 
   return (
     <Dialog.Root
+      lazyMount
       onOpenChange={(event) => {
         if (!event.open) {
           handleClose();
@@ -76,6 +76,7 @@ export const HITLReviewModal = ({
       open={open}
       scrollBehavior="inside"
       size="xl"
+      unmountOnExit
     >
       <Dialog.Content backdrop maxW="1440px" p={4}>
         <Dialog.Header>

@@ -20,19 +20,13 @@ import { useState } from "react";
 
 import type { HITLDetail } from "openapi/requests/types.gen.ts";
 
-export const useHITLSelection = ({
-  hitlDetails,
-  open,
-}: {
-  readonly hitlDetails: Array<HITLDetail>;
-  readonly open: boolean;
-}) => {
+export const useHITLSelection = ({ hitlDetails }: { readonly hitlDetails: Array<HITLDetail> }) => {
   const [selectedKey, setSelectedKey] = useState<string | undefined>(undefined);
   const selectedIndexFromKey = hitlDetails.findIndex(
     (hitlDetail) => hitlDetail.task_instance.id === selectedKey,
   );
   const selectedIndex =
-    open && hitlDetails.length > 0 ? (selectedIndexFromKey === -1 ? 0 : selectedIndexFromKey) : -1;
+    hitlDetails.length > 0 ? (selectedIndexFromKey === -1 ? 0 : selectedIndexFromKey) : -1;
   const selectedDetail = selectedIndex === -1 ? undefined : hitlDetails[selectedIndex];
   const hasNext = selectedIndex !== -1 && selectedIndex < hitlDetails.length - 1;
   const hasPrevious = selectedIndex > 0;
