@@ -1138,8 +1138,14 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         f"returncode = {returncode}"
                     )
 
-    def _poll_k8s_driver_via_api(self) -> None:
-        """Poll the K8s driver pod phase until it reaches a terminal state."""
+    def _poll_k8s_driver_via_api(self) -> str | None:
+        """
+        Poll the K8s driver pod phase until it reaches a terminal state.
+
+        Returns the terminal phase string (e.g. ``"Succeeded"``) on normal completion,
+        or ``None`` if the pod vanished mid-poll (404 — likely deleted by ``on_kill``).
+        Raises ``RuntimeError`` on failure phases or unrecoverable API errors.
+        """
         pod_name = self._kubernetes_driver_pod
         namespace = self._connection["namespace"]
         app_id = self._kubernetes_application_id or pod_name
@@ -1173,7 +1179,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                             "Driver pod %s not found (404); pod was likely deleted by on_kill. Exiting poll loop.",
                             pod_name,
                         )
-                        return
+                        return None
                     consecutive_api_errors += 1
                     self.log.warning(
                         "ApiException polling pod %s (%d/%d): %s",
@@ -1204,6 +1210,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                                 t.started_at,
                                 t.finished_at,
                             )
+                    terminal_phase = phase
                     break
                 if phase == "Failed":
                     container_state = ""
@@ -1236,6 +1243,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     consecutive_unknown = 0
                 time.sleep(poll_interval)
             self._delete_driver_pod()
+            return terminal_phase
         finally:
             self._run_post_submit_commands()
 

@@ -310,11 +310,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             pod_name = self._hook._kubernetes_driver_pod
             namespace = self._hook._connection["namespace"]
             if not pod_name:
-                self.log.warning(
-                    "spark-submit did not capture a K8s driver pod name; "
-                    "crash recovery will not be available for this run"
-                )
-                return None
+                raise RuntimeError("spark-submit did not capture a K8s driver pod name")
             external_id = f"{namespace}:{pod_name}"
             self.log.info("Spark K8s driver pod submitted: %s", external_id)
             return external_id
@@ -346,27 +342,20 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if self._hook._is_yarn_cluster_mode:
             return self._hook.query_yarn_application_status(external_id)
         if self._hook._is_kubernetes:
-            task_store = context.get("task_store")
-            if task_store is not None:
-                cached = task_store.get(self._K8S_DRIVER_STATUS_KEY)
-                if cached:
-                    if TYPE_CHECKING:
-                        assert isinstance(cached, str)
+            if (task_store := context.get("task_store")) is not None:
+                if (cached := task_store.get(self._K8S_DRIVER_STATUS_KEY)) is not None:
+                    if not isinstance(cached, str):
+                        raise ValueError(f"Cached K8s driver status is not a string: {cached!r}")
                     return cached
             if kube_client is None:
                 raise RuntimeError(
                     "apache-airflow-providers-cncf-kubernetes is required to query K8s pod status"
                 )
-            parts = external_id.split(":", 1)
-            if len(parts) != 2:
-                raise ValueError(
-                    f"Invalid K8s external ID format {external_id!r}; expected 'namespace:pod_name'"
-                )
-            namespace, pod_name = parts
+            namespace, pod_name = self._parse_k8s_external_id(external_id)
             try:
                 client = kube_client.get_kube_client()
                 pod = client.read_namespaced_pod(pod_name, namespace)
-                return pod.status.phase
+                return pod.status.phase or "Pending"
             except kube_client.ApiException as e:
                 if e.status == 404:
                     return "NotFound"
@@ -388,6 +377,14 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
                 self.log.warning("Could not reach Spark master %s: %s", host, e)
                 last_exc = e
         raise last_exc
+
+    @staticmethod
+    def _parse_k8s_external_id(external_id: str) -> tuple[str, str]:
+        """Parse a K8s external ID of the form 'namespace:pod_name' into its components."""
+        parts = external_id.split(":", 1)
+        if len(parts) != 2:
+            raise ValueError(f"Invalid K8s external ID format {external_id!r}; expected 'namespace:pod_name'")
+        return parts[0], parts[1]
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(1), reraise=True)
     def _fetch_driver_status(self, url: str, external_id: str) -> str:
@@ -442,16 +439,15 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             return
         if self._hook._is_kubernetes:
             if external_id is not None:
-                _, pod_name = str(external_id).split(":", 1)
+                _, pod_name = self._parse_k8s_external_id(external_id)
                 self._hook._kubernetes_driver_pod = pod_name
-            self._hook._poll_k8s_driver_via_api()
-            # The driver pod is deleted on success, so cache the terminal phase before it
-            # disappears. Failed jobs raise before reaching here, so only "Succeeded" is ever
-            # cached. A missing key on retry means the pod was garbage collected after failure, and
-            # resubmitting fresh is the right behaviour in that case.
-            task_store = context.get("task_store")
-            if task_store is not None:
-                task_store.set(self._K8S_DRIVER_STATUS_KEY, "Succeeded")
+            terminal_phase = self._hook._poll_k8s_driver_via_api()
+            # Cache only when the pod actually reached Succeeded, the 404/vanished path
+            # returns None for cases like: pod deleted by on_kill or garbage collected after failure)
+            # and must not be cached, otherwise a retry would see "Succeeded" and skip resubmission.
+            if terminal_phase == "Succeeded" and self.reconnect_on_retry:
+                if (task_store := context.get("task_store")) is not None:
+                    task_store.set(self._K8S_DRIVER_STATUS_KEY, "Succeeded")
             return
 
         self.log.info("Polling driver %s until completion", external_id)
