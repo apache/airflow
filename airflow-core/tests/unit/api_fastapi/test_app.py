@@ -172,10 +172,7 @@ def test_create_auth_manager_thread_safety():
 
 class TestInitializeTaskSdkStats:
     """
-    The API server serves the Edge Worker REST API whose heartbeat handler records
-    ``edge_worker.*`` metrics through the Task SDK ``Stats`` singleton. Unlike other
-    components it never initialized that singleton, so Edge Worker metrics were dropped.
-    ``_initialize_task_sdk_stats`` (called from ``lifespan``) closes that gap.
+    Ensure that stats subsystem is properly initialized in API server.
     """
 
     def test_initializes_task_sdk_stats_with_factory(self):
