@@ -58,6 +58,7 @@ import { useTagFilter } from "./useTagFilter";
 type RunStateCountsContext = {
   readonly countsByDag: Record<string, Record<string, number> | undefined>;
   readonly isLoading: boolean;
+  readonly stateCountLimit: number | undefined;
 };
 
 const createColumns = (
@@ -140,6 +141,7 @@ const createColumns = (
         counts={runStateContext.countsByDag[original.dag_id]}
         dagId={original.dag_id}
         isLoading={runStateContext.isLoading}
+        stateCountLimit={runStateContext.stateCountLimit}
       />
     ),
     enableSorting: false,
@@ -209,6 +211,7 @@ const createCardDef = (runStateContext: RunStateCountsContext): CardDef<DAGWithL
       dag={row}
       runStateCounts={runStateContext.countsByDag[row.dag_id]}
       runStateCountsLoading={runStateContext.isLoading}
+      stateCountLimit={runStateContext.stateCountLimit}
     />
   ),
   meta: {
@@ -314,6 +317,7 @@ export const DagsList = () => {
         (runStateCountsData?.dags ?? []).map((entry) => [entry.dag_id, entry.state_counts]),
       ),
       isLoading: runStateCountsLoading,
+      stateCountLimit: runStateCountsData?.state_count_limit,
     }),
     [runStateCountsData, runStateCountsLoading],
   );

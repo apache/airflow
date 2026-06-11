@@ -2350,6 +2350,7 @@ export type DAGWithLatestDagRunsResponse = {
  */
 export type DAGsRunStateCountsCollectionResponse = {
     dags: Array<DAGRunStateCountsResponse>;
+    state_count_limit: number;
 };
 
 /**

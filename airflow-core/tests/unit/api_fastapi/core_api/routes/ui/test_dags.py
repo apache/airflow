@@ -570,7 +570,9 @@ class TestGetDagRunStateCounts(TestPublicDagEndpoint):
 
         response = test_client.get("/dags/run_state_counts", params={"dag_ids": [DAG2_ID]})
         assert response.status_code == 200
-        counts = {entry["dag_id"]: entry["state_counts"] for entry in response.json()["dags"]}
+        body = response.json()
+        assert body["state_count_limit"] == 3
+        counts = {entry["dag_id"]: entry["state_counts"] for entry in body["dags"]}
         assert counts[DAG2_ID]["success"] == 3
         assert counts[DAG2_ID]["failed"] == 1
 

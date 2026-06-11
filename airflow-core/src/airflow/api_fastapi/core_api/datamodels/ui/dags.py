@@ -52,3 +52,4 @@ class DAGsRunStateCountsCollectionResponse(BaseModel):
     """Collection of per-Dag DagRun-state counts for the Dag list page."""
 
     dags: list[DAGRunStateCountsResponse]
+    state_count_limit: int

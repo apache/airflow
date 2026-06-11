@@ -17,7 +17,6 @@
  * under the License.
  */
 import { HStack, Skeleton } from "@chakra-ui/react";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { DagRunState } from "openapi/requests/types.gen";
@@ -32,18 +31,19 @@ type Props = {
   readonly counts: Record<string, number> | undefined;
   readonly dagId: string;
   readonly isLoading: boolean;
+  readonly stateCountLimit: number | undefined;
 };
 
-export const DagRunStateCounts = ({ compact = false, counts, dagId, isLoading }: Props) => {
-  const { i18n, t: translate } = useTranslation(["dags", "common"]);
+export const DagRunStateCounts = ({
+  compact = false,
+  counts,
+  dagId,
+  isLoading,
+  stateCountLimit,
+}: Props) => {
+  const { t: translate } = useTranslation(["dags", "common"]);
   const gap = compact ? 0.5 : 1;
   const fontSize = compact ? "xs" : "sm";
-  // Compact for the badge ("100K"), exact for the tooltip ("100,000").
-  const compactFormatter = useMemo(
-    () => new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1, notation: "compact" }),
-    [i18n.language],
-  );
-  const exactFormatter = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
 
   if (isLoading || counts === undefined) {
     // Render skeletons sized to a typical badge so the row doesn't reflow when
@@ -65,9 +65,12 @@ export const DagRunStateCounts = ({ compact = false, counts, dagId, isLoading }:
     <HStack data-testid={`run-state-counts-${dagId}`} gap={gap}>
       {DISPLAYED_STATES.map((state) => {
         const count = counts[state] ?? 0;
+        // A count that reached the API cap is only a lower bound; suffix it with "+".
+        const isCapped = stateCountLimit !== undefined && count >= stateCountLimit;
+        const suffix = isCapped ? "+" : "";
         const translatedState = translate(`common:states.${state}` as const);
         const tooltipContent = translate("runStateCounts.tooltip", {
-          formattedCount: exactFormatter.format(count),
+          formattedCount: `${count}${suffix}`,
           state: translatedState,
         });
 
@@ -79,7 +82,7 @@ export const DagRunStateCounts = ({ compact = false, counts, dagId, isLoading }:
               to={`/dags/${dagId}/runs?${SearchParamsKeys.STATE}=${state}`}
             >
               <StateBadge fontSize={fontSize} opacity={count === 0 ? 0.4 : 1} state={state}>
-                {compactFormatter.format(count)}
+                {`${count}${suffix}`}
               </StateBadge>
             </RouterLink>
           </Tooltip>

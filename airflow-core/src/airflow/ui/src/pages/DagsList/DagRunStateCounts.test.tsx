@@ -26,14 +26,25 @@ import { BaseWrapper } from "src/utils/Wrapper";
 import "../../i18n/config";
 import { DagRunStateCounts } from "./DagRunStateCounts";
 
-const renderCounts = (counts: Record<string, number> | undefined, options: { isLoading?: boolean } = {}) =>
-  render(<DagRunStateCounts counts={counts} dagId="my_dag" isLoading={options.isLoading ?? false} />, {
-    wrapper: ({ children }) => (
-      <BaseWrapper>
-        <MemoryRouter>{children}</MemoryRouter>
-      </BaseWrapper>
-    ),
-  });
+const renderCounts = (
+  counts: Record<string, number> | undefined,
+  options: { isLoading?: boolean; stateCountLimit?: number } = {},
+) =>
+  render(
+    <DagRunStateCounts
+      counts={counts}
+      dagId="my_dag"
+      isLoading={options.isLoading ?? false}
+      stateCountLimit={options.stateCountLimit}
+    />,
+    {
+      wrapper: ({ children }) => (
+        <BaseWrapper>
+          <MemoryRouter>{children}</MemoryRouter>
+        </BaseWrapper>
+      ),
+    },
+  );
 
 describe("DagRunStateCounts", () => {
   it("renders skeleton placeholders while loading", () => {
@@ -80,13 +91,10 @@ describe("DagRunStateCounts", () => {
     expect(screen.getByTestId("run-state-count-failed-my_dag")).toHaveTextContent("2");
   });
 
-  it("renders large counts in compact notation", () => {
-    renderCounts({ failed: 1_500_000, queued: 1234, running: 999, success: 100_000 });
-    // ICU compact notation: 100K, 1.5M, 1.2K. Small numbers stay literal.
-    expect(screen.getByTestId("run-state-count-success-my_dag")).toHaveTextContent("100K");
-    expect(screen.getByTestId("run-state-count-failed-my_dag")).toHaveTextContent("1.5M");
-    expect(screen.getByTestId("run-state-count-queued-my_dag")).toHaveTextContent("1.2K");
-    // <1000 stays as-is.
-    expect(screen.getByTestId("run-state-count-running-my_dag")).toHaveTextContent("999");
+  it("suffixes counts that reached the cap with '+'", () => {
+    renderCounts({ failed: 5, queued: 0, running: 1, success: 1000 }, { stateCountLimit: 1000 });
+    expect(screen.getByTestId("run-state-count-success-my_dag")).toHaveTextContent("1000+");
+    expect(screen.getByTestId("run-state-count-failed-my_dag")).toHaveTextContent("5");
+    expect(screen.getByTestId("run-state-count-running-my_dag")).toHaveTextContent("1");
   });
 });

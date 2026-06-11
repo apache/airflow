@@ -9258,10 +9258,14 @@ export const $DAGsRunStateCountsCollectionResponse = {
             },
             type: 'array',
             title: 'Dags'
+        },
+        state_count_limit: {
+            type: 'integer',
+            title: 'State Count Limit'
         }
     },
     type: 'object',
-    required: ['dags'],
+    required: ['dags', 'state_count_limit'],
     title: 'DAGsRunStateCountsCollectionResponse',
     description: 'Collection of per-Dag DagRun-state counts for the Dag list page.'
 } as const;
