@@ -40,9 +40,9 @@ var (
 	// The coordinator-mode runtime populates it from StartupDetails; the
 	// bundle runtime reads it to inject an sdk.TIRunContext parameter into
 	// task functions rather than exposing this key directly. Its value type
-	// is sdk.TIRunContext (with a nil embedded context.Context, filled in at
-	// injection time), but this package does not import sdk to avoid an
-	// import cycle.
+	// is sdk.TIRunContext (built over a placeholder base context; the bundle
+	// runtime rebuilds it around the live task context at injection time),
+	// but this package does not import sdk to avoid an import cycle.
 	RuntimeContextKey = runtimeContextKey{}
 
 	// SdkClientContextKey, when present, holds an sdk.Client implementation

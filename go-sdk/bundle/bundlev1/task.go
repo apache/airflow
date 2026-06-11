@@ -64,11 +64,14 @@ func (f *taskFunction) Execute(ctx context.Context, logger *slog.Logger) error {
 		case isTIRunContext(in):
 			// sdk.TIRunContext embeds context.Context, so it also satisfies
 			// isContext - this case must come first. The runtime stores the
-			// identifiers/timestamps under RuntimeContextKey with a nil
-			// embedded Context; fill it with the live task context here.
-			rc, _ := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext)
-			rc.Context = ctx
-			reflectArgs[i] = reflect.ValueOf(rc)
+			// identifiers/timestamps under RuntimeContextKey; rebuild the
+			// value around the live task context here.
+			var ti sdk.TaskInstance
+			var dagRun sdk.DagRun
+			if stored, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext); ok {
+				ti, dagRun = stored.TaskInstance(), stored.DagRun()
+			}
+			reflectArgs[i] = reflect.ValueOf(sdk.NewTIRunContext(ctx, ti, dagRun))
 		case isContext(in):
 			// Plain context.Context injection is retained for the Edge Worker
 			// runtime path, which does not populate the task runtime context

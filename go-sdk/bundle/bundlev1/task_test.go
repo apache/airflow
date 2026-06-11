@@ -120,28 +120,26 @@ func (s *TaskSuite) TestArgumentBinding() {
 }
 
 // probeKey is an unexported context key used to confirm the live task context
-// (not a freshly built one) is the value embedded into the injected
-// sdk.TIRunContext.
+// (not a freshly built one) backs the injected sdk.TIRunContext.
 type probeKeyType struct{}
 
 var probeKey probeKeyType
 
 // TestTIRunContextInjection verifies a task declaring sdk.TIRunContext receives
-// the TI/DagRun stored on the context, with the live task context embedded so
-// it is usable as a context.Context. It must take precedence over the plain
-// context.Context binding, which sdk.TIRunContext also satisfies.
+// the TaskInstance/DagRun stored on the context, backed by the live task
+// context so it is usable as a context.Context. It must take precedence over
+// the plain context.Context binding, which sdk.TIRunContext also satisfies.
 func (s *TaskSuite) TestTIRunContextInjection() {
 	mapIndex := 3
-	stored := sdk.TIRunContext{
-		TI: sdk.TaskInstance{
-			DagID:     "dag1",
-			RunID:     "run1",
-			TaskID:    "task1",
-			MapIndex:  &mapIndex,
-			TryNumber: 2,
-		},
-		DagRun: sdk.DagRun{DagID: "dag1", RunID: "run1"},
+	ti := sdk.TaskInstance{
+		DagID:     "dag1",
+		RunID:     "run1",
+		TaskID:    "task1",
+		MapIndex:  &mapIndex,
+		TryNumber: 2,
 	}
+	dagRun := sdk.DagRun{DagID: "dag1", RunID: "run1"}
+	stored := sdk.NewTIRunContext(context.Background(), ti, dagRun)
 
 	var got sdk.TIRunContext
 	task, err := NewTaskFunction(func(ctx sdk.TIRunContext) error {
@@ -154,20 +152,20 @@ func (s *TaskSuite) TestTIRunContextInjection() {
 	ctx = context.WithValue(ctx, probeKey, "probe-value")
 	s.Require().NoError(task.Execute(ctx, slog.New(logging.NewTeeLogger())))
 
-	s.Equal(stored.TI, got.TI)
-	s.Equal(stored.DagRun, got.DagRun)
-	s.Require().NotNil(got.Context, "the live task context must be embedded")
+	s.Require().NotNil(got, "the task must receive a non-nil TIRunContext")
+	s.Equal(ti, got.TaskInstance())
+	s.Equal(dagRun, got.DagRun())
 	s.Equal(
 		"probe-value",
 		got.Value(probeKey),
-		"embedded context must be the one passed to Execute",
+		"the injected context must be backed by the one passed to Execute",
 	)
 }
 
 // TestTIRunContextInjectionWithoutRuntimeContext covers the Edge Worker path:
 // the runtime does not populate RuntimeContextKey, so a task declaring
-// sdk.TIRunContext gets zero TI/DagRun but still receives the live task context
-// embedded, leaving it usable as a context.Context.
+// sdk.TIRunContext gets zero TaskInstance/DagRun but is still backed by the
+// live task context, leaving it usable as a context.Context.
 func (s *TaskSuite) TestTIRunContextInjectionWithoutRuntimeContext() {
 	var got sdk.TIRunContext
 	task, err := NewTaskFunction(func(ctx sdk.TIRunContext) error {
@@ -179,12 +177,20 @@ func (s *TaskSuite) TestTIRunContextInjectionWithoutRuntimeContext() {
 	ctx := context.WithValue(context.Background(), probeKey, "probe-value")
 	s.Require().NoError(task.Execute(ctx, slog.New(logging.NewTeeLogger())))
 
-	s.Equal(sdk.TaskInstance{}, got.TI, "TI must be zero when no runtime context is present")
-	s.Equal(sdk.DagRun{}, got.DagRun, "DagRun must be zero when no runtime context is present")
-	s.Require().NotNil(got.Context, "the live task context must still be embedded")
+	s.Require().NotNil(got, "the task must receive a non-nil TIRunContext")
+	s.Equal(
+		sdk.TaskInstance{},
+		got.TaskInstance(),
+		"TaskInstance must be zero when no runtime context is present",
+	)
+	s.Equal(
+		sdk.DagRun{},
+		got.DagRun(),
+		"DagRun must be zero when no runtime context is present",
+	)
 	s.Equal(
 		"probe-value",
 		got.Value(probeKey),
-		"embedded context must be the one passed to Execute",
+		"the injected context must be backed by the one passed to Execute",
 	)
 }

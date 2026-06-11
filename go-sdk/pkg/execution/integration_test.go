@@ -220,25 +220,27 @@ func TestRunTaskInjectsRuntimeContext(t *testing.T) {
 	result := RunTask(context.Background(), bundle, details, comm, logger)
 	require.Equal(t, "SucceedTask", result["type"])
 
-	assert.NotNil(
+	require.NotNil(
 		t,
-		got.Context,
-		"the live task context must be embedded for use as a context.Context",
+		got,
+		"the task must receive a TIRunContext backed by the live task context",
 	)
-	assert.Equal(t, "test_dag", got.TI.DagID)
-	assert.Equal(t, "run1", got.TI.RunID)
-	assert.Equal(t, "ctxgrab", got.TI.TaskID)
-	assert.Equal(t, 2, got.TI.TryNumber)
-	assert.Nil(t, got.TI.MapIndex, "an unmapped task (map_index -1) must surface as nil")
+	ti := got.TaskInstance()
+	assert.Equal(t, "test_dag", ti.DagID)
+	assert.Equal(t, "run1", ti.RunID)
+	assert.Equal(t, "ctxgrab", ti.TaskID)
+	assert.Equal(t, 2, ti.TryNumber)
+	assert.Nil(t, ti.MapIndex, "an unmapped task (map_index -1) must surface as nil")
 
-	assert.Equal(t, "test_dag", got.DagRun.DagID)
-	assert.Equal(t, "run1", got.DagRun.RunID)
-	require.NotNil(t, got.DagRun.LogicalDate)
-	assert.Equal(t, logical, *got.DagRun.LogicalDate)
-	require.NotNil(t, got.DagRun.DataIntervalStart)
-	assert.Equal(t, start, *got.DagRun.DataIntervalStart)
-	require.NotNil(t, got.DagRun.DataIntervalEnd)
-	assert.Equal(t, end, *got.DagRun.DataIntervalEnd)
+	dagRun := got.DagRun()
+	assert.Equal(t, "test_dag", dagRun.DagID)
+	assert.Equal(t, "run1", dagRun.RunID)
+	require.NotNil(t, dagRun.LogicalDate)
+	assert.Equal(t, logical, *dagRun.LogicalDate)
+	require.NotNil(t, dagRun.DataIntervalStart)
+	assert.Equal(t, start, *dagRun.DataIntervalStart)
+	require.NotNil(t, dagRun.DataIntervalEnd)
+	assert.Equal(t, end, *dagRun.DataIntervalEnd)
 }
 
 func TestRunTaskRuntimeContextMappedIndex(t *testing.T) {
@@ -268,8 +270,8 @@ func TestRunTaskRuntimeContextMappedIndex(t *testing.T) {
 	result := RunTask(context.Background(), bundle, details, comm, logger)
 	require.Equal(t, "SucceedTask", result["type"])
 
-	require.NotNil(t, got.TI.MapIndex, "a mapped task must surface its index")
-	assert.Equal(t, 5, *got.TI.MapIndex)
+	require.NotNil(t, got.TaskInstance().MapIndex, "a mapped task must surface its index")
+	assert.Equal(t, 5, *got.TaskInstance().MapIndex)
 }
 
 // --- End-to-end Serve test against a fake supervisor ---
