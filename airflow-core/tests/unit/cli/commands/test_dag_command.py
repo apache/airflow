@@ -42,7 +42,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun
 from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import DAG, Asset, BaseOperator, CronPartitionTimetable, PartitionedAssetTimetable, task
@@ -1766,49 +1766,20 @@ class TestCliDagsClear:
         assert states["asset_non_part"] == DagRunState.SUCCESS
 
     @pytest.mark.usefixtures("seeded_partitioned_runs")
-    def test_clears_multiple_runs_in_one_batch(self, parser):
-        """3 runs fit in one chunk, so clear_task_instances is called once (not N times)."""
-        from airflow.models.taskinstance import clear_task_instances
+    @pytest.mark.parametrize(
+        ("chunk_size", "expected_calls"),
+        [
+            pytest.param(500, 1, id="single-chunk"),
+            pytest.param(2, 2, id="multiple-chunks"),
+        ],
+    )
+    def test_clears_each_matching_run_once_across_chunks(self, parser, chunk_size, expected_calls):
+        """Every matching run is cleared exactly once, however run_ids split into chunks.
 
-        call_count = 0
-
-        def counting_clear(tis, session, **kwargs):
-            nonlocal call_count
-            call_count += 1
-            return clear_task_instances(tis, session, **kwargs)
-
-        args = parser.parse_args(
-            [
-                "dags",
-                "clear",
-                self.DAG_ID,
-                "--partition-date-start",
-                "2026-03-08T00:00:00",
-                "--partition-date-end",
-                "2026-03-14T00:00:00",
-                "--yes",
-            ]
-        )
-        with mock.patch(
-            "airflow.cli.commands.dag_command.clear_task_instances",
-            side_effect=counting_clear,
-        ):
-            dag_command.dag_clear(args)
-
-        # 3 partitioned runs all fit in a single run-id chunk.
-        assert call_count == 1
-
-        states = self._get_run_states()
-        assert states["part_2026_03_08"] == DagRunState.QUEUED
-        assert states["part_2026_03_10"] == DagRunState.QUEUED
-        assert states["part_2026_03_14"] == DagRunState.QUEUED
-        assert states["non_partitioned"] == DagRunState.SUCCESS
-
-    @pytest.mark.usefixtures("seeded_partitioned_runs")
-    def test_chunks_on_run_boundaries_clears_each_run_once(self, parser):
-        """Across multiple chunks, each run is cleared once"""
-        from airflow.models.taskinstance import clear_task_instances
-
+        clear_task_instances is called once per chunk (not once per run), every matching
+        run is re-queued, and each run's clear_number advances by exactly 1 — proving a
+        run's TIs are never split across chunks.
+        """
         call_count = 0
 
         def counting_clear(tis, session, **kwargs):
@@ -1829,7 +1800,7 @@ class TestCliDagsClear:
             ]
         )
         with (
-            mock.patch.object(dag_command, "_RUN_CHUNK_SIZE", 2),
+            mock.patch.object(dag_command, "_RUN_CHUNK_SIZE", chunk_size),
             mock.patch(
                 "airflow.cli.commands.dag_command.clear_task_instances",
                 side_effect=counting_clear,
@@ -1837,8 +1808,13 @@ class TestCliDagsClear:
         ):
             dag_command.dag_clear(args)
 
-        # 3 runs with chunk size 2 → 2 calls.
-        assert call_count == 2
+        assert call_count == expected_calls
+
+        states = self._get_run_states()
+        assert states["part_2026_03_08"] == DagRunState.QUEUED
+        assert states["part_2026_03_10"] == DagRunState.QUEUED
+        assert states["part_2026_03_14"] == DagRunState.QUEUED
+        assert states["non_partitioned"] == DagRunState.SUCCESS
 
         clear_numbers = self._get_run_clear_numbers()
         assert clear_numbers["part_2026_03_08"] == 1

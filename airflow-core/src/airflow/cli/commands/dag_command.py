@@ -56,7 +56,7 @@ from airflow.utils.cli import (
     validate_dag_bundle_arg,
 )
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
-from airflow.utils.helpers import ask_yesno
+from airflow.utils.helpers import ask_yesno, chunks
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -211,15 +211,14 @@ def _bulk_clear_runs(
     session: Session,
 ) -> int:
     """Clear task instances for the given run_ids in chunks instead of one transaction per run."""
-    state_filter: list = []
+    state_filter: list[TaskInstanceState] = []
     if only_failed:
         state_filter += [TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED]
     if only_running:
         state_filter += [TaskInstanceState.RUNNING]
 
     cleared = 0
-    for chunk_start in range(0, len(run_ids), _RUN_CHUNK_SIZE):
-        chunk_run_ids = run_ids[chunk_start : chunk_start + _RUN_CHUNK_SIZE]
+    for chunk_run_ids in chunks(run_ids, _RUN_CHUNK_SIZE):
         ti_query = select(TaskInstance).where(
             TaskInstance.dag_id == dag_id,
             TaskInstance.run_id.in_(chunk_run_ids),
