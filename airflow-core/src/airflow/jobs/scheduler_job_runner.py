@@ -1231,7 +1231,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 session=session,
             )
         except Exception as exc:
-            stats.incr("scheduler.executor_events.failed", tags={"reason": type(exc).__name__})
+            stats.incr("scheduler.executor_events.failed", tags={"exception_class": type(exc).__name__})
             raise
 
     @classmethod
@@ -3234,11 +3234,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     stats.incr("scheduler.orphaned_tasks.cleared", len(to_reset))
                     stats.incr("scheduler.orphaned_tasks.adopted", len(tis_to_adopt_or_reset) - len(to_reset))
                     if to_reset:
-                        stats.incr(
-                            "scheduler.zombies.detected",
-                            len(to_reset),
-                            tags={"reason": "adopt_failure"},
-                        )
                         task_instance_str = "\n\t".join(reset_tis_message)
                         self.log.info(
                             "Reset the following %s orphaned TaskInstances:\n\t%s",

@@ -185,7 +185,7 @@ metrics:
 
   - name: "scheduler.zombies.detected"
     description: "Number of zombie task instances detected by the Scheduler.
-    Metric with reason tagging (``heartbeat_timeout`` or ``adopt_failure``)."
+    Metric with reason tagging (``heartbeat_timeout``)."
     type: "counter"
     legacy_name: "-"
     name_variables: []
