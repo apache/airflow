@@ -190,11 +190,11 @@
       "direction": "Irány",
       "label": "Szűrő",
       "mode": "Mód",
+      "modeTooltip": "A statikus mód megtartja az aktuális nézetet, míg a bejárás mód automatikusan frissíti a szűrőt.",
       "modes": {
         "static": "Statikus",
         "traverse": "Bejárás"
       },
-      "modeTooltip": "A statikus mód megtartja az aktuális nézetet, míg a bejárás mód automatikusan frissíti a szűrőt.",
       "options": {
         "both": "Mindkét irány",
         "downstream": "Downstream",
