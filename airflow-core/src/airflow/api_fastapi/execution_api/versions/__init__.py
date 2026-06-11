@@ -49,8 +49,8 @@ from airflow.api_fastapi.execution_api.versions.v2026_06_16 import (
 from airflow.api_fastapi.execution_api.versions.v2026_06_30 import (
     AddAwaitingInputStatePayload,
     AddConnectionTestEndpoint,
-    AddVariableKeysEndpoint,
     AddQueuedDttmField,
+    AddVariableKeysEndpoint,
 )
 
 bundle = VersionBundle(
