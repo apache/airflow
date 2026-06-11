@@ -117,6 +117,7 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-snowflake/operators/snowflake.rst
       - /docs/apache-airflow-providers-snowflake/operators/snowpark.rst
+      - /docs/apache-airflow-providers-snowflake/operators/snowpark_containers.rst
     logo: /docs/integration-logos/Snowflake.png
     tags: [service]
 
@@ -125,6 +126,7 @@ operators:
     python-modules:
       - airflow.providers.snowflake.operators.snowflake
       - airflow.providers.snowflake.operators.snowpark
+      - airflow.providers.snowflake.operators.snowpark_containers
 
 task-decorators:
   - class-name: airflow.providers.snowflake.decorators.snowpark.snowpark_task
