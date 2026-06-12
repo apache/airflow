@@ -208,7 +208,7 @@ class WindowNotSupported(ValueError):
     def __str__(self) -> str:
         return (
             f"Window class {self.type_string!r} is not a built-in. Custom Window "
-            "subclasses are not currently supported; use one of the built-in "
+            "subclasses are not supported; use one of the built-in "
             "windows under ``airflow.partition_mappers.window``."
         )
 
@@ -216,3 +216,22 @@ class WindowNotSupported(ValueError):
 def is_core_window_import_path(importable_string: str) -> bool:
     """Whether an importable string points to a core ``Window`` class."""
     return importable_string.startswith("airflow.partition_mappers.window.")
+
+
+class WaitPolicyNotSupported(ValueError):
+    """Raise when serialization encounters a non-built-in ``WaitPolicy`` subclass."""
+
+    def __init__(self, type_string: str) -> None:
+        self.type_string = type_string
+
+    def __str__(self) -> str:
+        return (
+            f"WaitPolicy class {self.type_string!r} is not a built-in. Custom WaitPolicy "
+            "subclasses are not supported; use one of the built-in "
+            "policies under ``airflow.partition_mappers.wait_policy``."
+        )
+
+
+def is_core_wait_policy_import_path(importable_string: str) -> bool:
+    """Whether an importable string points to a core ``WaitPolicy`` class."""
+    return importable_string.startswith("airflow.partition_mappers.wait_policy.")

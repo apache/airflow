@@ -62,13 +62,15 @@ An example usage of the SQLExecuteQueryOperator to connect to ClickHouse:
 Querying Data
 ^^^^^^^^^^^^^
 
-Use a ``handler`` to return query results:
+Query results are fetched with the default ``handler`` (``fetch_all_handler``):
 
 .. exampleinclude:: /../../clickhousedb/tests/system/clickhouse/example_clickhouse.py
     :language: python
     :start-after: [START howto_operator_clickhouse_query]
     :end-before: [END howto_operator_clickhouse_query]
     :dedent: 4
+
+To return something other than the full result set, pass a custom ``handler``. For example, ``fetch_one_handler`` to fetch only the first row.
 
 .. note::
 

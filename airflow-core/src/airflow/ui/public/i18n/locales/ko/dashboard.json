@@ -1,4 +1,6 @@
 {
+  "deferredSlotsNotCounted": "슬롯 계산에서 제외된 연기된 슬롯: {{count}}개",
+  "deferredSlotsNotCountedTooltip": "막대에 표시된 연기된 태스크는 슬롯 계산에 포함됩니다. 막대 아래에 표시된 연기된 태스크는 연기된 태스크를 슬롯 계산에 포함하지 않는 풀에 속합니다.",
   "favorite": {
     "favoriteDags_one": "{{count}}개의 즐겨찾기 Dag",
     "favoriteDags_other": "{{count}}개의 즐겨찾기 Dags",
