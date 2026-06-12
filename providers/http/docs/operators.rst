@@ -104,6 +104,20 @@ the response body.
     :start-after: [START howto_operator_http_task_get_op_response_filter]
     :end-before: [END howto_operator_http_task_get_op_response_filter]
 
+A common pattern is combining ``response_filter`` with ``@task.branch`` to route
+downstream work based on an API response. For example, a health-check endpoint
+can determine whether to proceed with processing or send a notification.
+
+.. code-block:: python
+
+    from airflow.decorators import task
+
+    @task.branch
+    def route(api_status):
+        if api_status == "healthy":
+            return "process_data"
+        return "send_notification"
+
 In the third example we are performing a ``PUT`` operation to put / set data according to the data that is being
 provided to the request.
 
