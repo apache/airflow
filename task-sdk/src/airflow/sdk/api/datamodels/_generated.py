@@ -63,6 +63,27 @@ class AssetProfile(BaseModel):
     type: Annotated[str, Field(title="Type")]
 
 
+class CallbackTerminalState(str, Enum):
+    """
+    Terminal states a callback can transition to from RUNNING.
+    """
+
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
+class CallbackTerminalStatePayload(BaseModel):
+    """
+    Payload for transitioning a callback from RUNNING to a terminal state.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: CallbackTerminalState
+    output: Annotated[str | None, Field(title="Output")] = None
+
+
 class ConnectionResponse(BaseModel):
     """
     Connection schema for responses with fields that are needed for Runtime.
