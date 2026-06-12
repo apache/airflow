@@ -321,8 +321,8 @@ after the event was dispatched is not added to that event's pending set.
 subscriber's trigger. The same timeout covers an ack that is waiting on a
 persistence confirmation that never arrives. Other subscribers are not
 affected; once their acks arrive, the producer advances normally. The ack
-timeout is a manager-level
-safety net and does not replace any native broker session or visibility timeout.
+timeout is a manager-level safety net and does not replace any native broker
+session or visibility timeout.
 From the subscriber's perspective the force-fail surfaces as an ``AckTimeout``
 (importable from ``airflow.triggers.shared_stream``) raised by the
 ``shared_stream`` iterator inside ``filter_shared_stream``. Letting it propagate
