@@ -107,49 +107,73 @@ date — running breeze the first time below will recreate and fetch it.
 The skill runs in five phases. Mark tasks with `TaskCreate` for each phase
 and tick them off as you go — the release manager wants to see progress.
 
-### Phase 1 — Discover providers with pending changes
+### Phase 1 — Discover and pre-classify pending changes (deterministic)
 
-For each provider, the source of truth for "what changed since last release"
-is the same git query breeze uses internally: commits between the latest
-release tag for that provider (`providers-<id>/<version>`) and
-`apache-https-for-providers/<base-branch>`, restricted to the provider's own
-folders.
+The source of truth for "what changed since last release" is the same git
+query breeze uses internally: commits between the latest release tag for that
+provider (`providers-<id>/<version>`) and `apache-https-for-providers/<base-branch>`,
+restricted to the provider's own folders.
 
-Discover in batch by running:
+Run the **deterministic classifier** — it discovers every provider with pending
+changes **and** pre-classifies each commit with hard-coded, high-confidence
+rules, flagging only the genuinely ambiguous ones as `needs_llm`. No random
+answers, nothing to discard:
+
+```bash
+breeze release-management classify-provider-changes \
+    --base-branch main \
+    --output-file /tmp/provider-changes.json
+# scope to a subset by appending provider ids, e.g. ... amazon cncf.kubernetes
+```
+
+The JSON it writes:
+
+```json
+{
+  "base_branch": "main",
+  "providers": {
+    "amazon": {
+      "current_version": "9.29.0",
+      "commits": [
+        {"hash": "c2dbd7a75a", "pr": "67987", "subject": "Fix IDC domain S3 path resolution",
+         "classification": "needs_llm", "reason": "no high-confidence deterministic rule matched"},
+        {"hash": "abc123", "pr": "68087", "subject": "Bump the edge-ui-package-updates group ...",
+         "classification": "misc", "reason": "dependency bump (subject starts with 'Bump')"}
+      ]
+    }
+  }
+}
+```
+
+How to read it:
+
+- Providers under `providers` have pending changes (these need attention).
+- `classification ∈ {documentation, skip, misc}` are **decided by rules — take
+  them as-is**, no sub-agent needed (doc-only → `documentation`, test/example
+  only → `skip`, `Bump …` dependency bump → `misc`).
+- `classification == needs_llm` → **Phase 3 decides** with a sub-agent. These are
+  the only commits that need LLM analysis.
+- A provider with a `note`/`error` (e.g. a brand-new provider with no prior
+  release tag) → treat as an **initial release** and classify by hand.
+
+> [!NOTE]
+> The classifier is deliberately conservative: `Fix …`/`Add …` subjects are
+> **not** auto-classified (an "Add …" can be a breaking change), so they come
+> back as `needs_llm`. The rules live in `classify_change_deterministically`
+> (`dev/breeze/src/airflow_breeze/prepare_providers/provider_documentation.py`).
+
+Then regenerate the auto-generated build files (this does **no** classification,
+so nothing random is produced):
 
 ```bash
 breeze release-management prepare-provider-documentation \
-    --non-interactive \
-    --skip-changelog \
-    --skip-readme \
-    --release-date "$RELEASE_DATE"
-```
-
-> [!WARNING]
-> Do **not** commit the result of that command. `--non-interactive` answers
-> the classification prompts with random values — Claude will overwrite the
-> changelog and version bumps in Phase 4 with real classifications. The only
-> reason to run breeze first is to refresh the apache remote, regenerate
-> build files, and confirm which providers have pending changes (read the
-> "Summary of prepared documentation" block at the end).
-
-Record from the summary:
-
-- **Success** — providers that had real changes (these need classification).
-- **Docs only** — providers with only documentation changes (already handled
-  by breeze; skip in Phase 2).
-- **Skipped on no changes** — nothing to do.
-
-Reset the per-provider files that breeze touched but you'll be rewriting
-yourself before continuing:
-
-```bash
+    --reapply-templates-only --release-date "$RELEASE_DATE"
 git checkout -- $(git diff --name-only -- '**/provider.yaml' '**/changelog.rst')
 ```
 
 This leaves the regenerated build files (`__init__.py`, `README.rst`,
-`pyproject.toml`, `conf.py`, `get_provider_info.py`, `index.rst`) in place
-and discards only the stuff Claude is about to rewrite.
+`pyproject.toml`, `conf.py`, `get_provider_info.py`, `index.rst`) in place and
+discards only the changelog/version files Claude is about to rewrite itself.
 
 ### Phase 2 — Per-provider commit list
 
@@ -204,25 +228,27 @@ For each commit, classify it into one of:
 | `s`  | Skip (test/CI/example only — no user impact)   | none           |
 | `v`  | Min Airflow version bump                       | minor (treated as misc + bump) |
 
-#### Auto-classify cheap cases first
+#### Take the deterministic classifications from Phase 1
 
-Before spawning a sub-agent, apply the same fast heuristics breeze uses
-(see `classify_provider_pr_files` in
-`dev/breeze/src/airflow_breeze/prepare_providers/provider_documentation.py`):
+`classify-provider-changes` (Phase 1) already classified every commit it could
+with hard-coded rules. Read `/tmp/provider-changes.json` and:
 
-- All changed files match `providers/<id>/docs/**/*.rst` → **`d`** (docs).
-- All changed files match `providers/<id>/tests/**` or
-  `providers/<id>/src/airflow/providers/<id>/example_dags/**` → **`s`** (skip).
-- Subject contains `Bump minimum Airflow version` and only `__init__.py` /
-  `provider.yaml` changed → **`v`**.
+- Use any commit whose `classification` is `documentation`, `skip`, or `misc`
+  **as-is** — these map to `d`, `s`, `m` respectively; no sub-agent needed.
+- Only commits with `classification: needs_llm` go to a sub-agent (below).
 
-Note these classifications and move on — no sub-agent needed.
+The deterministic rules (doc-only → `d`, test/example-only → `s`, `Bump …`
+dependency bump → `m`) are exactly the cheap cases — now computed once by
+breeze (`classify_change_deterministically`) instead of re-derived here. If you
+ever need the min-Airflow-bump case (`v`), that one is still a `needs_llm`
+judgement: a sub-agent should flag it when a PR bumps the provider's minimum
+Airflow version.
 
-#### Sub-agent per PR for the rest
+#### Sub-agent per PR for the `needs_llm` commits
 
-For the remaining commits, spawn sub-agents in parallel (batches of 5–10 to
-avoid context pressure). Use the `Explore` agent type — they need read-only
-access. Brief each sub-agent with:
+For each commit the classifier returned as `needs_llm`, spawn sub-agents in
+parallel (batches of 5–10 to avoid context pressure). Use the `Explore` agent
+type — they need read-only access. Brief each sub-agent with:
 
 ```
 Classify a single Apache Airflow provider PR.
