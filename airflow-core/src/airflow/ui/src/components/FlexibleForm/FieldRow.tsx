@@ -58,13 +58,13 @@ export const FieldRow = ({
   };
 
   return (
-    <Field.Root invalid={!isValid} orientation="horizontal" required={isRequired(param)}>
-      <Stack minWidth={0} style={{ flexBasis: "30%" }}>
+  <Field.Root columnGap={4} invalid={!isValid} orientation="horizontal" required={isRequired(param)}>
+    <Stack minWidth={0} style={{ flexBasis: "30%" }}>
         <Field.Label fontSize="md" wordBreak="break-word">
           {param.schema.title ?? name} <Field.RequiredIndicator />
         </Field.Label>
       </Stack>
-      <Stack css={{ flexBasis: "70%" }}>
+      <Stack css={{ flexBasis: "70%" }}  justifyContent="center">
         <FieldSelector name={name} namespace={namespace} onUpdate={onUpdate} />
         {param.description === null ? (
           param.schema.description_md === undefined ? undefined : (
