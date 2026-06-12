@@ -18,8 +18,33 @@
  */
 
 plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention").version("0.10.0")
+    id("org.apache.airflow.sdk") version "${projectVersion}"
 }
 
-rootProject.name = "airflow-java-sdk"
-include("bom", "plugin", "processor", "sdk")
+repositories {
+    mavenLocal()  // Not needed for your own project.
+    mavenCentral()
+}
+
+dependencies {
+    annotationProcessor("org.apache.airflow:airflow-sdk-processor:${projectVersion}")
+    implementation("org.apache.airflow:airflow-sdk:${projectVersion}")
+    implementation("org.slf4j:slf4j-simple:2.0.17")
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(11))
+    }
+    sourceCompatibility = JavaVersion.VERSION_11
+}
+
+sourceSets {
+    main {
+        java.srcDir("src/java")
+    }
+}
+
+airflowBundle {
+    mainClass = "org.apache.airflow.example.ExampleBundleBuilder"
+}

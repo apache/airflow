@@ -18,8 +18,16 @@
  */
 
 plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention").version("0.10.0")
+    `kotlin-dsl`
 }
 
-rootProject.name = "airflow-java-sdk"
-include("bom", "plugin", "processor", "sdk")
+repositories {
+    mavenCentral()
+    gradlePluginPortal()
+}
+
+dependencies {
+    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.0")
+    implementation("com.diffplug.spotless:spotless-plugin-gradle:7.2.1")
+    implementation("org.jlleitschuh.gradle:ktlint-gradle:14.0.1")
+}
