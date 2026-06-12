@@ -347,6 +347,31 @@ config:
         type: string
         example: ~
         default: "1"
+      async_pod_creation:
+        description: |
+          Create worker pods concurrently within each scheduler loop instead of
+          sequentially. When enabled, the ``worker_pods_creation_batch_size`` pods
+          dequeued per loop are submitted to the Kubernetes API concurrently (bounded
+          by ``pod_creation_max_concurrency``) using the asynchronous Kubernetes client.
+          This reduces the time the scheduler loop spends blocked on pod creation when
+          per-call latency is high (network round-trip, admission webhooks). Pod
+          templates are still built synchronously; only the create API calls are
+          parallelized.
+        version_added: 10.18.0
+        type: boolean
+        example: ~
+        default: "False"
+      pod_creation_max_concurrency:
+        description: |
+          Maximum number of concurrent pod-creation API calls when ``async_pod_creation``
+          is enabled. Bounds the burst of simultaneous requests to the Kubernetes API
+          server (and admission webhooks) to avoid tripping API priority-and-fairness or
+          rate limits. Has no effect when ``async_pod_creation`` is False. When set to 0
+          the limit falls back to ``worker_pods_creation_batch_size``.
+        version_added: 10.18.0
+        type: integer
+        example: "16"
+        default: "0"
       multi_namespace_mode:
         description: |
           Allows users to launch pods in multiple namespaces.
