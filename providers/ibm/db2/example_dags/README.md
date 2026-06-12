@@ -27,7 +27,7 @@ A comprehensive example showing all major features of the Db2 provider.
 
 ### Features Demonstrated
 
-1. **Db2Operator** - Executing SQL statements with the operator
+1. **SQLExecuteQueryOperator** - Executing SQL statements with the common SQL operator
 2. **Db2Hook** - Programmatic database queries
 3. **Table Creation** - Creating tables with various data types
 4. **Data Insertion** - Inserting multiple rows
@@ -133,19 +133,19 @@ Open your browser and go to: http://localhost:8080
 The DAG will show a visual flow of tasks:
 
 ```
-create_sample_table (Db2Operator)
+create_sample_table (SQLExecuteQueryOperator)
          ↓
-insert_sample_data (Db2Operator)
+insert_sample_data (SQLExecuteQueryOperator)
          ↓
 query_employees (Db2Hook)
          ↓
-update_employee_salary (Db2Operator)
+update_employee_salary (SQLExecuteQueryOperator)
          ↓
-calculate_department_stats (Db2Operator)
+calculate_department_stats (SQLExecuteQueryOperator)
          ↓
 display_statistics (Db2Hook)
          ↓
-create_backup_table (Db2Operator)
+create_backup_table (SQLExecuteQueryOperator)
          ↓
 verify_backup (Db2Hook)
 ```
@@ -154,13 +154,13 @@ verify_backup (Db2Hook)
 
 Each task will show detailed logs:
 
-- **create_sample_table**: SQL execution for table creation using Db2Operator
-- **insert_sample_data**: Data insertion using Db2Operator
+- **create_sample_table**: SQL execution for table creation using SQLExecuteQueryOperator
+- **insert_sample_data**: Data insertion using SQLExecuteQueryOperator
 - **query_employees**: Employee records fetched using Db2Hook
-- **update_employee_salary**: Salary updates using Db2Operator
-- **calculate_department_stats**: Statistics calculation using Db2Operator
+- **update_employee_salary**: Salary updates using SQLExecuteQueryOperator
+- **calculate_department_stats**: Statistics calculation using SQLExecuteQueryOperator
 - **display_statistics**: Department statistics displayed using Db2Hook
-- **create_backup_table**: Backup table creation using Db2Operator
+- **create_backup_table**: Backup table creation using SQLExecuteQueryOperator
 - **verify_backup**: Backup verification using Db2Hook
 
 #### Example Output
@@ -230,17 +230,17 @@ To run the DAG on a schedule instead of manually:
 schedule = ("0 0 * * *",)  # Run daily at midnight
 ```
 
-#### Using Db2Operator
+#### Using SQLExecuteQueryOperator
 
-The Db2Operator is the recommended way to execute SQL:
+The SQLExecuteQueryOperator is the recommended way to execute SQL:
 
 ```python
-from airflow.providers.ibm.db2.operators.db2 import Db2Operator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
-create_table = Db2Operator(
+create_table = SQLExecuteQueryOperator(
     task_id="create_table",
     sql="CREATE TABLE my_table (id INT, name VARCHAR(50))",
-    db2_conn_id="db2_default",
+    conn_id="db2_default",
 )
 ```
 
@@ -301,35 +301,38 @@ Check the task logs in the Airflow UI for detailed error messages. Common issues
 
 ### Code Examples
 
-#### Simple Query with Db2Operator
+#### Simple Query with SQLExecuteQueryOperator
 
 ```python
-query_task = Db2Operator(
+query_task = SQLExecuteQueryOperator(
     task_id="query_data",
     sql="SELECT * FROM employees WHERE department = 'Engineering'",
+    conn_id="db2_default",
 )
 ```
 
-#### Parameterized Query with Db2Operator
+#### Parameterized Query with SQLExecuteQueryOperator
 
 ```python
-insert_task = Db2Operator(
+insert_task = SQLExecuteQueryOperator(
     task_id="insert_data",
     sql="INSERT INTO employees (id, name) VALUES (?, ?)",
     parameters=(1, "John Doe"),
+    conn_id="db2_default",
 )
 ```
 
-#### Multiple Statements with Db2Operator
+#### Multiple Statements with SQLExecuteQueryOperator
 
 ```python
-cleanup_task = Db2Operator(
+cleanup_task = SQLExecuteQueryOperator(
     task_id="cleanup",
     sql="""
         DROP TABLE temp_table;
         DROP TABLE backup_table;
     """,
     split_statements=True,
+    conn_id="db2_default",
 )
 ```
 
