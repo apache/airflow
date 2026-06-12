@@ -720,6 +720,8 @@ class PodManager(LoggingMixin):
         follow_logs=False,
         container_name_log_prefix_enabled: bool = True,
         log_formatter: Callable[[str, str], str] | None = None,
+        startup_timeout: int = 120,
+        schedule_timeout: int = 120,
     ) -> list[PodLoggingStatus]:
         """
         Follow the logs of containers in the specified pod and publish it to airflow logging.
@@ -738,7 +740,12 @@ class PodManager(LoggingMixin):
         # sort by spec.initContainers because containers runs sequentially
         containers_to_log = sorted(containers_to_log, key=lambda cn: all_containers.index(cn))
         for c in containers_to_log:
-            self._await_init_container_start(pod=pod, container_name=c)
+            self._await_init_container_start(
+                pod=pod,
+                container_name=c,
+                startup_timeout=startup_timeout,
+                schedule_timeout=schedule_timeout,
+            )
             since_time = self.container_log_times.get((pod.metadata.namespace, pod.metadata.name, c))
             status = self.fetch_container_logs(
                 pod=pod,
@@ -1081,7 +1088,16 @@ class PodManager(LoggingMixin):
                 return res
         return None
 
-    def _await_init_container_start(self, pod: V1Pod, container_name: str):
+    def _await_init_container_start(
+        self,
+        pod: V1Pod,
+        container_name: str,
+        startup_timeout: int = 120,
+        schedule_timeout: int = 120,
+    ) -> None:
+        start_time = time.monotonic()
+        pod_was_scheduled = False
+
         while True:
             remote_pod = self.read_pod(pod)
 
@@ -1092,6 +1108,28 @@ class PodManager(LoggingMixin):
                 and not container_is_wait(remote_pod, container_name)
             ):
                 return
+
+            elapsed = time.monotonic() - start_time
+            pod_conditions: list[V1PodCondition] = remote_pod.status.conditions if remote_pod.status else None
+            if pod_conditions and any(
+                condition.type == "PodScheduled" and condition.status == "True"
+                for condition in pod_conditions
+            ):
+                if not pod_was_scheduled:
+                    pod_was_scheduled = True
+                    start_time = time.monotonic()
+                    elapsed = 0
+                if elapsed >= startup_timeout:
+                    raise PodLaunchTimeoutException(
+                        f"Init container {container_name!r} did not start within {startup_timeout}s of "
+                        "pod being scheduled. Check the pod events in kubernetes."
+                    )
+            else:
+                if elapsed >= schedule_timeout:
+                    raise PodLaunchTimeoutException(
+                        f"Pod took too long to be scheduled. Init container {container_name!r} did not "
+                        f"start within {schedule_timeout}s. Check the pod events in kubernetes."
+                    )
 
             time.sleep(1)
 

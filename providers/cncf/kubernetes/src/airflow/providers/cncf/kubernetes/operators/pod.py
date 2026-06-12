@@ -789,6 +789,8 @@ class KubernetesPodOperator(BaseOperator):
                     follow_logs=True,
                     container_name_log_prefix_enabled=self.container_name_log_prefix_enabled,
                     log_formatter=self.log_formatter,
+                    startup_timeout=self.startup_timeout_seconds,
+                    schedule_timeout=self.schedule_timeout_seconds,
                 )
         except kubernetes.client.exceptions.ApiException as exc:
             self._handle_api_exception(exc, pod)
