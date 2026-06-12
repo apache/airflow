@@ -763,7 +763,7 @@ def _get_java_sdk_version() -> str:
     """Read the Java SDK version from 'java-sdk/gradle.properties'."""
     props_path = AIRFLOW_ROOT_PATH / "java-sdk" / "gradle.properties"
     for line in props_path.read_text().splitlines():
-        if match := re.match(r"^sdkVersion\s*=\s*(\S+)$", line.strip()):
+        if match := re.match(r"^projectVersion\s*=\s*(\S+)$", line.strip()):
             return match.group(1)
     raise RuntimeError(f"Java SDK version not found in {props_path}")
 

@@ -390,6 +390,30 @@ You can create and configure ``Ingress`` objects. See the :ref:`Ingress chart pa
 For more information on ``Ingress``, see the
 `Kubernetes Ingress documentation <https://kubernetes.io/docs/concepts/services-networking/ingress/>`_.
 
+Gateway API (HTTPRoute)
+^^^^^^^^^^^^^^^^^^^^^^^
+
+As an alternative to ``Ingress``, the chart can create a
+`Kubernetes Gateway API <https://gateway-api.sigs.k8s.io/>`_ ``HTTPRoute`` for the API server.
+This requires the Gateway API CRDs to be installed in the cluster and a ``Gateway`` to already exist —
+the chart only creates the ``HTTPRoute`` and attaches it to the Gateway via ``parentRefs``.
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   httpRoute:
+     apiServer:
+       enabled: true
+       parentRefs:
+         - name: main-gateway
+           namespace: gateway-system
+           sectionName: https
+       hostnames:
+         - airflow.example.com
+
+For fine-grained routing, supply ``httpRoute.apiServer.rules`` directly — the entry mirrors the
+upstream ``HTTPRouteRule`` schema and overrides the default rule generated from ``path`` + ``pathType``.
+
 LoadBalancer Service
 ^^^^^^^^^^^^^^^^^^^^
 

@@ -121,6 +121,31 @@ class TestOtelMetrics:
         assert result is None
         self.meter.get_meter().create_counter.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "stat",
+        [
+            "dag_processing.last_run.seconds_ago.PBI_SKU_Performance copy",  # space in filename
+            "dag_processing.last_run.seconds_ago.mein_däg_file",  # non-ASCII in filename
+        ],
+    )
+    def test_gauge_with_invalid_stat_names_skipped_without_raising(self, stat):
+        self.stats.gauge(stat, value=1)
+
+        self.meter.get_meter().create_gauge.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "stat",
+        [
+            "dag.my_dag.preço_task.duration",  # non-ASCII
+            "dag.my_dag.task copy.duration",  # space
+        ],
+    )
+    def test_timer_with_invalid_stat_name_does_not_record(self, stat):
+        with self.stats.timer(stat):
+            pass
+
+        self.meter.get_meter().create_histogram.assert_not_called()
+
     def test_old_name_exception_works(self, caplog):
         name = "task_instance_created_OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit/task_instance_created_OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit/task_instance_created_OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit"
 
