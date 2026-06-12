@@ -311,6 +311,7 @@ ContainerPort
 contentUrl
 contextmgr
 contrib
+cooldown
 copyable
 CoreV
 coroutine
