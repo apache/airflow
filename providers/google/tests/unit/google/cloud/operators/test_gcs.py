@@ -677,6 +677,64 @@ class TestGCSTimeSpanFileTransformOperator:
         assert all(element in outputs for element in lineage.outputs)
 
     @pytest.mark.parametrize(
+        "blob_name",
+        [
+            pytest.param("inbound/../../../../etc/passwd", id="dotdot-segments"),
+            pytest.param("/etc/passwd", id="absolute-path"),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.TemporaryDirectory")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_execute_rejects_traversal_blob_name(
+        self, mock_hook, mock_tempdir, mock_subprocess, tmp_path, blob_name
+    ):
+        # GCS blob names are arbitrary Unicode strings written by whoever can
+        # produce to the source bucket. A name containing ``..`` segments or an
+        # absolute-path prefix would otherwise resolve outside the operator's
+        # temp input directory; ``_download`` must refuse such names rather
+        # than write the blob to the worker filesystem.
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        dest_dir = tmp_path / "destination"
+        dest_dir.mkdir()
+        mock_tempdir.return_value.__enter__.side_effect = [str(source_dir), str(dest_dir)]
+        mock_hook.return_value.list_by_timespan.return_value = [blob_name]
+        self._setup_gcs_client_chain(mock_hook)
+
+        mock_proc = mock.MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stdout.readline = lambda: b""
+        mock_proc.wait.return_value = None
+        mock_subprocess.Popen.return_value.__enter__.return_value = mock_proc
+        mock_subprocess.PIPE = "pipe"
+        mock_subprocess.STDOUT = "stdout"
+
+        timespan_start = datetime(2015, 2, 1, tzinfo=timezone.utc)
+        timespan_end = timespan_start + timedelta(hours=1)
+        context = dict(
+            logical_date=timespan_start,
+            data_interval_start=timespan_start,
+            data_interval_end=timespan_end,
+            ti=mock.Mock(),
+            task=mock.MagicMock(),
+        )
+
+        op = GCSTimeSpanFileTransformOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_prefix="inbound",
+            source_gcp_conn_id="",
+            destination_bucket=TEST_BUCKET + "_dest",
+            destination_prefix="dest",
+            destination_gcp_conn_id="",
+            transform_script="script.py",
+        )
+
+        with pytest.raises(ValueError, match="escapes the temp directory"):
+            op.execute(context=context)
+
+    @pytest.mark.parametrize(
         ("workers", "should_raise"),
         [
             (0, True),
