@@ -247,7 +247,7 @@ class BaseStoreBackend(ABC):
         ``[state_store] default_retention_days``) and deciding what to delete.
         """
 
-    def serialize_task_store_to_ref(self, *, value: JsonValue, key: str, ti_id: str) -> str:
+    def serialize_task_store_to_ref(self, *, value: JsonValue, key: str, scope: TaskScope) -> str:
         """
         Serialize a task store value before it is sent to the execution API for db persistence.
 
@@ -260,7 +260,7 @@ class BaseStoreBackend(ABC):
         that wrapper before passing ``stored`` to ``deserialize_task_store_from_ref()``. Do not
         wrap the reference yourself.
 
-        The returned reference must be deterministic — given the same ``ti_id`` and ``key`` it
+        The returned reference must be deterministic — given the same ``scope`` and ``key`` it
         must always return the same string. Do not use timestamps or random UUIDs as part of
         the reference, otherwise ``delete()``/``clear()`` cannot reconstruct it and the external
         object will be orphaned. By default, it JSON dumps the value and returns a JSON string.
@@ -277,7 +277,7 @@ class BaseStoreBackend(ABC):
         """
         return json.loads(stored)
 
-    def serialize_asset_store_to_ref(self, *, value: JsonValue, key: str, asset_ref: str) -> str:
+    def serialize_asset_store_to_ref(self, *, value: JsonValue, key: str, scope: AssetScope) -> str:
         """
         Serialize an asset store value before it is sent to the Execution API for db persistence.
 
@@ -290,10 +290,7 @@ class BaseStoreBackend(ABC):
         that wrapper before passing ``stored`` to ``deserialize_asset_store_from_ref()``. Do not
         wrap the reference yourself.
 
-        ``asset_ref`` is either the asset name or URI, depending on how the accessor was
-        constructed. It may be a URI string if the task inlet was declared as ``AssetUriRef``.
-
-        The returned reference must be deterministic — given the same ``asset_ref`` and ``key`` it
+        The returned reference must be deterministic — given the same ``scope`` and ``key`` it
         must always return the same string. Do not use timestamps or random UUIDs as part of
         the reference, otherwise ``delete()``/``clear()`` cannot reconstruct it and the external
         object will be orphaned. By default, it JSON dumps the value and returns a JSON string.

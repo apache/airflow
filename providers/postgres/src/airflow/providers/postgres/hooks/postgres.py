@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast, overl
 
 from more_itertools import chunked
 from psycopg2 import connect as ppg2_connect
-from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor, execute_batch
+from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor, execute_values
 
 from airflow.providers.common.compat.sdk import (
     AirflowException,
@@ -660,6 +660,10 @@ class PostgresHook(DbApiHook):
         """
         Insert a collection of tuples into a table.
 
+        When ``fast_executemany=True`` with psycopg2, uses ``execute_values`` which batches
+        all rows into a single INSERT statement for better performance.
+        For psycopg3, the default ``executemany`` already uses pipelining for high performance.
+
         Rows are inserted in chunks, each chunk (of size ``commit_every``) is
         done in a new transaction.
 
@@ -668,20 +672,29 @@ class PostgresHook(DbApiHook):
         :param target_fields: The names of the columns to fill in the table
         :param commit_every: The maximum number of rows to insert in one
             transaction. Set to 0 to insert all rows in one transaction.
-        :param replace: Whether to replace instead of insert
+        :param replace: Whether to replace instead of insert (uses ON CONFLICT)
         :param executemany: If True, all rows are inserted at once in
             chunks defined by the commit_every parameter. This only works if all rows
             have same number of column names, but leads to better performance.
         :param fast_executemany: If True, rows will be inserted using an optimized
-            bulk execution strategy (``psycopg2.extras.execute_batch``). This can
-            significantly improve performance for large inserts. If set to False,
-            the method falls back to the default implementation from
-            ``DbApiHook.insert_rows``.
+            bulk execution strategy (``psycopg2.extras.execute_values``), unless psycopg3
+            is being used. This can significantly improve performance for large inserts.
+            If set to False or psycopg3 is being used, the method falls back to the default
+            implementation from ``DbApiHook.insert_rows``.
         :param autocommit: What to set the connection's autocommit setting to
             before executing the query.
         """
-        # if fast_executemany is disabled, defer to default implementation of insert_rows in DbApiHook
-        if not fast_executemany:
+        # psycopg3's executemany already uses pipelining, so use default implementation
+        # Only override for psycopg2 with fast_executemany to use execute_values
+        if USE_PSYCOPG3 and fast_executemany:
+            self.log.warning(
+                "fast_executemany=True has no effect when using psycopg3. "
+                "psycopg3's executemany already uses pipelining for optimal performance."
+            )
+        if USE_PSYCOPG3 or not fast_executemany:
+            # Reset to default format in case a previous fast_executemany call failed
+            self._insert_statement_format = "INSERT INTO {} {} VALUES ({})"
+
             return super().insert_rows(
                 table,
                 rows,
@@ -693,9 +706,11 @@ class PostgresHook(DbApiHook):
                 **kwargs,
             )
 
-        # if fast_executemany is enabled, use optimized execute_batch from psycopg
+        # if fast_executemany is enabled with psycopg2, use optimized execute_values from psycopg
+        self._insert_statement_format = "INSERT INTO {} {} VALUES %s"
+
         nb_rows = 0
-        sql = None  # not generated unless we actually process at least one chunk
+        sql: str | None = None  # not generated unless we actually process at least one chunk
         with self._create_autocommit_connection(autocommit) as conn:
             conn.commit()
             with closing(conn.cursor()) as cur:
@@ -710,7 +725,7 @@ class PostgresHook(DbApiHook):
                     self.log.debug("Generated sql: %s", sql)
 
                     try:
-                        execute_batch(cur, sql, values, page_size=commit_every)
+                        execute_values(cur, sql, values, page_size=commit_every)
                     except Exception as e:
                         self.log.error("Generated sql: %s", sql)
                         self.log.error("Parameters: %s", values)

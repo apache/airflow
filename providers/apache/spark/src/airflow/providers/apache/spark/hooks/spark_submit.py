@@ -306,6 +306,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._deploy_mode = deploy_mode
         self._connection = self._resolve_connection()
         self._is_yarn = "yarn" in self._connection["master"]
+        self._is_yarn_cluster_mode = self._is_yarn and self._connection["deploy_mode"] == "cluster"
         self._is_kubernetes = "k8s" in self._connection["master"]
         if self._is_kubernetes and kube_client is None:
             raise RuntimeError(
@@ -786,12 +787,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 )
 
             if self._should_track_yarn_application_via_rm_api():
-                # Once spark-submit exits successfully, rely on RM REST API polling instead
-                # of requiring a particular Spark log line such as "Submitted application ...".
-                # The RM REST API is the authoritative source for the application's lifecycle.
                 if not self._yarn_application_id:
                     raise RuntimeError("No YARN application id found after spark-submit completed.")
-                self._track_yarn_application(self._yarn_application_id)
                 return self._driver_id
 
             if self._should_track_driver_status and self._driver_id is None:
@@ -871,18 +868,42 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
             self.log.info(line)
 
-    def _track_yarn_application(self, application_id: str) -> None:
-        """Poll the YARN RM REST API until the application reaches a terminal state."""
+    def _start_yarn_application_status_tracking(self, application_id: str) -> None:
+        """
+        Poll the YARN ResourceManager REST API until the application reaches a terminal state.
+
+        Raises ``RuntimeError`` if the application fails or if too many consecutive RM
+        request failures occur.
+
+        Possible statuses (from YARN state + finalStatus):
+
+        NEW
+            Application has been created but not yet submitted to the scheduler
+        NEW_SAVING
+            Application metadata is being persisted before scheduling
+        SUBMITTED
+            Application has been submitted and is waiting to be scheduled
+        ACCEPTED
+            Application has been accepted by the scheduler and is queued
+        RUNNING
+            Application is actively executing on the cluster
+        SUCCEEDED
+            Application completed successfully (state=FINISHED, finalStatus=SUCCEEDED)
+        FAILED
+            Application terminated unsuccessfully — covers YARN state FAILED, KILLED,
+            or FINISHED with a non-SUCCEEDED finalStatus
+        """
         self.log.info(
             "Tracking YARN application %s via ResourceManager REST API polling",
             application_id,
         )
         poll_interval = max(self._status_poll_interval, 10)
-        # Tolerate transient RM REST API failures (RM hiccup, network blip, request
-        # timeout) the same way `_start_driver_status_tracking` does for spark
-        # standalone — only give up after this many consecutive failures.
         consecutive_failures = 0
         max_consecutive_failures = 10
+        heartbeat_interval = 10
+        poll_count = 0
+        last_state: str | None = None
+
         while True:
             self.log.debug("Polling YARN RM REST API for application %s", application_id)
             try:
@@ -904,13 +925,20 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 time.sleep(poll_interval)
                 continue
             consecutive_failures = 0
+            poll_count += 1
+
+            if state != last_state:
+                self.log.info("YARN application %s status: %s", application_id, state)
+                last_state = state
+            elif poll_count % heartbeat_interval == 0:
+                self.log.info("YARN application %s is still %s", application_id, state)
+
             if state in self._YARN_FINAL_FAILURES:
                 raise RuntimeError(
                     f"YARN application {application_id} ended with state: {state}, "
                     f"final status: {final_status}"
                 )
             if final_status == self._YARN_FINAL_SUCCESS:
-                self.log.info("YARN application %s finished with SUCCEEDED", application_id)
                 return
             if final_status in self._YARN_FINAL_FAILURES:
                 raise RuntimeError(
@@ -1298,3 +1326,20 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             self._kill_yarn_application(self._yarn_application_id)
 
         self._run_post_submit_commands()
+
+    def query_yarn_application_status(self, application_id: str) -> str:
+        """
+        Return a normalized single string status for the ResumableJobMixin interface.
+
+        - Active states (NEW, NEW_SAVING, SUBMITTED, ACCEPTED, RUNNING) are returned as-is.
+        - Terminal states are collapsed to "SUCCEEDED" or "FAILED" with the following rules:
+            - FINISHED + finalStatus SUCCEEDED -> "SUCCEEDED"
+            - FINISHED + any other finalStatus -> "FAILED"
+            - FAILED or KILLED -> "FAILED"
+        """
+        state, final_status = self._query_yarn_application_status(application_id)
+        if state in {"NEW", "NEW_SAVING", "SUBMITTED", "ACCEPTED", "RUNNING"}:
+            return state
+        if state == "FINISHED" and final_status == self._YARN_FINAL_SUCCESS:
+            return "SUCCEEDED"
+        return "FAILED"

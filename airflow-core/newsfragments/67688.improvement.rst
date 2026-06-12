@@ -1,0 +1,1 @@
+Further optimize ``TaskGroup.topological_sort`` for reverse-declared DAGs via pass-number traversal; dramatically improves the O(N²) worst-case for adversarial shapes (e.g., reverse-insertion chains).
