@@ -18,13 +18,16 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import Mock
 
 import pytest
+from sqlalchemy import event
 
+import airflow.settings
 from airflow.models.dag_version import DagVersion
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -2049,3 +2052,204 @@ def _test_trigger_rule(
     else:
         assert not dep_statuses
     assert ti.state == expected_ti_state
+
+
+@contextmanager
+def _count_upstream_count_queries():
+    """
+    Count only the trigger-rule upstream-count query.
+
+    That query is ``SELECT task_instance.task_id, count(task_instance.task_id) ...
+    GROUP BY task_instance.task_id``; the filter below matches it and nothing else emitted while
+    evaluating the trigger rule for a plain (non-mapped-task-group) downstream.
+    """
+    counter = {"n": 0}
+
+    def _on_execute(conn, cursor, statement, parameters, context, executemany):
+        sql = statement.lower()
+        if "count(" in sql and "group by" in sql and "task_id" in sql and "task_instance" in sql:
+            counter["n"] += 1
+
+    event.listen(airflow.settings.engine, "after_cursor_execute", _on_execute)
+    try:
+        yield counter
+    finally:
+        event.remove(airflow.settings.engine, "after_cursor_execute", _on_execute)
+
+
+def _expand_mapped_task(dr, dag, task_id, states, session):
+    """
+    Materialise ``len(states)`` instances of a mapped ``task_id`` with the given states.
+
+    Handles both shapes: a single unexpanded ``map_index=-1`` placeholder (expand it), or a task
+    already pre-expanded at dagrun creation (just set states on the existing instances).
+    """
+    tis = [ti for ti in dr.get_task_instances(session=session) if ti.task_id == task_id]
+    assert tis, f"no task instances found for {task_id!r}"
+    if len(tis) == 1 and tis[0].map_index == -1:
+        base = tis[0]
+        mapped_task = base.task
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
+        if TYPE_CHECKING:
+            assert dag_version
+        base.map_index = 0
+        base.state = states[0]
+        session.merge(base)
+        for map_index in range(1, len(states)):
+            ti = TaskInstance(
+                mapped_task, run_id=dr.run_id, map_index=map_index, dag_version_id=dag_version.id
+            )
+            ti.state = states[map_index]
+            session.add(ti)
+            ti.dag_run = dr
+    else:
+        tis.sort(key=lambda ti: ti.map_index)
+        assert len(tis) == len(states), f"{task_id!r}: {len(tis)} instances but {len(states)} states given"
+        for ti, state in zip(tis, states):
+            ti.state = state
+            session.merge(ti)
+    session.flush()
+
+
+class TestTriggerRuleUpstreamCountMemo:
+    """The upstream-count query is memoized per scheduling pass (one DepContext) in the simple case."""
+
+    def _make_dag(
+        self, dag_maker, session, *, n_downstreams, src_states, trigger_rule=TriggerRule.ALL_SUCCESS
+    ):
+        @task
+        def src(i):
+            return i
+
+        @task(trigger_rule=trigger_rule)
+        def plain():
+            return 1
+
+        with dag_maker(dag_id="trmemo_simple", session=session) as dag:
+            nums = src.expand(i=list(range(len(src_states))))
+            for k in range(n_downstreams):
+                nums >> plain.override(task_id=f"p{k}")()
+
+        dr = dag_maker.create_dagrun()
+        _expand_mapped_task(dr, dag, "src", src_states, session)
+        session.commit()
+        return dr
+
+    def test_memoized_across_downstreams_sharing_upstream(self, dag_maker, session):
+        """N plain downstreams of the same mapped upstream issue the count query once per pass."""
+        dr = self._make_dag(dag_maker, session, n_downstreams=4, src_states=[SUCCESS, SUCCESS, SUCCESS])
+        dep_context = DepContext()
+        with _count_upstream_count_queries() as counter:
+            for k in range(4):
+                ti = dr.get_task_instance(f"p{k}", session=session)
+                statuses = list(
+                    TriggerRuleDep()._evaluate_trigger_rule(ti=ti, dep_context=dep_context, session=session)
+                )
+                # All three upstreams succeeded -> ALL_SUCCESS is met -> no failing status.
+                assert statuses == []
+        assert counter["n"] == 1
+
+    def test_memoized_count_value_is_correct(self, dag_maker, session):
+        """
+        Guards that the cached value is the real count, not just "present".
+
+        Three upstream instances exist but only two are finished-success; ALL_SUCCESS must NOT be met
+        because ``upstream`` (3) > ``success`` (2). A wrongly-cached count of 2 would let it pass.
+        """
+        dr = self._make_dag(
+            dag_maker,
+            session,
+            n_downstreams=2,
+            src_states=[SUCCESS, SUCCESS, TaskInstanceState.RUNNING],
+        )
+        dep_context = DepContext()
+        with _count_upstream_count_queries() as counter:
+            for k in range(2):
+                ti = dr.get_task_instance(f"p{k}", session=session)
+                statuses = list(
+                    TriggerRuleDep()._evaluate_trigger_rule(ti=ti, dep_context=dep_context, session=session)
+                )
+                assert len(statuses) == 1
+                assert not statuses[0].passed
+        assert counter["n"] == 1
+
+    def test_distinct_upstream_sets_are_not_collapsed(self, dag_maker, session):
+        """Downstreams with different upstream sets get different cache keys -> one query each."""
+
+        @task
+        def src_a(i):
+            return i
+
+        @task
+        def src_b(i):
+            return i
+
+        @task
+        def plain():
+            return 1
+
+        with dag_maker(dag_id="trmemo_keys", session=session) as dag:
+            a = src_a.expand(i=[0, 1])
+            b = src_b.expand(i=[0, 1, 2])
+            a >> plain.override(task_id="pa")()
+            b >> plain.override(task_id="pb")()
+
+        dr = dag_maker.create_dagrun()
+        _expand_mapped_task(dr, dag, "src_a", [SUCCESS, SUCCESS], session)
+        _expand_mapped_task(dr, dag, "src_b", [SUCCESS, SUCCESS, SUCCESS], session)
+        session.commit()
+
+        dep_context = DepContext()
+        with _count_upstream_count_queries() as counter:
+            for task_id in ("pa", "pb"):
+                ti = dr.get_task_instance(task_id, session=session)
+                statuses = list(
+                    TriggerRuleDep()._evaluate_trigger_rule(ti=ti, dep_context=dep_context, session=session)
+                )
+                assert statuses == []
+        assert counter["n"] == 2
+
+    def test_revise_growing_a_mapped_upstream_clears_memo_within_pass(self, dag_maker, session):
+        """
+        When a mapped upstream grows via ``_revise_map_indexes_if_mapped`` mid-pass, the upstream-count
+        memo must be dropped so a downstream evaluated later in the same pass recomputes the count
+        instead of reusing the pre-grow value.
+
+        Driving ``_get_ready_tis`` with a fixed order ``[d1, mapped-instance, d2]``: d1 populates the
+        memo over the pre-grow instances, the mapped instance is revised and grows, then d2 must
+        recompute, so the upstream-count query runs twice. Without the cache clear in
+        ``_get_ready_tis`` d2 reads the stale value and the query runs only once.
+        """
+
+        @task
+        def src(arg):
+            return arg
+
+        @task
+        def plain():
+            return 1
+
+        def _build(length):
+            with dag_maker(dag_id="trmemo_revise", session=session, serialized=True):
+                nums = src.expand(arg=list(range(length)))
+                nums >> plain.override(task_id="d1")()
+                nums >> plain.override(task_id="d2")()
+
+        _build(4)
+        dr = dag_maker.create_dagrun()
+        # Re-serialize the DAG with the mapped task one element longer; revise adds map_index 4.
+        _build(5)
+        dr.dag = dag_maker.serialized_dag
+        session.commit()
+
+        ser = dag_maker.serialized_dag
+        d1 = dr.get_task_instance("d1", session=session)
+        d2 = dr.get_task_instance("d2", session=session)
+        src0 = dr.get_task_instance("src", map_index=0, session=session)
+        d1.task = ser.get_task("d1")
+        d2.task = ser.get_task("d2")
+        src0.task = ser.get_task("src")
+
+        with _count_upstream_count_queries() as counter:
+            dr._get_ready_tis([d1, src0, d2], [], session)
+        assert counter["n"] == 2
