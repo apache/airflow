@@ -85,11 +85,9 @@ class LogGroomerTestBase:
 
         if self.obj_name == "dag-processor":
             values = {"dagProcessor": {"logGroomerSidecar": {"env": env}}}
-        elif self.obj_name == "workers-celery":
-            values = {"workers": {"celery": {"logGroomerSidecar": {"env": env}}}}
         else:
             values = {
-                "workers": {"logGroomerSidecar": {"env": env}},
+                "workers": {"celery": {"logGroomerSidecar": {"env": env}}},
                 "scheduler": {"logGroomerSidecar": {"env": env}},
                 "triggerer": {"logGroomerSidecar": {"env": env}},
             }
@@ -116,14 +114,7 @@ class LogGroomerTestBase:
         docs = render_chart(values=values, show_only=self.get_show_only())
 
         assert command == jmespath.search("spec.template.spec.containers[1].command", docs[0])
-
-        if self.obj_name == "workers-celery" and args is None:
-            assert jmespath.search("spec.template.spec.containers[1].args", docs[0]) == [
-                "bash",
-                "/clean-logs",
-            ]
-        else:
-            assert args == jmespath.search("spec.template.spec.containers[1].args", docs[0])
+        assert args == jmespath.search("spec.template.spec.containers[1].args", docs[0])
 
     def test_log_groomer_command_and_args_overrides_are_templated(self):
         if self.obj_name == "dag-processor":
@@ -180,15 +171,6 @@ class LogGroomerTestBase:
                 )
                 == retention_result
             )
-        elif self.obj_name == "workers-celery" and retention_result is None:
-            # Testing backward compatibility of move from workers to workers.celery
-            assert (
-                jmespath.search(
-                    "spec.template.spec.containers[1].env[?name=='AIRFLOW__LOG_RETENTION_DAYS'].value | [0]",
-                    docs[0],
-                )
-                == "15"
-            )
         else:
             assert len(jmespath.search("spec.template.spec.containers[1].env", docs[0])) == 3
 
@@ -211,15 +193,6 @@ class LogGroomerTestBase:
                 )
                 == retention_result
             )
-        elif self.obj_name == "workers-celery" and retention_result is None:
-            # Testing backward compatibility of move from workers to workers.celery
-            assert (
-                jmespath.search(
-                    "spec.template.spec.containers[1].env[?name=='AIRFLOW__LOG_RETENTION_MINUTES'].value | [0]",
-                    docs[0],
-                )
-                == "0"
-            )
         else:
             assert len(jmespath.search("spec.template.spec.containers[1].env", docs[0])) == 3
 
@@ -241,15 +214,6 @@ class LogGroomerTestBase:
                     docs[0],
                 )
                 == frequency_result
-            )
-        elif self.obj_name == "workers-celery" and frequency_result is None:
-            # Testing backward compatibility of move from workers to workers.celery
-            assert (
-                jmespath.search(
-                    "spec.template.spec.containers[1].env[?name=='AIRFLOW__LOG_RETENTION_DAYS'].value | [0]",
-                    docs[0],
-                )
-                == "15"
             )
         else:
             assert len(jmespath.search("spec.template.spec.containers[1].env", docs[0])) == 3

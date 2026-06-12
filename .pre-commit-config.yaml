@@ -255,6 +255,18 @@ repos:
         files: ^\.github/workflows/ci-(arm|amd)\.yml$
         pass_filenames: false
         require_serial: true
+      - id: check-java-sdk-version-in-sync
+        name: Check Java SDK JDK version is consistent across build files
+        entry: ./scripts/ci/prek/check_java_sdk_version_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^\.github/workflows/ci-(arm|amd)\.yml$|
+          ^\.github/workflows/codeql-analysis\.yml$|
+          ^java-sdk/buildSrc/src/main/kotlin/airflow-jvm-conventions\.gradle\.kts$|
+          ^scripts/docker/install_jdk\.sh$
+        pass_filenames: false
+        require_serial: true
       - id: check-partition-mapper-defaults-in-sync
         name: Check partition-mapper core/SDK sync (FanOutMapper table + SegmentWindow/FixedKeyMapper)
         entry: ./scripts/ci/prek/check_partition_mapper_defaults_in_sync.py
@@ -391,6 +403,7 @@ repos:
           ^.*init_git_sync\.template\.yaml$|
           ^chart/(?:templates|files)/.*\.yaml$|
           ^chart/tests/chart_utils/keda.sh_scaledobjects\.yaml$|
+          ^chart/tests/chart_utils/gateway.networking.k8s.io_httproutes\.yaml$|
           .*/v1.*\.yaml$|
           ^.*openapi.*\.yaml$|
           ^\.pre-commit-config\.yaml$|
