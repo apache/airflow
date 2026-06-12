@@ -251,8 +251,8 @@ def _get_latest_dag_run_row_query(*, dag_id: str, info: DagRunInfo):
         # tick), not the partition_key string. partition_date is the canonical, format-
         # independent identity of a partition: a scheduled run and a backfill run for the
         # same tick always agree on it, even if partition_key is later formatted differently
-        # (e.g. relabelled in the timetable timezone). Keying on the string would let a
-        # backfill duplicate already-scheduled runs whenever the key format changed.
+        # (e.g. relabelled in the timetable timezone). Filtering by the string would let a
+        # backfill create duplicate runs whenever the key format changed.
         stmt = stmt.where(DagRun.partition_date == info.partition_date)
     if info.logical_date is not None:
         stmt = stmt.where(DagRun.logical_date == info.logical_date)
