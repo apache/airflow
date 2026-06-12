@@ -30,11 +30,8 @@ repositories {
     mavenCentral()
 }
 
-// Keep these in sync:
-// - jvmTarget, languageVersion, and sourceCompatibility here
-// - TEMURIN_VERSION in scripts/docker/install_jdk.sh
-// - JAVA_VERSION in .github/workflows/ci-amd.yml and .github/workflows/ci-arm.yml
-// - java-version in .github/workflows/codeql-analysis.yml
+// The versions below are kept in sync with the other build files by a pre-commit hook.
+// See: scripts/ci/prek/check_java_sdk_version_in_sync.py
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(11))
