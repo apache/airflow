@@ -17,9 +17,14 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from unittest import mock
+from unittest.mock import MagicMock, patch
 
 import pytest
 import structlog.testing
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from airflow.sdk import ResumableJobMixin
 from airflow.sdk.bases.operator import BaseOperator
@@ -198,6 +203,113 @@ class TestExternalIdKey:
         op.execute_resumable(make_context(task_state))
 
         assert task_state.get("my_custom_key") == "job-001"
+
+
+class TestMetrics:
+    _PATCH = "airflow.sdk._shared.observability.metrics.stats.incr"
+    _TAG = {"operator": "ConcreteResumableOperator"}
+
+    def test_fresh_submit_fires_only_fresh_submit_counter(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        mock_incr = MagicMock()
+        with patch(self._PATCH, mock_incr):
+            op.execute_resumable(make_context(FakeTaskState()))
+        called_names = [call.args[0] for call in mock_incr.call_args_list]
+        assert called_names == ["resumable_job.fresh_submit"]
+        mock_incr.assert_called_once_with("resumable_job.fresh_submit", tags=self._TAG)
+
+    def test_reconnect_fires_attempt_and_success(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = "RUNNING"
+        mock_incr = MagicMock()
+        with patch(self._PATCH, mock_incr):
+            op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
+        called_names = [call.args[0] for call in mock_incr.call_args_list]
+        assert "resumable_job.reconnect_attempt" in called_names
+        assert "resumable_job.reconnect_success" in called_names
+        assert "resumable_job.fresh_submit" not in called_names
+
+    def test_already_succeeded_fires_when_job_succeeded(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = "SUCCEEDED"
+        mock_incr = MagicMock()
+        with patch(self._PATCH, mock_incr):
+            op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
+        called_names = [call.args[0] for call in mock_incr.call_args_list]
+        assert "resumable_job.reconnect_attempt" in called_names
+        assert "resumable_job.already_succeeded" in called_names
+        assert "resumable_job.reconnect_success" not in called_names
+        assert "resumable_job.fresh_submit" not in called_names
+
+    def test_terminal_resubmit_fires_when_job_failed(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = "FAILED"
+        mock_incr = MagicMock()
+        with patch(self._PATCH, mock_incr):
+            op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
+        called_names = [call.args[0] for call in mock_incr.call_args_list]
+        assert "resumable_job.reconnect_attempt" in called_names
+        assert "resumable_job.terminal_resubmit" in called_names
+        assert "resumable_job.reconnect_success" not in called_names
+        assert "resumable_job.fresh_submit" not in called_names
+
+
+class TestTracing:
+    _MODULE_TRACER = "airflow.sdk.bases.resumablejobmixin.tracer"
+
+    def _make_tracing_provider(self) -> tuple[InMemorySpanExporter, TracerProvider]:
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        return exporter, provider
+
+    def _get_decision_span(self, exporter: InMemorySpanExporter):
+        spans = exporter.get_finished_spans()
+        return next((s for s in spans if s.name == "resumable_job.resume_decision"), None)
+
+    def _make_tracer(self):
+        exporter, provider = self._make_tracing_provider()
+        return exporter, provider.get_tracer("airflow.sdk.bases.resumablejobmixin")
+
+    def test_fresh_submit_span_attributes(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        exporter, module_tracer = self._make_tracer()
+        with mock.patch(self._MODULE_TRACER, module_tracer):
+            op.execute_resumable(make_context(FakeTaskState()))
+        span = self._get_decision_span(exporter)
+        assert span is not None
+        assert span.attributes["resumable.decision"] == "fresh_submit"
+        assert span.attributes["operator"] == "ConcreteResumableOperator"
+        assert span.attributes["resumable.external_id_key"] == "test_job_id"
+        assert "resumable.external_id" not in span.attributes
+
+    def test_reconnect_span_attributes(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = "RUNNING"
+        exporter, module_tracer = self._make_tracer()
+        with mock.patch(self._MODULE_TRACER, module_tracer):
+            op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
+        span = self._get_decision_span(exporter)
+        assert span is not None
+        assert span.attributes["resumable.decision"] == "reconnect"
+        assert span.attributes["resumable.external_id"] == "job-001"
+        assert span.attributes["resumable.prior_status"] == "RUNNING"
+
+    @pytest.mark.parametrize(
+        ("status", "expected_decision"),
+        [("SUCCEEDED", "already_succeeded"), ("FAILED", "terminal_resubmit")],
+    )
+    def test_non_active_stored_job_span_attributes(self, status, expected_decision):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = status
+        exporter, module_tracer = self._make_tracer()
+        with mock.patch(self._MODULE_TRACER, module_tracer):
+            op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
+        span = self._get_decision_span(exporter)
+        assert span is not None
+        assert span.attributes["resumable.decision"] == expected_decision
+        assert span.attributes["resumable.external_id"] == "job-001"
+        assert span.attributes["resumable.prior_status"] == status
 
 
 class TestLogging:
