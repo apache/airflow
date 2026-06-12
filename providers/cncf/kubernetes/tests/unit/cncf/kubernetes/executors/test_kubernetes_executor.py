@@ -20,7 +20,7 @@ import random
 import re
 import string
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 import pytest
@@ -2374,13 +2374,22 @@ class TestCleanupZombieKpoPods:
 
     @staticmethod
     def _make_pod(
-        dag_id, task_id, run_id, *, map_index=-1, try_number=1, name="test-pod", namespace="default"
+        dag_id,
+        task_id,
+        run_id,
+        *,
+        map_index=-1,
+        try_number=1,
+        name="test-pod",
+        namespace="default",
+        age_seconds=3600,
     ):
         from airflow.providers.cncf.kubernetes.pod_generator import make_safe_label_value
 
         pod = mock.MagicMock()
         pod.metadata.name = name
         pod.metadata.namespace = namespace
+        pod.metadata.creation_timestamp = datetime.now(timezone.utc) - timedelta(seconds=age_seconds)
         labels = {
             "dag_id": make_safe_label_value(dag_id),
             "task_id": make_safe_label_value(task_id),
@@ -2455,6 +2464,12 @@ class TestCleanupZombieKpoPods:
         pod.metadata.labels = {"kubernetes_pod_operator": "True"}
         pod.metadata.name = "bad-pod"
         pod.metadata.namespace = "default"
+        self._run_cleanup(pods=[pod], active_ti_rows=[])
+        self.kube_client.delete_namespaced_pod.assert_not_called()
+
+    def test_young_pod_skipped_by_age_guard(self):
+        """A pod younger than zombie_kpo_pod_cleanup_interval is never treated as a zombie."""
+        pod = self._make_pod("dag1", "task1", "run1", age_seconds=10)
         self._run_cleanup(pods=[pod], active_ti_rows=[])
         self.kube_client.delete_namespaced_pod.assert_not_called()
 

@@ -31,7 +31,7 @@ import multiprocessing
 import time
 from collections import Counter, defaultdict
 from contextlib import suppress
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any
 
@@ -860,13 +860,21 @@ class KubernetesExecutor(BaseExecutor):
         from airflow.providers.cncf.kubernetes.pod_generator import make_safe_label_value
         from airflow.utils.state import State
 
-        pod_list = self._list_pods({"label_selector": "kubernetes_pod_operator=True"})
+        pod_list = self._list_pods({
+            "label_selector": "kubernetes_pod_operator=True",
+            "field_selector": "status.phase=Running",
+        })
         if not pod_list:
             return
 
         # Parse pod labels.  Values were already normalized by make_safe_label_value()
         # at pod-creation time (operators/pod.py get_labels()), so they are ready to
         # compare directly against normalized DB values.
+        # Skip pods younger than one cleanup interval — a freshly started pod with no
+        # DB entry yet (e.g. during the submit→schedule gap, or in system tests) must
+        # not be mistaken for a zombie.
+        min_age = timedelta(seconds=float(self.kube_config.zombie_kpo_pod_cleanup_interval))
+        now_utc = datetime.now(timezone.utc)
         pod_identities = []
         for pod in pod_list:
             labels = pod.metadata.labels or {}
@@ -874,6 +882,9 @@ class KubernetesExecutor(BaseExecutor):
             task_id = labels.get("task_id")
             run_id = labels.get("run_id")
             if not (dag_id and task_id and run_id):
+                continue
+            created = pod.metadata.creation_timestamp
+            if created and (now_utc - created) < min_age:
                 continue
             map_index = int(labels.get("map_index", -1))
             try_number = int(labels.get("try_number", 0))
