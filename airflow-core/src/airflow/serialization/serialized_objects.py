@@ -694,9 +694,11 @@ class BaseSerialization:
             kwargs = deser["kwargs"]
             del deser
             if type_ == DAT.AIRFLOW_EXC_SER:
-                exc_cls = import_string(exc_cls_name)
+                exc_cls = _safe_import_for_deserialize(exc_cls_name, BaseException)
             else:
-                exc_cls = import_string(f"builtins.{exc_cls_name}")
+                exc_cls = _safe_import_for_deserialize(
+                    f"builtins.{exc_cls_name}", BaseException, allow_builtins=True
+                )
             return exc_cls(*args, **kwargs)
         elif type_ == DAT.BASE_TRIGGER:
             tr_cls_name, kwargs = cls.deserialize(var)
