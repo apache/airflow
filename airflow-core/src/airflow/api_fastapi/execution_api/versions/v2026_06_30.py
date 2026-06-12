@@ -64,3 +64,13 @@ class AddAwaitingInputStatePayload(VersionChange):
         schema(TIAwaitingInputStatePayload).field("next_kwargs").didnt_exist,
         schema(TIAwaitingInputStatePayload).field("rendered_map_index").didnt_exist,
     )
+
+
+class AddXcomBulkDeleteEndpoint(VersionChange):
+    """Add XCom bulk delete endpoint."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("xcoms/{dag_id}/{run_id}", ["DELETE"]).didnt_exist,
+    )

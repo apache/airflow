@@ -2011,6 +2011,7 @@ class TestTriggererMessageTypes:
             "CreateHITLDetailPayload",
             "PrevSuccessfulDagRunResult",
             "XComCountResponse",
+            "XComDeleteCountResult",
             "XComSequenceIndexResult",
             "XComSequenceSliceResult",
             "PreviousDagRunResult",
