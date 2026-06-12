@@ -71,32 +71,8 @@ class _AuthManagerState:
     _lock = threading.Lock()
 
 
-def _initialize_task_sdk_stats() -> None:
-    """
-    Initialize the Task SDK ``Stats`` singleton in the API server process.
-
-    Initialization is guarded so a metrics misconfiguration can never prevent the API server
-    from starting.
-    """
-    try:
-        from airflow._shared.observability.metrics import stats
-        from airflow.observability.metrics import stats_utils
-
-        stats.initialize(
-            factory=stats_utils.get_stats_factory(),
-            export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
-        )
-    except Exception:
-        log.warning(
-            "Failed to initialize Task SDK Stats in the API server; metrics emitted through the "
-            "Task SDK Stats singleton will not be recorded.",
-            exc_info=True,
-        )
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    _initialize_task_sdk_stats()
     async with AsyncExitStack() as stack:
         for route in app.routes:
             if isinstance(route, Mount) and isinstance(route.app, FastAPI):
