@@ -25,6 +25,7 @@ import time
 from asyncio import (
     FIRST_COMPLETED,
     AbstractEventLoop,
+    CancelledError,
     Future,
     Semaphore,
     Task,
@@ -86,9 +87,12 @@ class AsyncAwareExecutor(Executor):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
-            # On error/timeout path, bail immediately without waiting for in-flight tasks.
-            # Note: in-flight threads are abandoned, not killed.
-            self.shutdown(wait=False, cancel_futures=True)
+            # On error path, cancel futures but still wait briefly for them to
+            # process CancelledError and release resources (e.g., threading
+            # locks). Without waiting, cancelled tasks that hold _thread_lock
+            # never execute their finally blocks, permanently leaking the lock
+            # and causing subsequent comms.send() calls to deadlock.
+            self.shutdown(wait=True, cancel_futures=True)
         else:
             self.shutdown(wait=True)
 
@@ -103,7 +107,15 @@ class AsyncAwareExecutor(Executor):
                 task.cancel()
 
         if wait and self._async_tasks:
-            self._loop.run_until_complete(gather(*self._async_tasks, return_exceptions=True))
+            try:
+                self._loop.run_until_complete(
+                    wait_for(
+                        gather(*self._async_tasks, return_exceptions=True),
+                        timeout=10.0,
+                    )
+                )
+            except (TimeoutError, AsyncTimeoutError):
+                pass  # Best effort — don't hang forever
 
         self._thread_pool.shutdown(wait=wait, cancel_futures=cancel_futures)
 
@@ -126,8 +138,15 @@ class AsyncAwareExecutor(Executor):
             return wrap_future(self._thread_pool.submit(func, *args, **kwargs), loop=self._loop)
 
         async def guarded():
-            async with self._semaphore:
-                return await coro
+            try:
+                async with self._semaphore:
+                    return await coro
+            except CancelledError:
+                # If cancellation occurs while waiting for the semaphore,
+                # the inner coroutine was never awaited. Close it to prevent
+                # "coroutine was never awaited" RuntimeWarning.
+                coro.close()
+                raise
 
         task = self._loop.create_task(guarded())
         self._async_tasks.add(task)
