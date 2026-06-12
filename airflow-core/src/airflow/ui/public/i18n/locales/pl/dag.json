@@ -261,7 +261,7 @@
     "clearAll": {
       "resource": "cały magazyn zadań",
       "title": "Wyczyść cały magazyn zadań",
-      "warning": "Cały magazyn zadań zostanie wyczyszczony. Zadania, które używają tego magazynu do śledzenia zewnętrznej pracy, nie będą mogły jej wznowić bez ponownego uruchomienia od początku."
+      "warning": "Cały magazyn zadań zostanie wyczyszczony. Zadania, które używają tego magazynu do śledzenia zewnętrznej pracy, nie będą mogły jej wznowić bez ponownego uruchomienia."
     },
     "delete": "Usuń magazyn zadań",
     "deleteWarning": "Zadanie utraci te zapisane dane. Jeśli zadanie używa tego klucza do śledzenia zewnętrznej pracy (np. identyfikatora zewnętrznego zadania), nie będzie mogło jej wznowić.",
