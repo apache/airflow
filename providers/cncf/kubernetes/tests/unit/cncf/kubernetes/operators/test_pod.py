@@ -2451,6 +2451,58 @@ class TestKubernetesPodOperator:
         assert result.metadata.name == pod_2.metadata.name
 
 
+class TestInitContainerLogsTimeout:
+    """Regression tests: init_container_logs=True must not hang when pod stays Pending."""
+
+    @pytest.fixture(autouse=True)
+    def setup_tests(self, dag_maker):
+        self.dag_maker = dag_maker
+        self.create_pod_patch = patch(f"{POD_MANAGER_CLASS}.create_pod")
+        self.watch_pod_events_patch = patch(f"{POD_MANAGER_CLASS}.watch_pod_events")
+        self.await_pod_patch = patch(f"{POD_MANAGER_CLASS}.await_pod_start")
+        self.await_pod_completion_patch = patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+        self._default_client_patch = patch(f"{HOOK_CLASS}._get_default_client")
+        self.create_mock = self.create_pod_patch.start()
+        self.watch_pod_events_patch.start()
+        self.await_start_mock = self.await_pod_patch.start()
+        self.await_pod_mock = self.await_pod_completion_patch.start()
+        self._default_client_mock = self._default_client_patch.start()
+        yield
+        patch.stopall()
+
+    @patch(HOOK_CLASS, new=MagicMock)
+    @patch(f"{POD_MANAGER_CLASS}.fetch_requested_init_container_logs")
+    def test_await_init_containers_completion_passes_timeouts(self, mock_fetch_init_logs):
+        """await_init_containers_completion must forward startup/schedule timeouts."""
+        from airflow.providers.cncf.kubernetes.utils.pod_manager import PodLaunchTimeoutException
+
+        mock_fetch_init_logs.side_effect = PodLaunchTimeoutException("schedule timeout")
+
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            name="test",
+            task_id="task",
+            init_container_logs=True,
+            startup_timeout_seconds=42,
+            schedule_timeout_seconds=17,
+        )
+        with self.dag_maker(dag_id="dag") as dag:
+            k.dag = dag
+        dr = self.dag_maker.create_dagrun(run_id="test")
+        (ti,) = dr.task_instances
+        context = get_template_context(ti, k, session=self.dag_maker.session)
+        self.dag_maker.session.commit()
+
+        with pytest.raises(PodLaunchTimeoutException):
+            k.execute(context=context)
+
+        mock_fetch_init_logs.assert_called_once()
+        _, kwargs = mock_fetch_init_logs.call_args
+        assert kwargs["startup_timeout"] == 42
+        assert kwargs["schedule_timeout"] == 17
+
+
 class TestSuppress:
     def test__suppress(self, caplog):
         with _optionally_suppress(ValueError):
