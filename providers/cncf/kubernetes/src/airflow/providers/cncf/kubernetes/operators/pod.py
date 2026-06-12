@@ -725,9 +725,9 @@ class KubernetesPodOperator(BaseOperator):
                     operator=self,
                 )
 
-            self.await_init_containers_completion(pod=self.pod)
-
             self.await_pod_start(pod=self.pod)
+
+            self.await_init_containers_completion(pod=self.pod)
             if self.callbacks:
                 pod = self.find_pod(self.pod.metadata.namespace, context=context)
                 for callback in self.callbacks:
