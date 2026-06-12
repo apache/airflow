@@ -394,7 +394,17 @@ class CommandFactory:
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
         # This list is used to determine if the command/operation needs to output data
-        self.output_command_list = ["list", "get", "create", "delete", "update", "trigger", "add", "edit"]
+        self.output_command_list = [
+            "list",
+            "get",
+            "create",
+            "delete",
+            "update",
+            "trigger",
+            "add",
+            "edit",
+            "state",
+        ]
         self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
         self.exclude_method_names = [
             "error",
@@ -768,10 +778,14 @@ class CommandFactory:
                 # If not nested, return the object as a list which the result should be already a dict
                 return [dict_obj]
 
+            converted_output = convert_to_dict(method_output, api_operation["name"])
+            if api_operation["name"] == "state" and isinstance(converted_output, dict):
+                output_data = [converted_output]
+            else:
+                output_data = check_operation_and_collect_list_of_dict(converted_output)
+
             AirflowConsole().print_as(
-                data=check_operation_and_collect_list_of_dict(
-                    convert_to_dict(method_output, api_operation["name"])
-                ),
+                data=output_data,
                 output=args.output,
             )
 
@@ -1041,6 +1055,11 @@ core_commands: list[CLICommand] = [
         name="pools",
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
+    ),
+    GroupCommand(
+        name="tasks",
+        help="Manage Airflow task instances",
+        subcommands=(),
     ),
     ActionCommand(
         name="version",

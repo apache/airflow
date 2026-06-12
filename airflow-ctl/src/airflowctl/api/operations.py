@@ -68,6 +68,7 @@ from airflowctl.api.datamodels.generated import (
     ProviderCollectionResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskInstanceResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -785,6 +786,21 @@ class VersionOperations(BaseOperations):
         try:
             self.response = self.client.get("version")
             return VersionInfo.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+
+class TasksOperations(BaseOperations):
+    """Task instance operations."""
+
+    def state(
+        self, dag_id: str, dag_run_id: str, task_id: str
+    ) -> dict[str, str | None] | ServerResponseError:
+        """Get the state of a task instance."""
+        try:
+            self.response = self.client.get(f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}")
+            task_instance = TaskInstanceResponse.model_validate_json(self.response.content)
+            return {"state": task_instance.state.value if task_instance.state is not None else None}
         except ServerResponseError as e:
             raise e
 
