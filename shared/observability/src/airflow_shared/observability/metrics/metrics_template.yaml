@@ -178,7 +178,7 @@ metrics:
 
   - name: "scheduler.executor_events.failed"
     description: "Number of times ``process_executor_events`` raised an exception.
-    Metric with reason tagging."
+    Metric with exception_class tagging."
     type: "counter"
     legacy_name: "-"
     name_variables: []
