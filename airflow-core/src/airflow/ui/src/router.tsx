@@ -47,6 +47,7 @@ import { GroupTaskInstance } from "src/pages/GroupTaskInstance";
 import { HITLTaskInstances } from "src/pages/HITLTaskInstances";
 import { Jobs } from "src/pages/Jobs";
 import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
+import { Details as MappedTaskInstanceDetails } from "src/pages/MappedTaskInstance/Details";
 import { Plugins } from "src/pages/Plugins";
 import { Pools } from "src/pages/Pools";
 import { Providers } from "src/pages/Providers";
@@ -216,7 +217,10 @@ export const routerConfig = [
         path: "dags/:dagId/runs/:runId/tasks/:taskId",
       },
       {
-        children: [{ element: <TaskInstances />, index: true }],
+        children: [
+          { element: <TaskInstances />, index: true },
+          { element: <MappedTaskInstanceDetails />, path: "details" },
+        ],
         element: <MappedTaskInstance />,
         path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped",
       },
