@@ -20,6 +20,8 @@ import uuid
 
 import pytest
 from pydantic import TypeAdapter
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import sessionmaker
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
@@ -258,6 +260,53 @@ class TestDagRunContext:
         # Relationship should be normalized to a safe iterable.
         assert events is not None
         assert isinstance(events, list)
+
+    def test_dagrun_context_consumed_asset_events_with_invalidated_transaction(self, session):
+        """
+        DagRunContext should not fail when the DagRun is attached to a session whose
+        transaction has been invalidated by a prior database error.
+
+        Lazy-loading a relationship on such a session raises PendingRollbackError,
+        which is a SQLAlchemyError but not a DetachedInstanceError, so the reload
+        fallback must catch SQLAlchemyError broadly to produce the context.
+        """
+        independent_session = sessionmaker(bind=session.get_bind(), expire_on_commit=False)()
+        current_time = timezone.utcnow()
+        dag_run = DagRun(
+            dag_id="test_dag",
+            run_id="test_run_invalidated_transaction",
+            logical_date=current_time,
+            state="running",
+            run_type="manual",
+        )
+        independent_session.add(dag_run)
+        independent_session.commit()
+
+        try:
+            # A failed flush (duplicate dag_id/run_id) poisons the session; further
+            # SQL raises PendingRollbackError until rollback.
+            independent_session.add(
+                DagRun(
+                    dag_id="test_dag",
+                    run_id="test_run_invalidated_transaction",
+                    logical_date=current_time,
+                    state="running",
+                    run_type="manual",
+                )
+            )
+            with pytest.raises(IntegrityError):
+                independent_session.flush()
+
+            context = DagRunContext(dag_run=dag_run, last_ti=None)
+
+            events = context.dag_run.consumed_asset_events
+
+            # Relationship should be normalized to a safe iterable.
+            assert events is not None
+            assert isinstance(events, list)
+        finally:
+            independent_session.rollback()
+            independent_session.close()
 
 
 class TestDagCallbackRequestWithContext:
