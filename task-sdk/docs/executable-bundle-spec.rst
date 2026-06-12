@@ -68,7 +68,7 @@ where ``metadata_start = file_size - 64 - metadata_len`` and
 Reference Implementation
 ------------------------
 
-Below is a simple imeplementation to append the trailer with Python as a
+Below is a simple implementation to append the trailer with Python as a
 reference when building your own packer. A language SDK is encouraged to
 integrate trailer-packing into the build process to streamline the experience
 for SDK users. Go SDK's ``airflow-go-pack`` is a good example.
