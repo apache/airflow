@@ -37,7 +37,7 @@ from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.task_store import TaskStoreModel
+from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.db_cleanup import (
@@ -882,7 +882,7 @@ def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
 @pytest.mark.db_test
 class TestTaskStoreCleanup:
     def test_expired_rows_deleted(self):
-        cfg = config_dict["task_store"]
+        cfg = config_dict["task_state_store"]
         now = pendulum.now(tz="UTC")
         past = now.subtract(days=30)
         future = now.add(days=30)
@@ -906,7 +906,7 @@ class TestTaskStoreCleanup:
             session.add(dag_run)
             session.flush()
 
-            expired = TaskStoreModel(
+            expired = TaskStateStoreModel(
                 dag_run_id=dag_run.id,
                 task_id="t1",
                 map_index=-1,
@@ -917,7 +917,7 @@ class TestTaskStoreCleanup:
                 updated_at=past,
                 expires_at=past.subtract(days=1),
             )
-            never_expire = TaskStoreModel(
+            never_expire = TaskStateStoreModel(
                 dag_run_id=dag_run.id,
                 task_id="t1",
                 map_index=-1,
@@ -928,7 +928,7 @@ class TestTaskStoreCleanup:
                 updated_at=past,
                 expires_at=None,
             )
-            not_yet_expired = TaskStoreModel(
+            not_yet_expired = TaskStateStoreModel(
                 dag_run_id=dag_run.id,
                 task_id="t1",
                 map_index=-1,
@@ -958,7 +958,7 @@ class TestTaskStoreCleanup:
             not_deleted = {
                 row.key
                 for row in session.scalars(
-                    select(TaskStoreModel).where(TaskStoreModel.dag_id == "ts_test_dag")
+                    select(TaskStateStoreModel).where(TaskStateStoreModel.dag_id == "ts_test_dag")
                 ).all()
             }
 

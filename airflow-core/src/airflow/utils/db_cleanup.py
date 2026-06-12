@@ -140,7 +140,7 @@ config_list: list[_TableConfig] = [
         keep_last=True,
         keep_last_filters=[column("run_type") != DagRunType.MANUAL],
         keep_last_group_by=["dag_id"],
-        dependent_tables=["task_instance", "task_store", "deadline"],
+        dependent_tables=["task_instance", "task_state_store", "deadline"],
     ),
     _TableConfig(table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="import_error", recency_column_name="timestamp"),
@@ -156,7 +156,7 @@ config_list: list[_TableConfig] = [
         table_name="task_instance_history", recency_column_name="start_date", dag_id_column_name="dag_id"
     ),
     _TableConfig(
-        table_name="task_store",
+        table_name="task_state_store",
         recency_column_name="expires_at",
         dag_id_column_name="dag_id",
     ),

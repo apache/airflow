@@ -2,7 +2,7 @@
   "additional_data": "Additional Data",
   "asset_many": "Assets",
   "asset_one": "Asset",
-  "assetStore": {
+  "assetStateStore": {
     "add": "Add Asset Store",
     "clearAll": {
       "resource": "all asset store",

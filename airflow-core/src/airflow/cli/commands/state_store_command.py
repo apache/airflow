@@ -19,18 +19,18 @@ from __future__ import annotations
 import logging
 
 from airflow.state import get_state_backend
-from airflow.state.metastore import MetastoreStoreBackend
+from airflow.state.metastore import MetastoreStateStoreBackend
 
 log = logging.getLogger(__name__)
 
 # Other state operations (list, get, delete per key) will be added here in the future.
 
 
-def cleanup_task_store(args) -> None:
-    """Remove expired task store rows (MetastoreStoreBackend only)."""
+def cleanup_task_state_store(args) -> None:
+    """Remove expired task state store rows (MetastoreStateStoreBackend only)."""
     backend = get_state_backend()
 
-    if not isinstance(backend, MetastoreStoreBackend):
+    if not isinstance(backend, MetastoreStateStoreBackend):
         print("Custom backend configured — skipping cleanup (not supported).")
         return
 
@@ -40,10 +40,10 @@ def cleanup_task_store(args) -> None:
         if not expired:
             print("Nothing to delete.")
             return
-        print(f"Would delete {len(expired)} task store row(s):\n")
+        print(f"Would delete {len(expired)} task state store row(s):\n")
         for dag_id, run_id, task_id, map_index, key in expired:
             print(f"  Dag {dag_id!r}, run {run_id!r}, task {task_id!r}, map_index {map_index!r}, key {key!r}")
         return
 
-    log.info("Running task store cleanup")
+    log.info("Running task state store cleanup")
     backend.cleanup()

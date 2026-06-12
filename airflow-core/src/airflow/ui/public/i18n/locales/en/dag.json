@@ -232,7 +232,7 @@
     "runs": "Runs",
     "storage": "Storage",
     "taskInstances": "Task Instances",
-    "taskStore": "Task Store",
+    "taskStateStore": "Task Store",
     "tasks": "Tasks",
     "xcom": "XCom"
   },
@@ -240,7 +240,7 @@
     "collapseAll": "Collapse all task groups",
     "expandAll": "Expand all task groups"
   },
-  "taskStore": {
+  "taskStateStore": {
     "add": "Add Task Store",
     "clearAll": {
       "resource": "all task store",
