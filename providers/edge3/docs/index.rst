@@ -57,6 +57,7 @@
 
     Configuration <configurations-ref>
     CLI <cli-ref>
+    airflowctl <airflowctl-ref>
     Python API <_api/airflow/providers/edge3/index>
     Edge Worker REST API <edge-api-ref>
 

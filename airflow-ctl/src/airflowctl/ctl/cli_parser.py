@@ -39,6 +39,7 @@ from airflowctl.ctl.cli_config import (
     DefaultHelpParser,
     GroupCommand,
     GroupCommandParser,
+    add_auth_token_to_all_commands,
     core_commands,
 )
 from airflowctl.exceptions import AirflowCtlException
@@ -50,9 +51,92 @@ if TYPE_CHECKING:
         CLICommand,
     )
 
-airflow_commands = core_commands.copy()  # make a copy to prevent bad interactions in tests
-
 log = logging.getLogger(__name__)
+
+#: Entry-point group used by every Airflow provider to expose its
+#: ``get_provider_info`` function. ``airflowctl`` reuses it: each provider's
+#: ``get_provider_info()`` returns a dict whose ``ctl`` key (when present)
+#: lists the import paths of factories that produce airflowctl commands.
+#: This mirrors how core Airflow's ``ProvidersManager._discover_cli_command``
+#: consumes the ``cli`` key — see ``contributing-docs/27_cli_implementation_guide.rst``
+#: for the AIP-94 direction.
+APACHE_AIRFLOW_PROVIDER_ENTRY_POINT_GROUP = "apache_airflow_provider"
+
+#: Key inside each provider's ``get_provider_info()`` dict that lists the
+#: airflowctl command factory paths. Mirrors the ``cli`` key consumed by
+#: core Airflow's CLI.
+PROVIDER_INFO_CTL_KEY = "ctl"
+
+
+def _discover_provider_commands() -> list[CLICommand]:
+    """
+    Discover provider-contributed airflowctl commands.
+
+    Walks the ``apache_airflow_provider`` entry-point group, calls each
+    provider's ``get_provider_info()`` to read its ``ctl`` field, and
+    lazily imports the factory functions listed there. Each factory is a
+    zero-argument callable returning ``list[CLICommand]``.
+
+    A failure on one provider logs a warning and the loop continues, so a
+    broken provider cannot take down ``airflowctl``.
+    """
+    from importlib.metadata import entry_points
+
+    from airflowctl.utils.module_loading import import_string
+
+    discovered: list[CLICommand] = []
+    try:
+        eps = entry_points(group=APACHE_AIRFLOW_PROVIDER_ENTRY_POINT_GROUP)
+    except Exception as exc:
+        log.warning("Failed to enumerate %s entry points: %s", APACHE_AIRFLOW_PROVIDER_ENTRY_POINT_GROUP, exc)
+        return discovered
+
+    for ep in eps:
+        try:
+            get_provider_info = ep.load()
+            info = get_provider_info()
+        except Exception as exc:
+            log.warning("Failed to load provider info from %s (%s): %s", ep.name, ep.value, exc)
+            continue
+        if not isinstance(info, dict):
+            log.warning(
+                "Provider %s returned %s from get_provider_info, expected dict; skipping",
+                ep.name,
+                type(info).__name__,
+            )
+            continue
+        ctl_paths = info.get(PROVIDER_INFO_CTL_KEY) or []
+        if not isinstance(ctl_paths, list):
+            log.warning(
+                "Provider %s returned %s for %r, expected list[str]; skipping",
+                ep.name,
+                type(ctl_paths).__name__,
+                PROVIDER_INFO_CTL_KEY,
+            )
+            continue
+        for path in ctl_paths:
+            try:
+                factory = import_string(path)
+                commands = factory()
+            except Exception as exc:
+                log.warning("Failed to load ctl factory %r from provider %s: %s", path, ep.name, exc)
+                continue
+            if not isinstance(commands, list):
+                log.warning(
+                    "ctl factory %r returned %s, expected list[CLICommand]; skipping",
+                    path,
+                    type(commands).__name__,
+                )
+                continue
+            discovered.extend(commands)
+    return discovered
+
+
+airflow_commands: list[CLICommand] = list(core_commands)
+# Provider-contributed commands need the same ``--api-token`` arg as core
+# commands. ``add_auth_token_to_all_commands`` is idempotent, so this is safe
+# even though ``core_commands`` was already decorated in ``cli_config``.
+airflow_commands.extend(add_auth_token_to_all_commands(_discover_provider_commands()))
 
 
 ALL_COMMANDS_DICT: dict[str, CLICommand] = {

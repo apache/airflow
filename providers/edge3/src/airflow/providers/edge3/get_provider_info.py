@@ -33,6 +33,7 @@ def get_provider_info():
             }
         ],
         "cli": ["airflow.providers.edge3.cli.definition.get_edge_cli_commands"],
+        "ctl": ["airflow.providers.edge3.ctl.definition.get_edge_airflowctl_commands"],
         "executors": ["airflow.providers.edge3.executors.EdgeExecutor"],
         "db-managers": ["airflow.providers.edge3.models.db.EdgeDBManager"],
         "config": {
