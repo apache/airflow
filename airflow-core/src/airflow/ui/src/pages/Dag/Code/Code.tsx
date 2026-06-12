@@ -20,6 +20,7 @@ import { Box, Button, Heading, HStack, Link, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
+import { MdOutlineOpenInFull } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
 import {
@@ -34,7 +35,7 @@ import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Editor, { type EditorProps } from "src/components/MonacoEditor";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardButton, Tooltip, ProgressBar } from "src/components/ui";
+import { ClipboardRoot, ClipboardButton, Dialog, IconButton, Tooltip, ProgressBar } from "src/components/ui";
 import { useMonacoTheme } from "src/context/colorMode";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useConfig } from "src/queries/useConfig";
@@ -76,6 +77,7 @@ export const Code = () => {
   const [wrap, setWrap] = useState(defaultWrap);
   const [compareVersionNumber, setCompareVersionNumber] = useState<number | undefined>(undefined);
   const [isCompareDropdownOpen, setIsCompareDropdownOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const isDiffMode = compareVersionNumber !== undefined;
 
@@ -102,6 +104,7 @@ export const Code = () => {
   );
 
   const toggleWrap = () => setWrap(!wrap);
+  const toggleFullscreen = () => setIsFullscreen((prev) => !prev);
   const toggleCompareDropdown = () => setIsCompareDropdownOpen(!isCompareDropdownOpen);
   const exitDiffMode = () => {
     setCompareVersionNumber(undefined);
@@ -115,6 +118,7 @@ export const Code = () => {
   const { beforeMount, theme } = useMonacoTheme();
 
   useHotkeys("w", toggleWrap);
+  useHotkeys("f", toggleFullscreen);
 
   const editorOptions: EditorProps["options"] = {
     automaticLayout: true,
@@ -136,98 +140,16 @@ export const Code = () => {
 
   const hasMultipleVersions = (dagVersions?.dag_versions.length ?? 0) >= 2;
 
-  return (
-    <Box h="100%" overflow="hidden">
-      <HStack justifyContent="space-between" mt={2}>
-        <HStack gap={5}>
-          {dag?.last_parsed_time !== undefined && (
-            <Heading as="h4" fontSize="14px" size="md">
-              {translate("code.parsedAt")} <Time datetime={dag.last_parsed_time} />
-            </Heading>
-          )}
-          {dag?.last_parse_duration !== undefined && (
-            <Heading as="h4" fontSize="14px" size="md">
-              {translate("code.parseDuration")} {renderDuration(dag.last_parse_duration)}
-            </Heading>
-          )}
+  // Show an empty state on 404 instead of an error
+  const displayedCode =
+    codeError?.status === 404 && !Boolean(code?.content) ? translate("code.noCode") : (code?.content ?? "");
+  const displayedCompareCode =
+    compareCodeError?.status === 404 && !Boolean(compareCode?.content)
+      ? translate("code.noCode")
+      : (compareCode?.content ?? "");
 
-          {dagVersion !== undefined && dagVersion.bundle_version !== null ? (
-            <Heading as="h4" fontSize="14px" size="md" wordBreak="break-word">
-              {translate("dagDetails.bundleVersion")}
-              {": "}
-              {dagVersion.bundle_url === null ? (
-                dagVersion.bundle_version
-              ) : (
-                <Link
-                  aria-label={translate("code.bundleUrl")}
-                  color="fg.info"
-                  href={dagVersion.bundle_url}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
-                  {dagVersion.bundle_version}
-                </Link>
-              )}
-            </Heading>
-          ) : undefined}
-        </HStack>
-        <VStack gap={2} position="relative">
-          <HStack flexWrap="wrap" gap={2}>
-            <DagVersionSelect showLabel={false} />
-            <ClipboardRoot value={code?.content ?? ""}>
-              <ClipboardButton />
-            </ClipboardRoot>
-            <Tooltip
-              closeDelay={100}
-              content={translate("common:wrap.tooltip", { hotkey: "w" })}
-              openDelay={100}
-            >
-              <Button
-                aria-label={translate(`common:wrap.${wrap ? "un" : ""}wrap`)}
-                onClick={toggleWrap}
-                variant="outline"
-              >
-                {translate(`common:wrap.${wrap ? "un" : ""}wrap`)}
-              </Button>
-            </Tooltip>
-            {hasMultipleVersions ? (
-              <Button
-                aria-label={translate("common:diff")}
-                onClick={toggleCompareDropdown}
-                variant={isCompareDropdownOpen ? "solid" : "outline"}
-              >
-                {translate("common:diff")}
-              </Button>
-            ) : undefined}
-            {isDiffMode ? (
-              <Button aria-label={translate("common:diffExit")} onClick={exitDiffMode} variant="solid">
-                {translate("common:diffExit")}
-              </Button>
-            ) : undefined}
-          </HStack>
-          {isCompareDropdownOpen ? (
-            <Box
-              bg="bg.panel"
-              borderRadius="md"
-              insetInlineEnd={0}
-              mt={4}
-              p={2}
-              position="absolute"
-              shadow="sm"
-              top="100%"
-              zIndex={10}
-            >
-              <VersionCompareSelect
-                label={translate("common:diffCompareWith")}
-                onVersionChange={handleVersionChange}
-                placeholder={translate("common:diffSelectVersionToCompare")}
-                selectedVersionNumber={compareVersionNumber}
-              />
-            </Box>
-          ) : undefined}
-        </VStack>
-      </HStack>
-      {/* We want to show an empty state on 404 instead of an error */}
+  const codeStatus = (
+    <>
       <ErrorAlert
         error={
           error ??
@@ -239,52 +161,179 @@ export const Code = () => {
         size="xs"
         visibility={isLoading || isCodeLoading || isCompareCodeLoading ? "visible" : "hidden"}
       />
+    </>
+  );
 
-      {isDiffMode ? (
-        <Box dir="ltr" height="full">
-          {dag?.fileloc !== undefined && (
-            <FileLocation fileloc={dag.fileloc} relativeFileloc={dag.relative_fileloc} />
-          )}
-          <CodeDiffViewer
-            modifiedCode={
-              codeError?.status === 404 && !Boolean(code?.content)
-                ? translate("code.noCode")
-                : (code?.content ?? "")
-            }
-            originalCode={
-              compareCodeError?.status === 404 && !Boolean(compareCode?.content)
-                ? translate("code.noCode")
-                : (compareCode?.content ?? "")
-            }
-          />
-        </Box>
-      ) : (
-        <Box
-          css={{
-            "& *::selection": {
-              bg: "gray.emphasized",
-            },
-          }}
-          dir="ltr"
-          fontSize="14px"
-          height="full"
-        >
-          {dag?.fileloc !== undefined && (
-            <FileLocation fileloc={dag.fileloc} relativeFileloc={dag.relative_fileloc} />
-          )}
-          <Editor
-            beforeMount={beforeMount}
-            language="python"
-            options={editorOptions}
-            theme={theme}
-            value={
-              codeError?.status === 404 && !Boolean(code?.content)
-                ? translate("code.noCode")
-                : (code?.content ?? "")
-            }
-          />
-        </Box>
+  const codeContent = isDiffMode ? (
+    <Box dir="ltr" display="flex" flex={1} flexDirection="column" minH={0}>
+      {dag?.fileloc !== undefined && (
+        <FileLocation fileloc={dag.fileloc} relativeFileloc={dag.relative_fileloc} />
       )}
+      <Box flex={1} minH={0}>
+        <CodeDiffViewer modifiedCode={displayedCode} originalCode={displayedCompareCode} />
+      </Box>
+    </Box>
+  ) : (
+    <Box
+      css={{
+        "& *::selection": {
+          bg: "gray.emphasized",
+        },
+      }}
+      dir="ltr"
+      display="flex"
+      flex={1}
+      flexDirection="column"
+      fontSize="14px"
+      minH={0}
+    >
+      {dag?.fileloc !== undefined && (
+        <FileLocation fileloc={dag.fileloc} relativeFileloc={dag.relative_fileloc} />
+      )}
+      <Box flex={1} minH={0}>
+        <Editor
+          beforeMount={beforeMount}
+          language="python"
+          options={editorOptions}
+          theme={theme}
+          value={displayedCode}
+        />
+      </Box>
+    </Box>
+  );
+
+  const codeHeader = (
+    <HStack justifyContent="space-between" mt={2}>
+      <HStack gap={5}>
+        {dag?.last_parsed_time !== undefined && (
+          <Heading as="h4" fontSize="14px" size="md">
+            {translate("code.parsedAt")} <Time datetime={dag.last_parsed_time} />
+          </Heading>
+        )}
+        {dag?.last_parse_duration !== undefined && (
+          <Heading as="h4" fontSize="14px" size="md">
+            {translate("code.parseDuration")} {renderDuration(dag.last_parse_duration)}
+          </Heading>
+        )}
+
+        {dagVersion !== undefined && dagVersion.bundle_version !== null ? (
+          <Heading as="h4" fontSize="14px" size="md" wordBreak="break-word">
+            {translate("dagDetails.bundleVersion")}
+            {": "}
+            {dagVersion.bundle_url === null ? (
+              dagVersion.bundle_version
+            ) : (
+              <Link
+                aria-label={translate("code.bundleUrl")}
+                color="fg.info"
+                href={dagVersion.bundle_url}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                {dagVersion.bundle_version}
+              </Link>
+            )}
+          </Heading>
+        ) : undefined}
+      </HStack>
+      <VStack gap={2} position="relative">
+        <HStack flexWrap="wrap" gap={2}>
+          <DagVersionSelect showLabel={false} />
+          <ClipboardRoot value={code?.content ?? ""}>
+            <ClipboardButton />
+          </ClipboardRoot>
+          <Tooltip
+            closeDelay={100}
+            content={translate("common:wrap.tooltip", { hotkey: "w" })}
+            openDelay={100}
+          >
+            <Button
+              aria-label={translate(`common:wrap.${wrap ? "un" : ""}wrap`)}
+              onClick={toggleWrap}
+              variant="outline"
+            >
+              {translate(`common:wrap.${wrap ? "un" : ""}wrap`)}
+            </Button>
+          </Tooltip>
+          {isFullscreen ? undefined : (
+            <IconButton
+              label={translate("logs.fullscreen.tooltip", { hotkey: "f" })}
+              onClick={toggleFullscreen}
+              variant="outline"
+            >
+              <MdOutlineOpenInFull />
+            </IconButton>
+          )}
+          {hasMultipleVersions ? (
+            <Button
+              aria-label={translate("common:diff")}
+              onClick={toggleCompareDropdown}
+              variant={isCompareDropdownOpen ? "solid" : "outline"}
+            >
+              {translate("common:diff")}
+            </Button>
+          ) : undefined}
+          {isDiffMode ? (
+            <Button aria-label={translate("common:diffExit")} onClick={exitDiffMode} variant="solid">
+              {translate("common:diffExit")}
+            </Button>
+          ) : undefined}
+        </HStack>
+        {isCompareDropdownOpen ? (
+          <Box
+            bg="bg.panel"
+            borderRadius="md"
+            insetInlineEnd={0}
+            mt={4}
+            p={2}
+            position="absolute"
+            shadow="sm"
+            top="100%"
+            zIndex={10}
+          >
+            <VersionCompareSelect
+              label={translate("common:diffCompareWith")}
+              onVersionChange={handleVersionChange}
+              placeholder={translate("common:diffSelectVersionToCompare")}
+              selectedVersionNumber={compareVersionNumber}
+            />
+          </Box>
+        ) : undefined}
+      </VStack>
+    </HStack>
+  );
+
+  return (
+    <Box display="flex" flexDirection="column" h="100%" overflow="hidden">
+      {codeHeader}
+      {codeStatus}
+      {codeContent}
+      <Dialog.Root
+        onOpenChange={() => setIsFullscreen(false)}
+        open={isFullscreen}
+        scrollBehavior="inside"
+        size="full"
+      >
+        {isFullscreen ? (
+          // size="full" gives the content only a min-height, which is not a definite
+          // height for flex children — without an explicit height the editor collapses.
+          <Dialog.Content backdrop h="100dvh">
+            <Dialog.Header width="100%">
+              <Box display="flex" flexDirection="column" width="100%">
+                <Heading size="xl">{dagId}</Heading>
+                {codeHeader}
+              </Box>
+            </Dialog.Header>
+
+            <Dialog.CloseTrigger />
+
+            <Dialog.Body display="flex" flexDirection="column" minH={0}>
+              {codeStatus}
+              {codeContent}
+            </Dialog.Body>
+          </Dialog.Content>
+        ) : undefined}
+      </Dialog.Root>
     </Box>
   );
 };
