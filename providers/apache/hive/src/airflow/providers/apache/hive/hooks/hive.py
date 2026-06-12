@@ -92,7 +92,7 @@ class HiveCliHook(BaseHook):
     :param jdbc_params: Additional JDBC parameters to append to the Beeline URL.
         Parameter names must start with a letter, contain only letters, digits,
         dots, underscores, or hyphens, and not end in a separator. Values must
-        not contain semicolons.
+        be strings. Empty strings are ignored; semicolons are rejected.
     :param proxy_user: Run HQL code as this user.
     """
 
@@ -109,7 +109,7 @@ class HiveCliHook(BaseHook):
         mapred_job_name: str | None = None,
         hive_cli_params: str = "",
         auth: str | None = None,
-        jdbc_params: Mapping[str, Any] | None = None,
+        jdbc_params: Mapping[str, str] | None = None,
         proxy_user: str | None = None,
     ) -> None:
         super().__init__()
@@ -229,11 +229,15 @@ class HiveCliHook(BaseHook):
                 raise ValueError(
                     f"Invalid JDBC parameter name {name!r}: must match {JDBC_PARAMETER_NAME_PATTERN.pattern}"
                 )
-            if value is None or ";" in str(value):
-                raise ValueError(
-                    f"Invalid JDBC parameter value for {name!r}: must not be None or contain ';'"
-                )
+            if not isinstance(value, str):
+                raise ValueError(f"Invalid JDBC parameter value for {name!r}: must be a string")
+            if value == "":
+                continue
+            if ";" in value:
+                raise ValueError(f"Invalid JDBC parameter value for {name!r}: must not contain ';'")
             segments.append(f"{name}={value}")
+        if not segments:
+            return jdbc_url
         separator = "" if jdbc_url.endswith(";") else ";"
         return f"{jdbc_url}{separator}" + ";".join(segments)
 
