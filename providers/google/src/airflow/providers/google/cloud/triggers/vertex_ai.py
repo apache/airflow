@@ -31,7 +31,7 @@ from google.cloud.aiplatform_v1 import (
 )
 
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineHook
+from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineAsyncHook
 from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import BatchPredictionJobAsyncHook
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobAsyncHook
 from airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job import (
@@ -166,8 +166,8 @@ class AgentEngineDeleteTrigger(BaseTrigger):
         )
 
     @cached_property
-    def hook(self) -> AgentEngineHook:
-        return AgentEngineHook(
+    def async_hook(self) -> AgentEngineAsyncHook:
+        return AgentEngineAsyncHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
@@ -176,8 +176,7 @@ class AgentEngineDeleteTrigger(BaseTrigger):
         start_time = time.monotonic()
         try:
             while True:
-                deleted = await asyncio.to_thread(
-                    self.hook.is_agent_engine_deleted,
+                deleted = await self.async_hook.is_agent_engine_deleted(
                     project_id=self.project_id,
                     location=self.location,
                     name=self.name,

@@ -60,7 +60,7 @@ class TestAgentEngineDeleteTrigger:
         )
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineHook", autospec=True)
+    @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineAsyncHook", autospec=True)
     async def test_run_loop_return_success_event(self, mock_hook, delete_trigger):
         mock_hook.return_value.is_agent_engine_deleted.return_value = True
 
@@ -81,7 +81,7 @@ class TestAgentEngineDeleteTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.asyncio.sleep", autospec=True)
-    @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineHook", autospec=True)
+    @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineAsyncHook", autospec=True)
     async def test_run_loop_return_timeout_event(self, mock_hook, mock_sleep, delete_trigger):
         delete_trigger.timeout = -1
         mock_hook.return_value.is_agent_engine_deleted.return_value = False
@@ -98,7 +98,7 @@ class TestAgentEngineDeleteTrigger:
         )
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineHook", autospec=True)
+    @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineAsyncHook", autospec=True)
     async def test_run_loop_return_error_event(self, mock_hook, delete_trigger):
         mock_hook.return_value.is_agent_engine_deleted.side_effect = RuntimeError("boom")
 
