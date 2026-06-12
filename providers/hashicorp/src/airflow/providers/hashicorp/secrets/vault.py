@@ -255,7 +255,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             if hasattr(Connection, "from_uri"):
                 return Connection.from_uri(uri, conn_id=conn_id)
             try:
-                return Connection(conn_id=conn_id, uri=uri)
+                return Connection(conn_id=conn_id, uri=uri)  # type: ignore[call-arg]
             except (TypeError, ValueError):
                 self.log.warning(
                     "Cannot deserialize conn_uri for connection '%s': upgrade to Airflow 3.2+ "
