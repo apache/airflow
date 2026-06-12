@@ -183,12 +183,23 @@ class TriggerRuleDep(BaseTIDep):
             # each instance must depend on the upstream instance(s) that share its
             # map index, otherwise a single upstream failure would wrongly trigger
             # every expanded instance (see #50210).
+            #
+            # For non-fast-triggered rules (e.g. ALL_SUCCESS), the summary ti must
+            # also avoid the placeholder-to-index-0 rewrite introduced for XCom
+            # resolution. If the rewrite applied here, the trigger rule would see
+            # only the first expanded upstream instance (index 0), so a failure at
+            # index 0 would prematurely mark the summary ti as upstream_failed and
+            # block expansion. Instead we return the summary ti's own map_index (-1),
+            # which refers to the upstream placeholder that no longer exists after
+            # expansion. The trigger rule therefore sees no relevant instances and
+            # passes, allowing the summary ti to expand normally so that each
+            # resulting instance can be evaluated per-index (see #68417).
             if is_mapped(task.task_group) and ti.map_index < 0:
                 is_fast_triggered = task.trigger_rule in (TR.ONE_SUCCESS, TR.ONE_FAILED, TR.ONE_DONE)
-                if is_fast_triggered and upstream_id not in set(
-                    _iter_expansion_dependencies(task_group=task.task_group)
-                ):
-                    return None
+                if upstream_id not in set(_iter_expansion_dependencies(task_group=task.task_group)):
+                    if is_fast_triggered:
+                        return None
+                    return ti.map_index
 
             try:
                 expanded_ti_count = _get_expanded_ti_count()
