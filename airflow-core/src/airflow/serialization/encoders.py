@@ -27,6 +27,7 @@ import pendulum
 
 from airflow._shared.module_loading import qualname
 from airflow.partition_mappers.base import PartitionMapper as CorePartitionMapper
+from airflow.partition_mappers.wait_policy import WaitPolicy as CoreWaitPolicy
 from airflow.partition_mappers.window import Window as CoreWindow
 from airflow.sdk import (
     AllowedKeyMapper,
@@ -46,6 +47,7 @@ from airflow.sdk import (
     FixedKeyMapper,
     HourWindow,
     IdentityMapper,
+    MinimumCount,
     MonthWindow,
     MultipleCronTriggerTimetable,
     PartitionMapper,
@@ -59,6 +61,7 @@ from airflow.sdk import (
     StartOfQuarterMapper,
     StartOfWeekMapper,
     StartOfYearMapper,
+    WaitForAll,
     WeekWindow,
     Window,
     YearWindow,
@@ -84,11 +87,13 @@ from airflow.serialization.definitions.assets import (
 from airflow.serialization.definitions.deadline import SerializedDeadlineAlert
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
+    WaitPolicyNotSupported,
     WindowNotSupported,
     find_registered_custom_partition_mapper,
     find_registered_custom_timetable,
     is_core_partition_mapper_import_path,
     is_core_timetable_import_path,
+    is_core_wait_policy_import_path,
     is_core_window_import_path,
 )
 from airflow.timetables.base import Timetable as CoreTimetable
@@ -100,6 +105,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.asset import BaseAsset
     from airflow.sdk.definitions.deadline import DeadlineAlert
+    from airflow.sdk.definitions.partition_mappers.wait_policy import WaitPolicy
     from airflow.triggers.base import BaseEventTrigger
 
     T = TypeVar("T")
@@ -523,6 +529,7 @@ class _Serializer:
         data: dict[str, Any] = {
             "upstream_mapper": encode_partition_mapper(partition_mapper.upstream_mapper),
             "window": encode_window(partition_mapper.window),
+            "wait_policy": encode_wait_policy(partition_mapper.wait_policy),
         }
         if partition_mapper.max_downstream_keys is not None:
             data["max_downstream_keys"] = partition_mapper.max_downstream_keys
@@ -570,6 +577,28 @@ class _Serializer:
     @serialize_window.register
     def _(self, window: SegmentWindow) -> dict[str, Any]:
         return {"segments": sorted(window._segments)}
+
+    # SDK classes are what user Dag files instantiate; after deserialization a
+    # re-encoded WaitPolicy may be the core class, in which case the
+    # qualname-prefix check in encode_wait_policy() accepts it.
+    BUILTIN_WAIT_POLICIES: dict[type, str] = {
+        WaitForAll: "airflow.partition_mappers.wait_policy.WaitForAll",
+        MinimumCount: "airflow.partition_mappers.wait_policy.MinimumCount",
+    }
+
+    @functools.singledispatchmethod
+    def serialize_wait_policy(self, policy: WaitPolicy | CoreWaitPolicy) -> dict[str, Any]:
+        if not isinstance(policy, CoreWaitPolicy):
+            raise NotImplementedError(f"can not serialize wait policy {type(policy).__name__!r}")
+        return policy.serialize()
+
+    @serialize_wait_policy.register(WaitForAll)
+    def _(self, policy: WaitForAll) -> dict[str, Any]:
+        return {}
+
+    @serialize_wait_policy.register(MinimumCount)
+    def _(self, policy: MinimumCount) -> dict[str, Any]:
+        return {"n": policy.n}
 
 
 _serializer = _Serializer()
@@ -692,4 +721,32 @@ def encode_window(var: Window | CoreWindow) -> dict[str, Any]:
     return {
         Encoding.TYPE: qn,
         Encoding.VAR: _serializer.serialize_window(var),
+    }
+
+
+def encode_wait_policy(var: WaitPolicy | CoreWaitPolicy) -> dict[str, Any]:
+    """
+    Encode a :class:`WaitPolicy` instance.
+
+    Only built-in ``WaitPolicy`` subclasses are accepted. Custom subclasses
+    raise :class:`WaitPolicyNotSupported`. The ``BUILTIN_WAIT_POLICIES``
+    fast path maps the SDK classes user code instantiates; after
+    deserialization a re-encoded WaitPolicy may be the core class, in which
+    case the qualname-prefix check accepts it.
+
+    :meta private:
+    """
+    var_type = type(var)
+    importable_string = _serializer.BUILTIN_WAIT_POLICIES.get(var_type)
+    if importable_string is not None:
+        return {
+            Encoding.TYPE: importable_string,
+            Encoding.VAR: _serializer.serialize_wait_policy(var),
+        }
+    qn = qualname(var)
+    if not is_core_wait_policy_import_path(qn):
+        raise WaitPolicyNotSupported(qn)
+    return {
+        Encoding.TYPE: qn,
+        Encoding.VAR: _serializer.serialize_wait_policy(var),
     }
