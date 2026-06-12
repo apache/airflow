@@ -17,9 +17,17 @@
  * under the License.
  */
 
-plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention").version("0.10.0")
+// This is only needed since we want to route the plugin to the local build.
+// You don't need it in your own project.
+pluginManagement {
+    repositories {
+        mavenLocal()
+        gradlePluginPortal()
+    }
 }
 
-rootProject.name = "airflow-java-sdk"
-include("bom", "plugin", "processor", "sdk")
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0"
+}
+
+rootProject.name = "airflow-java-sdk-example"
