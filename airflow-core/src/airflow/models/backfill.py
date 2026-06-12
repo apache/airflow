@@ -247,8 +247,8 @@ def _get_latest_dag_run_row_query(*, dag_id: str, info: DagRunInfo):
 
     stmt = select(DagRun).where(DagRun.dag_id == dag_id)
     if info.partition_date is not None:
-        # Deduplicate partitioned runs on partition_date (the UTC instant of the partition
-        # tick), not on the partition_key string. partition_date is the canonical, format-
+        # Filter the runs whose partition_date matches (the UTC instant of the partition
+        # tick), not the partition_key string. partition_date is the canonical, format-
         # independent identity of a partition: a scheduled run and a backfill run for the
         # same tick always agree on it, even if partition_key is later formatted differently
         # (e.g. relabelled in the timetable timezone). Keying on the string would let a
