@@ -180,7 +180,7 @@ export const HITLReviewModal = ({
               position="relative"
               zIndex={1}
             >
-              <HITLReviewDetail detail={selectedDetail} onNavigate={handleClose} onResponded={onNext} />
+              <HITLReviewDetail detail={selectedDetail} onOpenTask={handleClose} onResponded={onNext} />
             </Box>
           </HStack>
         </Dialog.Body>

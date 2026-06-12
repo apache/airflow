@@ -28,11 +28,11 @@ import { HITLReviewDetailSummary } from "./HITLReviewDetailSummary.tsx";
 
 export const HITLReviewDetail = ({
   detail,
-  onNavigate,
+  onOpenTask,
   onResponded,
 }: {
   readonly detail?: HITLDetail;
-  readonly onNavigate: () => void;
+  readonly onOpenTask: () => void;
   readonly onResponded: () => void;
 }) => {
   const { t: translate } = useTranslation("hitl");
@@ -55,7 +55,7 @@ export const HITLReviewDetail = ({
       <HITLReviewDetailSummary detail={detail} />
 
       <Button alignSelf="flex-end" asChild size="sm" variant="outline">
-        <Link onClick={onNavigate} to={taskLink}>
+        <Link onClick={onOpenTask} to={taskLink}>
           {translate("review.detail.openTask")}
         </Link>
       </Button>

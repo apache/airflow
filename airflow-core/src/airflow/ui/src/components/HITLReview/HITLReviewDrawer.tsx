@@ -56,7 +56,7 @@ export const HITLReviewDrawer = ({ detail, onClose, open }: HITLReviewDrawerProp
             </Drawer.CloseTrigger>
             <Drawer.Body>
               <Box minW={0}>
-                <HITLReviewDetail detail={detail} onNavigate={onClose} onResponded={onClose} />
+                <HITLReviewDetail detail={detail} onOpenTask={onClose} onResponded={onClose} />
               </Box>
             </Drawer.Body>
           </Drawer.Content>
