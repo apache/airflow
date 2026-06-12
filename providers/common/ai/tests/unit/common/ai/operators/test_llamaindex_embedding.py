@@ -48,7 +48,10 @@ def _node(text: str = "chunk text", metadata: dict | None = None, vector=None):
 
 def _byo_embedding():
     """Return a duck-typed ``BaseEmbedding`` stand-in (has the two methods the operator checks)."""
-    return MagicMock(name="MyBaseEmbedding", spec=["get_text_embedding", "_get_query_embedding"])
+    return MagicMock(
+        name="MyBaseEmbedding",
+        spec=["get_text_embedding", "_get_query_embedding", "get_text_embedding_batch"],
+    )
 
 
 class TestEmbeddingOperatorInit:
@@ -71,8 +74,9 @@ class TestEmbeddingOperatorExecute:
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
     def test_string_embed_model_goes_through_hook(self, mock_get_embed, _li):
         # `embed_model` as a string -> hook builds OpenAIEmbedding.
+        mock_get_embed.return_value.get_text_embedding_batch.return_value = [[0.1, 0.2]]
         _li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [
-            _node(text="chunk a", vector=[0.1, 0.2]),
+            _node(text="chunk a"),
         ]
 
         op = LlamaIndexEmbeddingOperator(
@@ -142,9 +146,13 @@ class TestEmbeddingOperatorExecute:
 
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
     def test_chunks_carry_text_metadata_vector(self, mock_get_embed, _li):
+        mock_get_embed.return_value.get_text_embedding_batch.return_value = [
+            [1.0, 2.0],
+            [3.0, 4.0],
+        ]
         _li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [
-            _node(text="x", metadata={"k": "v"}, vector=[1.0, 2.0]),
-            _node(text="y", metadata={"k": "v2"}, vector=[3.0, 4.0]),
+            _node(text="x", metadata={"k": "v"}),
+            _node(text="y", metadata={"k": "v2"}),
         ]
 
         op = LlamaIndexEmbeddingOperator(
@@ -158,6 +166,27 @@ class TestEmbeddingOperatorExecute:
             {"text": "x", "metadata": {"k": "v"}, "vector": [1.0, 2.0]},
             {"text": "y", "metadata": {"k": "v2"}, "vector": [3.0, 4.0]},
         ]
+
+
+    def test_vectors_populated_when_vectorstoreindex_copies_nodes(self, _li):
+        """Regression: VectorStoreIndex copies nodes internally, so original node.embedding
+        would be None without pre-embedding. Vectors must be non-None in the output."""
+        byo = _byo_embedding()
+        byo.get_text_embedding_batch.return_value = [[0.1, 0.2, 0.3]]
+
+        node = _node(text="hello world", metadata={})
+        # Simulate real-world initial state: node has no embedding yet.
+        node.embedding = None
+        _li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [node]
+
+        op = LlamaIndexEmbeddingOperator(
+            task_id="test",
+            documents=[{"text": "hello world"}],
+            embed_model=byo,
+        )
+        result = op.execute(context=MagicMock())
+
+        assert result["chunks"][0]["vector"] == [0.1, 0.2, 0.3]
 
 
 class TestEmbeddingOperatorPersist:
