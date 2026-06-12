@@ -13,6 +13,9 @@
     "deleteWarning": "Das Datenset (Asset) verliert diesen gespeicherten Eintrag.",
     "edit": "Datenset (Asset) Zwischenspeicher bearbeiten",
     "emptyState": "Der Datenset (Asset) Zwischenspeicher speichert Werte, die auf ein Datenset (Asset) beschränkt sind und über alle Dag-Läufe hinweg geteilt werden. Worker können den Datenset (Asset) Zwischenspeicher über das Task SDK schreiben.",
+    "lastUpdatedBy": "Zuletzt aktualisiert von",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Ereignis",
     "title": "Datenset (Asset) Zwischenspeicher"
   },
   "consumingDags": "Konsumierende Dags",
