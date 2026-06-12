@@ -58,12 +58,9 @@ const GMTWrapper = ({ children }: PropsWithChildren) => (
 // 4 extra "state-badge" testids and break getByTestId assertions in tests
 // that target the latest-run badge.
 const renderCard = (dag: DAGWithLatestDagRunsResponse) =>
-  render(
-    <DagCard dag={dag} runStateCounts={undefined} runStateCountsLoading stateCountLimit={undefined} />,
-    {
-      wrapper: GMTWrapper,
-    },
-  );
+  render(<DagCard dag={dag} runStateCounts={undefined} runStateCountsLoading stateCountLimit={undefined} />, {
+    wrapper: GMTWrapper,
+  });
 
 const mockDag = {
   allowed_run_types: null,
