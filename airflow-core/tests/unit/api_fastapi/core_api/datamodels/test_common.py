@@ -19,10 +19,12 @@ from __future__ import annotations
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-from airflow.api_fastapi.core_api.datamodels.common import AssetExpression
+from airflow.api_fastapi.core_api.datamodels.common import AssetExpression, MaybeAssetExpression
 
 # A single adapter is enough to validate/serialize the discriminated union.
 _adapter: TypeAdapter[AssetExpression] = TypeAdapter(AssetExpression)
+# The field type as actually wired onto the response models: tolerant of legacy shapes.
+_field_adapter: TypeAdapter[MaybeAssetExpression] = TypeAdapter(MaybeAssetExpression)
 
 # Leaf nodes as actually stored in ``DagModel.asset_expression``: ``asset`` leaves are
 # enriched with the resolved ``AssetModel.id`` (see
@@ -54,10 +56,10 @@ def test_asset_expression_round_trips_unchanged(expression: dict):
 
 def test_asset_expression_tolerates_legacy_asset_leaf_without_id():
     """
-    ``asset`` leaves written by the current scheduler always carry ``id``, but a row persisted
-    before id-enrichment (or migrated from the pre-3.0 dataset format) may not. Such a leaf must
-    still validate -- with ``id`` defaulting to ``None`` -- so the public endpoints that serve a
-    stored expression degrade gracefully instead of returning a 500.
+    ``asset`` leaves written by the current scheduler always carry ``id``, but a leaf persisted
+    before id-enrichment may not. Such a leaf must still validate -- with ``id`` defaulting to
+    ``None`` -- so a not-yet-enriched row is served instead of returning a 500. (Genuinely legacy
+    pre-3.0 dataset shapes are a separate concern, covered below via ``MaybeAssetExpression``.)
     """
     validated = _adapter.validate_python({"asset": {"uri": "s3://b", "name": "n", "group": "asset"}})
     assert validated.asset.id is None
@@ -75,3 +77,41 @@ def test_asset_expression_tolerates_legacy_asset_leaf_without_id():
 def test_asset_expression_rejects_invalid_shapes(invalid: dict):
     with pytest.raises(ValidationError):
         _adapter.validate_python(invalid)
+
+
+# Shapes a released Airflow 2.x stored in ``dataset_expression`` and that the 3.0 column rename
+# (``0041_rename_dataset_as_asset``) carried over verbatim into ``asset_expression``: dataset leaves
+# serialized as a bare uri string, aliases as ``{"alias": "<name>"}``, composites over those strings.
+_LEGACY_SHAPES = [
+    pytest.param("s3://bucket/key", id="bare_uri_string"),
+    pytest.param({"any": ["s3://a", "s3://b"]}, id="any_of_uri_strings"),
+    pytest.param({"all": ["s3://a", "s3://b"]}, id="all_of_uri_strings"),
+    pytest.param({"alias": "my_alias"}, id="alias_as_string"),
+]
+
+
+@pytest.mark.parametrize("legacy", _LEGACY_SHAPES)
+def test_field_coerces_legacy_pre_3_0_shapes_to_none(legacy):
+    """
+    A row written by the pre-3.0 dataset scheduler and not yet re-parsed still holds a legacy shape
+    the typed model cannot describe. The field must serve it as ``None`` -- the blank render the UI
+    showed while this field was an untyped ``dict`` -- rather than 500 the whole endpoint.
+    """
+    assert _field_adapter.validate_python(legacy) is None
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [
+        pytest.param(None, id="none"),
+        pytest.param(_ASSET, id="asset"),
+        pytest.param({"any": [_ASSET, _ALIAS]}, id="any"),
+    ],
+)
+def test_field_preserves_current_shapes(expression):
+    """Tolerance must not swallow valid current expressions: they pass through unchanged."""
+    validated = _field_adapter.validate_python(expression)
+    if expression is None:
+        assert validated is None
+    else:
+        assert _field_adapter.dump_python(validated, by_alias=True) == expression

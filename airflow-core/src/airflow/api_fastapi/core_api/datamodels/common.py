@@ -25,7 +25,7 @@ from __future__ import annotations
 import enum
 from typing import Annotated, Any, Generic, Literal, TypeVar, Union
 
-from pydantic import Discriminator, Field, Tag
+from pydantic import BeforeValidator, Discriminator, Field, Tag, TypeAdapter, ValidationError
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
@@ -116,6 +116,35 @@ AssetExpression = Annotated[
 
 AssetExpressionAny.model_rebuild()
 AssetExpressionAll.model_rebuild()
+
+_asset_expression_adapter: TypeAdapter = TypeAdapter(AssetExpression)
+
+
+def _coerce_unrecognized_expression_to_none(value: Any) -> Any:
+    """
+    Degrade an unrecognized ``asset_expression`` to ``None`` instead of failing response validation.
+
+    ``DagModel.asset_expression`` is stored verbatim from ``BaseAsset.as_expression()`` and is rewritten
+    to the current shape whenever a Dag is parsed (``DagModelOperation.update_dag_asset_expression``). A
+    row written by the pre-3.0 dataset scheduler and not yet re-parsed can still hold a legacy shape --
+    a bare uri string, ``{"any": ["s3://..."]}``, or ``{"alias": "<name>"}`` -- that the typed model does
+    not recognise. Serving such a row as ``None`` reproduces the blank render the UI showed while this
+    field was an untyped ``dict``, rather than turning stored data into an HTTP 500.
+    """
+    if value is None:
+        return None
+    try:
+        _asset_expression_adapter.validate_python(value)
+    except ValidationError:
+        return None
+    return value
+
+
+MaybeAssetExpression = Annotated[
+    Union[AssetExpression, None],
+    BeforeValidator(_coerce_unrecognized_expression_to_none),
+]
+"""``AssetExpression | None`` that degrades a legacy/unrecognized stored shape to ``None``."""
 
 # Common Bulk Data Models
 T = TypeVar("T")
