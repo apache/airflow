@@ -27,6 +27,32 @@
 Changelog
 ---------
 
+6.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add uri sanitizers and asset factories for new schemes (#66426)``
+* ``Add statement timeout support in SnowflakeSqlApiHook & Operator (#63575)``
+
+Misc
+~~~~
+
+* ``Replace AirflowExceptions with native exceptions  in Snowflake provider (#66279)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add PAT connection to snowflake in SnowflakeHook (#66953)``
+* ``Add Snowflake data quality operator examples to provider docs and system tests (#65623)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
 6.12.2
 ......
 

@@ -73,6 +73,7 @@
     "files_other": "{{count}} Dateien"
   },
   "flexibleForm": {
+    "durationPlaceholder": "Dauer im ISO-8601-Format (z.B. 'PT1H30M' für 1 Stunde und 30 Minuten)",
     "placeholder": "Wählen Sie einen Wert",
     "placeholderArray": "Fügen Sie einen Eintrag pro Zeile um eine Liste zu erzeugen",
     "placeholderExamples": "Tippen Sie ein paar Buchstaben für Vorschläge",
@@ -80,6 +81,7 @@
     "validationErrorArrayNotArray": "Die Daten sind keine Liste.",
     "validationErrorArrayNotNumbers": "Alle Elemente in der Liste müssen numerisch sein.",
     "validationErrorArrayNotObject": "Alle Elemente in der Liste müssen Objekte (Dictionary) sein.",
+    "validationErrorDuration": "Angegebene Dauer erfüllt das ISO-8601-Format nicht",
     "validationErrorRequired": "Dieses Feld ist ein Pflichtfeld und muss gefüllt werden"
   },
   "graph": {

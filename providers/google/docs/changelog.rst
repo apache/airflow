@@ -27,6 +27,46 @@
 Changelog
 ---------
 
+22.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add idle/auto stop TTLs and master/worker instance flexibility … (#65653)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Harden Stackdriver handler against Cloud Logging failures (#67513)``
+* ``Fix Cloud Run deferrable trigger handling of transient 503 (#67219)``
+* ``Remove the leftover temporary report file in BidManager download (#67076)``
+* ``Fail closed in GCS log handler when existing-log read fails (#67511)``
+* ``Reject GCS blob names that escape the target directory on download (#67509)``
+* ``Warn when remote_log_conn_id is configured but not found (#67510)``
+* ``Write Cloud SQL keyfile_dict credentials with 0600 permissions (#67507)``
+
+Misc
+~~~~
+
+* ``Bump minimum google-api-core to 2.30.3 to fix Dag import timeout (#67774)``
+* ``Migrate Stackdriver logging config to RemoteLogIO pattern (#66513)``
+* ``Remove further findings from positional session check (#67712)``
+* ``Rework StackdriverTaskHandler for the structlog era #65191 (#65198)``
+* ``Fixing mypy errors in google gen ai provider and tests (#67276)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix wrong changelog entry for BigQueryInsertJobOperator in google provider 22.0.0 (#67280)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+22.0.0
+......
+
 .. warning::
   Deprecated classes, parameters and features have been removed from the Google provider package.
   The following breaking changes were introduced:
@@ -44,6 +84,56 @@ Changelog
   * Remove ``MLEngineJobDetailsLink`` use appropriate link from ``airflow.providers.google.cloud.links.vertex_ai`` instead
   * Remove ``MLEngineModelVersionDetailsLink`` use ``airflow.providers.google.cloud.links.vertex_ai.VertexAIModelLink`` instead
   * Remove ``MLEngineJobSListLink`` use appropriate link from ``airflow.providers.google.cloud.links.vertex_ai`` instead
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Remove MLEngine from google provider (#66526)``
+
+Features
+~~~~~~~~
+
+* ``Add 'host_key_policy' option to 'ComputeEngineSSHHook' (#66746)``
+* ``Add BigQueryStreamingBufferEmptySensor for DML on streaming tables (#66652)``
+* ``Deprecate 'job_id_path' XCom push from 'BigQueryInsertJobOperator' (#66760)``
+* ``Migrate BigQueryInsertJobTrigger to on_kill() for user-initiated kills (#66704)``
+* ``Add Cloud SQL Auth Proxy IAM authentication (#66510)``
+* ``Add aliases for rebranded Google services (#66344)``
+* ``Add BigQuery routine operators and existence sensor (#65499)``
+* ``Skip S3 folder-marker keys in S3ToGCSOperator (#65724)``
+* ``Support all bq load job and ext table config options in GCSToBigQueryOperator (#64505)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Preserve BigQueryIntervalCheckTrigger params after triggerer restart (#67053)``
+* ``Fix CloudRunExecuteJobOperator deferrable mode silently passing on cancel (#67050)``
+* ``Render Jinja templates in CloudBatchSubmitJobOperator job field (#67021)``
+* ``Adapt GCP CloudSQL trigger to run in private cloud (#66917)``
+* ``Serialize poll_interval and impersonation_chain on DataFusionStartPipelineTrigger (#66968)``
+* ``Fix 'BigQueryStreamingBufferEmptySensor.poke()' always raise 'NotFound' (#66962)``
+* ``Fix CloudSecretManagerBackend regression with explicit project_id (#61654)``
+* ``Fix broken GKEStartPodOperator extra link (#66657)``
+* ``Adjust GCP BigQuery triggers for the private cloud (#66404)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add Bundle documentation for Google GCS (#66993)``
+* ``Document Dataproc limitations in Sovereign Cloud from Google (#66706)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move BigQuery streaming-buffer system test to manual-only (#67009)``
+   * ``Enable ruff B008 (function-call-in-default-argument) and fix violations (#66979)``
+   * ``Enable ruff PLE1205 to catch logging calls with too many arguments (#66978)``
+   * ``Enable ruff B015 to catch silent no-op comparisons in tests (#66977)``
+   * ``Fix no-op equality checks in Vertex AI trigger tests (#66894)``
+   * ``Fix misleading pod scheduling log message ("Waiting until" → "Waiting up to") (#66164)``
+   * ``Revert "Apply AIR201-style replacements (#65197)" (#66712)``
+   * ``Google: Use Kubernetes models in GKE link tests (#66683)``
+   * ``Add system tests for Dataproc trigger on_kill cancel behavior (#65982)``
+   * ``Adjust log message header for expandable sources (#66570)``
 
 21.3.0
 ......

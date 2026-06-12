@@ -173,7 +173,7 @@
     "dagRun": "Dag 실행 메모",
     "label": "메모",
     "placeholder": "메모 추가...",
-    "taskInstance": "작업 인스턴스 메모"
+    "taskInstance": "태스크 인스턴스 메모"
   },
   "partitionedDagRun_one": "파티션된 Dag 실행",
   "partitionedDagRun_other": "파티션된 Dag 실행",
@@ -260,17 +260,16 @@
     "to": "종료"
   },
   "task": {
-    "documentation": "작업 문서",
+    "documentation": "태스크 문서",
     "lastInstance": "마지막 인스턴스",
     "operator": "오퍼레이터",
     "triggerRule": "트리거 규칙"
   },
-  "task_one": "작업",
-  "task_other": "작업들",
-  "taskGroup": "작업 그룹",
-  "taskGroup_one": "작업 그룹",
-  "taskGroup_other": "작업 그룹들",
-  "taskId": "작업 ID",
+  "task_one": "태스크",
+  "task_other": "태스크",
+  "taskGroup_one": "태스크 그룹",
+  "taskGroup_other": "태스크 그룹",
+  "taskId": "태스크 ID",
   "taskInstance": {
     "dagVersion": "Dag 버전",
     "executor": "실행기",
@@ -283,6 +282,7 @@
     "priorityWeight": "우선순위 가중치",
     "queue": "큐",
     "queuedWhen": "대기열에 추가된 시간",
+    "renderedMapIndex": "렌더링된 맵 인덱스",
     "scheduledWhen": "예정된 시간",
     "triggerer": {
       "assigned": "할당된 트리거",
@@ -294,8 +294,8 @@
     },
     "unixname": "유닉스 이름"
   },
-  "taskInstance_one": "작업 인스턴스",
-  "taskInstance_other": "작업 인스턴스들",
+  "taskInstance_one": "태스크 인스턴스",
+  "taskInstance_other": "태스크 인스턴스",
   "timeRange": {
     "last12Hours": "지난 12 시간",
     "last24Hours": "지난 24 시간",

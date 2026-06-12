@@ -32,7 +32,9 @@ class ProductMapper(PartitionMapper):
         /,
         *mappers: PartitionMapper,
         delimiter: str = "|",
+        max_downstream_keys: int | None = None,
     ) -> None:
+        super().__init__(max_downstream_keys=max_downstream_keys)
         self.mappers = [mapper0, mapper1, *mappers]
         self.delimiter = delimiter
 
@@ -54,14 +56,21 @@ class ProductMapper(PartitionMapper):
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_partition_mapper
 
-        return {
+        result: dict[str, Any] = {
             "delimiter": self.delimiter,
             "mappers": [encode_partition_mapper(m) for m in self.mappers],
         }
+        if self.max_downstream_keys is not None:
+            result["max_downstream_keys"] = self.max_downstream_keys
+        return result
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
         from airflow.serialization.decoders import decode_partition_mapper
 
         mappers = [decode_partition_mapper(m) for m in data["mappers"]]
-        return cls(*mappers, delimiter=data.get("delimiter", "|"))
+        return cls(
+            *mappers,
+            delimiter=data.get("delimiter", "|"),
+            max_downstream_keys=data.get("max_downstream_keys"),
+        )

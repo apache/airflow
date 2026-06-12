@@ -45,13 +45,51 @@ Structured Output
 -----------------
 
 Set ``output_type`` to a Pydantic ``BaseModel`` subclass. The LLM is instructed
-to return structured data, and the result is serialized via ``model_dump()``
-for XCom:
+to return structured data, and the model instance is pushed to XCom unchanged
+so downstream tasks can type-hint the class directly
+(``def downstream(result: MyModel)``) and use attribute access (``result.field``).
+
+The declared ``output_type`` (and any ``BaseModel`` reachable from
+``Union``/``Optional``/``list`` shapes) is registered for XCom deserialization by
+the worker when it loads the DAG, before any task runs -- so no edit to
+``[core] allowed_deserialization_classes`` is needed. The Pydantic class must be
+defined at **module scope** and bound to an attribute matching its ``__name__``;
+classes nested inside a function or ``@dag``-decorated body, parameterized
+generics, and dynamically-built classes whose ``__name__`` does not match the
+attribute they are bound to cannot be re-imported, so they are skipped with a
+warning at worker startup and the value fails to deserialize at the consumer.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
+    :language: python
+    :start-after: [START howto_operator_llm_structured_output_class]
+    :end-before: [END howto_operator_llm_structured_output_class]
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
     :language: python
     :start-after: [START howto_operator_llm_structured]
     :end-before: [END howto_operator_llm_structured]
+
+Registration covers downstream tasks in the **same DAG**: every worker walks the
+loaded DAG's tasks at startup and registers each declared class, so it also works
+for mapped producers (``.expand(...)``) and for workers that load DAGs from a
+cache that bypasses operator construction.
+
+The Airflow UI's XCom viewer renders Pydantic instances via the
+``stringify`` path, which produces a representation like
+``my_module.MyModel@version=1(field=value,...)`` without consulting the
+allow-list. It is not pretty (no field-by-field rendering today), but the value
+shows up; no configuration is required.
+
+The remaining gap is **cross-DAG** ``xcom_pull`` -- a task in a different DAG
+that pulls this XCom only parses its own DAG file, not the producer's, so the
+class is not auto-registered. Add the class qualified name to
+``[core] allowed_deserialization_classes`` (or a glob that matches it) to make
+that pattern work.
+
+If a downstream consumer needs the dict shape (e.g. forwarding to an external
+system that expects JSON-style payloads), pass ``serialize_output=True`` and the
+operator calls ``model_dump()`` before pushing to XCom. The pre-PR behavior is
+available on demand without giving up the typed default.
 
 Agent Parameters
 ----------------
@@ -113,6 +151,18 @@ With structured output:
     :language: python
     :start-after: [START howto_decorator_llm_structured]
     :end-before: [END howto_decorator_llm_structured]
+
+Multimodal prompts
+^^^^^^^^^^^^^^^^^^
+
+``@task.llm`` accepts the same prompt shape as ``@task.agent`` -- the callable
+may return either a ``str`` or a non-empty ``Sequence[UserContent]`` (e.g.,
+``["Describe this:", ImageUrl(url="...")]``) for vision, audio, or document
+inputs. See :ref:`@task.agent multimodal prompts <howto/operator:agent-multimodal>` for
+the full example. ``require_approval=True`` is not currently supported with a
+``Sequence`` prompt -- the approval session model expects a string -- and will
+raise at the approval boundary; widening that path is tracked as a follow-up.
+
 
 Classification with ``Literal``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

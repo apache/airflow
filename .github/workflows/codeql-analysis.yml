@@ -22,7 +22,7 @@ on:  # yamllint disable-line rule:truthy
   pull_request:
     branches: ['main', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
   push:
-    branches: [main]
+    branches: ['main', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
   schedule:
     - cron: '0 2 * * *'
 
@@ -33,13 +33,76 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  detect-languages:
+    name: Detect languages to scan
+    runs-on: ["ubuntu-22.04"]
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      languages: ${{ steps.set-languages.outputs.languages }}
+    steps:
+      - name: Compute CodeQL language matrix
+        id: set-languages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.event.after }}
+          REPOSITORY: ${{ github.repository }}
+        # On `pull_request` and `push` we only scan the languages whose files actually changed.
+        # On `schedule` we always scan every language to keep full periodic coverage.
+        run: |
+          set -euo pipefail
+          all_languages='["python","javascript","actions","go","java"]'
+          if [[ "${EVENT_NAME}" == "schedule" ]]; then
+            echo "languages=${all_languages}" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          if [[ "${EVENT_NAME}" == "push" ]]; then
+            changed_files="$(gh api "repos/${REPOSITORY}/compare/${BEFORE_SHA}...${AFTER_SHA}" \
+              --jq '.files[].filename')" || true
+            num_files="$(printf '%s\n' "${changed_files}" | grep -c . || true)"
+            # Fall back to a full scan if the compare call failed, returned nothing, or hit the
+            # API's 300-file cap. The compare API does not paginate files (only commits), so a
+            # merge of >300 files truncates the list and could under-detect a changed language;
+            # release branches have no daily schedule full-scan to back them up. Empty also covers
+            # a force-push or a newly created branch whose before SHA is all zeros (no base commit).
+            if [[ -z "${changed_files}" || "${num_files}" -ge 300 ]]; then
+              echo "languages=${all_languages}" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+          else
+            # pull_request
+            changed_files="$(gh api --paginate \
+              "repos/${REPOSITORY}/pulls/${PR_NUMBER}/files" --jq '.[].filename')"
+          fi
+          languages=()
+          grep -Eiq '\.(py|pyi)$'                        <<< "${changed_files}" && languages+=("python")
+          grep -Eiq '\.(js|jsx|mjs|cjs|ts|tsx|vue)$'     <<< "${changed_files}" && languages+=("javascript")
+          grep -Eiq '^\.github/(workflows|actions)/'     <<< "${changed_files}" && languages+=("actions")
+          grep -Eiq '(\.go$|/go\.(mod|sum)$)'            <<< "${changed_files}" && languages+=("go")
+          grep -Eiq '(\.java$|\.gradle(\.kts)?$|\.kts$)' <<< "${changed_files}" && languages+=("java")
+          if [[ ${#languages[@]} -eq 0 ]]; then
+            echo "languages=[]" >> "${GITHUB_OUTPUT}"
+          else
+            json_languages="$(printf '%s\n' "${languages[@]}" \
+              | jq -Rsc 'split("\n") | map(select(length > 0))')"
+            echo "languages=${json_languages}" >> "${GITHUB_OUTPUT}"
+          fi
+
   analyze:
     name: Analyze
+    needs: detect-languages
+    # Skip entirely when no scannable language changed (e.g. docs-only PRs).
+    if: needs.detect-languages.outputs.languages != '[]'
     runs-on: ["ubuntu-22.04"]
     strategy:
       fail-fast: false
       matrix:
-        language: ['python', 'javascript', 'actions', 'go']
+        language: ${{ fromJSON(needs.detect-languages.outputs.languages) }}
+
     permissions:
       actions: read
       contents: read
@@ -51,16 +114,34 @@ jobs:
         with:
           persist-credentials: false
 
+      # Keep these in sync:
+      # - jvmTarget, languageVersion, and sourceCompatibility in java-sdk/build.gradle.kts
+      # - TEMURIN_VERSION in scripts/docker/install_jdk.sh
+      # - JAVA_VERSION in .github/workflows/ci-amd.yml and .github/workflows/ci-arm.yml
+      # - java-version in .github/workflows/codeql-analysis.yml
+      - name: Setup Java
+        if: matrix.language == 'java'
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@68bde559dea0fdcac2102bfdf6230c5f70eb485e  # v4.35.4
+        uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa  # v4.36.0
         with:
           languages: ${{ matrix.language }}
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@68bde559dea0fdcac2102bfdf6230c5f70eb485e  # v4.35.4
+        if: matrix.language != 'java'
+        uses: github/codeql-action/autobuild@7211b7c8077ea37d8641b6271f6a365a22a5fbfa  # v4.36.0
+
+      - name: Build Java SDK
+        if: matrix.language == 'java'
+        working-directory: java-sdk
+        run: ./gradlew classes testClasses
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@68bde559dea0fdcac2102bfdf6230c5f70eb485e  # v4.35.4
+        uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa  # v4.36.0
         with:
           # Provide more context to the SARIF output (shows up in run.automationDetails.id field)
           category: "/language:${{matrix.language}}"

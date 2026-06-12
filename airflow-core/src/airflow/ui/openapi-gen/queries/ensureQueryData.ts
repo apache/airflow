@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { type QueryClient } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -162,7 +162,7 @@ export const ensureUseAssetServiceGetDagAssetQueuedEventData = (queryClient: Que
 * Next Run Assets
 * @param data The data for the request.
 * @param data.dagId
-* @returns unknown Successful Response
+* @returns NextRunAssetsResponse Successful Response
 * @throws ApiError
 */
 export const ensureUseAssetServiceNextRunAssetsData = (queryClient: QueryClient, { dagId }: {
@@ -224,6 +224,17 @@ export const ensureUseConnectionServiceGetConnectionData = (queryClient: QueryCl
   connectionId: string;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }), queryFn: () => ConnectionService.getConnection({ connectionId }) });
 /**
+* Get Connection Test
+* Poll for the status of an enqueued connection test by its token (passed as a header).
+* @param data The data for the request.
+* @param data.airflowConnectionTestToken
+* @returns AsyncConnectionTestResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseConnectionServiceGetConnectionTestData = (queryClient: QueryClient, { airflowConnectionTestToken }: {
+  airflowConnectionTestToken: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseConnectionServiceGetConnectionTestKeyFn({ airflowConnectionTestToken }), queryFn: () => ConnectionService.getConnectionTest({ airflowConnectionTestToken }) });
+/**
 * Get Connections
 * Get all connection entries.
 * @param data The data for the request.
@@ -263,19 +274,6 @@ export const ensureUseDagRunServiceGetDagRunData = (queryClient: QueryClient, { 
   dagId: string;
   dagRunId: string;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }), queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }) });
-/**
-* Get Upstream Asset Events
-* If dag run is asset-triggered, return the asset events that triggered it.
-* @param data The data for the request.
-* @param data.dagId
-* @param data.dagRunId
-* @returns AssetEventCollectionResponse Successful Response
-* @throws ApiError
-*/
-export const ensureUseDagRunServiceGetUpstreamAssetEventsData = (queryClient: QueryClient, { dagId, dagRunId }: {
-  dagId: string;
-  dagRunId: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId }), queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }) });
 /**
 * Get Dag Runs
 * Get all Dag Runs.
@@ -390,6 +388,19 @@ export const ensureUseDagRunServiceGetDagRunsData = (queryClient: QueryClient, {
   updatedAtLt?: string;
   updatedAtLte?: string;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDagRunServiceGetDagRunsKeyFn({ bundleVersion, confContains, consumingAssetPattern, cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, partitionKeyPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, triggeringUserNamePrefixPattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }), queryFn: () => DagRunService.getDagRuns({ bundleVersion, confContains, consumingAssetPattern, cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, partitionKeyPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, triggeringUserNamePrefixPattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }) });
+/**
+* Get Upstream Asset Events
+* If dag run is asset-triggered, return the asset events that triggered it.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @returns AssetEventCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDagRunServiceGetUpstreamAssetEventsData = (queryClient: QueryClient, { dagId, dagRunId }: {
+  dagId: string;
+  dagRunId: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId }), queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }) });
 /**
 * Experimental: Wait for a dag run to complete, and return task results if requested.
 * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the Dag run state.
@@ -884,7 +895,7 @@ export const ensureUseTaskInstanceServiceGetTaskInstanceData = (queryClient: Que
 * @param data.renderedMapIndexPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
 * @param data.limit
 * @param data.offset
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, run_after, logical_date, data_interval_start, data_interval_end`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
 * @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
@@ -1103,7 +1114,7 @@ export const ensureUseTaskInstanceServiceGetMappedTaskInstanceData = (queryClien
 * @param data.renderedMapIndexPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
 * @param data.limit
 * @param data.offset
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, logical_date, run_after, data_interval_start, data_interval_end`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
 * @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
@@ -1361,16 +1372,20 @@ export const ensureUseImportErrorServiceGetImportErrorData = (queryClient: Query
 *
 * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``filename_prefix_pattern`` parameter when possible.
 * @param data.filenamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+* @param data.filename Exact filename match. Returns only the import error for this specific file path.
+* @param data.bundleName Exact bundle name match. Returns only import errors from this specific bundle.
 * @returns ImportErrorCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseImportErrorServiceGetImportErrorsData = (queryClient: QueryClient, { filenamePattern, filenamePrefixPattern, limit, offset, orderBy }: {
+export const ensureUseImportErrorServiceGetImportErrorsData = (queryClient: QueryClient, { bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }: {
+  bundleName?: string;
+  filename?: string;
   filenamePattern?: string;
   filenamePrefixPattern?: string;
   limit?: number;
   offset?: number;
   orderBy?: string[];
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ filenamePattern, filenamePrefixPattern, limit, offset, orderBy }), queryFn: () => ImportErrorService.getImportErrors({ filenamePattern, filenamePrefixPattern, limit, offset, orderBy }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }), queryFn: () => ImportErrorService.getImportErrors({ bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }) });
 /**
 * Get Jobs
 * Get all jobs.
@@ -1475,6 +1490,74 @@ export const ensureUseProviderServiceGetProvidersData = (queryClient: QueryClien
   limit?: number;
   offset?: number;
 } = {}) => queryClient.ensureQueryData({ queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }), queryFn: () => ProviderService.getProviders({ limit, offset }) });
+/**
+* List Asset Store
+* List all store entries for an asset.
+* @param data The data for the request.
+* @param data.assetId
+* @param data.limit
+* @param data.offset
+* @returns AssetStoreCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseAssetStoreServiceListAssetStoreData = (queryClient: QueryClient, { assetId, limit, offset }: {
+  assetId: number;
+  limit?: number;
+  offset?: number;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetStoreServiceListAssetStoreKeyFn({ assetId, limit, offset }), queryFn: () => AssetStoreService.listAssetStore({ assetId, limit, offset }) });
+/**
+* Get Asset Store
+* Get a single asset store entry.
+* @param data The data for the request.
+* @param data.key
+* @param data.assetId
+* @returns AssetStoreResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseAssetStoreServiceGetAssetStoreData = (queryClient: QueryClient, { assetId, key }: {
+  assetId: number;
+  key: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetStoreServiceGetAssetStoreKeyFn({ assetId, key }), queryFn: () => AssetStoreService.getAssetStore({ assetId, key }) });
+/**
+* List Task Store
+* List all task store entries for a task instance.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @param data.limit
+* @param data.offset
+* @returns TaskStoreCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseTaskStoreServiceListTaskStoreData = (queryClient: QueryClient, { dagId, dagRunId, limit, mapIndex, offset, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  limit?: number;
+  mapIndex?: number;
+  offset?: number;
+  taskId: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseTaskStoreServiceListTaskStoreKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId }), queryFn: () => TaskStoreService.listTaskStore({ dagId, dagRunId, limit, mapIndex, offset, taskId }) });
+/**
+* Get Task Store
+* Get a single task store entry.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.key
+* @param data.mapIndex
+* @returns TaskStoreResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseTaskStoreServiceGetTaskStoreData = (queryClient: QueryClient, { dagId, dagRunId, key, mapIndex, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  key: string;
+  mapIndex?: number;
+  taskId: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseTaskStoreServiceGetTaskStoreKeyFn({ dagId, dagRunId, key, mapIndex, taskId }), queryFn: () => TaskStoreService.getTaskStore({ dagId, dagRunId, key, mapIndex, taskId }) });
 /**
 * Get Xcom Entry
 * Get an XCom entry.

@@ -27,6 +27,7 @@ hookimpl = pluggy.HookimplMarker("airflow.policy")
 __all__: list[str] = ["hookimpl"]
 
 if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
     from airflow.models.taskinstance import TaskInstance
 
 
@@ -67,13 +68,27 @@ def dag_policy(dag) -> None:
 
 
 @local_settings_hookspec
-def task_instance_mutation_hook(task_instance: TaskInstance) -> None:
+def task_instance_mutation_hook(task_instance: TaskInstance, dag_run: DagRun | None) -> None:
     """
     Allow altering task instances before being queued by the Airflow scheduler.
 
-    This could be used, for instance, to modify the task instance during retries.
+    This could be used, for instance, to modify the task instance during retries, or to route a task to
+    a different queue based on the run's configuration (``dag_run.conf``).
+
+    This hook runs scheduler-side while task instances are created or reconciled, inside a transaction
+    that prohibits committing the session. Implementations must therefore not open a new database
+    session or commit -- in particular, do not call ``task_instance.get_dagrun()`` without passing the
+    active session, as the resulting commit raises ``RuntimeError("UNEXPECTED COMMIT ...")`` and crashes
+    the scheduler. Use the ``dag_run`` argument instead.
+
+    ``dag_run`` is provided wherever it is available without extra database access. It may be ``None`` in
+    early task-instance construction (for example when the hook is re-applied from
+    ``TaskInstance.refresh_from_task`` before the instance is bound to a run); implementations must handle
+    that case. Note that ``dag_run.conf`` is only populated for manually triggered or API-triggered runs;
+    scheduled runs carry an empty ``conf``.
 
     :param task_instance: task instance to be mutated
+    :param dag_run: the DagRun the task instance belongs to, or ``None`` when not yet available
     """
 
 
@@ -157,21 +172,25 @@ def make_plugin_from_local_settings(pm: pluggy.PluginManager, module, names: set
     hook_methods = set()
 
     def _make_shim_fn(name, desired_sig, target):
-        # Functions defined in airflow_local_settings are called by positional parameters, so the names don't
-        # have to match what we define in the "template" policy.
+        # Functions defined in airflow_local_settings are called by positional parameters, so the names
+        # don't have to match what we define in the "template" policy.
         #
         # However Pluggy validates the names match (and will raise an error if they don't!)
         #
-        # To maintain compat, if we detect the names don't match, we will wrap it with a dynamically created
-        # shim function that looks somewhat like this:
+        # To maintain compat, if we detect a name that isn't in the hookspec, we wrap the function with a
+        # dynamically created shim that looks somewhat like this:
         #
         #  def dag_policy_name_mismatch_shim(dag):
         #      airflow_local_settings.dag_policy(dag)
         #
+        # The target is called positionally, so we forward only as many of the hookspec's parameters as
+        # the target declares (in hookspec order). This lets a misnamed function still receive the leading
+        # hookspec arguments without breaking when the hookspec grows additional trailing parameters.
+        forwarded = list(desired_sig.parameters)[: len(inspect.signature(target).parameters)]
         codestr = textwrap.dedent(
             f"""
             def {name}_name_mismatch_shim{desired_sig}:
-                return __target({" ,".join(desired_sig.parameters)})
+                return __target({", ".join(forwarded)})
             """
         )
         code = compile(codestr, "<policy-shim>", "single")
@@ -199,8 +218,25 @@ def make_plugin_from_local_settings(pm: pluggy.PluginManager, module, names: set
 
         local_sig = inspect.signature(policy)
         policy_sig = inspect.signature(globals()[name])
-        # We only care if names/order/number of parameters match, not type hints
-        if local_sig.parameters.keys() != policy_sig.parameters.keys():
+        # Decide whether the local settings function can be registered as-is or needs a shim. Pluggy
+        # passes a hookimpl only the parameters it declares *without a default* (its `argnames`), by name.
+        # Parameters with defaults go into `kwargnames` and are never routed, so an impl that writes
+        # ``def hook(task_instance, dag_run=None)`` would silently never receive ``dag_run``. We shim when:
+        #
+        # * the function declares a name the hookspec does not have (a genuine mismatch, e.g. a renamed
+        #   argument), or
+        # * the function gives a hookspec parameter a default value -- pluggy puts it in kwargnames and
+        #   the function would always see its own default rather than the real value.
+        #
+        # A function declaring a (default-free) subset of the hookspec parameters is registered as-is, so a
+        # single-parameter hook keeps working unchanged after the hookspec gains new parameters. The shim
+        # forwards positionally, so it transparently handles renames, defaulted parameters, and signatures
+        # that declare fewer parameters than the hookspec.
+        needs_shim = not (local_sig.parameters.keys() <= policy_sig.parameters.keys()) or any(
+            param.default is not inspect.Parameter.empty and param_name in policy_sig.parameters
+            for param_name, param in local_sig.parameters.items()
+        )
+        if needs_shim:
             policy = _make_shim_fn(name, policy_sig, target=policy)
 
         setattr(AirflowLocalSettingsPolicy, name, staticmethod(hookimpl(policy, specname=name)))

@@ -23,6 +23,7 @@ import pytest
 from fastapi import HTTPException
 from jwt import ExpiredSignatureError, InvalidTokenError
 
+from airflow import settings
 from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -38,6 +39,7 @@ from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.api_fastapi.core_api.security import (
+    _build_dag_run_access_requests,
     get_user,
     is_safe_url,
     requires_access_backfill,
@@ -53,9 +55,48 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.models import Connection, Pool, Variable
 from airflow.models.dag import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags
+
+
+@pytest.mark.db_test
+def test_build_dag_run_access_requests_batches_team_lookup():
+    """The bulk dag-run team resolution must be a single query regardless of Dag count (no N+1)."""
+    entity_methods = [(f"dag_{i}", "GET") for i in range(25)]
+    with assert_queries_count(1):
+        requests = _build_dag_run_access_requests(entity_methods)
+    assert len(requests) == 25
+
+
+@pytest.mark.db_test
+def test_build_dag_run_access_requests_empty_skips_query():
+    with assert_queries_count(0):
+        assert _build_dag_run_access_requests([]) == []
+
+
+@pytest.mark.db_test
+def test_build_dag_run_access_requests_includes_team_name(testing_team):
+    """A team-owned Dag must surface its team name in the generated access request."""
+    session = settings.Session()
+    bundle = DagBundleModel(name="team-owned-bundle")
+    bundle.teams.append(testing_team)
+    session.add(bundle)
+    session.flush()
+    session.add(DagModel(dag_id="team_owned_dag", bundle_name="team-owned-bundle", is_stale=False))
+    session.flush()
+    try:
+        requests = _build_dag_run_access_requests([("team_owned_dag", "GET")])
+    finally:
+        clear_db_dags()
+        clear_db_dag_bundles()
+
+    assert len(requests) == 1
+    assert requests[0]["details"].id == "team_owned_dag"
+    assert requests[0]["details"].team_name == "testing"
 
 
 @pytest.mark.asyncio
@@ -501,6 +542,54 @@ class TestFastApiSecurity:
         )
         mock_get_team_name.assert_not_called()
 
+    @pytest.mark.db_test
+    @pytest.mark.parametrize("bad_event_log_id", ["abc", "1.5", "1,2", ""])
+    @patch("airflow.api_fastapi.core_api.security.requires_access_dag")
+    async def test_requires_access_event_log_non_integer_id_returns_400(
+        self, mock_requires_access_dag, bad_event_log_id
+    ):
+        """Non-integer event_log_id in the path must be rejected with 400 before authz."""
+        request = Mock()
+        request.path_params = {"event_log_id": bad_event_log_id}
+        user = Mock()
+        session = Mock()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await requires_access_event_log("GET")(request, user, session)
+
+        assert exc_info.value.status_code == 400
+        assert "event_log_id" in exc_info.value.detail
+        mock_requires_access_dag.assert_not_called()
+        session.scalar.assert_not_called()
+
+    @pytest.mark.db_test
+    @patch.object(DagModel, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_event_log_no_path_param_uses_generic_check(
+        self, mock_get_auth_manager, mock_get_team_name
+    ):
+        """When called on the list endpoint (no event_log_id), the generic AUDIT_LOG check applies."""
+        auth_manager = Mock()
+        auth_manager.is_authorized_dag.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+
+        session = Mock()
+        request = Mock()
+        request.path_params = {}
+        request.query_params = {}
+        user = Mock()
+
+        await requires_access_event_log("GET")(request, user, session)
+
+        auth_manager.is_authorized_dag.assert_called_once_with(
+            method="GET",
+            access_entity=DagAccessEntity.AUDIT_LOG,
+            details=DagDetails(id=None, team_name=None),
+            user=user,
+        )
+        session.scalar.assert_not_called()
+        mock_get_team_name.assert_not_called()
+
     @pytest.mark.parametrize(
         ("url", "expected_is_safe"),
         [
@@ -763,7 +852,9 @@ class TestFastApiSecurity:
         auth_manager = Mock()
         auth_manager.batch_is_authorized_connection.return_value = True
         mock_get_auth_manager.return_value = auth_manager
-        mock_get_conn_id_to_team_name_mapping.return_value = {"test1": "team1"}
+        # test4 already exists with team1 — the CREATE+OVERWRITE PUT check must run against team1
+        # so the bulk authz behaviour matches the single-item PUT endpoint.
+        mock_get_conn_id_to_team_name_mapping.return_value = {"test4": "team1"}
 
         request = BulkBody[ConnectionBody].model_validate(
             {
@@ -792,11 +883,18 @@ class TestFastApiSecurity:
         user = Mock()
         requires_access_connection_bulk()(request, user)
 
+        # CREATE+OVERWRITE entities are now included in the existing-team lookup so the PUT check
+        # gets the actual team of the resource being overwritten (regression test for the bypass
+        # where the PUT check ran with team_name=None).
+        mock_get_conn_id_to_team_name_mapping.assert_called_once()
+        looked_up = mock_get_conn_id_to_team_name_mapping.call_args.args[0]
+        assert set(looked_up) == {"test3", "test4"}
+
         auth_manager.batch_is_authorized_connection.assert_called_once_with(
             requests=[
                 {
                     "method": "POST",
-                    "details": ConnectionDetails(conn_id="test1", team_name="team1"),
+                    "details": ConnectionDetails(conn_id="test1"),
                 },
                 {
                     "method": "POST",
@@ -808,11 +906,11 @@ class TestFastApiSecurity:
                 },
                 {
                     "method": "POST",
-                    "details": ConnectionDetails(conn_id="test4"),
+                    "details": ConnectionDetails(conn_id="test4", team_name="team1"),
                 },
                 {
                     "method": "PUT",
-                    "details": ConnectionDetails(conn_id="test4"),
+                    "details": ConnectionDetails(conn_id="test4", team_name="team1"),
                 },
             ],
             user=user,
@@ -934,7 +1032,9 @@ class TestFastApiSecurity:
         auth_manager = Mock()
         auth_manager.batch_is_authorized_variable.return_value = True
         mock_get_auth_manager.return_value = auth_manager
-        mock_get_key_to_team_name_mapping.return_value = {"var1": "team1", "dummy": "team2"}
+        # var4 already exists with team1 — the CREATE+OVERWRITE PUT check must run against team1
+        # so the bulk authz behaviour matches the single-item PUT endpoint.
+        mock_get_key_to_team_name_mapping.return_value = {"var4": "team1"}
         request = BulkBody[VariableBody].model_validate(
             {
                 "actions": [
@@ -962,11 +1062,15 @@ class TestFastApiSecurity:
         user = Mock()
         requires_access_variable_bulk()(request, user)
 
+        mock_get_key_to_team_name_mapping.assert_called_once()
+        looked_up = mock_get_key_to_team_name_mapping.call_args.args[0]
+        assert set(looked_up) == {"var3", "var4"}
+
         auth_manager.batch_is_authorized_variable.assert_called_once_with(
             requests=[
                 {
                     "method": "POST",
-                    "details": VariableDetails(key="var1", team_name="team1"),
+                    "details": VariableDetails(key="var1"),
                 },
                 {
                     "method": "POST",
@@ -978,11 +1082,11 @@ class TestFastApiSecurity:
                 },
                 {
                     "method": "POST",
-                    "details": VariableDetails(key="var4"),
+                    "details": VariableDetails(key="var4", team_name="team1"),
                 },
                 {
                     "method": "PUT",
-                    "details": VariableDetails(key="var4"),
+                    "details": VariableDetails(key="var4", team_name="team1"),
                 },
             ],
             user=user,
@@ -1102,7 +1206,9 @@ class TestFastApiSecurity:
         auth_manager = Mock()
         auth_manager.batch_is_authorized_pool.return_value = True
         mock_get_auth_manager.return_value = auth_manager
-        mock_get_name_to_team_name_mapping.return_value = {"pool1": "team1"}
+        # pool4 already exists with team1 — the CREATE+OVERWRITE PUT check must run against team1
+        # so the bulk authz behaviour matches the single-item PUT endpoint.
+        mock_get_name_to_team_name_mapping.return_value = {"pool4": "team1"}
         request = BulkBody[PoolBody].model_validate(
             {
                 "actions": [
@@ -1130,11 +1236,15 @@ class TestFastApiSecurity:
         user = Mock()
         requires_access_pool_bulk()(request, user)
 
+        mock_get_name_to_team_name_mapping.assert_called_once()
+        looked_up = mock_get_name_to_team_name_mapping.call_args.args[0]
+        assert set(looked_up) == {"pool3", "pool4"}
+
         auth_manager.batch_is_authorized_pool.assert_called_once_with(
             requests=[
                 {
                     "method": "POST",
-                    "details": PoolDetails(name="pool1", team_name="team1"),
+                    "details": PoolDetails(name="pool1"),
                 },
                 {
                     "method": "POST",
@@ -1146,11 +1256,11 @@ class TestFastApiSecurity:
                 },
                 {
                     "method": "POST",
-                    "details": PoolDetails(name="pool4"),
+                    "details": PoolDetails(name="pool4", team_name="team1"),
                 },
                 {
                     "method": "PUT",
-                    "details": PoolDetails(name="pool4"),
+                    "details": PoolDetails(name="pool4", team_name="team1"),
                 },
             ],
             user=user,

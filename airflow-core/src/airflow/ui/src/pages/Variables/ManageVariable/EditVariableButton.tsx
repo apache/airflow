@@ -21,8 +21,7 @@ import { useTranslation } from "react-i18next";
 import { FiEdit } from "react-icons/fi";
 
 import type { VariableResponse } from "openapi/requests/types.gen";
-import { IconButton } from "src/components/ui";
-import { Dialog } from "src/components/ui";
+import { IconButton, Dialog } from "src/components/ui";
 import { useEditVariable } from "src/queries/useEditVariable";
 
 import type { VariableBody } from "./VariableForm";
@@ -51,7 +50,7 @@ const EditVariableButton = ({ disabled, variable }: Props) => {
     description: variable.description ?? "",
     key: variable.key,
     team_name: variable.team_name ?? "",
-    value: formatValue(variable.value),
+    value: formatValue(variable.value ?? ""),
   };
   const { editVariable, error, isPending, setError } = useEditVariable(initialVariableValue, {
     onSuccessConfirm: onClose,

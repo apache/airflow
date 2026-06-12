@@ -34,6 +34,7 @@ from airflow.models.backfill import (
     BackfillDagRunExceptionReason,
     DagNonPeriodicScheduleException,
     InvalidBackfillConf,
+    InvalidBackfillDateRange,
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
     ReprocessBehavior,
@@ -837,4 +838,21 @@ def test_do_dry_run_non_periodic_schedule_rejected(schedule, dag_kwargs, dag_mak
                 reprocess_behavior=ReprocessBehavior.NONE,
                 session=session,
             )
+        )
+
+
+def test_create_backfill_from_date_after_to_date_raises(dag_maker, session):
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    with pytest.raises(InvalidBackfillDateRange, match="must not be after to_date"):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2026-05-13"),
+            to_date=pendulum.parse("2026-05-12"),
+            max_active_runs=2,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf={},
         )

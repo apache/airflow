@@ -19,8 +19,7 @@
 import { Box, Heading, VStack } from "@chakra-ui/react";
 import { type ReactElement, useState } from "react";
 
-import { IconButton } from "src/components/ui";
-import { Dialog } from "src/components/ui";
+import { IconButton, Dialog } from "src/components/ui";
 import { ResizableWrapper, MARKDOWN_DIALOG_STORAGE_KEY } from "src/components/ui/ResizableWrapper";
 
 import ReactMarkdown from "./ReactMarkdown";

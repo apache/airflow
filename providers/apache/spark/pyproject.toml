@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-apache-spark"
-version = "6.0.1"
+version = "6.1.0"
 description = "Provider package apache-airflow-providers-apache-spark for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -63,6 +63,8 @@ dependencies = [
     "apache-airflow-providers-common-compat>=1.12.0",
     "pyspark-client>=4.0.0",
     "grpcio-status>=1.67.0",
+    "requests>=2.32.0",
+    "tenacity>=8.3.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -116,8 +118,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/6.0.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/6.0.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/6.1.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/6.1.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

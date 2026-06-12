@@ -11,9 +11,12 @@
     "maxRuns": "מספר ריצות מקבילות מירבי",
     "missingAndErroredRuns": "הרצות חסרות ושגויות",
     "missingRuns": "הרצות חסרות",
+    "overrideExistingParams": "דרוס פרמטרים בהרצות קיימות",
     "permissionDenied": "הרצה יבשה (Dry Run) נכשלה: למשתמש אין הרשאה ליצור Backfills.",
     "reprocessBehavior": "התנהגות עיבוד מחדש",
     "run": "הרץ Backfill",
+    "scheduleNotBackfillable": "תזמון ה-Dag הזה אינו תומך בהשלמה למפרע",
+    "schedulerPriorityHint": "הרצות Dag של Backfill מסודרות אחרי הרצות Dag שאינן Backfill בכל מחזור של המתזמן. ייתכן שהרצות Backfill יישארו זמן רב יותר בתור אם קיימות הרצות אחרות שאינן Backfill.",
     "selectDescription": "הרץ Dag זה עבור טווח תאריכים",
     "selectLabel": "Backfill",
     "title": "הרץ Backfill",
@@ -46,8 +49,6 @@
   },
   "dagWarnings": {
     "error_one": "שגיאה",
-    "error_other": "שגיאות",
-    "error_two": "שגיאות",
     "errorAndWarning": "שגיאה אחת ו-{{warningText}}",
     "warning_one": "אזהרה אחת",
     "warning_other": "{{count}} אזהרות",
@@ -78,6 +79,7 @@
     "files_two": "שני קבצים"
   },
   "flexibleForm": {
+    "durationPlaceholder": "הזן משך זמן בפורמט ISO 8601",
     "placeholder": "בחר ערך",
     "placeholderArray": "הכנס כל מחרוזת בשורה חדשה",
     "placeholderExamples": "התחל להקליד כדי לראות אפשרויות",
@@ -85,6 +87,7 @@
     "validationErrorArrayNotArray": "הערך חייב להיות מערך.",
     "validationErrorArrayNotNumbers": "כל האיברים במערך חייבים להיות מספרים.",
     "validationErrorArrayNotObject": "כל האיברים במערך חייבים להיות אובייקטים.",
+    "validationErrorDuration": "פורמט משך הזמן ISO 8601 אינו תקין",
     "validationErrorRequired": "שדה זה הוא חובה"
   },
   "graph": {
@@ -99,7 +102,8 @@
     "taskCount_one": "משימה אחת",
     "taskCount_other": "{{count}} משימות",
     "taskCount_two": "שתי משימות",
-    "taskGroup": "קבוצת משימות"
+    "taskGroup": "קבוצת משימות",
+    "zoomToTask": "התמקד במשימה שנבחרה"
   },
   "limitedList": "+ {{count}} נוספים",
   "limitedList.allItems": "כל {{count}} הפריטים:",
@@ -140,6 +144,7 @@
     "intervalStart": "התחלה",
     "loading": "טוען מידע Dag...",
     "loadingFailed": "טעינת מידע ה-Dag נכשלה. אנא נסו שוב.",
+    "manualRunDenied": "הרצות ידניות אינן מותרות עבור Dag זה",
     "runIdHelp": "אופציונלי - ייווצר אוטומטית אם לא יסופק",
     "selectDescription": "הפעל ריצה בודדת של Dag זה",
     "selectLabel": "ריצה בודדת",

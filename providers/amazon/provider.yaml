@@ -23,12 +23,14 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1777990018
+source-date-epoch: 1780426378
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 9.30.0
+  - 9.29.0
   - 9.28.0
   - 9.27.0
   - 9.26.0
@@ -472,6 +474,9 @@ operators:
   - integration-name: Amazon MWAA Serverless
     python-modules:
       - airflow.providers.amazon.aws.operators.mwaa_serverless
+  - integration-name: Amazon OpenSearch Serverless
+    python-modules:
+      - airflow.providers.amazon.aws.operators.opensearch_serverless
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.operators.s3

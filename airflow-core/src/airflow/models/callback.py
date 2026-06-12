@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from importlib import import_module
@@ -31,14 +33,25 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from airflow._shared.module_loading import accepts_context as _accepts_context  # noqa: F401
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
+from airflow.configuration import conf
 from airflow.executors.workloads import BaseWorkload
 from airflow.executors.workloads.callback import CallbackFetchMethod
 from airflow.models import Base
 from airflow.models.base import StringID
+from airflow.models.dagbundle import DagBundleModel
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 from airflow.utils.state import CallbackState
 
-CallbackKey = str  # Callback keys are str(UUID)
+
+@dataclass(frozen=True, slots=True)
+class CallbackKey:
+    """Distinct key type for callbacks, preventing any bare string from passing isinstance checks."""
+
+    id: str
+
+    def __str__(self) -> str:
+        return self.id
+
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -140,7 +153,7 @@ class Callback(Base, BaseWorkload):
         if prefix:
             self.data["prefix"] = prefix
 
-    def queue(self):
+    def queue(self, *, session: Session) -> None:
         self.state = CallbackState.QUEUED
 
     def get_metric_info(self, status: CallbackState, result: Any) -> dict:
@@ -150,6 +163,19 @@ class Callback(Base, BaseWorkload):
         if "kwargs" in tags:
             # Remove the context (if exists) to keep the tags simple
             tags["kwargs"] = {k: v for k, v in tags["kwargs"].items() if k != "context"}
+
+        # Metric backends (statsd, OpenTelemetry) require tag values to be primitives.
+        # OTel's aggregation key is built via ``frozenset(attributes.items())``, which
+        # raises ``TypeError: unhashable type: 'dict'`` if a value is a dict/list. The
+        # callback's ``result`` (passed in from a user callback) and ``kwargs`` are both
+        # frequently dicts, so coerce any non-primitive tag value to a JSON string before
+        # returning. Using ``default=str`` so values like ``datetime`` fall back cleanly.
+        tags = {
+            k: v
+            if isinstance(v, (str, int, float, bool)) or v is None
+            else json.dumps(v, default=str, sort_keys=True)
+            for k, v in tags.items()
+        }
 
         prefix = self.data.get("prefix", "")
         name = f"{prefix}.callback_{status}" if prefix else f"callback_{status}"
@@ -201,9 +227,13 @@ class TriggererCallback(Callback):
     def __repr__(self):
         return f"{self.data['path']}({self.data['kwargs'] or ''}) on a triggerer"
 
-    def queue(self):
+    def queue(self, *, session: Session) -> None:
         from airflow.models.trigger import Trigger
         from airflow.triggers.callback import CallbackTrigger
+
+        team_name: str | None = None
+        if self.bundle_name and conf.getboolean("core", "multi_team"):
+            team_name = DagBundleModel.get_team_name(self.bundle_name, session=session)
 
         self.trigger = Trigger.from_object(
             CallbackTrigger(
@@ -211,7 +241,8 @@ class TriggererCallback(Callback):
                 callback_kwargs=self.data["kwargs"],
             )
         )
-        super().queue()
+        self.trigger.team_name = team_name
+        super().queue(session=session)
 
     def handle_event(self, event: TriggerEvent, session: Session):
         from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY

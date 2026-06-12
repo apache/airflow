@@ -37,8 +37,10 @@ from airflow.models.callback import Callback, TriggererCallback
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.callback import AsyncCallback
+from airflow.serialization.encoders import encode_trigger
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import (
+    BaseEventTrigger,
     BaseTrigger,
     TaskFailedEvent,
     TaskSkippedEvent,
@@ -81,6 +83,17 @@ def clear_db(session):
     session.execute(delete(AssetEvent))
     session.execute(delete(Job))
     session.commit()
+
+
+def test_trigger_team_name_stored(session, testing_team):
+    trigger = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, team_name=testing_team.name
+    )
+    session.add(trigger)
+    session.flush()
+
+    loaded = session.get(Trigger, trigger.id)
+    assert loaded.team_name == "testing"
 
 
 def test_fetch_trigger_ids_with_non_task_associations(session):
@@ -921,6 +934,25 @@ def test_kwargs_not_encrypted():
     assert trigger.kwargs["param2"] == "value2"
 
 
+def test_decrypt_kwargs_roundtrips_datetime():
+    """
+    A datetime kwarg encoded via BaseSerialization (the asset-watcher path) must survive
+    the encrypt/decrypt round-trip through serde without crashing, and the DAG-side and
+    DB-side trigger hashes must match so the trigger is not needlessly recreated.
+
+    Regression: serde lacked a legacy-compat mapping for the bare ``datetime`` timestamp,
+    so ``_decrypt_kwargs`` raised and the asset-watcher trigger could not be read back.
+    """
+    classpath = "airflow.providers.standard.triggers.temporal.DateTimeTrigger"
+    moment = datetime.datetime(2026, 1, 15, 12, 30, tzinfo=datetime.timezone.utc)
+
+    dag_kwargs = encode_trigger({"classpath": classpath, "kwargs": {"moment": moment}})["kwargs"]
+    decrypted = Trigger._decrypt_kwargs(Trigger.encrypt_kwargs(dag_kwargs))
+
+    assert decrypted["moment"].timestamp() == moment.timestamp()
+    assert BaseEventTrigger.hash(classpath, dag_kwargs) == BaseEventTrigger.hash(classpath, decrypted)
+
+
 def test_asset_trigger_unassigned_included(session):
     """Asset triggers with triggerer_id=None are returned."""
     asset = AssetModel("test_asset")
@@ -1018,3 +1050,241 @@ def test_asset_trigger_ordering_and_capacity(session):
 
     # Only the three oldest should be returned, in order
     assert ids == [triggers[0].id, triggers[1].id, triggers[2].id]
+
+
+@pytest.mark.need_serialized_dag
+@conf_vars({("core", "multi_team"): "True"})
+@pytest.mark.parametrize(
+    ("team_name_filter", "expect_team", "expect_global"),
+    [
+        pytest.param("testing", True, False, id="team_scoped"),
+        pytest.param(None, False, True, id="global_triggerer"),
+    ],
+)
+def test_get_sorted_triggers_multi_team_enabled(
+    session, create_task_instance, testing_team, team_name_filter, expect_team, expect_global
+):
+    """When multi_team=True, team_name filters to matching triggers only."""
+    time_now = timezone.utcnow()
+    trigger_team = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, team_name=testing_team.name
+    )
+    session.add(trigger_team)
+    ti_team = create_task_instance(task_id="team_ti", logical_date=time_now, run_id="team_run")
+    ti_team.trigger_id = trigger_team.id
+    session.add(ti_team)
+
+    trigger_global = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger_global)
+    ti_global = create_task_instance(
+        task_id="global_ti", logical_date=time_now + datetime.timedelta(hours=1), run_id="global_run"
+    )
+    ti_global.trigger_id = trigger_global.id
+    session.add(ti_global)
+    session.commit()
+
+    result = Trigger.get_sorted_triggers(
+        capacity=100, alive_triggerer_ids=[], queues=None, session=session, team_name=team_name_filter
+    )
+    ids = {row[0] for row in result}
+    assert (trigger_team.id in ids) == expect_team
+    assert (trigger_global.id in ids) == expect_global
+
+
+@pytest.mark.need_serialized_dag
+@conf_vars({("core", "multi_team"): "False"})
+def test_get_sorted_triggers_multi_team_disabled(session, create_task_instance, testing_team):
+    """When multi_team=False, all triggers are returned regardless of team_name."""
+    time_now = timezone.utcnow()
+    trigger_team = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, team_name=testing_team.name
+    )
+    session.add(trigger_team)
+    ti_team = create_task_instance(task_id="team_ti", logical_date=time_now, run_id="team_run")
+    ti_team.trigger_id = trigger_team.id
+    session.add(ti_team)
+
+    trigger_global = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger_global)
+    ti_global = create_task_instance(
+        task_id="global_ti", logical_date=time_now + datetime.timedelta(hours=1), run_id="global_run"
+    )
+    ti_global.trigger_id = trigger_global.id
+    session.add(ti_global)
+    session.commit()
+
+    result = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], queues=None, session=session)
+    ids = {row[0] for row in result}
+    assert trigger_team.id in ids
+    assert trigger_global.id in ids
+
+
+@pytest.mark.need_serialized_dag
+@conf_vars({("core", "multi_team"): "True"})
+@pytest.mark.parametrize(
+    ("team_name_filter", "expect_team", "expect_global"),
+    [
+        pytest.param("testing", True, False, id="team_scoped"),
+        pytest.param(None, False, True, id="global_triggerer"),
+    ],
+)
+def test_ids_for_triggerer_multi_team_enabled(
+    session, create_task_instance, testing_team, team_name_filter, expect_team, expect_global
+):
+    """When multi_team=True, ids_for_triggerer filters by team_name."""
+    time_now = timezone.utcnow()
+    job = Job(heartrate=10, state=State.RUNNING, latest_heartbeat=time_now)
+    session.add(job)
+    session.flush()
+
+    trigger_team = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, team_name=testing_team.name
+    )
+    trigger_team.triggerer_id = job.id
+    session.add(trigger_team)
+    ti_team = create_task_instance(task_id="team_ti", logical_date=time_now, run_id="team_run")
+    ti_team.trigger_id = trigger_team.id
+    session.add(ti_team)
+
+    trigger_global = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger_global.triggerer_id = job.id
+    session.add(trigger_global)
+    ti_global = create_task_instance(
+        task_id="global_ti", logical_date=time_now + datetime.timedelta(hours=1), run_id="global_run"
+    )
+    ti_global.trigger_id = trigger_global.id
+    session.add(ti_global)
+    session.commit()
+
+    ids = set(Trigger.ids_for_triggerer(job.id, team_name=team_name_filter))
+    assert (trigger_team.id in ids) == expect_team
+    assert (trigger_global.id in ids) == expect_global
+
+
+@pytest.mark.need_serialized_dag
+@conf_vars({("core", "multi_team"): "False"})
+def test_ids_for_triggerer_multi_team_disabled(session, create_task_instance, testing_team):
+    """When multi_team=False, ids_for_triggerer returns all triggers for the triggerer."""
+    time_now = timezone.utcnow()
+    job = Job(heartrate=10, state=State.RUNNING, latest_heartbeat=time_now)
+    session.add(job)
+    session.flush()
+
+    trigger_team = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, team_name=testing_team.name
+    )
+    trigger_team.triggerer_id = job.id
+    session.add(trigger_team)
+    ti_team = create_task_instance(task_id="team_ti", logical_date=time_now, run_id="team_run")
+    ti_team.trigger_id = trigger_team.id
+    session.add(ti_team)
+
+    trigger_global = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger_global.triggerer_id = job.id
+    session.add(trigger_global)
+    ti_global = create_task_instance(
+        task_id="global_ti", logical_date=time_now + datetime.timedelta(hours=1), run_id="global_run"
+    )
+    ti_global.trigger_id = trigger_global.id
+    session.add(ti_global)
+    session.commit()
+
+    ids = Trigger.ids_for_triggerer(job.id)
+    assert set(ids) == {trigger_team.id, trigger_global.id}
+
+
+@pytest.mark.need_serialized_dag
+@conf_vars({("core", "multi_team"): "True"})
+@pytest.mark.parametrize(
+    ("team_name_filter", "expect_team_assigned", "expect_global_assigned"),
+    [
+        pytest.param("testing", True, False, id="team_scoped"),
+        pytest.param(None, False, True, id="global_triggerer"),
+    ],
+)
+def test_assign_unassigned_multi_team(
+    session,
+    create_task_instance,
+    testing_team,
+    team_name_filter,
+    expect_team_assigned,
+    expect_global_assigned,
+):
+    """When multi_team=True, assign_unassigned only assigns triggers matching team_name."""
+    time_now = timezone.utcnow()
+    job = Job(heartrate=10, state=State.RUNNING, latest_heartbeat=time_now)
+    session.add(job)
+    session.flush()
+
+    trigger_team = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, team_name=testing_team.name
+    )
+    session.add(trigger_team)
+    ti_team = create_task_instance(task_id="team_ti", logical_date=time_now, run_id="team_run")
+    ti_team.trigger_id = trigger_team.id
+    session.add(ti_team)
+
+    trigger_global = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger_global)
+    ti_global = create_task_instance(
+        task_id="global_ti", logical_date=time_now + datetime.timedelta(hours=1), run_id="global_run"
+    )
+    ti_global.trigger_id = trigger_global.id
+    session.add(ti_global)
+    session.commit()
+
+    Trigger.assign_unassigned(job.id, capacity=100, health_check_threshold=30, team_name=team_name_filter)
+    session.expire_all()
+
+    assert (session.get(Trigger, trigger_team.id).triggerer_id == job.id) == expect_team_assigned
+    assert (session.get(Trigger, trigger_global.id).triggerer_id == job.id) == expect_global_assigned
+
+
+@pytest.mark.need_serialized_dag
+@conf_vars({("core", "multi_team"): "True"})
+def test_team_and_queue_combined(session, create_task_instance, testing_team):
+    """Team and queue filters combine as AND conditions."""
+    time_now = timezone.utcnow()
+
+    trigger_team_q1 = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger",
+        kwargs={},
+        team_name=testing_team.name,
+        queue="q1",
+    )
+    session.add(trigger_team_q1)
+    ti1 = create_task_instance(task_id="ti1", logical_date=time_now, run_id="run1")
+    ti1.trigger_id = trigger_team_q1.id
+    session.add(ti1)
+
+    trigger_team_q2 = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger",
+        kwargs={},
+        team_name=testing_team.name,
+        queue="q2",
+    )
+    session.add(trigger_team_q2)
+    ti2 = create_task_instance(
+        task_id="ti2", logical_date=time_now + datetime.timedelta(hours=1), run_id="run2"
+    )
+    ti2.trigger_id = trigger_team_q2.id
+    session.add(ti2)
+
+    trigger_global_q1 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, queue="q1")
+    session.add(trigger_global_q1)
+    ti3 = create_task_instance(
+        task_id="ti3", logical_date=time_now + datetime.timedelta(hours=2), run_id="run3"
+    )
+    ti3.trigger_id = trigger_global_q1.id
+    session.add(ti3)
+    session.commit()
+
+    result = Trigger.get_sorted_triggers(
+        capacity=100,
+        alive_triggerer_ids=[],
+        queues={"q1"},
+        session=session,
+        team_name=testing_team.name,
+    )
+    ids = [row[0] for row in result]
+    assert ids == [trigger_team_q1.id]

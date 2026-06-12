@@ -37,6 +37,7 @@ from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.task_store import TaskStoreModel
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.db_cleanup import (
@@ -876,3 +877,158 @@ def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
             session.add(dag_run)
             session.add(ti)
         session.commit()
+
+
+@pytest.mark.db_test
+class TestTaskStoreCleanup:
+    def test_expired_rows_deleted(self):
+        cfg = config_dict["task_store"]
+        now = pendulum.now(tz="UTC")
+        past = now.subtract(days=30)
+        future = now.add(days=30)
+
+        with create_session() as session:
+            bundle = DagBundleModel(name="ts_test_bundle")
+            session.add(bundle)
+            session.flush()
+
+            dag = DAG(dag_id="ts_test_dag")
+            dm = DagModel(dag_id="ts_test_dag", bundle_name="ts_test_bundle")
+            session.add(dm)
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="ts_test_bundle")
+
+            dag_run = DagRun(
+                "ts_test_dag",
+                run_id="ts_test_run",
+                run_type=DagRunType.SCHEDULED,
+                start_date=past,
+            )
+            session.add(dag_run)
+            session.flush()
+
+            expired = TaskStoreModel(
+                dag_run_id=dag_run.id,
+                task_id="t1",
+                map_index=-1,
+                key="job_id",
+                dag_id="ts_test_dag",
+                run_id="ts_test_run",
+                value="job-expired",
+                updated_at=past,
+                expires_at=past.subtract(days=1),
+            )
+            never_expire = TaskStoreModel(
+                dag_run_id=dag_run.id,
+                task_id="t1",
+                map_index=-1,
+                key="result",
+                dag_id="ts_test_dag",
+                run_id="ts_test_run",
+                value="job-never-expire",
+                updated_at=past,
+                expires_at=None,
+            )
+            not_yet_expired = TaskStoreModel(
+                dag_run_id=dag_run.id,
+                task_id="t1",
+                map_index=-1,
+                key="future_key",
+                dag_id="ts_test_dag",
+                run_id="ts_test_run",
+                value="job-future",
+                updated_at=past,
+                expires_at=future,
+            )
+            session.add_all([expired, never_expire, not_yet_expired])
+            session.commit()
+
+        cutoff = now.subtract(hours=1)
+        with create_session() as session:
+            _cleanup_table(
+                **cfg.__dict__,
+                clean_before_timestamp=cutoff,
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+                skip_archive=True,
+                session=session,
+            )
+
+        with create_session() as session:
+            not_deleted = {
+                row.key
+                for row in session.scalars(
+                    select(TaskStoreModel).where(TaskStoreModel.dag_id == "ts_test_dag")
+                ).all()
+            }
+
+        assert "job_id" not in not_deleted, "expired row should be deleted"
+        assert "result" in not_deleted, "NEVER_EXPIRE row (expires_at=NULL) must survive"
+        assert "future_key" in not_deleted, "not-yet-expired row must survive"
+
+
+@pytest.mark.db_test
+class TestConnectionTestRequestCleanup:
+    """Verify db_cleanup never deletes in-flight connection tests (kaxil r3169602754)."""
+
+    def setup_method(self):
+        from tests_common.test_utils.db import clear_db_connection_tests
+
+        clear_db_connection_tests()
+
+    def teardown_method(self):
+        from tests_common.test_utils.db import clear_db_connection_tests
+
+        clear_db_connection_tests()
+
+    def test_extra_filters_keep_in_flight_rows(self):
+        """Even past the cutoff, PENDING/QUEUED/RUNNING rows survive cleanup; SUCCESS/FAILED don't."""
+        from datetime import timezone
+
+        import uuid6
+
+        from airflow.models.connection_test import ConnectionTestRequest, ConnectionTestState
+        from airflow.utils.db_cleanup import config_dict
+        from airflow.utils.session import create_session
+
+        cfg = config_dict["connection_test_request"]
+        old = pendulum.now(tz="UTC").subtract(days=30)
+        seeded: dict[str, str] = {}
+        with create_session() as s:
+            for state in ConnectionTestState:
+                ct = ConnectionTestRequest(connection_id=f"cleanup_probe_{state.value}", conn_type="http")
+                ct.id = uuid6.uuid7()
+                ct.state = state
+                ct.updated_at = old.in_timezone(timezone.utc)
+                s.add(ct)
+                seeded[state.value] = str(ct.id)
+            s.commit()
+
+        # Run cleanup with a cutoff well past every seeded row.
+        cutoff = pendulum.now(tz="UTC").subtract(days=1)
+        with create_session() as session:
+            _cleanup_table(
+                **cfg.__dict__,
+                clean_before_timestamp=cutoff,
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+                skip_archive=True,
+                session=session,
+            )
+
+        with create_session() as s:
+            survivors = {
+                str(row.id)
+                for row in s.scalars(
+                    select(ConnectionTestRequest).where(
+                        ConnectionTestRequest.connection_id.like("cleanup_probe_%")
+                    )
+                ).all()
+            }
+
+        # In-flight states must still be present; terminal states must be gone.
+        for state in ("pending", "queued", "running"):
+            assert seeded[state] in survivors, f"{state} row should NOT be cleaned up"
+        for state in ("success", "failed"):
+            assert seeded[state] not in survivors, f"{state} row should be cleaned up"

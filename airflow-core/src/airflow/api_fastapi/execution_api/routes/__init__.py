@@ -21,8 +21,9 @@ from fastapi import APIRouter, Security
 
 from airflow.api_fastapi.execution_api.routes import (
     asset_events,
-    asset_state,
+    asset_store,
     assets,
+    connection_tests,
     connections,
     dag_runs,
     dags,
@@ -30,7 +31,7 @@ from airflow.api_fastapi.execution_api.routes import (
     hitl,
     task_instances,
     task_reschedules,
-    task_state,
+    task_store,
     variables,
     xcoms,
 )
@@ -44,6 +45,9 @@ authenticated_router = VersionedAPIRouter(dependencies=[Security(require_auth)])
 
 authenticated_router.include_router(assets.router, prefix="/assets", tags=["Assets"])
 authenticated_router.include_router(asset_events.router, prefix="/asset-events", tags=["Asset Events"])
+authenticated_router.include_router(
+    connection_tests.router, prefix="/connection-tests", tags=["Connection Tests"]
+)
 authenticated_router.include_router(connections.router, prefix="/connections", tags=["Connections"])
 authenticated_router.include_router(dag_runs.router, prefix="/dag-runs", tags=["Dag Runs"])
 authenticated_router.include_router(dags.router, prefix="/dags", tags=["Dags"])
@@ -54,7 +58,7 @@ authenticated_router.include_router(
 authenticated_router.include_router(variables.router, prefix="/variables", tags=["Variables"])
 authenticated_router.include_router(xcoms.router, prefix="/xcoms", tags=["XComs"])
 authenticated_router.include_router(hitl.router, prefix="/hitlDetails", tags=["Human in the Loop"])
-authenticated_router.include_router(task_state.router, prefix="/state/ti", tags=["Task State"])
-authenticated_router.include_router(asset_state.router, prefix="/state/asset", tags=["Asset State"])
+authenticated_router.include_router(task_store.router, prefix="/store/ti", tags=["Task Store"])
+authenticated_router.include_router(asset_store.router, prefix="/store/asset", tags=["Asset Store"])
 
 execution_api_router.include_router(authenticated_router)

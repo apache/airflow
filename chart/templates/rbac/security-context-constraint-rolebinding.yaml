@@ -50,9 +50,10 @@ roleRef:
   kind: ClusterRole
   name: system:openshift:scc:anyuid
 subjects:
-  {{- if or (contains "CeleryExecutor" .Values.executor) (and (contains "KubernetesExecutor" .Values.executor) (eq .Values.workers.kubernetes.serviceAccount.create nil)) }}
+  {{- $create := or .Values.workers.celery.serviceAccount.create (and (not (has .Values.workers.celery.serviceAccount.create (list true false))) .Values.workers.serviceAccount.create) }}
+  {{- if or (and (contains "CeleryExecutor" .Values.executor) (or $create .Values.workers.celery.serviceAccount.name .Values.workers.serviceAccount.name)) (and (contains "KubernetesExecutor" .Values.executor) (eq .Values.workers.kubernetes.serviceAccount.create nil)) }}
   - kind: ServiceAccount
-    name: {{ include "worker.serviceAccountName" . }}
+    name: {{ default (include "worker.serviceAccountName" .) .Values.workers.celery.serviceAccount.name }}
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
   {{- if and (or .Values.workers.kubernetes.serviceAccount.create .Values.workers.kubernetes.serviceAccount.name) (contains "KubernetesExecutor" .Values.executor) }}

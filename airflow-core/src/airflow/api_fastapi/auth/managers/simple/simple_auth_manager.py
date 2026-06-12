@@ -27,6 +27,7 @@ from enum import Enum
 from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TextIO
+from urllib.parse import urlencode
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -215,11 +216,17 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
+        next_url = kwargs.get("next_url")
         is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
         if is_simple_auth_manager_all_admins:
-            return AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token/login"
+            login_url = AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token/login"
+        else:
+            login_url = AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login"
 
-        return AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login"
+        if next_url:
+            return f"{login_url}?{urlencode({'next': next_url})}"
+
+        return login_url
 
     def deserialize_user(self, token: dict[str, Any]) -> SimpleAuthManagerUser:
         return SimpleAuthManagerUser(
@@ -230,6 +237,9 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     def serialize_user(self, user: SimpleAuthManagerUser) -> dict[str, Any]:
         return {"sub": user.username, "role": user.role, "teams": user.teams}
+
+    def get_cli_user(self) -> SimpleAuthManagerUser:
+        return SimpleAuthManagerUser(username="cli", role=SimpleAuthManagerRole.ADMIN.name)
 
     def is_authorized_configuration(
         self,

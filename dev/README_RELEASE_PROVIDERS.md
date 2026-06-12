@@ -220,14 +220,14 @@ options:
 Other MCP-compatible agentic clients should work as long as the GitHub MCP server is wired up and
 the framework loads `SKILL.md` files from the `.claude/skills/` discovery path.
 
-The skill source of truth lives in [`.github/skills/prepare-providers-documentation/SKILL.md`](../.github/skills/prepare-providers-documentation/SKILL.md).
+The skill source of truth lives in [`.agents/skills/prepare-providers-documentation/SKILL.md`](../.agents/skills/prepare-providers-documentation/SKILL.md).
 Both Claude Code and OpenAI Codex CLI discover project-local skills via a symlink at
 `.claude/skills/prepare-providers-documentation`. If your local checkout doesn't have that symlink
 (the `.claude/` directory is gitignored), set it up once:
 
 ```shell script
 mkdir -p .claude/skills
-ln -s ../../.github/skills/prepare-providers-documentation .claude/skills/prepare-providers-documentation
+ln -s ../../.agents/skills/prepare-providers-documentation .claude/skills/prepare-providers-documentation
 ```
 
 Before invoking the skill, set the environment variable ``RELEASE_DATE`` to the date of the release,
@@ -653,7 +653,7 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 Earlier, we pushed the date tag, now that the RC(s) are ready we can push the tags for them.
 
 ```shell script
-breeze release-management tag-providers
+breeze release-management tag-providers --release-date ${RELEASE_DATE}
 ```
 
 ## Prepare documentation in Staging
@@ -742,15 +742,60 @@ breeze release-management generate-issue-content-providers --only-available-in-d
     --excluded-pr-list PR_NUMBER1,PR_NUMBER2
 ```
 
-It's also OK to manually modify the content of such generated issue before actually creating the
-issue. There is a comment generated with NOTE TO RELEASE MANAGER about this in the issue content.
-Hit Preview button on "create issue" screen before creating it to verify how it will look like
-for the contributors.
+The command always writes the full, untruncated issue body to a file (a temporary file by
+default, or the path you pass with `--output-file`) and prints that path together with a ready
+to run `gh issue create --body-file ...` command. This file is the source of truth for the issue
+content - it is safe to edit it before the issue is created. There is a comment generated with
+NOTE TO RELEASE MANAGER about this in the issue content.
 
-By default, the command will ask whether to create the issue. You can answer Yes
-and it will attempt to create the issue with `gh` tool. This might not always be possible
-because often our issues create too long URL to create an issue, in which case you will
-have to copy&paste the issue title and content manually to the issue created with "New Issue" in GitHub,
+By default, the command will ask whether to create the issue. You can answer Yes and it will
+create the issue with the `gh` tool using `--body-file` (so there is no longer any "URL too long"
+limitation - the previous `--web` based flow encoded the whole body into the URL and failed on
+large provider waves). If you prefer to create it yourself (or want to preview it first), answer
+No and run the printed `gh issue create --body-file ...` command, or copy the file content into a
+"New Issue" screen in GitHub.
+
+For non-interactive / agentic runs you can skip the prompt by passing `--answer yes` (create the
+issue) or `--answer no` (only generate the file). For example, to generate the body without
+creating the issue:
+
+```shell script
+breeze release-management generate-issue-content-providers --only-available-in-dist \
+    --output-file files/provider_issue.md --answer no
+```
+
+### Always carry over checkmarks from the previous wave's testing issue
+
+Whenever a provider in this wave is a **re-cut** of one that already appeared in
+an earlier wave's testing issue — providers held back from the previous wave and
+released again at `rc2`/`rc3`, or any provider whose previous RC was cancelled —
+the PRs that were already ticked `[x]` (verified) in that earlier issue must stay
+ticked in the new one. Testers should not be asked to re-verify unchanged code;
+only the genuinely new commits in the re-cut are left unchecked. **Do this every
+time** before creating the issue.
+
+Extract the checked PRs from the previous issue and carry them over to the
+generated body:
+
+```shell script
+# PREV_ISSUE = the previous wave's testing-status issue number
+gh issue view PREV_ISSUE --repo apache/airflow --json body -q .body > /tmp/prev_issue.md
+checked=$(grep -E '^\s*- \[x\]' /tmp/prev_issue.md | grep -oE '#[0-9]+' | tr -d '#' | sort -u | paste -sd '|' -)
+# macOS sed: `sed -i ''`; GNU/Linux sed: `sed -i`
+sed -i '' -E "s/- \[ \] (.*\(#(${checked})\))/- [x] \1/" files/provider_issue.md
+```
+
+Review the resulting `[x]` lines (PRs only present in the new wave stay
+unchecked), then create the issue as below. If the issue was already created,
+apply the same edit to the file and run `gh issue edit <ISSUE> --body-file ...`.
+
+then create it from the file:
+
+```shell script
+gh issue create --repo apache/airflow \
+    --title "Status of testing Providers that were prepared on <MONTH DD, YYYY>" \
+    --body-file files/provider_issue.md --label "testing status,kind:meta"
+```
 
 ## Prepare voting email for Providers release candidate
 
@@ -1495,7 +1540,7 @@ and lead to annoying errors. The default behavior would be to clean such local t
 If you want to disable this behavior, set the env **CLEAN_LOCAL_TAGS** to false.
 
 ```shell script
-breeze release-management tag-providers
+breeze release-management tag-providers --release-date ${RELEASE_DATE}
 ```
 
 ## Publish documentation

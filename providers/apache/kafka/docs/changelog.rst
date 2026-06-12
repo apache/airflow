@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+1.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add uri sanitizers and asset factories for new schemes (#66426)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix KafkaError.name() called as property instead of method in create_topic (#65734)``
+* ``Fix AwaitMessageTrigger missing _task_instance attribute (#66302)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT007 rule to apache.kafka Provider test (#66147)``
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
 1.13.3
 ......
 

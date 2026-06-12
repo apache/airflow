@@ -42,9 +42,7 @@ import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { DAGWarningsModal } from "src/components/DAGWarningsModal";
 import { SearchDagsButton } from "src/components/SearchDags";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
-import { IconButton } from "src/components/ui";
-import { ProgressBar } from "src/components/ui";
-import { Toaster } from "src/components/ui";
+import { IconButton, ProgressBar, Toaster } from "src/components/ui";
 import type { DagView } from "src/constants/dagView";
 import { DEFAULT_DAG_VIEW_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
@@ -57,7 +55,7 @@ import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
 import { Graph } from "./Graph";
 import { Grid } from "./Grid";
-import { NavTabs } from "./NavTabs";
+import { NavTabs, type NavTab } from "./NavTabs";
 import { PanelButtons } from "./PanelButtons";
 
 // Separate component so useHover can be called inside HoverProvider.
@@ -90,10 +88,12 @@ const SharedScrollBox = ({
 type Props = {
   readonly error?: unknown;
   readonly isLoading?: boolean;
-  readonly tabs: Array<{ icon: ReactNode; label: string; value: string }>;
+  /** Value exposed to the active tab via ``useOutletContext`` (so tabs can reuse the parent's data). */
+  readonly outletContext?: unknown;
+  readonly tabs: Array<NavTab>;
 } & PropsWithChildren;
 
-export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
+export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs }: Props) => {
   const { t: translate } = useTranslation();
   const { dagId = "", runId } = useParams();
   const { data: dag } = useDagServiceGetDag({ dagId });
@@ -212,13 +212,17 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const sharedGridGanttScrollRef = useRef<HTMLDivElement | null>(null);
   // Treat "gantt" as "grid" for panel layout persistence so switching between them doesn't reset sizes.
   const panelViewKey = dagView === "gantt" ? "grid" : dagView;
+  const minSize = dagView === "gantt" && Boolean(runId) ? 35 : 6;
+  const defaultSize = Math.max(dagView === "graph" ? 70 : 20, minSize);
 
   return (
     <HoverProvider>
       <GroupsProvider dagId={dagId}>
         <Box display="flex" flex={1} flexDirection="column" minH={0} minW={{ base: "1280px", md: "auto" }}>
           <HStack justifyContent="space-between" mb={2}>
-            <DagBreadcrumb />
+            <Flex alignItems="center" gap={1}>
+              <DagBreadcrumb />
+            </Flex>
             <Flex gap={1}>
               <SearchDagsButton />
               {dag === undefined ? undefined : (
@@ -260,12 +264,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
               key={`${panelViewKey}-${direction}`}
               ref={panelGroupRef}
             >
-              <Panel
-                defaultSize={dagView === "graph" ? 70 : 20}
-                id="main-panel"
-                minSize={dagView === "gantt" && Boolean(runId) ? 35 : 6}
-                order={1}
-              >
+              <Panel defaultSize={defaultSize} id="main-panel" minSize={minSize} order={1}>
                 <Flex flexDirection="column" height="100%">
                   <PanelButtons
                     dagView={dagView}
@@ -409,7 +408,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                       <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
                       <NavTabs tabs={tabs} />
                       <Box flexGrow={1} overflow="auto" px={2}>
-                        <Outlet />
+                        <Outlet context={outletContext} />
                       </Box>
                     </Box>
                   </Panel>

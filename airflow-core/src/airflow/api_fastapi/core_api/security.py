@@ -37,6 +37,7 @@ from airflow.api_fastapi.auth.managers.base_auth_manager import (
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.batch_apis import (
     IsAuthorizedConnectionRequest,
+    IsAuthorizedDagRequest,
     IsAuthorizedPoolRequest,
     IsAuthorizedVariableRequest,
 )
@@ -62,6 +63,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkUpdateAction,
 )
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
+from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunBody, BulkDAGRunClearBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
@@ -369,12 +371,14 @@ def requires_access_event_log(
         dag_id = None
 
         event_log_id_raw = request.path_params.get("event_log_id")
-        try:
-            event_log_id = int(event_log_id_raw) if event_log_id_raw is not None else None
-        except ValueError:
-            event_log_id = None
-
-        if event_log_id is not None:
+        if event_log_id_raw is not None:
+            try:
+                event_log_id = int(event_log_id_raw)
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="'event_log_id' must be an integer",
+                )
             dag_id = session.scalar(select(Log.dag_id).where(Log.id == event_log_id))
 
         requires_access_dag(method, DagAccessEntity.AUDIT_LOG, dag_id)(
@@ -437,12 +441,13 @@ def requires_access_pool_bulk() -> Callable[[BulkBody[PoolBody], BaseUser], None
         request: BulkBody[PoolBody],
         user: GetUserDep,
     ) -> None:
-        # Build the list of pool names provided as part of the request
+        # Build the list of pool names provided as part of the request that may correspond to
+        # an existing resource (UPDATE / DELETE, or CREATE+OVERWRITE which may turn into a PUT).
         existing_pool_names = [
             cast("str", entity) if action.action == BulkAction.DELETE else cast("PoolBody", entity).pool
             for action in request.actions
             for entity in action.entities
-            if action.action != BulkAction.CREATE
+            if _bulk_action_needs_existing_team_lookup(action)
         ]
         # For each pool, find its associated team (if it exists)
         pool_name_to_team = Pool.get_name_to_team_name_mapping(existing_pool_names)
@@ -538,14 +543,15 @@ def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], Bas
         request: BulkBody[ConnectionBody],
         user: GetUserDep,
     ) -> None:
-        # Build the list of ``conn_id`` provided as part of the request
+        # Build the list of ``conn_id`` provided as part of the request that may correspond to
+        # an existing resource (UPDATE / DELETE, or CREATE+OVERWRITE which may turn into a PUT).
         existing_connection_ids = [
             cast("str", entity)
             if action.action == BulkAction.DELETE
             else cast("ConnectionBody", entity).connection_id
             for action in request.actions
             for entity in action.entities
-            if action.action != BulkAction.CREATE
+            if _bulk_action_needs_existing_team_lookup(action)
         ]
         # For each connection, find its associated team (if it exists)
         conn_id_to_team = Connection.get_conn_id_to_team_name_mapping(existing_connection_ids)
@@ -680,12 +686,13 @@ def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUse
         request: BulkBody[VariableBody],
         user: GetUserDep,
     ) -> None:
-        # Build the list of variable keys provided as part of the request
+        # Build the list of variable keys provided as part of the request that may correspond to
+        # an existing resource (UPDATE / DELETE, or CREATE+OVERWRITE which may turn into a PUT).
         existing_variable_keys = [
             cast("str", entity) if action.action == BulkAction.DELETE else cast("VariableBody", entity).key
             for action in request.actions
             for entity in action.entities
-            if action.action != BulkAction.CREATE
+            if _bulk_action_needs_existing_team_lookup(action)
         ]
         # For each variable, find its associated team (if it exists)
         var_key_to_team = Variable.get_key_to_team_name_mapping(existing_variable_keys)
@@ -715,6 +722,86 @@ def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUse
         _requires_access(
             # By calling `batch_is_authorized_variable`, we check the user has access to all variables provided in the request
             is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_variable(
+                requests=requests,
+                user=user,
+            )
+        )
+
+    return inner
+
+
+def _build_dag_run_access_requests(
+    entity_methods: list[tuple[str, ResourceMethod]],
+) -> list[IsAuthorizedDagRequest]:
+    """
+    Build per-entity DagRun authorization requests for a batched access check.
+
+    ``entity_methods`` is a list of ``(dag_id, method)`` pairs with unresolvable
+    entries (no dag_id or the ``~`` wildcard) already filtered out by the caller.
+    Teams for all Dags are resolved in a single batched query and shared across each
+    Dag's requests.
+    """
+    if not entity_methods:
+        return []
+    resolved_dag_ids = list({dag_id for dag_id, _ in entity_methods})
+    dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(resolved_dag_ids)
+    return [
+        {
+            "method": method,
+            "access_entity": DagAccessEntity.RUN,
+            "details": DagDetails(id=dag_id, team_name=dag_id_to_team.get(dag_id)),
+        }
+        for dag_id, method in entity_methods
+    ]
+
+
+def requires_access_dag_run_bulk() -> Callable[[BulkBody[BulkDAGRunBody], BaseUser, str], None]:
+    def inner(
+        request: BulkBody[BulkDAGRunBody],
+        user: GetUserDep,
+        dag_id: str,
+    ) -> None:
+        entity_methods: list[tuple[str, ResourceMethod]] = []
+        for action in request.actions:
+            methods = _get_resource_methods_from_bulk_request(action)
+            for entity in action.entities:
+                if isinstance(entity, str):
+                    entity_dag_id: str | None = dag_id
+                else:
+                    entity_dag_id = entity.dag_id or dag_id
+                # Entities that can't be resolved are surfaced as 400 in the service's BulkResponse.
+                if not entity_dag_id or entity_dag_id == "~":
+                    continue
+                for method in methods:
+                    entity_methods.append((entity_dag_id, method))
+
+        requests = _build_dag_run_access_requests(entity_methods)
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(
+                requests=requests,
+                user=user,
+            )
+        )
+
+    return inner
+
+
+def requires_access_dag_run_clear_bulk() -> Callable[[BulkDAGRunClearBody, BaseUser, str], None]:
+    def inner(
+        body: BulkDAGRunClearBody,
+        user: GetUserDep,
+        dag_id: str,
+    ) -> None:
+        entity_methods: list[tuple[str, ResourceMethod]] = []
+        for run in body.dag_runs:
+            entity_dag_id = run.dag_id or dag_id
+            if not entity_dag_id or entity_dag_id == "~":
+                continue
+            entity_methods.append((entity_dag_id, "PUT"))
+
+        requests = _build_dag_run_access_requests(entity_methods)
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(
                 requests=requests,
                 user=user,
             )
@@ -882,3 +969,15 @@ def _get_resource_methods_from_bulk_request(
     if action.action == BulkAction.CREATE and action.action_on_existence == BulkActionOnExistence.OVERWRITE:
         resource_methods.append("PUT")
     return resource_methods
+
+
+def _bulk_action_needs_existing_team_lookup(
+    action: BulkCreateAction | BulkUpdateAction | BulkDeleteAction,
+) -> bool:
+    # UPDATE / DELETE always operate on existing resources, so we need the existing team for authz.
+    # CREATE with action_on_existence=OVERWRITE may turn into a PUT against an existing resource that
+    # belongs to a team; if we omit it from the lookup, the PUT authz check runs with team_name=None
+    # and bypasses the per-team membership check that the single-item PUT endpoint enforces.
+    if action.action != BulkAction.CREATE:
+        return True
+    return action.action_on_existence == BulkActionOnExistence.OVERWRITE

@@ -42,7 +42,7 @@ import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
 import { useDags } from "src/queries/useDags";
 
-import { DAGImportErrors } from "../Dashboard/Stats/DAGImportErrors";
+import { DagImportErrors } from "../Dashboard/Stats/DagImportErrors";
 import { DagCard } from "./DagCard";
 import { DagTags } from "./DagTags";
 import { DagsFilters } from "./DagsFilters";
@@ -297,7 +297,7 @@ export const DagsList = () => {
             <Heading py={3} size="md">
               {`${totalEntries} ${translate("dag", { count: totalEntries })}`}
             </Heading>
-            <DAGImportErrors iconOnly />
+            <DagImportErrors iconOnly />
           </HStack>
           {display === "card" ? (
             <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />

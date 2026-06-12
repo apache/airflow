@@ -24,9 +24,7 @@ import { FiPlay } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun } from "openapi/queries";
-import { IconButton } from "src/components/ui";
-import { Menu } from "src/components/ui";
-import { Tooltip } from "src/components/ui";
+import { IconButton, Menu, Tooltip } from "src/components/ui";
 
 import TriggerDAGModal from "./TriggerDAGModal";
 
