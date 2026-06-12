@@ -383,9 +383,7 @@ class DagRun(Base, LoggingMixin):
         self.triggering_user_name = triggering_user_name
         self.scheduled_by_job_id = None
         self.context_carrier: dict[str, str] = new_dagrun_trace_carrier(
-            task_span_detail_level=self.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY, None),
-            dag_id=getattr(self, "dag_id", None),
-            run_type=getattr(self, "run_type", None),
+            task_span_detail_level=self.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY, None)
         )
 
         if not isinstance(partition_key, str | None):

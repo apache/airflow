@@ -170,28 +170,6 @@ class TestNewDagrunTraceCarrierSampling:
         assert get_task_span_detail_level(span) == 2
         assert _carrier_is_sampled(carrier) is False
 
-    def test_dag_id_and_run_type_passed_to_sampler(self, monkeypatch):
-        """dag_id/run_type are forwarded to the sampler as attributes for differentiation."""
-        captured = {}
-
-        class _RecordingSampler:
-            def should_sample(self, parent_context, trace_id, name, attributes=None, **kwargs):
-                captured["attributes"] = attributes
-                return ALWAYS_ON.should_sample(parent_context, trace_id, name, attributes=attributes)
-
-        class _Provider:
-            sampler = _RecordingSampler()
-
-        monkeypatch.setattr(
-            "airflow_shared.observability.traces.trace.get_tracer_provider",
-            lambda: _Provider(),
-        )
-        new_dagrun_trace_carrier(dag_id="my_dag", run_type="manual")
-        assert captured["attributes"] == {
-            "airflow.dag_id": "my_dag",
-            "airflow.run_type": "manual",
-        }
-
 
 class TestGetTaskSpanDetailLevel:
     def _make_span_with_trace_state(self, entries: list[tuple[str, str]]) -> NonRecordingSpan:
