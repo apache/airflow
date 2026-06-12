@@ -88,10 +88,12 @@ const SharedScrollBox = ({
 type Props = {
   readonly error?: unknown;
   readonly isLoading?: boolean;
+  /** Value exposed to the active tab via ``useOutletContext`` (so tabs can reuse the parent's data). */
+  readonly outletContext?: unknown;
   readonly tabs: Array<NavTab>;
 } & PropsWithChildren;
 
-export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
+export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs }: Props) => {
   const { t: translate } = useTranslation();
   const { dagId = "", runId } = useParams();
   const { data: dag } = useDagServiceGetDag({ dagId });
@@ -406,7 +408,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                       <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
                       <NavTabs tabs={tabs} />
                       <Box flexGrow={1} overflow="auto" px={2}>
-                        <Outlet />
+                        <Outlet context={outletContext} />
                       </Box>
                     </Box>
                   </Panel>
