@@ -30,7 +30,7 @@ class InformaticaProviderPlugin(AirflowPlugin):
     """
     Listener that emits numerous Events.
 
-    Informatica Plugin provides listener that emits OL events on DAG.
+    Informatica Plugin provides listener that emits OL events on Dag.
     """
 
     name: str = "InformaticaProviderPlugin"
