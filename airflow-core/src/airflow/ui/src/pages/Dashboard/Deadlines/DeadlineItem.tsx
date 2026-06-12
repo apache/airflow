@@ -27,15 +27,20 @@ type DeadlineItemProps = {
   readonly deadline: DeadlineResponse;
 };
 
+const focusStyles = {
+  _focus: { outline: "none" },
+  _focusVisible: { outline: "2px solid", outlineColor: "brand.focusRing", outlineOffset: "2px" },
+};
+
 export const DeadlineItem = ({ deadline }: DeadlineItemProps) => (
   <HStack justify="space-between" px={3} py={2} width="100%">
     <VStack align="start" gap={0} minWidth={0} overflow="hidden">
-      <Link asChild color="fg.info" fontSize="sm" fontWeight="medium">
+      <Link asChild color="fg.info" fontSize="sm" fontWeight="medium" {...focusStyles}>
         <RouterLink to={`/dags/${deadline.dag_id}`}>
           <TruncatedText text={deadline.dag_id} />
         </RouterLink>
       </Link>
-      <Link asChild color="fg.muted" fontSize="xs">
+      <Link asChild color="fg.muted" fontSize="xs" {...focusStyles}>
         <RouterLink to={`/dags/${deadline.dag_id}/runs/${deadline.dag_run_id}`}>
           <TruncatedText text={deadline.dag_run_id} />
         </RouterLink>
