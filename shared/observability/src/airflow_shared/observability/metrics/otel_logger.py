@@ -476,7 +476,6 @@ def _load_exporter_from_env() -> MetricExporter:
     Mirrors the entry-point mechanism used by the OTEL SDK auto-instrumentation
     configurator. Supported values (from installed packages):
       - ``otlp`` (default) -- OTLP/gRPC
-      - ``otlp_proto_http`` -- OTLP/HTTP
       - ``console`` -- stdout (useful for debugging)
     """
     exporter_name = os.environ.get("OTEL_METRICS_EXPORTER", "otlp")
