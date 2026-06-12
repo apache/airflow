@@ -22,6 +22,7 @@ import pendulum
 import pytest
 
 from airflow._shared.module_loading import qualname
+from airflow.timetables.base import DagRunInfo, DataInterval
 from airflow.timetables.simple import NullTimetable
 
 
@@ -183,44 +184,33 @@ def test_compute_rollup_fingerprint_key_format(asset_or_ref, expected_key):
     assert expected_key in fp
 
 
-# ---------------------------------------------------------------------------
-# DagRunInfo partition fields
-# ---------------------------------------------------------------------------
-
-
-def test_dagruninfo_partition_fields_default_to_none():
-    """``DagRunInfo`` can be constructed with only ``run_after`` and
-    ``data_interval``; the partition fields are optional and default to *None*."""
-    from airflow.timetables.base import DagRunInfo, DataInterval
-
+@pytest.mark.parametrize(
+    ("extra_kwargs", "expected_partition_date", "expected_partition_key"),
+    [
+        pytest.param({}, None, None, id="omitted-default-to-none"),
+        pytest.param(
+            {
+                "partition_date": pendulum.datetime(2026, 1, 1, tz="UTC"),
+                "partition_key": "2026-01-01",
+            },
+            pendulum.datetime(2026, 1, 1, tz="UTC"),
+            "2026-01-01",
+            id="set-explicitly",
+        ),
+    ],
+)
+def test_dagruninfo_partition_fields(extra_kwargs, expected_partition_date, expected_partition_key):
+    """The partition fields are optional: omitting them defaults to *None* (so timetables
+    built the pre-3.2 way keep working), and partitioned timetables can still set them."""
     start = pendulum.datetime(2026, 1, 1, tz="UTC")
     end = pendulum.datetime(2026, 1, 2, tz="UTC")
 
-    info = DagRunInfo(run_after=end, data_interval=DataInterval(start=start, end=end))
+    info = DagRunInfo(run_after=end, data_interval=DataInterval(start=start, end=end), **extra_kwargs)
 
-    assert info.partition_date is None
-    assert info.partition_key is None
+    assert info.partition_date == expected_partition_date
+    assert info.partition_key == expected_partition_key
     assert info.run_after == end
     assert info.data_interval == DataInterval(start=start, end=end)
-
-
-def test_dagruninfo_partition_fields_can_be_set_explicitly():
-    """Partitioned timetables still set the partition fields explicitly."""
-    from airflow.timetables.base import DagRunInfo, DataInterval
-
-    start = pendulum.datetime(2026, 1, 1, tz="UTC")
-    end = pendulum.datetime(2026, 1, 2, tz="UTC")
-    partition_date = pendulum.datetime(2026, 1, 1, tz="UTC")
-
-    info = DagRunInfo(
-        run_after=end,
-        data_interval=DataInterval(start=start, end=end),
-        partition_date=partition_date,
-        partition_key="2026-01-01",
-    )
-
-    assert info.partition_date == partition_date
-    assert info.partition_key == "2026-01-01"
 
 
 def test_base_resolve_day_bound_returns_midnight_utc():
