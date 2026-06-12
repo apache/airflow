@@ -89,7 +89,7 @@ SERVICE_ACCOUNT_NAME_TUPLES = [
     ("ServiceAccount", "test-rbac-redis"),
 ]
 
-CUSTOM_SERVICE_ACCOUNT_NAMES = [
+CUSTOM_SERVICE_ACCOUNT_NAMES = (
     (CUSTOM_SCHEDULER_NAME := "TestScheduler"),
     (CUSTOM_DAG_PROCESSOR_NAME := "TestDagProcessor"),
     (CUSTOM_API_SERVER_NAME := "TestAPISserver"),
@@ -105,7 +105,7 @@ CUSTOM_SERVICE_ACCOUNT_NAMES = [
     (CUSTOM_MIGRATE_DATABASE_JOBS_NAME := "TestMigrateDatabaseJob"),
     (CUSTOM_REDIS_NAME := "TestRedis"),
     (CUSTOM_POSTGRESQL_NAME := "TestPostgresql"),
-]
+)
 
 CUSTOM_WORKER_KUBERNETES_NAME = "TestWorkerKubernetes"
 
@@ -118,13 +118,6 @@ class TestRBAC:
         if sa:
             tuples.append(("ServiceAccount", "test-rbac-api-server"))
             tuples.append(("ServiceAccount", "test-rbac-dag-processor"))
-
-        return tuples
-
-    def _get_sa_tuples(self, sa: bool = True):
-        tuples = copy(CUSTOM_SERVICE_ACCOUNT_NAMES)
-        if sa:
-            tuples.append(CUSTOM_WORKER_KUBERNETES_NAME)
 
         return tuples
 
@@ -330,7 +323,9 @@ class TestRBAC:
             for k8s_object in k8s_objects
             if k8s_object["kind"] == "ServiceAccount"
         ]
-        assert sorted(list_of_sa_names) == sorted(self._get_sa_tuples())
+        assert sorted(list_of_sa_names) == sorted(
+            [*CUSTOM_SERVICE_ACCOUNT_NAMES, CUSTOM_WORKER_KUBERNETES_NAME]
+        )
 
     def test_service_account_custom_names_in_objects(self):
         k8s_objects = render_chart(
