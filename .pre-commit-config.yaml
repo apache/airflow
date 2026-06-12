@@ -897,6 +897,13 @@ repos:
         files: ^\.pre-commit-config\.yaml$|^docs/spelling_wordlist\.txt$
         require_serial: true
         pass_filenames: false
+      - id: validate-airflow-config
+        name: Validate Airflow configuration files
+        entry: ./scripts/ci/pre_commit/validate_airflow_config.py
+        language: python
+        files: \.cfg$
+        pass_filenames: true
+        additional_dependencies: ['jsonschema']
       - id: shellcheck
         name: Check Shell scripts syntax correctness
         language: docker_image
