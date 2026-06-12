@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from airflow.api_fastapi.core_api.services.ui.connections import HookMetaService
 
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+
 
 class TestMockOptional:
     def test_mock_optional_is_callable(self):
@@ -30,3 +32,28 @@ class TestMockOptional:
         validator = HookMetaService.MockOptional()
         result = validator(None, None)
         assert result is None
+
+
+class TestHookMetaServiceFabWidgetSafety:
+    @skip_if_force_lowest_dependencies_marker
+    def test_hook_meta_data_does_not_patch_fab_widgets(self):
+        import wtforms  # noqa: F401
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget as widget_before
+
+        HookMetaService.hook_meta_data.cache_clear()
+        HookMetaService.hook_meta_data()
+
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget as widget_after
+
+        assert widget_before is widget_after
+
+    @skip_if_force_lowest_dependencies_marker
+    def test_get_hooks_with_mocked_fab_skips_mocks_when_wtforms_loaded(self):
+        import wtforms  # noqa: F401
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget as widget_before
+
+        HookMetaService._get_hooks_with_mocked_fab()
+
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget as widget_after
+
+        assert widget_before is widget_after

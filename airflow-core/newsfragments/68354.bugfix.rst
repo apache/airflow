@@ -1,0 +1,1 @@
+Fix FAB roles and users admin pages returning 500 when connection hook metadata is loaded concurrently

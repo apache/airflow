@@ -27,10 +27,11 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionHookMetaData,
     StandardHookFields,
 )
+from airflow.providers_manager import HookInfo, ProvidersManager
 from airflow.serialization.definitions.param import SerializedParam
 
 if TYPE_CHECKING:
-    from airflow.providers_manager import ConnectionFormWidgetInfo, HookInfo
+    from airflow.providers_manager import ConnectionFormWidgetInfo
 
 log = logging.getLogger(__name__)
 
@@ -126,8 +127,6 @@ class HookMetaService:
         """Get hooks with all details w/o FAB needing to be installed."""
         from unittest import mock
 
-        from airflow.providers_manager import ProvidersManager
-
         def mock_lazy_gettext(txt: str) -> str:
             """Mock for flask_babel.lazy_gettext."""
             return txt
@@ -158,12 +157,7 @@ class HookMetaService:
             except ModuleNotFoundError:
                 sys.modules[mod_name] = MagicMock()
 
-        # We conditionally inject mock classes for missing dependencies
-        # to ensure `ProvidersManager` can initialize hook connection widgets
-        # without crashing when FAB/WTForms are not installed.
-        if "wtforms.StringField" not in sys.modules:
-            # Only apply mocks if the actual module wasn't loaded beforehand.
-            # This avoids thread-safety issues caused by `unittest.mock.patch` mutating global states.
+        if "wtforms" not in sys.modules:
             with (
                 mock.patch("wtforms.StringField", HookMetaService.MockStringField),
                 mock.patch("wtforms.fields.StringField", HookMetaService.MockStringField),
@@ -282,19 +276,17 @@ class HookMetaService:
     @staticmethod
     @cache
     def hook_meta_data() -> list[ConnectionHookMetaData]:
-        hooks, connection_form_widgets, field_behaviours = HookMetaService._get_hooks_with_mocked_fab()
-        result: list[ConnectionHookMetaData] = []
-        widgets = HookMetaService._convert_extra_fields(connection_form_widgets)
-        for hook_key, hook_info in hooks.items():
-            if not hook_info:
-                continue
-            hook_meta = ConnectionHookMetaData(
+        pm = ProvidersManager()
+        hook_items = [(hook_key, hook_info) for hook_key, hook_info in pm.hooks.items() if hook_info]
+        widgets = HookMetaService._convert_extra_fields(pm._connection_form_widgets)
+        return [
+            ConnectionHookMetaData(
                 connection_type=hook_key,
                 hook_class_name=hook_info.hook_class_name,
-                default_conn_name=None,  # TODO: later
+                default_conn_name=None,
                 hook_name=hook_info.hook_name,
-                standard_fields=HookMetaService._make_standard_fields(field_behaviours.get(hook_key)),
+                standard_fields=HookMetaService._make_standard_fields(pm._field_behaviours.get(hook_key)),
                 extra_fields=widgets.get(hook_key),
             )
-            result.append(hook_meta)
-        return result
+            for hook_key, hook_info in hook_items
+        ]
