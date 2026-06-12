@@ -404,9 +404,7 @@ As mentioned in :ref:`Fetching information from previously emitted asset events<
             events = inlet_events[AssetAlias("example-alias")]
             last_row_count = events[-1].extra["row_count"]
 
-.. _asset_access_control:
-
-Cross-team asset event filtering with ``access_control``
+Cross-team asset event filtering with ``producer_teams``
 --------------------------------------------------------
 
 .. versionadded:: 3.3.0
@@ -441,9 +439,12 @@ The ``AssetAccessControl`` class accepts the following parameters:
 
 - **producer_teams** (``list[str]``, default ``[]``): List of team names allowed to produce events
   consumed by this asset's consumers, in addition to the consumer's own team.
-- **allow_global** (``bool``, default ``True``): Whether teamless (global) Dag producers can trigger
-  consumers of this asset. When set to ``False``, only Dags with an explicit team association
-  (same team or listed in ``producer_teams``) can trigger consumers.
+- **consumer_teams** (``list[str] | None``, default ``None``): List of team names allowed to consume
+  events produced by this asset's producers. See
+  :ref:`Cross-team asset event filtering with consumer_teams <asset_consumer_teams>`.
+- **allow_global** (``bool``, default ``True``): Whether teamless (global) Dags can participate in
+  cross-team event delivery. See :doc:`/core-concepts/multi-team` for the full semantics on both
+  consumer-side and producer-side assets.
 
 Blocking global producers
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -476,8 +477,9 @@ Default behavior
 ~~~~~~~~~~~~~~~~
 
 When ``access_control`` is not specified, a default ``AssetAccessControl()`` is used (empty
-``producer_teams`` and ``allow_global=True``). The rules depend on whether the producer and consumer
-have a team association:
+``producer_teams``, ``consumer_teams=None``, and ``allow_global=True``). See
+:doc:`/core-concepts/multi-team` for the complete behavioral rules table. In summary, the rules
+depend on whether the producer and consumer have a team association:
 
 - **Both have the same team**: The event is always delivered.
 - **Producer has a team, consumer has a different team**: The event is blocked (unless the
