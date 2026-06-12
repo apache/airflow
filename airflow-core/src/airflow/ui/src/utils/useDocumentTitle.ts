@@ -16,28 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createContext, useContext, useEffect, type PropsWithChildren, useState } from "react";
+import { useContext, useEffect } from "react";
 
-import { useConfig } from "src/queries/useConfig";
+import { DocumentTitleContext } from "./documentTitleContext";
 
-const DocumentTitleContext = createContext<((pageTitle: string | null) => void) | undefined>(undefined);
-
-const getDefaultTitle = (instanceConfig: unknown) =>
-  typeof instanceConfig === "string" && instanceConfig.length > 0 ? instanceConfig : "Airflow";
-
-export const DocumentTitleProvider = ({ children }: PropsWithChildren) => {
-  const instanceConfig = useConfig("instance_name");
-  const instanceName = getDefaultTitle(instanceConfig);
-  const [pageTitle, setPageTitle] = useState<string | null>(null);
-
-  useEffect(() => {
-    document.title = pageTitle === null ? instanceName : `${pageTitle} - ${instanceName}`;
-  }, [instanceName, pageTitle]);
-
-  return <DocumentTitleContext.Provider value={setPageTitle}>{children}</DocumentTitleContext.Provider>;
-};
-
-// eslint-disable-next-line react-refresh/only-export-components
 export const useDocumentTitle = (pageTitle?: string | null) => {
   const setPageTitle = useContext(DocumentTitleContext);
 
