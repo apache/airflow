@@ -1,0 +1,392 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""This module contains Google Vertex AI Agent Engine operators."""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+from functools import cached_property
+from typing import TYPE_CHECKING, Any
+
+from airflow.providers.common.compat.sdk import conf
+from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineHook
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.cloud.triggers.vertex_ai import AgentEngineDeleteTrigger
+
+if TYPE_CHECKING:
+    from airflow.providers.common.compat.sdk import Context
+
+
+def validate_execute_complete_event(event: dict[str, Any] | None) -> dict[str, Any]:
+    if event is None:
+        raise RuntimeError("No event received in trigger callback")
+    return event
+
+
+def _serialize_value(value: Any) -> Any:
+    if hasattr(value, "model_dump"):
+        return value.model_dump(mode="json")
+    if isinstance(value, dict):
+        return {key: _serialize_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_serialize_value(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_serialize_value(item) for item in value)
+    return value
+
+
+def _serialize_agent_engine(agent_engine: Any) -> dict[str, Any]:
+    api_resource = getattr(agent_engine, "api_resource", None)
+    if api_resource is not None:
+        return _serialize_value(api_resource)
+    return _serialize_value(agent_engine)
+
+
+class CreateAgentEngineOperator(GoogleCloudBaseOperator):
+    """
+    Create a Vertex AI Agent Engine.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud location that the service belongs to.
+    :param agent: Optional. The agent object to deploy.
+    :param agent_engine: Optional. Deprecated alias for ``agent``.
+    :param config: Optional. Configuration for the Agent Engine.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term credentials.
+    """
+
+    template_fields = (
+        "project_id",
+        "location",
+        "agent",
+        "agent_engine",
+        "config",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        location: str,
+        agent: Any | None = None,
+        agent_engine: Any | None = None,
+        config: Any | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.agent = agent
+        self.agent_engine = agent_engine
+        self.config = config
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    @cached_property
+    def hook(self) -> AgentEngineHook:
+        return AgentEngineHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def execute(self, context: Context) -> dict[str, Any]:
+        agent_engine = self.hook.create_agent_engine(
+            project_id=self.project_id,
+            location=self.location,
+            agent=self.agent,
+            agent_engine=self.agent_engine,
+            config=self.config,
+        )
+        result = _serialize_agent_engine(agent_engine)
+        context["ti"].xcom_push(key="agent_engine_name", value=result.get("name"))
+        return result
+
+
+class GetAgentEngineOperator(GoogleCloudBaseOperator):
+    """
+    Get a Vertex AI Agent Engine.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud location that the service belongs to.
+    :param name: Required. The Agent Engine resource name.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term credentials.
+    """
+
+    template_fields = ("project_id", "location", "name", "gcp_conn_id", "impersonation_chain")
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        location: str,
+        name: str,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.name = name
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    @cached_property
+    def hook(self) -> AgentEngineHook:
+        return AgentEngineHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def execute(self, context: Context) -> dict[str, Any]:
+        agent_engine = self.hook.get_agent_engine(
+            project_id=self.project_id,
+            location=self.location,
+            name=self.name,
+        )
+        return _serialize_agent_engine(agent_engine)
+
+
+class QueryAgentEngineOperator(GoogleCloudBaseOperator):
+    """
+    Query a Vertex AI Agent Engine.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud location that the service belongs to.
+    :param name: Required. The Agent Engine resource name.
+    :param config: Optional. Configuration for the query request (``class_method``, ``input``).
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term credentials.
+    """
+
+    template_fields = ("project_id", "location", "name", "config", "gcp_conn_id", "impersonation_chain")
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        location: str,
+        name: str,
+        config: Any | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.name = name
+        self.config = config
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    @cached_property
+    def hook(self) -> AgentEngineHook:
+        return AgentEngineHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def execute(self, context: Context) -> Any:
+        return self.hook.query_agent_engine(
+            project_id=self.project_id,
+            location=self.location,
+            name=self.name,
+            config=self.config,
+        )
+
+
+class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
+    """
+    Update a Vertex AI Agent Engine.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud location that the service belongs to.
+    :param name: Required. The Agent Engine resource name.
+    :param agent: Optional. The updated agent object to deploy.
+    :param agent_engine: Optional. Deprecated alias for ``agent``.
+    :param config: Required. Configuration for the Agent Engine update.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term credentials.
+    """
+
+    template_fields = (
+        "project_id",
+        "location",
+        "name",
+        "agent",
+        "agent_engine",
+        "config",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        location: str,
+        name: str,
+        config: Any,
+        agent: Any | None = None,
+        agent_engine: Any | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.name = name
+        self.agent = agent
+        self.agent_engine = agent_engine
+        self.config = config
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    @cached_property
+    def hook(self) -> AgentEngineHook:
+        return AgentEngineHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def execute(self, context: Context) -> dict[str, Any]:
+        agent_engine = self.hook.update_agent_engine(
+            project_id=self.project_id,
+            location=self.location,
+            name=self.name,
+            agent=self.agent,
+            agent_engine=self.agent_engine,
+            config=self.config,
+        )
+        return _serialize_agent_engine(agent_engine)
+
+
+class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
+    """
+    Delete a Vertex AI Agent Engine.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud location that the service belongs to.
+    :param name: Required. The Agent Engine resource name.
+    :param force: Optional. Whether to delete child resources.
+    :param config: Optional. Additional deletion configuration.
+    :param wait_for_completion: Whether to wait until the Agent Engine no longer exists.
+    :param poll_interval: Time, in seconds, to wait between checks.
+    :param timeout: Optional timeout, in seconds.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term credentials.
+    :param deferrable: Run operator in the deferrable mode.
+    """
+
+    template_fields = (
+        "project_id",
+        "location",
+        "name",
+        "force",
+        "config",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        location: str,
+        name: str,
+        force: bool | None = None,
+        config: Any | None = None,
+        wait_for_completion: bool = True,
+        poll_interval: float = 30,
+        timeout: float | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.name = name
+        self.force = force
+        self.config = config
+        self.wait_for_completion = wait_for_completion
+        self.poll_interval = poll_interval
+        self.timeout = timeout
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
+
+    @cached_property
+    def hook(self) -> AgentEngineHook:
+        return AgentEngineHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def execute(self, context: Context) -> dict[str, Any]:
+        operation = self.hook.delete_agent_engine(
+            project_id=self.project_id,
+            location=self.location,
+            name=self.name,
+            force=self.force,
+            config=self.config,
+        )
+        result = _serialize_value(operation)
+        if not self.wait_for_completion:
+            return result
+
+        if self.deferrable:
+            self.defer(
+                trigger=AgentEngineDeleteTrigger(
+                    project_id=self.project_id,
+                    location=self.location,
+                    name=self.name,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                    poll_interval=self.poll_interval,
+                    timeout=self.timeout,
+                ),
+                method_name="execute_complete",
+                kwargs={"operation": result},
+            )
+
+        self.hook.wait_for_agent_engine_deleted(
+            project_id=self.project_id,
+            location=self.location,
+            name=self.name,
+            poll_interval=self.poll_interval,
+            timeout=self.timeout,
+        )
+        return result
+
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None, operation: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        validated_event = validate_execute_complete_event(event)
+        if validated_event["status"] != "success":
+            raise RuntimeError(validated_event["message"])
+        self.log.info("Agent Engine %s deleted.", validated_event["name"])
+        return operation or {}
