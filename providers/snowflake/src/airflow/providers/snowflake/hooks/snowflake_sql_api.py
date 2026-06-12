@@ -37,6 +37,7 @@ from tenacity import (
 )
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils.sql_api_generate_jwt import JWTGenerator
@@ -131,7 +132,10 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             self.retry_config.update(api_retry_args)
 
         self.http_request_kwargs = http_request_kwargs or {}
-        self.aiohttp_session_kwargs = aiohttp_session_kwargs or {}
+        self.aiohttp_session_kwargs = {
+            "trust_env": conf.getboolean("aiohttp", "trust_env", fallback=False),
+            **(aiohttp_session_kwargs or {}),
+        }
         self.aiohttp_request_kwargs = aiohttp_request_kwargs or {}
 
     def execute_query(

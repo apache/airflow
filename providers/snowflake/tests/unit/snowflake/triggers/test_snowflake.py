@@ -40,6 +40,7 @@ class TestSnowflakeSqlApiTrigger:
         snowflake_conn_id="test_conn",
         token_life_time=LIFETIME,
         token_renewal_delta=RENEWAL_DELTA,
+        aiohttp_session_kwargs={"trust_env": True},
     )
 
     def test_snowflake_sql_trigger_serialization(self):
@@ -55,7 +56,27 @@ class TestSnowflakeSqlApiTrigger:
             "snowflake_conn_id": "test_conn",
             "token_life_time": LIFETIME,
             "token_renewal_delta": RENEWAL_DELTA,
+            "aiohttp_session_kwargs": {"trust_env": True},
         }
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.triggers.snowflake_trigger.SnowflakeSqlApiHook")
+    async def test_snowflake_sql_trigger_passes_aiohttp_session_kwargs_to_hook(self, mock_hook):
+        """
+        Asserts that aiohttp session kwargs are used when the trigger creates its hook.
+        """
+        mock_hook.return_value.get_sql_api_query_status_async = mock.AsyncMock(
+            return_value={"status": "success"}
+        )
+
+        await self.TRIGGER.get_query_status("uuid")
+
+        mock_hook.assert_called_once_with(
+            "test_conn",
+            LIFETIME,
+            RENEWAL_DELTA,
+            aiohttp_session_kwargs={"trust_env": True},
+        )
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.triggers.snowflake_trigger.SnowflakeSqlApiTrigger.get_query_status")

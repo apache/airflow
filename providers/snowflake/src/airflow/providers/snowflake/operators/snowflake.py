@@ -461,6 +461,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
                     snowflake_conn_id=self.snowflake_conn_id,
                     token_life_time=self.token_life_time,
                     token_renewal_delta=self.token_renewal_delta,
+                    aiohttp_session_kwargs=self.hook_params.get("aiohttp_session_kwargs"),
                 ),
                 method_name="execute_complete",
             )
