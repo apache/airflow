@@ -145,6 +145,9 @@
     "selectDateRange": "Select Date Range",
     "startTime": "Start Time"
   },
+  "fullscreen": {
+    "tooltip": "Press {{hotkey}} for fullscreen"
+  },
   "generateToken": "Generate Token",
   "key": "Key",
   "logicalDate": "Logical Date",
