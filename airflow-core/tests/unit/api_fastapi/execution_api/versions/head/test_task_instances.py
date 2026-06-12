@@ -289,6 +289,90 @@ class TestTIRunState:
         )
         assert response.status_code == 409
 
+    def test_ti_run_emits_queued_duration_metric(self, client, session, create_task_instance, time_machine):
+        """
+        On the first QUEUED -> RUNNING transition the run endpoint should emit
+        ``task.queued_duration`` (regression test for #66067 — the metric stopped
+        being emitted in Airflow 3 after the worker-side path was replaced by the
+        Execution API call).
+        """
+        run_instant = timezone.parse("2024-09-30T12:00:30Z")
+        queued_instant = timezone.parse("2024-09-30T12:00:00Z")
+        time_machine.move_to(run_instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_queued_duration_metric",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=run_instant,
+            dag_id=str(uuid4()),
+        )
+        ti.queued_dttm = queued_instant
+        ti.end_date = None
+        session.commit()
+
+        with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats") as mock_stats:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": run_instant.to_iso8601_string(),
+                },
+            )
+
+        assert response.status_code == 200
+        mock_stats.timing.assert_any_call(
+            "task.queued_duration",
+            run_instant - queued_instant,
+            tags={"task_id": ti.task_id, "dag_id": ti.dag_id, "queue": ti.queue},
+        )
+
+    def test_ti_run_skips_queued_duration_metric_on_retry(
+        self, client, session, create_task_instance, time_machine
+    ):
+        """
+        A retry transition (previous attempt left ``end_date`` populated before
+        the update zeros it) should not emit ``task.queued_duration`` — preserves
+        the legacy "only on first try" semantics from
+        ``TaskInstance.emit_state_change_metric``.
+        """
+        run_instant = timezone.parse("2024-09-30T12:05:00Z")
+        time_machine.move_to(run_instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_queued_duration_retry",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=run_instant,
+            dag_id=str(uuid4()),
+        )
+        ti.queued_dttm = run_instant.subtract(seconds=30)
+        ti.end_date = run_instant.subtract(seconds=60)
+        session.commit()
+
+        with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats") as mock_stats:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": run_instant.to_iso8601_string(),
+                },
+            )
+
+        assert response.status_code == 200
+        timing_calls = [
+            c for c in mock_stats.timing.call_args_list if c.args and c.args[0] == "task.queued_duration"
+        ]
+        assert timing_calls == []
+
     def test_ti_run_returns_execution_token(
         self, client, exec_app, session, create_task_instance, time_machine
     ):
