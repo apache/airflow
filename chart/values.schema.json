@@ -96,20 +96,6 @@
             "default": "3.2.2",
             "x-docsSection": "Common"
         },
-        "securityContext": {
-            "description": "Default pod security context definition (deprecated, use `securityContexts` instead). The values in this parameter will be used when `securityContext` is not defined for specific Pods",
-            "type": "object",
-            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-            "default": {},
-            "x-docsSection": "Kubernetes",
-            "examples": [
-                {
-                    "runAsUser": 50000,
-                    "runAsGroup": 0,
-                    "fsGroup": 0
-                }
-            ]
-        },
         "securityContexts": {
             "description": "Default security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods/Container.",
             "type": "object",
@@ -232,6 +218,34 @@
             "default": false,
             "x-docsSection": "Kubernetes"
         },
+        "ipFamilyPolicy": {
+            "description": "Specify the ip family policy to configure dual-stack networking for all Services. See https://kubernetes.io/docs/concepts/services-networking/dual-stack/",
+            "type": [
+                "string",
+                "null"
+            ],
+            "enum": [
+                "SingleStack",
+                "PreferDualStack",
+                "RequireDualStack",
+                null
+            ],
+            "default": null,
+            "x-docsSection": "Kubernetes"
+        },
+        "ipFamilies": {
+            "description": "List of IP families for all Services (e.g. [\"IPv4\"] or [\"IPv6\"] or [\"IPv4\", \"IPv6\"]).",
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": [
+                    "IPv4",
+                    "IPv6"
+                ]
+            },
+            "default": [],
+            "x-docsSection": "Kubernetes"
+        },
         "imagePullSecrets": {
             "description": "List of existing Kubernetes secrets containing Base64 encoded credentials to connect to private registries (will get passed to imagePullSecrets).",
             "type": "array",
@@ -254,14 +268,6 @@
             "type": "object",
             "x-docsSection": "Ingress",
             "properties": {
-                "enabled": {
-                    "description": "Enable all ingress resources (deprecated - use ingress.web.enabled and ingress.flower.enabled).",
-                    "type": [
-                        "boolean",
-                        "null"
-                    ],
-                    "default": null
-                },
                 "apiServer": {
                     "description": "Configuration for the Ingress of the  API server.",
                     "type": "object",
@@ -290,53 +296,39 @@
                             "type": "string",
                             "default": "ImplementationSpecific"
                         },
-                        "host": {
-                            "description": "The hostname for the API server Ingress. (Deprecated - renamed to `ingress.apiServer.hosts`)",
-                            "type": "string",
-                            "default": ""
-                        },
                         "hosts": {
                             "description": "The hostnames or hosts configuration for the API server Ingress.",
                             "type": "array",
                             "default": [],
                             "items": {
-                                "oneOf": [
-                                    {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "name": {
+                                        "description": "The hostname for the API server Ingress.",
+                                        "type": "string",
+                                        "default": ""
+                                    },
+                                    "tls": {
+                                        "description": "Configuration for API server Ingress TLS.",
                                         "type": "object",
                                         "additionalProperties": false,
                                         "properties": {
-                                            "name": {
-                                                "description": "The hostname for the API server Ingress.",
+                                            "enabled": {
+                                                "description": "Enable TLS termination for the API server Ingress.",
+                                                "type": "boolean",
+                                                "default": false
+                                            },
+                                            "secretName": {
+                                                "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
                                                 "type": "string",
                                                 "default": ""
-                                            },
-                                            "tls": {
-                                                "description": "Configuration for API server Ingress TLS.",
-                                                "type": "object",
-                                                "additionalProperties": false,
-                                                "properties": {
-                                                    "enabled": {
-                                                        "description": "Enable TLS termination for the API server Ingress.",
-                                                        "type": "boolean",
-                                                        "default": false
-                                                    },
-                                                    "secretName": {
-                                                        "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
-                                                        "type": "string",
-                                                        "default": ""
-                                                    }
-                                                }
                                             }
-                                        },
-                                        "required": [
-                                            "name"
-                                        ]
-                                    },
-                                    {
-                                        "type": "string",
-                                        "default": "",
-                                        "$comment": "Deprecated by object above"
+                                        }
                                     }
+                                },
+                                "required": [
+                                    "name"
                                 ]
                             }
                         },
@@ -344,23 +336,6 @@
                             "description": "The Ingress Class for the API server Ingress.",
                             "type": "string",
                             "default": ""
-                        },
-                        "tls": {
-                            "description": "Configuration for API server Ingress TLS. (Deprecated - renamed to `ingress.apiServer.hosts[*].tls`)",
-                            "type": "object",
-                            "additionalProperties": false,
-                            "properties": {
-                                "enabled": {
-                                    "description": "Enable TLS termination for the API server Ingress.",
-                                    "type": "boolean",
-                                    "default": false
-                                },
-                                "secretName": {
-                                    "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
-                                    "type": "string",
-                                    "default": ""
-                                }
-                            }
                         },
                         "precedingPaths": {
                             "description": "HTTP paths to add to the API server Ingress before the default path.",
@@ -402,53 +377,39 @@
                             "type": "string",
                             "default": "ImplementationSpecific"
                         },
-                        "host": {
-                            "description": "The hostname for the web Ingress. (Deprecated - renamed to `ingress.web.hosts`)",
-                            "type": "string",
-                            "default": ""
-                        },
                         "hosts": {
                             "description": "The hostnames or hosts configuration for the web Ingress.",
                             "type": "array",
                             "default": [],
                             "items": {
-                                "oneOf": [
-                                    {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "name": {
+                                        "description": "The hostname for the web Ingress.",
+                                        "type": "string",
+                                        "default": ""
+                                    },
+                                    "tls": {
+                                        "description": "Configuration for web Ingress TLS.",
                                         "type": "object",
                                         "additionalProperties": false,
                                         "properties": {
-                                            "name": {
-                                                "description": "The hostname for the web Ingress.",
+                                            "enabled": {
+                                                "description": "Enable TLS termination for the web Ingress.",
+                                                "type": "boolean",
+                                                "default": false
+                                            },
+                                            "secretName": {
+                                                "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
                                                 "type": "string",
                                                 "default": ""
-                                            },
-                                            "tls": {
-                                                "description": "Configuration for web Ingress TLS.",
-                                                "type": "object",
-                                                "additionalProperties": false,
-                                                "properties": {
-                                                    "enabled": {
-                                                        "description": "Enable TLS termination for the web Ingress.",
-                                                        "type": "boolean",
-                                                        "default": false
-                                                    },
-                                                    "secretName": {
-                                                        "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
-                                                        "type": "string",
-                                                        "default": ""
-                                                    }
-                                                }
                                             }
-                                        },
-                                        "required": [
-                                            "name"
-                                        ]
-                                    },
-                                    {
-                                        "type": "string",
-                                        "default": "",
-                                        "$comment": "Deprecated by object above"
+                                        }
                                     }
+                                },
+                                "required": [
+                                    "name"
                                 ]
                             }
                         },
@@ -456,23 +417,6 @@
                             "description": "The Ingress Class for the web Ingress.",
                             "type": "string",
                             "default": ""
-                        },
-                        "tls": {
-                            "description": "Configuration for web Ingress TLS. (Deprecated - renamed to `ingress.web.hosts[*].tls`)",
-                            "type": "object",
-                            "additionalProperties": false,
-                            "properties": {
-                                "enabled": {
-                                    "description": "Enable TLS termination for the web Ingress.",
-                                    "type": "boolean",
-                                    "default": false
-                                },
-                                "secretName": {
-                                    "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
-                                    "type": "string",
-                                    "default": ""
-                                }
-                            }
                         },
                         "precedingPaths": {
                             "description": "HTTP paths to add to the web Ingress before the default path.",
@@ -514,53 +458,39 @@
                             "type": "string",
                             "default": "ImplementationSpecific"
                         },
-                        "host": {
-                            "description": "The hostname for the flower Ingress. (Deprecated - renamed to `ingress.flower.hosts`)",
-                            "type": "string",
-                            "default": ""
-                        },
                         "hosts": {
                             "description": "The hostnames or hosts configuration for the flower Ingress.",
                             "type": "array",
                             "default": [],
                             "items": {
-                                "oneOf": [
-                                    {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "name": {
+                                        "description": "The hostname for the web Ingress.",
+                                        "type": "string",
+                                        "default": ""
+                                    },
+                                    "tls": {
+                                        "description": "Configuration for web Ingress TLS.",
                                         "type": "object",
                                         "additionalProperties": false,
                                         "properties": {
-                                            "name": {
-                                                "description": "The hostname for the web Ingress.",
+                                            "enabled": {
+                                                "description": "Enable TLS termination for the web Ingress.",
+                                                "type": "boolean",
+                                                "default": false
+                                            },
+                                            "secretName": {
+                                                "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
                                                 "type": "string",
                                                 "default": ""
-                                            },
-                                            "tls": {
-                                                "description": "Configuration for web Ingress TLS.",
-                                                "type": "object",
-                                                "additionalProperties": false,
-                                                "properties": {
-                                                    "enabled": {
-                                                        "description": "Enable TLS termination for the web Ingress.",
-                                                        "type": "boolean",
-                                                        "default": false
-                                                    },
-                                                    "secretName": {
-                                                        "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
-                                                        "type": "string",
-                                                        "default": ""
-                                                    }
-                                                }
                                             }
-                                        },
-                                        "required": [
-                                            "name"
-                                        ]
-                                    },
-                                    {
-                                        "type": "string",
-                                        "default": "",
-                                        "$comment": "Deprecated by object above"
+                                        }
                                     }
+                                },
+                                "required": [
+                                    "name"
                                 ]
                             }
                         },
@@ -568,23 +498,6 @@
                             "description": "The Ingress Class for the flower Ingress.",
                             "type": "string",
                             "default": ""
-                        },
-                        "tls": {
-                            "description": "Configuration for flower Ingress TLS. (Deprecated - renamed to `ingress.flower.hosts[*].tls`)",
-                            "type": "object",
-                            "additionalProperties": false,
-                            "properties": {
-                                "enabled": {
-                                    "description": "Enable TLS termination for the flower Ingress.",
-                                    "type": "boolean",
-                                    "default": false
-                                },
-                                "secretName": {
-                                    "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
-                                    "type": "string",
-                                    "default": ""
-                                }
-                            }
                         }
                     }
                 },
@@ -616,53 +529,39 @@
                             "type": "string",
                             "default": "ImplementationSpecific"
                         },
-                        "host": {
-                            "description": "The hostname for the statsd Ingress. (Deprecated - renamed to `ingress.statsd.hosts`)",
-                            "type": "string",
-                            "default": ""
-                        },
                         "hosts": {
                             "description": "The hostnames or hosts configuration for the statsd Ingress.",
                             "type": "array",
                             "default": [],
                             "items": {
-                                "oneOf": [
-                                    {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "name": {
+                                        "description": "The hostname for the web Ingress.",
+                                        "type": "string",
+                                        "default": ""
+                                    },
+                                    "tls": {
+                                        "description": "Configuration for web Ingress TLS.",
                                         "type": "object",
                                         "additionalProperties": false,
                                         "properties": {
-                                            "name": {
-                                                "description": "The hostname for the web Ingress.",
+                                            "enabled": {
+                                                "description": "Enable TLS termination for the web Ingress.",
+                                                "type": "boolean",
+                                                "default": false
+                                            },
+                                            "secretName": {
+                                                "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
                                                 "type": "string",
                                                 "default": ""
-                                            },
-                                            "tls": {
-                                                "description": "Configuration for web Ingress TLS.",
-                                                "type": "object",
-                                                "additionalProperties": false,
-                                                "properties": {
-                                                    "enabled": {
-                                                        "description": "Enable TLS termination for the web Ingress.",
-                                                        "type": "boolean",
-                                                        "default": false
-                                                    },
-                                                    "secretName": {
-                                                        "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
-                                                        "type": "string",
-                                                        "default": ""
-                                                    }
-                                                }
                                             }
-                                        },
-                                        "required": [
-                                            "name"
-                                        ]
-                                    },
-                                    {
-                                        "type": "string",
-                                        "default": "",
-                                        "$comment": "Deprecated by object above"
+                                        }
                                     }
+                                },
+                                "required": [
+                                    "name"
                                 ]
                             }
                         },
@@ -701,53 +600,39 @@
                             "type": "string",
                             "default": "ImplementationSpecific"
                         },
-                        "host": {
-                            "description": "The hostname for the PgBouncer Ingress. (Deprecated - renamed to `ingress.pgbouncer.hosts`)",
-                            "type": "string",
-                            "default": ""
-                        },
                         "hosts": {
                             "description": "The hostnames or hosts configuration for the PgBouncer Ingress.",
                             "type": "array",
                             "default": [],
                             "items": {
-                                "oneOf": [
-                                    {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "name": {
+                                        "description": "The hostname for the web Ingress.",
+                                        "type": "string",
+                                        "default": ""
+                                    },
+                                    "tls": {
+                                        "description": "Configuration for web Ingress TLS.",
                                         "type": "object",
                                         "additionalProperties": false,
                                         "properties": {
-                                            "name": {
-                                                "description": "The hostname for the web Ingress.",
+                                            "enabled": {
+                                                "description": "Enable TLS termination for the web Ingress.",
+                                                "type": "boolean",
+                                                "default": false
+                                            },
+                                            "secretName": {
+                                                "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
                                                 "type": "string",
                                                 "default": ""
-                                            },
-                                            "tls": {
-                                                "description": "Configuration for web Ingress TLS.",
-                                                "type": "object",
-                                                "additionalProperties": false,
-                                                "properties": {
-                                                    "enabled": {
-                                                        "description": "Enable TLS termination for the web Ingress.",
-                                                        "type": "boolean",
-                                                        "default": false
-                                                    },
-                                                    "secretName": {
-                                                        "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
-                                                        "type": "string",
-                                                        "default": ""
-                                                    }
-                                                }
                                             }
-                                        },
-                                        "required": [
-                                            "name"
-                                        ]
-                                    },
-                                    {
-                                        "type": "string",
-                                        "default": "",
-                                        "$comment": "Deprecated by object above"
+                                        }
                                     }
+                                },
+                                "required": [
+                                    "name"
                                 ]
                             }
                         },
@@ -755,6 +640,106 @@
                             "description": "The Ingress Class for the PgBouncer Ingress.",
                             "type": "string",
                             "default": ""
+                        }
+                    }
+                }
+            }
+        },
+        "httpRoute": {
+            "description": "Kubernetes Gateway API (HTTPRoute) configuration.",
+            "type": "object",
+            "x-docsSection": "Ingress",
+            "additionalProperties": false,
+            "properties": {
+                "apiServer": {
+                    "description": "Configuration for the HTTPRoute of the API server.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable API server HTTPRoute resource.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "labels": {
+                            "description": "Extra labels for the API server HTTPRoute.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "annotations": {
+                            "description": "Annotations for the API server HTTPRoute.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "parentRefs": {
+                            "description": "List of parent Gateway references this HTTPRoute attaches to. Required when enabled.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "description": "Name of the referenced Gateway.",
+                                        "type": "string"
+                                    },
+                                    "namespace": {
+                                        "description": "Namespace of the referenced Gateway. Defaults to the local namespace.",
+                                        "type": "string"
+                                    },
+                                    "sectionName": {
+                                        "description": "Name of the Gateway listener section this route attaches to.",
+                                        "type": "string"
+                                    },
+                                    "port": {
+                                        "description": "Port of the Gateway listener this route attaches to.",
+                                        "type": "integer"
+                                    },
+                                    "kind": {
+                                        "description": "Kind of the referenced resource. Defaults to `Gateway`.",
+                                        "type": "string"
+                                    },
+                                    "group": {
+                                        "description": "API group of the referenced resource. Defaults to `gateway.networking.k8s.io`.",
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name"
+                                ]
+                            }
+                        },
+                        "hostnames": {
+                            "description": "Hostnames this HTTPRoute should match (templated). Empty matches all.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "path": {
+                            "description": "Default routing rule path (used only when `httpRoute.apiServer.rules` is empty).",
+                            "type": "string",
+                            "default": "/"
+                        },
+                        "pathType": {
+                            "description": "The pathType for the default path: PathPrefix, Exact, or RegularExpression.",
+                            "type": "string",
+                            "default": "PathPrefix"
+                        },
+                        "rules": {
+                            "description": "Custom routing rules. When set, overrides the default rule generated from `path` + `pathType`. Each entry follows the upstream Gateway API `HTTPRouteRule` schema.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
                         }
                     }
                 }
@@ -1149,7 +1134,7 @@
             ]
         },
         "volumes": {
-            "description": "Volumes for all Airflow containers.",
+            "description": "Volumes for all Airflow containers (templated).",
             "x-docsSection": "Airflow",
             "type": "array",
             "default": [],
@@ -1158,7 +1143,7 @@
             }
         },
         "volumeMounts": {
-            "description": "VolumeMounts for all Airflow containers.",
+            "description": "VolumeMounts for all Airflow containers (templated).",
             "x-docsSection": "Airflow",
             "type": "array",
             "default": [],
@@ -2578,19 +2563,6 @@
                             }
                         }
                     }
-                },
-                "securityContext": {
-                    "description": "Security context for the Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.securityContexts`` and/or ``workers.kubernetes.securityContexts`` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
                 },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for Airflow Celery workers and pods created with pod-template-file (deprecated, use ``workers.celery.containerLifecycleHooks`` and/or ``workers.kubernetes.containerLifecycleHooks`` instead). If not set, the values from global `containerLifecycleHooks` will be used.",
@@ -4895,19 +4867,6 @@
                     "$ref": "#/definitions/logGroomerConfigType",
                     "description": "Configuration for the schedulers log groomer sidecar."
                 },
-                "securityContext": {
-                    "description": "Security context for the scheduler pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
-                },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for the scheduler. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
@@ -5460,19 +5419,6 @@
                         "type": "string"
                     }
                 },
-                "securityContext": {
-                    "description": "Security context for the triggerer pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
-                },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for the triggerer. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
@@ -5762,6 +5708,10 @@
                         "properties": {
                             "name": {
                                 "description": "Name of the Dag bundle.",
+                                "type": "string"
+                            },
+                            "team_name": {
+                                "description": "Team name for the Dag bundle.",
                                 "type": "string"
                             },
                             "classpath": {
@@ -6061,19 +6011,6 @@
                     "additionalProperties": {
                         "type": "string"
                     }
-                },
-                "securityContext": {
-                    "description": "Security context for the dag processor pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
                 },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for the dag processor. If not set, the values from global `containerLifecycleHooks` will be used.",
@@ -6493,19 +6430,6 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
-                "securityContext": {
-                    "description": "Security context for the create user job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
-                },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for the create user job. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
@@ -6859,19 +6783,6 @@
                         "type": "object",
                         "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
-                },
-                "securityContext": {
-                    "description": "Security context for the migrate database job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
                 },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for the migrate database job. If not set, the values from global `containerLifecycleHooks` will be used.",
@@ -8177,19 +8088,6 @@
                         "type": "string"
                     }
                 },
-                "securityContext": {
-                    "description": "Security context for the flower pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
-                },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for the network policy. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
@@ -8499,19 +8397,6 @@
                     "description": "Override mappings for StatsD exporter.If set, will ignore setting item in default and `extraMappings`. So, If you use it, ensure all mapping item contains in it.",
                     "type": "array",
                     "default": []
-                },
-                "securityContext": {
-                    "description": "Security context for the StatsD pod (deprecated, use `securityContexts` instead).",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
                 },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for the statsd. If not set, the values from global `containerLifecycleHooks` will be used.",
@@ -9026,7 +8911,7 @@
                     "default": 100
                 },
                 "configSecretName": {
-                    "description": "The PgBouncer config Secret name.",
+                    "description": "The PgBouncer config Secret name (templated).",
                     "type": [
                         "string",
                         "null"
@@ -9787,19 +9672,6 @@
                         }
                     }
                 },
-                "securityContext": {
-                    "description": "Security context for the cleanup job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
-                },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for the redis. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
@@ -10369,19 +10241,6 @@
                             }
                         }
                     }
-                },
-                "securityContext": {
-                    "description": "Security context for the cleanup job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                    "type": "object",
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
-                    "default": {},
-                    "examples": [
-                        {
-                            "runAsUser": 50000,
-                            "runAsGroup": 0,
-                            "fsGroup": 0
-                        }
-                    ]
                 },
                 "containerLifecycleHooks": {
                     "description": "Container Lifecycle Hooks definition for the cleanup. If not set, the values from global `containerLifecycleHooks` will be used.",
@@ -11110,18 +10969,6 @@
                             "description": "Git sync container name.",
                             "type": "string",
                             "default": "git-sync"
-                        },
-                        "securityContext": {
-                            "description": "Security context for the `gitSync` container (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                            "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
-                            "default": {},
-                            "examples": [
-                                {
-                                    "runAsUser": 50000,
-                                    "runAsGroup": 0
-                                }
-                            ]
                         },
                         "httpPort": {
                             "description": "Git-Sync liveness service http bind port.",

@@ -69,6 +69,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskStorePutBody,
     TaskStoreResponse,
     TerminalStateNonSuccess,
+    TIAwaitingInputStatePayload,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
@@ -305,6 +306,11 @@ class TaskInstanceOperations:
         body = TIDeferredStatePayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
 
         # Create a deferred state payload from msg
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
+    def await_input(self, id: uuid.UUID, msg):
+        """Tell the API server that this TI is parked awaiting human input (Human-in-the-loop)."""
+        body = TIAwaitingInputStatePayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def reschedule(self, id: uuid.UUID, msg: RescheduleTask):

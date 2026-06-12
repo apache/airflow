@@ -21,9 +21,20 @@ from datetime import datetime
 
 from pydantic import JsonValue, field_validator
 
+from airflow._shared.state import AssetStoreWriterKind
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
 _MAX_SERIALIZED_BYTES = 65535
+
+
+class AssetStoreLastUpdatedBy(BaseModel):
+    """Writer info for the last write to an asset store entry."""
+
+    kind: AssetStoreWriterKind
+    dag_id: str | None = None
+    run_id: str | None = None
+    task_id: str | None = None
+    map_index: int | None = None
 
 
 class AssetStoreResponse(BaseModel):
@@ -32,6 +43,7 @@ class AssetStoreResponse(BaseModel):
     key: str
     value: JsonValue
     updated_at: datetime
+    last_updated_by: AssetStoreLastUpdatedBy | None = None
 
 
 class AssetStoreCollectionResponse(BaseModel):

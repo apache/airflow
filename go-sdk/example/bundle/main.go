@@ -18,7 +18,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"log/slog"
@@ -60,8 +59,35 @@ func main() {
 	}
 }
 
-func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, error) {
+func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, error) {
 	log.Info("Hello from task")
+
+	// ctx behaves as a context.Context and also carries the task instance
+	// identifiers and the Dag run's scheduling timestamps. Log every field the
+	// runtime context exposes. The fields are namespaced under a "context"
+	// group (so they serialise as context.ti.* / context.dag_run.* dotted
+	// keys) to avoid colliding with the reserved task_id/run_id/etc. keys the
+	// supervisor strips from its log view.
+	ti, dagRun := ctx.TaskInstance(), ctx.DagRun()
+	log.InfoContext(ctx, "task runtime context",
+		slog.Group("context",
+			slog.Group("ti",
+				"dag_id", ti.DagID,
+				"run_id", ti.RunID,
+				"task_id", ti.TaskID,
+				"map_index", ti.MapIndex,
+				"try_number", ti.TryNumber,
+			),
+			slog.Group("dag_run",
+				"dag_id", dagRun.DagID,
+				"run_id", dagRun.RunID,
+				"logical_date", dagRun.LogicalDate,
+				"data_interval_start", dagRun.DataIntervalStart,
+				"data_interval_end", dagRun.DataIntervalEnd,
+			),
+		),
+	)
+
 	conn, err := client.GetConnection(ctx, "test_http")
 	if err != nil {
 		log.ErrorContext(ctx, "unable to get conn", "error", err)
@@ -90,12 +116,13 @@ func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, err
 
 	ret := map[string]any{
 		"go_version": runtime.Version(),
+		"timestamp":  time.Now().UnixNano(),
 	}
 
 	return ret, nil
 }
 
-func transform(ctx context.Context, client sdk.VariableClient, log *slog.Logger) error {
+func transform(ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger) error {
 	// This function takes a VariableClient and not a Client to make unit testing it easier. See
 	// `./main_test.go` for an example unit of this task fn. Functionally taking a `sdk.Client` is the same (as
 	// Client includes VariableClient) but by using the dedicated type it can be easier to write unit tests.

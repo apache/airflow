@@ -55,7 +55,7 @@ import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
 import { Graph } from "./Graph";
 import { Grid } from "./Grid";
-import { NavTabs } from "./NavTabs";
+import { NavTabs, type NavTab } from "./NavTabs";
 import { PanelButtons } from "./PanelButtons";
 
 // Separate component so useHover can be called inside HoverProvider.
@@ -88,10 +88,12 @@ const SharedScrollBox = ({
 type Props = {
   readonly error?: unknown;
   readonly isLoading?: boolean;
-  readonly tabs: Array<{ icon: ReactNode; label: string; value: string }>;
+  /** Value exposed to the active tab via ``useOutletContext`` (so tabs can reuse the parent's data). */
+  readonly outletContext?: unknown;
+  readonly tabs: Array<NavTab>;
 } & PropsWithChildren;
 
-export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
+export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs }: Props) => {
   const { t: translate } = useTranslation();
   const { dagId = "", runId } = useParams();
   const { data: dag } = useDagServiceGetDag({ dagId });
@@ -218,7 +220,9 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
       <GroupsProvider dagId={dagId}>
         <Box display="flex" flex={1} flexDirection="column" minH={0} minW={{ base: "1280px", md: "auto" }}>
           <HStack justifyContent="space-between" mb={2}>
-            <DagBreadcrumb />
+            <Flex alignItems="center" gap={1}>
+              <DagBreadcrumb />
+            </Flex>
             <Flex gap={1}>
               <SearchDagsButton />
               {dag === undefined ? undefined : (
@@ -404,7 +408,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                       <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
                       <NavTabs tabs={tabs} />
                       <Box flexGrow={1} overflow="auto" px={2}>
-                        <Outlet />
+                        <Outlet context={outletContext} />
                       </Box>
                     </Box>
                   </Panel>

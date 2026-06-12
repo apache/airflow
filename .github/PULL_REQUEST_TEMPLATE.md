@@ -10,6 +10,9 @@ Write a good git commit message following this guide: http://chris.beams.io/post
 Please make sure that your code changes are covered with tests.
 And in case of new features or big changes remember to adjust the documentation.
 
+For user-facing UI changes, please attach before/after screenshots (or a short
+screen recording) so reviewers can assess the visual impact.
+
 Feel free to ping (in general) for the review if you do not see reaction for a few days
 (72 Hours is the minimum reaction time you can expect from volunteers) - we sometimes miss notifications.
 

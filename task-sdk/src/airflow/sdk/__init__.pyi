@@ -35,6 +35,7 @@ from airflow.sdk.bases.operator import (
     cross_downstream as cross_downstream,
 )
 from airflow.sdk.bases.operatorlink import BaseOperatorLink as BaseOperatorLink
+from airflow.sdk.bases.resumablejobmixin import ResumableJobMixin as ResumableJobMixin
 from airflow.sdk.bases.sensor import (
     BaseSensorOperator as BaseSensorOperator,
     PokeReturnValue as PokeReturnValue,
@@ -64,17 +65,34 @@ from airflow.sdk.definitions.decorators.task_group import task_group as task_gro
 from airflow.sdk.definitions.edges import EdgeModifier as EdgeModifier, Label as Label
 from airflow.sdk.definitions.param import Param as Param
 from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
-from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
+from airflow.sdk.definitions.partition_mappers.base import PartitionMapper, RollupMapper
 from airflow.sdk.definitions.partition_mappers.chain import ChainMapper
+from airflow.sdk.definitions.partition_mappers.fixed_key import FixedKeyMapper
 from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
 from airflow.sdk.definitions.partition_mappers.product import ProductMapper
 from airflow.sdk.definitions.partition_mappers.temporal import (
+    FanOutMapper,
     StartOfDayMapper,
     StartOfHourMapper,
     StartOfMonthMapper,
     StartOfQuarterMapper,
     StartOfWeekMapper,
     StartOfYearMapper,
+)
+from airflow.sdk.definitions.partition_mappers.wait_policy import (
+    MinimumCount,
+    WaitForAll,
+    WaitPolicy,
+)
+from airflow.sdk.definitions.partition_mappers.window import (
+    DayWindow,
+    HourWindow,
+    MonthWindow,
+    QuarterWindow,
+    SegmentWindow,
+    WeekWindow,
+    Window,
+    YearWindow,
 )
 from airflow.sdk.definitions.retry_policy import (
     ExceptionRetryPolicy as ExceptionRetryPolicy,
@@ -136,14 +154,20 @@ __all__ = [
     "CronPartitionTimetable",
     "DAG",
     "DagRunState",
+    "DayWindow",
     "DeltaDataIntervalTimetable",
     "DeltaTriggerTimetable",
     "EdgeModifier",
     "EventsTimetable",
     "ExceptionRetryPolicy",
+    "FanOutMapper",
+    "FixedKeyMapper",
+    "HourWindow",
     "IdentityMapper",
     "Label",
     "Metadata",
+    "MinimumCount",
+    "MonthWindow",
     "MultipleCronTriggerTimetable",
     "ObjectStoragePath",
     "Param",
@@ -152,11 +176,15 @@ __all__ = [
     "PartitionedAssetTimetable",
     "PartitionMapper",
     "ProductMapper",
+    "QuarterWindow",
     "RetryAction",
     "RetryDecision",
     "RetryPolicy",
     "RetryRule",
+    "ResumableJobMixin",
+    "RollupMapper",
     "SecretCache",
+    "SegmentWindow",
     "SkipMixin",
     "StartOfDayMapper",
     "StartOfHourMapper",
@@ -168,8 +196,13 @@ __all__ = [
     "TaskInstanceState",
     "TriggerRule",
     "Variable",
+    "WaitForAll",
+    "WaitPolicy",
+    "WeekWindow",
     "WeightRule",
+    "Window",
     "XComArg",
+    "YearWindow",
     "asset",
     "chain",
     "chain_linear",

@@ -65,6 +65,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunState,
     DagRunType,
     PreviousTIResponse,
+    TaskInstance,
     TaskInstanceState,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
@@ -74,6 +75,7 @@ from airflow.sdk.execution_time.comms import (
     AssetResult,
     AssetsByAliasResult,
     AssetStoreResult,
+    AwaitInputTask,
     ClearAssetStoreByName,
     ClearAssetStoreByUri,
     ClearTaskStore,
@@ -171,7 +173,6 @@ from airflow.sdk.execution_time.supervisor import (
     supervise_task,
 )
 from airflow.sdk.execution_time.task_runner import run
-from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
 
 from tests_common.test_utils.config import conf_vars
 
@@ -234,16 +235,14 @@ class TestSupervisor:
         """
         Test that the supervisor validates server URL and dry_run parameter combinations correctly.
         """
-        ti = TaskInstanceDTO(
+        ti = TaskInstance(
             id=uuid7(),
             task_id="async",
             dag_id="super_basic_deferred_run",
             run_id="d",
             try_number=1,
             dag_version_id=uuid7(),
-            pool_slots=1,
             queue="default",
-            priority_weight=1,
         )
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
@@ -270,16 +269,14 @@ class TestSupervisor:
         client_with_ti_start,
     ):
         """SIGTERM to the supervisor process is forwarded to the task subprocess."""
-        ti = TaskInstanceDTO(
+        ti = TaskInstance(
             id=uuid7(),
             task_id="signal_task",
             dag_id="signal_forward_test",
             run_id="r",
             try_number=1,
             dag_version_id=uuid7(),
-            pool_slots=1,
             queue="default",
-            priority_weight=1,
         )
         bundle_info = BundleInfo(name="my-bundle", version=None)
 
@@ -378,16 +375,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -456,16 +451,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -556,16 +549,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=make_client(transport=httpx.MockTransport(handle_request)),
             target=subprocess_main,
@@ -588,16 +579,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -626,16 +615,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=uuid7(),
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=mock_client,
             target=subprocess_main,
@@ -673,16 +660,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=uuid7(),
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=mock_client,
             target=lambda: None,
@@ -719,16 +704,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=sdk_client.Client(base_url="", dry_run=True, token=""),
             target=subprocess_main,
@@ -764,16 +747,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=sdk_client.Client(base_url="", dry_run=True, token=""),
             target=subprocess_main,
@@ -788,16 +769,14 @@ class TestWatchedSubprocess:
         time_machine.move_to(instant, tick=False)
 
         dagfile_path = test_dags_dir
-        ti = TaskInstanceDTO(
+        ti = TaskInstance(
             id=uuid7(),
             task_id="hello",
             dag_id="super_basic_run",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
-            pool_slots=1,
             queue="default",
-            priority_weight=1,
         )
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
@@ -832,16 +811,14 @@ class TestWatchedSubprocess:
         """
         instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 0)
 
-        ti = TaskInstanceDTO(
+        ti = TaskInstance(
             id=uuid7(),
             task_id="async",
             dag_id="super_basic_deferred_run",
             run_id="d",
             try_number=1,
             dag_version_id=uuid7(),
-            pool_slots=1,
             queue="default",
-            priority_weight=1,
         )
 
         # Create a mock client to assert calls to the client
@@ -962,16 +939,14 @@ class TestWatchedSubprocess:
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=make_client(transport=httpx.MockTransport(handle_request)),
             target=subprocess_main,
@@ -1048,16 +1023,14 @@ class TestWatchedSubprocess:
             ActivitySubprocess.start(
                 dag_rel_path=os.devnull,
                 bundle_info=FAKE_BUNDLE,
-                what=TaskInstanceDTO(
+                what=TaskInstance(
                     id=ti_id,
                     task_id="b",
                     dag_id="c",
                     run_id="d",
                     try_number=1,
                     dag_version_id=uuid7(),
-                    pool_slots=1,
                     queue="default",
-                    priority_weight=1,
                 ),
                 client=make_client(transport=httpx.MockTransport(handle_request)),
                 target=subprocess_main,
@@ -1261,16 +1234,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -1424,16 +1395,14 @@ class TestWatchedSubprocessKill:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -1715,6 +1684,14 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="task_instances.defer",
             args=(TI_ID, DeferTask(next_method="execute_callback", classpath="my-classpath")),
+        ),
+    ),
+    RequestTestCase(
+        message=AwaitInputTask(next_method="execute_complete"),
+        test_id="patch_task_instance_to_awaiting_input",
+        client_mock=ClientMock(
+            method_path="task_instances.await_input",
+            args=(TI_ID, AwaitInputTask(next_method="execute_complete")),
         ),
     ),
     RequestTestCase(
@@ -3445,16 +3422,14 @@ class TestInProcessTestSupervisor:
         task.dag = DAG(dag_id="test_dag")
 
         # Create a simple TaskInstance datamodel to pass to the supervisor
-        ti = TaskInstanceDTO(
+        ti = TaskInstance(
             id=uuid7(),
             dag_version_id=uuid7(),
             dag_id="test_dag",
             task_id=task.task_id,
             run_id="r",
             try_number=1,
-            pool_slots=1,
             queue="default",
-            priority_weight=1,
         )
 
         # Patch the API client used by InProcessTestSupervisor to return a predictable TI context
@@ -3871,16 +3846,14 @@ def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
     proc = ActivitySubprocess.start(
         dag_rel_path=os.devnull,
         bundle_info=FAKE_BUNDLE,
-        what=TaskInstanceDTO(
+        what=TaskInstance(
             id="4d828a62-a417-4936-a7a6-2b3fabacecab",
             task_id="b",
             dag_id="c",
             run_id="d",
             try_number=1,
             dag_version_id=uuid7(),
-            pool_slots=1,
             queue="default",
-            priority_weight=1,
         ),
         client=client_with_ti_start,
         target=subprocess_main,
