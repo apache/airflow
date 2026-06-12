@@ -36,7 +36,7 @@ export const FieldAdvancedArray = ({ name, namespace = "default", onUpdate }: Fl
         // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
         paramsDict[name].value = null;
       }
-      setParamsDict(paramsDict);
+      setParamsDict(paramsDict, name);
     } else {
       try {
         const parsedValue = JSON.parse(value) as unknown;
@@ -66,7 +66,7 @@ export const FieldAdvancedArray = ({ name, namespace = "default", onUpdate }: Fl
           paramsDict[name].value = parsedValue;
         }
 
-        setParamsDict(paramsDict);
+        setParamsDict(paramsDict, name);
         onUpdate(String(parsedValue));
       } catch (_error) {
         onUpdate(undefined, expectedType === "number" ? String(_error).replace("JSON", "Array") : _error);
