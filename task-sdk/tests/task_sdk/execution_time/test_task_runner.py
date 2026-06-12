@@ -5297,6 +5297,44 @@ class TestTaskInstanceMetrics:
                 tags={"dag_id": ti.dag_id, "task_id": ti.task_id, "state": expected_state},
             )
 
+    @pytest.mark.parametrize(
+        ("task_callable", "expected_state"),
+        [
+            pytest.param(lambda: "success", "success", id="success"),
+            pytest.param(lambda: (_ for _ in ()).throw(AirflowSkipException()), "skipped", id="skipped"),
+            pytest.param(lambda: (_ for _ in ()).throw(AirflowFailException("fail")), "failed", id="failed"),
+        ],
+    )
+    def test_task_duration_metric_emitted_for_terminal_states(
+        self, task_callable, expected_state, create_runtime_ti, mock_supervisor_comms
+    ):
+        """task.duration is emitted for every terminal state — success, skipped, failed."""
+        task = PythonOperator(task_id="test", python_callable=task_callable)
+        ti = create_runtime_ti(task=task)
+
+        context = ti.get_template_context()
+        with mock.patch("airflow.sdk._shared.observability.metrics.stats._get_backend") as mock_get_backend:
+            backend = mock.MagicMock(spec=StatsLogger)
+            mock_get_backend.return_value = backend
+            state, _, error = run(ti, context=context, log=mock.MagicMock())
+            finalize(ti, state=state, context=context, log=mock.MagicMock(), error=error)
+
+            # verify task.duration was emitted in tagged format
+            task_duration_calls = [
+                c for c in backend.timing.call_args_list if c.args and c.args[0] == "task.duration"
+            ]
+            assert len(task_duration_calls) == 1, (
+                f"Expected exactly 1 task.duration emit for state={expected_state}, "
+                f"got {len(task_duration_calls)}"
+            )
+            assert task_duration_calls[0].kwargs.get("tags") == {
+                "dag_id": ti.dag_id,
+                "task_id": ti.task_id,
+            }
+            # verify task.duration was also emitted in legacy dotted format via the
+            # registry's legacy_name derivation in metrics_template.yaml
+            backend.timing.assert_any_call(f"dag.{ti.dag_id}.{ti.task_id}.duration", mock.ANY)
+
     def test_operator_successes_metrics_emitted(self, create_runtime_ti, mock_supervisor_comms):
         """Test that operator_successes and ti_successes metrics are emitted on task success."""
         task = PythonOperator(task_id="test", python_callable=lambda: "success")
