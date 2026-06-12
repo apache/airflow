@@ -1540,7 +1540,9 @@ class TestKubernetesExecutor:
         executor.kube_config.worker_pods_creation_batch_size = 1
         return executor
 
-    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._change_state")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._change_state"
+    )
     def test_sync_drains_and_clears_completed(self, mock_change_state):
         """``sync()`` processes every entry in ``self.completed`` exactly once and clears the set."""
         executor = self._make_sync_ready_executor()
@@ -1553,7 +1555,9 @@ class TestKubernetesExecutor:
         assert mock_change_state.call_count == len(results)
         assert executor.completed == set()
 
-    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._change_state")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._change_state"
+    )
     def test_sync_retains_completed_entry_on_change_state_failure(self, mock_change_state):
         """A ``self.completed`` entry whose ``_change_state`` raises is retained; the rest still drain."""
         executor = self._make_sync_ready_executor()
