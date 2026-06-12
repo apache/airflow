@@ -327,13 +327,27 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     )
     queue_to_coordinator = json.dumps({"java": "java-jdk"})
 
+    # Connection expected by the Java example bundle tasks. The JSON form
+    # covers all connection fields, in particular the port: wire integers
+    # arrive in the JVM as Long and the SDK must map them to Int.
+    test_http_conn = json.dumps(
+        {
+            "conn_type": "http",
+            "login": "user",
+            "password": "pass",
+            "host": "example.com",
+            "port": 1234,
+            "extra": {"param1": "val1", "param2": "val2"},
+        }
+    )
+
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
         # Single-quote the JSON values so Docker Compose reads them literally.
         f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
         f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
-        # Connection and variable expected by the Java example bundle tasks.
-        "AIRFLOW_CONN_TEST_HTTP=http://test:test@example.com/\n"
+        f"AIRFLOW_CONN_TEST_HTTP='{test_http_conn}'\n"
+        # Variable expected by the Java example bundle tasks.
         "AIRFLOW_VAR_MY_VARIABLE=test_value\n"
     )
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
