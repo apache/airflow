@@ -48,7 +48,7 @@ def _find_clazzes(directory, base_class):
         if ispkg:
             continue
 
-        relative_path = os.path.relpath(module_finder.path, AIRFLOW_ROOT)
+        relative_path = os.path.relpath(module_finder.path, AIRFLOW_ROOT2)
         package_name = relative_path.replace("/", ".")
         full_module_name = package_name + "." + name
         try:
