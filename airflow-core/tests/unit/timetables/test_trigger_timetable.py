@@ -850,4 +850,4 @@ def test_dagruninfo_backward_compatibility() -> None:
 
     assert info.partition_date is None
     assert info.partition_key is None
-     
+         
