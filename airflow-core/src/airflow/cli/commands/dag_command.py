@@ -528,6 +528,7 @@ def dag_next_execution(args) -> None:
             print(value)
 
 
+@deprecated_for_airflowctl("airflowctl dags list")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
