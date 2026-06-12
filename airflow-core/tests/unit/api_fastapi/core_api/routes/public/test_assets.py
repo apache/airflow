@@ -1078,6 +1078,87 @@ class TestGetAssetEvents(TestAssets):
         }
 
 
+class TestGetAssetEventsExtraFilter(TestAssets):
+    @pytest.fixture
+    def _setup(self, session):
+        self.create_assets(num=2, session=session)
+        events = [
+            AssetEvent(
+                asset_id=1,
+                extra={"region": "us", "env": "prod"},
+                source_task_id="t1",
+                source_dag_id="d1",
+                source_run_id="r1",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=1,
+                extra={"region": "eu", "env": "prod"},
+                source_task_id="t1",
+                source_dag_id="d1",
+                source_run_id="r2",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=2,
+                extra={"region": "us", "env": "staging"},
+                source_task_id="t2",
+                source_dag_id="d2",
+                source_run_id="r3",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=1,
+                extra={},
+                source_task_id="t1",
+                source_dag_id="d1",
+                source_run_id="r4",
+                timestamp=DEFAULT_DATE,
+            ),
+        ]
+        session.add_all(events)
+        session.commit()
+
+    @pytest.mark.usefixtures("_setup")
+    @pytest.mark.parametrize(
+        ("params", "expected_count"),
+        [
+            ({"extra": "region=us"}, 2),
+            ({"extra": "region=eu"}, 1),
+            ({"extra": "env=prod"}, 2),
+            ({"extra": "env=staging"}, 1),
+            ({"extra": "region=ap"}, 0),
+            ({"extra": "nonexistent=us"}, 0),
+            ({}, 4),
+        ],
+    )
+    def test_extra_filter(self, test_client, params, expected_count):
+        response = test_client.get("/assets/events", params=params)
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == expected_count
+
+    @pytest.mark.usefixtures("_setup")
+    def test_extra_filter_combined_with_asset_id(self, test_client):
+        response = test_client.get("/assets/events", params={"extra": "region=us", "asset_id": "1"})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+
+    @pytest.mark.usefixtures("_setup")
+    @pytest.mark.parametrize(
+        ("params", "expected_count"),
+        [
+            ([("extra", "region=us"), ("extra", "env=prod")], 1),
+            ([("extra", "region=eu"), ("extra", "env=prod")], 1),
+            ([("extra", "region=us"), ("extra", "env=staging")], 1),
+            ([("extra", "region=eu"), ("extra", "env=staging")], 0),
+        ],
+    )
+    def test_extra_filter_multiple_keys(self, test_client, params, expected_count):
+        response = test_client.get("/assets/events", params=params)
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == expected_count
+
+
 class TestGetAssetEndpoint(TestAssets):
     @provide_session
     def test_should_respond_200(self, test_client, *, session):

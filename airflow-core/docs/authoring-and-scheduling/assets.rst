@@ -247,6 +247,26 @@ Inlet asset events can be read with the ``inlet_events`` accessor in the executi
 
 Each value in the ``inlet_events`` mapping is a sequence-like object that orders past events of a given asset by ``timestamp``, earliest to latest. It supports most of Python's list interface, so you can use ``[-1]`` to access the last event, ``[-2:]`` for the last two, etc. The accessor is lazy and only hits the database when you access items inside it.
 
+The accessor also supports chaining methods to filter events before fetching them. For example, to retrieve only events where specific ``extra`` keys match given values:
+
+.. code-block:: python
+
+    @task(inlets=[regional_sales])
+    def process_high_priority(*, inlet_events):
+        events = inlet_events[regional_sales].extra("region", "us").extra("env", "prod")
+        for event in events:
+            print(event.extra)
+
+The ``.extra(key, value)`` method can be chained multiple times; all conditions are combined with AND logic. Other chaining methods include ``.after(timestamp)``, ``.before(timestamp)``, ``.ascending()``, and ``.limit(n)``.
+
+The REST API also supports filtering asset events by extra key-value pairs using the ``extra`` query parameter (repeat for multiple conditions):
+
+.. code-block:: bash
+
+    curl "http://<airflow-host>/api/v2/assets/events?extra=region%3Dus&extra=env%3Dprod"
+
+Each ``extra`` value uses ``key=value`` format. Multiple entries are combined with AND logic.
+
 Dependency between ``@asset``, ``@task``, and classic operators
 ---------------------------------------------------------------
 

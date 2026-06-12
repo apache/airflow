@@ -180,6 +180,8 @@ class TestDb:
             lambda t: t[0] == "add_index" and t[1].name == "idx_ab_user_username",
             lambda t: t[0] == "remove_index" and t[1].name == "idx_ab_register_user_username",
             lambda t: t[0] == "remove_index" and t[1].name == "idx_ab_user_username",
+            # Postgres-only GIN index created by raw SQL in migration, not in SQLAlchemy model
+            lambda t: t[0] == "remove_index" and t[1].name == "idx_asset_event_extra_gin",
         ]
 
         for ignore in ignores:

@@ -1216,6 +1216,68 @@ class TestAssetEventOperations:
         assert result.asset_events[0].asset.name == "this_asset"
         assert result.asset_events[0].asset.uri == "s3://bucket/key"
 
+    def test_extra_dict_param_passed(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            params = request.url.params
+            extra_pairs = [v for k, v in params.multi_items() if k == "extra"]
+            assert sorted(extra_pairs) == sorted(["region=us", "env=prod"])
+            return httpx.Response(
+                status_code=200,
+                json={
+                    "asset_events": [
+                        {
+                            "id": 1,
+                            "asset": {"name": "a", "uri": "s3://b", "group": "asset"},
+                            "created_dagruns": [],
+                            "timestamp": "2023-01-01T00:00:00Z",
+                        }
+                    ]
+                },
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_events.get(name="a", uri="s3://b", extra={"region": "us", "env": "prod"})
+        assert isinstance(result, AssetEventsResponse)
+        assert len(result.asset_events) == 1
+
+    def test_extra_dict_with_alias(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            params = request.url.params
+            assert request.url.path == "/asset-events/by-asset-alias"
+            extra_pairs = [v for k, v in params.multi_items() if k == "extra"]
+            assert extra_pairs == ["env=prod"]
+            return httpx.Response(
+                status_code=200,
+                json={
+                    "asset_events": [
+                        {
+                            "id": 1,
+                            "asset": {"name": "a", "uri": "s3://b", "group": "asset"},
+                            "created_dagruns": [],
+                            "timestamp": "2023-01-01T00:00:00Z",
+                        }
+                    ]
+                },
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_events.get(alias_name="my_alias", extra={"env": "prod"})
+        assert isinstance(result, AssetEventsResponse)
+        assert len(result.asset_events) == 1
+
+    def test_extra_none_not_sent(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            params = request.url.params
+            assert "extra" not in params
+            return httpx.Response(
+                status_code=200,
+                json={"asset_events": []},
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_events.get(name="a", uri="s3://b")
+        assert isinstance(result, AssetEventsResponse)
+
 
 class TestAssetOperations:
     @pytest.mark.parametrize(
