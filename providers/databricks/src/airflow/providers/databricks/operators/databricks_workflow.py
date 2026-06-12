@@ -19,19 +19,25 @@ from __future__ import annotations
 
 import json
 import time
+import warnings
 from dataclasses import dataclass
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from mergedeep import merge
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, TaskGroup
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, TaskGroup, conf
+from airflow.providers.databricks.exceptions import DatabricksWorkflowRepairError
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunLifeCycleState
 from airflow.providers.databricks.plugins.databricks_workflow import (
     WorkflowJobRepairAllFailedLink,
     WorkflowJobRunLink,
     store_databricks_job_run_link,
 )
+from airflow.providers.databricks.triggers.databricks import (
+    DatabricksWorkflowRepairCoordinatorTrigger,
+)
+from airflow.providers.databricks.utils.databricks import build_repair_run_json, extract_failed_task_errors
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
@@ -300,6 +306,226 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
             )
 
 
+class _DatabricksWorkflowRepairCoordinatorOperator(BaseOperator):
+    """Watch a Databricks Workflow run and issue repairs after terminal failures."""
+
+    caller = "_DatabricksWorkflowRepairCoordinatorOperator"
+
+    def __init__(
+        self,
+        task_id: str,
+        databricks_conn_id: str,
+        launch_task_id: str,
+        workflow_repair_attempts: int,
+        workflow_repair_polling_period: int = 30,
+        workflow_repair_timeout: int = 300,
+        databricks_retry_limit: int = 3,
+        databricks_retry_delay: int = 10,
+        databricks_retry_args: dict[Any, Any] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ):
+        if workflow_repair_attempts < 1:
+            raise ValueError(
+                f"workflow_repair_attempts must be >= 1 for the repair coordinator task, got {workflow_repair_attempts}"
+            )
+        super().__init__(task_id=task_id, **kwargs)
+        self.databricks_conn_id = databricks_conn_id
+        self.launch_task_id = launch_task_id
+        self.workflow_repair_attempts = workflow_repair_attempts
+        self.workflow_repair_polling_period = workflow_repair_polling_period
+        self.workflow_repair_timeout = workflow_repair_timeout
+        self.databricks_retry_limit = databricks_retry_limit
+        self.databricks_retry_delay = databricks_retry_delay
+        self.databricks_retry_args = databricks_retry_args
+        self.deferrable = deferrable
+
+    @cached_property
+    def _hook(self) -> DatabricksHook:
+        return DatabricksHook(
+            self.databricks_conn_id,
+            retry_limit=self.databricks_retry_limit,
+            retry_delay=self.databricks_retry_delay,
+            retry_args=self.databricks_retry_args,
+            caller=self.caller,
+        )
+
+    def _make_trigger(
+        self,
+        run_id: int,
+        repair_attempts: int,
+        latest_repair_id: int | None,
+    ) -> DatabricksWorkflowRepairCoordinatorTrigger:
+        return DatabricksWorkflowRepairCoordinatorTrigger(
+            run_id=run_id,
+            databricks_conn_id=self.databricks_conn_id,
+            workflow_repair_attempts=self.workflow_repair_attempts,
+            repair_attempts=repair_attempts,
+            latest_repair_id=latest_repair_id,
+            polling_period_seconds=self.workflow_repair_polling_period,
+            workflow_repair_timeout=self.workflow_repair_timeout,
+            retry_limit=self.databricks_retry_limit,
+            retry_delay=self.databricks_retry_delay,
+            retry_args=self.databricks_retry_args,
+            caller=self.caller,
+        )
+
+    def execute(self, context: Context) -> Any:
+        launch_value = context["ti"].xcom_pull(task_ids=self.launch_task_id)
+        if not launch_value:
+            raise DatabricksWorkflowRepairError(
+                f"Launch task {self.launch_task_id!r} did not publish workflow run metadata; "
+                "cannot coordinate repairs."
+            )
+        metadata = WorkflowRunMetadata(**launch_value)
+
+        if self.deferrable:
+            self.defer(
+                trigger=self._make_trigger(
+                    run_id=metadata.run_id,
+                    repair_attempts=0,
+                    latest_repair_id=None,
+                ),
+                method_name="execute_complete",
+            )
+            return None
+        return self._run_sync(metadata.run_id)
+
+    def _run_sync(self, run_id: int) -> dict[str, Any]:
+        """Sync equivalent of :class:`DatabricksWorkflowRepairCoordinatorTrigger`'s state machine."""
+        repair_attempts = 0
+        latest_repair_id: int | None = None
+        while True:
+            run_state = self._hook.get_run_state(run_id)
+            while not run_state.is_terminal:
+                self.log.info(
+                    "Databricks run %s in state %s. Sleeping for %s seconds.",
+                    run_id,
+                    run_state,
+                    self.workflow_repair_polling_period,
+                )
+                time.sleep(self.workflow_repair_polling_period)
+                run_state = self._hook.get_run_state(run_id)
+
+            if run_state.is_successful:
+                self.log.info(
+                    "Databricks workflow run %s completed (repair_attempts=%s).",
+                    run_id,
+                    repair_attempts,
+                )
+                return {
+                    "run_id": run_id,
+                    "repair_attempts": repair_attempts,
+                    "latest_repair_id": latest_repair_id,
+                }
+
+            run_info = self._hook.get_run(run_id)
+            errors = extract_failed_task_errors(self._hook, run_info, run_state)
+
+            if repair_attempts >= self.workflow_repair_attempts:
+                raise DatabricksWorkflowRepairError(
+                    f"Databricks workflow run {run_id} failed after {repair_attempts} repair "
+                    f"attempt(s); repair budget exhausted (workflow_repair_attempts={self.workflow_repair_attempts}). "
+                    f"Errors: {errors}"
+                )
+
+            self.log.info(
+                "Databricks run %s reached terminal failure state %s. Repairing all failed "
+                "tasks (attempt %s of %s, latest_repair_id=%s).",
+                run_id,
+                run_state.result_state,
+                repair_attempts + 1,
+                self.workflow_repair_attempts,
+                latest_repair_id,
+            )
+            repair_json = build_repair_run_json(
+                run_id=run_id,
+                latest_repair_id=latest_repair_id,
+                overriding_parameters=run_info.get("overriding_parameters"),
+            )
+            latest_repair_id = self._hook.repair_run(repair_json)
+            repair_attempts += 1
+            self.log.info(
+                "Databricks repair_run accepted for run %s; new repair_id=%s.",
+                run_id,
+                latest_repair_id,
+            )
+
+            # Wait for Databricks to reflect the repair (leave terminal state) before
+            # looping. Without this, the next get_run_state can return stale terminal
+            # state and trigger a second repair_run. Bound the wait so a stuck DBX
+            # doesn't pin a worker forever.
+            deadline = time.monotonic() + self.workflow_repair_timeout
+            while True:
+                time.sleep(self.workflow_repair_polling_period)
+                post_repair_state = self._hook.get_run_state(run_id)
+                if not post_repair_state.is_terminal:
+                    break
+                if time.monotonic() >= deadline:
+                    raise DatabricksWorkflowRepairError(
+                        f"Databricks did not reflect repair_id={latest_repair_id} for run {run_id} "
+                        f"within {self.workflow_repair_timeout}s "
+                        f"(workflow_repair_timeout); aborting to avoid issuing a "
+                        f"duplicate repair_run against stale terminal state."
+                    )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
+        status = event.get("status")
+        run_id = event["run_id"]
+        repair_attempts = event["repair_attempts"]
+        latest_repair_id = event.get("latest_repair_id")
+
+        if status == "completed":
+            self.log.info(
+                "Databricks workflow run %s completed (repair_attempts=%s).",
+                run_id,
+                repair_attempts,
+            )
+            return {
+                "run_id": run_id,
+                "repair_attempts": repair_attempts,
+                "latest_repair_id": latest_repair_id,
+            }
+
+        if status == "repaired":
+            self.log.info(
+                "Databricks workflow run %s repaired (repair_attempts=%s, latest_repair_id=%s); "
+                "re-deferring to monitor the repaired run.",
+                run_id,
+                repair_attempts,
+                latest_repair_id,
+            )
+            self.defer(
+                trigger=self._make_trigger(
+                    run_id=run_id,
+                    repair_attempts=repair_attempts,
+                    latest_repair_id=latest_repair_id,
+                ),
+                method_name="execute_complete",
+            )
+            return None
+
+        if status == "failed":
+            errors = event.get("errors", [])
+            raise DatabricksWorkflowRepairError(
+                f"Databricks workflow run {run_id} failed after {repair_attempts} repair "
+                f"attempt(s); repair budget exhausted (workflow_repair_attempts={self.workflow_repair_attempts}). "
+                f"Errors: {errors}"
+            )
+
+        if status == "repair_not_reflected":
+            raise DatabricksWorkflowRepairError(
+                f"Databricks did not reflect repair_id={latest_repair_id} for run {run_id} "
+                f"within {self.workflow_repair_timeout}s "
+                f"(workflow_repair_timeout); aborting to avoid issuing a "
+                f"duplicate repair_run against stale terminal state."
+            )
+
+        raise DatabricksWorkflowRepairError(
+            f"DatabricksWorkflowRepairCoordinatorTrigger emitted unexpected status {status!r}: {event}"
+        )
+
+
 class DatabricksWorkflowTaskGroup(TaskGroup):
     """
     A task group that takes a list of tasks and creates a databricks workflow.
@@ -338,6 +564,17 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
         all python tasks in the workflow.
     :param spark_submit_params: A list of spark submit parameters to pass to the workflow. These parameters
         will be passed to all spark submit tasks.
+    :param workflow_repair_attempts: Maximum number of automatic ``rerun_all_failed_tasks`` repair attempts to
+        issue against the Databricks run when downstream tasks fail. Each repair reuses the
+        original job cluster. Set to ``0`` to disable auto-repair (current behavior). Only takes
+        effect on Airflow 3+; ignored on Airflow 2.x. Defaults to ``0``.
+    :param workflow_repair_polling_period: How often the repair coordinator polls the
+        Databricks run state. Only used when ``workflow_repair_attempts > 0``.
+    :param workflow_repair_timeout: Seconds the coordinator waits after a
+        ``repair_run`` is accepted for the parent run to leave its terminal state before
+        giving up and failing. Covers Databricks-side eventual consistency on a slow
+        cluster. Defaults to 300 seconds (5 minutes). Only used when
+        ``workflow_repair_attempts > 0``.
     """
 
     is_databricks = True
@@ -355,8 +592,13 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
         notebook_params: dict | None = None,
         python_params: list | None = None,
         spark_submit_params: list | None = None,
+        workflow_repair_attempts: int = 0,
+        workflow_repair_polling_period: int = 30,
+        workflow_repair_timeout: int = 300,
         **kwargs,
     ):
+        if workflow_repair_attempts < 0:
+            raise ValueError(f"workflow_repair_attempts must be >= 0, got {workflow_repair_attempts}")
         self.databricks_conn_id = databricks_conn_id
         self.access_control_list = access_control_list
         self.existing_clusters = existing_clusters or []
@@ -368,6 +610,9 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
         self.notebook_params = notebook_params or {}
         self.python_params = python_params or []
         self.spark_submit_params = spark_submit_params or []
+        self.workflow_repair_attempts = workflow_repair_attempts
+        self.workflow_repair_polling_period = workflow_repair_polling_period
+        self.workflow_repair_timeout = workflow_repair_timeout
         super().__init__(**kwargs)
 
     def __exit__(
@@ -403,11 +648,42 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
                         f"Task {task.task_id} does not support conversion to databricks workflow task."
                     )
 
+                if AIRFLOW_V_3_0_PLUS and self.workflow_repair_attempts > 0:
+                    task_retries = getattr(task, "retries", 0)
+                    if isinstance(task_retries, int) and task_retries > 0:
+                        warnings.warn(
+                            f"Task {task.task_id!r} in DatabricksWorkflowTaskGroup "
+                            f"{self.group_id!r} has retries={task_retries} while "
+                            f"workflow_repair_attempts={self.workflow_repair_attempts}. Databricks-side repair supersedes "
+                            "task-level retries for sub-run failures: a failed sub-run defers the "
+                            "monitor on the repair-wait trigger and resumes in the same Airflow "
+                            "attempt. Retries on the monitor will not trigger additional repairs "
+                            "and only add cost on non-repair-related transient failures. Consider "
+                            "setting retries=0 on workflow tasks when workflow_repair_attempts > 0.",
+                            UserWarning,
+                            stacklevel=2,
+                        )
                 task.workflow_run_metadata = create_databricks_workflow_task.output
                 create_databricks_workflow_task.relevant_upstreams.append(task.task_id)
                 create_databricks_workflow_task.add_task(task.task_id, task)
 
             for root_task in roots:
                 root_task.set_upstream(create_databricks_workflow_task)
+
+            if AIRFLOW_V_3_0_PLUS and self.workflow_repair_attempts > 0:
+                repair_coordinator_task = _DatabricksWorkflowRepairCoordinatorOperator(
+                    dag=self.dag,
+                    task_group=self,
+                    task_id="repair_coordinator",
+                    databricks_conn_id=self.databricks_conn_id,
+                    launch_task_id=create_databricks_workflow_task.task_id,
+                    workflow_repair_attempts=self.workflow_repair_attempts,
+                    workflow_repair_polling_period=self.workflow_repair_polling_period,
+                    workflow_repair_timeout=self.workflow_repair_timeout,
+                    # Retrying the coordinator would re-enter execute() with repair_attempts=0
+                    # and start the budget over.
+                    retries=0,
+                )
+                repair_coordinator_task.set_upstream(create_databricks_workflow_task)
         finally:
             super().__exit__(_type, _value, _tb)

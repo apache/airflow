@@ -29,15 +29,17 @@ pytest.importorskip("flask_session")
 
 from airflow import DAG
 from airflow.models.baseoperator import BaseOperator
-from airflow.providers.common.compat.sdk import AirflowException, timezone
-from airflow.providers.databricks.hooks.databricks import RunLifeCycleState
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, timezone
+from airflow.providers.databricks.hooks.databricks import RunLifeCycleState, RunState
 from airflow.providers.databricks.operators.databricks import DatabricksNotebookOperator
 from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
     WorkflowRunMetadata,
     _CreateDatabricksWorkflowOperator,
+    _DatabricksWorkflowRepairCoordinatorOperator,
     _flatten_node,
 )
+from airflow.providers.databricks.triggers.databricks import DatabricksWorkflowRepairCoordinatorTrigger
 from airflow.providers.standard.operators.empty import EmptyOperator
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
@@ -571,3 +573,185 @@ class TestWorkflowDependsOnWirePayload:
         job_id, job_spec = launch_task._hook.reset_job.call_args.args
         assert job_id == 42
         self._assert_parent_depends_on(job_spec)
+
+
+class TestDatabricksWorkflowRepairCoordinatorOperator:
+    LAUNCH_TASK_ID = "wf.launch"
+    LAUNCH_RETURN = {"conn_id": "databricks_default", "job_id": 42, "run_id": 100}
+
+    def _make_operator(
+        self,
+        workflow_repair_attempts: int = 2,
+        deferrable: bool = True,
+    ) -> _DatabricksWorkflowRepairCoordinatorOperator:
+        return _DatabricksWorkflowRepairCoordinatorOperator(
+            task_id="repair_coordinator",
+            databricks_conn_id="databricks_default",
+            launch_task_id=self.LAUNCH_TASK_ID,
+            workflow_repair_attempts=workflow_repair_attempts,
+            workflow_repair_polling_period=10,
+            deferrable=deferrable,
+        )
+
+    def test_execute_raises_when_launch_xcom_missing(self):
+        operator = self._make_operator()
+        ctx = {"ti": MagicMock()}
+        ctx["ti"].xcom_pull.return_value = None
+
+        with pytest.raises(AirflowException, match="did not publish workflow run metadata"):
+            operator.execute(ctx)
+
+    def test_execute_defers_on_coordinator_trigger(self):
+        operator = self._make_operator(workflow_repair_attempts=3)
+        ctx = {"ti": MagicMock()}
+        ctx["ti"].xcom_pull.return_value = self.LAUNCH_RETURN
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(ctx)
+
+        ctx["ti"].xcom_push.assert_not_called()
+        assert exc.value.method_name == "execute_complete"
+        trigger = exc.value.trigger
+        assert isinstance(trigger, DatabricksWorkflowRepairCoordinatorTrigger)
+        assert trigger.run_id == self.LAUNCH_RETURN["run_id"]
+        assert trigger.workflow_repair_attempts == 3
+        assert trigger.repair_attempts == 0
+        assert trigger.latest_repair_id is None
+        assert trigger.polling_period_seconds == 10
+
+    def test_execute_complete_repaired_redefers_without_xcom_push(self):
+        operator = self._make_operator(workflow_repair_attempts=3)
+        ctx = {"ti": MagicMock()}
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute_complete(
+                ctx,
+                event={
+                    "status": "repaired",
+                    "run_id": 100,
+                    "repair_attempts": 1,
+                    "latest_repair_id": 555,
+                },
+            )
+
+        ctx["ti"].xcom_push.assert_not_called()
+        trigger = exc.value.trigger
+        assert isinstance(trigger, DatabricksWorkflowRepairCoordinatorTrigger)
+        assert trigger.run_id == 100
+        assert trigger.repair_attempts == 1
+        assert trigger.latest_repair_id == 555
+        assert trigger.workflow_repair_attempts == 3
+
+    def test_execute_complete_failed_raises_with_errors_in_message(self):
+        operator = self._make_operator(workflow_repair_attempts=2)
+        ctx = {"ti": MagicMock()}
+        errors = [{"task_key": "t1", "run_id": 11, "error": "boom"}]
+
+        with pytest.raises(AirflowException) as exc:
+            operator.execute_complete(
+                ctx,
+                event={
+                    "status": "failed",
+                    "run_id": 100,
+                    "repair_attempts": 2,
+                    "latest_repair_id": 999,
+                    "errors": errors,
+                },
+            )
+
+        message = str(exc.value)
+        assert "100" in message
+        assert "workflow_repair_attempts=2" in message
+        assert "boom" in message
+        ctx["ti"].xcom_push.assert_not_called()
+
+    @patch("airflow.providers.databricks.operators.databricks_workflow.time.sleep")
+    def test_sync_run_repairs_failed_run_and_returns_success(self, mock_sleep):
+        operator = self._make_operator(workflow_repair_attempts=2, deferrable=False)
+        hook = MagicMock()
+        operator.__dict__["_hook"] = hook
+        # 1. top of outer loop: terminal+failed → repair_run
+        # 2. reflection poll: non-terminal → break reflection loop
+        # 3. top of outer loop: terminal+success → return
+        hook.get_run_state.side_effect = [
+            RunState("TERMINATED", "FAILED", ""),
+            RunState("RUNNING", "", ""),
+            RunState("TERMINATED", "SUCCESS", ""),
+        ]
+        hook.get_run.return_value = {
+            "state": {"life_cycle_state": "TERMINATED", "result_state": "FAILED", "state_message": ""},
+            "tasks": [],
+            "overriding_parameters": {"notebook_params": {"date": "2024-01-01"}},
+        }
+        hook.repair_run.return_value = 555
+
+        result = operator._run_sync(run_id=100)
+
+        hook.repair_run.assert_called_once_with(
+            {
+                "run_id": 100,
+                "rerun_all_failed_tasks": True,
+                "rerun_dependent_tasks": True,
+                "overriding_parameters": {"notebook_params": {"date": "2024-01-01"}},
+            }
+        )
+        assert result == {"run_id": 100, "repair_attempts": 1, "latest_repair_id": 555}
+        # Grace loop slept once before observing non-terminal state.
+        assert mock_sleep.call_count == 1
+
+    @patch("airflow.providers.databricks.operators.databricks_workflow.time.sleep")
+    def test_sync_run_raises_when_repair_not_reflected_within_timeout(self, mock_sleep):
+        operator = self._make_operator(workflow_repair_attempts=2, deferrable=False)
+        operator.workflow_repair_timeout = 0
+        hook = MagicMock()
+        operator.__dict__["_hook"] = hook
+        # 1. outer loop: terminal+failed → repair_run
+        # 2. reflection poll: still terminal → wall-clock deadline trips → raise (no second repair_run).
+        # workflow_repair_timeout=0 means the first elapsed ``time.monotonic()`` call
+        # after the no-op sleep is past the deadline, so the loop bails out.
+        hook.get_run_state.side_effect = [
+            RunState("TERMINATED", "FAILED", ""),
+            RunState("TERMINATED", "FAILED", ""),
+        ]
+        hook.get_run.return_value = {
+            "state": {"life_cycle_state": "TERMINATED", "result_state": "FAILED", "state_message": ""},
+            "tasks": [],
+            "overriding_parameters": {},
+        }
+        hook.repair_run.return_value = 555
+
+        with pytest.raises(AirflowException) as exc:
+            operator._run_sync(run_id=100)
+
+        message = str(exc.value)
+        assert "did not reflect repair_id=555" in message
+        assert "run 100" in message
+        assert "workflow_repair_timeout" in message
+        # Only the original repair_run — the raise must prevent a duplicate.
+        hook.repair_run.assert_called_once()
+        # One reflection-loop sleep fired before the deadline check tripped.
+        assert mock_sleep.call_count == 1
+
+
+class TestDatabricksWorkflowTaskGroupCoordinatorInjection:
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Coordinator task is only injected on Airflow 3+")
+    def test_workflow_repair_attempts_positive_injects_coordinator_with_launch_upstream(self):
+        with DAG(dag_id="dwf_with_coord", schedule=None, start_date=DEFAULT_DATE):
+            with DatabricksWorkflowTaskGroup(
+                group_id="wf",
+                databricks_conn_id="databricks_conn",
+                workflow_repair_attempts=2,
+                workflow_repair_polling_period=15,
+                workflow_repair_timeout=120,
+            ) as tg:
+                task = MagicMock(task_id="task1")
+                task._convert_to_databricks_workflow_task = MagicMock(return_value={})
+                tg.add(task)
+
+        coordinator = tg.children["wf.repair_coordinator"]
+        assert isinstance(coordinator, _DatabricksWorkflowRepairCoordinatorOperator)
+        assert coordinator.workflow_repair_attempts == 2
+        assert coordinator.workflow_repair_polling_period == 15
+        assert coordinator.workflow_repair_timeout == 120
+        assert coordinator.launch_task_id == "wf.launch"
+        assert "wf.launch" in coordinator.upstream_task_ids

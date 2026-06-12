@@ -27,6 +27,8 @@ from airflow.providers.databricks.hooks.databricks import RunState, SQLStatement
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
     DatabricksSQLStatementExecutionTrigger,
+    DatabricksWorkflowRepairCoordinatorTrigger,
+    DatabricksWorkflowRepairWaitTrigger,
 )
 from airflow.triggers.base import TriggerEvent
 
@@ -228,6 +230,7 @@ class TestDatabricksExecutionTrigger:
                         life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
                     ).to_json(),
                     "run_page_url": RUN_PAGE_URL,
+                    "run_start_time": None,
                     "repair_run": False,
                     "errors": [],
                 }
@@ -259,6 +262,7 @@ class TestDatabricksExecutionTrigger:
                         life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="FAILED"
                     ).to_json(),
                     "run_page_url": RUN_PAGE_URL,
+                    "run_start_time": None,
                     "repair_run": False,
                     "errors": [
                         {"task_key": TASK_RUN_ID1_KEY, "run_id": TASK_RUN_ID1, "error": ERROR_MESSAGE},
@@ -299,6 +303,7 @@ class TestDatabricksExecutionTrigger:
                         life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
                     ).to_json(),
                     "run_page_url": RUN_PAGE_URL,
+                    "run_start_time": None,
                     "repair_run": False,
                     "errors": [],
                 }
@@ -432,3 +437,362 @@ class TestDatabricksSQLStatementExecutionTrigger:
     async def test_on_kill_cancels_statement(self, mock_cancel_sql_statement):
         await self.trigger.on_kill()
         mock_cancel_sql_statement.assert_called_once_with(STATEMENT_ID)
+
+
+class TestDatabricksWorkflowRepairCoordinatorTrigger:
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=LOGIN,
+                password=PASSWORD,
+                extra=None,
+            )
+        )
+
+    def _make_trigger(
+        self,
+        workflow_repair_attempts: int = 2,
+        repair_attempts: int = 0,
+        latest_repair_id: int | None = None,
+        workflow_repair_timeout: int = 300,
+    ) -> DatabricksWorkflowRepairCoordinatorTrigger:
+        return DatabricksWorkflowRepairCoordinatorTrigger(
+            run_id=RUN_ID,
+            databricks_conn_id=DEFAULT_CONN_ID,
+            workflow_repair_attempts=workflow_repair_attempts,
+            repair_attempts=repair_attempts,
+            latest_repair_id=latest_repair_id,
+            polling_period_seconds=POLLING_INTERVAL_SECONDS,
+            workflow_repair_timeout=workflow_repair_timeout,
+            run_page_url=RUN_PAGE_URL,
+        )
+
+    def test_serialize_round_trips_state(self):
+        trigger = self._make_trigger(workflow_repair_attempts=3, repair_attempts=1, latest_repair_id=42)
+
+        path, kwargs = trigger.serialize()
+        restored = DatabricksWorkflowRepairCoordinatorTrigger(**kwargs)
+
+        assert (
+            path
+            == "airflow.providers.databricks.triggers.databricks.DatabricksWorkflowRepairCoordinatorTrigger"
+        )
+        assert restored.serialize() == (path, kwargs)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
+    async def test_emits_completed_when_run_succeeds(self, mock_get_run_state, mock_get_run):
+        mock_get_run_state.return_value = RunState(
+            life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
+            state_message="",
+            result_state="SUCCESS",
+        )
+        mock_get_run.return_value = GET_RUN_RESPONSE_TERMINATED
+
+        trigger = self._make_trigger(workflow_repair_attempts=2, repair_attempts=0, latest_repair_id=None)
+        events = [event async for event in trigger.run()]
+
+        assert len(events) == 1
+        assert events[0].payload["status"] == "completed"
+        assert events[0].payload["run_id"] == RUN_ID
+        assert events[0].payload["repair_attempts"] == 0
+        assert events[0].payload["latest_repair_id"] is None
+        assert events[0].payload["errors"] == []
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.repair_run")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_output")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
+    async def test_first_failure_within_budget_calls_repair_and_emits_repaired(
+        self, mock_get_run_state, mock_get_run, mock_get_run_output, mock_repair_run, mock_sleep
+    ):
+        # First call: terminal+failed → trigger issues repair.
+        # Second call: reflection poll → non-terminal → reflection loop breaks.
+        mock_get_run_state.side_effect = [
+            RunState(
+                life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
+                state_message="",
+                result_state="FAILED",
+            ),
+            RunState(
+                life_cycle_state="RUNNING",
+                state_message="",
+                result_state="",
+            ),
+        ]
+        mock_get_run.return_value = GET_RUN_RESPONSE_TERMINATED_WITH_FAILED
+        mock_get_run_output.return_value = GET_RUN_OUTPUT_RESPONSE
+        mock_repair_run.return_value = 101
+
+        trigger = self._make_trigger(workflow_repair_attempts=2, repair_attempts=0, latest_repair_id=None)
+        events = [event async for event in trigger.run()]
+
+        assert len(events) == 1
+        assert events[0].payload["status"] == "repaired"
+        assert events[0].payload["run_id"] == RUN_ID
+        assert events[0].payload["repair_attempts"] == 1
+        assert events[0].payload["latest_repair_id"] == 101
+        assert events[0].payload["errors"] == [
+            {"task_key": TASK_RUN_ID1_KEY, "run_id": TASK_RUN_ID1, "error": ERROR_MESSAGE},
+            {"task_key": TASK_RUN_ID3_KEY, "run_id": TASK_RUN_ID3, "error": ERROR_MESSAGE},
+        ]
+
+        mock_repair_run.assert_called_once()
+        repair_json = mock_repair_run.call_args.args[0]
+        assert repair_json["run_id"] == RUN_ID
+        assert repair_json["rerun_all_failed_tasks"] is True
+        # First repair: latest_repair_id was None, so the field must be omitted from the payload
+        assert "latest_repair_id" not in repair_json
+        # Grace loop slept once before observing non-terminal state.
+        assert mock_sleep.call_count == 1
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.repair_run")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_output")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
+    async def test_emits_repair_not_reflected_when_reflection_timeout_elapses(
+        self,
+        mock_get_run_state,
+        mock_get_run,
+        mock_get_run_output,
+        mock_repair_run,
+        mock_sleep,
+    ):
+        # First call: terminal+failed → trigger issues repair.
+        # Reflection poll: still terminal → wall-clock deadline trips → yield repair_not_reflected.
+        # workflow_repair_timeout=0 means the deadline is "now"; the first elapsed
+        # ``time.monotonic()`` call after the no-op sleep is past it, so the loop bails out.
+        mock_get_run_state.side_effect = [
+            RunState(
+                life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
+                state_message="",
+                result_state="FAILED",
+            ),
+            RunState(
+                life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
+                state_message="",
+                result_state="FAILED",
+            ),
+        ]
+        mock_get_run.return_value = GET_RUN_RESPONSE_TERMINATED_WITH_FAILED
+        mock_get_run_output.return_value = GET_RUN_OUTPUT_RESPONSE
+        mock_repair_run.return_value = 101
+
+        trigger = self._make_trigger(
+            workflow_repair_attempts=2,
+            repair_attempts=0,
+            latest_repair_id=None,
+            workflow_repair_timeout=0,
+        )
+        events = [event async for event in trigger.run()]
+
+        assert len(events) == 1
+        assert events[0].payload["status"] == "repair_not_reflected"
+        assert events[0].payload["run_id"] == RUN_ID
+        assert events[0].payload["repair_attempts"] == 1
+        assert events[0].payload["latest_repair_id"] == 101
+        # Only the original repair_run — yielding must prevent a duplicate next cycle.
+        mock_repair_run.assert_called_once()
+        # One reflection-loop sleep fired before the deadline check tripped.
+        assert mock_sleep.call_count == 1
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.repair_run")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_output")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
+    async def test_emits_failed_when_budget_exhausted(
+        self, mock_get_run_state, mock_get_run, mock_get_run_output, mock_repair_run
+    ):
+        mock_get_run_state.return_value = RunState(
+            life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
+            state_message="",
+            result_state="FAILED",
+        )
+        mock_get_run.return_value = GET_RUN_RESPONSE_TERMINATED_WITH_FAILED
+        mock_get_run_output.return_value = GET_RUN_OUTPUT_RESPONSE
+
+        trigger = self._make_trigger(workflow_repair_attempts=2, repair_attempts=2, latest_repair_id=202)
+        events = [event async for event in trigger.run()]
+
+        assert len(events) == 1
+        assert events[0].payload["status"] == "failed"
+        assert events[0].payload["repair_attempts"] == 2
+        assert events[0].payload["latest_repair_id"] == 202
+        assert events[0].payload["errors"] == [
+            {"task_key": TASK_RUN_ID1_KEY, "run_id": TASK_RUN_ID1, "error": ERROR_MESSAGE},
+            {"task_key": TASK_RUN_ID3_KEY, "run_id": TASK_RUN_ID3, "error": ERROR_MESSAGE},
+        ]
+        mock_repair_run.assert_not_called()
+
+
+class TestDatabricksWorkflowRepairWaitTrigger:
+    PARENT_RUN_ID = 100
+    TASK_KEY = "monitored_task"
+    ORIGINAL_SUB_RUN_ID = 500
+    NEW_SUB_RUN_ID = 700
+
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=LOGIN,
+                password=PASSWORD,
+                extra=None,
+            )
+        )
+
+    def _make_trigger(self) -> DatabricksWorkflowRepairWaitTrigger:
+        return DatabricksWorkflowRepairWaitTrigger(
+            run_id=self.PARENT_RUN_ID,
+            databricks_conn_id=DEFAULT_CONN_ID,
+            databricks_task_key=self.TASK_KEY,
+            original_sub_run_id=self.ORIGINAL_SUB_RUN_ID,
+            polling_period_seconds=POLLING_INTERVAL_SECONDS,
+            run_page_url=RUN_PAGE_URL,
+        )
+
+    def _run_payload(
+        self,
+        result_state: str | None,
+        life_cycle_state: str = LIFE_CYCLE_STATE_TERMINATED,
+        tasks: list[dict] | None = None,
+        repair_history: list[dict] | None = None,
+    ) -> dict:
+        return {
+            "run_page_url": RUN_PAGE_URL,
+            "state": {
+                "life_cycle_state": life_cycle_state,
+                "state_message": None,
+                "result_state": result_state,
+            },
+            "tasks": tasks or [],
+            "repair_history": repair_history or [],
+        }
+
+    def test_serialize_round_trips_state(self):
+        trigger = self._make_trigger()
+
+        path, kwargs = trigger.serialize()
+        restored = DatabricksWorkflowRepairWaitTrigger(**kwargs)
+
+        assert path == "airflow.providers.databricks.triggers.databricks.DatabricksWorkflowRepairWaitTrigger"
+        assert restored.serialize() == (path, kwargs)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
+    async def test_emits_new_attempt_when_new_sub_run_appears(self, mock_get_run):
+        mock_get_run.return_value = self._run_payload(
+            result_state=None,
+            life_cycle_state="RUNNING",
+            tasks=[
+                {
+                    "run_id": self.ORIGINAL_SUB_RUN_ID,
+                    "task_key": self.TASK_KEY,
+                    "start_time": 1000,
+                },
+                {
+                    "run_id": self.NEW_SUB_RUN_ID,
+                    "task_key": self.TASK_KEY,
+                    "start_time": 2000,
+                },
+            ],
+        )
+
+        trigger = self._make_trigger()
+        events = [event async for event in trigger.run()]
+
+        assert len(events) == 1
+        assert events[0].payload == {
+            "status": "new_attempt",
+            "parent_run_id": self.PARENT_RUN_ID,
+            "databricks_task_key": self.TASK_KEY,
+            "new_sub_run_id": self.NEW_SUB_RUN_ID,
+            "run_page_url": RUN_PAGE_URL,
+        }
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
+    async def test_emits_parent_failed_after_grace_polls(self, mock_get_run, mock_sleep):
+        terminal_payload = self._run_payload(
+            result_state="FAILED",
+            life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
+            tasks=[
+                {
+                    "run_id": self.ORIGINAL_SUB_RUN_ID,
+                    "task_key": self.TASK_KEY,
+                    "start_time": 1000,
+                },
+            ],
+        )
+        mock_get_run.return_value = terminal_payload
+
+        trigger = self._make_trigger()
+        events = [event async for event in trigger.run()]
+
+        assert mock_get_run.call_count == 3
+        assert mock_sleep.call_count == 2
+        assert len(events) == 1
+        payload = events[0].payload
+        assert payload["status"] == "parent_failed"
+        assert payload["parent_run_id"] == self.PARENT_RUN_ID
+        assert payload["databricks_task_key"] == self.TASK_KEY
+        assert RunState.from_json(payload["parent_run_state"]).result_state == "FAILED"
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
+    async def test_repair_history_growth_resets_grace_counter(self, mock_get_run, mock_sleep):
+        original_task = {
+            "run_id": self.ORIGINAL_SUB_RUN_ID,
+            "task_key": self.TASK_KEY,
+            "start_time": 1000,
+        }
+        # Sequence: terminal twice, then a repair lands (history grows) — counter resets;
+        # then 3 more terminal polls with no further repair → parent_failed.
+        mock_get_run.side_effect = [
+            self._run_payload(result_state="FAILED", tasks=[original_task], repair_history=[]),
+            self._run_payload(result_state="FAILED", tasks=[original_task], repair_history=[]),
+            self._run_payload(
+                result_state="FAILED",
+                tasks=[original_task],
+                repair_history=[{"id": 1, "type": "REPAIR"}],
+            ),
+            self._run_payload(
+                result_state="FAILED",
+                tasks=[original_task],
+                repair_history=[{"id": 1, "type": "REPAIR"}],
+            ),
+            self._run_payload(
+                result_state="FAILED",
+                tasks=[original_task],
+                repair_history=[{"id": 1, "type": "REPAIR"}],
+            ),
+            self._run_payload(
+                result_state="FAILED",
+                tasks=[original_task],
+                repair_history=[{"id": 1, "type": "REPAIR"}],
+            ),
+        ]
+
+        trigger = self._make_trigger()
+        events = [event async for event in trigger.run()]
+
+        # Without the reset, parent_failed would fire on the 3rd poll. The reset on poll 3
+        # delays it until 3 more terminal polls have accumulated (poll 6).
+        assert mock_get_run.call_count == 6
+        assert len(events) == 1
+        assert events[0].payload["status"] == "parent_failed"
