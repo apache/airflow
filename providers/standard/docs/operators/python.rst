@@ -281,6 +281,7 @@ such as tracebacks.
         import sys
         import traceback as _tb
 
+
         # Prefix every output line (including each line of a traceback) with the level name
         # so Airflow can route each line to the correct log level.
         class _PrefixAllLinesFormatter(logging.Formatter):
@@ -289,14 +290,17 @@ such as tracebacks.
                 prefix = record.levelname + ": "
                 return "\n".join(prefix + line for line in msg.splitlines())
 
+
         _handler = logging.StreamHandler()
         _handler.setFormatter(_PrefixAllLinesFormatter())
         logging.root.addHandler(_handler)
+
 
         # Route unhandled top-level exceptions through logging so their tracebacks
         # also get the ERROR: prefix instead of printing to stderr without a level.
         def _logging_excepthook(exc_type, exc_value, exc_tb):
             logging.error("".join(_tb.format_exception(exc_type, exc_value, exc_tb)).rstrip())
+
 
         sys.excepthook = _logging_excepthook
 
@@ -396,6 +400,7 @@ such as tracebacks.
         import sys
         import traceback as _tb
 
+
         # Prefix every output line (including each line of a traceback) with the level name
         # so Airflow can route each line to the correct log level.
         class _PrefixAllLinesFormatter(logging.Formatter):
@@ -404,14 +409,17 @@ such as tracebacks.
                 prefix = record.levelname + ": "
                 return "\n".join(prefix + line for line in msg.splitlines())
 
+
         _handler = logging.StreamHandler()
         _handler.setFormatter(_PrefixAllLinesFormatter())
         logging.root.addHandler(_handler)
+
 
         # Route unhandled top-level exceptions through logging so their tracebacks
         # also get the ERROR: prefix instead of printing to stderr without a level.
         def _logging_excepthook(exc_type, exc_value, exc_tb):
             logging.error("".join(_tb.format_exception(exc_type, exc_value, exc_tb)).rstrip())
+
 
         sys.excepthook = _logging_excepthook
 
