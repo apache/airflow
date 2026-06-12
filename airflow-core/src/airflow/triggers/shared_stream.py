@@ -462,6 +462,8 @@ class _SharedStreamGroup:
         # excluded from subsequent broadcasts until they unsubscribe.
         self._failed_subscribers: set[int] = set()
         self._poll_task: asyncio.Task | None = None
+        # Constant for the group's lifetime: trigger_class never changes.
+        self._ack_required: bool = self._is_ack_required()
         # Ack mode state — populated only when create_shared_stream_producer
         # is overridden.
         self._outstanding: dict[int, _OutstandingEntry] = {}
@@ -567,7 +569,7 @@ class _SharedStreamGroup:
         return False
 
     async def _poll(self) -> None:
-        ack_required = self._is_ack_required()
+        ack_required = self._ack_required
         producer: SharedStreamProducer | None = None
         terminal_exc: BaseException | None = None
         try:
@@ -905,7 +907,7 @@ class _SharedStreamGroup:
             raise RuntimeError(f"Trigger {trigger_id} already subscribed to shared stream {self.key!r}")
         queue: asyncio.Queue = asyncio.Queue(maxsize=self._max_subscriber_queue)
         self._subscribers[trigger_id] = queue
-        if self._is_ack_required():
+        if self._ack_required:
             return self._ack_drain(trigger_id, queue)
         return _drain(queue)
 
