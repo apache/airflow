@@ -390,3 +390,51 @@ class TestTaskExecutor:
             async with TaskExecutor(task_instance=ti):
                 raise RuntimeError("async transient failure")
         assert ti.state == TaskInstanceState.UP_FOR_RESCHEDULE
+
+    @pytest.mark.parametrize(
+        "base_exception",
+        [
+            SystemExit(1),
+            KeyboardInterrupt(),
+            GeneratorExit(),
+        ],
+        ids=["SystemExit", "KeyboardInterrupt", "GeneratorExit"],
+    )
+    def test_exit_base_exception_not_retried(self, make_indexed_ti, base_exception):
+        """
+        BaseException subclasses (e.g., SystemExit, KeyboardInterrupt) must never
+        be retried—they signal conditions where continuing is meaningless.
+        They should be re-raised immediately and mark the task as FAILED.
+        """
+        ti = make_indexed_ti(try_number=0, max_tries=3)
+
+        with pytest.raises(type(base_exception)):
+            with TaskExecutor(task_instance=ti):
+                raise base_exception
+
+        assert ti.state == TaskInstanceState.FAILED
+        # try_number should NOT be incremented for BaseException
+        assert ti.try_number == 0
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "base_exception",
+        [
+            SystemExit(1),
+            KeyboardInterrupt(),
+            GeneratorExit(),
+        ],
+        ids=["SystemExit", "KeyboardInterrupt", "GeneratorExit"],
+    )
+    async def test_async_exit_base_exception_not_retried(self, make_indexed_ti, base_exception):
+        """
+        Async variant: BaseException subclasses must not be retried via __aexit__.
+        """
+        ti = make_indexed_ti(try_number=0, max_tries=3)
+
+        with pytest.raises(type(base_exception)):
+            async with TaskExecutor(task_instance=ti):
+                raise base_exception
+
+        assert ti.state == TaskInstanceState.FAILED
+        assert ti.try_number == 0

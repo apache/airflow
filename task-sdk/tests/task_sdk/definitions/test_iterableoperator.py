@@ -33,6 +33,7 @@ from airflow.sdk import DAG, BaseOperator, BaseXCom
 from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRIES
 from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
 from airflow.sdk.definitions.iterableoperator import IterableOperator
+from airflow.sdk.exceptions import AirflowFailException
 from airflow.sdk.execution_time.xcom import XCom
 
 from tests_common.test_utils.mock_context import mock_context
@@ -47,17 +48,28 @@ if TYPE_CHECKING:
 class MockOperator(BaseOperator):
     """Mock operator for testing IterableOperator expansion."""
 
-    def __init__(self, arg1=None, arg2=None, arg3=None, fail_on_first_attempt=False, **kwargs):
+    def __init__(
+        self,
+        arg1=None,
+        arg2=None,
+        arg3=None,
+        fail_on_first_attempt=False,
+        raise_exception: BaseException | None = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.arg1 = arg1
         self.arg2 = arg2
         self.arg3 = arg3
         self.fail_on_first_attempt = fail_on_first_attempt
+        self.raise_exception = raise_exception
 
     def execute(self, context):
         """Execute the operator and return passed arguments as tuple if do_xcom_push is True."""
         expected = copy.deepcopy(context)
 
+        if self.raise_exception is not None:
+            raise self.raise_exception
         if self.fail_on_first_attempt:
             self.fail_on_first_attempt = False
             raise RuntimeError
@@ -522,3 +534,41 @@ class TestIterableOperator:
             assert iterable_op._operator.execution_timeout == execution_timeout
             assert iterable_op.execution_timeout is None
             assert iterable_op.timeout == 7.0
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "base_exception",
+        [
+            SystemExit(1),
+            KeyboardInterrupt(),
+            GeneratorExit(),
+        ],
+        ids=["SystemExit", "KeyboardInterrupt", "GeneratorExit"],
+    )
+    def test_base_exception_not_retried_raises_airflow_fail_exception(
+        self, dag_maker, session, mock_xcom_get_one, base_exception
+    ):
+        """
+        BaseException subclasses (e.g., SystemExit, KeyboardInterrupt) must never
+        be retried—they signal conditions where continuing iteration is meaningless.
+        They should raise AirflowFailException immediately.
+        """
+        with dag_maker(session=session) as dag:
+            # Create a mapped operator that raises a BaseException
+            expand_input = ListOfDictsExpandInput([{"raise_exception": base_exception}])
+            mapped_op = MockOperator.partial(
+                task_id="base_exception_task",
+                dag=dag,
+                retries=3,  # Has retries available, but should NOT use them
+            )._expand(
+                expand_input,
+                strict=True,
+                register_with_dag=False,
+            )
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+
+            with pytest.raises(AirflowFailException):
+                iterable_op.execute(context=context)

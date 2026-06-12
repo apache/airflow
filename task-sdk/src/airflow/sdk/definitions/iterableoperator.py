@@ -300,6 +300,14 @@ class IterableOperator(BaseOperator):
                             failed_tasks.append(raised.task)
                             continue
 
+                        # Non-Exception BaseExceptions (e.g. DeadlockImminentError,
+                        # KeyboardInterrupt, SystemExit) must never be swallowed: they
+                        # signal conditions where continuing iteration is meaningless
+                        # because every subsequent task would fail for the same reason.
+                        # Re-raise immediately to stop all task iteration.
+                        if not isinstance(raised, Exception):
+                            raise AirflowFailException from raised
+
                         self.log.exception(
                             "An exception occurred for task_id %s with index %s",
                             task.task_id,

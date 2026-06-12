@@ -268,6 +268,13 @@ class TaskExecutor(LoggingMixin):
         elapsed = time.monotonic() - self._start_time if self._start_time else 0.0
 
         if exc_value:
+            # Non-Exception BaseExceptions (e.g. DeadlockImminentError,
+            # KeyboardInterrupt, SystemExit) must never be retried: they
+            # signal conditions where continuing is meaningless.
+            # Re-raise immediately without retry.
+            if not isinstance(exc_value, Exception):
+                self.task_instance.state = TaskInstanceState.FAILED
+                raise exc_value
             if not isinstance(exc_value, TaskDeferred):
                 if self.task_instance.next_try_number > self.task_instance.max_tries:
                     self.log.error(
