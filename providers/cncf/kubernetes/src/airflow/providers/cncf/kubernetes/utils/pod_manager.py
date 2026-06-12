@@ -1081,7 +1081,7 @@ class PodManager(LoggingMixin):
                 return res
         return None
 
-    def _await_init_container_start(self, pod: V1Pod, container_name: str) -> None:
+    def _await_init_container_start(self, pod: V1Pod, container_name: str):
         while True:
             remote_pod = self.read_pod(pod)
 
