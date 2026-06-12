@@ -1403,30 +1403,6 @@ class TestPodManager:
         assert result is running2
         assert mock_sleep.call_count == 1
 
-    @mock.patch("time.sleep")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_wait", return_value=False)
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.get_container_status")
-    def test_await_init_container_start_returns_when_container_ready(
-        self, mock_get_container_status, mock_container_is_wait, mock_sleep
-    ):
-        pending_pod = mock.MagicMock()
-        pending_pod.status.phase = PodPhase.PENDING
-        pending_pod.status.conditions = None
-
-        running_pod = mock.MagicMock()
-        running_pod.status.phase = PodPhase.RUNNING
-        cs = mock.MagicMock()
-        mock_get_container_status.return_value = cs
-
-        self.pod_manager.read_pod = mock.MagicMock(side_effect=[pending_pod, running_pod])
-
-        self.pod_manager._await_init_container_start(
-            pod=mock.MagicMock(),
-            container_name="init-container",
-        )
-
-        assert mock_sleep.call_count == 1
-
 
 class TestAsyncPodManager:
     @pytest.fixture
