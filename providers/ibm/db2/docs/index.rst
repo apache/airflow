@@ -34,7 +34,6 @@
     :caption: Guides
 
     Connection types <connections/db2>
-    Operators <operators>
 
 .. toctree::
     :hidden:
