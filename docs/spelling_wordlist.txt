@@ -1670,6 +1670,8 @@ taskInstance
 taskinstance
 TaskInstanceKey
 taskinstancekey
+TaskInstances
+taskinstances
 taskmeta
 tasksDuration
 tasksetmeta
