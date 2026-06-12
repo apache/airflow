@@ -30,6 +30,7 @@ try:
     from kubernetes import client, config
     from kubernetes.client import Configuration
     from kubernetes.client.rest import ApiException
+    from kubernetes_asyncio import client as async_client, config as async_config
 
     has_kubernetes = True
 
@@ -154,3 +155,48 @@ def get_kube_client(
 
     api_client = client.ApiClient(configuration=configuration)
     return client.CoreV1Api(api_client)
+
+
+async def get_async_kube_client(
+    in_cluster: bool | None = None,
+    cluster_context: str | None = None,
+    config_file: str | None = None,
+) -> async_client.CoreV1Api:
+    """
+    Retrieve an asynchronous Kubernetes client.
+
+    Mirrors :func:`get_kube_client` but builds a ``kubernetes_asyncio`` client so that
+    pod-creation API calls can be issued concurrently by the KubernetesExecutor. Reads the
+    same configuration keys (``in_cluster``, ``cluster_context``, ``config_file``,
+    ``verify_ssl``, ``ssl_ca_cert``).
+
+    :param in_cluster: whether we are in cluster
+    :param cluster_context: context of the cluster
+    :param config_file: configuration file
+    :return: asynchronous kubernetes client
+    """
+    if not has_kubernetes:
+        raise _import_err
+    if in_cluster is None:
+        in_cluster = conf.getboolean("kubernetes_executor", "in_cluster")
+
+    configuration = async_client.Configuration()
+    if not conf.getboolean("kubernetes_executor", "verify_ssl"):
+        configuration.verify_ssl = False
+
+    if in_cluster:
+        async_config.load_incluster_config(client_configuration=configuration)
+    else:
+        if cluster_context is None:
+            cluster_context = conf.get("kubernetes_executor", "cluster_context", fallback=None)
+        if config_file is None:
+            config_file = conf.get("kubernetes_executor", "config_file", fallback=None)
+        await async_config.load_kube_config(
+            config_file=config_file, context=cluster_context, client_configuration=configuration
+        )
+
+    ssl_ca_cert = conf.get("kubernetes_executor", "ssl_ca_cert")
+    if ssl_ca_cert:
+        configuration.ssl_ca_cert = ssl_ca_cert
+
+    return async_client.CoreV1Api(async_client.ApiClient(configuration))
