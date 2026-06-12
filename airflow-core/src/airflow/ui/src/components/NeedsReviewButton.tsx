@@ -125,18 +125,6 @@ const NeedsReviewButtonCard = ({
   ) : undefined;
 };
 
-const ViewAllHITLReviewsButton = ({ onClick }: { readonly onClick: () => void }) => {
-  const { t: translate } = useTranslation("hitl");
-
-  return (
-    <Button asChild size="sm" variant="outline">
-      <Link onClick={onClick} to="/required_actions?response_received=false">
-        {translate("review.viewAll")}
-      </Link>
-    </Button>
-  );
-};
-
 export const NeedsReviewButton = ({
   dagId,
   runId,
@@ -180,6 +168,7 @@ export const NeedsReviewButtonWithModal = ({
     enabled: open,
     runId,
   });
+  const { t: translate } = useTranslation("hitl");
   const hitlTIsCount = pendingHitlData?.hitl_details.length ?? 0;
 
   return (
@@ -192,7 +181,13 @@ export const NeedsReviewButtonWithModal = ({
           isLoading: isLoadingCompletedHitl,
         }}
         headerAction={
-          dagId === undefined ? <ViewAllHITLReviewsButton onClick={onCloseHITLReview} /> : undefined
+          dagId === undefined ? (
+            <Button asChild size="sm" variant="outline">
+              <Link onClick={onCloseHITLReview} to="/required_actions?response_received=false">
+                {translate("review.viewAll")}
+              </Link>
+            </Button>
+          ) : undefined
         }
         onClose={onCloseHITLReview}
         open={open}
