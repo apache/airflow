@@ -39,17 +39,17 @@ export const useHITLReviewModalSelection = ({ hitlDetails }: { readonly hitlDeta
   const hasNext = isSelected && selectedIndex < hitlDetails.length - 1;
   const hasPrevious = selectedIndex > 0;
 
-  const selectHitl = (hitl?: HITLDetail) => setSelectedHITLDetailKey(hitl?.task_instance.id);
+  const onSelect = (hitl?: HITLDetail) => setSelectedHITLDetailKey(hitl?.task_instance.id);
 
   const onNext = () => {
     if (hasNext) {
-      selectHitl(hitlDetails[selectedIndex + 1]);
+      onSelect(hitlDetails[selectedIndex + 1]);
     }
   };
 
   const onPrevious = () => {
     if (hasPrevious) {
-      selectHitl(hitlDetails[selectedIndex - 1]);
+      onSelect(hitlDetails[selectedIndex - 1]);
     }
   };
 
@@ -58,7 +58,7 @@ export const useHITLReviewModalSelection = ({ hitlDetails }: { readonly hitlDeta
     hasPrevious,
     onNext,
     onPrevious,
-    onSelect: selectHitl,
+    onSelect,
     selectedDetail: isSelected ? hitlDetails[selectedIndex] : undefined,
   };
 };
