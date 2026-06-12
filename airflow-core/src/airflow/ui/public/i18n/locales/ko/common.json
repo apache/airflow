@@ -19,7 +19,7 @@
   "assetEvent_one": "에셋 이벤트",
   "assetEvent_other": "에셋 이벤트들",
   "assetInactive": {
-    "tooltip": "상위 에셋이 비활성화되어 있습니다. 다시 활성화될 때까지 스케줄러가 파티션 평가를 보류합니다."
+    "tooltip": "업스트림 에셋이 비활성화되어 있습니다. 다시 활성화될 때까지 스케줄러가 파티션 평가를 보류합니다."
   },
   "backfill_one": "백필",
   "backfill_other": "백필들",
