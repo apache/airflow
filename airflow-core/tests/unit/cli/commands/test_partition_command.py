@@ -1031,7 +1031,7 @@ class TestPartitionsClear:
         clear_db_runs()
         clear_db_dags()
 
-    def _get_taipei_run_partition_dates(self) -> dict[str, datetime]:
+    def _get_taipei_run_partition_dates(self) -> dict[str, datetime | None]:
         with create_session() as session:
             runs = session.scalars(select(DagRun).where(DagRun.dag_id == self.TAIPEI_DAG_ID)).all()
         return {r.run_id: r.partition_date for r in runs}
