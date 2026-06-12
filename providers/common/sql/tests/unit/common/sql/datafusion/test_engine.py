@@ -124,6 +124,23 @@ class TestDataFusionEngine:
         with pytest.raises(ObjectStoreCreationException, match="Error while creating object store"):
             engine.register_datasource(datasource_config)
 
+    @patch("airflow.providers.common.sql.datafusion.engine.get_object_storage_provider", autospec=True)
+    @patch.object(DataFusionEngine, "_get_connection_config")
+    def test_register_datasource_object_store_exception_preserves_cause(self, mock_get_conn, mock_factory):
+        mock_get_conn.return_value = TEST_CONNECTION_CONFIG
+        mock_factory.side_effect = Exception("Provider error")
+
+        engine = DataFusionEngine()
+        datasource_config = DataSourceConfig(
+            conn_id="aws_default", table_name="test_table", uri="s3://bucket/path", format="parquet"
+        )
+
+        with pytest.raises(ObjectStoreCreationException) as exc_info:
+            engine.register_datasource(datasource_config)
+
+        assert exc_info.value.__cause__ is not None
+        assert "Provider error" in str(exc_info.value.__cause__)
+
     @patch.object(DataFusionEngine, "_get_connection_config")
     def test_register_datasource_duplicate_table(self, mock_get_conn):
         mock_get_conn.return_value = TEST_CONNECTION_CONFIG
@@ -330,3 +347,130 @@ class TestDataFusionEngine:
             assert "age: int64" in result
         finally:
             os.unlink(csv_path)
+
+
+class TestIterQueryRowChunks:
+    """Unit tests for DataFusionEngine.iter_query_row_chunks()."""
+
+    @staticmethod
+    def _make_batch(data: dict) -> MagicMock:
+        """Return a mock RecordBatch whose to_pyarrow().to_pydict() returns *data*."""
+        batch = MagicMock()
+        batch.to_pyarrow.return_value.to_pydict.return_value = data
+        return batch
+
+    def _engine(self) -> DataFusionEngine:
+        engine = DataFusionEngine()
+        engine.df_ctx = MagicMock(spec=SessionContext)
+        return engine
+
+    # ------------------------------------------------------------------
+    # execute_stream path
+    # ------------------------------------------------------------------
+
+    def test_execute_stream_path_yields_all_batches(self):
+        engine = self._engine()
+        batch1 = self._make_batch({"id": [1, 2], "email": ["a@b.com", "c@d.com"]})
+        batch2 = self._make_batch({"id": [3], "email": ["e@f.com"]})
+        mock_df = MagicMock(spec=["execute_stream"])
+        mock_df.execute_stream.return_value = iter([batch1, batch2])
+        engine.df_ctx.sql.return_value = mock_df
+
+        result = list(engine.iter_query_row_chunks("SELECT id, email FROM customers"))
+
+        engine.df_ctx.sql.assert_called_once_with("SELECT id, email FROM customers")
+        mock_df.execute_stream.assert_called_once()
+        assert result == [
+            {"id": [1, 2], "email": ["a@b.com", "c@d.com"]},
+            {"id": [3], "email": ["e@f.com"]},
+        ]
+
+    def test_execute_stream_path_single_batch(self):
+        engine = self._engine()
+        batch = self._make_batch({"name": ["Alice"]})
+        mock_df = MagicMock(spec=["execute_stream"])
+        mock_df.execute_stream.return_value = iter([batch])
+        engine.df_ctx.sql.return_value = mock_df
+
+        result = list(engine.iter_query_row_chunks("SELECT name FROM users"))
+
+        assert result == [{"name": ["Alice"]}]
+
+    def test_execute_stream_path_empty_stream(self):
+        engine = self._engine()
+        mock_df = MagicMock(spec=["execute_stream"])
+        mock_df.execute_stream.return_value = iter([])
+        engine.df_ctx.sql.return_value = mock_df
+
+        result = list(engine.iter_query_row_chunks("SELECT * FROM empty_table"))
+
+        assert result == []
+
+    # ------------------------------------------------------------------
+    # collect fallback path
+    # ------------------------------------------------------------------
+
+    def test_collect_fallback_yields_all_batches(self):
+        engine = self._engine()
+        batch1 = self._make_batch({"id": [10], "val": [99]})
+        batch2 = self._make_batch({"id": [20], "val": [88]})
+        mock_df = MagicMock(spec=["collect"])
+        mock_df.collect.return_value = iter([batch1, batch2])
+        engine.df_ctx.sql.return_value = mock_df
+
+        result = list(engine.iter_query_row_chunks("SELECT id, val FROM test"))
+
+        mock_df.collect.assert_called_once()
+        assert result == [
+            {"id": [10], "val": [99]},
+            {"id": [20], "val": [88]},
+        ]
+
+    def test_collect_fallback_empty(self):
+        engine = self._engine()
+        mock_df = MagicMock(spec=["collect"])
+        mock_df.collect.return_value = iter([])
+        engine.df_ctx.sql.return_value = mock_df
+
+        result = list(engine.iter_query_row_chunks("SELECT * FROM empty_table"))
+
+        assert result == []
+
+    # ------------------------------------------------------------------
+    # Error handling
+    # ------------------------------------------------------------------
+
+    def test_raises_query_execution_exception_on_sql_error(self):
+        engine = self._engine()
+        engine.df_ctx.sql.side_effect = Exception("SQL Error")
+
+        with pytest.raises(QueryExecutionException, match="Error while executing query"):
+            list(engine.iter_query_row_chunks("INVALID SQL"))
+
+    def test_raises_query_execution_exception_on_stream_error(self):
+        engine = self._engine()
+        mock_df = MagicMock(spec=["execute_stream"])
+        mock_df.execute_stream.side_effect = Exception("Stream Error")
+        engine.df_ctx.sql.return_value = mock_df
+
+        with pytest.raises(QueryExecutionException, match="Error while executing query"):
+            list(engine.iter_query_row_chunks("SELECT * FROM test"))
+
+    def test_raises_query_execution_exception_on_collect_error(self):
+        engine = self._engine()
+        mock_df = MagicMock(spec=["collect"])
+        mock_df.collect.side_effect = Exception("Collect Error")
+        engine.df_ctx.sql.return_value = mock_df
+
+        with pytest.raises(QueryExecutionException, match="Error while executing query"):
+            list(engine.iter_query_row_chunks("SELECT * FROM test"))
+
+    def test_exception_preserves_original_cause(self):
+        engine = self._engine()
+        original_error = Exception("original cause")
+        engine.df_ctx.sql.side_effect = original_error
+
+        with pytest.raises(QueryExecutionException) as exc_info:
+            list(engine.iter_query_row_chunks("SELECT * FROM test"))
+
+        assert exc_info.value.__cause__ is original_error

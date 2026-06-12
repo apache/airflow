@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any
 
 from datafusion import SessionContext
@@ -78,7 +79,7 @@ class DataFusionEngine(LoggingMixin):
         except Exception as e:
             raise ObjectStoreCreationException(
                 f"Error while creating object store for {datasource_config.storage_type}: {e}"
-            )
+            ) from e
 
     def _register_data_source_format(self, datasource_config: DataSourceConfig):
         """Register data source format."""
@@ -119,7 +120,25 @@ class DataFusionEngine(LoggingMixin):
                 return result
             return df.to_pydict()
         except Exception as e:
-            raise QueryExecutionException(f"Error while executing query: {e}")
+            raise QueryExecutionException(f"Error while executing query: {e}") from e
+
+    def iter_query_row_chunks(self, query: str) -> Iterator[dict[str, list[Any]]]:
+        """
+        Execute *query* and yield one column-dict per RecordBatch, streaming results.
+
+        :param query: SQL SELECT query to execute.
+        :raises QueryExecutionException: On SQL execution errors.
+        """
+        try:
+            df = self.session_context.sql(query)
+            if hasattr(df, "execute_stream"):
+                for batch in df.execute_stream():
+                    yield batch.to_pyarrow().to_pydict()
+            else:
+                for batch in df.collect():
+                    yield batch.to_pyarrow().to_pydict()
+        except Exception as e:
+            raise QueryExecutionException(f"Error while executing query: {e}") from e
 
     def _get_connection_config(self, conn_id: str) -> ConnectionConfig:
 

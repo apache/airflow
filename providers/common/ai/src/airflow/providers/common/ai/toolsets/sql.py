@@ -45,6 +45,19 @@ if TYPE_CHECKING:
 
 _PASSTHROUGH_VALIDATOR = SchemaValidator(core_schema.any_schema())
 
+# Maps Airflow connection types to sqlglot dialect names for SQL parsing.
+_CONN_TYPE_TO_DIALECT: dict[str, str] = {
+    "postgres": "postgres",
+    "mysql": "mysql",
+    "sqlite": "sqlite",
+    "mssql": "tsql",
+    "bigquery": "bigquery",
+    "snowflake": "snowflake",
+    "spark": "spark",
+    "trino": "trino",
+    "presto": "presto",
+}
+
 # JSON Schemas for the four SQL tools.
 _LIST_TABLES_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -128,6 +141,7 @@ class SQLToolset(AbstractToolset[Any]):
         schema: str | None = None,
         allow_writes: bool = False,
         max_rows: int = 50,
+        dialect: str | None = None,
     ) -> None:
         self._db_conn_id = db_conn_id
         self._allowed_tables: frozenset[str] | None = frozenset(allowed_tables) if allowed_tables else None
@@ -145,6 +159,8 @@ class SQLToolset(AbstractToolset[Any]):
         self._allow_writes = allow_writes
         self._max_rows = max_rows
         self._hook: DbApiHook | None = None
+        self._explicit_dialect: str | None = dialect
+        self._resolved_dialect: str | None = None
 
         # Derive which schemas to introspect from schema-qualified allowed_tables.
         # Qualified entries ("SCHEMA.TABLE") are listed under their own schema and
@@ -171,6 +187,20 @@ class SQLToolset(AbstractToolset[Any]):
     @property
     def id(self) -> str:
         return f"sql-{self._db_conn_id}"
+
+    @property
+    def sqlglot_dialect(self) -> str | None:
+        """Sqlglot dialect name for this connection, used for SQL validation and LLM prompting."""
+        if self._explicit_dialect is not None:
+            return self._explicit_dialect
+        if self._resolved_dialect is not None:
+            return self._resolved_dialect
+        if self._hook is not None:
+            conn_type = getattr(self._hook, "conn_type", None)
+        else:
+            conn_type = BaseHook.get_connection(self._db_conn_id).conn_type
+        self._resolved_dialect = _CONN_TYPE_TO_DIALECT.get(conn_type or "")
+        return self._resolved_dialect
 
     # ------------------------------------------------------------------
     # Lazy hook resolution
@@ -201,6 +231,12 @@ class SQLToolset(AbstractToolset[Any]):
             ("query", "Execute a SQL query and return rows as JSON.", _QUERY_SCHEMA),
             ("check_query", "Validate SQL syntax without executing it.", _CHECK_QUERY_SCHEMA),
         ):
+            # In planning mode (two-phase approval flow) the agent must NOT execute
+            # data queries — it only generates SQL strings for human review.
+            # Schema-discovery tools (list_tables, get_schema) and syntax validation
+            # (check_query) remain available; only 'query' is hidden.
+            if name == "query" and getattr(self, "_planning_mode", False):
+                continue
             # sequential=True because all tools use a shared DbApiHook with
             # synchronous I/O — they must not run concurrently.
             tool_def = ToolDefinition(
