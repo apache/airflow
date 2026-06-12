@@ -159,6 +159,9 @@ Check that the entries from
   [issue #197](https://github.com/apache/airflow-steward/issues/197);
   must never be committed since the content is machine-specific
   absolute paths)
+- `__pycache__/` and `*.pyc` (byte-compiled artefacts emitted when
+  framework skill scripts run from the adopter checkout; non-anchored
+  so they match at any depth)
 
 Recommended (a **uniform** `magpie-*` glob block per **active
 target dir** — [`agents.md`](agents.md) — with no per-layout
@@ -184,6 +187,8 @@ variation):
   target as defense in depth, but `verify` surfaces the
   underlying `.gitignore` gap so the operator fixes the root
   cause.
+- ⚠ if `__pycache__/` or `*.pyc` is not gitignored — byte-compiled
+  artefacts from skill scripts could be accidentally committed.
 - ⚠ if symlink patterns are not gitignored.
 
 ### 5. Symlinks point at live framework skills

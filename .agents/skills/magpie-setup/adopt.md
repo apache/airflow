@@ -503,7 +503,16 @@ idempotent — re-add them if they're missing.
 /.apache-magpie/
 /.apache-magpie.local.lock
 /.claude/settings.local.json
+__pycache__/
+*.pyc
 ```
+
+The `__pycache__/` and `*.pyc` lines (non-anchored — they match at
+any depth) keep the byte-compiled artefacts that framework skill
+scripts emit when run from the adopter checkout (e.g.
+[`setup-status/scripts/collect_status.py`](../setup-status/scripts/collect_status.py))
+out of the tree. Most adopters already carry these from a stock
+Python `.gitignore`; the adopt flow adds them if missing.
 
 **Symlink entries — one uniform block per active target
 ([`agents.md`](agents.md)), no per-layout variation.** Every
@@ -1252,6 +1261,7 @@ Committed (you'll see in `git status`):
 Gitignored (do NOT commit):
   .apache-magpie/
   .apache-magpie.local.lock
+  __pycache__/ + *.pyc       # byte-compiled artefacts from skill scripts; added to .gitignore if missing
   .agents/skills/magpie-*   (except magpie-setup, committed above)  # canonical links into the snapshot: opt-in + always-on families
   .claude/skills/magpie-*   (except magpie-setup, committed above)  # relays → ../../.agents/skills/magpie-*
   .github/skills/magpie-*   (except magpie-setup, committed above)  # relays → ../../.agents/skills/magpie-*
