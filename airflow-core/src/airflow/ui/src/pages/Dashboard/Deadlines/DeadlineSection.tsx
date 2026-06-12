@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, HStack, Link, Separator, Text, VStack } from "@chakra-ui/react";
+import { Box, Flex, Heading, HStack, Link, Separator, Skeleton, Text, VStack } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { DeadlineResponse } from "openapi/requests/types.gen";
@@ -26,9 +26,9 @@ import { DeadlineItem } from "./DeadlineItem";
 type DeadlineSectionProps = {
   readonly deadlines: Array<DeadlineResponse>;
   readonly emptyLabel: string;
+  readonly isLoading: boolean;
   readonly showMoreLabel: string;
   readonly showMoreTo: string;
-  readonly subtitle?: string;
   readonly title: string;
   readonly totalEntries: number;
 };
@@ -36,9 +36,9 @@ type DeadlineSectionProps = {
 export const DeadlineSection = ({
   deadlines,
   emptyLabel,
+  isLoading,
   showMoreLabel,
   showMoreTo,
-  subtitle,
   title,
   totalEntries,
 }: DeadlineSectionProps) => {
@@ -51,14 +51,14 @@ export const DeadlineSection = ({
           <Heading color="fg.muted" size="xs">
             {title}
           </Heading>
-          {subtitle === undefined ? undefined : (
-            <Text color="fg.muted" fontSize="xs">
-              {subtitle}
-            </Text>
-          )}
         </HStack>
         <Separator />
-        {deadlines.length === 0 ? (
+        {isLoading ? (
+          <VStack align="stretch" data-testid="deadline-section-skeleton" gap={2} px={3} py={3}>
+            <Skeleton height={4} width="85%" />
+            <Skeleton height={4} width="65%" />
+          </VStack>
+        ) : deadlines.length === 0 ? (
           <Text color="fg.muted" fontSize="sm" px={3} py={3} textAlign="center">
             {emptyLabel}
           </Text>

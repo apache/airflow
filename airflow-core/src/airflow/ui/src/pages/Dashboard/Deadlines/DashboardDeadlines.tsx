@@ -69,6 +69,8 @@ export const DashboardDeadlines = ({ endDate, startDate }: DashboardDeadlinesPro
   });
 
   const hasNoDeadlines =
+    !Boolean(pendingError) &&
+    !Boolean(missedError) &&
     !isPendingLoading &&
     !isMissedLoading &&
     (pendingData?.total_entries ?? 0) === 0 &&
@@ -91,6 +93,7 @@ export const DashboardDeadlines = ({ endDate, startDate }: DashboardDeadlinesPro
         <DeadlineSection
           deadlines={pendingDeadlines}
           emptyLabel={translate("deadlines.pending.empty")}
+          isLoading={isPendingLoading}
           showMoreLabel={translate("deadlines.showMore")}
           showMoreTo={pendingDeadlinesPath}
           title={translate("deadlines.pending.title")}
@@ -99,6 +102,7 @@ export const DashboardDeadlines = ({ endDate, startDate }: DashboardDeadlinesPro
         <DeadlineSection
           deadlines={missedDeadlines}
           emptyLabel={translate("deadlines.recentlyMissed.empty")}
+          isLoading={isMissedLoading}
           showMoreLabel={translate("deadlines.showMore")}
           showMoreTo={missedDeadlinesPath}
           title={translate("deadlines.recentlyMissed.title")}
