@@ -560,6 +560,13 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
         .. seealso::
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
+    :param openlineage_inject_parent_job_info: If True, injects OpenLineage parent job information
+        into the ``new_cluster`` ``spark_conf`` so the Spark job emits a ``parentRunFacet`` linking
+        back to the Airflow task. Defaults to the
+        ``openlineage.spark_inject_parent_job_info`` config value.
+    :param openlineage_inject_transport_info: If True, injects OpenLineage transport configuration
+        into the ``new_cluster`` ``spark_conf`` so the Spark job sends OL events to the same backend
+        as Airflow. Defaults to the ``openlineage.spark_inject_transport_info`` config value.
 
     .. note::
         If the operator's ``params`` dict is non-empty, it is automatically forwarded into the
@@ -606,6 +613,12 @@ class DatabricksSubmitRunOperator(BaseOperator):
         wait_for_termination: bool = True,
         git_source: dict[str, str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        openlineage_inject_parent_job_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_parent_job_info", fallback=False
+        ),
+        openlineage_inject_transport_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_transport_info", fallback=False
+        ),
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksSubmitRunOperator``."""
@@ -618,6 +631,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
+        self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
+        self.openlineage_inject_transport_info = openlineage_inject_transport_info
         if tasks is not None:
             self.json["tasks"] = tasks
         if spark_jar_task is not None:
@@ -694,12 +709,35 @@ class DatabricksSubmitRunOperator(BaseOperator):
             else:
                 _inject_airflow_params_into_task(self.json, params_dump)
 
+        if self.openlineage_inject_parent_job_info or self.openlineage_inject_transport_info:
+            self.log.info("Automatic injection of OpenLineage information into Spark properties is enabled.")
+            self._inject_openlineage_properties_into_databricks_job(context)
+
         json_normalised = normalise_json_content(self.json)
         self.run_id = self._hook.submit_run(json_normalised)
         if self.deferrable:
             _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
         else:
             _handle_databricks_operator_execution(self, self._hook, self.log, context)
+
+    def _inject_openlineage_properties_into_databricks_job(self, context: Context) -> None:
+        try:
+            from airflow.providers.databricks.utils.openlineage import (
+                inject_openlineage_properties_into_databricks_job,
+            )
+
+            self.json = inject_openlineage_properties_into_databricks_job(
+                job=self.json,
+                context=context,
+                inject_parent_job_info=self.openlineage_inject_parent_job_info,
+                inject_transport_info=self.openlineage_inject_transport_info,
+            )
+        except Exception as e:
+            self.log.warning(
+                "An error occurred while trying to inject OpenLineage information. "
+                "Databricks job has not been modified by OpenLineage.",
+                exc_info=e,
+            )
 
     def on_kill(self):
         if self.run_id:
