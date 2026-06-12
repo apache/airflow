@@ -683,6 +683,30 @@ class TestHiveCliHookJdbcParams:
             '"jdbc:hive2://localhost:10000/default;transportMode=http;sslTrustStore=/opt/hive/truststore.jks"',
         ]
 
+    @mock.patch.object(HiveCliHook, "get_connection")
+    def test_empty_jdbc_param_value_is_ignored(self, mock_get_connection):
+        mock_get_connection.return_value = get_hive_cli_connection()
+
+        hook = HiveCliHook(jdbc_params={"transportMode": "", "sslTrustStore": "/opt/hive/truststore.jks"})
+
+        assert hook._prepare_cli_cmd() == [
+            "beeline",
+            "-u",
+            '"jdbc:hive2://localhost:10000/default;sslTrustStore=/opt/hive/truststore.jks"',
+        ]
+
+    @mock.patch.object(HiveCliHook, "get_connection")
+    def test_all_empty_jdbc_param_values_return_base_beeline_url(self, mock_get_connection):
+        mock_get_connection.return_value = get_hive_cli_connection()
+
+        hook = HiveCliHook(jdbc_params={"transportMode": "", "sslTrustStore": ""})
+
+        assert hook._prepare_cli_cmd() == [
+            "beeline",
+            "-u",
+            '"jdbc:hive2://localhost:10000/default"',
+        ]
+
     @pytest.mark.parametrize(
         ("jdbc_params", "message"),
         [
@@ -693,7 +717,6 @@ class TestHiveCliHookJdbcParams:
             ({"foo.": "x"}, "Invalid JDBC parameter name"),
             ({"bar_": "x"}, "Invalid JDBC parameter name"),
             ({"transportMode": "http;ssl=true"}, "Invalid JDBC parameter value"),
-            ({"transportMode": None}, "Invalid JDBC parameter value"),
         ],
     )
     @mock.patch.object(HiveCliHook, "get_connection")
@@ -702,6 +725,15 @@ class TestHiveCliHookJdbcParams:
         hook = HiveCliHook(jdbc_params=jdbc_params)
 
         with pytest.raises(ValueError, match=message):
+            hook._prepare_cli_cmd()
+
+    @pytest.mark.parametrize("value", [None, 1, True, {"mode": "http"}])
+    @mock.patch.object(HiveCliHook, "get_connection")
+    def test_non_string_jdbc_param_values_are_rejected(self, mock_get_connection, value):
+        mock_get_connection.return_value = get_hive_cli_connection()
+        hook = HiveCliHook(jdbc_params={"transportMode": value})
+
+        with pytest.raises(ValueError, match="Invalid JDBC parameter value"):
             hook._prepare_cli_cmd()
 
 
