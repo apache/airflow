@@ -34,13 +34,7 @@ type Props = {
   readonly stateCountLimit: number | undefined;
 };
 
-export const DagRunStateCounts = ({
-  compact = false,
-  counts,
-  dagId,
-  isLoading,
-  stateCountLimit,
-}: Props) => {
+export const DagRunStateCounts = ({ compact = false, counts, dagId, isLoading, stateCountLimit }: Props) => {
   const { t: translate } = useTranslation(["dags", "common"]);
   const gap = compact ? 0.5 : 1;
   const fontSize = compact ? "xs" : "sm";
