@@ -2584,16 +2584,12 @@ def create_runtime_ti(mocked_parse):
         should_retry: bool | None = None,
         max_tries: int | None = None,
     ) -> RuntimeTaskInstance:
-        from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
-
-        if AIRFLOW_V_3_3_PLUS:
-            from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
-        else:
-            from airflow.sdk.api.datamodels._generated import (  # type: ignore[no-redef,assignment]
-                TaskInstance as TaskInstanceDTO,
-            )
-
-        from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, TIRunContext
+        from airflow.sdk.api.datamodels._generated import (
+            DagRun,
+            DagRunState,
+            TaskInstance as TaskInstanceDTO,
+            TIRunContext,
+        )
         from airflow.utils.types import DagRunType
 
         if isinstance(logical_date, str):
@@ -2678,9 +2674,7 @@ def create_runtime_ti(mocked_parse):
                 try_number=try_number,
                 map_index=map_index,  # type: ignore[arg-type]
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             dag_rel_path="",
             bundle_info=BundleInfo(name="anything", version="any"),

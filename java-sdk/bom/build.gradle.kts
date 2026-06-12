@@ -18,29 +18,30 @@
  */
 
 plugins {
-    application
+    `java-platform`
+    id("airflow-publish")
 }
+
+val projectVersion: String by project
+val airflowSupervisorSchemaVersion: String by project
 
 dependencies {
-    annotationProcessor(project(":sdk"))
-    implementation(project(":sdk"))
-    implementation("org.slf4j:slf4j-simple:2.0.17")
-}
-
-sourceSets {
-    main {
-        java.srcDir("src/java")
+    constraints {
+        api("org.apache.airflow:airflow-sdk:$projectVersion")
+        api("org.apache.airflow:airflow-sdk-processor:$projectVersion")
     }
 }
 
-application {
-    mainClass = "org.apache.airflow.example.ExampleBundleBuilder"
-}
-
-tasks.withType<Jar> {
-    manifest {
-        attributes(
-            "Main-Class" to application.mainClass.get(),
-        )
+publishing {
+    publications {
+        create<MavenPublication>("mavenBom") {
+            artifactId = "airflow-sdk-bom"
+            from(components["javaPlatform"])
+            pom {
+                name = "Apache Airflow Java SDK BOM"
+                description = "Bill of Materials for the Apache Airflow Java SDK."
+                properties.put("airflow.supervisor.schema.version", airflowSupervisorSchemaVersion)
+            }
+        }
     }
 }
