@@ -1045,6 +1045,13 @@ class SetRenderedMapIndex(BaseModel):
     type: Literal["SetRenderedMapIndex"] = "SetRenderedMapIndex"
 
 
+class SetIntendedTerminalState(BaseModel):
+    """Pre-announce the intended terminal state so supervisor can recover it if the terminal-state message fails to deliver."""
+
+    state: Literal[TaskInstanceState.SKIPPED]
+    type: Literal["SetIntendedTerminalState"] = "SetIntendedTerminalState"
+
+
 class TriggerDagRun(TriggerDAGRunPayload):
     dag_id: str
     run_id: Annotated[str, Field(title="Dag Run Id")]
@@ -1237,6 +1244,7 @@ ToSupervisor = Annotated[
     | RetryTask
     | SetAssetStoreByName
     | SetAssetStoreByUri
+    | SetIntendedTerminalState
     | SetRenderedFields
     | SetRenderedMapIndex
     | SetTaskStore
