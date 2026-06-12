@@ -29,7 +29,7 @@ import org.apache.airflow.sdk.execution.comm.DagRun
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.comm.SucceedTask
 import org.apache.airflow.sdk.execution.comm.TIRunContext
-import org.apache.airflow.sdk.execution.comm.TaskInstanceDTO
+import org.apache.airflow.sdk.execution.comm.TaskInstance
 import org.apache.airflow.sdk.execution.comm.TaskState
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
@@ -76,7 +76,7 @@ class TaskTest {
   private fun startupDetails(taskId: String): StartupDetails =
     StartupDetails().also {
       it.ti =
-        TaskInstanceDTO().also { o ->
+        TaskInstance().also { o ->
           o.id = UUID.randomUUID()
           o.taskId = taskId
           o.dagId = "test_dag"

@@ -1303,6 +1303,7 @@ class TestAwsEcsExecutor:
             task.pool_slots = 1
             task.priority_weight = 1
             task.context_carrier = {}
+            task.hostname = None
             task.queued_dttm = dt.datetime.now()
             # Set up nested attributes for BundleInfo
             task.dag_model = mock.Mock()

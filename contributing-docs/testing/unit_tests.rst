@@ -218,6 +218,17 @@ rerun in Breeze as needed (``-n auto`` will parallelize tests using the ``pytest
     breeze shell --backend none --python 3.10
     > pytest airflow-core/tests --skip-db-tests -n auto
 
+.. AGENT-SKILL-START
+   type: agents-md-commands
+   order: 10
+   lines:
+     - "- **Run a single test:** `uv run --project <PROJECT> pytest path/to/test.py::TestClass::test_method -xvs`"
+     - "- **Run a test file:** `uv run --project <PROJECT> pytest path/to/test.py -xvs`"
+     - "- **Run all tests in package:** `uv run --project <PROJECT> pytest path/to/package -xvs`"
+     - "- **If uv tests fail with missing system dependencies, run the tests with breeze**: `breeze run pytest <tests> -xvs`"
+     - "- **Run a Python script:** `uv run --project <PROJECT> python dev/my_script.py`"
+.. AGENT-SKILL-END
+
 Airflow DB tests
 ................
 
@@ -277,6 +288,22 @@ As explained before, you cannot run DB tests in parallel using the ``pytest-xdis
 .. code-block:: bash
 
     breeze testing core-tests --run-db-tests-only --backend postgres --python 3.10 --run-in-parallel
+
+.. AGENT-SKILL-START
+   type: agents-md-commands
+   order: 20
+   lines:
+     - "- **Run core or provider tests suite in parallel:** `breeze testing <test_group> --run-in-parallel` (test groups: `core-tests`, `providers-tests`)"
+     - "- **Run core or provider db tests suite in parallel:** `breeze testing <test_group> --run-db-tests-only --run-in-parallel` (test groups: `core-tests`, `providers-tests`)"
+     - "- **Run core or provider non-db tests suite in parallel:** `breeze testing <test_group> --skip-db-tests --use-xdist` (test groups: `core-tests`, `providers-tests`)"
+     - "- **Run single provider complete test suite:** `breeze testing providers-tests --test-type \"Providers[PROVIDERS_LIST]\"` (e.g., `Providers[google]` or `Providers[amazon]` or \"Providers[amazon,google]\")"
+     - "- **Run Helm tests in parallel with xdist** `breeze testing helm-tests --use-xdist`"
+     - "- **Run Helm tests with specific K8s version:** `breeze testing helm-tests --use-xdist --kubernetes-version 1.35.0`"
+     - "- **Run specific Helm test type:** `breeze testing helm-tests --use-xdist --test-type <type>` (types: `airflow_aux`, `airflow_core`, `apiserver`, `dagprocessor`, `other`, `redis`, `security`, `statsd`, `webserver`)"
+     - "- **Run other suites of tests** `breeze testing <test_group>` (test groups: `airflow-ctl-tests`, `docker-compose-tests`, `task-sdk-tests`)"
+     - "- **Run scripts tests:** `uv run --project scripts pytest scripts/tests/ -xvs`"
+     - "- **Run Airflow CLI:** `breeze run airflow dags list`"
+.. AGENT-SKILL-END
 
 Examples of marking test as DB test
 ...................................

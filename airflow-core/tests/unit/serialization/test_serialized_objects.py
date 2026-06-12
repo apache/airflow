@@ -772,7 +772,6 @@ def test_encode_asset_with_access_control():
     encoded = encode_asset_like(asset)
     assert encoded["access_control"] == {
         "producer_teams": ["team_a"],
-        "consumer_teams": [],
         "allow_global": False,
     }
 
@@ -1120,21 +1119,21 @@ def test_encode_fan_out_mapper():
             "upstream_mapper": {
                 Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfWeekMapper",
                 Encoding.VAR: {
-                    "timezone": "UTC",
                     "input_format": "%Y-%m-%dT%H:%M:%S",
                     "output_format": "%Y-%m-%d (W%V)",
+                    "timezone": "UTC",
                 },
             },
             "window": {
                 Encoding.TYPE: "airflow.partition_mappers.window.WeekWindow",
-                Encoding.VAR: {},
+                Encoding.VAR: {"direction": "forward"},
             },
             "downstream_mapper": {
                 Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfDayMapper",
                 Encoding.VAR: {
-                    "timezone": "UTC",
                     "input_format": "%Y-%m-%dT%H:%M:%S",
                     "output_format": "%Y-%m-%d",
+                    "timezone": "UTC",
                 },
             },
         },

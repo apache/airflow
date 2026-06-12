@@ -238,6 +238,9 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
     def serialize_user(self, user: SimpleAuthManagerUser) -> dict[str, Any]:
         return {"sub": user.username, "role": user.role, "teams": user.teams}
 
+    def get_cli_user(self) -> SimpleAuthManagerUser:
+        return SimpleAuthManagerUser(username="cli", role=SimpleAuthManagerRole.ADMIN.name)
+
     def is_authorized_configuration(
         self,
         *,

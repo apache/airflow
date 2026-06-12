@@ -43,12 +43,12 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.task_store import TaskStoreModel
+from airflow.models.taskinstance import uuid7
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
-from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import BaseOperator, TaskGroup
+from airflow.sdk import BaseOperator
 from airflow.state.metastore import MetastoreStoreBackend
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -201,7 +201,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response_data == {
             "dag_id": "example_python_operator",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -359,7 +359,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response_data == {
             "dag_id": "example_python_operator",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -423,7 +423,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response_data == {
             "dag_id": "example_python_operator",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -479,7 +479,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response.json() == {
             "dag_id": "example_python_operator",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -599,7 +599,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
             assert response_data == {
                 "dag_id": "example_python_operator",
                 "dag_version": {
-                    "bundle_name": "dags-folder",
+                    "bundle_name": "apache-airflow-providers-standard-example-dags",
                     "bundle_url": None,
                     "bundle_version": None,
                     "created_at": response_data["dag_version"]["created_at"],
@@ -736,7 +736,7 @@ class TestGetMappedTaskInstances:
                 session.add(ti)
 
             DagBundlesManager().sync_bundles_to_db()
-            dagbag = DagBag(os.devnull, include_examples=False)
+            dagbag = DagBag(os.devnull)
             dagbag.dags = {dag_id: dag_maker.dag}
             sync_bag_to_db(dagbag, "dags-folder", None)
             session.flush()
@@ -979,10 +979,6 @@ class TestGetMappedTaskInstances:
         This verifies that even when UUIDs are assigned out of map_index order
         (as happens during retries), the response is still sorted 0, 1, 2, ...
         """
-        from sqlalchemy import update as sa_update
-
-        from airflow.models.taskinstance import uuid7
-
         self.create_dag_runs_with_mapped_tasks(
             dag_maker,
             session,
@@ -994,7 +990,7 @@ class TestGetMappedTaskInstances:
         # result must still follow integer map_index order, not UUID order.
         for map_index in [1, 3]:
             session.execute(
-                sa_update(TaskInstance)
+                update(TaskInstance)
                 .where(
                     TaskInstance.dag_id == "retry_dag",
                     TaskInstance.task_id == "task_2",
@@ -2117,46 +2113,46 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 400
 
-    def test_task_group_filter_uses_run_version_not_latest(self, test_client, dag_maker, session):
+    def test_cursor_pagination_order_by_run_after_roundtrips(self, test_client, session):
         """
-        Task group lookup should use the DAG version from the run, not the latest version.
+        Sorting by ``run_after`` (a column-form ``to_replace`` backed by an association proxy)
+        must not raise a 500 when ``has_next=true``.  Regression for
+        https://github.com/apache/airflow/issues/67970.
 
-        When a task group is renamed between versions, clicking on a historical run's
-        task group in the grid should still resolve correctly against the version
-        that run was created with — not the latest version where the group may have
-        a different name, i.e serialized_dag might not have that taskgroup anymore.
+        Verify the full cursor round-trip: the first page must include a ``next_cursor``,
+        and following that cursor must return the remaining TIs without overlap.
         """
-        dag_id = "test_tg_version"
-
-        # Version 1: task group named "process_data"
-        with dag_maker(dag_id, session=session):
-            with TaskGroup(group_id="process_data"):
-                EmptyOperator(task_id="step_1")
-        dag_maker.create_dagrun(run_id="run_v1")
-        session.commit()
-
-        # Version 2: task group renamed to "process_data_v2"
-        with dag_maker(dag_id, session=session):
-            with TaskGroup(group_id="process_data_v2"):
-                EmptyOperator(task_id="step_1")
-        session.commit()
-
-        # The run was created with v1 which had "process_data".
-        # Querying with the old group name must succeed.
-        response = test_client.get(
-            f"/dags/{dag_id}/dagRuns/run_v1/taskInstances",
-            params={"task_group_id": "process_data"},
+        dag_id = "example_python_operator"
+        total_tis = 5
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(total_tis)
+            ],
+            dag_id=dag_id,
         )
-        assert response.status_code == 200, response.json()
-        assert response.json()["total_entries"] == 1
-        assert response.json()["task_instances"][0]["task_id"] == "process_data.step_1"
-
-        # The new group name should NOT be found in the old run's version.
-        response = test_client.get(
-            f"/dags/{dag_id}/dagRuns/run_v1/taskInstances",
-            params={"task_group_id": "process_data_v2"},
+        # First page — limit < total so next_cursor must be present
+        response1 = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances",
+            params={"limit": 3, "order_by": ["-run_after"], "cursor": ""},
         )
-        assert response.status_code == 404
+        assert response1.status_code == 200, response1.json()
+        body1 = response1.json()
+        assert len(body1["task_instances"]) == 3
+        next_cursor = body1["next_cursor"]
+        assert next_cursor is not None, "next_cursor must be present when more rows exist"
+
+        # Second page — follow the cursor; must not 500 and must return remaining TIs
+        response2 = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances",
+            params={"limit": 10, "order_by": ["-run_after"], "cursor": next_cursor},
+        )
+        assert response2.status_code == 200, response2.json()
+        body2 = response2.json()
+        ids1 = {ti["id"] for ti in body1["task_instances"]}
+        ids2 = {ti["id"] for ti in body2["task_instances"]}
+        assert ids1.isdisjoint(ids2), "Pages must not overlap"
+        assert len(ids1) + len(ids2) == total_tis
 
 
 class TestGetTaskDependencies(TestTaskInstanceEndpoint):
@@ -2634,7 +2630,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -2680,7 +2676,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -2757,7 +2753,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
                 "dag_version": {
-                    "bundle_name": "dags-folder",
+                    "bundle_name": "apache-airflow-providers-standard-example-dags",
                     "bundle_url": None,
                     "bundle_version": None,
                     "created_at": response_data["dag_version"]["created_at"],
@@ -2829,7 +2825,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -2876,7 +2872,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -3682,7 +3678,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "dag_id": "example_python_operator",
                 "dag_display_name": "example_python_operator",
                 "dag_version": {
-                    "bundle_name": "dags-folder",
+                    "bundle_name": "apache-airflow-providers-standard-example-dags",
                     "bundle_url": None,
                     "bundle_version": None,
                     "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -4174,7 +4170,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "unixname": getuser(),
                     "dag_run_id": "TEST_DAG_RUN_ID",
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -4211,7 +4207,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "unixname": getuser(),
                     "dag_run_id": "TEST_DAG_RUN_ID",
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][1]["dag_version"]["created_at"],
@@ -4282,7 +4278,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "unixname": getuser(),
                     "dag_run_id": "TEST_DAG_RUN_ID",
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -4365,7 +4361,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "unixname": getuser(),
                         "dag_run_id": "TEST_DAG_RUN_ID",
                         "dag_version": {
-                            "bundle_name": "dags-folder",
+                            "bundle_name": "apache-airflow-providers-standard-example-dags",
                             "bundle_url": None,
                             "bundle_version": None,
                             "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -4402,7 +4398,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "unixname": getuser(),
                         "dag_run_id": "TEST_DAG_RUN_ID",
                         "dag_version": {
-                            "bundle_name": "dags-folder",
+                            "bundle_name": "apache-airflow-providers-standard-example-dags",
                             "bundle_url": None,
                             "bundle_version": None,
                             "created_at": response_data["task_instances"][1]["dag_version"]["created_at"],
@@ -4604,7 +4600,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -4880,7 +4876,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                             "dag_id": "example_python_operator",
                             "dag_display_name": "example_python_operator",
                             "dag_version": {
-                                "bundle_name": "dags-folder",
+                                "bundle_name": "apache-airflow-providers-standard-example-dags",
                                 "bundle_url": None,
                                 "bundle_version": None,
                                 "created_at": mock.ANY,
@@ -5018,7 +5014,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -5081,7 +5077,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -5162,7 +5158,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         "dag_id": self.DAG_ID,
                         "dag_display_name": self.DAG_DISPLAY_NAME,
                         "dag_version": {
-                            "bundle_name": "dags-folder",
+                            "bundle_name": "apache-airflow-providers-standard-example-dags",
                             "bundle_url": None,
                             "bundle_version": None,
                             "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -5245,7 +5241,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "dag_id": self.DAG_ID,
                 "dag_display_name": self.DAG_DISPLAY_NAME,
                 "dag_version": {
-                    "bundle_name": "dags-folder",
+                    "bundle_name": "apache-airflow-providers-standard-example-dags",
                     "bundle_url": None,
                     "bundle_version": None,
                     "created_at": response_ti["dag_version"]["created_at"],
@@ -5432,7 +5428,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -5720,7 +5716,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "dag_id": "example_python_operator",
                             "dag_display_name": "example_python_operator",
                             "dag_version": {
-                                "bundle_name": "dags-folder",
+                                "bundle_name": "apache-airflow-providers-standard-example-dags",
                                 "bundle_url": None,
                                 "bundle_version": None,
                                 "created_at": mock.ANY,

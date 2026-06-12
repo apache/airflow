@@ -274,11 +274,39 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             hook.submit(self.application)
             hook._poll_k8s_driver_via_api()
             return
+        if hook._is_yarn_cluster_mode:
+            if self.reconnect_on_retry and not hook._yarn_track_via_rm_api:
+                raise ValueError(
+                    "YARN cluster mode with reconnect_on_retry=True requires yarn_track_via_rm_api=True. "
+                    "The RM REST API is needed to check application status on retry."
+                )
+            if hook._yarn_track_via_rm_api:
+                hook._validate_yarn_track_via_rm_api_config()
+                if self.reconnect_on_retry:
+                    return self.execute_resumable(context)
+                # reconnect_on_retry=False: still submit-and-poll, just skip task_state persistence.
+                driver_id = self.submit_job(context)
+                self.poll_until_complete(driver_id, context)
+                return self.get_job_result(driver_id, context)
         hook.submit(self.application)
 
     def submit_job(self, context: Context) -> str:
         if self._hook is None:
             self._hook = self._get_hook()
+        if self._hook._is_yarn_cluster_mode:
+            if self._hook._conf.get("spark.yarn.submit.waitAppCompletion", "").strip().lower() == "true":
+                raise ValueError(
+                    "spark.yarn.submit.waitAppCompletion=true cannot be set for cluster mode as it conflicts"
+                    "with the need to exit spark-submit immediately to persist the application ID for tracking. "
+                    "Either remove the explicit conf or set reconnect_on_retry=False."
+                )
+            self._hook._conf["spark.yarn.submit.waitAppCompletion"] = "false"
+            self._hook.submit(self.application)
+            app_id = self._hook._yarn_application_id
+            if not app_id:
+                raise RuntimeError("spark-submit did not produce a YARN application ID")
+            self.log.info("YARN application submitted: %s", app_id)
+            return app_id
         driver_id = self._hook.submit(self.application)
         if not driver_id:
             raise RuntimeError("spark-submit did not return a driver ID")
@@ -290,15 +318,13 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         external_id = cast("str", external_id)
         if self._hook is None:
             self._hook = self._get_hook()
-        # The YARN and K8s branches below (and in is_job_active, is_job_succeeded, poll_until_complete)
-        # are currently unreachable: execute_resumable is only called when _should_track_driver_status
-        # is True, which requires spark:// + cluster mode. They are scaffolding for a follow-up PR
-        # that extends ResumableJobMixin support to YARN and Kubernetes.
-        if self._hook._is_yarn:
-            # TODO: call YARN ResourceManager REST API
-            # GET http://rm:8088/ws/v1/cluster/apps/{external_id}
-            raise NotImplementedError("YARN job status not yet implemented")
+        if self._hook._is_yarn_cluster_mode:
+            return self._hook.query_yarn_application_status(external_id)
         if self._hook._is_kubernetes:
+            # The K8s branches below (and in is_job_active, is_job_succeeded, poll_until_complete)
+            # are currently unreachable: execute_resumable is only called when _should_track_driver_status
+            # is True, which requires spark:// + cluster mode. They are scaffolding for a follow-up PR
+            # that extends ResumableJobMixin support to Kubernetes.
             # TODO: call K8s pod status API
             raise NotImplementedError("K8s job status not yet implemented")
         scheme = self._hook._connection.get("rest_scheme", "http")
@@ -338,9 +364,9 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if self._hook is None:
             self._hook = self._get_hook()
         status = status.upper()
-        if self._hook._is_yarn:
+        if self._hook._is_yarn_cluster_mode:
             # https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/ResourceManagerRest.html
-            return status in ("NEW", "NEW_SAVING", "SUBMITTED", "ACCEPTED", "RUNNING")
+            return status in {"NEW", "NEW_SAVING", "SUBMITTED", "ACCEPTED", "RUNNING"}
         if self._hook._is_kubernetes:
             return status in ("PENDING", "RUNNING")
         # RELAUNCHING: driver is being restarted after a failure, still alive.
@@ -352,6 +378,8 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if self._hook is None:
             self._hook = self._get_hook()
         status = status.upper()
+        if self._hook._is_yarn_cluster_mode:
+            return status == "SUCCEEDED"
         if self._hook._is_kubernetes:
             return status == "SUCCEEDED"
         # standalone and YARN both use FINISHED
@@ -362,9 +390,12 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         external_id = cast("str", external_id)
         if self._hook is None:
             self._hook = self._get_hook()
-        if self._hook._is_yarn:
-            # TODO: poll YARN ResourceManager until app reaches terminal state
-            raise NotImplementedError("YARN poll not yet implemented")
+        if self._hook._is_yarn_cluster_mode:
+            try:
+                self._hook._start_yarn_application_status_tracking(external_id)
+            finally:
+                self._hook._run_post_submit_commands()
+            return
         if self._hook._is_kubernetes:
             # TODO: poll K8s pod phase until terminal
             raise NotImplementedError("K8s poll not yet implemented")
@@ -384,7 +415,12 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
     def on_kill(self) -> None:
         if self._hook is None:
             self._hook = self._get_hook()
-        self._hook.on_kill()
+        if self._hook._is_yarn_cluster_mode and self._hook._yarn_application_id:
+            # spark-submit has already exited (waitAppCompletion=false), so the hook's
+            # CLI-based kill has nothing to terminate. Kill the YARN app via REST API instead.
+            self._hook._kill_yarn_application(self._hook._yarn_application_id)
+        else:
+            self._hook.on_kill()
 
     def _get_hook(self) -> SparkSubmitHook:
         return SparkSubmitHook(

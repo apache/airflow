@@ -146,6 +146,7 @@
     "startTime": "Start Time"
   },
   "generateToken": "Generate Token",
+  "key": "Key",
   "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
@@ -179,6 +180,7 @@
     "placeholder": "Add a note...",
     "taskInstance": "Task Instance Note"
   },
+  "overallStatus": "Overall Status",
   "partitionedDagRun_one": "Partitioned Dag Run",
   "partitionedDagRun_other": "Partitioned Dag Runs",
   "partitionedDagRunDetail": {
@@ -262,13 +264,17 @@
       "any": "Any"
     },
     "tagPlaceholder": "Filter by tag",
-    "to": "To"
+    "to": "To",
+    "updatedAt": "Updated at"
   },
   "task": {
+    "dependsOnPast": "Depends on Past",
     "documentation": "Task Documentation",
     "lastInstance": "Last Instance",
     "operator": "Operator",
-    "triggerRule": "Trigger Rule"
+    "retries": "Retries",
+    "triggerRule": "Trigger Rule",
+    "waitForDownstream": "Wait for Downstream"
   },
   "task_one": "Task",
   "task_other": "Tasks",
@@ -393,6 +399,7 @@
     "mustBeAtLeast": "Must be at least {{min}}.",
     "mustBeValidNumber": "Must be a valid number."
   },
+  "value": "Value",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Press {{hotkey}} to toggle wrap",
