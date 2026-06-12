@@ -31,7 +31,7 @@ from collections.abc import Callable, Iterable
 from enum import Enum
 from functools import partial
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, cast
 
 import httpx
 import rich
@@ -492,6 +492,11 @@ class CommandFactory:
         return base_type in primitive_types
 
     @staticmethod
+    def _is_optional_type(type_name: str) -> bool:
+        normalized = str(type_name).replace("typing.", "").strip()
+        return " | None" in normalized or normalized.startswith("Optional[")
+
+    @staticmethod
     def _python_type_from_string(type_name: str | type) -> type | Callable:
         """
         Return the corresponding Python *type* for a primitive type name string.
@@ -694,34 +699,39 @@ class CommandFactory:
             operation_method_object = getattr(operation_class, api_operation["name"])
 
             # Walk through all args and create a dictionary such as args.abc -> {"abc": "value"}
-            method_params = {}
+            method_params: dict[str, Any] = {}
             datamodel = None
             datamodel_param_name = None
             args_dict = vars(args)
             for parameter in api_operation["parameters"]:
                 for parameter_key, parameter_type in parameter.items():
                     if self._is_primitive_type(type_name=parameter_type):
-                        method_params[self._sanitize_method_param_key(parameter_key)] = args_dict[
-                            parameter_key
-                        ]
+                        val = args_dict.get(parameter_key)
+                        is_optional_primitive = self._is_optional_type(parameter_type)
+                        if val is not None or not is_optional_primitive:
+                            method_params[self._sanitize_method_param_key(parameter_key)] = val
                     else:
                         datamodel = getattr(generated_datamodels, parameter_type)
                         for expanded_parameter in self.datamodels_extended_map[parameter_type]:
-                            if parameter_key not in method_params:
+                            if parameter_key not in method_params or not isinstance(
+                                method_params[parameter_key], dict
+                            ):
                                 method_params[parameter_key] = {}
                                 datamodel_param_name = parameter_key
                             if expanded_parameter in self.excluded_parameters:
                                 continue
                             if expanded_parameter in args_dict.keys():
-                                method_params[parameter_key][
-                                    self._sanitize_method_param_key(expanded_parameter)
-                                ] = args_dict[expanded_parameter]
+                                datamodel_params = cast("dict[str, Any]", method_params[parameter_key])
+                                datamodel_params[self._sanitize_method_param_key(expanded_parameter)] = (
+                                    args_dict[expanded_parameter]
+                                )
 
             if datamodel:
                 if datamodel_param_name:
+                    datamodel_params = cast("dict[str, Any]", method_params[datamodel_param_name])
                     # Apply datamodel-specific defaults (e.g., logical_date for TriggerDAGRunPostBody)
                     method_params[datamodel_param_name] = self._apply_datamodel_defaults(
-                        datamodel, method_params[datamodel_param_name]
+                        datamodel, datamodel_params
                     )
                     method_params[datamodel_param_name] = datamodel.model_validate(
                         method_params[datamodel_param_name]
