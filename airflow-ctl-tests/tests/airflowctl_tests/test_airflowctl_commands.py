@@ -92,6 +92,8 @@ TEST_COMMANDS = [
     # Dag Run commands
     'dagrun get example_bash_operator "manual__{date_param}"',
     "dags update example_bash_operator --no-is-paused",
+    # Tasks commands
+    "tasks clear example_bash_operator",
     # Dag Run commands
     "dagrun list --dag-id example_bash_operator --state success --limit=1",
     # XCom commands - need a Dag run with completed tasks

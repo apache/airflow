@@ -45,6 +45,7 @@ COMMANDS = [
     "jobs",
     "pools",
     "providers",
+    "tasks",
     "variables",
     "version",
     "plugins",
@@ -52,6 +53,7 @@ COMMANDS = [
 
 SUBCOMMANDS = [
     "auth login",
+    "tasks clear",
 ]
 
 
