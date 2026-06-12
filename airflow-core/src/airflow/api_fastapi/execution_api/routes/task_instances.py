@@ -514,7 +514,9 @@ def _emit_task_span(ti, state):
     if not isinstance(ti.context_carrier, dict):
         return
     dr_ctx = TraceContextTextMapPropagator().extract(ti.dag_run.context_carrier)
-    # Honor the single head-sampling decision recorded in the dag_run carrier so
+
+    # Honor the single head-sampling decision recorded in the dag_run carrier
+    # Under a parent-based sampler, this child span would already be dropped
     # every span in the run agrees with it. Under a parent-based sampler (the
     # default, and parentbased_traceidratio) this child span would already be
     # dropped by ParentBased; the explicit check also keeps emission consistent

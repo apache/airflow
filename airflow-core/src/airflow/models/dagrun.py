@@ -1074,15 +1074,17 @@ class DagRun(Base, LoggingMixin):
         ctx = TraceContextTextMapPropagator().extract(self.context_carrier)
         span = trace.get_current_span(context=ctx)
         span_context = span.get_span_context()
+
         # Honor the head-sampling decision recorded in the carrier. This is
         # required because the span below is forced to be a root span
-        # (context=context.Context()), so the configured sampler would never see
-        # the carrier's flag otherwise. A valid-but-unsampled carrier means the
-        # run was head-sampled out; skip emission. An invalid/empty carrier
-        # (legacy DagRun created before tracing, NULL/backfilled) falls through
-        # and still emits a root span, preserving prior behavior.
+        # (context=context.Context()), so otherwise, the configured sampler would never see
+        # the carrier's flag.
+        # A valid-but-unsampled carrier means the run was head-sampled out; skip emission.
+        # An invalid/empty carrier (legacy DagRun created before tracing) falls through
+        # and still emits a root span, which is the prior behavior but we should possibly reconsider.
         if span_context.is_valid and not span_context.trace_flags.sampled:
             return
+
         with override_ids(span_context.trace_id, span_context.span_id):
             attributes: dict[str, str] = {
                 "airflow.dag_id": str(self.dag_id),
@@ -1100,13 +1102,14 @@ class DagRun(Base, LoggingMixin):
                 attributes["airflow.dag_run.logical_date"] = str(self.logical_date)
             if self.partition_key:
                 attributes["airflow.dag_run.partition_key"] = str(self.partition_key)
+
             # TODO: make the empty parent context optional. Default should be to
-            # nest the dag run span under the currently active parent span (by
-            # omitting `context` here); only use the empty `context.Context()` to
-            # force a root span when Airflow itself initiates the run (e.g. dag
-            # triggered via API, scheduler, or backfill). Today this forces a
-            # root span unconditionally.
-            # Tracked at https://github.com/apache/airflow/issues/67210
+            #  nest the dag run span under the currently active parent span (by
+            #  omitting `context` here); only use the empty `context.Context()` to
+            #  force a root span when Airflow itself initiates the run (e.g. dag
+            #  triggered via API, scheduler, or backfill). Today this forces a
+            #  root span unconditionally.
+            #  Tracked at https://github.com/apache/airflow/issues/67210
             span = tracer.start_span(
                 name=f"dag_run.{self.dag_id}",
                 start_time=int((self.queued_at or self.start_date or timezone.utcnow()).timestamp() * 1e9),

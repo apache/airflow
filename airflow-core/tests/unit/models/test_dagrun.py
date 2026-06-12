@@ -1535,7 +1535,6 @@ class TestDagRun:
 
     @mock.patch.object(Deadline, "prune_deadlines")
     def test_dagrun_deadline_variable_interval_missing_variable_fails(self, _, session, deadline_test_dag):
-
         mock_err = mock.Mock()
         mock_err.error.value = "MISSING_DEADLINE"
         mock_err.detail = "missing deadline"
@@ -4186,41 +4185,33 @@ class TestDagRunTracing:
         else:
             assert len(spans) == 0
 
-    def test_emit_dagrun_span_emits_when_carrier_sampled(self, dag_maker, session):
-        """A SAMPLED carrier (flag 01) should emit the dag_run span."""
+    @pytest.mark.parametrize(
+        ("dag_id", "trace_flag", "expected_spans"),
+        [
+            pytest.param("test_tracing_sampled", "01", 1, id="sampled-carrier-emits"),
+            pytest.param("test_tracing_unsampled", "00", 0, id="unsampled-carrier-skips"),
+        ],
+    )
+    def test_emit_dagrun_span_honors_carrier_sampling(
+        self, dag_id, trace_flag, expected_spans, dag_maker, session
+    ):
+        """A SAMPLED carrier (flag 01) emits the dag_run span; an unsampled carrier (flag 00) is head-sampled out."""
         in_mem_exporter = InMemorySpanExporter()
         provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
         provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
         test_tracer = provider.get_tracer("test")
 
-        with dag_maker("test_tracing_sampled", session=session) as dag:
+        with dag_maker(dag_id, session=session) as dag:
             EmptyOperator(task_id="t1")
         dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
         dr.dag = dag
-        dr.context_carrier = {"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}
+        traceparent = f"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-{trace_flag}"
+        dr.context_carrier = {"traceparent": traceparent}
 
         with mock.patch("airflow.models.dagrun.tracer", test_tracer):
             dr._emit_dagrun_span(state=DagRunState.SUCCESS)
 
-        assert len(in_mem_exporter.get_finished_spans()) == 1
-
-    def test_emit_dagrun_span_skips_when_carrier_unsampled(self, dag_maker, session):
-        """A valid-but-unsampled carrier (flag 00) means head-sampled out -> no span."""
-        in_mem_exporter = InMemorySpanExporter()
-        provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
-        provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
-        test_tracer = provider.get_tracer("test")
-
-        with dag_maker("test_tracing_unsampled", session=session) as dag:
-            EmptyOperator(task_id="t1")
-        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
-        dr.dag = dag
-        dr.context_carrier = {"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00"}
-
-        with mock.patch("airflow.models.dagrun.tracer", test_tracer):
-            dr._emit_dagrun_span(state=DagRunState.SUCCESS)
-
-        assert len(in_mem_exporter.get_finished_spans()) == 0
+        assert len(in_mem_exporter.get_finished_spans()) == expected_spans
 
     @pytest.mark.db_test
     def test_context_carrier_includes_detail_level_from_conf(self, dag_maker):
