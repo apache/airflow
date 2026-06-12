@@ -38,6 +38,8 @@ __all__ = [
     "BaseSensorOperator",
     "BaseXCom",
     "BranchMixIn",
+    "CallbackMeta",
+    "CallbackSource",
     "ChainMapper",
     "Connection",
     "Context",
@@ -148,7 +150,13 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.asset.metadata import Metadata
     from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
     from airflow.sdk.definitions.connection import Connection
-    from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
+    from airflow.sdk.definitions.context import (
+        CallbackMeta as CallbackMeta,
+        CallbackSource as CallbackSource,
+        Context,
+        get_current_context,
+        get_parsing_context,
+    )
     from airflow.sdk.definitions.dag import DAG, dag
     from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
     from airflow.sdk.definitions.decorators import setup, task, teardown
@@ -240,6 +248,8 @@ __lazy_imports: dict[str, str] = {
     "BaseSensorOperator": ".bases.sensor",
     "BaseXCom": ".bases.xcom",
     "BranchMixIn": ".bases.branch",
+    "CallbackMeta": ".definitions.context",
+    "CallbackSource": ".definitions.context",
     "ChainMapper": ".definitions.partition_mappers.chain",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
