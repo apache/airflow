@@ -51,7 +51,11 @@ const RenderedJsonField = ({
   const contentFormatted = JSON.stringify(content, undefined, 2);
   const { beforeMount, theme } = useMonacoTheme();
   const lineCount = contentFormatted.split("\n").length;
-  const expandedHeight = Math.min(Math.max(lineCount * 19 + 10, MIN_HEIGHT), MAX_HEIGHT);
+  // Rendered templates (showStructureGuides) grow to fit the fully-expanded JSON so the
+  // page scrolls instead of trapping the content in an inner scroll area; other usages
+  // stay capped at MAX_HEIGHT.
+  const maxHeight = showStructureGuides ? Number.POSITIVE_INFINITY : MAX_HEIGHT;
+  const expandedHeight = Math.min(Math.max(lineCount * 19 + 10, MIN_HEIGHT), maxHeight);
   const [editorHeight, setEditorHeight] = useState(collapsed ? MIN_HEIGHT : expandedHeight);
   const [isReady, setIsReady] = useState(!collapsed);
   const editorRef = useRef<EditorInstance | null>(null);
@@ -63,7 +67,7 @@ const RenderedJsonField = ({
       editorInstance.onDidContentSizeChange(() => {
         const contentHeight = editorInstance.getContentHeight();
 
-        setEditorHeight(Math.min(Math.max(contentHeight, MIN_HEIGHT), MAX_HEIGHT));
+        setEditorHeight(Math.min(Math.max(contentHeight, MIN_HEIGHT), maxHeight));
       });
 
       if (collapsed) {
@@ -78,7 +82,7 @@ const RenderedJsonField = ({
         }
       }
     },
-    [collapsed],
+    [collapsed, maxHeight],
   );
 
   // Sync fold state when the `collapsed` prop changes after mount (e.g. via Expand/Collapse All).
