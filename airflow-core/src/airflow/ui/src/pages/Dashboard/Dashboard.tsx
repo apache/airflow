@@ -95,7 +95,7 @@ export const Dashboard = () => {
           />
         </Box>
         <Box order={4}>
-          <Stats endDate={endDate} startDate={startDate} />
+          <Stats />
         </Box>
         <Box order={5}>
           <FavoriteDags />
