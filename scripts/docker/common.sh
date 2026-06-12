@@ -134,6 +134,78 @@ function common::get_constraints_location() {
     fi
 }
 
+function common::get_build_constraints_location() {
+    # Explicit override via env var - fail if set but file/URL is missing
+    if [[ -n ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION=} ]]; then
+        if [[ ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION} =~ http.* ]]; then
+            echo
+            echo "${COLOR_BLUE}Downloading build constraints from ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION} to ${HOME}/build-constraints.txt${COLOR_RESET}"
+            echo
+            if ! curl -sSf -o "${HOME}/build-constraints.txt" "${AIRFLOW_BUILD_CONSTRAINTS_LOCATION}"; then
+                echo
+                echo "${COLOR_RED}Build constraints file not found at explicitly set ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION}${COLOR_RESET}"
+                echo
+                exit 1
+            fi
+        else
+            if [[ ! -f "${AIRFLOW_BUILD_CONSTRAINTS_LOCATION}" ]]; then
+                echo
+                echo "${COLOR_RED}Build constraints file not found at explicitly set ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION}${COLOR_RESET}"
+                echo
+                exit 1
+            fi
+            echo
+            echo "${COLOR_BLUE}Copying build constraints from ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION} to ${HOME}/build-constraints.txt${COLOR_RESET}"
+            echo
+            cp "${AIRFLOW_BUILD_CONSTRAINTS_LOCATION}" "${HOME}/build-constraints.txt"
+        fi
+        return
+    fi
+
+    # Auto-detect constraints reference (idempotent - may already be set by get_constraints_location)
+    if [[ -z "${AIRFLOW_CONSTRAINTS_REFERENCE=}" ]]; then
+        if [[ ${AIRFLOW_VERSION} =~ v?2.* || ${AIRFLOW_VERSION} =~ v?3.* ]]; then
+            AIRFLOW_CONSTRAINTS_REFERENCE=constraints-${AIRFLOW_VERSION}
+        else
+            AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}
+        fi
+    fi
+
+    local constraints_base="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${AIRFLOW_CONSTRAINTS_REFERENCE}"
+    local python_version
+    python_version=$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+    local build_constraints_url="${constraints_base}/build-constraints-${python_version}.txt"
+
+    echo
+    echo "${COLOR_BLUE}Downloading build constraints from ${build_constraints_url} to ${HOME}/build-constraints.txt${COLOR_RESET}"
+    echo
+    if ! curl -sSf -o "${HOME}/build-constraints.txt" "${build_constraints_url}"; then
+        echo
+        echo "${COLOR_YELLOW}Build constraints file not found at ${build_constraints_url} (not yet published for this version?).${COLOR_RESET}"
+        echo "${COLOR_YELLOW}Continuing without build constraints.${COLOR_RESET}"
+        echo
+        # Create/truncate to empty so the install flags function returns nothing
+        : > "${HOME}/build-constraints.txt"
+    fi
+}
+
+function common::get_build_constraints_install_flags() {
+    local build_constraints_file="${HOME}/build-constraints.txt"
+    if [[ ! -f "${build_constraints_file}" ]]; then
+        # No build constraints file - return empty (no flags)
+        return
+    fi
+    # Skip if file is empty (fallback from old constraints branch without build constraints)
+    if [[ ! -s "${build_constraints_file}" ]]; then
+        return
+    fi
+    if [[ ${PACKAGING_TOOL} == "uv" ]]; then
+        echo "--build-constraints ${build_constraints_file}"
+    else
+        echo "--build-constraint ${build_constraints_file}"
+    fi
+}
+
 function common::show_packaging_tool_version_and_location() {
    echo "PATH=${PATH}"
    echo "Installed pip: $(pip --version): $(which pip)"

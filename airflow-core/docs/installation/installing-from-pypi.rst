@@ -154,6 +154,65 @@ but you can pick your own set of extras and providers to install.
     libraries in case you install a database provider, etc.. You need to figure out which system dependencies
     you need when your installation fails and install them before retrying the installation.
 
+Build constraints
+=================
+
+In addition to runtime constraints, Airflow publishes **build constraints** files on the same constraint
+branches. Build constraints pin the versions of build-time dependencies (such as ``setuptools``,
+``hatchling``, ``maturin``) that are used when compiling packages from source distributions
+via `build isolation <https://pip.pypa.io/en/stable/reference/build-system/pyproject-toml/#build-isolation>`_.
+
+Build constraints are useful when you install Airflow or its providers from source and want fully
+reproducible builds — ensuring that the same build tool versions are used as were tested at release time.
+
+The URL template for build constraints is:
+
+.. code-block::
+
+  https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/build-constraints-${PYTHON_VERSION}.txt
+
+To use build constraints with ``uv`` (requires uv 0.5 or later):
+
+.. code-block:: bash
+    :substitutions:
+
+    AIRFLOW_VERSION=|version|
+    PYTHON_VERSION="$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+    CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
+    BUILD_CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/build-constraints-${PYTHON_VERSION}.txt"
+    uv pip install "apache-airflow[celery]==${AIRFLOW_VERSION}" \
+      --constraint "${CONSTRAINT_URL}" \
+      --build-constraints "${BUILD_CONSTRAINT_URL}"
+
+To use build constraints with ``pip`` (requires pip 25.3 or later):
+
+.. code-block:: bash
+    :substitutions:
+
+    AIRFLOW_VERSION=|version|
+    PYTHON_VERSION="$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+    CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
+    BUILD_CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/build-constraints-${PYTHON_VERSION}.txt"
+    pip install "apache-airflow[celery]==${AIRFLOW_VERSION}" \
+      --constraint "${CONSTRAINT_URL}" \
+      --build-constraint "${BUILD_CONSTRAINT_URL}"
+
+.. note::
+
+    Build constraints are optional. If you do not specify them, build isolation will resolve build
+    dependencies without version pinning — which is the same behavior as before build constraints were
+    introduced. The runtime constraints (``--constraint``) remain the primary mechanism for reproducible
+    installations.
+
+    Build constraints are available only for constraint branches generated after build constraints support
+    was introduced. If you are installing an older Airflow release whose constraint branch does not contain
+    ``build-constraints-${PYTHON_VERSION}.txt``, omit the ``--build-constraint`` or ``--build-constraints``
+    flag and use only the runtime constraints file.
+
+    When you pass ``--build-constraint`` or ``--build-constraints`` explicitly, the file or URL must be
+    accessible — an unreachable URL or missing local file fails the install, matching the behavior of
+    the runtime ``--constraint`` flag.
+
 Upgrading and installing dependencies (including providers)
 ===========================================================
 
