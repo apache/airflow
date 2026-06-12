@@ -136,7 +136,7 @@ def test_token_expiring_mid_request_is_reissued_without_revalidation(client, exe
 
     Regression test for the TOCTOU race in JWTReissueMiddleware: a heartbeat arrives with a
     token that has ~0s left, JWTBearer validates it (still technically valid at that moment),
-    the request completes, and the middleware runs. In the old code the middleware would call
+    the request starts, and the middleware runs. In the old code the middleware would call
     avalidated_claims a second time and get ExpiredSignatureError — no Refreshed-API-Token
     header would be set, and the task would die on the next heartbeat.
 
