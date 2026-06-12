@@ -18,7 +18,6 @@
  */
 import { Box, Button, Heading, HStack, Link, VStack } from "@chakra-ui/react";
 import { useState } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { MdOutlineOpenInFull } from "react-icons/md";
 import { useParams } from "react-router-dom";
@@ -119,7 +118,10 @@ export const Code = () => {
 
   const { beforeMount, theme } = useMonacoTheme();
 
-  useHotkeys("f", toggleFullscreen);
+  useShortcut({
+    ...SHORTCUTS.code.toggleFullscreen,
+    callback: toggleFullscreen,
+  });
 
   useShortcut({
     ...SHORTCUTS.code.toggleWrap,

@@ -54,6 +54,11 @@ type CategorizedShortcuts = {
  */
 export const SHORTCUTS = {
   code: {
+    toggleFullscreen: {
+      category: "code",
+      descriptionKey: "shortcuts.descriptions.toggleFullscreen",
+      keys: "f",
+    },
     toggleWrap: { category: "code", descriptionKey: "shortcuts.descriptions.toggleWrap", keys: "w" },
   },
   dagView: {
