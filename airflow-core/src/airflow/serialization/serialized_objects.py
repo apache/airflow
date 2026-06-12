@@ -235,6 +235,33 @@ def _decode_priority_weight_strategy(var: str) -> PriorityWeightStrategy:
     return priority_weight_strategy_class()
 
 
+# Module prefixes whose code is trusted to import while deserializing a stored DAG.
+# The class path from the serialized blob is validated against these *before*
+# import_string runs, so a path outside the trusted namespaces is rejected without
+# importing it. Mirrors decode_timetable's prefix gate / the priority-weight registry.
+_TRUSTED_DESERIALIZE_PREFIXES = ("airflow.",)
+
+
+def _safe_import_for_deserialize(cls_name: str, base: type, *, allow_builtins: bool = False) -> type:
+    """
+    Resolve ``cls_name`` to a subclass of ``base``, validating the name before importing.
+
+    The check runs on the string before any import, so a class path outside the
+    trusted namespaces is never imported. A post-import ``issubclass`` check is
+    kept as a second gate.
+    """
+    module_path = cls_name.rpartition(".")[0]
+    trusted = cls_name.startswith(_TRUSTED_DESERIALIZE_PREFIXES) or (
+        allow_builtins and module_path == "builtins"
+    )
+    if not trusted:
+        raise ValueError(f"Refusing to deserialize disallowed class path {cls_name!r}")
+    cls = import_string(cls_name)
+    if not (isinstance(cls, type) and issubclass(cls, base)):
+        raise ValueError(f"{cls_name!r} is not a {base.__name__} subclass")
+    return cls
+
+
 def _encode_start_trigger_args(var: StartTriggerArgs) -> dict[str, Any]:
     """Encode a StartTriggerArgs."""
 
@@ -674,9 +701,7 @@ class BaseSerialization:
             return exc_cls(*args, **kwargs)
         elif type_ == DAT.BASE_TRIGGER:
             tr_cls_name, kwargs = cls.deserialize(var)
-            tr_cls = import_string(tr_cls_name)
-            if not (isinstance(tr_cls, type) and issubclass(tr_cls, BaseTrigger)):
-                raise ValueError(f"{tr_cls_name!r} is not a BaseTrigger subclass")
+            tr_cls = _safe_import_for_deserialize(tr_cls_name, BaseTrigger)
             return tr_cls(**kwargs)
         elif type_ == DAT.SET:
             return {cls.deserialize(v) for v in var}
