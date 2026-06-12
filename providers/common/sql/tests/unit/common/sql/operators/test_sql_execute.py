@@ -24,6 +24,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import Connection
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
@@ -34,6 +35,7 @@ from airflow.providers.common.compat.openlineage.facet import (
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 
 DATE = "2017-04-20"
@@ -380,3 +382,32 @@ def test_with_no_openlineage_provider():
         op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1;")
         assert op.get_openlineage_facets_on_start() is None
         assert op.get_openlineage_facets_on_complete(None) is None
+
+
+class TestSQLExecuteQueryOperatorDeferrable:
+    def test_execute_defers(self):
+        op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1", deferrable=True)
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute({})
+        assert isinstance(exc.value.trigger, SQLExecuteQueryTrigger)
+        assert exc.value.method_name == "execute_complete"
+
+    def test_execute_complete_raises_on_none_event(self):
+        op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1", deferrable=True)
+        with pytest.raises(AirflowException, match="Unknown error in SQLExecuteQueryTrigger"):
+            op.execute_complete(context={}, event=None)
+
+    def test_execute_complete_raises_on_error_event(self):
+        op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1", deferrable=True)
+        with pytest.raises(AirflowException, match="something went wrong"):
+            op.execute_complete(context={}, event={"status": "error", "message": "something went wrong"})
+
+    def test_execute_complete_returns_none_when_no_xcom_push(self):
+        op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1", deferrable=True, do_xcom_push=False)
+        result = op.execute_complete(context={}, event={"status": "success", "results": [("row1",)]})
+        assert result is None
+
+    def test_execute_complete_returns_none_when_no_results(self):
+        op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1", deferrable=True, do_xcom_push=True)
+        result = op.execute_complete(context={}, event={"status": "success", "results": None})
+        assert result is None
