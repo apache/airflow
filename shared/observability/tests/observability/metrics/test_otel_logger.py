@@ -21,7 +21,6 @@ import os
 import subprocess
 import sys
 import time
-from configparser import ConfigParser
 from unittest import mock
 
 import pytest
@@ -433,26 +432,22 @@ class TestOtelMetrics:
 
         The contract: if the standard OTel env var is set, return ``None`` (the
         SDK reads from env directly); otherwise, build the URL from the
-        deprecated Airflow conf with proper IPv6 bracketing.
+        deprecated Airflow conf primitives with proper IPv6 bracketing.
         """
         with env_vars(provided_env_vars):
-            conf = ConfigParser()
-            section = {"otel_on": "true"}
-            if airflow_conf_host:
-                section["otel_host"] = airflow_conf_host
-            if airflow_conf_port:
-                section["otel_port"] = airflow_conf_port
-            conf["metrics"] = section
-
-            endpoint, _, _ = _get_backcompat_config(conf)
+            endpoint, _, _ = _get_backcompat_config(
+                host=airflow_conf_host,
+                port=airflow_conf_port,
+                ssl_active=False,
+                service=None,
+                interval_ms=None,
+            )
             assert endpoint == expected_endpoint
 
     @mock.patch("airflow_shared.observability.metrics.otel_logger.metrics")
     @mock.patch("airflow_shared.observability.metrics.otel_logger.MeterProvider")
     def test_configure_otel_uses_exponential_histogram_view(self, mock_provider, mock_metrics):
-        conf = ConfigParser()
-        conf["metrics"] = {"otel_on": "true", "otel_host": "localhost", "otel_port": "4318"}
-        configure_otel(conf)
+        configure_otel(host="localhost", port="4318")
 
         call_kwargs = mock_provider.call_args.kwargs
         views = call_kwargs["views"]
@@ -469,14 +464,10 @@ class TestOtelMetrics:
         Test that the hook runs and flushes the created stat at shutdown.
         """
         function_call_str = (
-            "from configparser import ConfigParser; "
             "from airflow_shared.observability.metrics.otel_logger import configure_otel; "
-            "c = ConfigParser(); "
-            "c['metrics'] = {"
-            "'otel_on': 'true', 'otel_debugging_on': 'true', "
-            "'otel_host': 'localhost', 'otel_port': '4318'"
-            "}; "
-            "logger = configure_otel(c); "
+            "logger = configure_otel("
+            "host='localhost', port='4318', debug=True"
+            "); "
             "logger.incr('my_test_stat')"
         )
 
@@ -526,19 +517,11 @@ class TestOtelMetrics:
         )
 
 
-def _debug_conf() -> ConfigParser:
-    c = ConfigParser()
-    c["metrics"] = {
-        "otel_on": "true",
-        "otel_debugging_on": "true",
-        "otel_host": "localhost",
-        "otel_port": "4318",
-    }
-    return c
+_DEBUG_KWARGS = {"host": "localhost", "port": "4318", "debug": True}
 
 
 def mock_service_run():
-    logger = configure_otel(_debug_conf())
+    logger = configure_otel(**_DEBUG_KWARGS)
     logger.incr("my_test_stat")
 
 
@@ -551,7 +534,7 @@ def mock_service_run_reinit():
     set_meter_provider() silently fails and the child uses a stale provider.
     """
     # First init — sets Once._done = True
-    configure_otel(_debug_conf())
+    configure_otel(**_DEBUG_KWARGS)
     # Second init — simulates post-fork re-initialization
-    logger = configure_otel(_debug_conf())
+    logger = configure_otel(**_DEBUG_KWARGS)
     logger.incr("post_fork_stat")

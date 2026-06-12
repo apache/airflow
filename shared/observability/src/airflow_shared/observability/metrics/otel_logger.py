@@ -47,8 +47,6 @@ from .validators import (
 )
 
 if TYPE_CHECKING:
-    from configparser import ConfigParser
-
     from opentelemetry.metrics import Instrument
     from opentelemetry.sdk.metrics._internal.export import MetricExporter
     from opentelemetry.util.types import Attributes
@@ -440,38 +438,35 @@ def atexit_register_metrics_flush():
 
 
 def _get_backcompat_config(
-    conf: ConfigParser,
+    *,
+    host: str | None,
+    port: str | None,
+    ssl_active: bool,
+    service: str | None,
+    interval_ms: str | None,
 ) -> tuple[str | None, float | None, Resource | None]:
-    """
-    Possibly get deprecated Airflow configs for otel metrics.
-
-    Ideally we return ``(None, None, None)`` here. But if the old configuration
-    is there, then we will use it.
-    """
     resource = None
-    if not os.environ.get("OTEL_SERVICE_NAME") and not os.environ.get("OTEL_RESOURCE_ATTRIBUTES"):
-        service_name = conf.get("metrics", "otel_service", fallback=None)
-        if service_name:
-            resource = Resource.create(attributes={SERVICE_NAME: service_name})
+    if service and not os.environ.get("OTEL_SERVICE_NAME") and not os.environ.get("OTEL_RESOURCE_ATTRIBUTES"):
+        resource = Resource.create(attributes={SERVICE_NAME: service})
 
     endpoint = None
-    if not os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT") and not os.environ.get(
-        "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"
+    if (
+        host
+        and port
+        and not os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
+        and not os.environ.get("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")
     ):
-        host = conf.get("metrics", "otel_host", fallback=None)
-        port = conf.get("metrics", "otel_port", fallback=None)
-        ssl_active = conf.getboolean("metrics", "otel_ssl_active", fallback=False)
-        if host and port:
-            scheme = "https" if ssl_active else "http"
-            endpoint = f"{scheme}://{_format_url_host(host)}:{port}/v1/metrics"
+        scheme = "https" if ssl_active else "http"
+        endpoint = f"{scheme}://{_format_url_host(host)}:{port}/v1/metrics"
 
-    interval_ms: float | None = None
-    if not os.environ.get("OTEL_METRIC_EXPORT_INTERVAL") and conf.has_option(
-        "metrics", "otel_interval_milliseconds"
-    ):
-        interval_ms = conf.getfloat("metrics", "otel_interval_milliseconds")
+    parsed_interval_ms: float | None = None
+    if interval_ms and not os.environ.get("OTEL_METRIC_EXPORT_INTERVAL"):
+        try:
+            parsed_interval_ms = float(interval_ms)
+        except (TypeError, ValueError):
+            log.warning("Invalid metrics.otel_interval_milliseconds value: %r; ignoring.", interval_ms)
 
-    return endpoint, interval_ms, resource
+    return endpoint, parsed_interval_ms, resource
 
 
 def _load_exporter_from_env() -> MetricExporter:
@@ -495,54 +490,49 @@ def _load_exporter_from_env() -> MetricExporter:
     return ep.load()()
 
 
-def configure_otel(conf: ConfigParser) -> SafeOtelLogger | None:
-    """
-    Configure the OpenTelemetry metrics pipeline from Airflow conf.
+def configure_otel(
+    *,
+    host: str | None = None,
+    port: str | None = None,
+    ssl_active: bool = False,
+    service: str | None = None,
+    interval_ms: str | None = None,
+    debug: bool = False,
+    prefix: str = DEFAULT_METRIC_NAME_PREFIX,
+    allow_list: str | None = None,
+    block_list: str | None = None,
+    stat_name_handler: Callable[[str], str] | None = None,
+    statsd_influxdb_enabled: bool = False,
+) -> SafeOtelLogger:
+    backcompat_endpoint, backcompat_interval_ms, resource = _get_backcompat_config(
+        host=host,
+        port=port,
+        ssl_active=ssl_active,
+        service=service,
+        interval_ms=interval_ms,
+    )
 
-    Bridges deprecated Airflow-specific options into the standard OTel
-    environment variables, loads the exporter via the SDK's entry-point
-    mechanism, and installs the global meter provider.
-
-    Returns the user-facing :class:`SafeOtelLogger` so callers (Stats) can
-    wrap their metrics. Returns ``None`` when ``metrics.otel_on`` is false.
-    """
-    otel_on = conf.getboolean("metrics", "otel_on", fallback=False)
-    if not otel_on:
-        return None
-
-    # Ideally all three are None here.
-    # They would only be something other than None if the user is still using
-    # the deprecated Airflow-defined otel configs.
-    backcompat_endpoint, backcompat_interval_ms, resource = _get_backcompat_config(conf)
-
-    # Backcompat: bridge deprecated configs into the OTel env vars so the
-    # exporter (loaded below via entry points) picks them up automatically.
-    if backcompat_endpoint and not (
-        os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT") or os.environ.get("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")
-    ):
+    if backcompat_endpoint:
         os.environ["OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"] = backcompat_endpoint
-
-    if backcompat_interval_ms is not None and not os.environ.get("OTEL_METRIC_EXPORT_INTERVAL"):
+    if backcompat_interval_ms is not None:
         os.environ["OTEL_METRIC_EXPORT_INTERVAL"] = str(int(backcompat_interval_ms))
 
     interval_str = os.environ.get("OTEL_METRIC_EXPORT_INTERVAL")
-    interval_ms = float(interval_str) if interval_str else None
+    final_interval_ms = float(interval_str) if interval_str else None
 
-    debug = conf.getboolean("metrics", "otel_debugging_on", fallback=False) or (
-        os.environ.get("OTEL_METRICS_EXPORTER") == "console"
-    )
+    debug_on = debug or os.environ.get("OTEL_METRICS_EXPORTER") == "console"
 
     readers: list[PeriodicExportingMetricReader] = [
         PeriodicExportingMetricReader(
             exporter=_load_exporter_from_env(),  # type: ignore[arg-type]
-            export_interval_millis=interval_ms,  # type: ignore[arg-type]
+            export_interval_millis=final_interval_ms,  # type: ignore[arg-type]
         )
     ]
-    if debug:
+    if debug_on:
         readers.append(
             PeriodicExportingMetricReader(
                 ConsoleMetricExporter(),
-                export_interval_millis=interval_ms,  # type: ignore[arg-type]
+                export_interval_millis=final_interval_ms,  # type: ignore[arg-type]
             )
         )
 
@@ -579,20 +569,10 @@ def configure_otel(conf: ConfigParser) -> SafeOtelLogger | None:
     # Register a hook that flushes any in-memory metrics at shutdown.
     atexit_register_metrics_flush()
 
-    # ``getimport`` is an Airflow ``AirflowConfigParser`` extension; plain
-    # ``ConfigParser`` instances used in tests don't have it. Fall back to
-    # ``None`` so test fixtures that pass a plain ``ConfigParser`` still work.
-    stat_name_handler = None
-    if hasattr(conf, "getimport"):
-        stat_name_handler = conf.getimport("metrics", "stat_name_handler", fallback=None)
-
     return SafeOtelLogger(
         metrics.get_meter_provider(),
-        conf.get("metrics", "otel_prefix", fallback=DEFAULT_METRIC_NAME_PREFIX),
-        get_validator(
-            conf.get("metrics", "metrics_allow_list", fallback=None),
-            conf.get("metrics", "metrics_block_list", fallback=None),
-        ),
+        prefix,
+        get_validator(allow_list, block_list),
         stat_name_handler,
-        conf.getboolean("metrics", "statsd_influxdb_enabled", fallback=False),
+        statsd_influxdb_enabled,
     )
