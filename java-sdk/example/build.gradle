@@ -1,4 +1,4 @@
-/*!
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,11 +16,35 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge } from "@chakra-ui/react";
-import { useTranslation } from "react-i18next";
 
-export const DagDeactivatedBadge = () => {
-  const { t: translate } = useTranslation("dag");
+plugins {
+    id("org.apache.airflow.sdk") version "${projectVersion}"
+}
 
-  return <Badge colorPalette="orange">{translate("header.status.deactivated")}</Badge>;
-};
+repositories {
+    mavenLocal()  // Not needed for your own project.
+    mavenCentral()
+}
+
+dependencies {
+    annotationProcessor("org.apache.airflow:airflow-sdk-processor:${projectVersion}")
+    implementation("org.apache.airflow:airflow-sdk:${projectVersion}")
+    implementation("org.slf4j:slf4j-simple:2.0.17")
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(11))
+    }
+    sourceCompatibility = JavaVersion.VERSION_11
+}
+
+sourceSets {
+    main {
+        java.srcDir("src/java")
+    }
+}
+
+airflowBundle {
+    mainClass = "org.apache.airflow.example.ExampleBundleBuilder"
+}

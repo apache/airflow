@@ -32,6 +32,7 @@ from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMetho
 from airflow.executors.workloads.task import ExecuteTask
 from airflow.executors.workloads.types import state_class_for_key
 from airflow.models.callback import CallbackKey
+from airflow.sdk.api.datamodels._generated import TaskInstance as GeneratedTaskInstance
 
 
 def test_task_instance_alias_keeps_backwards_compat():
@@ -134,3 +135,39 @@ def test_callback_dto_key_returns_callback_key_instance():
     assert isinstance(key, CallbackKey)
     assert key.id == cid
     assert str(key) == cid
+
+
+def test_workload_ti_round_trips_through_sdk_generated_model():
+    """
+    The executor-side DTO and the SDK's generated TaskInstance share the
+    execution API schema; the serialized workload must carry the routing
+    fields and exclude the executor-only ones.
+    """
+    ti = TaskInstanceDTO(
+        id=uuid4(),
+        dag_version_id=uuid4(),
+        task_id="test_task",
+        dag_id="test_dag",
+        run_id="test_run",
+        try_number=2,
+        map_index=3,
+        pool_slots=4,
+        queue="jdk-17",
+        priority_weight=5,
+        external_executor_id="celery-id",
+        executor_config={"KubernetesExecutor": {"image": "custom"}},
+    )
+
+    dumped = ti.model_dump(mode="json")
+    assert "external_executor_id" not in dumped
+    assert "executor_config" not in dumped
+    # Executor-side scheduling fields stay on the workload wire (older workers
+    # deserialize the workload with a model that requires them) but are not
+    # part of the worker-facing schema.
+    assert dumped["pool_slots"] == 4
+    assert dumped["priority_weight"] == 5
+
+    received = GeneratedTaskInstance.model_validate(dumped)
+    assert received.queue == "jdk-17"
+    assert received.map_index == 3
+    assert not hasattr(received, "pool_slots")

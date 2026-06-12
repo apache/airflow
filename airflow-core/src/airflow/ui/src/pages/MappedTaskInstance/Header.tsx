@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Box, HStack } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
@@ -31,13 +31,26 @@ import { getDuration } from "src/utils";
 export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskInstanceSummary }) => {
   const { dagId = "", runId = "" } = useParams();
   const { t: translate } = useTranslation();
-  const entries: Array<{ label: string; value: number | ReactNode | string }> = [];
+  const entries: Array<{ key?: string; label: string; value: number | ReactNode | string }> = [];
   let taskCount: number = 0;
 
   Object.entries(taskInstance.child_states ?? {}).forEach(([state, count]) => {
     entries.push({
-      label: translate("total", { state: translate(`states.${state.toLowerCase()}`) }),
-      value: count,
+      key: state,
+      label: translate("total", { state: translate(`states.${state}`) }),
+      value: (
+        <HStack gap={2}>
+          <Box
+            bg={`${state}.solid`}
+            border="1px solid"
+            borderColor="border.emphasized"
+            borderRadius="2px"
+            height="10px"
+            width="10px"
+          />
+          {count}
+        </HStack>
+      ),
     });
     taskCount += count;
   });
