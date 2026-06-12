@@ -162,24 +162,26 @@ class TestSparkDriverTrigger:
         assert result == "RUNNING"
 
     @pytest.mark.asyncio
-    async def test_poll_returns_unknown_on_success_false(self):
-        """When success=false, _poll_driver_status must return UNKNOWN (HA failover)."""
-        trigger = self._make_trigger()
-        mock_resp = mock.AsyncMock()
-        mock_resp.raise_for_status = mock.MagicMock()
-        mock_resp.json = mock.AsyncMock(return_value={"success": False, "message": "not found"})
-        mock_resp.__aenter__ = mock.AsyncMock(return_value=mock_resp)
-        mock_resp.__aexit__ = mock.AsyncMock(return_value=False)
-
+    async def test_poll_skips_master_on_success_false(self):
+        """When success=false from one master, must try the next master URL."""
+        trigger = self._make_trigger(master_urls=["http://m1:6066", "http://m2:6066"])
+        bad_resp = mock.AsyncMock()
+        bad_resp.raise_for_status = mock.MagicMock()
+        bad_resp.json = mock.AsyncMock(return_value={"success": False, "message": "not found"})
+        bad_resp.__aenter__ = mock.AsyncMock(return_value=bad_resp)
+        bad_resp.__aexit__ = mock.AsyncMock(return_value=False)
+        good_resp = mock.AsyncMock()
+        good_resp.raise_for_status = mock.MagicMock()
+        good_resp.json = mock.AsyncMock(return_value={"success": True, "driverState": "RUNNING"})
+        good_resp.__aenter__ = mock.AsyncMock(return_value=good_resp)
+        good_resp.__aexit__ = mock.AsyncMock(return_value=False)
         mock_session = mock.AsyncMock()
-        mock_session.get.return_value = mock_resp
+        mock_session.get.side_effect = [bad_resp, good_resp]
         mock_session.__aenter__ = mock.AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = mock.AsyncMock(return_value=False)
-
         with mock.patch("aiohttp.ClientSession", return_value=mock_session):
             result = await trigger._poll_driver_status()
-
-        assert result == "UNKNOWN"
+        assert result == "RUNNING"
 
     @pytest.mark.asyncio
     async def test_poll_tries_next_master_on_exception(self):

@@ -370,6 +370,7 @@
   "apache.spark": {
     "deps": [
       "apache-airflow-providers-common-compat>=1.12.0",
+      "aiohttp>=3.14.0",
       "apache-airflow>=2.11.0",
       "grpcio-status>=1.67.0",
       "pyspark-client>=4.0.0",

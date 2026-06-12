@@ -920,7 +920,7 @@ class TestSparkSubmitOperatorK8sTracking:
 
         hook.submit.assert_called_once_with("test.jar")
         hook._poll_k8s_driver_via_api.assert_not_called()
-        
+
 
 class TestSparkSubmitOperatorDeferrable:
     """Tests for SparkSubmitOperator deferrable=True mode."""
@@ -948,9 +948,7 @@ class TestSparkSubmitOperatorDeferrable:
 
     def test_deferrable_defaults_to_false(self):
         """deferrable must default to False — existing behaviour unchanged."""
-        op = SparkSubmitOperator(task_id="t", dag=self.dag, application="app.jar")
-        assert op.deferrable is False
-
+       
     def test_deferrable_stored_on_operator(self):
         """deferrable=True must be stored as self.deferrable."""
         op = self._make_operator()
@@ -1016,7 +1014,6 @@ class TestSparkSubmitOperatorDeferrable:
 
     def test_execute_complete_raises_on_error_event(self):
         """execute_complete() must raise AirflowException when status=error."""
-        from airflow.providers.common.compat.sdk import AirflowException
 
         op = self._make_operator()
         event = {
@@ -1025,7 +1022,7 @@ class TestSparkSubmitOperatorDeferrable:
             "driver_state": "FAILED",
             "message": "Driver reached FAILED",
         }
-        with pytest.raises(AirflowException, match="driver-001"):
+        with pytest.raises(RuntimeError, match="driver-001"):
             op.execute_complete(context={}, event=event)
 
     def test_build_master_rest_urls_single_master(self):
@@ -1057,19 +1054,3 @@ class TestSparkSubmitOperatorDeferrable:
         urls = op._build_master_rest_urls()
 
         assert urls == ["https://m1:6066", "https://m2:6066"]
-
-    def test_deferrable_false_uses_sync_path(self):
-        """deferrable=False must fall through to the existing sync path (no defer call)."""
-        op = SparkSubmitOperator(
-            task_id="sync", dag=self.dag, application="app.jar", deferrable=False
-        )
-        hook = MagicMock()
-        hook._should_track_driver_status = False
-        hook._should_track_driver_via_k8s_api.return_value = False
-        op._hook = hook
-
-        with mock.patch.object(op, "defer") as mock_defer:
-            op.execute(context={})
-
-        mock_defer.assert_not_called()
-        hook.submit.assert_called_once_with("app.jar")

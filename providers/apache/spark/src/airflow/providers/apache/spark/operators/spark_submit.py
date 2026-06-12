@@ -32,7 +32,7 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 
 try:
-    from airflow.sdk.bases.resumablemixin import ResumableJobMixin
+    from airflow.sdk import ResumableJobMixin
 except ImportError:
     # Airflow 2 compat.
     # ResumableJobMixin does not exist in Airflow 2, so we need to add a stub to make it
@@ -305,7 +305,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
                 self.poll_until_complete(driver_id, context)
                 return self.get_job_result(driver_id, context)
         hook.submit(self.application)
-        
+
     def execute_complete(self, context: Context, event: dict) -> None:
         """Handle the result emitted by SparkDriverTrigger."""
         status = event.get("status")
@@ -322,10 +322,11 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
                 f"(state={driver_state}): {message}"
             )
         self.log.info("Spark driver %s finished successfully", driver_id)
-        
+
     def _build_master_rest_urls(self) -> list[str]:
         """
         Build Spark master REST API base URLs for SparkDriverTrigger.
+
         Supports HA (comma-separated master URL) and respects rest_scheme /
         rest_port connection extras (same logic as get_job_status).
         """

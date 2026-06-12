@@ -25,19 +25,19 @@ import aiohttp
 
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
-_SPARK_TERMINAL_STATES = frozenset({"FINISHED", "FAILED", "KILLED", "ERROR"})
-_SPARK_ACTIVE_STATES = frozenset({"SUBMITTED", "RUNNING", "RELAUNCHING", "UNKNOWN"})
+_SPARK_TERMINAL_STATES = {"FINISHED", "FAILED", "KILLED", "ERROR"}
 
 
 class SparkDriverTrigger(BaseTrigger):
     """
     Async trigger that polls the Spark standalone REST API until the driver
     reaches a terminal state. Used when SparkSubmitOperator runs with deferrable=True.
+
     :param driver_id: Spark driver submission ID returned by spark-submit --rest.
     :param master_urls: List of Spark master REST base URLs e.g. ["http://spark-master:6066"].
     :param poll_interval: Seconds between REST API polls. Defaults to 10.
     """
-    
+
     def __init__(
         self,
         driver_id: str,
@@ -58,7 +58,7 @@ class SparkDriverTrigger(BaseTrigger):
                 "poll_interval": self.poll_interval,
             },
         )
-    
+
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Poll Spark REST API until driver reaches a terminal state."""
         while True:
@@ -73,20 +73,20 @@ class SparkDriverTrigger(BaseTrigger):
                 )
                 return
             self.log.info("SparkDriverTrigger: driver=%s status=%s", self.driver_id, status)
-            upper = status.upper()
-            if upper in _SPARK_TERMINAL_STATES:
-                success = upper == "FINISHED"
+            normalized_status = status.upper()
+            if normalized_status in _SPARK_TERMINAL_STATES:
+                success = normalized_status == "FINISHED"
                 yield TriggerEvent(
                     {
                         "status": "success" if success else "error",
                         "driver_id": self.driver_id,
-                        "driver_state": upper,
-                        "message": f"Driver {self.driver_id} reached state {upper}",
+                        "driver_state": normalized_status,
+                        "message": f"Driver {self.driver_id} reached state {normalized_status}",
                     }
                 )
                 return
             await asyncio.sleep(self.poll_interval)
-            
+
     async def _poll_driver_status(self) -> str | None:
         """Try each master URL; return driverState str or None if all fail."""
         for url in self.master_urls:
@@ -102,9 +102,9 @@ class SparkDriverTrigger(BaseTrigger):
                                 self.driver_id,
                                 data.get("message", "unknown"),
                             )
-                            return "UNKNOWN"
+                            continue
                         return data["driverState"]
-            except Exception as exc:
+            except aiohttp.ClientError as exc:
                 self.log.warning("Could not reach Spark master at %s: %s", url, exc)
                 continue
         return None
