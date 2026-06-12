@@ -53,7 +53,6 @@ COMMANDS = [
 
 SUBCOMMANDS = [
     "auth login",
-    "tasks clear",
 ]
 
 
