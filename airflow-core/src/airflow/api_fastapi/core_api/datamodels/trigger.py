@@ -24,6 +24,21 @@ from pydantic import BeforeValidator, ConfigDict
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
+def _redact_kwargs(_: object) -> str:
+    """
+    Return empty trigger kwargs for API responses.
+
+    Trigger ``kwargs`` may contain sensitive values (for example credentials a deferred
+    operator hands to its trigger -- an API key, a token), so they are never exposed through
+    the REST API. The field is kept in the response schema for backwards compatibility -- so
+    existing API consumers do not break on a missing property -- but it is always returned
+    empty, as ``"{}"`` (the stringified empty dict, matching the string format the field has
+    always used). The triggerer still decrypts and uses the real kwargs at runtime; only the
+    API representation is emptied.
+    """
+    return "{}"
+
+
 class TriggerResponse(BaseModel):
     """Trigger serializer for responses."""
 
@@ -31,7 +46,7 @@ class TriggerResponse(BaseModel):
 
     id: int
     classpath: str
-    kwargs: Annotated[str, BeforeValidator(str)]
+    kwargs: Annotated[str, BeforeValidator(_redact_kwargs)]
     created_date: datetime
     queue: str | None
     triggerer_id: int | None
