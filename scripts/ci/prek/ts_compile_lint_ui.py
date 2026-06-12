@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import hashlib
 import sys
 from pathlib import Path
 
 from common_prek_utils import (
     AIRFLOW_CORE_ROOT_PATH,
     AIRFLOW_CORE_SOURCES_PATH,
+    AIRFLOW_ROOT_PATH,
     run_command,
     temporary_tsc_project,
 )
@@ -50,8 +52,20 @@ if __name__ == "__main__":
         all_ts_files.append("src/vite-env.d.ts")
     print("All TypeScript files:", all_ts_files)
 
-    run_command(["pnpm", "config", "set", "store-dir", ".pnpm-store"], cwd=dir)
-    run_command(["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"], cwd=dir)
+    hash_file = AIRFLOW_ROOT_PATH / ".build" / "ui" / "pnpm-install-hash.txt"
+    node_modules = dir / "node_modules"
+    current_hash = hashlib.sha256(
+        (dir / "package.json").read_bytes() + (dir / "pnpm-lock.yaml").read_bytes()
+    ).hexdigest()
+    stored_hash = hash_file.read_text().strip() if hash_file.exists() else ""
+
+    if node_modules.exists() and current_hash == stored_hash:
+        print("pnpm deps unchanged — skipping install.")
+    else:
+        run_command(["pnpm", "config", "set", "store-dir", ".pnpm-store"], cwd=dir)
+        run_command(["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"], cwd=dir)
+        hash_file.parent.mkdir(parents=True, exist_ok=True)
+        hash_file.write_text(current_hash)
     if any("/openapi/" in file for file in original_files):
         run_command(["pnpm", "codegen"], cwd=dir)
     if all_non_yaml_files:
