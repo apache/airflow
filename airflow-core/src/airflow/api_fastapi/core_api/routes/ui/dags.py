@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import func, select, union_all
+from sqlalchemy import func, literal, select, union_all
 from sqlalchemy.orm import defaultload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -312,25 +312,30 @@ def get_dag_run_state_counts(
     }
 
     if requested_dag_ids:
-        # Cap each (dag, state) count at STATE_COUNT_CAP via the (dag_id, state) index so a
-        # Dag with millions of runs is counted in ms, like the historical_metrics endpoint.
-        capped_branches = []
-        for dag_id in requested_dag_ids:
-            for state in DagRunState:
-                branch = select(DagRun.dag_id, DagRun.state).where(
-                    DagRun.dag_id == dag_id, DagRun.state == state
-                )
+        # One capped union per state, not a single (dag, state) union: keeping every
+        # branch on the same state lets the planner pick a uniform, efficient per-branch
+        # plan. A mixed-state union misplans and scans whole partitions (orders of
+        # magnitude slower). Each branch reads at most STATE_COUNT_CAP rows; the UI
+        # shows "N+" once a count reaches the cap.
+        for state in DagRunState:
+            branches = []
+            for dag_id in requested_dag_ids:
+                filters = [DagRun.dag_id == dag_id, DagRun.state == state]
                 if run_after_gte is not None:
-                    branch = branch.where(DagRun.run_after >= run_after_gte)
-                capped = branch.limit(STATE_COUNT_CAP).subquery()
-                capped_branches.append(select(capped.c.dag_id, capped.c.state))
-        union_subq = union_all(*capped_branches).subquery()
-        for row in session.execute(
-            select(union_subq.c.dag_id, union_subq.c.state, func.count().label("cnt")).group_by(
-                union_subq.c.dag_id, union_subq.c.state
-            )
-        ):
-            counts_by_dag[row.dag_id][DagRunState(row.state)] = row.cnt
+                    filters.append(DagRun.run_after >= run_after_gte)
+                capped = (
+                    select(literal(dag_id).label("dag_id"))
+                    .select_from(DagRun)
+                    .where(*filters)
+                    .limit(STATE_COUNT_CAP)
+                    .subquery()
+                )
+                branches.append(select(capped.c.dag_id))
+            counts = union_all(*branches).subquery()
+            for row in session.execute(
+                select(counts.c.dag_id, func.count().label("cnt")).group_by(counts.c.dag_id)
+            ):
+                counts_by_dag[row.dag_id][state] = row.cnt
 
     return DAGsRunStateCountsCollectionResponse(
         dags=[
