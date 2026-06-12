@@ -39,7 +39,6 @@ from __future__ import annotations
 
 import re
 import sys
-from os import walk
 from pathlib import Path
 
 from rich.console import Console
@@ -63,7 +62,6 @@ KNOWN_EXCEPTIONS: set[str] = {
 TOP_LEVEL_ANCHOR_RE = re.compile(r"^\.\.\s+_howto/connection:([a-zA-Z0-9_-]+):\s*$", re.MULTILINE)
 ANY_ANCHOR_RE = re.compile(r"^\.\.\s+_(howto/connection:[^\s]+?):\s*$", re.MULTILINE)
 REF_RE = re.compile(r":ref:`(?:[^`]*<(howto/connection:[^>]+)>|(howto/connection:[^`]+))`")
-SKIP_SCAN_DIRS = frozenset({"node_modules", ".pnpm-store"})
 
 
 def collect_connection_types() -> set[str]:
@@ -74,26 +72,18 @@ def collect_connection_types() -> set[str]:
     return conn_types
 
 
-def collect_files(root: Path, suffix: str) -> list[Path]:
-    files: list[Path] = []
-    for current_root, dirnames, filenames in walk(root):
-        dirnames[:] = [dirname for dirname in dirnames if dirname not in SKIP_SCAN_DIRS]
-        files.extend(Path(current_root, filename) for filename in filenames if filename.endswith(suffix))
-    return sorted(files)
-
-
 def collect_rst_files() -> list[Path]:
-    rst_files: list[Path] = collect_files(AIRFLOW_PROVIDERS_ROOT_PATH, ".rst")
+    rst_files: list[Path] = list(AIRFLOW_PROVIDERS_ROOT_PATH.rglob("*.rst"))
     core_docs = AIRFLOW_ROOT_PATH / "airflow-core" / "docs"
     if core_docs.is_dir():
-        rst_files.extend(collect_files(core_docs, ".rst"))
+        rst_files.extend(core_docs.rglob("*.rst"))
     return rst_files
 
 
 def collect_python_files() -> list[Path]:
-    py_files: list[Path] = collect_files(AIRFLOW_PROVIDERS_ROOT_PATH, ".py")
+    py_files: list[Path] = list(AIRFLOW_PROVIDERS_ROOT_PATH.rglob("*.py"))
     if AIRFLOW_CORE_SOURCES_PATH.is_dir():
-        py_files.extend(collect_files(AIRFLOW_CORE_SOURCES_PATH, ".py"))
+        py_files.extend(AIRFLOW_CORE_SOURCES_PATH.rglob("*.py"))
     return py_files
 
 
