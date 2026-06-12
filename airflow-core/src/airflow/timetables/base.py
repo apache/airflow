@@ -143,8 +143,8 @@ class DagRunInfo(NamedTuple):
     data_interval: DataInterval | None
     """The data interval this DagRun to operate over."""
 
-    partition_date: DateTime | None
-    partition_key: str | None
+    partition_date: DateTime | None = None
+    partition_key: str | None = None
 
     @classmethod
     def exact(cls, at: DateTime) -> DagRunInfo:
