@@ -323,10 +323,10 @@ class _TokenBinding:
     """
     Per-(event, subscriber) resolution bookkeeping for one :class:`AckToken`.
 
-    A subscriber resolves as ``acked`` only when all three hold: ``ack()``
-    was called (explicitly or implicitly on unsubscribe), the binding window
-    is closed (the subscriber moved past the event), and every trigger event
-    seq the subscriber derived from the event has been confirmed persisted.
+    A subscriber resolves as ``acked`` only when all three hold:
+    1. ``ack()`` was called (explicitly or implicitly on unsubscribe)
+    2. the binding window is closed (the subscriber moved past the event)
+    3. every trigger event seq the subscriber derived from the event has been confirmed persisted
     """
 
     acked: bool = False

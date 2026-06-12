@@ -58,6 +58,7 @@ from airflow.jobs.triggerer_job_runner import (
     ToTriggerSupervisor,
     TriggerCommsDecoder,
     TriggererJobRunner,
+    TriggerEventEntry,
     TriggerLoggingFactory,
     TriggerRunner,
     TriggerRunnerSupervisor,
@@ -76,7 +77,8 @@ from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDe
 from airflow.sdk import DAG, BaseHook, BaseOperator
 from airflow.sdk.execution_time.comms import ToSupervisor, ToTask, _RequestFrame, _ResponseFrame
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
+from airflow.triggers.shared_stream import SharedStreamProducer
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -916,9 +918,6 @@ class TestTriggerRunner:
 
     def test_shared_stream_ack_mode_integration(self, session) -> None:
         """A BaseEventTrigger whose producer factory is overridden advances only after the acked event's persistence is confirmed."""
-        from airflow.triggers.base import BaseEventTrigger, TriggerEvent
-        from airflow.triggers.shared_stream import SharedStreamProducer
-
         advanced: list[Any] = []
         # Container lets _drive() write trigger_runner back for post-run assertions.
         state: dict[str, Any] = {}
@@ -1138,9 +1137,11 @@ class TestTriggerRunner:
     async def test_sync_state_to_supervisor(self, supervisor_builder):
         trigger_runner = TriggerRunner()
         trigger_runner.comms_decoder = AsyncMock(spec=TriggerCommsDecoder)
-        trigger_runner.events.append((1, TriggerEvent(payload={"status": "SUCCESS"}), None))
-        trigger_runner.events.append((2, TriggerEvent(payload={"status": "FAILED"}), None))
-        trigger_runner.events.append((3, TriggerEvent(payload={"status": "SUCCESS", "data": object()}), None))
+        trigger_runner.events.append(TriggerEventEntry(1, TriggerEvent(payload={"status": "SUCCESS"}), None))
+        trigger_runner.events.append(TriggerEventEntry(2, TriggerEvent(payload={"status": "FAILED"}), None))
+        trigger_runner.events.append(
+            TriggerEventEntry(3, TriggerEvent(payload={"status": "SUCCESS", "data": object()}), None)
+        )
 
         async def asend_side_effect(msg):
             if msg.events and len(msg.events) == 3:
@@ -1233,7 +1234,7 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     # This calls Trigger.submit_event, which will unlink the trigger from the task instance
 
     # Simulate this call: supervisor1._service_subprocess()
-    supervisor1.events.append((trigger_orm.id, TriggerEvent(True), None))
+    supervisor1.events.append(TriggerEventEntry(trigger_orm.id, TriggerEvent(True), None))
     supervisor1.handle_events()
     trigger_orm = session.get(Trigger, trigger_orm.id)
     # This is the "pre"-condition we need to assert to test the race condition
@@ -2408,11 +2409,6 @@ async def test_unknown_frame_id_doesnt_crash_reader(decoder_pair):
     assert not decoder._reader_task.done(), "reader loop crashed unexpectedly"
 
 
-# ---------------------------------------------------------------------------
-# Shared-stream persist confirmations (runner <-> supervisor)
-# ---------------------------------------------------------------------------
-
-
 def test_trigger_state_messages_round_trip_with_seqs():
     """Event triples and persist confirmations survive the wire encode/decode."""
     changes_adapter = TypeAdapter(ToTriggerSupervisor)
@@ -2437,8 +2433,8 @@ def test_handle_events_records_persist_confirmations(jobless_supervisor):
     """handle_events confirms the seq of a persisted event; events without a seq are not confirmed."""
     event_with_seq = TriggerEvent(True)
     event_without_seq = TriggerEvent("x")
-    jobless_supervisor.events.append((1, event_with_seq, 7))
-    jobless_supervisor.events.append((2, event_without_seq, None))
+    jobless_supervisor.events.append(TriggerEventEntry(1, event_with_seq, 7))
+    jobless_supervisor.events.append(TriggerEventEntry(2, event_without_seq, None))
 
     with mock.patch.object(TriggerRunnerSupervisor, "on_trigger_event", autospec=True) as mock_event:
         jobless_supervisor.handle_events()
@@ -2453,7 +2449,7 @@ def test_handle_events_records_persist_confirmations(jobless_supervisor):
 
 def test_handle_events_does_not_confirm_seq_when_persist_fails(jobless_supervisor):
     """A seq whose event failed to persist is never confirmed, so the broker advance fails out."""
-    jobless_supervisor.events.append((1, TriggerEvent(True), 7))
+    jobless_supervisor.events.append(TriggerEventEntry(1, TriggerEvent(True), 7))
 
     with mock.patch.object(
         TriggerRunnerSupervisor,
