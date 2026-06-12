@@ -6852,7 +6852,7 @@ requires-dist = [
     { name = "numpy", marker = "python_full_version == '3.12.*' and extra == 'numpy'", specifier = ">=1.26.0" },
     { name = "numpy", marker = "python_full_version == '3.13.*' and extra == 'numpy'", specifier = ">=2.1.0" },
     { name = "numpy", marker = "python_full_version >= '3.14' and extra == 'numpy'", specifier = ">=2.4.3" },
-    { name = "oracledb", specifier = ">=2.0.0" },
+    { name = "oracledb", specifier = ">=2.3.0" },
 ]
 provides-extras = ["numpy", "openlineage"]
 
