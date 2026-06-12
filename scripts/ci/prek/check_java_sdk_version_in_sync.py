@@ -30,8 +30,13 @@ The authoritative version lives in five places that must stay in sync:
   -> java.toolchain.languageVersion.set(JavaLanguageVersion.of(<n>))
   -> java.sourceCompatibility = JavaVersion.VERSION_<n>
   -> kotlin.compilerOptions.jvmTarget = JvmTarget.JVM_<n>
-- scripts/docker/install_jdk.sh
-  -> TEMURIN_VERSION="<n>"
+- scripts/docker/install_os_dependencies.sh
+  -> TEMURIN_VERSION=${TEMURIN_VERSION:-<n>}
+- Dockerfile
+  -> TEMURIN_VERSION=${TEMURIN_VERSION:-<n>}
+- Dockerfile.ci
+  -> TEMURIN_VERSION=${TEMURIN_VERSION:-<n>}
+  -> ENV TEMURIN_VERSION="<n>"
 """
 
 from __future__ import annotations
@@ -94,9 +99,24 @@ SITES = [
         pattern=re.compile(r"JvmTarget\.JVM_(\d+)"),
     ),
     VersionSite(
-        label="scripts/docker/install_jdk.sh  (TEMURIN_VERSION)",
-        path=REPO_ROOT.joinpath("scripts", "docker", "install_jdk.sh"),
-        pattern=re.compile(r'^readonly TEMURIN_VERSION="(\d+)"', re.MULTILINE),
+        label="scripts/docker/install_os_dependencies.sh  (TEMURIN_VERSION default)",
+        path=REPO_ROOT.joinpath("scripts", "docker", "install_os_dependencies.sh"),
+        pattern=re.compile(r"^TEMURIN_VERSION=\$\{TEMURIN_VERSION:-(\d+)\}", re.MULTILINE),
+    ),
+    VersionSite(
+        label="Dockerfile  (TEMURIN_VERSION heredoc default)",
+        path=REPO_ROOT.joinpath("Dockerfile"),
+        pattern=re.compile(r"^TEMURIN_VERSION=\$\{TEMURIN_VERSION:-(\d+)\}", re.MULTILINE),
+    ),
+    VersionSite(
+        label="Dockerfile.ci  (TEMURIN_VERSION heredoc default)",
+        path=REPO_ROOT.joinpath("Dockerfile.ci"),
+        pattern=re.compile(r"^TEMURIN_VERSION=\$\{TEMURIN_VERSION:-(\d+)\}", re.MULTILINE),
+    ),
+    VersionSite(
+        label="Dockerfile.ci  (ENV TEMURIN_VERSION)",
+        path=REPO_ROOT.joinpath("Dockerfile.ci"),
+        pattern=re.compile(r'^ENV TEMURIN_VERSION="(\d+)"', re.MULTILINE),
     ),
 ]
 
