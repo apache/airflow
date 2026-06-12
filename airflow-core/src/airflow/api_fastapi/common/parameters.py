@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Sequence
 from datetime import datetime
@@ -503,6 +504,66 @@ def search_param_factory(
         return search_parm.set_value(value)
 
     return depends_search
+
+
+class _RegexParam(BaseParam[str]):
+    """
+    Filter using database-level regex matching (regexp_match).
+
+    SQLAlchemy's ``regexp_match`` is supported on PostgreSQL (``~`` operator),
+    MySQL/MariaDB (``REGEXP``), and SQLite (via Python ``re.match``).
+    Note: SQLite uses ``re.match`` semantics (anchored at the start of the
+    string), while PostgreSQL uses ``re.search`` (matches anywhere).
+    """
+
+    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
+        super().__init__(skip_none=skip_none)
+        self.attribute: ColumnElement = attribute
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(self.attribute.regexp_match(self.value))
+
+    @classmethod
+    def depends(cls, *args: Any, **kwargs: Any) -> Self:
+        raise NotImplementedError("Use regex_param_factory instead, depends is not implemented.")
+
+
+def _validate_regex_pattern(value: str | None) -> str | None:
+    """Validate that the regex pattern is syntactically correct."""
+    if value is None:
+        return value
+    try:
+        re.compile(value)
+    except re.error as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid regular expression: {e}",
+        )
+    return value
+
+
+_DEFAULT_REGEX_DESCRIPTION = (
+    "Regex filter. Uses database-native regex "
+    "(PostgreSQL ~ operator, MySQL REGEXP, SQLite re.match). "
+    "Note: on SQLite, matching is anchored at the start of the string."
+)
+
+
+def regex_param_factory(
+    attribute: ColumnElement,
+    pattern_name: str,
+    skip_none: bool = True,
+    description: str = _DEFAULT_REGEX_DESCRIPTION,
+) -> Callable[[str | None], _RegexParam]:
+    def depends_regex(
+        value: str | None = Query(alias=pattern_name, default=None, description=description),
+    ) -> _RegexParam:
+        _validate_regex_pattern(value)
+        return _RegexParam(attribute, skip_none).set_value(value)
+
+    return depends_regex
 
 
 def prefix_search_param_factory(
@@ -1564,6 +1625,13 @@ QueryAssetAliasNamePatternSearch = Annotated[
 ]
 QueryAssetAliasNamePrefixPatternSearch = Annotated[
     _PrefixSearchParam, Depends(prefix_search_param_factory(AssetAliasModel.name, "name_prefix_pattern"))
+]
+QueryAssetEventPartitionKeyFilter = Annotated[
+    FilterParam[str | None],
+    Depends(filter_param_factory(AssetEvent.partition_key, str | None, filter_name="partition_key")),
+]
+QueryAssetEventPartitionKeyRegex = Annotated[
+    _RegexParam, Depends(regex_param_factory(AssetEvent.partition_key, "partition_key_pattern"))
 ]
 QueryAssetDagIdPatternSearch = Annotated[
     _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter.depends)

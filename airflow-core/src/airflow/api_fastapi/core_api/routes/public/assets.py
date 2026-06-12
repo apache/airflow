@@ -37,6 +37,8 @@ from airflow.api_fastapi.common.parameters import (
     QueryAssetAliasNamePatternSearch,
     QueryAssetAliasNamePrefixPatternSearch,
     QueryAssetDagIdPatternSearch,
+    QueryAssetEventPartitionKeyFilter,
+    QueryAssetEventPartitionKeyRegex,
     QueryAssetNamePatternSearch,
     QueryAssetNamePrefixPatternSearch,
     QueryLimit,
@@ -319,12 +321,20 @@ def get_asset_events(
     source_map_index: Annotated[
         FilterParam[int | None], Depends(filter_param_factory(AssetEvent.source_map_index, int | None))
     ],
+    partition_key: QueryAssetEventPartitionKeyFilter,
+    partition_key_pattern: QueryAssetEventPartitionKeyRegex,
     name_pattern: QueryAssetNamePatternSearch,
     name_prefix_pattern: QueryAssetNamePrefixPatternSearch,
     timestamp_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("timestamp", AssetEvent))],
     session: SessionDep,
 ) -> AssetEventCollectionResponse:
     """Get asset events."""
+    if partition_key.value is not None and partition_key_pattern.value is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="partition_key and partition_key_pattern are mutually exclusive.",
+        )
+
     base_statement = select(AssetEvent)
     if name_pattern.value or name_prefix_pattern.value:
         base_statement = base_statement.join(AssetModel, AssetEvent.asset_id == AssetModel.id)
@@ -337,6 +347,8 @@ def get_asset_events(
             source_task_id,
             source_run_id,
             source_map_index,
+            partition_key,
+            partition_key_pattern,
             name_pattern,
             name_prefix_pattern,
             timestamp_range,

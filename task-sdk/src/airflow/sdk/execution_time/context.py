@@ -1033,6 +1033,8 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
     _before: str | datetime | None
     _ascending: bool
     _limit: int | None
+    _partition_key: str | None
+    _partition_key_pattern: str | None
     _asset_name: str | None
     _asset_uri: str | None
     _alias_name: str | None
@@ -1047,6 +1049,8 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._before = None
         self._ascending = True
         self._limit = None
+        self._partition_key = None
+        self._partition_key_pattern = None
 
     def after(self, after: str) -> Self:
         self._after = after
@@ -1068,6 +1072,20 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._reset_cache()
         return self
 
+    def partition_key(self, key: str) -> Self:
+        """Filter by exact partition key match."""
+        self._partition_key = key
+        self._partition_key_pattern = None
+        self._reset_cache()
+        return self
+
+    def partition_key_pattern(self, pattern: str) -> Self:
+        """Filter by partition key regex pattern."""
+        self._partition_key_pattern = pattern
+        self._partition_key = None
+        self._reset_cache()
+        return self
+
     @functools.cached_property
     def _asset_events(self) -> list[AssetEventResult]:
         from airflow.sdk.execution_time.comms import (
@@ -1083,6 +1101,8 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
             "before": self._before,
             "ascending": self._ascending,
             "limit": self._limit,
+            "partition_key": self._partition_key,
+            "partition_key_pattern": self._partition_key_pattern,
         }
 
         msg: ToSupervisor
