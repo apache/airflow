@@ -687,9 +687,21 @@ class SerializedDagModel(Base):
             and dag_version
             and dag_version.bundle_name == bundle_name
         ):
-            if name_updated:
-                # The serialized DAG itself is unchanged, but deadline alert name(s) were
-                # updated in the DB, so report True so callers know a write did occur.
+            # Serialized content is unchanged, so we don't create a new DagVersion.
+            # But if the bundle advanced, refresh the latest version's pointer in place — tasks resolve
+            # their code from ``ti.dag_version.bundle_version`` at run time, so a stale
+            # pointer makes runs execute an outdated commit.
+            bundle_metadata_changed = (
+                dag_version.bundle_version != bundle_version or dag_version.version_data != version_data
+            )
+            if bundle_metadata_changed:
+                dag_version.bundle_version = bundle_version
+                dag_version.version_data = version_data
+                session.merge(dag_version)
+                DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
+            if name_updated or bundle_metadata_changed:
+                # A write occurred — a deadline alert name update and/or a bundle
+                # metadata refresh — so report True so callers know the DB changed.
                 return True
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return False

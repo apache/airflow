@@ -585,6 +585,69 @@ class TestSerializedDagModel:
         # There should now be two versions of the DAG
         assert session.scalar(select(func.count()).select_from(DagVersion)) == 2
 
+    def test_bundle_version_refreshed_in_place_when_hash_unchanged(self, dag_maker, session):
+        """When the bundle advances to a new version/commit but the DAG's serialized
+        content is unchanged, ``write_dag`` must refresh the latest DagVersion's
+        ``bundle_version`` in place (so tasks resolve the current commit) without
+        creating a new DagVersion (which would inflate versions on every commit).
+        """
+        with dag_maker("test_dag_bundle_version_refresh", bundle_name="bundleA") as dag:
+            EmptyOperator(task_id="task1")
+        # Pin the version with task instances so the in-place "no TI" branch is NOT taken.
+        dag_maker.create_dagrun(run_id="test_run")
+
+        did_write = SDM.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name="bundleA",
+            bundle_version="commit_A",
+            version_data={"manifest": "A"},
+            session=session,
+        )
+        assert did_write is True
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+        latest = DagVersion.get_latest_version(dag.dag_id, session=session)
+        assert latest.bundle_version == "commit_A"
+        assert latest.version_data == {"manifest": "A"}
+
+        # Same content, same bundle_name, but the bundle moved to a new commit.
+        did_write = SDM.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name="bundleA",
+            bundle_version="commit_B",
+            version_data={"manifest": "B"},
+            session=session,
+        )
+
+        # No new version was created, but the latest version's bundle pointer advanced.
+        assert did_write is True
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+        latest = DagVersion.get_latest_version(dag.dag_id, session=session)
+        assert latest.bundle_version == "commit_B"
+        assert latest.version_data == {"manifest": "B"}
+
+    def test_write_dag_unchanged_with_same_bundle_version_skips_write(self, dag_maker, session):
+        """A re-parse with identical content and identical bundle metadata is a no-op."""
+        with dag_maker("test_dag_unchanged_noop", bundle_name="bundleA") as dag:
+            EmptyOperator(task_id="task1")
+        dag_maker.create_dagrun(run_id="test_run")
+
+        SDM.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name="bundleA",
+            bundle_version="commit_A",
+            session=session,
+        )
+
+        did_write = SDM.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name="bundleA",
+            bundle_version="commit_A",
+            session=session,
+        )
+
+        assert did_write is False
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+
     def test_hash_method_removes_fileloc_and_remains_consistent(self):
         """Test that the hash method removes fileloc before hashing."""
         test_data = {
