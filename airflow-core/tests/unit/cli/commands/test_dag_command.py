@@ -30,6 +30,7 @@ import msgspec
 import pendulum
 import pytest
 import time_machine
+from airflowctl.api.datamodels.generated import DAGResponse as AirflowCtlDAGResponse
 from airflowctl.api.operations import ServerResponseError
 from sqlalchemy import select
 
@@ -343,16 +344,6 @@ class TestCliDags:
         for value in dag_details_values:
             assert value in out
 
-    def test_cli_list_dags(self, stdout_capture):
-        args = self.parser.parse_args(["dags", "list", "--output", "json"])
-        with stdout_capture as temp_stdout:
-            dag_command.dag_list_dags(args)
-            out = temp_stdout.getvalue()
-            dag_list = json.loads(out)
-        for key in ["dag_id", "fileloc", "owners", "is_paused"]:  # "bundle_name", "bundle_version"?
-            assert key in dag_list[0]
-        assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
-
     def test_cli_list_local_dags(self, stdout_capture):
         # Clear the database
         clear_db_dags()
@@ -390,42 +381,6 @@ class TestCliDags:
         # Rebuild Test DB for other tests
         self.setup_class()
 
-    def test_cli_list_dags_custom_cols(self, stdout_capture):
-        args = self.parser.parse_args(
-            ["dags", "list", "--output", "json", "--columns", "dag_id,last_parsed_time"]
-        )
-        with stdout_capture as temp_stdout:
-            dag_command.dag_list_dags(args)
-            out = temp_stdout.getvalue()
-            dag_list = json.loads(out)
-        for key in ["dag_id", "last_parsed_time"]:
-            assert key in dag_list[0]
-        for key in ["fileloc", "owners", "is_paused"]:
-            assert key not in dag_list[0]
-
-    def test_cli_list_dags_invalid_cols(self, stderr_capture):
-        args = self.parser.parse_args(["dags", "list", "--output", "json", "--columns", "dag_id,invalid_col"])
-        with stderr_capture as temp_stderr:
-            dag_command.dag_list_dags(args)
-            out = temp_stderr.getvalue()
-        assert "Ignoring the following invalid columns: ['invalid_col']" in out
-
-    @conf_vars({("core", "load_examples"): "false"})
-    def test_cli_list_dags_prints_import_errors(
-        self, configure_testing_dag_bundle, get_test_dag, stderr_capture
-    ):
-        path_to_parse = TEST_DAGS_FOLDER / "test_invalid_cron.py"
-        get_test_dag("test_invalid_cron")
-
-        args = self.parser.parse_args(["dags", "list", "--output", "yaml", "--bundle-name", "testing"])
-
-        with configure_testing_dag_bundle(path_to_parse):
-            with stderr_capture as temp_stderr:
-                dag_command.dag_list_dags(args)
-                out = temp_stderr.getvalue()
-
-        assert "Failed to load all files." in out
-
     @conf_vars({("core", "load_examples"): "false"})
     def test_cli_list_dags_prints_local_import_errors(
         self, configure_testing_dag_bundle, get_test_dag, stderr_capture
@@ -447,18 +402,6 @@ class TestCliDags:
         assert "Failed to load all files." in out
         # Rebuild Test DB for other tests
         self.setup_class()
-
-    @mock.patch("airflow.models.DagModel.get_dagmodel")
-    def test_list_dags_none_get_dagmodel(self, mock_get_dagmodel, stdout_capture):
-        mock_get_dagmodel.return_value = None
-        args = self.parser.parse_args(["dags", "list", "--output", "json"])
-        with stdout_capture as temp_stdout:
-            dag_command.dag_list_dags(args)
-            out = temp_stdout.getvalue()
-            dag_list = json.loads(out)
-        for key in ["dag_id", "fileloc", "owners", "is_paused"]:
-            assert key in dag_list[0]
-        assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
 
     def test_dagbag_dag_col(self, session):
         dagbag = DBDagBag()
@@ -1811,12 +1754,113 @@ class TestCliDagsApiClientCommands:
         cls.parser = cli_parser.get_parser()
 
     @pytest.fixture(autouse=True)
-    def _default_trigger_response(self, mock_cli_api_client):
-        """Give the mocked ``dags.trigger`` a dict response so ``print_as`` can render it."""
+    def _default_api_responses(self, mock_cli_api_client):
+        """Configure default mocked responses for Dag API client commands."""
         mock_cli_api_client.dags.trigger.return_value.model_dump.return_value = {
             "dag_id": "example_bash_operator",
             "dag_run_id": "test_run",
         }
+        mock_cli_api_client.dags.list.return_value.dags = [
+            self._make_dag_response("example_bash_operator", "example_dags")
+        ]
+
+    @staticmethod
+    def _make_dag_response(
+        dag_id: str, bundle_name: str, has_import_errors: bool = False
+    ) -> AirflowCtlDAGResponse:
+        return AirflowCtlDAGResponse(
+            dag_id=dag_id,
+            dag_display_name=dag_id,
+            is_paused=False,
+            is_stale=False,
+            last_parsed_time=datetime(2026, 6, 12, tzinfo=timezone.utc),
+            bundle_name=bundle_name,
+            bundle_version="1",
+            relative_fileloc=f"{dag_id}.py",
+            fileloc=f"/dags/{dag_id}.py",
+            timetable_partitioned=False,
+            timetable_periodic=True,
+            tags=[],
+            max_active_tasks=16,
+            max_consecutive_failed_dag_runs=0,
+            has_task_concurrency_limits=False,
+            has_import_errors=has_import_errors,
+            owners=["airflow"],
+            is_backfillable=True,
+            file_token="file-token",
+        )
+
+    def test_list_dags(self, mock_cli_api_client, stdout_capture):
+        args = self.parser.parse_args(["dags", "list", "--output", "json"])
+
+        with stdout_capture as temp_stdout:
+            dag_command.dag_list_dags(args)
+            dag_list = json.loads(temp_stdout.getvalue())
+
+        assert len(dag_list) == 1
+        assert dag_list[0]["dag_id"] == "example_bash_operator"
+        assert dag_list[0]["fileloc"] == "/dags/example_bash_operator.py"
+        assert dag_list[0]["owners"] == ["airflow"]
+        assert dag_list[0]["bundle_name"] == "example_dags"
+        mock_cli_api_client.dags.list.assert_called_once_with()
+
+    def test_list_dags_custom_cols(self, mock_cli_api_client, stdout_capture):
+        args = self.parser.parse_args(
+            ["dags", "list", "--output", "json", "--columns", "dag_id,last_parsed_time"]
+        )
+
+        with stdout_capture as temp_stdout:
+            dag_command.dag_list_dags(args)
+            dag_list = json.loads(temp_stdout.getvalue())
+
+        assert dag_list == [
+            {"dag_id": "example_bash_operator", "last_parsed_time": "2026-06-12 00:00:00+00:00"}
+        ]
+
+    def test_list_dags_filters_bundle_names(self, mock_cli_api_client, stdout_capture):
+        mock_cli_api_client.dags.list.return_value.dags = [
+            self._make_dag_response("dag_b", "bundle_b"),
+            self._make_dag_response("dag_a", "bundle_a"),
+            self._make_dag_response("dag_c", "bundle_c"),
+        ]
+        args = self.parser.parse_args(
+            [
+                "dags",
+                "list",
+                "--output",
+                "json",
+                "--bundle-name",
+                "bundle_a",
+                "--bundle-name",
+                "bundle_c",
+            ]
+        )
+
+        with stdout_capture as temp_stdout:
+            dag_command.dag_list_dags(args)
+            dag_list = json.loads(temp_stdout.getvalue())
+
+        assert [dag["dag_id"] for dag in dag_list] == ["dag_a", "dag_c"]
+
+    def test_list_dags_invalid_cols(self, stderr_capture):
+        args = self.parser.parse_args(["dags", "list", "--output", "json", "--columns", "dag_id,invalid_col"])
+
+        with stderr_capture as temp_stderr:
+            dag_command.dag_list_dags(args)
+
+        assert "Ignoring the following invalid columns: ['invalid_col']" in temp_stderr.getvalue()
+
+    def test_list_dags_prints_matching_bundle_import_errors(self, mock_cli_api_client, stderr_capture):
+        mock_cli_api_client.dags.list.return_value.dags = [
+            self._make_dag_response("dag_a", "bundle_a", has_import_errors=True),
+            self._make_dag_response("dag_b", "bundle_b"),
+        ]
+        args = self.parser.parse_args(["dags", "list", "--output", "json", "--bundle-name", "bundle_a"])
+
+        with stderr_capture as temp_stderr:
+            dag_command.dag_list_dags(args)
+
+        assert "Failed to load all files." in temp_stderr.getvalue()
 
     def test_trigger_dag(self, mock_cli_api_client):
         dag_command.dag_trigger(

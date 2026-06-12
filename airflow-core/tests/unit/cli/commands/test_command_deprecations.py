@@ -37,6 +37,7 @@ from airflow.exceptions import RemovedInAirflow4Warning
 DEPRECATED_CLI_COMMANDS = [
     (dag_command.dag_trigger, ["dags", "trigger", "example_dag", "--run-id=x"], "airflowctl dags trigger"),
     (dag_command.dag_delete, ["dags", "delete", "example_dag", "--yes"], "airflowctl dags delete"),
+    (dag_command.dag_list_dags, ["dags", "list"], "airflowctl dags list"),
     (pool_command.pool_list, ["pools", "list"], "airflowctl pools list"),
     (pool_command.pool_get, ["pools", "get", "foo"], "airflowctl pools get"),
     (pool_command.pool_set, ["pools", "set", "foo", "1", "desc"], "airflowctl pools create"),

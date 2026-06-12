@@ -30,7 +30,8 @@ import subprocess
 import sys
 from typing import TYPE_CHECKING, cast
 
-from sqlalchemy import func, select
+from rich import print as rich_print
+from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.dag_run import TriggerDAGRunPostBody
@@ -62,7 +63,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator
+    from collections.abc import Iterator
 
     from graphviz.dot import Dot
     from sqlalchemy.orm import Session
@@ -487,62 +488,60 @@ def dag_next_execution(args) -> None:
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl dags list")
 @suppress_logs_and_warning
 @providers_configuration_loaded
-@provide_session
-def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
-    """Display dags with or without stats at the command line."""
+def dag_list_dags(args) -> None:
+    """Display Dags with or without stats at the command line."""
     cols = args.columns if args.columns else []
 
     if invalid_cols := [c for c in cols if c not in DAG_DETAIL_FIELDS]:
-        from rich import print as rich_print
-
         rich_print(
             f"[red][bold]Error:[/bold] Ignoring the following invalid columns: {invalid_cols}.  "
             f"List of valid columns: {sorted(DAG_DETAIL_FIELDS)}",
             file=sys.stderr,
         )
 
+    if args.local:
+        _list_local_dags(args, cols=cols)
+    else:
+        _list_dags_from_api(args, cols=cols)
+
+
+def _print_dag_import_error_warning() -> None:
+    rich_print(
+        "[red][bold]Error:[/bold] Failed to load all files. "
+        "For details, run `airflow dags list-import-errors`",
+        file=sys.stderr,
+    )
+
+
+@provide_session
+def _list_local_dags(args, cols: list[str] | tuple[str, ...], *, session: Session = NEW_SESSION) -> None:
+    """List Dags parsed from local Dag bundles."""
     dagbag_import_errors = 0
     dags_list = []
-    if args.local:
-        from airflow.dag_processing.dagbag import DagBag
 
-        # Get import errors from the local area
-        if args.bundle_name:
-            manager = DagBundlesManager()
-            validate_dag_bundle_arg(args.bundle_name)
-            all_bundles = list(manager.get_all_dag_bundles())
-            bundles_to_search = set(args.bundle_name)
+    if args.bundle_name:
+        manager = DagBundlesManager()
+        validate_dag_bundle_arg(args.bundle_name)
+        all_bundles = list(manager.get_all_dag_bundles())
+        bundles_to_search = set(args.bundle_name)
 
-            for bundle in all_bundles:
-                if bundle.name in bundles_to_search:
-                    bundle_dagbag = BundleDagBag(
-                        bundle.path, bundle_path=bundle.path, bundle_name=bundle.name
-                    )
-                    bundle_dagbag.collect_dags()
-                    dags_list.extend(list(bundle_dagbag.dags.values()))
-                    dagbag_import_errors += len(bundle_dagbag.import_errors)
-        else:
-            dagbag = DagBag()
-            dagbag.collect_dags()
-            dags_list.extend(list(dagbag.dags.values()))
-            dagbag_import_errors += len(dagbag.import_errors)
+        for bundle in all_bundles:
+            if bundle.name in bundles_to_search:
+                bundle_dagbag = BundleDagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
+                bundle_dagbag.collect_dags()
+                dags_list.extend(list(bundle_dagbag.dags.values()))
+                dagbag_import_errors += len(bundle_dagbag.import_errors)
     else:
-        dags_list.extend(cast("DAG", sm.dag) for sm in session.scalars(select(SerializedDagModel)))
-        pie_stmt = select(func.count()).select_from(ParseImportError)
-        if args.bundle_name:
-            pie_stmt = pie_stmt.where(ParseImportError.bundle_name.in_(args.bundle_name))
-        dagbag_import_errors = session.scalar(pie_stmt) or 0
+        dagbag = DagBag()
+        dagbag.collect_dags()
+        dags_list.extend(list(dagbag.dags.values()))
+        dagbag_import_errors += len(dagbag.import_errors)
 
     if dagbag_import_errors > 0:
-        from rich import print as rich_print
-
-        rich_print(
-            "[red][bold]Error:[/bold] Failed to load all files. "
-            "For details, run `airflow dags list-import-errors`",
-            file=sys.stderr,
-        )
+        _print_dag_import_error_warning()
 
     def get_dag_detail(dag: DAG) -> dict:
         if dag_model := DagModel.get_dagmodel(dag.dag_id, session=session):
@@ -553,22 +552,33 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
             return dag_detail
         return {col: dag_detail[col] for col in cols if col in DAG_DETAIL_FIELDS}
 
-    def filter_dags_by_bundle(dags: Iterable[DAG], bundle_names: list[str] | None) -> Iterable[DAG]:
-        """Filter DAGs based on the specified bundle name, if provided."""
-        if not bundle_names:
-            return dags
+    AirflowConsole().print_as(
+        data=sorted(dags_list, key=operator.attrgetter("dag_id")),
+        output=args.output,
+        mapper=get_dag_detail,
+    )
 
-        validate_dag_bundle_arg(bundle_names)
-        selected_dag_ids = set(
-            session.scalars(select(DagModel.dag_id).where(DagModel.bundle_name.in_(bundle_names)))
-        )
-        return (dag for dag in dags if dag.dag_id in selected_dag_ids)
+
+@provide_api_client
+def _list_dags_from_api(args, cols: list[str] | tuple[str, ...], api_client: Client = NEW_API_CLIENT) -> None:
+    """List Dags through the Public API."""
+    dags_list = list(api_client.dags.list().dags)
+
+    if args.bundle_name:
+        bundle_names = set(args.bundle_name)
+        dags_list = [dag for dag in dags_list if dag.bundle_name in bundle_names]
+
+    if any(dag.has_import_errors for dag in dags_list):
+        _print_dag_import_error_warning()
+
+    def get_dag_detail(dag) -> dict:
+        dag_detail = dag.model_dump()
+        if not cols:
+            return dag_detail
+        return {col: dag_detail[col] for col in cols if col in DAG_DETAIL_FIELDS}
 
     AirflowConsole().print_as(
-        data=sorted(
-            filter_dags_by_bundle(dags_list, args.bundle_name if not args.local else None),
-            key=operator.attrgetter("dag_id"),
-        ),
+        data=sorted(dags_list, key=operator.attrgetter("dag_id")),
         output=args.output,
         mapper=get_dag_detail,
     )
