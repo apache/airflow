@@ -472,7 +472,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
         Decode *partition_key* back to the period-start datetime.
 
         Parses the key with ``strptime`` using this timetable's ``key_format``
-        and localises with the timetable's timezone, mirroring the forward
+        and localizes with the timetable's timezone, mirroring the forward
         direction in :meth:`_format_key`.
 
         :raises InvalidPartitionKeyError: When *partition_key* does not match

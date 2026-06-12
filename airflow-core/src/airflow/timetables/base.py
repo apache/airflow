@@ -285,7 +285,7 @@ class Timetable(Protocol):
         temporal structure override this:
 
         - :class:`~airflow.timetables.trigger.CronPartitionTimetable` parses the
-          key with ``strptime`` using its ``key_format`` and localises with its
+          key with ``strptime`` using its ``key_format`` and localizes with its
           timezone.
         - :class:`~airflow.timetables.simple.PartitionedAssetTimetable` delegates
           to each asset's partition mapper; when the mappers agree on the same
