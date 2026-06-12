@@ -137,26 +137,31 @@ class DagRunContext(BaseModel):
             from airflow.models.dagrun import DagRun
             from airflow.utils.session import create_session
 
+            # Read the primary key via the instance identity: attribute access on
+            # an expired instance would hit the same broken session and re-raise.
+            identity = sa_inspect(dag_run).identity
+            if identity is None:
+                raise
+
             # Reload DagRun with eager-loaded relationships to recover state
             # without adding DB I/O to the hot path.
             with create_session() as session:
                 dag_run_reloaded = session.scalar(
                     select(DagRun)
-                    .where(DagRun.id == dag_run.id)
+                    .where(DagRun.id == identity[0])
                     .options(
                         selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.asset),
                         selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.source_aliases),
                     )
                 )
 
-                # DagRun exists; reload is expected to succeed.
+                if dag_run_reloaded is None:
+                    raise
                 dag_run_reloaded = cast("DagRun", dag_run_reloaded)
-                reloaded_events = dag_run_reloaded.consumed_asset_events
 
-            # Install DB-backed relationship state on the detached instance.
-            set_committed_value(
-                dag_run, "consumed_asset_events", list(reloaded_events) if reloaded_events is not None else []
-            )
+            # Validate the reloaded instance: attribute reads on the original
+            # would hit the broken session again.
+            return {**values, "dag_run": dag_run_reloaded}
 
         return values
 
