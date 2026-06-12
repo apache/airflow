@@ -22,24 +22,25 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.language_v1 import EncodingType, LanguageServiceClient
-from google.cloud.language_v1.types import (
-    AnalyzeEntitiesResponse,
-    AnalyzeEntitySentimentResponse,
-    AnalyzeSentimentResponse,
-    AnalyzeSyntaxResponse,
-    AnnotateTextRequest,
-    AnnotateTextResponse,
-    ClassifyTextResponse,
-    Document,
-)
+from google.api_core.gapic_v1.method import DEFAULT
+from google.cloud.language_v1 import LanguageServiceClient
+from google.cloud.language_v1.types import AnnotateTextRequest, Document
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
+    from google.cloud.language_v1 import EncodingType
+    from google.cloud.language_v1.types import (
+        AnalyzeEntitiesResponse,
+        AnalyzeEntitySentimentResponse,
+        AnalyzeSentimentResponse,
+        AnalyzeSyntaxResponse,
+        AnnotateTextResponse,
+        ClassifyTextResponse,
+    )
 
 
 class CloudNaturalLanguageHook(GoogleBaseHook):

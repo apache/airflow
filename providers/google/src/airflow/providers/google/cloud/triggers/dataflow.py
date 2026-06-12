@@ -24,20 +24,14 @@ from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import ServiceUnavailable
 from google.cloud.dataflow_v1beta3 import JobState
-from google.cloud.dataflow_v1beta3.types import (
-    AutoscalingEvent,
-    Job,
-    JobMessage,
-    JobMetrics,
-    JobType,
-    MetricUpdate,
-)
+from google.cloud.dataflow_v1beta3.types import AutoscalingEvent, Job, JobMessage, JobType, MetricUpdate
 
 from airflow.providers.google.cloud.hooks.dataflow import AsyncDataflowHook, DataflowJobStatus
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from google.cloud.dataflow_v1beta3.services.messages_v1_beta3.pagers import ListJobMessagesAsyncPager
+    from google.cloud.dataflow_v1beta3.types import JobMetrics
 
 
 DEFAULT_DATAFLOW_LOCATION = "us-central1"

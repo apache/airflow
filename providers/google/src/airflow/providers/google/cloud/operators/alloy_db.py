@@ -24,7 +24,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import NotFound
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud import alloydb_v1
 
 from airflow.providers.common.compat.sdk import AirflowException
@@ -38,6 +38,7 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 
 if TYPE_CHECKING:
     import proto
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask

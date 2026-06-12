@@ -24,14 +24,14 @@ import os
 import time
 from collections.abc import Sequence
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import quote, urlencode, urljoin
 
 import google.auth
 from aiohttp import ClientSession
 from gcloud.aio.auth import AioSession, Token
 from google.api_core.retry import exponential_sleep_generator
-from googleapiclient.discovery import Resource, build
+from googleapiclient.discovery import build
 from requests.exceptions import HTTPError, RequestException
 
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
@@ -40,6 +40,9 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseAsyncHook,
     GoogleBaseHook,
 )
+
+if TYPE_CHECKING:
+    from googleapiclient.discovery import Resource
 
 Operation = dict[str, Any]
 

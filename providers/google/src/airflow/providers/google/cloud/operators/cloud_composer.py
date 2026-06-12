@@ -22,7 +22,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import AlreadyExists, NotFound
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.orchestration.airflow.service_v1 import ImageVersion
 from google.cloud.orchestration.airflow.service_v1.types import Environment, ExecuteAirflowCommandResponse
 
@@ -37,6 +37,7 @@ from airflow.providers.google.cloud.triggers.cloud_composer import (
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask
 

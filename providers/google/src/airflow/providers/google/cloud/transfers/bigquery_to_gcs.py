@@ -23,7 +23,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import Conflict
-from google.cloud.bigquery import DEFAULT_RETRY, UnknownJob
+from google.cloud.bigquery import DEFAULT_RETRY
 
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
@@ -35,6 +35,7 @@ from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
+    from google.cloud.bigquery import UnknownJob
 
     from airflow.providers.common.compat.sdk import Context
 

@@ -30,7 +30,6 @@ from google.cloud.batch_v1 import (
     CreateJobRequest,
     Job,
     JobStatus,
-    Task,
 )
 
 from airflow.providers.common.compat.sdk import AirflowException
@@ -39,6 +38,7 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from google.api_core import operation
+    from google.cloud.batch_v1 import Task
     from google.cloud.batch_v1.services.batch_service import pagers
 
 

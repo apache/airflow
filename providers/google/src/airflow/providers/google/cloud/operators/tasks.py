@@ -23,7 +23,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from google.api_core.exceptions import AlreadyExists
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.tasks_v2.types import Queue, Task
 
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
@@ -32,6 +32,7 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask
 

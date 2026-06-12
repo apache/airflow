@@ -28,7 +28,7 @@ from google.analytics.admin_v1beta import (
     GoogleAdsLink,
     Property,
 )
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.common.compat.sdk import AirflowNotFoundException
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -36,6 +36,7 @@ from airflow.providers.google.marketing_platform.hooks.analytics_admin import Go
 from airflow.providers.google.marketing_platform.links.analytics_admin import GoogleAnalyticsPropertyLink
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
     from google.protobuf.message import Message
 

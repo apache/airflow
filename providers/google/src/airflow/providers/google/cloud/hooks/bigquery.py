@@ -35,26 +35,11 @@ import pendulum
 from aiohttp import ClientSession as ClientSession
 from asgiref.sync import sync_to_async
 from gcloud.aio.bigquery import Job, Table as Table_async
-from google.cloud.bigquery import (
-    DEFAULT_RETRY,
-    Client,
-    CopyJob,
-    ExtractJob,
-    LoadJob,
-    QueryJob,
-    SchemaField,
-    UnknownJob,
-)
-from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
+from google.cloud.bigquery import DEFAULT_RETRY, Client, CopyJob, ExtractJob, LoadJob, QueryJob, SchemaField
+from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetReference
 from google.cloud.bigquery.retry import DEFAULT_JOB_RETRY
 from google.cloud.bigquery.routine import Routine, RoutineReference
-from google.cloud.bigquery.table import (
-    Row,
-    RowIterator,
-    Table,
-    TableListItem,
-    TableReference,
-)
+from google.cloud.bigquery.table import Table, TableReference
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import build
 from pandas_gbq import read_gbq
@@ -88,6 +73,9 @@ if TYPE_CHECKING:
     import polars as pl
     from google.api_core.page_iterator import HTTPIterator
     from google.api_core.retry import Retry
+    from google.cloud.bigquery import UnknownJob
+    from google.cloud.bigquery.dataset import DatasetListItem
+    from google.cloud.bigquery.table import Row, RowIterator, TableListItem
     from requests import Session
 
     from airflow.providers.openlineage.sqlparser import DatabaseInfo

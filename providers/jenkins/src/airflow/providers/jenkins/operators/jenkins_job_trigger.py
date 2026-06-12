@@ -22,15 +22,18 @@ import re
 import time
 from collections.abc import Iterable, Mapping, Sequence
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.error import HTTPError, URLError
 
 import jenkins
-from jenkins import Jenkins, JenkinsException
+from jenkins import JenkinsException
 from requests import Request
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
+
+if TYPE_CHECKING:
+    from jenkins import Jenkins
 
 JenkinsRequest = Mapping[str, Any]
 ParamType = str | dict | list | None

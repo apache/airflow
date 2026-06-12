@@ -19,12 +19,16 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from functools import cached_property
+from typing import TYPE_CHECKING
 
-from apprise import AppriseConfig, NotifyFormat, NotifyType
+from apprise import NotifyFormat, NotifyType
 
 from airflow.providers.apprise.hooks.apprise import AppriseHook
 from airflow.providers.apprise.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.common.compat.notifier import BaseNotifier
+
+if TYPE_CHECKING:
+    from apprise import AppriseConfig
 
 
 class AppriseNotifier(BaseNotifier):

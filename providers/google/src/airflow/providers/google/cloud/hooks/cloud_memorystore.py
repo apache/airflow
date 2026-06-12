@@ -33,23 +33,19 @@ from typing import TYPE_CHECKING
 
 from google.api_core import path_template
 from google.api_core.exceptions import NotFound
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.memcache_v1beta2 import CloudMemcacheClient
 from google.cloud.memcache_v1beta2.types import cloud_memcache
-from google.cloud.redis_v1 import (
-    CloudRedisClient,
-    FailoverInstanceRequest,
-    InputConfig,
-    Instance,
-    OutputConfig,
-)
+from google.cloud.redis_v1 import CloudRedisClient, Instance
 
 from airflow import version
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
     from google.api_core.retry import Retry
+    from google.cloud.redis_v1 import FailoverInstanceRequest, InputConfig, OutputConfig
     from google.protobuf.field_mask_pb2 import FieldMask
 
 
