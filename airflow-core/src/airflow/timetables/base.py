@@ -143,15 +143,8 @@ class DagRunInfo(NamedTuple):
     data_interval: DataInterval | None
     """The data interval this DagRun to operate over."""
 
-    # partition_date/partition_key are for partition-oriented scheduling (AIP-76).
-    # They default to None so custom timetables written for Airflow 3.1.x and
-    # earlier — which build DagRunInfo with only run_after and data_interval —
-    # keep working on 3.2+.
     partition_date: DateTime | None = None
-    """The partition date for partition-oriented scheduling (AIP-76)."""
-
     partition_key: str | None = None
-    """The partition key for partition-oriented scheduling (AIP-76)."""
 
     @classmethod
     def exact(cls, at: DateTime) -> DagRunInfo:

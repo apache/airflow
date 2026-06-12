@@ -184,14 +184,13 @@ def test_compute_rollup_fingerprint_key_format(asset_or_ref, expected_key):
 
 
 # ---------------------------------------------------------------------------
-# DagRunInfo backward compatibility
+# DagRunInfo partition fields
 # ---------------------------------------------------------------------------
 
 
 def test_dagruninfo_partition_fields_default_to_none():
-    """Custom timetables written for 3.1.x construct ``DagRunInfo`` with only
-    ``run_after`` and ``data_interval``; the partition fields added in 3.2
-    (AIP-76) must default to *None* so those timetables keep scheduling."""
+    """``DagRunInfo`` can be constructed with only ``run_after`` and
+    ``data_interval``; the partition fields are optional and default to *None*."""
     from airflow.timetables.base import DagRunInfo, DataInterval
 
     start = pendulum.datetime(2026, 1, 1, tz="UTC")
