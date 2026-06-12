@@ -203,6 +203,12 @@
     "manual": "Manual",
     "scheduled": "Scheduled"
   },
+  "savedViews": {
+    "empty": "No saved views yet",
+    "namePlaceholder": "View name",
+    "save": "Save",
+    "title": "Views"
+  },
   "scroll": {
     "direction": {
       "bottom": "bottom",
