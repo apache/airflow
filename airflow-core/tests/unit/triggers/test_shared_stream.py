@@ -1270,49 +1270,21 @@ async def test_nack_removes_subscriber_from_ack_set_without_redeliver():
 
 
 @pytest.mark.asyncio
-async def test_double_ack_is_noop():
-    """Calling ack() twice on the same token must not raise or advance twice."""
-    cls = _make_ack_required_trigger_class(
-        [
-            ({"msg": "double-ack"}, "receipt-double"),
-        ]
-    )
-    cls.advanced.clear()
-    cls.outcomes.clear()
-
-    t1 = cls()
-    key = t1.shared_stream_key()
-    manager = SharedStreamManager()
-    try:
-        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
-
-        async with _consume_in_background(s1) as collector:
-            await collector.wait_for(1)
-            token = collector.tokens[0]
-            assert token is not None
-
-            await token.ack()
-            await asyncio.sleep(0)
-            assert cls.advanced == ["receipt-double"]
-
-            # Second ack — must be a no-op, not raise, not double-advance.
-            await token.ack()
-            await asyncio.sleep(0)
-            assert cls.advanced == ["receipt-double"], "second ack must not trigger a second advance"
-    finally:
-        await manager.unsubscribe(1, key)
-
-
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("first", "second"),
+    ("first", "second", "expected_outcome"),
     [
-        ("ack", "nack"),
-        ("nack", "ack"),
+        pytest.param("ack", "nack", AdvanceOutcome(acked=1, nacked=0, failed=0), id="ack-then-nack"),
+        pytest.param("nack", "ack", AdvanceOutcome(acked=0, nacked=1, failed=0), id="nack-then-ack"),
+        pytest.param("ack", "ack", AdvanceOutcome(acked=1, nacked=0, failed=0), id="ack-then-ack"),
+        pytest.param("nack", "nack", AdvanceOutcome(acked=0, nacked=1, failed=0), id="nack-then-nack"),
     ],
 )
-async def test_cross_order_double_call_is_noop(first, second):
-    """ack-then-nack and nack-then-ack are both no-ops — _resolved blocks the second call."""
+async def test_double_resolution_is_noop_and_counts_once(first, second, expected_outcome):
+    """Any second resolution call on a token is a no-op — _resolved blocks it.
+
+    advance fires exactly once, and the subscriber is counted once, by the
+    first call's resolution.
+    """
     cls = _make_ack_required_trigger_class(
         [
             ({"msg": "cross-order"}, "receipt-cross"),
@@ -1337,12 +1309,13 @@ async def test_cross_order_double_call_is_noop(first, second):
             await asyncio.sleep(0)
             assert cls.advanced == ["receipt-cross"]
 
-            # Second call (opposite) — must be a no-op; advance must not fire again.
+            # Second call — must be a no-op, not raise; advance must not fire again.
             await getattr(token, second)()
             await asyncio.sleep(0)
             assert cls.advanced == ["receipt-cross"], (
                 f"{second}() after {first}() must not trigger a second advance"
             )
+            assert cls.outcomes == [expected_outcome]
     finally:
         await manager.unsubscribe(1, key)
 
@@ -1434,19 +1407,41 @@ async def test_ack_mode_queue_full_during_fanout_does_not_break_iteration():
 
 
 @pytest.mark.asyncio
-async def test_no_subscriber_snapshot_advances_in_order():
+@pytest.mark.parametrize(
+    ("lane_for", "events", "expected_per_lane"),
+    [
+        pytest.param(
+            None,
+            [
+                ({"msg": "no-sub-1"}, "p1"),
+                ({"msg": "no-sub-2"}, "p2"),
+                ({"msg": "no-sub-3"}, "p3"),
+            ],
+            {None: ["p1", "p2", "p3"]},
+            id="no-lane-global-order",
+        ),
+        pytest.param(
+            lambda payload: payload[0],
+            [
+                ({"n": "a1"}, "a1"),
+                ({"n": "b1"}, "b1"),
+                ({"n": "a2"}, "a2"),
+                ({"n": "b2"}, "b2"),
+            ],
+            {"a": ["a1", "a2"], "b": ["b1", "b2"]},
+            id="lanes-per-lane-order",
+        ),
+    ],
+)
+async def test_empty_snapshot_advances_in_fanout_order(lane_for, events, expected_per_lane):
     """Events broadcast while no subscribers are online still advance, in fan-out order.
 
     Empty-snapshot entries are born resolved and go through the same ordered
-    pump as everything else; their outcomes carry all-zero counts.
+    pump as everything else; their outcomes carry all-zero counts. Without
+    lanes the full global order is preserved; with lanes the per-lane
+    projections keep fan-out order.
     """
-    cls = _make_ack_required_trigger_class(
-        [
-            ({"msg": "no-sub-1"}, "p1"),
-            ({"msg": "no-sub-2"}, "p2"),
-            ({"msg": "no-sub-3"}, "p3"),
-        ]
-    )
+    cls = _make_ack_required_trigger_class(events, lane_for=lane_for)
     cls.advanced.clear()
     cls.outcomes.clear()
 
@@ -1462,14 +1457,19 @@ async def test_no_subscriber_snapshot_advances_in_order():
     # The poll task is still running; give it a few ticks to broadcast.
     deadline = asyncio.get_event_loop().time() + 1.0
     while asyncio.get_event_loop().time() < deadline:
-        if len(cls.advanced) >= 3:
+        if len(cls.advanced) >= len(events):
             break
         await asyncio.sleep(0.01)
 
-    assert cls.advanced == ["p1", "p2", "p3"], (
-        "advance must be called for every event, in fan-out order, even with no subscribers online"
-    )
-    assert cls.outcomes == [AdvanceOutcome(0, 0, 0)] * 3
+    # Per-lane projection of the advance calls; with no lane_for the
+    # projection is the full global sequence.
+    for lane, expected in expected_per_lane.items():
+        projected = cls.advanced if lane_for is None else [p for p in cls.advanced if lane_for(p) == lane]
+        assert projected == expected, (
+            "advance must be called for every event, in fan-out order, even with no subscribers online"
+        )
+    assert len(cls.advanced) == len(events)
+    assert cls.outcomes == [AdvanceOutcome(0, 0, 0)] * len(events)
     assert all(outcome.is_clean for outcome in cls.outcomes)
 
     del s1  # silence unused-variable warning
@@ -1752,36 +1752,56 @@ async def test_out_of_order_resolve_still_advances_in_fanout_order():
 
 
 @pytest.mark.asyncio
-async def test_pump_serializes_advance_calls():
-    """Two events resolved together never produce overlapping advance calls."""
+@pytest.mark.parametrize(
+    ("lane_for", "payloads", "expected_advanced", "ordered"),
+    [
+        pytest.param(None, ["p1", "p2"], ["p1", "p2"], True, id="single-lane-full-order"),
+        pytest.param(lambda payload: payload[0], ["a1", "b1"], ["a1", "b1"], False, id="across-lanes"),
+    ],
+)
+async def test_pump_serializes_advance_calls(lane_for, payloads, expected_advanced, ordered):
+    """Events resolved together never produce overlapping advance calls.
+
+    This holds within a single lane (where the full fan-out order is also
+    preserved) and across lanes (where the relative order is not guaranteed,
+    but at most one advance call is ever in flight globally).
+    """
     release = asyncio.Event()
     state = {"in_flight": 0, "max_in_flight": 0}
     advanced: list = []
 
-    class _BlockingAdvanceProducer(SharedStreamProducer):
-        async def open_stream(self):
-            yield {"n": 1}, "p1"
-            yield {"n": 2}, "p2"
-            await asyncio.Event().wait()
+    def make_blocking_trigger():
+        class _BlockingAdvanceProducer(SharedStreamProducer):
+            async def open_stream(self):
+                for payload in payloads:
+                    yield {"n": payload}, payload
+                await asyncio.Event().wait()
 
-        async def advance(self, broker_payload, outcome):
-            state["in_flight"] += 1
-            state["max_in_flight"] = max(state["max_in_flight"], state["in_flight"])
-            await release.wait()
-            advanced.append(broker_payload)
-            state["in_flight"] -= 1
+            def get_advance_lane(self, broker_payload):
+                if lane_for is None:
+                    return super().get_advance_lane(broker_payload)
+                return lane_for(broker_payload)
 
-    class _BlockingAdvanceTrigger(_ProgrammableSharedStreamTrigger):
-        @classmethod
-        def create_shared_stream_producer(cls, kwargs):
-            return _BlockingAdvanceProducer()
+            async def advance(self, broker_payload, outcome):
+                state["in_flight"] += 1
+                state["max_in_flight"] = max(state["max_in_flight"], state["in_flight"])
+                await release.wait()
+                advanced.append(broker_payload)
+                state["in_flight"] -= 1
 
-        async def filter_shared_stream(self, shared_stream):
-            async for raw, token in shared_stream:
-                await token.ack()
-                yield TriggerEvent(raw)
+        class _BlockingAdvanceTrigger(_ProgrammableSharedStreamTrigger):
+            @classmethod
+            def create_shared_stream_producer(cls, kwargs):
+                return _BlockingAdvanceProducer()
 
-    t1 = _BlockingAdvanceTrigger()
+            async def filter_shared_stream(self, shared_stream):
+                async for raw, token in shared_stream:
+                    await token.ack()
+                    yield TriggerEvent(raw)
+
+        return _BlockingAdvanceTrigger()
+
+    t1 = make_blocking_trigger()
     key = t1.shared_stream_key()
     manager = SharedStreamManager()
     try:
@@ -1791,7 +1811,8 @@ async def test_pump_serializes_advance_calls():
             await collector.wait_for(2)
             tokens = collector.tokens
 
-            # Resolve both events; the pump starts the first advance, which blocks.
+            # Resolve both events; the pump starts the first advance, which
+            # blocks. The second must not start while one is in flight.
             await tokens[0].ack()
             await tokens[1].ack()
             for _ in range(5):
@@ -1806,8 +1827,11 @@ async def test_pump_serializes_advance_calls():
                     break
                 await asyncio.sleep(0)
 
-            assert advanced == ["p1", "p2"]
-            assert state["max_in_flight"] == 1, "advance calls must never overlap"
+            if ordered:
+                assert advanced == expected_advanced
+            else:
+                assert sorted(advanced) == expected_advanced
+            assert state["max_in_flight"] == 1, "advance calls must never overlap, even across lanes"
     finally:
         await manager.unsubscribe(1, key)
 
@@ -2234,109 +2258,6 @@ async def test_lane_internal_fifo_with_out_of_order_resolve():
 
 
 @pytest.mark.asyncio
-async def test_max_in_flight_one_across_lanes():
-    """Even with multiple lanes ready, at most one advance call is ever in flight."""
-    release = asyncio.Event()
-    state = {"in_flight": 0, "max_in_flight": 0}
-    advanced: list = []
-
-    class _BlockingLaneProducer(SharedStreamProducer):
-        async def open_stream(self):
-            yield {"n": "a1"}, "a1"
-            yield {"n": "b1"}, "b1"
-            await asyncio.Event().wait()
-
-        def get_advance_lane(self, broker_payload):
-            return broker_payload[0]
-
-        async def advance(self, broker_payload, outcome):
-            state["in_flight"] += 1
-            state["max_in_flight"] = max(state["max_in_flight"], state["in_flight"])
-            await release.wait()
-            advanced.append(broker_payload)
-            state["in_flight"] -= 1
-
-    class _BlockingLaneTrigger(_ProgrammableSharedStreamTrigger):
-        @classmethod
-        def create_shared_stream_producer(cls, kwargs):
-            return _BlockingLaneProducer()
-
-        async def filter_shared_stream(self, shared_stream):
-            async for raw, token in shared_stream:
-                await token.ack()
-                yield TriggerEvent(raw)
-
-    t1 = _BlockingLaneTrigger()
-    key = t1.shared_stream_key()
-    manager = SharedStreamManager()
-    try:
-        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
-
-        async with _consume_in_background(s1) as collector:
-            await collector.wait_for(2)
-            tokens = collector.tokens
-
-            # Resolve both lanes; the pump starts one advance, which blocks.
-            await tokens[0].ack()
-            await tokens[1].ack()
-            for _ in range(5):
-                await asyncio.sleep(0)
-            assert state["in_flight"] == 1, "the other lane's advance must not start while one is in flight"
-            assert advanced == []
-
-            release.set()
-            deadline = asyncio.get_event_loop().time() + 1.0
-            while asyncio.get_event_loop().time() < deadline:
-                if len(advanced) >= 2:
-                    break
-                await asyncio.sleep(0)
-
-            assert sorted(advanced) == ["a1", "b1"]
-            assert state["max_in_flight"] == 1, "advance calls must never overlap, even across lanes"
-    finally:
-        await manager.unsubscribe(1, key)
-
-
-@pytest.mark.asyncio
-async def test_empty_snapshot_routes_through_lane():
-    """Born-resolved events (no subscribers online) keep per-lane fan-out order."""
-    cls = _make_ack_required_trigger_class(
-        [
-            ({"n": "a1"}, "a1"),
-            ({"n": "b1"}, "b1"),
-            ({"n": "a2"}, "a2"),
-            ({"n": "b2"}, "b2"),
-        ],
-        lane_for=lambda payload: payload[0],
-    )
-    cls.advanced.clear()
-    cls.outcomes.clear()
-
-    t1 = cls()
-    key = t1.shared_stream_key()
-    manager = SharedStreamManager()
-
-    # Subscribe then immediately unsubscribe so the group exists but has zero
-    # subscribers when the events arrive.
-    s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
-    manager._groups[key].unsubscribe(1)  # remove without stopping the poll task
-
-    deadline = asyncio.get_event_loop().time() + 1.0
-    while asyncio.get_event_loop().time() < deadline:
-        if len(cls.advanced) >= 4:
-            break
-        await asyncio.sleep(0.01)
-
-    assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2"]
-    assert [p for p in cls.advanced if p[0] == "b"] == ["b1", "b2"]
-    assert len(cls.advanced) == 4
-    assert cls.outcomes == [AdvanceOutcome(0, 0, 0)] * 4
-
-    del s1  # silence unused-variable warning
-    await manager.stop_all()
-
-
-@pytest.mark.asyncio
 async def test_get_advance_lane_raise_terminates_poll():
     """A get_advance_lane that raises fails the poll like any other poll failure."""
     proceed_flag = asyncio.Event()
@@ -2550,33 +2471,6 @@ async def test_outcome_counts_timeout_as_failed():
             assert not cls.outcomes[0].is_clean
     finally:
         await manager.stop_all()
-
-
-@pytest.mark.asyncio
-async def test_double_resolve_counts_once():
-    """ack() then nack() on the same token counts the subscriber once, as acked."""
-    cls = _make_ack_required_trigger_class([({"msg": "double"}, "receipt-double-resolve")])
-    cls.advanced.clear()
-    cls.outcomes.clear()
-
-    t1 = cls()
-    key = t1.shared_stream_key()
-    manager = SharedStreamManager()
-    try:
-        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
-
-        async with _consume_in_background(s1) as collector:
-            await collector.wait_for(1)
-            token = collector.tokens[0]
-
-            await token.ack()
-            await token.nack()
-            await asyncio.sleep(0)
-
-            assert cls.advanced == ["receipt-double-resolve"]
-            assert cls.outcomes == [AdvanceOutcome(acked=1, nacked=0, failed=0)]
-    finally:
-        await manager.unsubscribe(1, key)
 
 
 @pytest.mark.asyncio
@@ -3066,8 +2960,46 @@ async def test_unsubscribe_with_unconfirmed_seq_waits_for_confirmation():
 
 
 @pytest.mark.asyncio
-async def test_unconfirmed_persist_below_timeout_keeps_event_outstanding():
-    """At 99 ms of a 100 ms timeout, an unconfirmed event stays outstanding and can still recover."""
+@pytest.mark.parametrize(
+    (
+        "clock_value",
+        "advanced_before_confirm",
+        "outcomes_before_confirm",
+        "outstanding_before_confirm",
+        "outcomes_after_confirm",
+    ),
+    [
+        pytest.param(
+            0.099,
+            [],
+            [],
+            1,
+            [AdvanceOutcome(acked=1, nacked=0, failed=0)],
+            id="below-timeout-confirm-recovers",
+        ),
+        pytest.param(
+            0.2,
+            ["p1"],
+            [AdvanceOutcome(acked=0, nacked=0, failed=1)],
+            0,
+            [AdvanceOutcome(acked=0, nacked=0, failed=1)],
+            id="late-confirm-after-timeout-is-noop",
+        ),
+    ],
+)
+async def test_unconfirmed_persist_confirm_timing_around_timeout(
+    clock_value,
+    advanced_before_confirm,
+    outcomes_before_confirm,
+    outstanding_before_confirm,
+    outcomes_after_confirm,
+):
+    """Confirmation timing against a 100 ms ack timeout.
+
+    Strictly inside the window the unconfirmed event stays outstanding and a
+    confirmation recovers it cleanly; once the timeout has already failed the
+    event, a late confirmation changes nothing.
+    """
     cls = _make_ack_required_trigger_class([({"n": 1}, "p1")])
     cls.advanced.clear()
     cls.outcomes.clear()
@@ -3092,17 +3024,16 @@ async def test_unconfirmed_persist_below_timeout_keeps_event_outstanding():
         await token.ack()
         next_task = await _resume_past_yield(it)
 
-        # Strictly inside the timeout window: the event must stay outstanding.
-        fake_clock[0] = 0.099
+        fake_clock[0] = clock_value
         await asyncio.sleep(0.05)
-        assert cls.advanced == []
-        assert len(manager._groups[key]._outstanding) == 1
+        assert cls.advanced == advanced_before_confirm
+        assert cls.outcomes == outcomes_before_confirm
+        assert len(manager._groups[key]._outstanding) == outstanding_before_confirm
 
-        # The confirmation arrives inside the window — clean recovery.
         manager.confirm_persisted([seq])
         await asyncio.sleep(0)
         assert cls.advanced == ["p1"]
-        assert cls.outcomes == [AdvanceOutcome(acked=1, nacked=0, failed=0)]
+        assert cls.outcomes == outcomes_after_confirm
     finally:
         await _cancel_quietly(next_task)
         await manager.stop_all()
@@ -3146,49 +3077,6 @@ async def test_unconfirmed_persist_at_timeout_fails_subscriber():
         with pytest.raises(AckTimeout):
             await asyncio.wait_for(next_task, timeout=1.0)
         next_task = None
-    finally:
-        await _cancel_quietly(next_task)
-        await manager.stop_all()
-
-
-@pytest.mark.asyncio
-async def test_late_confirm_after_timeout_is_noop():
-    """A confirmation arriving after the timeout already failed the event changes nothing."""
-    cls = _make_ack_required_trigger_class([({"n": 1}, "p1")])
-    cls.advanced.clear()
-    cls.outcomes.clear()
-
-    t1 = cls()
-    key = t1.shared_stream_key()
-
-    fake_clock: list[float] = [0.0]
-
-    def now() -> float:
-        return fake_clock[0]
-
-    manager = SharedStreamManager(ack_timeout=0.1, _now=now)
-    next_task = None
-    try:
-        stream = manager.subscribe(trigger_id=1, trigger=t1, key=key)
-        it = stream.__aiter__()
-        _raw, token = await _pull_pair(it)
-
-        seq = manager.bind_pending_event(trigger_id=1, key=key)
-        assert seq is not None
-        await token.ack()
-        next_task = await _resume_past_yield(it)
-
-        fake_clock[0] = 0.2
-        await asyncio.sleep(0.05)
-        assert cls.advanced == ["p1"]
-        assert cls.outcomes == [AdvanceOutcome(acked=0, nacked=0, failed=1)]
-
-        # The confirmation arrives after the fact: no second advance, no
-        # change to the recorded outcome.
-        manager.confirm_persisted([seq])
-        await asyncio.sleep(0)
-        assert cls.advanced == ["p1"]
-        assert cls.outcomes == [AdvanceOutcome(acked=0, nacked=0, failed=1)]
     finally:
         await _cancel_quietly(next_task)
         await manager.stop_all()
