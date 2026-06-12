@@ -470,8 +470,12 @@ def get_pending_partitioned_dag_run(
             "id": partitioned_dag_run.id,
             "dag_id": dag_id,
             "partition_key": partition_key,
-            "created_at": partitioned_dag_run.created_at.isoformat() if partitioned_dag_run.created_at else None,
-            "updated_at": partitioned_dag_run.updated_at.isoformat() if partitioned_dag_run.updated_at else None,
+            "created_at": partitioned_dag_run.created_at.isoformat()
+            if partitioned_dag_run.created_at
+            else None,
+            "updated_at": partitioned_dag_run.updated_at.isoformat()
+            if partitioned_dag_run.updated_at
+            else None,
             "created_dag_run_id": partitioned_dag_run.created_dag_run_id,
             "assets": assets,
             "total_required": total_required,
