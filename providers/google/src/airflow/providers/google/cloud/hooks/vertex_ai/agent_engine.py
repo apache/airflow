@@ -24,10 +24,15 @@ from collections.abc import Sequence
 from typing import Any
 
 import google.auth.transport.requests
+from asgiref.sync import sync_to_async
 from google.genai.errors import ClientError
 from vertexai import Client
 
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+)
 
 
 class AgentEngineHook(GoogleBaseHook):
@@ -201,3 +206,30 @@ class AgentEngineHook(GoogleBaseHook):
                 raise TimeoutError(f"Timed out waiting for Agent Engine {name} to be deleted")
             self.log.info("Waiting for Agent Engine %s to be deleted.", name)
             time.sleep(poll_interval)
+
+
+class AgentEngineAsyncHook(GoogleBaseAsyncHook):
+    """Async hook for Google Cloud Vertex AI Agent Engine APIs."""
+
+    sync_hook_class = AgentEngineHook
+
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ):
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
+
+    async def is_agent_engine_deleted(self, project_id: str, location: str, name: str) -> bool:
+        """Return whether an Agent Engine no longer exists."""
+        sync_hook = await self.get_sync_hook()
+        return await sync_to_async(sync_hook.is_agent_engine_deleted)(
+            project_id=project_id,
+            location=location,
+            name=name,
+        )
