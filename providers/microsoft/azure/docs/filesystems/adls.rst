@@ -33,7 +33,7 @@ Connection Configuration
 Create an ADLS Gen2 connection in Airflow with the following parameters:
 
 * **Connection Type**: adls
-* **Host**: Storage account name, for example ``mystorageaccount``
+* **Host**: Storage account name, for example ``mystorageaccount``, or a full account URL/custom endpoint
 * **Login**: Client ID for Active Directory authentication
 * **Password**: Client secret for Active Directory authentication, or account key for shared key authentication
 
