@@ -33,19 +33,7 @@ def get_stats_factory() -> Callable:
 
         return statsd_logger.get_statsd_logger
     if conf.getboolean("metrics", "otel_on"):
-        from airflow.sdk._shared.observability.metrics.otel_logger import configure_otel
+        from airflow.sdk.observability.metrics import otel_logger
 
-        return lambda: configure_otel(
-            host=conf.get("metrics", "otel_host", fallback=None),
-            port=conf.get("metrics", "otel_port", fallback=None),
-            ssl_active=conf.getboolean("metrics", "otel_ssl_active", fallback=False),
-            service=conf.get("metrics", "otel_service", fallback=None),
-            interval_ms=conf.get("metrics", "otel_interval_milliseconds", fallback=None),
-            debug=conf.getboolean("metrics", "otel_debugging_on", fallback=False),
-            prefix=conf.get("metrics", "otel_prefix", fallback="airflow"),
-            allow_list=conf.get("metrics", "metrics_allow_list", fallback=None),
-            block_list=conf.get("metrics", "metrics_block_list", fallback=None),
-            stat_name_handler=conf.getimport("metrics", "stat_name_handler", fallback=None),
-            statsd_influxdb_enabled=conf.getboolean("metrics", "statsd_influxdb_enabled", fallback=False),
-        )
+        return otel_logger.get_otel_logger
     return NoStatsLogger
