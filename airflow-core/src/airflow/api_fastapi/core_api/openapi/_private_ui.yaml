@@ -1884,6 +1884,11 @@ components:
           - sensor
           - trigger
           title: Type
+        team:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team
       type: object
       required:
       - id
@@ -3271,6 +3276,11 @@ components:
           - sensor
           - trigger
           title: Type
+        team:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team
         children:
           anyOf:
           - items:
