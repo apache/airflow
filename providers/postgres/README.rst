@@ -58,7 +58,8 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``psycopg2-binary``                         ``>=2.9.9; python_version < "3.13"``
 ``psycopg2-binary``                         ``>=2.9.10; python_version >= "3.13"``
-``asyncpg``                                 ``>=0.30.0``
+``psycopg[binary]``                         ``>=3.2.9; python_version < "3.14"``
+``psycopg[binary]``                         ``>=3.3.3; python_version >= "3.14"``
 ==========================================  ======================================
 
 Cross provider package dependencies

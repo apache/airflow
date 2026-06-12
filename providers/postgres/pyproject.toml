@@ -62,9 +62,12 @@ dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.12.0",
     "apache-airflow-providers-common-sql>=1.32.0",
+    # psycopg2 remains the sync driver for now; its removal and the sync migration to
+    # psycopg3 are tracked at https://github.com/apache/airflow/issues/68453
     "psycopg2-binary>=2.9.9; python_version < '3.13'",
     "psycopg2-binary>=2.9.10; python_version >= '3.13'",
-    "asyncpg>=0.30.0",
+    "psycopg[binary]>=3.2.9; python_version < '3.14'",
+    "psycopg[binary]>=3.3.3; python_version >= '3.14'",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -72,6 +75,9 @@ dependencies = [
 [project.optional-dependencies]
 "amazon" = [
     "apache-airflow-providers-amazon>=2.6.0",
+]
+"asyncpg" = [
+    "asyncpg>=0.30.0",
 ]
 "microsoft.azure" = [
     "apache-airflow-providers-microsoft-azure>=12.8.0"
@@ -86,10 +92,6 @@ dependencies = [
 ]
 "polars" = [
     "polars>=1.26.0"
-]
-"psycopg" = [
-    "psycopg[binary]>=3.2.9; python_version < '3.14'",
-    "psycopg[binary]>=3.3.3; python_version >= '3.14'",
 ]
 "sqlalchemy" = [
     "sqlalchemy>=1.4.54"
@@ -108,6 +110,7 @@ dev = [
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "apache-airflow-providers-common-sql[pandas]",
     "apache-airflow-providers-common-sql[polars]",
+    "apache-airflow-providers-postgres[asyncpg]",
     "apache-airflow-providers-postgres[sqlalchemy]"
 ]
 

@@ -206,6 +206,41 @@ We recommend using the ``psycopg2`` driver and specifying it in your SqlAlchemy 
 
    postgresql+psycopg2://<user>:<password>@<host>/<db>
 
+Async SQLAlchemy engine and the async driver
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In addition to the synchronous engine, Airflow maintains an async SQLAlchemy engine for the metadata database (used e.g. by async API endpoints).
+When ``[database] sql_alchemy_conn_async`` is not set, its URL is derived from ``sql_alchemy_conn`` using ``psycopg`` (psycopg3) as the async driver:
+
+.. code-block:: text
+
+   postgresql+psycopg_async://<user>:<password>@<host>/<db>
+
+psycopg3 is the default because it is safe behind transaction-mode PgBouncer (recommended for all production Postgres installations, see the note below) with no extra configuration.
+
+If you need the extra throughput of ``asyncpg``, opt in by installing the ``apache-airflow-providers-postgres[asyncpg]`` extra and setting the async URL explicitly:
+
+.. code-block:: ini
+
+   [database]
+   sql_alchemy_conn_async = postgresql+asyncpg://<user>:<password>@<host>/<db>
+
+asyncpg uses named server-side prepared statements, which break under transaction-mode PgBouncer.
+If you run asyncpg behind transaction-mode PgBouncer, you must disable its prepared-statement caching by pointing ``sql_alchemy_connect_args_async`` at a dictionary defined in your ``airflow_local_settings.py``:
+
+.. code-block:: python
+
+   # airflow_local_settings.py
+   connect_args_async = {
+       "statement_cache_size": 0,
+       "prepared_statement_cache_size": 0,
+   }
+
+.. code-block:: ini
+
+   [database]
+   sql_alchemy_connect_args_async = airflow_local_settings.connect_args_async
+
 Also note that since SqlAlchemy does not expose a way to target a specific schema in the database URI, you need to ensure schema ``public`` is in your Postgres user's search_path.
 
 If you created a new Postgres account for Airflow:
