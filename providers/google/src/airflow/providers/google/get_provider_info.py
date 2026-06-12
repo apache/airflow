@@ -1044,8 +1044,8 @@ def get_provider_info():
                     "airflow.providers.google.cloud.hooks.vertex_ai.generative_model",
                     "airflow.providers.google.cloud.hooks.vertex_ai.prediction_service",
                     "airflow.providers.google.cloud.hooks.vertex_ai.feature_store",
-                    "airflow.providers.google.cloud.hooks.vertex_ai.ray",
                     "airflow.providers.google.cloud.hooks.vertex_ai.agent_engine",
+                    "airflow.providers.google.cloud.hooks.vertex_ai.ray",
                 ],
             },
             {
