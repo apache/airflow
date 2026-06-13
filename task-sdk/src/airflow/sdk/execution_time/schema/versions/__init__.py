@@ -21,5 +21,6 @@ from cadwyn import HeadVersion, Version, VersionBundle
 
 bundle = VersionBundle(
     HeadVersion(),
+    # First supervisor schema version; there is no previous version to migrate from.
     Version("2026-06-16"),
 )

@@ -229,6 +229,7 @@ class MakeTIContextCallable(Protocol):
         run_after: str | datetime = ...,
         run_type: str = ...,
         task_reschedule_count: int = ...,
+        first_task_reschedule_start_date: str | datetime | None = ...,
         conf: dict[str, Any] | None = ...,
         should_retry: bool = ...,
         max_tries: int = ...,
@@ -249,6 +250,7 @@ class MakeTIContextDictCallable(Protocol):
         run_after: str | datetime = ...,
         run_type: str = ...,
         task_reschedule_count: int = ...,
+        first_task_reschedule_start_date: str | datetime | None = ...,
         conf=None,
         consumed_asset_events: Sequence[AssetEventDagRunReference] = ...,
     ) -> dict[str, Any]: ...
@@ -271,6 +273,7 @@ def make_ti_context() -> MakeTIContextCallable:
         run_after: str | datetime = "2024-12-01T01:00:00Z",
         run_type: str = "manual",
         task_reschedule_count: int = 0,
+        first_task_reschedule_start_date: str | datetime | None = None,
         conf: dict[str, Any] | None = None,
         should_retry: bool = False,
         max_tries: int = 0,
@@ -292,6 +295,7 @@ def make_ti_context() -> MakeTIContextCallable:
                 consumed_asset_events=list(consumed_asset_events),
             ),
             task_reschedule_count=task_reschedule_count,
+            first_task_reschedule_start_date=first_task_reschedule_start_date,
             max_tries=max_tries,
             should_retry=should_retry,
         )
@@ -314,6 +318,7 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
         run_after: str | datetime = "2024-12-01T00:00:00Z",
         run_type: str = "manual",
         task_reschedule_count: int = 0,
+        first_task_reschedule_start_date: str | datetime | None = None,
         conf=None,
         consumed_asset_events: Sequence[AssetEventDagRunReference] = (),
     ) -> dict[str, Any]:
@@ -329,6 +334,7 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
             run_type=run_type,
             conf=conf,
             task_reschedule_count=task_reschedule_count,
+            first_task_reschedule_start_date=first_task_reschedule_start_date,
             consumed_asset_events=consumed_asset_events,
         )
         return context.model_dump(exclude_unset=True, mode="json")
