@@ -171,3 +171,73 @@ def test_workload_ti_round_trips_through_sdk_generated_model():
     assert received.queue == "jdk-17"
     assert received.map_index == 3
     assert not hasattr(received, "pool_slots")
+
+
+class TestExecuteTaskMakeVersionData:
+    """Tests for ExecuteTask.make() threading version_data through BundleInfo."""
+
+    @staticmethod
+    def _make_mock_ti(bundle_version, version_data):
+        """Build a mock TI with the attributes ExecuteTask.make() reads."""
+        from unittest.mock import Mock
+
+        ti_id = uuid4()
+        dag_version_id = uuid4()
+
+        ti = Mock()
+        ti.id = ti_id
+        ti.dag_version_id = dag_version_id
+        ti.task_id = "test_task"
+        ti.dag_id = "test_dag"
+        ti.run_id = "test_run"
+        ti.try_number = 1
+        ti.map_index = -1
+        ti.pool_slots = 1
+        ti.queue = "default"
+        ti.priority_weight = 1
+        ti.executor_config = None
+        ti.parent_context_carrier = None
+        ti.context_carrier = None
+        ti.hostname = None
+        ti.external_executor_id = None
+
+        ti.dag_model.bundle_name = "test-bundle"
+        ti.dag_model.relative_fileloc = "dags/test_dag.py"
+
+        ti.dag_run.bundle_version = bundle_version
+
+        if version_data is not None:
+            ti.dag_version.version_data = version_data
+        else:
+            ti.dag_version = None
+
+        return ti
+
+    def test_pinned_run_populates_version_data(self, monkeypatch):
+        """When dag_run.bundle_version is set, version_data from dag_version flows to BundleInfo."""
+        monkeypatch.setattr(
+            "airflow.utils.helpers.log_filename_template_renderer",
+            lambda: lambda **kwargs: "test.log",
+        )
+
+        version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
+        ti = self._make_mock_ti(bundle_version="abc123", version_data=version_data)
+
+        workload = ExecuteTask.make(ti)
+
+        assert workload.bundle_info.version == "abc123"
+        assert workload.bundle_info.version_data == version_data
+
+    def test_unpinned_run_version_data_is_none(self, monkeypatch):
+        """When dag_run.bundle_version is None (unpinned), version_data must be None."""
+        monkeypatch.setattr(
+            "airflow.utils.helpers.log_filename_template_renderer",
+            lambda: lambda **kwargs: "test.log",
+        )
+
+        ti = self._make_mock_ti(bundle_version=None, version_data=None)
+
+        workload = ExecuteTask.make(ti)
+
+        assert workload.bundle_info.version is None
+        assert workload.bundle_info.version_data is None

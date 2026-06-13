@@ -21,7 +21,7 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Hashable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -66,6 +66,13 @@ class BundleInfo(BaseModel):
 
     name: str
     version: str | None = None
+    version_data: dict[str, Any] | None = None
+    """Optional structured metadata for this bundle version (e.g., an S3 object manifest).
+
+    This field is serialized on every workload payload sent through executor channels
+    (Celery/Redis, SQS, K8s pod annotations, etc.). Keep payloads small — ideally under
+    256 KB — to avoid hitting message-size limits.
+    """
 
 
 class BaseWorkloadSchema(BaseModel):
