@@ -14358,6 +14358,11 @@ components:
           - type: string
           - type: 'null'
           title: Owner
+        owner_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner Display Name
         extra:
           anyOf:
           - type: string
@@ -14385,6 +14390,7 @@ components:
       - event
       - logical_date
       - owner
+      - owner_display_name
       - extra
       title: EventLogResponse
       description: Event Log Response.
