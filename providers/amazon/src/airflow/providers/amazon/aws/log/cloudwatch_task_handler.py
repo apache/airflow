@@ -30,6 +30,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import attrs
+import structlog
+import structlog.typing
 import watchtower
 
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
@@ -125,18 +127,22 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         import structlog.stdlib
 
         logRecordFactory = getLogRecordFactory()
-        # The handler MUST be initted here, before the processor is actually used to log anything.
-        # Otherwise, logging that occurs during the creation of the handler can create infinite loops.
-        _handler = self.handler
+
+        # Eagerly initialize the handler before the closure is created.
+        # Without this, the first log emission triggers handler creation,
+        # which itself logs internally during client initialization,
+        # causing an infinite loop.
+        self.handler
+
         from airflow.sdk.log import relative_path_from_logger
 
         def proc(logger: structlog.typing.WrappedLogger, method_name: str, event: structlog.typing.EventDict):
             if not logger or not (stream_name := relative_path_from_logger(logger)):
                 return event
-            # We can't set the log stream name in the above init handler because
-            # the log path isn't known at that stage.
-            # Instead, we should always rely on the path (log stream name) provided by the logger.
-            _handler.log_stream_name = stream_name.as_posix().replace(":", "_")
+            # Access handler via self.handler each time rather than the
+            # closure-captured _handler, so the processor always uses the
+            # live instance rather than a potentially stale one.
+            self.handler.log_stream_name = stream_name.as_posix().replace(":", "_")
             name = event.get("logger_name") or event.get("logger", "")
             level = structlog.stdlib.NAME_TO_LEVEL.get(method_name.lower(), logging.INFO)
             msg = copy.copy(event)
@@ -151,7 +157,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
                 ct = created.timestamp()
                 record.created = ct
                 record.msecs = int((ct - int(ct)) * 1000) + 0.0  # Copied from stdlib logging
-            _handler.handle(record)
+            self.handler.handle(record)
             return event
 
         return (proc,)
