@@ -187,6 +187,7 @@ TYPE = Encoding.TYPE
 VAR = Encoding.VAR
 serialized_simple_dag_ground_truth = {
     "__version": 3,
+    "client_defaults": {"tasks": {"ignore_first_depends_on_past": True}},
     "dag": {
         "default_args": {
             "__type": "dict",
@@ -1633,7 +1634,7 @@ class TestStringifiedDAGs:
             "has_on_skipped_callback": False,
             "has_on_success_callback": False,
             "has_retry_policy": False,
-            "ignore_first_depends_on_past": False,
+            "ignore_first_depends_on_past": True,
             "is_setup": False,
             "is_teardown": False,
             "inlets": [],
