@@ -53,6 +53,9 @@
     "testError": {
       "title": "Test Connection Failed"
     },
+    "testInProgress": {
+      "title": "A connection test is already in progress"
+    },
     "testSuccess": {
       "title": "Test Connection Successful"
     },
