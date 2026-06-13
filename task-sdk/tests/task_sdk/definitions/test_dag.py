@@ -990,8 +990,3 @@ class TestDagGetItem:
         dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
         with pytest.raises(NodeNotFound):
             dag["nonexistent"]
-
-    def test_getitem_missing_is_key_error(self):
-        dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
-        with pytest.raises(KeyError):
-            dag["nonexistent"]

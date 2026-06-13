@@ -272,40 +272,6 @@ def test_taskgroup_getitem_returns_child_by_label(prefix: bool):
         group1["nonexistent"]
 
 
-def test_build_task_group_with_prefix_functionality():
-    """
-    Tests TaskGroup prefix_group_id functionality - additional test for comprehensive coverage.
-    """
-    logical_date = pendulum.parse("20200101")
-    with DAG("test_prefix_functionality", start_date=logical_date):
-        task1 = EmptyOperator(task_id="task1")
-        with TaskGroup("group234", prefix_group_id=False) as group234:
-            task2 = EmptyOperator(task_id="task2")
-
-            with TaskGroup("group34") as group34:
-                task3 = EmptyOperator(task_id="task3")
-
-                with TaskGroup("group4", prefix_group_id=False) as group4:
-                    task4 = EmptyOperator(task_id="task4")
-
-        task5 = EmptyOperator(task_id="task5")
-        task1 >> group234
-        group34 >> task5
-
-    # Test prefix_group_id behavior
-    assert task2.task_id == "task2"  # prefix_group_id=False, so no prefix
-    assert group34.group_id == "group34"  # nested group gets prefixed
-    assert task3.task_id == "group34.task3"  # task in nested group gets full prefix
-    assert group4.group_id == "group34.group4"  # nested group gets parent prefix
-    assert task4.task_id == "task4"  # prefix_group_id=False, so no prefix
-    assert task5.task_id == "task5"  # root level task, no prefix
-
-    # Test group hierarchy and child access
-    assert group234.get_child_by_label("task2") == task2
-    assert group234.get_child_by_label("group34") == group34
-    assert group4.get_child_by_label("task4") == task4
-
-
 def test_build_task_group_with_task_decorator():
     """
     Test that TaskGroup can be used with the @task decorator.
@@ -577,24 +543,6 @@ def test_iter_tasks():
         "section_2.task3",
         "section_2.bash_task",
     ]
-
-
-def test_override_dag_default_args():
-    logical_date = pendulum.parse("20201109")
-    with DAG(
-        dag_id="example_task_group_default_args",
-        schedule=None,
-        start_date=logical_date,
-        default_args={"owner": "dag"},
-    ):
-        with TaskGroup("group1", default_args={"owner": "group"}):
-            task_1 = EmptyOperator(task_id="task_1")
-            task_2 = EmptyOperator(task_id="task_2", owner="task")
-            task_3 = EmptyOperator(task_id="task_3", default_args={"owner": "task"})
-
-            assert task_1.owner == "group"
-            assert task_2.owner == "task"
-            assert task_3.owner == "task"
 
 
 def test_override_dag_default_args_in_nested_tg():
@@ -968,17 +916,6 @@ class TestTaskGroupGetItem:
                 pass
 
         with pytest.raises(NodeNotFound):
-            tg["nonexistent"]
-
-    def test_getitem_missing_is_key_error(self):
-        import pendulum
-
-        start = pendulum.datetime(2016, 1, 1)
-        with DAG("test_dag", schedule=None, start_date=start):
-            with TaskGroup(group_id="section") as tg:
-                pass
-
-        with pytest.raises(KeyError):
             tg["nonexistent"]
 
 

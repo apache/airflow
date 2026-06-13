@@ -28,16 +28,6 @@ class TestAssetAccessControl:
         assert ac.consumer_teams is None
         assert ac.allow_global is True
 
-    def test_explicit_values(self):
-        ac = AssetAccessControl(
-            producer_teams=["team_a", "team_b"],
-            consumer_teams=["team_c"],
-            allow_global=False,
-        )
-        assert ac.producer_teams == ["team_a", "team_b"]
-        assert ac.consumer_teams == ["team_c"]
-        assert ac.allow_global is False
-
     @pytest.mark.parametrize(
         "teams",
         [

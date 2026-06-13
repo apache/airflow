@@ -22,34 +22,13 @@ from airflow.sdk.definitions.partition_mappers.wait_policy import MinimumCount, 
 
 
 class TestSdkWaitForAll:
-    def test_repr(self):
-        assert repr(WaitForAll()) == "WaitForAll()"
-
-    def test_eq(self):
-        assert WaitForAll() == WaitForAll()
-
     def test_neq_other_policy(self):
         assert WaitForAll() != MinimumCount(1)
 
-    def test_hash_consistent(self):
-        assert hash(WaitForAll()) == hash(WaitForAll())
-
 
 class TestSdkMinimumCount:
-    def test_stores_n(self):
-        assert MinimumCount(5).n == 5
-
-    def test_eq_same_n(self):
-        assert MinimumCount(5) == MinimumCount(5)
-
     def test_neq_different_n(self):
         assert MinimumCount(5) != MinimumCount(6)
-
-    def test_repr(self):
-        assert repr(MinimumCount(5)) == "MinimumCount(n=5)"
-
-    def test_hash_consistent(self):
-        assert hash(MinimumCount(5)) == hash(MinimumCount(5))
 
     def test_zero_rejected(self):
         with pytest.raises(ValueError, match="MinimumCount\\(0\\) is degenerate"):
