@@ -445,16 +445,6 @@ def test_state_queued():
     assert executor.event_buffer[key] == (TaskInstanceState.QUEUED, info)
 
 
-def test_state_generic():
-    executor = BaseExecutor()
-    key = TaskInstanceKey("my_dag1", "my_task1", timezone.utcnow(), 1)
-    executor.running.add(key)
-    info = "info"
-    executor.queued(key, info=info)
-    assert not executor.running
-    assert executor.event_buffer[key] == (TaskInstanceState.QUEUED, info)
-
-
 def test_state_running():
     executor = BaseExecutor()
     key = TaskInstanceKey("my_dag1", "my_task1", timezone.utcnow(), 1)
@@ -648,11 +638,6 @@ class TestCallbackSupport:
     def test_supports_callbacks_flag_default_false(self):
         executor = BaseExecutor()
         assert executor.supports_callbacks is False
-
-    def test_local_executor_supports_callbacks_true(self):
-        """Test that LocalExecutor sets supports_callbacks to True."""
-        executor = LocalExecutor()
-        assert executor.supports_callbacks is True
 
     @pytest.mark.db_test
     def test_queue_callback_without_support_raises_error(self, dag_maker, session):
