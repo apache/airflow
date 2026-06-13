@@ -139,7 +139,7 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
         token = request.scope.get(_REQUEST_SCOPE_TOKEN_KEY)
         if token:
             try:
-                claims = {"sub": str(token.id), **token.claims.model_dump()}
+                claims = token.claims.model_dump()
 
                 # Workload tokens are long-lived and meant to survive queue
                 # wait times so avoid refreshing them.
