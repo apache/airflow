@@ -23,6 +23,7 @@ import { Outlet } from "react-router-dom";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
 import type { ReactAppResponse } from "openapi/requests/types.gen";
+import { KeyboardShortcutsModal } from "src/components/KeyboardShortcuts";
 import { ReactPlugin } from "src/pages/ReactPlugin";
 import { useConfig } from "src/queries/useConfig";
 
@@ -99,6 +100,7 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
   return (
     <LocaleProvider locale={i18n.language || "en"}>
       <Box display="flex" flexDirection="column" h="100vh">
+        <KeyboardShortcutsModal />
         <Nav />
         <Box
           _ltr={{ ml: 16 }}
