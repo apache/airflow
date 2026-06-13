@@ -113,7 +113,7 @@ class PubSubPullSensor(BaseSensorOperator):
         project_id: str,
         subscription: str,
         max_messages: int = 5,
-        return_immediately: bool = True,
+        return_immediately: bool = False,
         ack_messages: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
@@ -176,6 +176,7 @@ class PubSubPullSensor(BaseSensorOperator):
                 poke_interval=self.poke_interval,
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
+                return_immediately=self.return_immediately,
             ),
             method_name="execute_complete",
         )

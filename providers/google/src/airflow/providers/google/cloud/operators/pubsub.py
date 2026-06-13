@@ -799,6 +799,13 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
     :param deferrable: If True, run the task in the deferrable mode.
     :param poll_interval: Time (seconds) to wait between two consecutive calls to check the job.
         The default is 300 seconds.
+    :param return_immediately: If this field set to true, the system will
+        respond immediately even if it there are no messages available to
+        return in the ``Pull`` response. Otherwise, the system may wait
+        (for a bounded amount of time) until at least one message is available,
+        rather than returning no messages. Warning: setting this field to
+        ``true`` is discouraged because it adversely impacts the performance
+        of ``Pull`` operations. We recommend that users do not set this field.
     """
 
     template_fields: Sequence[str] = (
@@ -819,6 +826,7 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 300,
+        return_immediately: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -831,6 +839,7 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.poll_interval = poll_interval
+        self.return_immediately = return_immediately
 
     def execute(self, context: Context) -> list:
         if self.deferrable:
@@ -843,6 +852,7 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
                     gcp_conn_id=self.gcp_conn_id,
                     poke_interval=self.poll_interval,
                     impersonation_chain=self.impersonation_chain,
+                    return_immediately=self.return_immediately,
                 ),
                 method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
             )
@@ -855,7 +865,7 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
             subscription=self.subscription,
             max_messages=self.max_messages,
-            return_immediately=True,
+            return_immediately=self.return_immediately,
         )
 
         handle_messages = self.messages_callback or self._default_message_callback
