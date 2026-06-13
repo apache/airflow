@@ -25,8 +25,9 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
+from airflow.cli.api_client import NEW_API_CLIENT, Client, provide_api_client
 from airflow.cli.simple_table import AirflowConsole
-from airflow.cli.utils import SENSITIVE_PLACEHOLDER, print_export_output
+from airflow.cli.utils import SENSITIVE_PLACEHOLDER, deprecated_for_airflowctl, print_export_output
 from airflow.exceptions import (
     AirflowFileParseException,
     AirflowUnsupportedFileTypeException,
@@ -43,29 +44,11 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
 
-class VariableDisplayMapper:
-    """Mapper class for formatting variable data for CLI display."""
-
-    @staticmethod
-    def keys_only(var) -> dict[str, str]:
-        """Return only variable keys. Accepts Variable model or dict with 'key'."""
-        key = var.key if hasattr(var, "key") else var["key"]
-        return {"key": key}
-
-    @staticmethod
-    def with_values(var, hide_sensitive: bool = False) -> dict[str, str]:
-        """Return variable with value, optionally masked."""
-        key = var.key if hasattr(var, "key") else var["key"]
-        raw = var.val if hasattr(var, "val") else var.get("val", var.get("_val"))
-        val = "" if raw is None else str(raw)
-        if hide_sensitive:
-            val = SENSITIVE_PLACEHOLDER
-        return {"key": key, "val": val}
-
-
+@deprecated_for_airflowctl("airflowctl variables list")
 @suppress_logs_and_warning
 @providers_configuration_loaded
-def variables_list(args):
+@provide_api_client
+def variables_list(args, api_client: Client = NEW_API_CLIENT):
     """
     Display all the variables.
 
@@ -79,17 +62,20 @@ def variables_list(args):
     if hide_sensitive and not show_values:
         raise SystemExit("--hide-sensitive can only be used with --show-values")
 
-    def _mapper(var):
-        return VariableDisplayMapper.with_values(var, hide_sensitive)
+    variables = api_client.variables.list().variables
 
-    with create_session() as session:
-        if show_values:
-            variables = session.scalars(select(Variable)).all()
-            AirflowConsole().print_as(data=variables, output=args.output, mapper=_mapper)
-        else:
-            keys = session.scalars(select(Variable.key).distinct()).all()
-            variables = [{"key": key} for key in keys]
-            AirflowConsole().print_as(data=variables, output=args.output, mapper=None)
+    if show_values:
+
+        def _mapper(var):
+            val = "" if var.value is None else str(var.value)
+            if hide_sensitive:
+                val = SENSITIVE_PLACEHOLDER
+            return {"key": var.key, "val": val}
+
+        AirflowConsole().print_as(data=variables, output=args.output, mapper=_mapper)
+    else:
+        data = [{"key": var.key} for var in variables]
+        AirflowConsole().print_as(data=data, output=args.output, mapper=None)
 
 
 @suppress_logs_and_warning
