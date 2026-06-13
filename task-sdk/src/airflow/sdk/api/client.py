@@ -909,17 +909,49 @@ class DagRunOperations:
             run_after=run_after,
         )
 
+        # GET dag-runs/count is available since Airflow 3.0.0. Failures propagate rather
+        # than falling through to POST — if the count endpoint is unreachable, the POST
+        # would fail too. None signals dry-run (skip pre-check, no-op POST).
+        dag_run_count_before = (
+            None if self.client._dry_run else self.get_count(dag_id=dag_id, run_ids=[run_id]).count
+        )
+        if dag_run_count_before is not None and dag_run_count_before > 0:
+            if reset_dag_run:
+                log.info("Dag Run already exists; Resetting Dag Run.", dag_id=dag_id, run_id=run_id)
+                # TODO: Make clear() idempotent as a follow-up.
+                return self.clear(run_id=run_id, dag_id=dag_id)
+            log.info("Dag Run already exists!", dag_id=dag_id, run_id=run_id)
+            return ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
+
         try:
-            self.client.post(
-                f"dag-runs/{dag_id}/{run_id}", content=body.model_dump_json(exclude_defaults=True)
+            self.client._request_without_retry(
+                "POST", f"dag-runs/{dag_id}/{run_id}", content=body.model_dump_json(exclude_defaults=True)
             )
+        except (httpx.ReadError, httpx.ReadTimeout, httpx.RemoteProtocolError):
+            if dag_run_count_before == 0 and self.get_count(dag_id=dag_id, run_ids=[run_id]).count > 0:
+                log.info(
+                    "Dag Run exists after ambiguous trigger response; treating trigger as successful.",
+                    dag_id=dag_id,
+                    run_id=run_id,
+                )
+                return OKResponse(ok=True)
+            raise
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.CONFLICT:
                 if reset_dag_run:
-                    log.info("Dag Run already exists; Resetting Dag Run.", dag_id=dag_id, run_id=run_id)
+                    log.info(
+                        "Dag Run already exists after trigger attempt; Resetting Dag Run.",
+                        detail=e.detail,
+                        dag_id=dag_id,
+                        run_id=run_id,
+                    )
                     return self.clear(run_id=run_id, dag_id=dag_id)
-
-                log.info("Dag Run already exists!", detail=e.detail, dag_id=dag_id, run_id=run_id)
+                log.info(
+                    "Dag Run already exists after trigger attempt.",
+                    detail=e.detail,
+                    dag_id=dag_id,
+                    run_id=run_id,
+                )
                 return ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
             raise
 
@@ -1162,6 +1194,7 @@ class Client(httpx.Client):
         if (not base_url) ^ dry_run:
             raise ValueError(f"Can only specify one of {base_url=} or {dry_run=}")
         auth = BearerAuth(token)
+        self._dry_run: bool = dry_run
 
         if dry_run:
             # If dry run is requested, install a no op handler so that simple tasks can "heartbeat" using a
@@ -1201,6 +1234,19 @@ class Client(httpx.Client):
             log.debug("Execution API issued us a refreshed Task token")
             self.auth = BearerAuth(new_token)
 
+    @staticmethod
+    def _ensure_json_content_type(kwargs: dict[str, Any]) -> None:
+        # Set content type as convenience if not already set
+        if kwargs.get("content", None) is not None and "content-type" not in (
+            kwargs.get("headers", {}) or {}
+        ):
+            kwargs["headers"] = {"content-type": "application/json"}
+
+    def _request_without_retry(self, *args, **kwargs):
+        """Implement a convenience for httpx.Client.request without retrying."""
+        self._ensure_json_content_type(kwargs)
+        return super().request(*args, **kwargs)
+
     @retry(
         retry=retry_if_exception(_should_retry_api_request),
         stop=stop_after_attempt(API_RETRIES),
@@ -1210,12 +1256,7 @@ class Client(httpx.Client):
     )
     def request(self, *args, **kwargs):
         """Implement a convenience for httpx.Client.request with a retry layer."""
-        # Set content type as convenience if not already set
-        if kwargs.get("content", None) is not None and "content-type" not in (
-            kwargs.get("headers", {}) or {}
-        ):
-            kwargs["headers"] = {"content-type": "application/json"}
-
+        self._ensure_json_content_type(kwargs)
         return super().request(*args, **kwargs)
 
     # We "group" or "namespace" operations by what they operate on, rather than a flat namespace with all
