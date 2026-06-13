@@ -86,6 +86,16 @@ export const Dashboard = () => {
             : translate("welcome")}
         </Heading>
         <Box order={3}>
+          <Stats />
+        </Box>
+        <Box order={4}>
+          <FavoriteDags />
+        </Box>
+        <Box display="flex" flexDirection={{ base: "column", md: "row" }} gap={{ base: 4, md: 8 }} order={5}>
+          <Health />
+          <PoolSummary />
+        </Box>
+        <Box order={6}>
           <TimeRangeSelector
             defaultValue={defaultHour}
             endDate={endDate}
@@ -93,16 +103,6 @@ export const Dashboard = () => {
             setStartDate={setStartDate}
             startDate={startDate}
           />
-        </Box>
-        <Box order={4}>
-          <Stats />
-        </Box>
-        <Box order={5}>
-          <FavoriteDags />
-        </Box>
-        <Box display="flex" flexDirection={{ base: "column", md: "row" }} gap={{ base: 4, md: 8 }} order={6}>
-          <Health />
-          <PoolSummary />
         </Box>
         <Box order={7}>
           <DashboardDeadlines endDate={endDate} startDate={startDate} />
