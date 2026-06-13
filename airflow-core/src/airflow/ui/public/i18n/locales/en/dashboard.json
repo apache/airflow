@@ -6,7 +6,7 @@
     },
     "recentlyMissed": {
       "empty": "No missed deadlines",
-      "title": "$t(stats.missedDeadlines)"
+      "title": "Missed Deadlines"
     },
     "showMore": "Show more",
     "title": "Deadlines"
@@ -50,7 +50,6 @@
   "stats": {
     "activeDags": "Active Dags",
     "failedDags": "Failed Dags",
-    "missedDeadlines": "Missed Deadlines",
     "queuedDags": "Queued Dags",
     "requiredActions": "Required Actions",
     "runningDags": "Running Dags",
