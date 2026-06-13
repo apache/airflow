@@ -434,6 +434,36 @@ def test_sqlite_relative_path(value, expectation):
             settings.configure_orm()
 
 
+@pytest.mark.parametrize(
+    ("sync_uri", "expected_async_uri"),
+    [
+        ("postgresql://user:pass@host/db", "postgresql+psycopg_async://user:pass@host/db"),
+        ("postgresql+psycopg2://user:pass@host/db", "postgresql+psycopg_async://user:pass@host/db"),
+        ("sqlite:////root/airflow.db", "sqlite+aiosqlite:////root/airflow.db"),
+        ("mysql://user:pass@host/db", "mysql+aiomysql://user:pass@host/db"),
+        ("mssql://user:pass@host/db", "mssql://user:pass@host/db"),
+    ],
+)
+def test_get_async_conn_uri_from_sync(sync_uri, expected_async_uri):
+    from airflow import settings
+
+    assert settings._get_async_conn_uri_from_sync(sync_uri) == expected_async_uri
+
+
+def test_explicit_sql_alchemy_conn_async_is_not_rewritten():
+    from airflow import settings
+
+    from tests_common.test_utils.config import conf_vars
+
+    explicit_async_uri = "postgresql+asyncpg://user:pass@host/db"
+    try:
+        with conf_vars({("database", "sql_alchemy_conn_async"): explicit_async_uri}):
+            settings.configure_vars()
+            assert explicit_async_uri == settings.SQL_ALCHEMY_CONN_ASYNC
+    finally:
+        settings.configure_vars()
+
+
 class TestDisposeOrm:
     """Tests for dispose_orm() async engine disposal."""
 
