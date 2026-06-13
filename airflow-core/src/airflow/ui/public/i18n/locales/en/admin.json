@@ -23,10 +23,10 @@
     "connection_one": "Connection",
     "connection_other": "Connections",
     "delete": {
-      "deleteConnection_one": "Delete 1 $t(connections.connection_one)",
-      "deleteConnection_other": "Delete {{count}} $t(connections.connection_other)",
-      "firstConfirmMessage_one": "You are about to delete the following $t(connections.connection_one):",
-      "firstConfirmMessage_other": "You are about to delete the following $t(connections.connection_other):",
+      "deleteConnection_one": "Delete 1 connection",
+      "deleteConnection_other": "Delete {{count}} connections",
+      "firstConfirmMessage_one": "You are about to delete the following connection:",
+      "firstConfirmMessage_other": "You are about to delete the following connections:",
       "title": "Delete $t(connections.connection_one)"
     },
     "edit": "Edit $t(connections.connection_one)",
@@ -49,7 +49,7 @@
     },
     "searchPlaceholder": "Search $t(connections.connection_other)",
     "test": "Test $t(connections.connection_one)",
-    "testDisabled": "Test $t(connections.connection_one) feature is disabled. Please contact an administrator to enable it.",
+    "testDisabled": "Test connection feature is disabled. Please contact an administrator to enable it.",
     "testError": {
       "title": "Test $t(connections.connection_one) Failed"
     },
@@ -111,7 +111,7 @@
     "deferredSlotsIncluded": "Deferred Slots Included",
     "delete": {
       "title": "Delete $t(pools.pool_one)",
-      "warning": "This will remove all metadata related to the $t(pools.pool_one) and may affect tasks using this $t(pools.pool_one)."
+      "warning": "This will remove all metadata related to the pool and may affect tasks using this pool."
     },
     "edit": "Edit $t(pools.pool_one)",
     "form": {
@@ -123,7 +123,7 @@
       "slots": "Slots",
       "slotsHelperText": "Use -1 for unlimited slots."
     },
-    "noPoolsFound": "No $t(pools.pool_other) found",
+    "noPoolsFound": "No pools found",
     "pool_one": "Pool",
     "pool_other": "Pools",
     "searchPlaceholder": "Search $t(pools.pool_other)",
@@ -147,10 +147,10 @@
     "delete": {
       "deleteVariable_one": "Delete 1 $t(variables.variable_one)",
       "deleteVariable_other": "Delete {{count}} $t(variables.variable_other)",
-      "firstConfirmMessage_one": "You are about to delete the following $t(variables.variable_one):",
-      "firstConfirmMessage_other": "You are about to delete the following $t(variables.variable_other):",
+      "firstConfirmMessage_one": "You are about to delete the following variable:",
+      "firstConfirmMessage_other": "You are about to delete the following variables:",
       "title": "Delete $t(variables.variable_one)",
-      "tooltip": "Delete selected $t(variables.variable_other)"
+      "tooltip": "Delete selected variables"
     },
     "edit": "Edit $t(variables.variable_one)",
     "form": {
@@ -179,9 +179,9 @@
       },
       "title": "Import Variables",
       "upload": "Upload a JSON File",
-      "uploadPlaceholder": "Upload a JSON file containing $t(variables.variable_other) (e.g., {\"key\": \"value\", ...})"
+      "uploadPlaceholder": "Upload a JSON file containing variables (e.g., {\"key\": \"value\", ...})"
     },
-    "noRowsMessage": "No $t(variables.variable_other) found",
+    "noRowsMessage": "No variables found",
     "searchPlaceholder": "Search Keys",
     "variable_one": "Variable",
     "variable_other": "Variables"
