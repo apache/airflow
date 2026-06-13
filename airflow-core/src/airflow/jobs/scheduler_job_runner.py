@@ -117,6 +117,7 @@ from airflow.timetables.base import Timetable, compute_rollup_fingerprint
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.event_scheduler import EventScheduler
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -2585,7 +2586,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 creating_job_id=self.job.id,
                 session=session,
             )
-            stats.incr("asset.triggered_dagruns")
+            team_name = (
+                self._get_team_names_for_dag_ids([dag.dag_id], session).get(dag.dag_id)
+                if self._multi_team
+                else None
+            )
+            stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
             dag_run.consumed_asset_events.extend(asset_events)
             self.log.info(
                 "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
