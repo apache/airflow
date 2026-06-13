@@ -154,7 +154,7 @@ export const TaskStateStore = () => {
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="dag:taskStore.title"
+        modelName="dag:taskStateStore.title"
         noRowsMessage={translate("taskStateStore.emptyStore")}
         onStateChange={setTableURLState}
         showRowCountHeading={false}

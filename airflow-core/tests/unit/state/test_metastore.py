@@ -33,7 +33,7 @@ from airflow.models.asset_state_store import AssetStateStoreModel
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.state import AssetScope, TaskScope, resolve_state_backend
-from airflow.state.metastore import MetastoreStateStoreBackend
+from airflow.state.metastore import MetastoreBackend
 from airflow.utils.session import create_session, create_session_async
 
 from tests_common.test_utils.config import conf_vars
@@ -61,8 +61,8 @@ def clean_tables():
 
 
 @pytest.fixture
-def backend() -> MetastoreStateStoreBackend:
-    return MetastoreStateStoreBackend()
+def backend() -> MetastoreBackend:
+    return MetastoreBackend()
 
 
 @pytest.fixture
@@ -115,16 +115,14 @@ def asset_committed() -> AssetModel:
     return a
 
 
-class TestMetastoreStateStoreBackendTaskScope:
+class TestMetastoreBackendTaskScope:
     def test_get_returns_none_for_missing_key(
-        self, session: Session, backend: MetastoreStateStoreBackend, dag_run: DagRun
+        self, session: Session, backend: MetastoreBackend, dag_run: DagRun
     ):
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         assert backend.get(scope, "missing", session=session) is None
 
-    def test_set_and_get_roundtrip(
-        self, session: Session, backend: MetastoreStateStoreBackend, dag_run: DagRun
-    ):
+    def test_set_and_get_roundtrip(self, session: Session, backend: MetastoreBackend, dag_run: DagRun):
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.flush()
@@ -132,7 +130,7 @@ class TestMetastoreStateStoreBackendTaskScope:
 
     @pytest.mark.backend("postgres", "mysql", "sqlite")
     def test_set_twice_overrides_existing_value(
-        self, session: Session, backend: MetastoreStateStoreBackend, dag_run: DagRun
+        self, session: Session, backend: MetastoreBackend, dag_run: DagRun
     ):
         """Calling set twice on the same key updates the value in place."""
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
@@ -142,9 +140,7 @@ class TestMetastoreStateStoreBackendTaskScope:
         session.flush()
         assert backend.get(scope, "job_id", session=session) == "app_try2"
 
-    def test_set_stores_dag_run_id_fk(
-        self, session: Session, backend: MetastoreStateStoreBackend, dag_run: DagRun
-    ):
+    def test_set_stores_dag_run_id_fk(self, session: Session, backend: MetastoreBackend, dag_run: DagRun):
         """set resolves dag_run_id from (dag_id, run_id) and persists it as the FK."""
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         backend.set(scope, "job_id", "app_1234", session=session)
@@ -160,7 +156,7 @@ class TestMetastoreStateStoreBackendTaskScope:
         assert row is not None
         assert row.dag_run_id == dag_run.id
 
-    def test_delete_removes_key(self, session: Session, backend: MetastoreStateStoreBackend, dag_run: DagRun):
+    def test_delete_removes_key(self, session: Session, backend: MetastoreBackend, dag_run: DagRun):
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         backend.set(scope, "job_id", "app_1234", session=session)
         backend.set(scope, "checkpoint", "step_3", session=session)
@@ -173,14 +169,12 @@ class TestMetastoreStateStoreBackendTaskScope:
         assert backend.get(scope, "checkpoint", session=session) == "step_3"
 
     def test_delete_is_noop_for_missing_key(
-        self, session: Session, backend: MetastoreStateStoreBackend, dag_run: DagRun
+        self, session: Session, backend: MetastoreBackend, dag_run: DagRun
     ):
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         backend.delete(scope, "nonexistent", session=session)
 
-    def test_clear_removes_all_keys(
-        self, session: Session, backend: MetastoreStateStoreBackend, dag_run: DagRun
-    ):
+    def test_clear_removes_all_keys(self, session: Session, backend: MetastoreBackend, dag_run: DagRun):
         """clear removes every key under the given task scope."""
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         for key in ("job_id", "checkpoint", "watermark"):
@@ -193,9 +187,7 @@ class TestMetastoreStateStoreBackendTaskScope:
         for key in ("job_id", "checkpoint", "watermark"):
             assert backend.get(scope, key, session=session) is None
 
-    def test_map_index_isolation(
-        self, session: Session, backend: MetastoreStateStoreBackend, dag_run: DagRun
-    ):
+    def test_map_index_isolation(self, session: Session, backend: MetastoreBackend, dag_run: DagRun):
         """Mapped task instances with different map_index values have isolated namespaces."""
         scope0 = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID, map_index=0)
         scope1 = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID, map_index=1)
@@ -207,14 +199,12 @@ class TestMetastoreStateStoreBackendTaskScope:
         assert backend.get(scope0, "job_id", session=session) == "app_0"
         assert backend.get(scope1, "job_id", session=session) == "app_1"
 
-    def test_set_raises_for_missing_dag_run(self, session: Session, backend: MetastoreStateStoreBackend):
+    def test_set_raises_for_missing_dag_run(self, session: Session, backend: MetastoreBackend):
         scope = TaskScope(dag_id="nonexistent_dag", run_id="nonexistent_run", task_id=TASK_ID)
         with pytest.raises(ValueError, match="No DagRun found"):
             backend.set(scope, "job_id", "app_1234", session=session)
 
-    def test_clear_scoped_to_map_index(
-        self, session: Session, backend: MetastoreStateStoreBackend, dag_run: DagRun
-    ):
+    def test_clear_scoped_to_map_index(self, session: Session, backend: MetastoreBackend, dag_run: DagRun):
         """clear for map_index=0 does not remove state belonging to map_index=1."""
         scope0 = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID, map_index=0)
         scope1 = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID, map_index=1)
@@ -230,7 +220,7 @@ class TestMetastoreStateStoreBackendTaskScope:
         assert backend.get(scope1, "job_id", session=session) == "app_1"
 
     def test_clear_with_all_map_indices_flag_wipes_wide(
-        self, session: Session, backend: MetastoreStateStoreBackend, dag_run: DagRun
+        self, session: Session, backend: MetastoreBackend, dag_run: DagRun
     ):
         """clear(scope, all_map_indices=True) removes state for every map index of the task."""
         scope0 = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID, map_index=0)
@@ -247,7 +237,7 @@ class TestMetastoreStateStoreBackendTaskScope:
         assert backend.get(scope1, "job_id", session=session) is None
 
     def test_set_without_expires_at_stores_null(
-        self, session: Session, backend: MetastoreStateStoreBackend, dag_run: DagRun
+        self, session: Session, backend: MetastoreBackend, dag_run: DagRun
     ):
         """set() without expires_at stores NULL — the worker is responsible for computing expiry."""
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
@@ -259,7 +249,7 @@ class TestMetastoreStateStoreBackendTaskScope:
         assert row.expires_at is None
 
     def test_set_expires_at_none_stores_null(
-        self, session: Session, backend: MetastoreStateStoreBackend, dag_run: DagRun
+        self, session: Session, backend: MetastoreBackend, dag_run: DagRun
     ):
         """expires_at=None stores NULL — the key never expires regardless of global config."""
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
@@ -270,9 +260,7 @@ class TestMetastoreStateStoreBackendTaskScope:
         assert row is not None
         assert row.expires_at is None
 
-    def test_cleanup_removes_expired_rows(
-        self, session: Session, backend: MetastoreStateStoreBackend, dag_run: DagRun
-    ):
+    def test_cleanup_removes_expired_rows(self, session: Session, backend: MetastoreBackend, dag_run: DagRun):
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         backend.set(scope, "old_key", "old_value", session=session)
         backend.set(scope, "new_key", "new_value", session=session)
@@ -299,7 +287,7 @@ class TestMetastoreStateStoreBackendTaskScope:
         )
 
     def test_cleanup_removes_expires_at_rows(
-        self, session: Session, backend: MetastoreStateStoreBackend, dag_run: DagRun
+        self, session: Session, backend: MetastoreBackend, dag_run: DagRun
     ):
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         backend.set(scope, "short_lived", "value", session=session)
@@ -326,9 +314,7 @@ class TestMetastoreStateStoreBackendTaskScope:
         )
 
     @conf_vars({("state_store", "state_cleanup_batch_size"): "2"})
-    def test_cleanup_batches_deletes(
-        self, session: Session, backend: MetastoreStateStoreBackend, dag_run: DagRun
-    ):
+    def test_cleanup_batches_deletes(self, session: Session, backend: MetastoreBackend, dag_run: DagRun):
         """cleanup() issues one DELETE per batch, not one DELETE for all rows at once.
 
         Verifying this is not straightforward because cleanup() creates its own internal session,
@@ -377,16 +363,14 @@ class TestMetastoreStateStoreBackendTaskScope:
         assert len(deletes) == 3
 
 
-class TestMetastoreStateStoreBackendAssetScope:
+class TestMetastoreBackendAssetScope:
     def test_get_returns_none_for_missing_key(
-        self, session: Session, backend: MetastoreStateStoreBackend, asset: AssetModel
+        self, session: Session, backend: MetastoreBackend, asset: AssetModel
     ):
         scope = AssetScope(asset_id=asset.id)
         assert backend.get(scope, "missing", session=session) is None
 
-    def test_set_and_get_roundtrip(
-        self, session: Session, backend: MetastoreStateStoreBackend, asset: AssetModel
-    ):
+    def test_set_and_get_roundtrip(self, session: Session, backend: MetastoreBackend, asset: AssetModel):
         scope = AssetScope(asset_id=asset.id)
         backend.set(scope, "watermark", "2026-04-24T00:00:00Z", session=session)
         session.flush()
@@ -394,7 +378,7 @@ class TestMetastoreStateStoreBackendAssetScope:
 
     @pytest.mark.backend("postgres", "mysql", "sqlite")
     def test_set_twice_overwrites_existing_value(
-        self, session: Session, backend: MetastoreStateStoreBackend, asset: AssetModel
+        self, session: Session, backend: MetastoreBackend, asset: AssetModel
     ):
         scope = AssetScope(asset_id=asset.id)
         backend.set(scope, "watermark", "2026-04-01T00:00:00Z", session=session)
@@ -403,9 +387,7 @@ class TestMetastoreStateStoreBackendAssetScope:
         session.flush()
         assert backend.get(scope, "watermark", session=session) == "2026-04-24T00:00:00Z"
 
-    def test_delete_removes_key(
-        self, session: Session, backend: MetastoreStateStoreBackend, asset: AssetModel
-    ):
+    def test_delete_removes_key(self, session: Session, backend: MetastoreBackend, asset: AssetModel):
         scope = AssetScope(asset_id=asset.id)
         backend.set(scope, "watermark", "2026-04-24T00:00:00Z", session=session)
         backend.set(scope, "file_count", "42", session=session)
@@ -418,14 +400,12 @@ class TestMetastoreStateStoreBackendAssetScope:
         assert backend.get(scope, "file_count", session=session) == "42"
 
     def test_delete_is_noop_for_missing_key(
-        self, session: Session, backend: MetastoreStateStoreBackend, asset: AssetModel
+        self, session: Session, backend: MetastoreBackend, asset: AssetModel
     ):
         scope = AssetScope(asset_id=asset.id)
         backend.delete(scope, "nonexistent", session=session)
 
-    def test_clear_removes_all_keys(
-        self, session: Session, backend: MetastoreStateStoreBackend, asset: AssetModel
-    ):
+    def test_clear_removes_all_keys(self, session: Session, backend: MetastoreBackend, asset: AssetModel):
         scope = AssetScope(asset_id=asset.id)
         for key in ("watermark", "file_count", "last_error"):
             backend.set(scope, key, f"val_{key}", session=session)
@@ -438,7 +418,7 @@ class TestMetastoreStateStoreBackendAssetScope:
             assert backend.get(scope, key, session=session) is None
 
     def test_different_assets_are_isolated(
-        self, session: Session, backend: MetastoreStateStoreBackend, asset: AssetModel
+        self, session: Session, backend: MetastoreBackend, asset: AssetModel
     ):
         asset2 = AssetModel(uri="s3://bucket/other", name="other_asset", group="test")
         session.add(asset2)
@@ -453,7 +433,7 @@ class TestMetastoreStateStoreBackendAssetScope:
         assert backend.get(scope2, "watermark", session=session) is None
 
     def test_set_asset_state_store_writes_writer(
-        self, backend: MetastoreStateStoreBackend, asset_committed: AssetModel, create_task_instance
+        self, backend: MetastoreBackend, asset_committed: AssetModel, create_task_instance
     ):
         ti = create_task_instance()
         scope = AssetScope(asset_id=asset_committed.id)
@@ -481,7 +461,7 @@ class TestMetastoreStateStoreBackendAssetScope:
 
     @pytest.mark.backend("postgres", "mysql", "sqlite")
     def test_set_asset_state_store_upsert_updates_writer(
-        self, backend: MetastoreStateStoreBackend, asset_committed: AssetModel, create_task_instance
+        self, backend: MetastoreBackend, asset_committed: AssetModel, create_task_instance
     ):
         ti1 = create_task_instance(task_id="task1", dag_id="dag1")
         ti2 = create_task_instance(task_id="task2", dag_id="dag2")
@@ -516,9 +496,7 @@ class TestMetastoreStateStoreBackendAssetScope:
         assert row.last_updated_by_dag_id == ti2.dag_id
         assert row.last_updated_by_task_id == ti2.task_id
 
-    def test_set_stores_null_writer(
-        self, session: Session, backend: MetastoreStateStoreBackend, asset: AssetModel
-    ):
+    def test_set_stores_null_writer(self, session: Session, backend: MetastoreBackend, asset: AssetModel):
         scope = AssetScope(asset_id=asset.id)
         backend.set(scope, "watermark", "v", session=session)
         session.flush()
@@ -530,7 +508,7 @@ class TestMetastoreStateStoreBackendAssetScope:
         assert row.last_updated_by_task_id is None
 
     def test_set_asset_state_store_task_kind_requires_all_fields(
-        self, backend: MetastoreStateStoreBackend, asset_committed: AssetModel, create_task_instance
+        self, backend: MetastoreBackend, asset_committed: AssetModel, create_task_instance
     ):
         ti = create_task_instance()
         scope = AssetScope(asset_id=asset_committed.id)
@@ -547,7 +525,7 @@ class TestMetastoreStateStoreBackendAssetScope:
             )
 
     def test_set_asset_state_store_watcher_kind_rejects_task_fields(
-        self, backend: MetastoreStateStoreBackend, asset_committed: AssetModel, create_task_instance
+        self, backend: MetastoreBackend, asset_committed: AssetModel, create_task_instance
     ):
         ti = create_task_instance()
         scope = AssetScope(asset_id=asset_committed.id)
@@ -564,7 +542,7 @@ class TestMetastoreStateStoreBackendAssetScope:
             )
 
     def test_set_asset_state_store_api_kind_rejects_task_fields(
-        self, backend: MetastoreStateStoreBackend, asset_committed: AssetModel, create_task_instance
+        self, backend: MetastoreBackend, asset_committed: AssetModel, create_task_instance
     ):
         ti = create_task_instance()
         scope = AssetScope(asset_id=asset_committed.id)
@@ -581,7 +559,7 @@ class TestMetastoreStateStoreBackendAssetScope:
             )
 
     def test_cleanup_does_not_touch_asset_state(
-        self, session: Session, backend: MetastoreStateStoreBackend, asset: AssetModel
+        self, session: Session, backend: MetastoreBackend, asset: AssetModel
     ):
         scope = AssetScope(asset_id=asset.id)
         backend.set(scope, "watermark", "2026-01-01", session=session)
@@ -598,26 +576,20 @@ class TestMetastoreStateStoreBackendAssetScope:
 
 
 @pytest.mark.asyncio(loop_scope="class")
-class TestMetastoreStateStoreBackendAsync:
-    async def test_aset_and_aget_task_roundtrip(
-        self, backend: MetastoreStateStoreBackend, dag_run_committed: DagRun
-    ):
+class TestMetastoreBackendAsync:
+    async def test_aset_and_aget_task_roundtrip(self, backend: MetastoreBackend, dag_run_committed: DagRun):
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         await backend.aset(scope, "job_id", "app_async")
         result = await backend.aget(scope, "job_id")
         assert result == "app_async"
 
-    async def test_adelete_task_removes_key(
-        self, backend: MetastoreStateStoreBackend, dag_run_committed: DagRun
-    ):
+    async def test_adelete_task_removes_key(self, backend: MetastoreBackend, dag_run_committed: DagRun):
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         await backend.aset(scope, "job_id", "app_async")
         await backend.adelete(scope, "job_id")
         assert await backend.aget(scope, "job_id") is None
 
-    async def test_aclear_task_removes_all_keys(
-        self, backend: MetastoreStateStoreBackend, dag_run_committed: DagRun
-    ):
+    async def test_aclear_task_removes_all_keys(self, backend: MetastoreBackend, dag_run_committed: DagRun):
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         await backend.aset(scope, "job_id", "app_async")
         await backend.aset(scope, "checkpoint", "step_1")
@@ -626,7 +598,7 @@ class TestMetastoreStateStoreBackendAsync:
         assert await backend.aget(scope, "checkpoint") is None
 
     async def test_aclear_with_all_map_indices_flag_wipes_fleet(
-        self, backend: MetastoreStateStoreBackend, dag_run_committed: DagRun
+        self, backend: MetastoreBackend, dag_run_committed: DagRun
     ):
         """aclear(scope, all_map_indices=True) removes state for every map index of the task."""
         scope0 = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID, map_index=0)
@@ -641,23 +613,21 @@ class TestMetastoreStateStoreBackendAsync:
         assert await backend.aget(scope1, "job_id") is None
 
     async def test_aset_and_aget_asset_roundtrip(
-        self, backend: MetastoreStateStoreBackend, asset_committed: AssetModel
+        self, backend: MetastoreBackend, asset_committed: AssetModel
     ):
         scope = AssetScope(asset_id=asset_committed.id)
         await backend.aset(scope, "watermark", "2026-04-27T00:00:00Z")
         result = await backend.aget(scope, "watermark")
         assert result == "2026-04-27T00:00:00Z"
 
-    async def test_adelete_asset_removes_key(
-        self, backend: MetastoreStateStoreBackend, asset_committed: AssetModel
-    ):
+    async def test_adelete_asset_removes_key(self, backend: MetastoreBackend, asset_committed: AssetModel):
         scope = AssetScope(asset_id=asset_committed.id)
         await backend.aset(scope, "watermark", "2026-04-27T00:00:00Z")
         await backend.adelete(scope, "watermark")
         assert await backend.aget(scope, "watermark") is None
 
     async def test_aclear_asset_removes_all_keys(
-        self, backend: MetastoreStateStoreBackend, asset_committed: AssetModel
+        self, backend: MetastoreBackend, asset_committed: AssetModel
     ):
         scope = AssetScope(asset_id=asset_committed.id)
         await backend.aset(scope, "watermark", "2026-04-27T00:00:00Z")
@@ -667,7 +637,7 @@ class TestMetastoreStateStoreBackendAsync:
         assert await backend.aget(scope, "file_count") is None
 
     async def test_aset_asset_state_store_writes_writer(
-        self, backend: MetastoreStateStoreBackend, asset_committed: AssetModel, create_task_instance
+        self, backend: MetastoreBackend, asset_committed: AssetModel, create_task_instance
     ):
         ti = create_task_instance()
         scope = AssetScope(asset_id=asset_committed.id)
@@ -691,13 +661,13 @@ class TestMetastoreStateStoreBackendAsync:
         assert row.last_updated_by_dag_id == ti.dag_id
         assert row.last_updated_by_task_id == ti.task_id
 
-    async def test_aset_task_raises_for_missing_dag_run(self, backend: MetastoreStateStoreBackend):
+    async def test_aset_task_raises_for_missing_dag_run(self, backend: MetastoreBackend):
         scope = TaskScope(dag_id="nonexistent_dag", run_id="nonexistent_run", task_id=TASK_ID)
         with pytest.raises(ValueError, match="No DagRun found"):
             await backend.aset(scope, "job_id", "app_async")
 
     async def test_aset_and_aget_with_provided_session(
-        self, backend: MetastoreStateStoreBackend, dag_run_committed: DagRun
+        self, backend: MetastoreBackend, dag_run_committed: DagRun
     ):
         """async methods use a provided AsyncSession when one is given."""
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
@@ -721,10 +691,10 @@ class TestStateStoreConfig:
 
 
 class TestResolveStoreBackend:
-    @conf_vars({("state_store", "backend"): "airflow.state.metastore.MetastoreStateStoreBackend"})
+    @conf_vars({("state_store", "backend"): "airflow.state.metastore.MetastoreBackend"})
     def test_resolve_returns_configured_backend(self):
         """resolve_state_backend() imports and returns the explicitly configured backend class."""
-        assert resolve_state_backend() is MetastoreStateStoreBackend
+        assert resolve_state_backend() is MetastoreBackend
 
     @conf_vars({("state_store", "backend"): ""})
     def test_empty_backend_raises_value_error(self):

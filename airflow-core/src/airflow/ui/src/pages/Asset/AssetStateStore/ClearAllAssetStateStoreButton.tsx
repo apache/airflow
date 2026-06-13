@@ -44,25 +44,25 @@ export const ClearAllAssetStateStoreButton = ({ assetId }: ClearAllAssetStateSto
       ],
       onSuccessConfirm: onClose,
       operation: "delete",
-      resourceName: translate("assetStore.clearAll.resource"),
+      resourceName: translate("assetStateStore.clearAll.resource"),
     }),
   );
 
   return (
     <>
       <Button colorPalette="danger" onClick={onOpen} variant="outline">
-        <FiTrash2 /> {translate("assetStore.clearAll.title")}
+        <FiTrash2 /> {translate("assetStateStore.clearAll.title")}
       </Button>
 
       <DeleteDialog
-        deleteButtonText={translate("assetStore.clearAll.title")}
+        deleteButtonText={translate("assetStateStore.clearAll.title")}
         isDeleting={isPending}
         onClose={onClose}
         onDelete={() => mutate({ assetId })}
         open={open}
-        resourceName={translate("assetStore.clearAll.resource")}
-        title={translate("assetStore.clearAll.title")}
-        warningText={translate("assetStore.clearAll.warning")}
+        resourceName={translate("assetStateStore.clearAll.resource")}
+        title={translate("assetStateStore.clearAll.title")}
+        warningText={translate("assetStateStore.clearAll.warning")}
       />
     </>
   );

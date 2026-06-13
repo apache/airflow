@@ -79,7 +79,7 @@ export const AssetStateStoreModal = ({ assetId, isOpen, mode, onClose, storeKey 
       ],
       onSuccessConfirm: onClose,
       operation: isEditMode ? "update" : "create",
-      resourceName: translate("assetStore.title"),
+      resourceName: translate("assetStateStore.title"),
     }),
   );
 
@@ -95,7 +95,7 @@ export const AssetStateStoreModal = ({ assetId, isOpen, mode, onClose, storeKey 
     <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen} unmountOnExit>
       <Dialog.Content backdrop>
         <Dialog.Header>
-          <Heading size="lg">{translate(`assets:assetStore.${mode}`)}</Heading>
+          <Heading size="lg">{translate(`assets:assetStateStore.${mode}`)}</Heading>
         </Dialog.Header>
         <Dialog.CloseTrigger />
         <Dialog.Body>

@@ -46,7 +46,7 @@ from airflow.api_fastapi.execution_api.security import CurrentTIToken, Execution
 from airflow.models.asset import AssetModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.state import get_state_backend
-from airflow.state.metastore import MetastoreStateStoreBackend
+from airflow.state.metastore import MetastoreBackend
 
 _TIWriterFields = tuple[str, str, str, int]
 
@@ -129,7 +129,7 @@ def _put_asset_state_store(
     session: SessionDep,
 ) -> None:
     backend = get_state_backend()
-    if isinstance(backend, MetastoreStateStoreBackend):
+    if isinstance(backend, MetastoreBackend):
         dag_id, run_id, task_id, map_index = _fetch_ti_writer_fields(token, session)
         backend.set_asset_state_store(
             scope,

@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.cli.commands.state_store_command import cleanup_task_state_store
-from airflow.state.metastore import MetastoreStateStoreBackend
+from airflow.state.metastore import MetastoreBackend
 
 pytestmark = pytest.mark.db_test
 
@@ -31,7 +31,7 @@ pytestmark = pytest.mark.db_test
 class TestStateStoreCleanupCommand:
     def test_cleanup_calls_backend(self):
         args = Namespace(dry_run=False, verbose=False)
-        backend = MetastoreStateStoreBackend()
+        backend = MetastoreBackend()
         with (
             mock.patch("airflow.cli.commands.state_store_command.get_state_backend", return_value=backend),
             patch.object(backend, "cleanup"),
@@ -42,7 +42,7 @@ class TestStateStoreCleanupCommand:
 
     def test_dry_run_does_not_call_backend(self, capsys):
         args = Namespace(dry_run=True, verbose=False)
-        backend = MetastoreStateStoreBackend()
+        backend = MetastoreBackend()
         with (
             mock.patch("airflow.cli.commands.state_store_command.get_state_backend", return_value=backend),
             patch.object(backend, "_summary_dry_run", return_value={"expired": []}),

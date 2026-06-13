@@ -46,13 +46,13 @@ export const DeleteAssetStateStoreButton = ({ assetId, storeKey }: Props) => {
       ],
       onSuccessConfirm: onClose,
       operation: "delete",
-      resourceName: translate("assetStore.title"),
+      resourceName: translate("assetStateStore.title"),
     }),
   );
 
   return (
     <>
-      <IconButton colorPalette="danger" label={translate("assetStore.delete")} onClick={onOpen}>
+      <IconButton colorPalette="danger" label={translate("assetStateStore.delete")} onClick={onOpen}>
         <FiTrash2 />
       </IconButton>
 
@@ -62,8 +62,8 @@ export const DeleteAssetStateStoreButton = ({ assetId, storeKey }: Props) => {
         onDelete={() => mutate({ assetId, key: storeKey })}
         open={open}
         resourceName={storeKey}
-        title={translate("assetStore.delete")}
-        warningText={translate("assetStore.deleteWarning")}
+        title={translate("assetStateStore.delete")}
+        warningText={translate("assetStateStore.deleteWarning")}
       />
     </>
   );

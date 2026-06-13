@@ -35,7 +35,7 @@ export const EditAssetStateStoreButton = ({ assetId, storeKey }: Props) => {
 
   return (
     <>
-      <IconButton label={translate("assetStore.edit")} onClick={onOpen} variant="ghost">
+      <IconButton label={translate("assetStateStore.edit")} onClick={onOpen} variant="ghost">
         <FiEdit2 />
       </IconButton>
 

@@ -151,7 +151,7 @@ export const AssetStateStore = () => {
         isFetching={isFetching}
         isLoading={isLoading}
         modelName="assets:assetStateStore.title"
-        noRowsMessage={translate("assetStore.emptyState")}
+        noRowsMessage={translate("assetStateStore.emptyState")}
         onStateChange={setTableURLState}
         showRowCountHeading={false}
         total={data?.total_entries ?? 0}

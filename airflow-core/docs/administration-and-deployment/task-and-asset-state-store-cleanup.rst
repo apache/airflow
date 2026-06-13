@@ -28,7 +28,7 @@ Airflow does not automatically purge task state store rows on a schedule. Cleanu
 What gets cleaned up
 --------------------
 
-The cleanup command operates only on **task state store** rows in the ``MetastoreStateStoreBackend``. Asset store rows are never touched by this command. Asset store rows are removed only by the orphan sweep when an asset is deactivated (see :ref:`task-and-asset-state-store`).
+The cleanup command operates only on **task state store** rows in the ``MetastoreBackend``. Asset store rows are never touched by this command. Asset store rows are removed only by the orphan sweep when an asset is deactivated (see :ref:`task-and-asset-state-store`).
 
 A task state store row is eligible for deletion when its ``expires_at`` timestamp is in the past. ``expires_at`` is computed on the worker at write time:
 

@@ -135,7 +135,7 @@ export const TaskStateStoreModal = ({
     <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen} unmountOnExit>
       <Dialog.Content backdrop>
         <Dialog.Header>
-          <Heading size="lg">{translate(`dag:taskStore.${mode}`)}</Heading>
+          <Heading size="lg">{translate(`dag:taskStateStore.${mode}`)}</Heading>
         </Dialog.Header>
         <Dialog.CloseTrigger />
         <Dialog.Body>
@@ -163,7 +163,7 @@ export const TaskStateStoreModal = ({
 
               <Box width="100%">
                 <Text fontWeight="bold" mb={2}>
-                  {translate("dag:taskStore.expiresAt.label")}
+                  {translate("dag:taskStateStore.expiresAt.label")}
                 </Text>
                 <RadioCard.Root
                   onValueChange={(ev) => setExpiresAt(ev.value as "custom" | "default" | "never")}
@@ -175,7 +175,7 @@ export const TaskStateStoreModal = ({
                       <RadioCard.ItemControl>
                         <RadioCard.ItemContent>
                           <RadioCard.ItemText>
-                            {translate("dag:taskStore.expiresAt.default", { interval: "30 days" })}
+                            {translate("dag:taskStateStore.expiresAt.default", { interval: "30 days" })}
                           </RadioCard.ItemText>
                         </RadioCard.ItemContent>
                         <RadioCard.ItemIndicator />
@@ -186,7 +186,7 @@ export const TaskStateStoreModal = ({
                       <RadioCard.ItemControl>
                         <RadioCard.ItemContent>
                           <RadioCard.ItemText>
-                            {translate("dag:taskStore.expiresAt.never")}
+                            {translate("dag:taskStateStore.expiresAt.never")}
                           </RadioCard.ItemText>
                         </RadioCard.ItemContent>
                         <RadioCard.ItemIndicator />
@@ -197,7 +197,7 @@ export const TaskStateStoreModal = ({
                       <RadioCard.ItemControl>
                         <RadioCard.ItemContent>
                           <RadioCard.ItemText>
-                            {translate("dag:taskStore.expiresAt.custom")}
+                            {translate("dag:taskStateStore.expiresAt.custom")}
                           </RadioCard.ItemText>
                         </RadioCard.ItemContent>
                         <RadioCard.ItemIndicator />

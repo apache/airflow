@@ -112,7 +112,7 @@ def _build_asset_writer_fields(
     return writer_info, update_fields
 
 
-class MetastoreStateStoreBackend(BaseStoreBackend):
+class MetastoreBackend(BaseStoreBackend):
     """Default state backend for tasks and assets. Stores task and asset state in the Airflow metadata database."""
 
     @provide_session
@@ -141,9 +141,9 @@ class MetastoreStateStoreBackend(BaseStoreBackend):
             assert session is not None
         match scope:
             case TaskScope():
-                self._set_task_state_store(scope, key, value, expires_at=expires_at, session=session)
+                self._store_task_state(scope, key, value, expires_at=expires_at, session=session)
             case AssetScope():
-                self._set_asset_state_store(scope, key, value, session=session)
+                self._store_asset_state(scope, key, value, session=session)
             case _:
                 assert_never(scope)
 
@@ -239,7 +239,7 @@ class MetastoreStateStoreBackend(BaseStoreBackend):
         )
         return row.value if row is not None else None
 
-    def _set_task_state_store(
+    def _store_task_state(
         self,
         scope: TaskScope,
         key: str,
@@ -309,7 +309,7 @@ class MetastoreStateStoreBackend(BaseStoreBackend):
         )
         return row.value if row is not None else None
 
-    def _set_asset_state_store(
+    def _store_asset_state(
         self,
         scope: AssetScope,
         key: str,
@@ -354,7 +354,7 @@ class MetastoreStateStoreBackend(BaseStoreBackend):
         kind.validate_writer_fields(dag_id, run_id, task_id, map_index)
         if TYPE_CHECKING:
             assert session is not None
-        self._set_asset_state_store(
+        self._store_asset_state(
             scope,
             key,
             value,
@@ -586,6 +586,6 @@ class MetastoreStateStoreBackend(BaseStoreBackend):
 
 
 @functools.cache
-def _get_db_backend() -> MetastoreStateStoreBackend:
-    """Return a cached MetastoreStateStoreBackend instance for DB-direct access."""
-    return MetastoreStateStoreBackend()
+def _get_db_backend() -> MetastoreBackend:
+    """Return a cached MetastoreBackend instance for DB-direct access."""
+    return MetastoreBackend()

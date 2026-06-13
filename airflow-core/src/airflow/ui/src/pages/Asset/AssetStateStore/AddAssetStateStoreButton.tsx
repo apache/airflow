@@ -33,7 +33,7 @@ export const AddAssetStateStoreButton = ({ assetId }: Props) => {
   return (
     <>
       <Button onClick={onOpen}>
-        <FiPlus /> {translate("assetStore.add")}
+        <FiPlus /> {translate("assetStateStore.add")}
       </Button>
 
       <AssetStateStoreModal assetId={assetId} isOpen={open} mode="add" onClose={onClose} />
