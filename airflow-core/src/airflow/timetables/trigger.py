@@ -467,6 +467,29 @@ class CronPartitionTimetable(CronTriggerTimetable):
     def _format_key(self, partition_date: DateTime) -> str:
         return partition_date.strftime(self._key_format)
 
+    def resolve_partition_date(self, partition_key: str) -> datetime.datetime:
+        """
+        Decode *partition_key* back to the period-start datetime.
+
+        Parses the key with ``strptime`` using this timetable's ``key_format``
+        and localizes with the timetable's timezone, mirroring the forward
+        direction in :meth:`_format_key`.
+
+        :raises InvalidPartitionKeyError: When *partition_key* does not match
+            the timetable's ``key_format``.
+        """
+        from airflow._shared.timezones.timezone import make_aware
+        from airflow.exceptions import InvalidPartitionKeyError
+
+        try:
+            naive = datetime.datetime.strptime(partition_key, self._key_format)
+        except ValueError as exc:
+            raise InvalidPartitionKeyError(
+                f"Partition key {partition_key!r} does not match the timetable's "
+                f"key_format {self._key_format!r}: {exc}"
+            ) from exc
+        return make_aware(naive, self._timezone)
+
     def next_dagrun_info_v2(
         self,
         *,

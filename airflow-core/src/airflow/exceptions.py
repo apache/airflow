@@ -145,6 +145,10 @@ class DagNotPartitionedError(ValueError):
     """Raise when a partition_key is supplied for a Dag that is not partitioned."""
 
 
+class InvalidPartitionKeyError(ValueError):
+    """Raise when a partition_key cannot be decoded to a partition_date by the timetable."""
+
+
 class DagRunAlreadyExists(AirflowBadRequest):
     """Raise when creating a DAG run for DAG which already has DAG run entry."""
 

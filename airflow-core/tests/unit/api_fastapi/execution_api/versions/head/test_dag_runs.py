@@ -71,7 +71,7 @@ class TestDagRunTrigger:
         dag_id = "test_trigger_dag_run_partition_key"
         run_id = "test_run_id"
         logical_date = timezone.datetime(2025, 2, 20)
-        partition_key = "2025-02-20"
+        partition_key = "2025-02-20T00:00:00"
 
         with dag_maker(
             dag_id=dag_id,

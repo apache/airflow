@@ -118,6 +118,10 @@ def _trigger_dag(
     if dag_run := DagRun.find_duplicate(dag_id=dag_id, run_id=run_id):
         raise DagRunAlreadyExists(dag_run)
 
+    partition_date = None
+    if partition_key is not None and dag.timetable.partitioned and not dag.timetable.partitioned_at_runtime:
+        partition_date = dag.timetable.resolve_partition_date(partition_key)
+
     run_conf = None
     if is_arg_set(conf):
         run_conf = _normalize_conf(conf)
@@ -133,6 +137,7 @@ def _trigger_dag(
         note=note,
         state=DagRunState.QUEUED,
         partition_key=partition_key,
+        partition_date=partition_date,
         session=session,
     )
 
