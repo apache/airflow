@@ -25,6 +25,7 @@ from datetime import datetime
 from functools import cache
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
+from urllib.parse import quote
 
 import certifi
 import httpx
@@ -987,7 +988,7 @@ class DagsOperations:
 
     def get(self, dag_id: str) -> DagResponse:
         """Get a DAG via the API server."""
-        resp = self.client.get(f"dags/{dag_id}")
+        resp = self.client.get(f"dags/{quote(dag_id, safe='')}")
         return DagResponse.model_validate_json(resp.read())
 
 
