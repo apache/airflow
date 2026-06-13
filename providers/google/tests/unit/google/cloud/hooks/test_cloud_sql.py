@@ -165,9 +165,40 @@ class TestGcpSqlHookDefaultProjectId:
             ),
             {"name": "operation_id"},
         ]
-        with pytest.raises(HttpError):
-            self.cloudsql_hook.export_instance(project_id="example-project", instance="instance", body={})
+        # First submit returns 429 (one of the two operation-in-progress codes recognised by
+        # ``is_operation_in_progress_exception``); ``operation_in_progress_retry`` retries and the
+        # second submit succeeds, returning the operation name. The import test below covers 409.
+        result = self.cloudsql_hook.export_instance(
+            project_id="example-project", instance="instance", body={}
+        )
+        assert result == "operation_id"
+        assert export_method.call_count == 2
+        assert execute_method.call_count == 2
         wait_for_operation_to_complete.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete")
+    def test_instance_import_with_in_progress_retry(self, wait_for_operation_to_complete, get_conn):
+        import_method = get_conn.return_value.instances.return_value.import_
+        execute_method = import_method.return_value.execute
+        execute_method.side_effect = [
+            HttpError(
+                resp=httplib2.Response({"status": 409}),
+                content=b"operationInProgress",
+            ),
+            {"name": "operation_id"},
+        ]
+        wait_for_operation_to_complete.return_value = None
+        # First submit returns 409 ``operationInProgress``. ``import_instance`` re-raises it past its
+        # friendly-message wrapper (instead of converting it to AirflowException), so
+        # ``operation_in_progress_retry`` sees the raw HttpError, retries, and the second submit
+        # succeeds; the resulting operation is awaited exactly once.
+        self.cloudsql_hook.import_instance(project_id="example-project", instance="instance", body={})
+        assert import_method.call_count == 2
+        assert execute_method.call_count == 2
+        wait_for_operation_to_complete.assert_called_once_with(
+            project_id="example-project", operation_name="operation_id"
+        )
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id",
