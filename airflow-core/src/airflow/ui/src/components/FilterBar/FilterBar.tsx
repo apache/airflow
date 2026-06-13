@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { MdAdd, MdClear } from "react-icons/md";
 import { useDebouncedCallback } from "use-debounce";
 
+import { SavedViewsMenu } from "src/components/SavedViewsMenu";
 import { Menu } from "src/components/ui";
 
 import { getDefaultFilterIcon } from "./defaultIcons";
@@ -217,6 +218,7 @@ export const FilterBar = ({
           {translate("common:reset")}
         </Button>
       )}
+      <SavedViewsMenu />
     </HStack>
   );
 };
