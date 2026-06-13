@@ -54,6 +54,7 @@ class BaseNodeResponse(BaseModel):
         "sensor",
         "trigger",
     ]
+    team: str | None = None
 
 
 E = TypeVar("E", bound=BaseEdgeResponse)

@@ -102,14 +102,13 @@ task declares only the parameters it needs.
 .. code-block:: go
 
     import (
-        "context"
         "log/slog"
         "runtime"
 
         "github.com/apache/airflow/go-sdk/sdk"
     )
 
-    func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, error) {
+    func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, error) {
         conn, err := client.GetConnection(ctx, "test_http")
         if err != nil {
             return nil, err
@@ -119,7 +118,7 @@ task declares only the parameters it needs.
         return map[string]any{"go_version": runtime.Version()}, nil
     }
 
-    func transform(ctx context.Context, client sdk.VariableClient, log *slog.Logger) error {
+    func transform(ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger) error {
         val, err := client.GetVariable(ctx, "my_variable")
         if err != nil {
             return err
@@ -217,8 +216,9 @@ parameters your task actually needs:
 
    * - Parameter type
      - Injected value
-   * - ``context.Context``
-     - Cancellation/deadline context for the task. Respect it for long-running work.
+   * - ``sdk.TIRunContext``
+     - The task's execution context: the cancellation/deadline signal plus the task instance identifiers and
+       Dag run timestamps. Respect it for long-running work. See :ref:`go-sdk/runtime-context`.
    * - ``*slog.Logger``
      - A logger whose output is routed back to the Airflow task log.
    * - ``sdk.Client`` (or a narrower interface)
@@ -251,6 +251,35 @@ Go types.
 
 Not-found lookups return sentinel errors - ``VariableNotFound``, ``ConnectionNotFound``, ``XComNotFound`` -
 so you can branch on a missing value with ``errors.Is`` rather than parsing an error string.
+
+.. _go-sdk/runtime-context:
+
+Reading the task runtime context
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Declare an ``sdk.TIRunContext`` parameter on a task to read the identifiers and scheduling timestamps of the
+running task instance and its Dag run -- the Go equivalent of the execution context the Python and Java SDKs
+expose. It is an interface that embeds ``context.Context``, so the same ``ctx`` drives cancellation and
+client calls. The runtime binds it by type, just like the other injected parameters:
+
+.. code-block:: go
+
+    func extract(ctx sdk.TIRunContext, log *slog.Logger) (any, error) {
+        ti := ctx.TaskInstance()
+        log.Info("running",
+            "dag_id", ti.DagID,
+            "run_id", ti.RunID,
+            "task_id", ti.TaskID,
+            "try_number", ti.TryNumber,
+            "logical_date", ctx.DagRun().LogicalDate,
+        )
+        return nil, nil
+    }
+
+``ctx.TaskInstance()`` returns ``DagID``, ``RunID``, ``TaskID``, ``MapIndex`` (nil for an unmapped task),
+and ``TryNumber``; ``ctx.DagRun()`` returns ``DagID``, ``RunID``, and the ``*time.Time`` fields
+``LogicalDate``, ``DataIntervalStart``, and ``DataIntervalEnd`` (nil when the run has no such value, e.g. a
+manual trigger).
 
 .. _go-sdk/types:
 
