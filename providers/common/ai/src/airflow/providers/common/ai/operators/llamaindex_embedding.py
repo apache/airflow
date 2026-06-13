@@ -125,9 +125,19 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
         nodes = splitter.get_nodes_from_documents(llama_docs)
         self.log.info("Split %d documents into %d chunks", len(llama_docs), len(nodes))
 
-        # ``VectorStoreIndex(...)`` populates each node's ``.embedding`` as a
-        # side effect of building the index; capture the index so the
-        # variable isn't discarded.
+        # Pre-embed nodes before building the index. ``VectorStoreIndex``
+        # internally calls ``embed_nodes()`` which skips nodes whose
+        # ``.embedding`` is already set, so there are no duplicate API calls.
+        # This is necessary because ``VectorStoreIndex._get_node_with_embedding()``
+        # attaches embeddings to *copies* of the nodes (via ``model_copy()``),
+        # never the originals — so relying on the index to populate
+        # ``node.embedding`` as a side effect always yields ``None``.
+        texts = [node.get_content() for node in nodes]
+        embeddings = embed_model.get_text_embedding_batch(texts, show_progress=False)
+        for node, embedding in zip(nodes, embeddings):
+            node.embedding = embedding
+        self.log.info("Embedded %d chunks", len(nodes))
+
         index = VectorStoreIndex(nodes, embed_model=embed_model, show_progress=False)
 
         if self.persist_dir:
@@ -137,7 +147,7 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
         # base ``get_nodes_from_documents`` signature is typed as
         # ``list[BaseNode]`` (which has no ``.text``). Cast so mypy doesn't
         # flag the ``.text`` access; ``node.embedding`` is populated by
-        # ``VectorStoreIndex`` for every node above.
+        # the pre-embed step above.
         text_nodes = cast("list[TextNode]", nodes)
         chunks = [
             {
