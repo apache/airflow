@@ -28,8 +28,9 @@ from typing import Any
 
 import paramiko
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
 from airflow.providers.sftp.hooks.sftp import SFTPHook
+from airflow.providers.sftp.triggers.sftp import SFTPOperatorTrigger
 
 
 class SFTPOperation:
@@ -77,6 +78,10 @@ class SFTPOperator(BaseOperator):
     :param concurrency: Number of threads when transferring directories. Each thread opens a new SFTP connection.
         This parameter is used only when transferring directories, not individual files. (Default is 1)
     :param prefetch: controls whether prefetch is performed (default: True)
+    :param deferrable: If True, the operator will defer to a trigger to transfer the file(s) asynchronously,
+        freeing the worker slot while the transfer is in progress. Only supported for ``get`` and ``put``
+        operations on individual files (i.e. ``concurrency == 1``); ``delete`` operations and directory
+        transfers are not supported in deferrable mode.
 
     """
 
@@ -95,6 +100,7 @@ class SFTPOperator(BaseOperator):
         create_intermediate_dirs: bool = False,
         concurrency: int = 1,
         prefetch: bool = True,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -108,6 +114,7 @@ class SFTPOperator(BaseOperator):
         self.remote_filepath = remote_filepath
         self.concurrency = concurrency
         self.prefetch = prefetch
+        self.deferrable = deferrable
 
     def execute(self, context: Any) -> str | list[str] | None:
         if self.local_filepath is None:
@@ -141,6 +148,30 @@ class SFTPOperator(BaseOperator):
 
         if self.concurrency < 1:
             raise ValueError(f"concurrency should be greater than 0, got {self.concurrency}")
+
+        if self.deferrable:
+            if self.operation.lower() not in (SFTPOperation.GET, SFTPOperation.PUT):
+                raise ValueError(
+                    f"deferrable=True is only supported for '{SFTPOperation.GET}' and "
+                    f"'{SFTPOperation.PUT}' operations, got '{self.operation}'."
+                )
+            if self.concurrency > 1:
+                raise ValueError("deferrable=True is not supported when concurrency > 1.")
+
+            sftp_conn_id = self.ssh_conn_id or (self.sftp_hook.ssh_conn_id if self.sftp_hook else None)
+            if not sftp_conn_id:
+                raise ValueError("deferrable=True requires ssh_conn_id to be set.")
+
+            self.defer(
+                trigger=SFTPOperatorTrigger(
+                    local_filepaths=local_filepath_array,
+                    remote_filepaths=remote_filepath_array,
+                    operation=self.operation.lower(),
+                    sftp_conn_id=sftp_conn_id,
+                    create_intermediate_dirs=self.create_intermediate_dirs,
+                ),
+                method_name="execute_complete",
+            )
 
         file_msg = None
         try:
@@ -225,6 +256,23 @@ class SFTPOperator(BaseOperator):
                 f"Error while processing {self.operation.upper()} operation {file_msg}, error: {e}"
             )
 
+        return self.local_filepath
+
+    def execute_complete(self, context: Any, event: dict[str, Any] | None = None) -> str | list[str] | None:
+        """
+        Execute callback when the trigger fires; returns immediately.
+
+        Relies on the trigger to throw an exception, otherwise it assumes execution was successful.
+        """
+        if event is None:
+            raise AirflowException("No event received in trigger callback")
+
+        if event.get("status") == "error":
+            raise AirflowException(
+                f"Error while processing {self.operation.upper()} operation, error: {event['message']}"
+            )
+
+        self.log.info(event["message"])
         return self.local_filepath
 
     @staticmethod

@@ -18,8 +18,10 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import AsyncIterator
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from dateutil.parser import parse as parse_date
@@ -140,3 +142,67 @@ class SFTPTrigger(BaseTrigger):
 
     def _get_async_hook(self) -> SFTPHookAsync:
         return SFTPHookAsync(sftp_conn_id=self.sftp_conn_id)
+
+
+class SFTPOperatorTrigger(BaseTrigger):
+    """
+    Trigger that asynchronously transfers files between local and remote SFTP paths.
+
+    :param local_filepaths: list of local file paths involved in the transfer
+    :param remote_filepaths: list of remote file paths involved in the transfer
+    :param operation: SFTP operation to perform, either ``get`` or ``put``
+    :param sftp_conn_id: SFTP connection ID to be used for connecting to SFTP server
+    :param create_intermediate_dirs: create missing local intermediate directories
+        when performing a ``get`` operation
+    """
+
+    def __init__(
+        self,
+        local_filepaths: list[str],
+        remote_filepaths: list[str],
+        operation: str = "put",
+        sftp_conn_id: str = "sftp_default",
+        create_intermediate_dirs: bool = False,
+    ) -> None:
+        super().__init__()
+        self.local_filepaths = local_filepaths
+        self.remote_filepaths = remote_filepaths
+        self.operation = operation
+        self.sftp_conn_id = sftp_conn_id
+        self.create_intermediate_dirs = create_intermediate_dirs
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize SFTPOperatorTrigger arguments and classpath."""
+        return (
+            "airflow.providers.sftp.triggers.sftp.SFTPOperatorTrigger",
+            {
+                "local_filepaths": self.local_filepaths,
+                "remote_filepaths": self.remote_filepaths,
+                "operation": self.operation,
+                "sftp_conn_id": self.sftp_conn_id,
+                "create_intermediate_dirs": self.create_intermediate_dirs,
+            },
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        """Transfer each local/remote file pair and yield a TriggerEvent on completion or failure."""
+        hook = SFTPHookAsync(sftp_conn_id=self.sftp_conn_id)
+        try:
+            for local_filepath, remote_filepath in zip(self.local_filepaths, self.remote_filepaths):
+                if self.operation == "get":
+                    if self.create_intermediate_dirs:
+                        Path(os.path.dirname(local_filepath)).mkdir(parents=True, exist_ok=True)
+                    await hook.retrieve_file(remote_filepath, local_filepath)
+                else:
+                    await hook.store_file(remote_filepath, local_filepath)
+        except Exception as e:
+            yield TriggerEvent({"status": "error", "message": str(e)})
+            return
+
+        yield TriggerEvent(
+            {
+                "status": "success",
+                "message": f"Transferred {len(self.local_filepaths)} file(s).",
+                "local_filepaths": self.local_filepaths,
+            }
+        )

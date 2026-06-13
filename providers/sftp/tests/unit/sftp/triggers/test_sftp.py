@@ -27,7 +27,7 @@ import pytest
 from asyncssh.sftp import SFTPAttrs, SFTPName
 
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.sftp.triggers.sftp import SFTPTrigger
+from airflow.providers.sftp.triggers.sftp import SFTPOperatorTrigger, SFTPTrigger
 from airflow.triggers.base import TriggerEvent
 
 WARNING_CATEGORY: type[Warning]
@@ -220,3 +220,114 @@ class TestSFTPTrigger:
         # TriggerEvent was not returned
         assert task.done() is False
         asyncio.get_event_loop().stop()
+
+
+class TestSFTPOperatorTrigger:
+    def test_sftp_operator_trigger_serialization(self):
+        """Asserts that the SFTPOperatorTrigger correctly serializes its arguments and classpath."""
+        trigger = SFTPOperatorTrigger(
+            local_filepaths=["/tmp/local"],
+            remote_filepaths=["/tmp/remote"],
+            operation="get",
+            sftp_conn_id="sftp_default",
+            create_intermediate_dirs=True,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.sftp.triggers.sftp.SFTPOperatorTrigger"
+        assert kwargs == {
+            "local_filepaths": ["/tmp/local"],
+            "remote_filepaths": ["/tmp/remote"],
+            "operation": "get",
+            "sftp_conn_id": "sftp_default",
+            "create_intermediate_dirs": True,
+        }
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.retrieve_file")
+    async def test_sftp_operator_trigger_run_get_success(self, mock_retrieve_file):
+        """Assert that a TriggerEvent with a success status is yielded after a successful get."""
+        mock_retrieve_file.return_value = None
+
+        trigger = SFTPOperatorTrigger(
+            local_filepaths=["/tmp/local"],
+            remote_filepaths=["/tmp/remote"],
+            operation="get",
+            sftp_conn_id="sftp_default",
+        )
+
+        generator = trigger.run()
+        actual_event = await generator.asend(None)
+
+        assert actual_event == TriggerEvent(
+            {
+                "status": "success",
+                "message": "Transferred 1 file(s).",
+                "local_filepaths": ["/tmp/local"],
+            }
+        )
+        mock_retrieve_file.assert_awaited_once_with("/tmp/remote", "/tmp/local")
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.store_file")
+    async def test_sftp_operator_trigger_run_put_success(self, mock_store_file):
+        """Assert that a TriggerEvent with a success status is yielded after a successful put."""
+        mock_store_file.return_value = None
+
+        trigger = SFTPOperatorTrigger(
+            local_filepaths=["/tmp/local"],
+            remote_filepaths=["/tmp/remote"],
+            operation="put",
+            sftp_conn_id="sftp_default",
+        )
+
+        generator = trigger.run()
+        actual_event = await generator.asend(None)
+
+        assert actual_event == TriggerEvent(
+            {
+                "status": "success",
+                "message": "Transferred 1 file(s).",
+                "local_filepaths": ["/tmp/local"],
+            }
+        )
+        mock_store_file.assert_awaited_once_with("/tmp/remote", "/tmp/local")
+
+    @pytest.mark.asyncio
+    @mock.patch("pathlib.Path.mkdir")
+    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.retrieve_file")
+    async def test_sftp_operator_trigger_run_get_creates_intermediate_dirs(
+        self, mock_retrieve_file, mock_mkdir
+    ):
+        """Assert that intermediate local directories are created for get when requested."""
+        mock_retrieve_file.return_value = None
+
+        trigger = SFTPOperatorTrigger(
+            local_filepaths=["/tmp/some/nested/local"],
+            remote_filepaths=["/tmp/remote"],
+            operation="get",
+            sftp_conn_id="sftp_default",
+            create_intermediate_dirs=True,
+        )
+
+        generator = trigger.run()
+        await generator.asend(None)
+
+        mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.retrieve_file")
+    async def test_sftp_operator_trigger_run_failure_state(self, mock_retrieve_file):
+        """Assert that a TriggerEvent with an error status is yielded if the transfer fails."""
+        mock_retrieve_file.side_effect = Exception("An unexpected exception")
+
+        trigger = SFTPOperatorTrigger(
+            local_filepaths=["/tmp/local"],
+            remote_filepaths=["/tmp/remote"],
+            operation="get",
+            sftp_conn_id="sftp_default",
+        )
+
+        generator = trigger.run()
+        actual_event = await generator.asend(None)
+
+        assert actual_event == TriggerEvent({"status": "error", "message": "An unexpected exception"})
