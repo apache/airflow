@@ -18,25 +18,25 @@
  */
 
 /**
- * Dashboard data fixture — tracks UI-triggered Dag runs for cleanup.
+ * Shared primitives for E2E API helpers.
  */
+import type { APIRequestContext, Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 import { testConfig } from "playwright.config";
-import { test as base } from "tests/e2e/fixtures";
-import { safeCleanupDagRun } from "tests/e2e/utils/api/dag-runs";
 
-export type DagRunCleanup = {
-  track: (runId: string) => void;
-};
+export type RequestLike = APIRequestContext | Page;
 
-/* eslint-disable react-hooks/rules-of-hooks -- Playwright's `use` is not a React Hook. */
-export const test = base.extend<{ dagRunCleanup: DagRunCleanup }>({
-  dagRunCleanup: async ({ authenticatedRequest }, use) => {
-    const trackedRunIds: Array<string> = [];
+export function getRequestContext(source: RequestLike): APIRequestContext {
+  if ("request" in source) {
+    return source.request;
+  }
 
-    await use({ track: (runId: string) => trackedRunIds.push(runId) });
+  return source;
+}
 
-    for (const runId of trackedRunIds) {
-      await safeCleanupDagRun(authenticatedRequest, testConfig.testDag.id, runId);
-    }
-  },
-});
+export const { baseUrl } = testConfig.connection;
+
+/** Generate a unique run ID: `{prefix}_{uuid8}`. */
+export function uniqueRunId(prefix: string): string {
+  return `${prefix}_${randomUUID().slice(0, 8)}`;
+}
