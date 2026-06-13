@@ -275,4 +275,4 @@ When ``[state_store] clear_on_success = True``, all task state store keys for a 
 
    ``clear_on_success`` clears **task state store only**. Asset store is scoped to the asset, not the task instance, and is never affected by this setting. Asset store persists across runs and must be cleared explicitly.
 
-See :doc:`/administration-and-deployment/task-and-asset-store` for full configuration details.
+See :doc:`/administration-and-deployment/task-and-asset-state-store` for full configuration details.

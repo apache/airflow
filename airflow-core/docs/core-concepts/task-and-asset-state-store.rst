@@ -46,7 +46,7 @@ Task and Asset store provide two key/value stores to persist data like a job ID,
      - Persists indefinitely; removed only when the asset is deactivated
      - Cross-run watermarks, incremental-load cursors, per-asset metadata
 
-Both stores accept JSON-able values. Values can be stored using the default metastore backend, or be offloaded via a :ref:`custom worker-side backend <task-and-asset-store:worker-backends>`.
+Both stores accept JSON-able values. Values can be stored using the default metastore backend, or be offloaded via a :ref:`custom worker-side backend <task-and-asset-state-store:worker-backends>`.
 
 When to use Task and Asset State Store
 --------------------------------------
