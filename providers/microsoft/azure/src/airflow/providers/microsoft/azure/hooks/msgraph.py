@@ -93,7 +93,7 @@ class DefaultResponseHandler(ResponseHandler):
 
     @staticmethod
     def get_value(response: Response) -> Any:
-        with suppress(JSONDecodeError):
+        with suppress(JSONDecodeError, UnicodeDecodeError):
             return response.json()
         content = response.content
         if not content:
