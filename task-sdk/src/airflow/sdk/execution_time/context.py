@@ -20,6 +20,7 @@ import collections
 import contextlib
 import functools
 import inspect
+import json
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
@@ -600,7 +601,21 @@ class TaskStoreAccessor:
             # wrap the value with a marker to indicate that it's stored externally, and include the ref to the external storage
             stored = _wrap_external_ref(ref)
 
-        SUPERVISOR_COMMS.send(SetTaskStore(ti_id=self._ti_id, key=key, value=stored, expires_at=expires_at))
+        msg = SetTaskStore(ti_id=self._ti_id, key=key, value=stored, expires_at=expires_at)
+
+        limit = conf.getint("state_store", "max_value_storage_bytes")
+        if limit > 0:
+            serialized_size = len(json.dumps(stored))
+            if serialized_size > limit:
+                log.warning(
+                    "Task store value for key %r is %d bytes, which exceeds configured max_value_storage_bytes=%d. "
+                    "Consider configuring [workers] state_store_backend to offload large payloads.",
+                    key,
+                    serialized_size,
+                    limit,
+                )
+
+        SUPERVISOR_COMMS.send(msg)
 
     def delete(self, key: str) -> None:
         """Delete a single key. No-op if the key does not exist."""
@@ -723,6 +738,18 @@ class AssetStoreAccessor:
             scope = AssetScope(name=self._name, uri=self._uri)
             ref = backend.serialize_asset_store_to_ref(value=value, key=key, scope=scope)
             stored = _wrap_external_ref(ref)
+
+        limit = conf.getint("state_store", "max_value_storage_bytes")
+        if limit > 0:
+            serialized_size = len(json.dumps(stored))
+            if serialized_size > limit:
+                log.warning(
+                    "Asset store value for key %r is %d bytes, which exceeds configured max_value_storage_bytes=%d. "
+                    "Consider configuring [workers] state_store_backend to offload large payloads.",
+                    key,
+                    serialized_size,
+                    limit,
+                )
 
         msg: ToSupervisor
         if self._name:

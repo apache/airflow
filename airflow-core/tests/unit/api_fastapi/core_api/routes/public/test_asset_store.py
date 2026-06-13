@@ -27,6 +27,7 @@ from airflow.api_fastapi.core_api.datamodels.asset_store import AssetStoreBody
 from airflow.models.asset import AssetModel
 from airflow.models.asset_store import AssetStoreModel
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_assets
 
 pytestmark = pytest.mark.db_test
@@ -226,8 +227,15 @@ class TestSetAssetState(TestAssetStateEndpoint):
     def test_null_value_returns_422(self, test_client):
         assert test_client.put(f"{self._base_url}/watermark", json={"value": None}).status_code == 422
 
-    def test_oversized_value_returns_422(self, test_client):
-        assert test_client.put(f"{self._base_url}/watermark", json={"value": "x" * 65536}).status_code == 422
+    def test_put_value_over_limit_returns_422(self, test_client):
+        # default is 65535 bytes
+        big = "x" * 70000
+        assert test_client.put(f"{self._base_url}/watermark", json={"value": big}).status_code == 422
+
+    @conf_vars({("state_store", "max_value_storage_bytes"): "0"})
+    def test_put_value_over_limit_accepted_when_limit_disabled(self, test_client):
+        big = "x" * 70000
+        assert test_client.put(f"{self._base_url}/watermark", json={"value": big}).status_code == 204
 
     @pytest.mark.parametrize("bad_value", [float("nan"), float("inf"), {"a": float("nan")}, [float("inf")]])
     def test_non_finite_float_rejected_by_validator(self, bad_value):
