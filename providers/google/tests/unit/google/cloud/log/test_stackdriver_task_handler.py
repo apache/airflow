@@ -325,6 +325,52 @@ class TestStackdriverRemoteLogIO:
         assert result is event
         mock_transport_type.return_value.send.assert_not_called()
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="airflow.sdk.log only exists in Airflow 3+")
+    @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
+    @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client")
+    def test_processors_extracts_labels_from_path_in_supervisor_context(
+        self, mock_client, mock_get_creds_and_project_id
+    ):
+        """Labels are parsed from the AF3 log path when task_instance is not set.
+
+        In AF3 supervisor context ``record.task_instance`` is None because it is
+        a task-subprocess concept.  The handler should fall back to extracting
+        ``dag_id``, ``task_id``, and ``try_number`` from the structured log path.
+        """
+        mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+
+        mock_transport_type = mock.MagicMock()
+        af3_path = "dag_id=my_dag/run_id=scheduled__2026-06-08T00:00:00+00:00/task_id=print_date/attempt=3.log"
+        with mock.patch("airflow.sdk.log.relative_path_from_logger", return_value=af3_path):
+            io = StackdriverRemoteLogIO(
+                base_log_folder=self.local_log_location,
+                gcp_log_name="airflow",
+                transport_type=mock_transport_type,
+            )
+            proc = io.processors[0]
+
+            event = {
+                "event": "task log line",
+                "logger_name": "airflow.task",
+                "timestamp": "2026-06-08T10:30:00+00:00",
+            }
+            proc(mock.MagicMock(), "info", event)
+
+        mock_transport = mock_transport_type.return_value
+        mock_transport.send.assert_called_once()
+        labels = mock_transport.send.call_args[1]["labels"]
+        assert labels["dag_id"] == "my_dag"
+        assert labels["task_id"] == "print_date"
+        assert labels["try_number"] == "3"
+
+    def test_labels_from_path_returns_empty_on_unexpected_format(self):
+        """_labels_from_path returns an empty dict when the path doesn't match."""
+        from airflow.providers.google.cloud.log.stackdriver_task_handler import _labels_from_path
+
+        assert _labels_from_path("") == {}
+        assert _labels_from_path("no_equals_here.log") == {}
+        assert _labels_from_path("random/path/without/keys.log") == {}
+
 
 @pytest.mark.usefixtures("clean_stackdriver_handlers")
 @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
