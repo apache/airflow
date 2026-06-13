@@ -17,30 +17,16 @@
  * under the License.
  */
 
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-}
-
 val airflowSupervisorSchemaVersion: String by project
-
-val sdkArtifact = "airflow-sdk"
-val sdkVersion: String by project
-
-// Full Maven coordinate: org.apache.airflow:airflow-sdk:<version>
-// artifactId is set explicitly on the MavenPublication below.
-group = "org.apache.airflow"
-version = sdkVersion
 
 plugins {
     `java-library`
-    `maven-publish`
-    signing
-    kotlin("plugin.serialization") version "2.3.0"
+    id("airflow-jvm-conventions")
+    id("airflow-publish")
     id("org.jetbrains.dokka") version "2.2.0"
     id("org.jetbrains.dokka-javadoc") version "2.2.0"
     id("org.jsonschema2pojo") version "1.2.2"
+    kotlin("plugin.serialization") version "2.3.0"
 }
 
 // TODO: Use a hosted file instead.
@@ -58,7 +44,6 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.21.0")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.0")
-    implementation("com.squareup:javapoet:1.13.0")
     implementation("com.xenomachina:kotlin-argparser:2.0.7")
     implementation("io.ktor:ktor-network:3.3.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
@@ -68,7 +53,6 @@ dependencies {
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.11")
 
     testImplementation(kotlin("test"))
-    testImplementation("com.google.testing.compile:compile-testing:0.23.0")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }
 
@@ -214,7 +198,7 @@ sourceSets {
 }
 
 dokka {
-    moduleVersion.set(sdkVersion)
+    moduleVersion.set(project.version.toString())
     dokkaSourceSets.configureEach {
         // Suppress everything in 'execution' since it's implementation detail.
         perPackageOption {
@@ -262,74 +246,16 @@ tasks.withType<Test> {
     useJUnitPlatform()
 }
 
-private fun getProperty(name: String) = providers.gradleProperty(name).orNull
-
-private fun getProperty(
-    name: String,
-    env: String,
-): String? = getProperty(name) ?: System.getenv(env)
-
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
-            artifactId = sdkArtifact
+            artifactId = "airflow-sdk"
             from(components["java"])
             artifact(javadocJar)
             pom {
                 name = "Apache Airflow Java SDK"
                 description = "Java SDK for implementing Apache Airflow task logic on the JVM."
-                url = "https://airflow.apache.org"
-
-                organization {
-                    name = "The Apache Software Foundation"
-                    url = "https://www.apache.org/"
-                }
-                licenses {
-                    license {
-                        name = "The Apache License, Version 2.0"
-                        url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
-                        distribution = "repo"
-                    }
-                }
-                scm {
-                    connection = "scm:git:https://gitbox.apache.org/repos/asf/airflow.git"
-                    developerConnection = "scm:git:https://gitbox.apache.org/repos/asf/airflow.git"
-                    url = "https://github.com/apache/airflow"
-                }
             }
         }
-    }
-
-    repositories {
-        maven {
-            name = "mavenRepo"
-            val repoPath =
-                getProperty("mavenUrl")
-                    ?: if (sdkVersion.endsWith("-SNAPSHOT")) {
-                        "https://repository.apache.org/content/repositories/snapshots/"
-                    } else {
-                        "https://repository.apache.org/service/local/staging/deploy/maven2/"
-                    }
-            url = uri(repoPath)
-            if (!repoPath.startsWith("file:")) {
-                val user = getProperty("mavenUsername", "ASF_NEXUS_USERNAME")
-                val pass = getProperty("mavenPassword", "ASF_NEXUS_PASSWORD")
-                if (user != null && pass != null) {
-                    credentials {
-                        username = user
-                        password = pass
-                    }
-                }
-            }
-        }
-    }
-}
-
-signing {
-    if (providers.gradleProperty("skipSigning").map { it.toBoolean() }.orNull ?: false) {
-        val signingKey = getProperty("signing.key", "SIGNING_KEY")
-        val signingPassword = getProperty("signing.password", "SIGNING_PASSWORD")
-        useInMemoryPgpKeys(signingKey, signingPassword)
-        sign(publishing.publications["mavenJava"])
     }
 }

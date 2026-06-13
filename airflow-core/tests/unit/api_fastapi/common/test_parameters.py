@@ -135,17 +135,29 @@ class TestSortParam:
         assert param.row_value(row, "dag_run_id") == "manual__2026-04-22"
         assert param.row_value(row, "id") == 42
 
-    def test_row_value_raises_on_column_form_to_replace(self):
+    def test_row_value_column_form_to_replace_resolves_via_row_attribute(self):
         """
-        Column-form ``to_replace`` is not supported by cursor encoding. The helper must
-        fail loudly so a future endpoint doesn't silently ship ``None`` cursor tokens.
+        Column-form ``to_replace`` resolves through the primary model's attribute so
+        association proxies (e.g. ``TaskInstance.run_after``) are usable for cursor encoding.
         """
         param = SortParam(["dag_id"], DagModel, {"last_run_state": DagRun.state}).set_value(
             ["last_run_state"]
         )
-        row = SimpleNamespace(id="test_dag")
-        with pytest.raises(NotImplementedError, match="column-form ``to_replace``"):
-            param.row_value(row, "last_run_state")
+        row = SimpleNamespace(id="test_dag", last_run_state="success")
+        assert param.row_value(row, "last_run_state") == "success"
+
+    def test_row_value_column_form_to_replace_raises_when_attribute_absent(self):
+        """
+        Column-form ``to_replace`` must raise ``NotImplementedError`` (not return ``None``)
+        when the primary model exposes no such attribute. A ``None`` cursor token would cause
+        the next-page ``WHERE`` to compare against ``NULL`` and silently drop rows.
+        """
+        param = SortParam(
+            ["dag_id"], DagModel, {"data_interval_start": DagRun.data_interval_start}
+        ).set_value(["data_interval_start"])
+        row = SimpleNamespace(id="test_dag")  # deliberately no data_interval_start attribute
+        with pytest.raises(NotImplementedError, match="data_interval_start"):
+            param.row_value(row, "data_interval_start")
 
     def test_primary_key_is_not_duplicated_when_alias_maps_to_pk(self):
         """Sorting by an alias that resolves to the PK must not append the PK a second time."""

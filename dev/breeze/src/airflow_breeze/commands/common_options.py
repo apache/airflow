@@ -614,7 +614,7 @@ option_worker_types = click.option(
 
 option_sdk = click.option(
     "--sdk",
-    help="Install SDK toolchain(s)",
+    help="Select SDK toolchain(s).",
     type=BetterChoice(ALLOWED_SDKS),
     multiple=True,
     envvar="BREEZE_SDK",

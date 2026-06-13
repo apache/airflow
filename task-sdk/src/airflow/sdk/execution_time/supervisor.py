@@ -172,7 +172,6 @@ if TYPE_CHECKING:
     from airflow.executors.workloads import BundleInfo
     from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
     from airflow.sdk.definitions.connection import Connection
-    from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
 __all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise", "supervise_task"]
@@ -1317,7 +1316,7 @@ class ActivitySubprocess(WatchedSubprocess):
     def start(  # type: ignore[override]
         cls,
         *,
-        what: TaskInstanceDTO,
+        what: TaskInstance,
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
         client: Client,
@@ -1346,7 +1345,7 @@ class ActivitySubprocess(WatchedSubprocess):
     def _on_child_started(
         self,
         *,
-        ti: TaskInstanceDTO,
+        ti: TaskInstance,
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
         sentry_integration: str,
@@ -2349,8 +2348,8 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     2. _AIRFLOW_PROCESS_CONTEXT=server env var → server chain (MetastoreBackend)
     3. Neither → fallback chain (only env vars + external backends, no MetastoreBackend)
 
-    Client contexts: task runner in worker (has SUPERVISOR_COMMS)
-    Server contexts: API server, scheduler (set _AIRFLOW_PROCESS_CONTEXT=server)
+    Client contexts: task runner in worker (has SUPERVISOR_COMMS), triggerer runner subprocess (set _AIRFLOW_PROCESS_CONTEXT=client)
+    Server contexts: API server, scheduler, triggerer supervisor (set _AIRFLOW_PROCESS_CONTEXT=server)
     Fallback contexts: supervisor, unknown contexts (no SUPERVISOR_COMMS, no env var)
 
     The fallback chain ensures supervisor can use external secrets (AWS Secrets Manager,
@@ -2373,7 +2372,7 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
 
     # 2. Check for explicit server context
     if os.environ.get("_AIRFLOW_PROCESS_CONTEXT") == "server":
-        # Server context: API server, scheduler
+        # Server context: API server, scheduler, triggerer
         # uses the default server list
         return ensure_secrets_loaded()
 
@@ -2412,7 +2411,7 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
 
 def supervise_task(
     *,
-    ti: TaskInstanceDTO,
+    ti: TaskInstance,
     bundle_info: BundleInfo,
     dag_rel_path: str | os.PathLike[str],
     token: str,
@@ -2482,7 +2481,7 @@ def supervise_task(
         raise ValueError("dag_path is required")
 
     try:
-        coordinator = get_coordinator_manager().for_queue(ti.queue)
+        coordinator = get_coordinator_manager().for_queue(ti.queue or "default")
     except:
         log.exception(
             "Failed to initialize coordinator for task",
