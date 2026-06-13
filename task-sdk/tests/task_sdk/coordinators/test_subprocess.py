@@ -658,6 +658,49 @@ class TestSubprocessCoordinatorExecuteTask:
         )
         assert schema == "2026-06-16"
 
+    def test_lineage_handler_forwarded(self, mock_client):
+        ti = _make_ti()
+        coordinator = _StubSubprocessCoordinator(command=["/path/to/runtime"])
+
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = 12345
+        comm_sock = MagicMock(spec=socket.socket)
+        logs_sock = MagicMock(spec=socket.socket)
+        cls_kwargs: dict = {}
+
+        original_start = _PopenActivitySubprocess.__dict__["start"].__func__
+
+        def spy_start(cls, **kwargs):
+            cls_kwargs.update(kwargs)
+            return original_start(cls, **kwargs)
+
+        with (
+            patch(
+                "airflow.sdk.coordinators._subprocess.subprocess.Popen",
+                return_value=mock_proc,
+            ),
+            patch(
+                "airflow.sdk.coordinators._subprocess._accept_connections",
+                side_effect=lambda servers, drains, proc, **kw: (
+                    {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
+                    {soc: b"" for soc in drains.values()},
+                ),
+            ),
+            patch.object(ActivitySubprocess, "_register_pipe_readers"),
+            patch.object(ActivitySubprocess, "_on_child_started"),
+            patch.object(ActivitySubprocess, "wait", return_value=0),
+            patch.object(_PopenActivitySubprocess, "start", classmethod(spy_start)),
+        ):
+            coordinator.execute_task(
+                what=ti,
+                dag_rel_path="bundle",
+                bundle_info=MagicMock(),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert cls_kwargs.get("lineage_handler") == coordinator.on_lineage_received
+
     def test_returns_execution_result(self, mock_client):
         ti = _make_ti()
         coordinator = _StubSubprocessCoordinator(command=["/bin/true"])

@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pluggy import HookspecMarker
 
@@ -79,3 +79,11 @@ def on_task_instance_skipped(
     :param task_instance: The task instance object (RuntimeTaskInstance when called
         from task execution context, TaskInstance when called from API server)
     """
+
+
+@hookspec
+def on_lang_task_lineage_received(
+    ti_id: str,
+    payload: dict[str, Any],
+):
+    """Execute when a lang-SDK task emits an opt-in lineage payload."""

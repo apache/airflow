@@ -120,3 +120,31 @@ class TestCoordinatorManager:
         m1 = get_coordinator_manager()
         m2 = get_coordinator_manager()
         assert m1 is m2
+
+
+class TestBaseCoordinatorOnLineageReceived:
+    def test_forwards_payload_to_listener_manager(self, monkeypatch):
+        captured: dict[str, object] = {}
+
+        class _StubHook:
+            def on_lang_task_lineage_received(self, *, ti_id, payload):
+                captured.update(ti_id=ti_id, payload=payload)
+
+        class _StubManager:
+            hook = _StubHook()
+
+        monkeypatch.setattr("airflow.sdk.listener.get_listener_manager", lambda: _StubManager())
+
+        BaseCoordinator().on_lineage_received(ti_id="ti-1", payload={"producer": "java"})
+        assert captured == {"ti_id": "ti-1", "payload": {"producer": "java"}}
+
+    def test_swallows_listener_exception(self, monkeypatch):
+        class _RaisingHook:
+            def on_lang_task_lineage_received(self, *, ti_id, payload):
+                raise RuntimeError("boom")
+
+        class _RaisingManager:
+            hook = _RaisingHook()
+
+        monkeypatch.setattr("airflow.sdk.listener.get_listener_manager", lambda: _RaisingManager())
+        BaseCoordinator().on_lineage_received(ti_id="ti-2", payload={"k": "v"})

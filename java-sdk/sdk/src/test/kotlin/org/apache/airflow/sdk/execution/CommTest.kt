@@ -83,4 +83,26 @@ class CommsTest {
 
     Assertions.assertEquals(expected, actual)
   }
+
+  @Test
+  @DisplayName("Should round-trip SucceedTask with lineage payload")
+  fun shouldRoundTripSucceedTaskLineage() {
+    val endDate = OffsetDateTime.of(2024, 12, 1, 1, 0, 0, 0, ZoneOffset.UTC)
+    val lineage = mapOf("producer" to "java-sdk", "job" to "load_users", "rows" to 42L)
+    val sent = TaskResult.success(endDate = endDate, lineage = lineage)
+
+    val bytes = CoordinatorComm.encode(OutgoingFrame(7, sent))
+    val decoded = CoordinatorComm.decode(bytes)
+
+    Assertions.assertEquals(7, decoded.id)
+    val body = decoded.body
+    Assertions.assertInstanceOf(
+      org.apache.airflow.sdk.execution.comm.SucceedTask::class.java,
+      body,
+    )
+    Assertions.assertEquals(
+      lineage,
+      (body as org.apache.airflow.sdk.execution.comm.SucceedTask).lineage,
+    )
+  }
 }

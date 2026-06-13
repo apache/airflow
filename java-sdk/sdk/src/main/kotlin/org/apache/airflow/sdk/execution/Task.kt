@@ -34,22 +34,26 @@ internal object TaskResult {
     taskOutlets: List<AssetProfile> = emptyList(),
     outletEvents: List<Map<String, Any?>> = emptyList(),
     renderedMapIndex: String? = null,
+    lineage: Map<String, Any?>? = null,
   ) = SucceedTask().also {
     it.state = "success"
     it.endDate = endDate
     it.taskOutlets = taskOutlets
     it.outletEvents = outletEvents
     it.renderedMapIndex = renderedMapIndex
+    if (lineage != null) it.lineage = lineage
   }
 
   fun of(
     state: TaskState.State,
     endDate: OffsetDateTime = OffsetDateTime.now(),
     renderedMapIndex: String? = null,
+    lineage: Map<String, Any?>? = null,
   ) = TaskState().also {
     it.state = state
     it.endDate = endDate
     it.renderedMapIndex = renderedMapIndex
+    if (lineage != null) it.lineage = lineage
   }
 }
 
@@ -62,13 +66,14 @@ internal object TaskRunner {
     client: Client,
   ): Any {
     val task = bundle.dags[request.ti.dagId]?.tasks[request.ti.taskId] ?: return TaskResult.of(TaskState.State.REMOVED)
+    val context = Context.from(request)
     return try {
-      task.getDeclaredConstructor().newInstance().execute(Context.from(request), client)
-      TaskResult.success()
+      task.getDeclaredConstructor().newInstance().execute(context, client)
+      TaskResult.success(lineage = context.consumeLineage())
     } catch (e: Exception) {
       logger.error("Error executing task", mapOf("ti" to request.ti, "error" to e, "trace" to e.stackTraceToString()))
       e.printStackTrace()
-      TaskResult.of(TaskState.State.FAILED)
+      TaskResult.of(TaskState.State.FAILED, lineage = context.consumeLineage())
     }
   }
 }

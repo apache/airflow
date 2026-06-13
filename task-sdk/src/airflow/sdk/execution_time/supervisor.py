@@ -1297,6 +1297,8 @@ class ActivitySubprocess(WatchedSubprocess):
     _last_successful_heartbeat: float = attrs.field(default=0, init=False)
     _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
 
+    lineage_handler: Callable[..., None] | None = attrs.field(default=None)
+
     _should_retry: bool = attrs.field(default=False, init=False)
     """Whether the task should retry or not as decided by the API server."""
 
@@ -1492,6 +1494,15 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.task_instances.await_input(self.id, msg)
             self._terminal_state = TaskInstanceState.AWAITING_INPUT
         self._pending_terminal_state_msg = None
+
+    def _forward_lineage(self, payload: dict[str, Any] | None) -> None:
+        """Forward an opt-in lineage payload to the wired handler; no-op when unused."""
+        if payload is None or self.lineage_handler is None:
+            return
+        try:
+            self.lineage_handler(ti_id=str(self.id), payload=payload)
+        except Exception:
+            log.exception("Error forwarding lang-SDK lineage payload", ti_id=self.id)
 
     def _replay_pending_terminal_state_msg(self) -> None:
         """
@@ -1690,10 +1701,12 @@ class ActivitySubprocess(WatchedSubprocess):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
             self._rendered_map_index = msg.rendered_map_index
+            self._forward_lineage(msg.lineage)
         elif isinstance(msg, SucceedTask):
             self._task_end_time_monotonic = time.monotonic()
             self._rendered_map_index = msg.rendered_map_index
             self._send_terminal_state_msg(msg)
+            self._forward_lineage(msg.lineage)
         elif isinstance(msg, RetryTask):
             self._task_end_time_monotonic = time.monotonic()
             self._rendered_map_index = msg.rendered_map_index

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "api_version": "2026-06-16",
+  "api_version": "2026-06-30",
   "description": "Apache Airflow SDK Supervisor Schema",
   "$defs": {
     "AssetAliasReferenceAssetEventDagRun": {
@@ -3765,6 +3765,19 @@
           "default": "SucceedTask",
           "title": "Type",
           "type": "string"
+        },
+        "lineage": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lineage"
         }
       },
       "required": [
@@ -3981,6 +3994,19 @@
           ],
           "default": null,
           "title": "Rendered Map Index"
+        },
+        "lineage": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lineage"
         }
       },
       "required": [

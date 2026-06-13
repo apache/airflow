@@ -821,12 +821,14 @@ class TaskState(BaseModel):
     end_date: datetime | None = None
     type: Literal["TaskState"] = "TaskState"
     rendered_map_index: str | None = None
+    lineage: dict[str, Any] | None = None
 
 
 class SucceedTask(TISuccessStatePayload):
     """Update a task's state to success. Includes task_outlets and outlet_events for registering asset events."""
 
     type: Literal["SucceedTask"] = "SucceedTask"
+    lineage: dict[str, Any] | None = None
 
 
 class DeferTask(TIDeferredStatePayload):
