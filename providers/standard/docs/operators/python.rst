@@ -262,6 +262,56 @@ In case you have problems during runtime with broken cached virtual environments
 Note that any modification of a cached virtual environment (like temp files in binary path, post-installing further requirements) might pollute a cached virtual environment and the
 operator is not maintaining or cleaning the cache path.
 
+Log level forwarding
+^^^^^^^^^^^^^^^^^^^^
+
+When your callable uses Python's standard ``logging`` module, Airflow forwards the correct log level
+to its own logger. Lines written to stdout with a level prefix
+(``DEBUG: …``, ``INFO: …``, ``WARNING: …``, ``ERROR: …``, ``CRITICAL: …``) are re-emitted at the
+matching Airflow log level instead of being collapsed to ``INFO``. This includes multi-line output
+such as tracebacks.
+
+.. dropdown:: Logging setup snippet
+
+    Add this at the top of your callable to enable log-level forwarding, including tracebacks:
+
+    .. code-block:: python
+
+        import logging
+        import sys
+        import traceback as _tb
+
+
+        # Prefix every output line (including each line of a traceback) with the level name
+        # so Airflow can route each line to the correct log level.
+        class _PrefixAllLinesFormatter(logging.Formatter):
+            def format(self, record):
+                msg = super().format(record)
+                prefix = record.levelname + ": "
+                return "\n".join(prefix + line for line in msg.splitlines())
+
+
+        _handler = logging.StreamHandler()
+        _handler.setFormatter(_PrefixAllLinesFormatter())
+        logging.root.addHandler(_handler)
+
+
+        # Route unhandled top-level exceptions through logging so their tracebacks
+        # also get the ERROR: prefix instead of printing to stderr without a level.
+        def _logging_excepthook(exc_type, exc_value, exc_tb):
+            logging.error("".join(_tb.format_exception(exc_type, exc_value, exc_tb)).rstrip())
+
+
+        sys.excepthook = _logging_excepthook
+
+    With this setup all log levels, including exception tracebacks, appear at the correct level:
+
+    .. code-block:: python
+
+        logging.warning("This will appear as WARNING in Airflow logs")
+        logging.error("This will appear as ERROR in Airflow logs")
+        logging.exception("This traceback will appear as ERROR in Airflow logs")
+
 
 .. _howto/operator:ExternalPythonOperator:
 
@@ -330,6 +380,56 @@ Templating
 ^^^^^^^^^^
 
 Jinja templating can be used in same way as described for the :ref:`howto/operator:PythonOperator`.
+
+Log level forwarding
+^^^^^^^^^^^^^^^^^^^^
+
+When your callable uses Python's standard ``logging`` module, Airflow forwards the correct log level
+to its own logger. Lines written to stdout with a level prefix
+(``DEBUG: …``, ``INFO: …``, ``WARNING: …``, ``ERROR: …``, ``CRITICAL: …``) are re-emitted at the
+matching Airflow log level instead of being collapsed to ``INFO``. This includes multi-line output
+such as tracebacks.
+
+.. dropdown:: Logging setup snippet
+
+    Add this at the top of your callable to enable log-level forwarding, including tracebacks:
+
+    .. code-block:: python
+
+        import logging
+        import sys
+        import traceback as _tb
+
+
+        # Prefix every output line (including each line of a traceback) with the level name
+        # so Airflow can route each line to the correct log level.
+        class _PrefixAllLinesFormatter(logging.Formatter):
+            def format(self, record):
+                msg = super().format(record)
+                prefix = record.levelname + ": "
+                return "\n".join(prefix + line for line in msg.splitlines())
+
+
+        _handler = logging.StreamHandler()
+        _handler.setFormatter(_PrefixAllLinesFormatter())
+        logging.root.addHandler(_handler)
+
+
+        # Route unhandled top-level exceptions through logging so their tracebacks
+        # also get the ERROR: prefix instead of printing to stderr without a level.
+        def _logging_excepthook(exc_type, exc_value, exc_tb):
+            logging.error("".join(_tb.format_exception(exc_type, exc_value, exc_tb)).rstrip())
+
+
+        sys.excepthook = _logging_excepthook
+
+    With this setup all log levels, including exception tracebacks, appear at the correct level:
+
+    .. code-block:: python
+
+        logging.warning("This will appear as WARNING in Airflow logs")
+        logging.error("This will appear as ERROR in Airflow logs")
+        logging.exception("This traceback will appear as ERROR in Airflow logs")
 
 
 .. _howto/operator:BranchPythonOperator:

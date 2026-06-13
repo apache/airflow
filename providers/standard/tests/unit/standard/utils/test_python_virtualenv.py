@@ -17,13 +17,19 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from textwrap import dedent
 from unittest import mock
 
 import pytest
 
-from airflow.providers.standard.utils.python_virtualenv import _generate_pip_conf, _use_uv, prepare_virtualenv
+from airflow.providers.standard.utils.python_virtualenv import (
+    _generate_pip_conf,
+    _log_subprocess_line,
+    _use_uv,
+    prepare_virtualenv,
+)
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import remove_task_decorator
@@ -275,3 +281,24 @@ class TestPrepareVirtualenv:
 
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
         assert res == expected_source
+
+
+class TestLogSubprocessLine:
+    @pytest.mark.parametrize(
+        ("line", "expected_level", "expected_message"),
+        [
+            ("DEBUG: some debug message", logging.DEBUG, "some debug message"),
+            ("INFO: some info message", logging.INFO, "some info message"),
+            ("WARNING: some warning", logging.WARNING, "some warning"),
+            ("ERROR: an error occurred", logging.ERROR, "an error occurred"),
+            ("CRITICAL: fatal problem", logging.CRITICAL, "fatal problem"),
+            ("plain line without prefix", logging.INFO, "plain line without prefix"),
+            ("WARN: not a valid prefix", logging.INFO, "WARN: not a valid prefix"),
+            ("debug: lowercase not matched", logging.INFO, "debug: lowercase not matched"),
+            ("", logging.INFO, ""),
+        ],
+    )
+    def test_log_subprocess_line(self, line, expected_level, expected_message):
+        log = mock.MagicMock(spec=logging.Logger)
+        _log_subprocess_line(log, line)
+        log.log.assert_called_once_with(expected_level, "%s", expected_message)
