@@ -580,16 +580,25 @@ class KiotaRequestAdapterHook(BaseHook):
     async def send_request(self, request_info: RequestInformation, response_type: str | None = None):
         conn = await self.get_async_conn()
 
-        if response_type:
-            return await conn.send_primitive_async(
+        try:
+            if response_type:
+                return await conn.send_primitive_async(
+                    request_info=request_info,
+                    response_type=response_type,
+                    error_map=self.error_mapping(),
+                )
+            return await conn.send_no_response_content_async(
                 request_info=request_info,
-                response_type=response_type,
                 error_map=self.error_mapping(),
             )
-        return await conn.send_no_response_content_async(
-            request_info=request_info,
-            error_map=self.error_mapping(),
-        )
+        except Exception as e:
+            self.log.warning(
+                "Request failed for conn_id '%s': %s. Invalidating cached request adapter.",
+                self.conn_id,
+                e,
+            )
+            self.cached_request_adapters.pop(self.conn_id, None)
+            raise
 
     def request_information(
         self,
