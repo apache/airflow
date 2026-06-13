@@ -39,6 +39,7 @@ from airflowctl.api.datamodels.generated import (
     BulkBodyPoolBody,
     BulkBodyVariableBody,
     BulkResponse,
+    ClearTaskInstancesBody,
     Config,
     ConnectionBody,
     ConnectionCollectionResponse,
@@ -59,6 +60,7 @@ from airflowctl.api.datamodels.generated import (
     ImportErrorCollectionResponse,
     ImportErrorResponse,
     JobCollectionResponse,
+    PatchTaskInstanceBody,
     PluginCollectionResponse,
     PluginImportErrorCollectionResponse,
     PoolBody,
@@ -68,6 +70,8 @@ from airflowctl.api.datamodels.generated import (
     ProviderCollectionResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -925,3 +929,45 @@ class PluginsOperations(BaseOperations):
             return PluginImportErrorCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
+
+
+class TasksOperations(BaseOperations):
+    """Tasks operations."""
+
+    def get(self, dag_id: str, dag_run_id: str, task_id: str) -> TaskInstanceResponse:
+        """Get a task instance."""
+        self.response = self.client.get(f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}")
+        return TaskInstanceResponse.model_validate_json(self.response.content)
+
+    def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """List task instances."""
+        return super().execute_list(
+            path=f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
+            data_model=TaskInstanceCollectionResponse,
+        )
+
+    def clear(
+        self, dag_id: str, body: ClearTaskInstancesBody
+    ) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """Clear task instances."""
+        self.response = self.client.post(
+            f"dags/{dag_id}/clearTaskInstances",
+            json=body.model_dump(mode="json", exclude_unset=True),
+        )
+        return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
+
+    def update(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        body: PatchTaskInstanceBody,
+        map_index: int | None = None,
+    ) -> TaskInstanceCollectionResponse:
+        """Update task instance state. When map_index is given, only that mapped instance is affected."""
+        if map_index is not None:
+            path = f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}"
+        else:
+            path = f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
+        self.response = self.client.patch(path, json=body.model_dump(mode="json", exclude_unset=True))
+        return TaskInstanceCollectionResponse.model_validate_json(self.response.content)

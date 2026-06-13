@@ -100,3 +100,9 @@ xcom:
 plugins:
   list: "List all installed Airflow plugins"
   list-import-errors: "List all plugin import errors"
+
+tasks:
+  get: "Retrieve a task instance by Dag ID, run ID, and task ID"
+  list: "List all task instances for a given Dag run"
+  clear: "Clear task instance state, optionally filtering by task IDs or run scope"
+  update: "Update task instance state or note; use --map-index to target a single mapped instance"
