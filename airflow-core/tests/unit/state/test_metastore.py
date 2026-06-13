@@ -554,7 +554,7 @@ class TestMetastoreStoreBackendAssetScope:
                 map_index=None,
             )
 
-    def test_cleanup_does_not_touch_asset_state(
+    def test_cleanup_does_not_touch_asset_store(
         self, session: Session, backend: MetastoreStoreBackend, asset: AssetModel
     ):
         scope = AssetScope(asset_id=asset.id)
