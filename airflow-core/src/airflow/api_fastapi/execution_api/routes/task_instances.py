@@ -35,7 +35,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from pydantic import JsonValue
 from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
-from sqlalchemy.exc import NoResultFound, SQLAlchemyError
+from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
@@ -48,12 +48,14 @@ from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_d
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     InactiveAssetsResponse,
     PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
     TaskStatesResponse,
+    TIAwaitingInputStatePayload,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
@@ -67,20 +69,27 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 )
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.deps import DepContainer
-from airflow.api_fastapi.execution_api.security import CurrentTIToken, ExecutionAPIRoute, require_auth
+from airflow.api_fastapi.execution_api.security import (
+    CurrentTIToken,
+    ExecutionAPIRoute,
+    get_team_name_for_ti,
+    require_auth,
+)
 from airflow.configuration import conf
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DR
+from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.trigger import Trigger
+from airflow.models.trigger import Trigger, handle_event_submit
 from airflow.models.xcom import XComModel
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
 from airflow.state import get_state_backend
+from airflow.triggers.base import TriggerEvent
 from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
@@ -105,11 +114,13 @@ tracer = trace.get_tracer(__name__)
     "/{task_instance_id}/run",
     status_code=status.HTTP_200_OK,
     dependencies=[Security(require_auth, scopes=["token:execution", "token:workload"])],
-    responses={
-        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        status.HTTP_409_CONFLICT: {"description": "The TI is already in the requested state"},
-        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
-    },
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
+            (status.HTTP_409_CONFLICT, "The TI is already in the requested state"),
+            (HTTP_422_UNPROCESSABLE_CONTENT, "Invalid payload for the state transition"),
+        ]
+    ),
     response_model_exclude_unset=True,
 )
 def ti_run(
@@ -285,8 +296,6 @@ def ti_run(
             or 0
         )
 
-        from airflow.api_fastapi.execution_api.security import get_team_name_for_ti
-
         dr.team_name = get_team_name_for_ti(task_instance_id, session)
 
         context = TIRunContext(
@@ -305,6 +314,9 @@ def ti_run(
             context.next_method = ti.next_method
             context.next_kwargs = ti.next_kwargs
             context.start_date = ti.start_date
+    except DataError:
+        # Let the app-level DataErrorHandler return a 422 (not the opaque 500 below).
+        raise
     except SQLAlchemyError:
         log.exception("Error marking Task Instance state as running")
         raise HTTPException(
@@ -323,11 +335,16 @@ def ti_run(
 @ti_id_router.patch(
     "/{task_instance_id}/state",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        status.HTTP_409_CONFLICT: {"description": "The TI is already in the requested state"},
-        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
-    },
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
+            (
+                status.HTTP_409_CONFLICT,
+                "The TI is already in the requested state",
+            ),
+            (HTTP_422_UNPROCESSABLE_CONTENT, "Invalid payload for the state transition"),
+        ]
+    ),
 )
 def ti_update_state(
     task_instance_id: UUID,
@@ -424,6 +441,9 @@ def ti_update_state(
             dag_id=dag_id,
             dag_bag=dag_bag,
         )
+    except DataError:
+        # Let DataErrorHandler return a 422 instead of silently marking the TI FAILED below.
+        raise
     except Exception:
         # Set a task to failed in case any unexpected exception happened during task state update
         log.exception(
@@ -459,6 +479,9 @@ def ti_update_state(
                 extra=json.dumps({"host_name": hostname}) if hostname else None,
             )
         )
+    except DataError:
+        # Let DataErrorHandler return a 422 (not the opaque 500 below).
+        raise
     except SQLAlchemyError as e:
         log.error("Error updating Task Instance state", error=str(e))
         raise HTTPException(
@@ -570,7 +593,7 @@ def _create_ti_state_update_query_and_update_state(
                 _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
         elif isinstance(ti_patch_payload, TIRetryStatePayload):
             if ti is not None:
-                ti.prepare_db_for_next_try(session)
+                ti.prepare_db_for_next_try(session=session)
             # Store retry policy overrides so next_retry_datetime() can read them.
             # These are cleared when the task enters RUNNING (ti_run).
             query = query.values(
@@ -583,7 +606,7 @@ def _create_ti_state_update_query_and_update_state(
                     ti,
                     ti_patch_payload.task_outlets,
                     ti_patch_payload.outlet_events,
-                    session,
+                    session=session,
                 )
         try:
             _emit_task_span(ti, state=updated_state)
@@ -605,6 +628,7 @@ def _create_ti_state_update_query_and_update_state(
             classpath=ti_patch_payload.classpath,
             kwargs={},
             queue=ti_patch_payload.queue,
+            team_name=get_team_name_for_ti(task_instance_id, session),
         )
         trigger_row.encrypted_kwargs = trigger_kwargs
         session.add(trigger_row)
@@ -624,6 +648,48 @@ def _create_ti_state_update_query_and_update_state(
             trigger_timeout=timeout,
         )
         updated_state = TaskInstanceState.DEFERRED
+    elif isinstance(ti_patch_payload, TIAwaitingInputStatePayload):
+        # Park the task waiting for human input (Human-in-the-loop). No trigger / triggerer is
+        # created: the task is resumed by the Core API response handler or the scheduler timeout
+        # sweep. The optional response deadline is stored on the existing trigger_timeout column.
+        #
+        # Fixed lock order (TaskInstance -> HITLDetail), matching the Core API response path, so a
+        # human response racing this park transition cannot deadlock.
+        ti = session.get(TI, task_instance_id, with_for_update={"of": TI})
+        # Lock only the hitl_detail row (of=...): HITLDetail eager-joins task_instance (lazy="joined"),
+        # and Postgres rejects FOR UPDATE against the nullable side of that outer join.
+        hitl_detail = session.scalar(
+            select(HITLDetail).where(HITLDetail.ti_id == task_instance_id).with_for_update(of=HITLDetail)
+        )
+        if ti is not None and hitl_detail is not None and hitl_detail.response_received:
+            # The human responded in the window between the operator writing the HITL request and
+            # the worker parking the task. Resume straight to execute_complete instead of parking,
+            # which would otherwise strand an already-responded task (no trigger/sweep would fire).
+            # Carry next_method/next_kwargs onto the TI first so the resume dispatches correctly;
+            # handle_event_submit then injects the response event into next_kwargs.
+            ti.next_method = ti_patch_payload.next_method
+            ti.next_kwargs = ti_patch_payload.next_kwargs
+            handle_event_submit(
+                TriggerEvent(hitl_detail.as_resume_event_payload()),
+                task_instance=ti,
+                session=session,
+            )
+            query = update(TI).where(TI.id == task_instance_id).values(state=TaskInstanceState.SCHEDULED)
+            updated_state = TaskInstanceState.SCHEDULED
+        else:
+            timeout = None
+            if ti_patch_payload.timeout is not None:
+                timeout = timezone.utcnow() + ti_patch_payload.timeout
+
+            query = update(TI).where(TI.id == task_instance_id)
+            query = query.values(
+                state=TaskInstanceState.AWAITING_INPUT,
+                trigger_id=None,
+                next_method=ti_patch_payload.next_method,
+                next_kwargs=ti_patch_payload.next_kwargs,
+                trigger_timeout=timeout,
+            )
+            updated_state = TaskInstanceState.AWAITING_INPUT
     elif isinstance(ti_patch_payload, TIRescheduleStatePayload):
         # Quick check for poke_interval isn't immediately over MySQL's TIMESTAMP limit.
         # This check is only rudimentary to catch trivial user errors, e.g. mistakenly
@@ -675,10 +741,12 @@ def _create_ti_state_update_query_and_update_state(
 @ti_id_router.patch(
     "/{task_instance_id}/skip-downstream",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
-    },
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
+            (HTTP_422_UNPROCESSABLE_CONTENT, "Invalid payload for the state transition"),
+        ]
+    ),
 )
 def ti_skip_downstream(
     task_instance_id: UUID,
@@ -736,16 +804,20 @@ def ti_skip_downstream(
 @ti_id_router.put(
     "/{task_instance_id}/heartbeat",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        status.HTTP_409_CONFLICT: {
-            "description": "The TI attempting to heartbeat should be terminated for the given reason"
-        },
-        status.HTTP_410_GONE: {
-            "description": "Task Instance not found in the TI table but exists in the Task Instance History table"
-        },
-        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
-    },
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
+            (
+                status.HTTP_409_CONFLICT,
+                "The TI attempting to heartbeat should be terminated for the given reason",
+            ),
+            (
+                status.HTTP_410_GONE,
+                "Task Instance not found in the TI table but exists in the Task Instance History table",
+            ),
+            (HTTP_422_UNPROCESSABLE_CONTENT, "Invalid payload for the state transition"),
+        ]
+    ),
 )
 def ti_heartbeat(
     task_instance_id: UUID,
@@ -855,12 +927,15 @@ def ti_heartbeat(
     description="Store the rendered task instance fields (RTIF) for a task instance. "
     "These are the template fields after Jinja rendering has been applied. "
     "Called by the worker after task execution begins.",
-    responses={
-        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": "Invalid payload for the setting rendered task instance fields"
-        },
-    },
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
+            (
+                HTTP_422_UNPROCESSABLE_CONTENT,
+                "Invalid payload for the setting rendered task instance fields",
+            ),
+        ]
+    ),
 )
 def ti_put_rtif(
     task_instance_id: UUID,
@@ -877,7 +952,7 @@ def ti_put_rtif(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    task_instance.update_rtif(put_rtif_payload, session)
+    task_instance.update_rtif(put_rtif_payload, session=session)
     log.debug("RenderedTaskInstanceFields updated successfully")
 
     return {"message": "Rendered task instance fields successfully set"}
@@ -886,10 +961,15 @@ def ti_put_rtif(
 @ti_id_router.patch(
     "/{task_instance_id}/rendered-map-index",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid rendered_map_index value"},
-    },
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
+            (
+                HTTP_422_UNPROCESSABLE_CONTENT,
+                "Invalid rendered_map_index value",
+            ),
+        ]
+    ),
 )
 def ti_patch_rendered_map_index(
     task_instance_id: UUID,
@@ -923,9 +1003,11 @@ def ti_patch_rendered_map_index(
 @ti_id_router.get(
     "/{task_instance_id}/previous-successful-dagrun",
     status_code=status.HTTP_200_OK,
-    responses={
-        status.HTTP_404_NOT_FOUND: {"description": "Task Instance or Dag Run not found"},
-    },
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Task Instance or Dag Run not found"),
+        ]
+    ),
 )
 def get_previous_successful_dagrun(
     task_instance_id: UUID, session: SessionDep
@@ -1189,9 +1271,11 @@ def _get_group_tasks(
 @ti_id_router.get(
     "/{task_instance_id}/validate-inlets-and-outlets",
     status_code=status.HTTP_200_OK,
-    responses={
-        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-    },
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
+        ]
+    ),
 )
 def validate_inlets_and_outlets(
     task_instance_id: UUID,

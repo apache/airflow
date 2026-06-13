@@ -101,6 +101,25 @@ DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM = [
     "trino",
     "ydb",
 ]
+# Maps each testable provider integration to the provider distribution (dotted id)
+# that "owns" it. Used by selective checks to only run a provider integration when
+# its owning provider is among the affected providers of a change.
+TESTABLE_PROVIDERS_INTEGRATION_OWNERS = {
+    "celery": "celery",
+    "cassandra": "apache.cassandra",
+    "drill": "apache.drill",
+    "elasticsearch": "elasticsearch",
+    "tinkerpop": "apache.tinkerpop",
+    "kafka": "apache.kafka",
+    "localstack": "amazon",
+    "mongo": "mongo",
+    "mssql": "microsoft.mssql",
+    "pinot": "apache.pinot",
+    "qdrant": "qdrant",
+    "redis": "redis",
+    "trino": "trino",
+    "ydb": "ydb",
+}
 KEYCLOAK_INTEGRATION = "keycloak"
 STATSD_INTEGRATION = "statsd"
 OTEL_INTEGRATION = "otel"
@@ -196,6 +215,9 @@ FAB_AUTH_MANAGER = "FabAuthManager"
 
 GOLANG_WORKER = "go"
 
+JAVA_SDK = "java"
+ALLOWED_SDKS = [JAVA_SDK]
+
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 ALLOWED_AUTH_MANAGERS = [SIMPLE_AUTH_MANAGER, FAB_AUTH_MANAGER]
 START_AIRFLOW_ALLOWED_EXECUTORS = [LOCAL_EXECUTOR, CELERY_EXECUTOR, EDGE_EXECUTOR]
@@ -262,8 +284,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
-PIP_VERSION = "26.1.1"
-UV_VERSION = "0.11.15"
+PIP_VERSION = "26.1.2"
+UV_VERSION = "0.11.19"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -806,7 +828,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.2.1",
+        "airflow-version": "3.2.2",
         "remove-providers": "",
         "run-unit-tests": "true",
     },
@@ -816,7 +838,7 @@ ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
     "3.10": "3.10.20",
     "3.11": "3.11.15",
     "3.12": "3.12.13",
-    "3.13": "3.13.13",
+    "3.13": "3.13.14",
     "3.14": "3.14.3",
 }
 

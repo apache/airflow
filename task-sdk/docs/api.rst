@@ -99,6 +99,8 @@ Bases
 
 .. autoapiclass:: airflow.sdk.SkipMixin
 
+.. autoclass:: airflow.sdk.ResumableJobMixin
+
 .. autoapiclass:: airflow.sdk.BaseHook
 
 Callbacks
@@ -237,9 +239,38 @@ Partition Mapper
 
 .. autoapiclass:: airflow.sdk.StartOfYearMapper
 
+.. autoapiclass:: airflow.sdk.RollupMapper
+
+.. autoapiclass:: airflow.sdk.WaitForAll
+
+.. autoapiclass:: airflow.sdk.MinimumCount
+
 .. autoapiclass:: airflow.sdk.ProductMapper
 
 .. autoapiclass:: airflow.sdk.AllowedKeyMapper
+
+.. autoapiclass:: airflow.sdk.FanOutMapper
+
+.. autoapiclass:: airflow.sdk.FixedKeyMapper
+
+Rollup Windows
+~~~~~~~~~~~~~~
+
+.. autoapiclass:: airflow.sdk.Window
+
+.. autoapiclass:: airflow.sdk.HourWindow
+
+.. autoapiclass:: airflow.sdk.DayWindow
+
+.. autoapiclass:: airflow.sdk.WeekWindow
+
+.. autoapiclass:: airflow.sdk.MonthWindow
+
+.. autoapiclass:: airflow.sdk.QuarterWindow
+
+.. autoapiclass:: airflow.sdk.YearWindow
+
+.. autoapiclass:: airflow.sdk.SegmentWindow
 
 I/O Helpers
 -----------
@@ -251,6 +282,20 @@ The ``lineage`` module is available as part of the Task SDK. It provides the pub
 collector interfaces used to capture and retrieve asset lineage metadata during task execution.
 
 .. autoapimodule:: airflow.sdk.lineage
+
+Coordinators
+------------
+
+Coordinators bridge the Airflow worker and a non-Python language runtime.
+See :doc:`apache-airflow:authoring-and-scheduling/language-sdks/index` for a conceptual overview.
+
+.. rubric:: JVM
+
+.. autoapiclass:: airflow.sdk.coordinators.java.JavaCoordinator
+
+.. rubric:: Native executable (e.g. Go)
+
+.. autoapiclass:: airflow.sdk.coordinators.executable.ExecutableCoordinator
 
 Execution Time Components
 -------------------------

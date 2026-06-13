@@ -84,13 +84,10 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "airflow_metadata_secret" . }}
         key: connection
   {{- end }}
-  {{- $kedaEnabled := .Values.workers.keda.enabled }}
-  {{- $kedaUsePgBouncer := .Values.workers.keda.usePgbouncer }}
-  {{- if hasKey .Values.workers "celery" }}
-    {{- $kedaEnabled = or .Values.workers.celery.keda.enabled (and (not (has .Values.workers.celery.keda.enabled (list true false))) .Values.workers.keda.enabled) }}
-    {{- $kedaUsePgBouncer = or .Values.workers.celery.keda.usePgbouncer (and (not (has .Values.workers.celery.keda.usePgbouncer (list true false))) .Values.workers.keda.usePgbouncer) }}
-  {{- end }}
-  {{- if and $kedaEnabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not $kedaUsePgBouncer))) }}
+  {{- $triggererKedaEnabled := and .Values.triggerer.enabled .Values.triggerer.keda.enabled }}
+  {{- $workersKedaNeedsDbConn := and .Values.workers.celery.keda.enabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not .Values.workers.celery.keda.usePgbouncer))) }}
+  {{- $triggererKedaNeedsDbConn := and $triggererKedaEnabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not .Values.triggerer.keda.usePgbouncer))) }}
+  {{- if or $workersKedaNeedsDbConn $triggererKedaNeedsDbConn }}
   - name: KEDA_DB_CONN
     valueFrom:
       secretKeyRef:
@@ -459,7 +456,11 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "pgbouncer_config_secret" -}}
-  {{- default (printf "%s-pgbouncer-config" (include "airflow.fullname" .)) .Values.pgbouncer.configSecretName }}
+  {{- if .Values.pgbouncer.configSecretName }}
+    {{- tpl .Values.pgbouncer.configSecretName . }}
+  {{- else }}
+    {{- printf "%s-pgbouncer-config" (include "airflow.fullname" .) }}
+  {{- end }}
 {{- end }}
 
 {{- define "pgbouncer_certificates_secret" -}}
@@ -718,11 +719,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{/* Create the name of the worker service account to use */}}
-{{- define "worker.serviceAccountName" -}}
-  {{- if and (hasKey .Values.workers "name") (ne .Values.workers.name "default") }}
-    {{- include "_serviceAccountName" (merge (dict "key" "workers" "nameSuffix" (printf "%s-%s" "worker" .Values.workers.name)) .) -}}
+{{- define "worker.celery.serviceAccountName" -}}
+  {{- if and (hasKey .Values.workers.celery "name") (ne .Values.workers.celery.name "default") }}
+    {{- include "_serviceAccountName" (merge (dict "key" "workers" "subKey" "celery" "nameSuffix" (printf "%s-%s" "worker" .Values.workers.celery.name)) .) -}}
   {{- else }}
-    {{- include "_serviceAccountName" (merge (dict "key" "workers" "nameSuffix" "worker") .) -}}
+    {{- include "_serviceAccountName" (merge (dict "key" "workers" "subKey" "celery" "nameSuffix" "worker") .) -}}
   {{- end }}
 {{- end }}
 
@@ -820,11 +821,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
 
 {{/*
 Set the default value for pod securityContext
-If no value is passed for securityContexts.pod or <node>.securityContexts.pod or legacy securityContext and <node>.securityContext, defaults to global uid and gid.
+If no value is passed for securityContexts.pod or <node>.securityContexts.pod, defaults to global uid and gid.
 
-    +-----------------------------+      +------------------------+      +----------------------+      +-----------------+      +-------------------------+
-    | <node>.securityContexts.pod |  ->  | <node>.securityContext |  ->  | securityContexts.pod |  ->  | securityContext |  ->  | Values.uid + Values.gid |
-    +-----------------------------+      +------------------------+      +----------------------+      +-----------------+      +-------------------------+
+    +-----------------------------+      +----------------------+      +-------------------------+
+    | <node>.securityContexts.pod |  ->  | securityContexts.pod |  ->  | Values.uid + Values.gid |
+    +-----------------------------+      +----------------------+      +-------------------------+
 
 Values are not accumulated meaning that if runAsUser is set to 10 in <node>.securityContexts.pod,
 any extra values set to securityContext or uid+gid will be ignored.
@@ -843,10 +844,6 @@ Priority of values are from left to right, meaning if first value is not empty, 
       {{- $result = .securityContexts.pod }}
       {{- break }}
     {{- end }}
-    {{- if and (hasKey . "securityContext") .securityContext }}
-      {{- $result = .securityContext }}
-      {{- break }}
-    {{- end }}
   {{- end }}
   {{- if $result }}
     {{- toYaml $result | print }}
@@ -858,11 +855,11 @@ fsGroup: {{ $.gid }}
 
 {{/*
 Set the default value for pod securityContext
-If no value is passed for <node>.securityContexts.pod or <node>.securityContext, defaults to UID in the local node.
+If no value is passed for <node>.securityContexts.pod, defaults to UID in the local node.
 
-    +-----------------------------+      +------------------------+      +------------+
-    | <node>.securityContexts.pod |  ->  | <node>.securityContext |  ->  | <node>.uid |
-    +-----------------------------+      +------------------------+      +------------+
+    +-----------------------------+      +------------+
+    | <node>.securityContexts.pod |  ->  | <node>.uid |
+    +-----------------------------+      +------------+
 
 The template can be called like so:
   include "localPodSecurityContext" (list . .Values.schedule)
@@ -872,8 +869,6 @@ It is important to pass the local variables scope to this template as it is used
 {{- define "localPodSecurityContext" -}}
   {{- if .securityContexts.pod -}}
     {{ toYaml .securityContexts.pod | print }}
-  {{- else if .securityContext -}}
-    {{ toYaml .securityContext | print }}
   {{- else -}}
 runAsUser: {{ .uid }}
   {{- end -}}
@@ -881,11 +876,11 @@ runAsUser: {{ .uid }}
 
 {{/*
 Set the default value for container securityContext
-If no value is passed for <node>.securityContexts.container or <node>.securityContext, defaults to UID in the local node.
+If no value is passed for <node>.securityContexts.container, defaults to UID in the local node.
 
-    +-----------------------------------+      +------------------------+      +------------+
-    | <node>.securityContexts.container |  ->  | <node>.securityContext |  ->  | <node>.uid |
-    +-----------------------------------+      +------------------------+      +------------+
+    +-----------------------------------+      +------------+
+    | <node>.securityContexts.container |  ->  | <node>.uid |
+    +-----------------------------------+      +------------+
 
 The template can be called like so:
   include "localContainerSecurityContext" .Values.statsd
@@ -895,8 +890,6 @@ It is important to pass the local variables scope to this template as it is used
 {{- define "localContainerSecurityContext" -}}
   {{- if .securityContexts.container -}}
     {{ toYaml .securityContexts.container | print }}
-  {{- else if .securityContext -}}
-    {{ toYaml .securityContext | print }}
   {{- else -}}
 runAsUser: {{ .uid }}
   {{- end -}}
@@ -904,7 +897,7 @@ runAsUser: {{ .uid }}
 
 {{/*
 Set the default value for workers chown for persistent storage
-If no value is passed for securityContexts.pod or <node>.securityContexts.pod or legacy securityContext and <node>.securityContext, defaults to global uid and gid.
+If no value is passed for securityContexts.pod or <node>.securityContexts.pod, defaults to global uid and gid.
 The template looks for `runAsUser` and `fsGroup` specifically, any other parameter will be ignored.
 
     +-----------------------------+      +----------------------------------------------------+      +------------------+      +-------------------------+
@@ -924,8 +917,6 @@ Where `.` is the global variables scope and `.Values.workers` the local variable
   {{- with index . 1 }}
     {{- if .securityContexts.pod -}}
       {{ pluck "runAsUser" .securityContexts.pod | first | default $.Values.uid }}:{{ pluck "fsGroup" .securityContexts.pod | first | default $.Values.gid }}
-    {{- else if $.Values.securityContext -}}
-      {{ pluck "runAsUser" $.Values.securityContext | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContext | first | default $.Values.gid }}
     {{- else if $.Values.securityContexts.pod -}}
       {{ pluck "runAsUser" $.Values.securityContexts.pod | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContexts.pod | first | default $.Values.gid }}
     {{- else -}}
@@ -1072,6 +1063,9 @@ Usage:
     {{- $bundles := list -}}
     {{- range .Values.dagProcessor.dagBundleConfigList -}}
       {{- $bundle := dict "name" .name "classpath" .classpath "kwargs" (.kwargs | default dict) -}}
+      {{- if .team_name -}}
+      {{- $_ := set $bundle "team_name" .team_name -}}
+      {{- end -}}
       {{- $bundles = append $bundles $bundle -}}
     {{- end -}}
     {{- $bundles | toJson -}}
@@ -1094,8 +1088,6 @@ Usage:
 {{- define "workersMergeValues" -}}
   {{- $inputMap := index . 0 -}}
   {{- $overwriteMap := index . 1 -}}
-  {{- $sectionName := index . 2 -}}
-  {{- $orBoolean := index . 3 -}}
   {{- $outputMap := dict -}}
 
   {{- $fullOverwrite := list "annotations" "podAnnotations" "persistentVolumeClaimRetentionPolicy" "pod" "container" "securityContext" "containerLifecycleHooks" "config" "advanced" "behavior" "resources" "nodeSelector" "affinity" "labels" -}}
@@ -1106,18 +1098,13 @@ Usage:
       {{- $_ := set $outputMap $key (get $overwriteMap $key) -}}
     {{/* Below if holds base logic for merge values */}}
     {{- else if and (hasKey $overwriteMap $key) (kindIs "map" $val) -}}
-      {{- $nested := include "workersMergeValues" (list $val (get $overwriteMap $key) $key $orBoolean) | fromYaml -}}
+      {{- $nested := include "workersMergeValues" (list $val (get $overwriteMap $key)) | fromYaml -}}
       {{- if gt (len $nested) 0 -}}
         {{- $_ := set $outputMap $key $nested -}}
       {{- end -}}
     {{/* Below if contains check for `slice` to fully overwrite list parameters */}}
     {{- else if and (hasKey $overwriteMap $key) (not (and (kindIs "slice" (get $overwriteMap $key)) (eq (len (get $overwriteMap $key)) 0))) -}}
-      {{/* Below if holds `or` logic for boolean fields in a map */}}
-      {{- if and (kindIs "bool" $val) (has $sectionName $orBoolean) -}}
-        {{- $_ := set $outputMap $key (or $val (get $overwriteMap $key)) -}}
-      {{- else -}}
-        {{- $_ := set $outputMap $key (get $overwriteMap $key) -}}
-      {{- end -}}
+      {{- $_ := set $outputMap $key (get $overwriteMap $key) -}}
     {{- else -}}
       {{- $_ := set $outputMap $key $val -}}
     {{- end -}}
@@ -1132,22 +1119,51 @@ Usage:
 {{- end -}}
 
 {{/*
-Remove all nil fields in a map and return new dict object.
+serviceAccountTokenVolume mount
 
 Usage:
-  {{ include "removeNilFields" . }}
+  {{ include "serviceAccountTokenVolumeMount" (list . .Values.scheduler.serviceAccount) }}
 */}}
-{{- define "removeNilFields" -}}
-  {{- $newValues := dict -}}
-  {{- range $key, $val := . -}}
-    {{- if kindIs "map" $val -}}
-      {{- $nested := include "removeNilFields" $val | fromYaml -}}
-      {{- if gt (len $nested) 0 -}}
-        {{- $_ := set $newValues $key $nested -}}
-      {{- end -}}
-    {{- else if not (kindIs "invalid" $val) -}}
-      {{- $_ := set $newValues $key $val -}}
-    {{- end -}}
-  {{- end -}}
-  {{- toYaml $newValues -}}
+{{- define "serviceAccountTokenVolumeMount" -}}
+  {{- $root := index . 0 -}}
+  {{- $sa := index . 1 -}}
+  {{- if and (eq (include "airflow.podLaunchingExecutor" $root ) "true") (not $sa.automountServiceAccountToken) $sa.serviceAccountTokenVolume.enabled }}
+- name: {{ $sa.serviceAccountTokenVolume.volumeName }}
+  mountPath: {{ $sa.serviceAccountTokenVolume.mountPath }}
+  readOnly: true
+  {{- end }}
+{{- end -}}
+
+{{/*
+serviceAccountTokenVolume
+
+Usage:
+  {{ include "serviceAccountTokenVolume" (list . .Values.scheduler.serviceAccount) }}
+*/}}
+{{- define "serviceAccountTokenVolume" -}}
+  {{- $root := index . 0 -}}
+  {{- $sa := index . 1 -}}
+  {{- if and (eq (include "airflow.podLaunchingExecutor" $root ) "true") (not $sa.automountServiceAccountToken) $sa.serviceAccountTokenVolume.enabled }}
+- name: {{ $sa.serviceAccountTokenVolume.volumeName }}
+  projected:
+    defaultMode: 420
+    sources:
+    - serviceAccountToken:
+        {{- if $sa.serviceAccountTokenVolume.audience }}
+        audience: {{ $sa.serviceAccountTokenVolume.audience }}
+        {{- end }}
+        expirationSeconds: {{ $sa.serviceAccountTokenVolume.expirationSeconds }}
+        path: token
+    - configMap:
+        items:
+        - key: ca.crt
+          path: ca.crt
+        name: kube-root-ca.crt
+    - downwardAPI:
+        items:
+        - fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+          path: namespace
+  {{- end }}
 {{- end -}}

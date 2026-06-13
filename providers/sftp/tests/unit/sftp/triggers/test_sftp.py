@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import importlib
 import time
+import warnings
 from unittest import mock
 
 import pytest
@@ -28,8 +30,29 @@ from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.sftp.triggers.sftp import SFTPTrigger
 from airflow.triggers.base import TriggerEvent
 
+WARNING_CATEGORY: type[Warning]
+try:
+    from airflow.utils.deprecation_tools import DeprecatedImportWarning
+except ImportError:
+    WARNING_CATEGORY = DeprecationWarning
+else:
+    WARNING_CATEGORY = DeprecatedImportWarning
+
 
 class TestSFTPTrigger:
+    def test_no_timezone_deprecated_import_warning_on_module_reload(self):
+        with warnings.catch_warnings(record=True) as captured_warnings:
+            warnings.simplefilter("always")
+            import airflow.providers.sftp.triggers.sftp as sftp_trigger_module
+
+            importlib.reload(sftp_trigger_module)
+
+        assert not any(
+            issubclass(warning.category, WARNING_CATEGORY)
+            and "airflow.utils.timezone" in str(warning.message)
+            for warning in captured_warnings
+        )
+
     def test_sftp_trigger_serialization(self):
         """
         Asserts that the SFTPTrigger correctly serializes its arguments and classpath.

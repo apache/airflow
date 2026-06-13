@@ -27,8 +27,10 @@ import pytest
 import yaml
 from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
+from sqlalchemy import inspect
 from urllib3 import HTTPResponse
 
+from airflow.jobs.job import Job
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
@@ -1503,6 +1505,35 @@ class TestKubernetesExecutor:
             field_selector="status.phase=Succeeded",
             label_selector="kubernetes_executor=True,airflow-worker!=modified,airflow_executor_done!=True",
             header_params={"Accept": "application/json;as=PartialObjectMetadataList;v=v1;g=meta.k8s.io"},
+        )
+
+    @pytest.mark.db_test
+    def test_alive_other_scheduler_job_ids_does_not_detach_caller_session(self, session):
+        """``_alive_other_scheduler_job_ids`` must use an independent (non-scoped) session.
+
+        Regression test for #67813. ``try_adopt_task_instances`` runs inside the scheduler's
+        own scoped transaction (``adopt_or_reset_orphaned_tasks``). If this helper opens a
+        *scoped* ``create_session()``, the context manager's ``commit()``/``close()`` on exit
+        tears down that shared transaction: it commits the scheduler's in-flight work early
+        (releasing its ``FOR UPDATE SKIP LOCKED`` row locks) and detaches the orphaned
+        TaskInstances it still holds, crashing the reset path with ``DetachedInstanceError``.
+        """
+        # An object attached to the caller's scoped session, standing in for the orphaned
+        # TaskInstances the scheduler holds while adopting.
+        job = Job()
+        session.add(job)
+        session.flush()
+        assert inspect(job).session is not None
+
+        executor = self.kubernetes_executor
+        executor.scheduler_job_id = "5"
+
+        executor._alive_other_scheduler_job_ids()
+
+        # A scoped create_session() inside the helper would have closed this session and
+        # detached ``job``; an independent session leaves the caller's session untouched.
+        assert inspect(job).session is not None, (
+            "_alive_other_scheduler_job_ids closed/detached the caller's scoped session"
         )
 
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")

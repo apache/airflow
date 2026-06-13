@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import ftplib
 from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
@@ -60,6 +61,9 @@ class FTPToS3Operator(BaseOperator):
     :param gzip: If True, the file will be compressed locally
     :param acl_policy: String specifying the canned ACL policy for the file being
         uploaded to the S3 bucket.
+    :param fail_on_file_not_exist: If True, operator fails when a source file does not
+        exist on the FTP server. If False, the operator logs a warning and skips the
+        transfer. Default is True.
     """
 
     template_fields: Sequence[str] = ("ftp_path", "s3_bucket", "s3_key", "ftp_filenames", "s3_filenames")
@@ -78,6 +82,7 @@ class FTPToS3Operator(BaseOperator):
         encrypt: bool = False,
         gzip: bool = False,
         acl_policy: str | None = None,
+        fail_on_file_not_exist: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -92,25 +97,31 @@ class FTPToS3Operator(BaseOperator):
         self.encrypt = encrypt
         self.gzip = gzip
         self.acl_policy = acl_policy
+        self.fail_on_file_not_exist = fail_on_file_not_exist
         self.s3_hook: S3Hook | None = None
         self.ftp_hook: FTPHook | None = None
 
     def __upload_to_s3_from_ftp(self, remote_filename, s3_file_key):
-        with NamedTemporaryFile() as local_tmp_file:
-            self.ftp_hook.retrieve_file(
-                remote_full_path=remote_filename, local_full_path_or_buffer=local_tmp_file.name
-            )
-
-            self.s3_hook.load_file(
-                filename=local_tmp_file.name,
-                key=s3_file_key,
-                bucket_name=self.s3_bucket,
-                replace=self.replace,
-                encrypt=self.encrypt,
-                gzip=self.gzip,
-                acl_policy=self.acl_policy,
-            )
-            self.log.info("File upload to %s", s3_file_key)
+        try:
+            with NamedTemporaryFile() as local_tmp_file:
+                self.ftp_hook.retrieve_file(
+                    remote_full_path=remote_filename, local_full_path_or_buffer=local_tmp_file.name
+                )
+                self.s3_hook.load_file(
+                    filename=local_tmp_file.name,
+                    key=s3_file_key,
+                    bucket_name=self.s3_bucket,
+                    replace=self.replace,
+                    encrypt=self.encrypt,
+                    gzip=self.gzip,
+                    acl_policy=self.acl_policy,
+                )
+                self.log.info("File upload to %s", s3_file_key)
+        except ftplib.error_perm as e:
+            if "550" in str(e) and not self.fail_on_file_not_exist:
+                self.log.info("File %s not found on FTP server. Skipping transfer.", remote_filename)
+                return
+            raise
 
     def execute(self, context: Context):
         self.ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)

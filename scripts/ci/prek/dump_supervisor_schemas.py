@@ -31,25 +31,49 @@ from __future__ import annotations
 import json
 import os
 import sys
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from pydantic import BaseModel
+from pydantic import json_schema
 
 os.environ["_AIRFLOW__AS_LIBRARY"] = "1"
 
 from airflow.sdk.execution_time.schema import bundle, registered_models_by_name
 
-
-def _registered_models_sorted() -> tuple[type[BaseModel], ...]:
-    """Return registered head models sorted by class name for stable snapshot diffs."""
-    by_name = registered_models_by_name()
-    return tuple(by_name[name] for name in sorted(by_name))
-
-
+# Models are sorted by name before being passed to generation for stable diffs.
+_, snapshot = json_schema.models_json_schema(
+    [(m, "serialization") for _, m in sorted(registered_models_by_name().items())],
+    schema_generator=json_schema.GenerateJsonSchema,
+)
 snapshot = {
+    "$schema": json_schema.GenerateJsonSchema.schema_dialect,
     "api_version": str(bundle.versions[0].value),
-    "schemas": {cls.__name__: cls.model_json_schema() for cls in _registered_models_sorted()},
+    "description": "Apache Airflow SDK Supervisor Schema",
+    "$defs": snapshot["$defs"],
 }
-json.dump(snapshot, sys.stdout, indent=2, sort_keys=True)
+
+# We currently still have references to non-SDK models from SDK. This cause
+# issues since Pydantic would see two classes for one (logical) model. This
+# post-process Pydantic's output to merge those class pairs into one. Eventually
+# we should have clean separation between SDK and Core, and won't need this
+# anymore. But that is still quite some way away.
+renames: dict[str, str] = {}
+for key, val in (defs := snapshot["$defs"]).items():
+    if (title := (val.get("title") or key)) != key:
+        renames[key] = title
+
+for key in list(defs):
+    try:
+        title = renames[key]
+    except KeyError:
+        continue
+    entry = defs.pop(key)
+    if title in defs:  # Dup, don't need this one.
+        continue
+    defs[title] = entry
+
+output = json.dumps(snapshot, indent=2)
+for old, new in renames.items():
+    output = output.replace(f'"#/$defs/{old}"', f'"#/$defs/{new}"')
+
+
+sys.stdout.write(output)
 sys.stdout.write("\n")
