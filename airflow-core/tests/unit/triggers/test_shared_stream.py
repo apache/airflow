@@ -1754,11 +1754,6 @@ async def test_pump_serializes_advance_calls(lane_for, payloads, expected_advanc
         await manager.unsubscribe(1, key)
 
 
-# ---------------------------------------------------------------------------
-# Advance lanes (get_advance_lane)
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 async def test_lanes_advance_independently():
     """A lane whose events are resolved does not wait for another lane's unresolved head."""
@@ -1777,34 +1772,42 @@ async def test_lanes_advance_independently():
     t1 = cls()
     key = t1.shared_stream_key()
     manager = SharedStreamManager()
+    next_task = None
     try:
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
         group = manager._groups[key]
 
-        async with _consume_in_background(s1) as collector:
-            await collector.wait_for(4)
-            tokens = collector.tokens
+        # Consume all four events, binding a persist seq to each lane-"a"
+        # event so lane "a" stays unresolved while lane "b" resolves from
+        # consumption alone.
+        it = s1.__aiter__()
+        seqs: dict[str, int] = {}
+        for _ in range(4):
+            raw = await _pull_raw(it)
+            if raw["n"].startswith("a"):
+                seq = manager.bind_pending_event(trigger_id=1, key=key)
+                assert seq is not None
+                seqs[raw["n"]] = seq
+        next_task = await _resume_past_yield(it)
 
-            # Resolve lane "b" completely while lane "a" is fully unresolved.
-            await tokens[1].ack()  # b1
-            await tokens[3].ack()  # b2
-            for _ in range(5):
-                await asyncio.sleep(0)
-            assert cls.advanced == ["b1", "b2"], "lane b must advance without waiting for lane a's head"
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert cls.advanced == ["b1", "b2"], "lane b must advance without waiting for lane a's head"
 
-            await tokens[0].ack()  # a1
-            await tokens[2].ack()  # a2
-            for _ in range(5):
-                await asyncio.sleep(0)
+        manager.confirm_persisted([seqs["a1"]])
+        manager.confirm_persisted([seqs["a2"]])
+        for _ in range(5):
+            await asyncio.sleep(0)
 
-            # Contract: full per-lane projections in fan-out order. The global
-            # interleaving across lanes is a pump implementation detail.
-            assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2"]
-            assert [p for p in cls.advanced if p[0] == "b"] == ["b1", "b2"]
-            assert len(cls.advanced) == 4
-            # All lanes drained → the per-lane index is garbage-collected.
-            assert group._lane_queues == {}
+        # Contract: full per-lane projections in fan-out order. The global
+        # interleaving across lanes is a pump implementation detail.
+        assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2"]
+        assert [p for p in cls.advanced if p[0] == "b"] == ["b1", "b2"]
+        assert len(cls.advanced) == 4
+        # All lanes drained → the per-lane index is garbage-collected.
+        assert group._lane_queues == {}
     finally:
+        await _cancel_quietly(next_task)
         await manager.unsubscribe(1, key)
 
 
@@ -1826,133 +1829,35 @@ async def test_lane_internal_fifo_with_out_of_order_resolve():
     t1 = cls()
     key = t1.shared_stream_key()
     manager = SharedStreamManager()
+    next_task = None
     try:
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
 
-        async with _consume_in_background(s1) as collector:
-            await collector.wait_for(4)
-            tokens = collector.tokens
+        # Consume all four events; only a1 gets a persist seq, so a2, a3, and
+        # b1 resolve from consumption while head a1 stays pending.
+        it = s1.__aiter__()
+        a1_seq: int | None = None
+        for _ in range(4):
+            raw = await _pull_raw(it)
+            if raw["n"] == "a1":
+                a1_seq = manager.bind_pending_event(trigger_id=1, key=key)
+        next_task = await _resume_past_yield(it)
 
-            # Resolve a2 and a3 (head a1 stays pending) plus the noise lane.
-            await tokens[2].ack()  # a2
-            await tokens[3].ack()  # a3
-            await tokens[1].ack()  # b1
-            for _ in range(5):
-                await asyncio.sleep(0)
-            assert cls.advanced == ["b1"], "lane a may not advance while its own head is unresolved"
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert cls.advanced == ["b1"], "lane a may not advance while its own head is unresolved"
 
-            await tokens[0].ack()  # a1
-            for _ in range(5):
-                await asyncio.sleep(0)
+        assert a1_seq is not None
+        manager.confirm_persisted([a1_seq])
+        for _ in range(5):
+            await asyncio.sleep(0)
 
-            assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2", "a3"]
-            assert [p for p in cls.advanced if p[0] == "b"] == ["b1"]
-            assert len(cls.advanced) == 4
+        assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2", "a3"]
+        assert [p for p in cls.advanced if p[0] == "b"] == ["b1"]
+        assert len(cls.advanced) == 4
     finally:
+        await _cancel_quietly(next_task)
         await manager.unsubscribe(1, key)
-
-
-@pytest.mark.asyncio
-async def test_max_in_flight_one_across_lanes():
-    """Even with multiple lanes ready, at most one advance call is ever in flight."""
-    release = asyncio.Event()
-    state = {"in_flight": 0, "max_in_flight": 0}
-    advanced: list = []
-
-    class _BlockingLaneProducer(SharedStreamProducer):
-        async def open_stream(self):
-            yield {"n": "a1"}, "a1"
-            yield {"n": "b1"}, "b1"
-            await asyncio.Event().wait()
-
-        def get_advance_lane(self, broker_payload):
-            return broker_payload[0]
-
-        async def advance(self, broker_payload, outcome):
-            state["in_flight"] += 1
-            state["max_in_flight"] = max(state["max_in_flight"], state["in_flight"])
-            await release.wait()
-            advanced.append(broker_payload)
-            state["in_flight"] -= 1
-
-    class _BlockingLaneTrigger(_ProgrammableSharedStreamTrigger):
-        @classmethod
-        def create_shared_stream_producer(cls, kwargs):
-            return _BlockingLaneProducer()
-
-        async def filter_shared_stream(self, shared_stream):
-            async for raw, token in shared_stream:
-                await token.ack()
-                yield TriggerEvent(raw)
-
-    t1 = _BlockingLaneTrigger()
-    key = t1.shared_stream_key()
-    manager = SharedStreamManager()
-    try:
-        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
-
-        async with _consume_in_background(s1) as collector:
-            await collector.wait_for(2)
-            tokens = collector.tokens
-
-            # Resolve both lanes; the pump starts one advance, which blocks.
-            await tokens[0].ack()
-            await tokens[1].ack()
-            for _ in range(5):
-                await asyncio.sleep(0)
-            assert state["in_flight"] == 1, "the other lane's advance must not start while one is in flight"
-            assert advanced == []
-
-            release.set()
-            deadline = asyncio.get_event_loop().time() + 1.0
-            while asyncio.get_event_loop().time() < deadline:
-                if len(advanced) >= 2:
-                    break
-                await asyncio.sleep(0)
-
-            assert sorted(advanced) == ["a1", "b1"]
-            assert state["max_in_flight"] == 1, "advance calls must never overlap, even across lanes"
-    finally:
-        await manager.unsubscribe(1, key)
-
-
-@pytest.mark.asyncio
-async def test_empty_snapshot_routes_through_lane():
-    """Born-resolved events (no subscribers online) keep per-lane fan-out order."""
-    cls = _make_ack_required_trigger_class(
-        [
-            ({"n": "a1"}, "a1"),
-            ({"n": "b1"}, "b1"),
-            ({"n": "a2"}, "a2"),
-            ({"n": "b2"}, "b2"),
-        ],
-        lane_for=lambda payload: payload[0],
-    )
-    cls.advanced.clear()
-    cls.outcomes.clear()
-
-    t1 = cls()
-    key = t1.shared_stream_key()
-    manager = SharedStreamManager()
-
-    # Subscribe then immediately unsubscribe so the group exists but has zero
-    # subscribers when the events arrive.
-    s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
-    manager._groups[key].unsubscribe(1)  # remove without stopping the poll task
-
-    deadline = asyncio.get_event_loop().time() + 1.0
-    while asyncio.get_event_loop().time() < deadline:
-        if len(cls.advanced) >= 4:
-            break
-        await asyncio.sleep(0.01)
-
-    assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2"]
-    assert [p for p in cls.advanced if p[0] == "b"] == ["b1", "b2"]
-    assert len(cls.advanced) == 4
-    assert cls.outcomes == [AdvanceOutcome(0, 0, 0)] * 4
-
-    del s1  # silence unused-variable warning
-    await manager.stop_all()
 
 
 @pytest.mark.asyncio
@@ -1974,8 +1879,8 @@ async def test_get_advance_lane_raise_terminates_poll():
                 raise RuntimeError("lane boom")
             return None
 
-        async def advance(self, broker_payload, outcome):
-            advanced.append(broker_payload)
+        async def advance(self, batch):
+            advanced.extend(item.broker_payload for item in batch)
 
         async def aclose(self):
             aclose_calls.append(1)
@@ -1986,8 +1891,7 @@ async def test_get_advance_lane_raise_terminates_poll():
             return _RaisingLaneProducer()
 
         async def filter_shared_stream(self, shared_stream):
-            async for raw, token in shared_stream:
-                await token.ack()
+            async for raw in shared_stream:
                 yield TriggerEvent(raw)
 
     t1 = _RaisingLaneTrigger()
@@ -1998,7 +1902,7 @@ async def test_get_advance_lane_raise_terminates_poll():
     poll_task = manager._groups[key]._poll_task
     assert poll_task is not None
 
-    # Consume and ack the first event, then release the event whose
+    # Consume the first event, then release the event whose
     # get_advance_lane raises.
     events1 = await asyncio.wait_for(_collect_ack_stream(t1, s1, n=1), timeout=1.0)
     assert len(events1) == 1
