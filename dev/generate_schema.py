@@ -10,7 +10,11 @@ def generate_schema():
         subprocess.check_call([sys.executable, "-m", "pip", "install", "pyyaml"])
         import yaml
         
-    config_yml_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "config.yml"))
+    # Paths relative to this script located in dev/
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    config_yml_path = os.path.abspath(os.path.join(script_dir, "../airflow-core/src/airflow/config_templates/config.yml"))
+    schema_path = os.path.abspath(os.path.join(script_dir, "../airflow-core/src/airflow/config_templates/schema.json"))
+    
     if not os.path.exists(config_yml_path):
         print(f"Error: {config_yml_path} does not exist.")
         sys.exit(1)
@@ -28,7 +32,6 @@ def generate_schema():
     }
     
     for section, section_data in sorted(config_desc.items()):
-        # section_data might be None if section has no contents, though usually it's a dict
         if not section_data:
             continue
         options = section_data.get("options", {})
@@ -82,7 +85,6 @@ def generate_schema():
             "additionalProperties": False
         }
         
-    schema_path = os.path.join(os.path.dirname(__file__), "schema.json")
     with open(schema_path, "w", encoding="utf-8") as f:
         json.dump(schema, f, indent=2)
         f.write("\n")
