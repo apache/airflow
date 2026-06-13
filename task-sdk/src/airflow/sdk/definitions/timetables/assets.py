@@ -43,6 +43,7 @@ class AssetTriggeredTimetable(BaseTimetable):
     """
 
     asset_condition: BaseAsset = attrs.field(alias="assets")
+    batch_asset_events: bool = True
 
 
 @attrs.define
