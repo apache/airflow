@@ -37,6 +37,7 @@ Use these rules when reviewing pull requests to the Apache Airflow repository.
 ## Testing Requirements
 
 - **Flag any new public method or behavior without corresponding tests.** Tests must cover success, failure, and edge cases.
+- **Flag tests that cover pre-existing logic or standard-library behavior.** Tests should be scoped to what the PR introduces or changes — not to logic that was already there before the PR, and not to stdlib/third-party functions. A test that passes without the PR's change is padding, not coverage.
 - **Flag any `unittest.TestCase` subclass.** Use pytest patterns instead.
 - **Flag any `mock.Mock()` or `mock.MagicMock()` without `spec` or `autospec`.** Unspec'd mocks silently accept any attribute access, hiding real bugs.
 - **Flag any `time.sleep` or `datetime.now()` in tests.** Use `time_machine` for time-dependent tests.

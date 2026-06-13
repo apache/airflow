@@ -148,7 +148,7 @@ reported as such are described in "What is NOT considered a security vulnerabili
 
 ## Testing Standards
 
-- Add tests for new behavior — cover success, failure, and edge cases.
+- Add tests for new behavior — cover success, failure, and edge cases. Test exactly what the PR changes: do not add tests for pre-existing logic that existed before the PR, and do not test standard-library or third-party functions. A test that would pass without the PR's change is not a test of that change.
 - Use pytest patterns, not `unittest.TestCase`.
 - Use `spec`/`autospec` when mocking.
 - Prefer `@mock.patch` decorators over `with mock.patch(...)` context managers for patching. Use `conf_vars` (from `tests_common.test_utils.config`) for Airflow config overrides — as a decorator when the value is fixed, as a context manager when it varies via `@pytest.mark.parametrize`.
