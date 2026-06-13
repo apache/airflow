@@ -78,10 +78,7 @@ class TestStackdriverRemoteLogIO:
         ti.task_id = "test_task"
         ti.dag_id = "test_dag"
         ti.try_number = 1
-        if AIRFLOW_V_3_0_PLUS:
-            ti.logical_date = timezone.datetime(2016, 1, 1)
-        else:
-            ti.execution_date = timezone.datetime(2016, 1, 1)
+        ti.run_id = "run1"
 
         messages, logs = self.io.read("dag_id=test_dag/run_id=run1/task_id=test_task/attempt=1.log", ti)
 
@@ -101,15 +98,44 @@ class TestStackdriverRemoteLogIO:
         ti.task_id = "test_task"
         ti.dag_id = "test_dag"
         ti.try_number = 1
-        if AIRFLOW_V_3_0_PLUS:
-            ti.logical_date = timezone.datetime(2016, 1, 1)
-        else:
-            ti.execution_date = timezone.datetime(2016, 1, 1)
+        ti.run_id = "run1"
 
         messages, logs = self.io.read("test/path", ti)
 
         assert len(messages) == 1
         assert logs == []
+
+    @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
+    @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.LoggingServiceV2Client")
+    def test_read_logs_uses_run_id_filter(self, mock_client, mock_get_creds_and_project_id):
+        """``read()`` must filter on ``run_id``, not ``logical_date``.
+
+        In AF3's supervisor model the REMOTE_TASK_LOG handler runs in the
+        supervisor process which has no DB connection to derive
+        ``logical_date`` from ``run_id``.  The read path must use ``run_id``
+        directly so it matches the label the write path already emits (Bug 1).
+        """
+        mock_client.return_value.list_log_entries.return_value.pages = iter(
+            [_create_list_log_entries_response_mock(["MSG1"], None)]
+        )
+        mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+
+        ti = mock.MagicMock()
+        ti.task_id = "t"
+        ti.dag_id = "d"
+        ti.run_id = "run123"
+        ti.try_number = 2
+
+        messages, logs = self.io.read("dag_id=d/run_id=run123/task_id=t/attempt=2.log", ti)
+
+        request = mock_client.return_value.list_log_entries.call_args.kwargs["request"]
+        assert 'labels.run_id="run123"' in request.filter
+        assert 'labels.try_number="2"' in request.filter
+        assert 'labels.task_id="t"' in request.filter
+        assert 'labels.dag_id="d"' in request.filter
+        assert "logical_date" not in request.filter
+        assert "execution_date" not in request.filter
+        assert logs == ["MSG1"]
 
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client")
