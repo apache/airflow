@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+import time
 from collections.abc import AsyncIterator, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
@@ -29,6 +31,7 @@ from google.cloud.aiplatform_v1 import (
 )
 
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineAsyncHook
 from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import BatchPredictionJobAsyncHook
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobAsyncHook
 from airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job import (
@@ -124,6 +127,91 @@ class BaseVertexAIJobTrigger(BaseTrigger):
 
     def _serialize_job(self, job: Any) -> Any:
         return self.job_serializer_class.to_dict(job)
+
+
+class AgentEngineDeleteTrigger(BaseTrigger):
+    """Trigger that waits until a Vertex AI Agent Engine no longer exists."""
+
+    def __init__(
+        self,
+        project_id: str,
+        location: str,
+        name: str,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        poll_interval: float = 30,
+        timeout: float | None = None,
+    ):
+        super().__init__()
+        self.project_id = project_id
+        self.location = location
+        self.name = name
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.poll_interval = poll_interval
+        self.timeout = timeout
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineDeleteTrigger",
+            {
+                "project_id": self.project_id,
+                "location": self.location,
+                "name": self.name,
+                "gcp_conn_id": self.gcp_conn_id,
+                "impersonation_chain": self.impersonation_chain,
+                "poll_interval": self.poll_interval,
+                "timeout": self.timeout,
+            },
+        )
+
+    @cached_property
+    def async_hook(self) -> AgentEngineAsyncHook:
+        return AgentEngineAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        start_time = time.monotonic()
+        try:
+            while True:
+                deleted = await self.async_hook.is_agent_engine_deleted(
+                    project_id=self.project_id,
+                    location=self.location,
+                    name=self.name,
+                )
+                if deleted:
+                    yield TriggerEvent(
+                        {
+                            "status": "success",
+                            "message": "Agent Engine deleted",
+                            "name": self.name,
+                        }
+                    )
+                    return
+
+                if self.timeout is not None and time.monotonic() - start_time > self.timeout:
+                    yield TriggerEvent(
+                        {
+                            "status": "error",
+                            "message": f"Timed out waiting for Agent Engine {self.name} to be deleted",
+                            "name": self.name,
+                        }
+                    )
+                    return
+
+                self.log.info("Waiting for Agent Engine %s to be deleted.", self.name)
+                await asyncio.sleep(self.poll_interval)
+        except Exception as err:
+            self.log.exception("Exception occurred while waiting for Agent Engine deletion.")
+            yield TriggerEvent(
+                {
+                    "status": "error",
+                    "message": str(err),
+                    "name": self.name,
+                }
+            )
 
 
 class CreateHyperparameterTuningJobTrigger(BaseVertexAIJobTrigger):

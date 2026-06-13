@@ -26,6 +26,56 @@ With Vertex AI, both AutoML training and custom training are available options.
 Whichever option you choose for training, you can save models, deploy models, and
 request predictions with Vertex AI.
 
+Managing Agent Engines
+^^^^^^^^^^^^^^^^^^^^^^
+
+To create a Vertex AI Agent Engine you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.CreateAgentEngineOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_agent_engine.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_agent_engine_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_agent_engine_operator]
+
+To get an Agent Engine you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.GetAgentEngineOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_agent_engine.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_get_agent_engine_operator]
+    :end-before: [END how_to_cloud_vertex_ai_get_agent_engine_operator]
+
+To query an Agent Engine you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.QueryAgentEngineOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_agent_engine.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_query_agent_engine_operator]
+    :end-before: [END how_to_cloud_vertex_ai_query_agent_engine_operator]
+
+To update an Agent Engine you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.UpdateAgentEngineOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_agent_engine.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_update_agent_engine_operator]
+    :end-before: [END how_to_cloud_vertex_ai_update_agent_engine_operator]
+
+To delete an Agent Engine you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.DeleteAgentEngineOperator`.
+By default, the operator waits until the Agent Engine no longer exists. The same operation
+can be performed in the deferrable mode.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_agent_engine.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_agent_engine_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_agent_engine_operator]
+
 Creating Datasets
 ^^^^^^^^^^^^^^^^^
 
