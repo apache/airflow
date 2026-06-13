@@ -147,7 +147,9 @@ def next_run_assets(
             )
             for row in raw_rows
         ]
-        return NextRunAssetsResponse(asset_expression=dag_model.asset_expression, events=events)
+        return NextRunAssetsResponse.model_validate(
+            {"asset_expression": dag_model.asset_expression, "events": events}
+        )
 
     # Partitioned Dags: enrich with per-asset received/required counts and rollup flag.
     # FIFO matches the scheduler's pending-APDR processing order
@@ -180,10 +182,12 @@ def next_run_assets(
             )
             for row in raw_rows
         ]
-        return NextRunAssetsResponse(
-            asset_expression=dag_model.asset_expression,
-            events=events,
-            pending_partition_count=pending_partition_count,
+        return NextRunAssetsResponse.model_validate(
+            {
+                "asset_expression": dag_model.asset_expression,
+                "events": events,
+                "pending_partition_count": pending_partition_count,
+            }
         )
 
     # Collect received upstream partition keys per asset for this partition run.
@@ -253,8 +257,10 @@ def next_run_assets(
             )
         )
 
-    return NextRunAssetsResponse(
-        asset_expression=dag_model.asset_expression,
-        events=events,
-        pending_partition_count=pending_partition_count,
+    return NextRunAssetsResponse.model_validate(
+        {
+            "asset_expression": dag_model.asset_expression,
+            "events": events,
+            "pending_partition_count": pending_partition_count,
+        }
     )
