@@ -19,38 +19,95 @@
 import { Text, useToken } from "@chakra-ui/react";
 import { Group } from "@visx/group";
 import { LinePath } from "@visx/shape";
-import type { Edge as EdgeType } from "@xyflow/react";
-import { useNodesData } from "@xyflow/react";
+import { BaseEdge, getSmoothStepPath, useNodesData, useStore } from "@xyflow/react";
+import type { Edge as EdgeType, EdgeProps } from "@xyflow/react";
 import type { ElkPoint } from "elkjs";
 
 import { opacityStyle } from "./graphTypes";
 import type { EdgeData } from "./reactflowUtils";
 
-type Props = EdgeType<EdgeData>;
+type Props = EdgeProps<EdgeType<EdgeData>>;
 
-const CustomEdge = ({ data, source, target }: Props) => {
-  const [strokeColor, blueColor, dataEdgeColor] = useToken("colors", [
-    "border.inverted",
-    "blue.500",
-    "purple.500",
-  ]);
+const CustomEdge = ({
+  data,
+  id,
+  markerEnd,
+  markerStart,
+  source,
+  sourcePosition,
+  sourceX,
+  sourceY,
+  target,
+  targetPosition,
+  targetX,
+  targetY,
+}: Props) => {
+  const [
+    strokeColor,
+    blueColor,
+    dataEdgeColor,
+    draggingStrokeColor,
+    draggingBlueColor,
+    draggingDataEdgeColor,
+  ] = useToken("colors", ["border.inverted", "blue.500", "purple.500", "border", "blue.400", "purple.400"]);
 
   // Read isSelected directly from the node store so that selection changes
   // don't require the parent to rebuild and pass down a new edges array.
   // useNodesData subscribes to data changes for these specific node IDs only.
   const nodesData = useNodesData([source, target]);
   const isSelected = nodesData.some((node) => Boolean(node.data.isSelected));
+  const isConnectedNodeDragging = useStore((state) => {
+    const sourceDragging = state.nodeLookup.get(source)?.internals.userNode.dragging ?? false;
+    const targetDragging = state.nodeLookup.get(target)?.internals.userNode.dragging ?? false;
+
+    return sourceDragging || targetDragging;
+  });
 
   if (data === undefined) {
     return undefined;
   }
-  const { rest } = data;
+  const { isManualLayout = false, rest } = data;
+  const isDragPreview = isManualLayout && isConnectedNodeDragging;
+  const selectedEdgeStrokeColor = rest.edgeType === "data" ? dataEdgeColor : blueColor;
+  const selectedDraggingEdgeStrokeColor =
+    rest.edgeType === "data" ? draggingDataEdgeColor : draggingBlueColor;
+  let edgeStrokeColor = (isSelected ? selectedEdgeStrokeColor : strokeColor) ?? "currentColor";
 
-  const edgeStrokeColor = isSelected ? (rest.edgeType === "data" ? dataEdgeColor : blueColor) : strokeColor;
+  if (isDragPreview) {
+    edgeStrokeColor = (isSelected ? selectedDraggingEdgeStrokeColor : draggingStrokeColor) ?? "currentColor";
+  }
+
+  if (isManualLayout) {
+    const [path] = getSmoothStepPath({
+      sourcePosition,
+      sourceX,
+      sourceY,
+      targetPosition,
+      targetX,
+      targetY,
+    });
+
+    return (
+      <g {...opacityStyle(rest.isFiltered)} pointerEvents="none">
+        <BaseEdge
+          id={id}
+          interactionWidth={0}
+          markerEnd={markerEnd}
+          markerStart={markerStart}
+          path={path}
+          style={{
+            stroke: edgeStrokeColor,
+            strokeDasharray: rest.isSetupTeardown ? "10,5" : undefined,
+            strokeWidth: isSelected ? 3 : 1,
+          }}
+        />
+      </g>
+    );
+  }
 
   return (
-    <g {...opacityStyle(rest.isFiltered)}>
-      {rest.labels?.map(({ height, id, text, width, x, y }) => {
+    <g {...opacityStyle(rest.isFiltered)} pointerEvents="none">
+      {rest.labels?.map(({ height, id: labelId, text, width, x, y }) => {
         if (y === undefined || x === undefined) {
           return undefined;
         }
@@ -59,7 +116,7 @@ const CustomEdge = ({ data, source, target }: Props) => {
           <Group
             // Add a tiny bit of height so letters aren't cut off
             height={(height ?? 0) + 2}
-            key={id}
+            key={labelId}
             left={x}
             top={y}
             width={width}
