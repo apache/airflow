@@ -41,22 +41,18 @@ FORMULA = """$curTime = time();
 
 
 @pytest.fixture
-def mocked_batch_service_client():
-    with mock.patch("airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient") as m:
+def mocked_batch_client():
+    with mock.patch("airflow.providers.microsoft.azure.hooks.batch.BatchClient") as m:
         yield m
 
 
 class TestAzureBatchOperator:
-    # set up the test environment
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self, mocked_batch_service_client, create_mock_connections):
-        # set up mocked Azure Batch client
-        self.batch_client = mock.MagicMock(name="FakeBatchServiceClient")
-        mocked_batch_service_client.return_value = self.batch_client
+    def setup_test_cases(self, mocked_batch_client, create_mock_connections):
+        self.batch_client = mock.MagicMock(name="FakeBatchClient")
+        mocked_batch_client.return_value = self.batch_client
 
-        # set up the test variable
         self.test_vm_conn_id = "test_azure_batch_vm2"
-        self.test_cloud_conn_id = "test_azure_batch_cloud2"
         self.test_account_name = "test_account_name"
         self.test_account_key = "test_account_key"
         self.test_account_url = "http://test-endpoint:29000"
@@ -64,21 +60,14 @@ class TestAzureBatchOperator:
         self.test_vm_publisher = "test.vm.publisher"
         self.test_vm_offer = "test.vm.offer"
         self.test_vm_sku = "test-sku"
-        self.test_cloud_os_family = "test-family"
-        self.test_cloud_os_version = "test-version"
         self.test_node_agent_sku = "test-node-agent-sku"
 
         create_mock_connections(
-            # connect with vm configuration
             Connection(
                 conn_id=self.test_vm_conn_id,
                 conn_type="azure_batch",
-                extra=json.dumps({"account_url": self.test_account_url}),
-            ),
-            # connect with cloud service
-            Connection(
-                conn_id=self.test_cloud_conn_id,
-                conn_type="azure_batch",
+                login=self.test_account_name,
+                password=self.test_account_key,
                 extra=json.dumps({"account_url": self.test_account_url}),
             ),
         )
@@ -99,28 +88,32 @@ class TestAzureBatchOperator:
             target_dedicated_nodes=1,
             timeout=2,
         )
-        self.operator2_pass = AzureBatchOperator(
+        self.operator_auto_scale = AzureBatchOperator(
             task_id=TASK_ID,
             batch_pool_id=BATCH_POOL_ID,
             batch_pool_vm_size=BATCH_VM_SIZE,
             batch_job_id=BATCH_JOB_ID,
             batch_task_id=BATCH_TASK_ID,
+            vm_publisher=self.test_vm_publisher,
+            vm_offer=self.test_vm_offer,
+            vm_sku=self.test_vm_sku,
             vm_node_agent_sku_id=self.test_node_agent_sku,
-            os_family="4",
             batch_task_command_line="echo hello",
             azure_batch_conn_id=self.test_vm_conn_id,
             enable_auto_scale=True,
             auto_scale_formula=FORMULA,
             timeout=2,
         )
-        self.operator2_no_formula = AzureBatchOperator(
+        self.operator_no_formula = AzureBatchOperator(
             task_id=TASK_ID,
             batch_pool_id=BATCH_POOL_ID,
             batch_pool_vm_size=BATCH_VM_SIZE,
             batch_job_id=BATCH_JOB_ID,
             batch_task_id=BATCH_TASK_ID,
+            vm_publisher=self.test_vm_publisher,
+            vm_offer=self.test_vm_offer,
+            vm_sku=self.test_vm_sku,
             vm_node_agent_sku_id=self.test_node_agent_sku,
-            os_family="4",
             batch_task_command_line="echo hello",
             azure_batch_conn_id=self.test_vm_conn_id,
             enable_auto_scale=True,
@@ -132,27 +125,12 @@ class TestAzureBatchOperator:
             batch_pool_vm_size=BATCH_VM_SIZE,
             batch_job_id=BATCH_JOB_ID,
             batch_task_id=BATCH_TASK_ID,
-            vm_node_agent_sku_id=self.test_node_agent_sku,
-            os_family="4",
-            batch_task_command_line="echo hello",
-            azure_batch_conn_id=self.test_vm_conn_id,
-            timeout=2,
-        )
-        self.operator_mutual_exclusive = AzureBatchOperator(
-            task_id=TASK_ID,
-            batch_pool_id=BATCH_POOL_ID,
-            batch_pool_vm_size=BATCH_VM_SIZE,
-            batch_job_id=BATCH_JOB_ID,
-            batch_task_id=BATCH_TASK_ID,
             vm_publisher=self.test_vm_publisher,
             vm_offer=self.test_vm_offer,
             vm_sku=self.test_vm_sku,
             vm_node_agent_sku_id=self.test_node_agent_sku,
-            os_family="5",
-            sku_starts_with=self.test_vm_sku,
             batch_task_command_line="echo hello",
             azure_batch_conn_id=self.test_vm_conn_id,
-            target_dedicated_nodes=1,
             timeout=2,
         )
         self.operator_invalid = AzureBatchOperator(
@@ -170,44 +148,38 @@ class TestAzureBatchOperator:
 
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     def test_execute_without_failures(self, wait_mock):
-        wait_mock.return_value = True  # No wait
+        wait_mock.return_value = True
         self.operator.execute(None)
-        # test pool creation
-        self.batch_client.pool.add.assert_called()
-        self.batch_client.job.add.assert_called()
-        self.batch_client.task.add.assert_called()
+        self.batch_client.create_pool.assert_called()
+        self.batch_client.create_job.assert_called()
+        self.batch_client.create_task.assert_called()
 
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
-    def test_execute_without_failures_2(self, wait_mock):
-        wait_mock.return_value = True  # No wait
-        self.operator2_pass.execute(None)
-        # test pool creation
-        self.batch_client.pool.add.assert_called()
-        self.batch_client.job.add.assert_called()
-        self.batch_client.task.add.assert_called()
+    def test_execute_auto_scale(self, wait_mock):
+        wait_mock.return_value = True
+        self.operator_auto_scale.execute(None)
+        self.batch_client.create_pool.assert_called()
+        self.batch_client.create_job.assert_called()
+        self.batch_client.create_task.assert_called()
 
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     def test_execute_with_failures(self, wait_mock):
-        wait_mock.return_value = True  # No wait
-        # Remove pool id
+        wait_mock.return_value = True
         self.operator.batch_pool_id = None
-
-        # test that it raises
         with pytest.raises(AirflowException):
             self.operator.execute(None)
 
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     @mock.patch.object(AzureBatchOperator, "clean_up")
     def test_execute_with_cleaning(self, mock_clean, wait_mock):
-        wait_mock.return_value = True  # No wait
-        # Remove pool id
+        wait_mock.return_value = True
         self.operator.should_delete_job = True
         self.operator.execute(None)
         mock_clean.assert_called()
         mock_clean.assert_called_once_with(job_id=BATCH_JOB_ID)
 
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
-    def test_operator_fails(self, wait_mock):
+    def test_operator_fails_no_dedicated_nodes_or_autoscale(self, wait_mock):
         wait_mock.return_value = True
         with pytest.raises(AirflowException) as ctx:
             self.operator_fail.execute(None)
@@ -219,42 +191,64 @@ class TestAzureBatchOperator:
     def test_operator_fails_no_formula(self, wait_mock):
         wait_mock.return_value = True
         with pytest.raises(AirflowException) as ctx:
-            self.operator2_no_formula.execute(None)
+            self.operator_no_formula.execute(None)
         assert str(ctx.value) == "The auto_scale_formula is required when enable_auto_scale is set"
-
-    @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
-    def test_operator_fails_mutual_exclusive(self, wait_mock):
-        wait_mock.return_value = True
-        with pytest.raises(AirflowException) as ctx:
-            self.operator_mutual_exclusive.execute(None)
-        assert (
-            str(ctx.value) == "Cloud service configuration and virtual machine configuration "
-            "are mutually exclusive. You must specify either of os_family and"
-            " vm_publisher"
-        )
 
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     def test_operator_fails_invalid_args(self, wait_mock):
         wait_mock.return_value = True
         with pytest.raises(AirflowException) as ctx:
             self.operator_invalid.execute(None)
-        assert str(ctx.value) == "You must specify either vm_publisher or os_family"
+        assert str(ctx.value) == "You must specify vm_publisher"
 
     def test_cleaning_works(self):
         self.operator.clean_up(job_id="myjob")
-        self.batch_client.job.delete.assert_called_once_with("myjob")
+        self.batch_client.begin_delete_job.assert_called_once_with("myjob")
         self.operator.clean_up("mypool")
-        self.batch_client.pool.delete.assert_called_once_with("mypool")
+        self.batch_client.begin_delete_pool.assert_called_once_with("mypool")
         self.operator.clean_up("mypool", "myjob")
-        self.batch_client.job.delete.assert_called_with("myjob")
-        self.batch_client.pool.delete.assert_called_with("mypool")
+        self.batch_client.begin_delete_job.assert_called_with("myjob")
+        self.batch_client.begin_delete_pool.assert_called_with("mypool")
+
+    @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
+    @mock.patch.object(AzureBatchHook, "_get_latest_verified_image_vm_and_sku")
+    def test_execute_with_use_latest_image(self, mock_get_latest, wait_mock):
+        """Test operator execution when use_latest_verified_vm_image_and_sku is True."""
+        wait_mock.return_value = True
+        # Mock the hook method that derives the SKU
+        mock_get_latest.return_value = ("derived-sku", mock.Mock())
+
+        # Create operator with use_latest_verified_vm_image_and_sku=True
+        # Note: vm_node_agent_sku_id is NOT provided - it should be derived
+        operator_with_latest = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            use_latest_verified_vm_image_and_sku=True,
+            vm_publisher=self.test_vm_publisher,
+            vm_offer=self.test_vm_offer,
+            sku_starts_with=self.test_vm_sku,
+            target_dedicated_nodes=1,
+            timeout=2,
+        )
+
+        operator_with_latest.execute(None)
+        self.batch_client.create_pool.assert_called()
+        self.batch_client.create_job.assert_called()
+        self.batch_client.create_task.assert_called()
+        # Verify that the hook's method to get latest SKU was called
+        mock_get_latest.assert_called()
 
 
 class TestAzureBatchOperatorDeferrable:
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self, mocked_batch_service_client, create_mock_connections):
-        self.batch_client = mock.MagicMock(name="FakeBatchServiceClient")
-        mocked_batch_service_client.return_value = self.batch_client
+    def setup_test_cases(self, mocked_batch_client, create_mock_connections):
+        self.batch_client = mock.MagicMock(name="FakeBatchClient")
+        mocked_batch_client.return_value = self.batch_client
 
         self.test_conn_id = "test_azure_batch"
         self.test_account_url = "http://test-endpoint:29000"
@@ -275,7 +269,9 @@ class TestAzureBatchOperatorDeferrable:
             batch_task_id=BATCH_TASK_ID,
             batch_task_command_line="echo hello",
             vm_node_agent_sku_id="node-agent",
-            os_family="4",
+            vm_publisher="MicrosoftWindowsServer",
+            vm_offer="WindowsServer",
+            vm_sku="2019-Datacenter",
             target_dedicated_nodes=1,
             azure_batch_conn_id=self.test_conn_id,
             deferrable=True,
@@ -285,7 +281,7 @@ class TestAzureBatchOperatorDeferrable:
     def test_execute_defers(self, wait_mock):
 
         wait_mock.return_value = True
-        self.batch_client.pool.get.return_value.resize_errors = None
+        self.batch_client.get_pool.return_value.resize_errors = None
 
         with pytest.raises(TaskDeferred) as ctx:
             self.operator.execute(None)
@@ -297,9 +293,9 @@ class TestAzureBatchOperatorDeferrable:
         assert trigger.job_id == BATCH_JOB_ID
         assert trigger.azure_batch_conn_id == self.test_conn_id
 
-        self.batch_client.pool.add.assert_called()
-        self.batch_client.job.add.assert_called()
-        self.batch_client.task.add.assert_called()
+        self.batch_client.create_pool.assert_called()
+        self.batch_client.create_job.assert_called()
+        self.batch_client.create_task.assert_called()
 
     def test_execute_complete_success(self):
         with mock.patch.object(self.operator.log, "info") as mock_log:
