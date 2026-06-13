@@ -1076,20 +1076,13 @@ def get_task_instance_count(
         query = query.where(TI.run_id.in_(run_ids))
 
     if task_group_id:
-        group_tasks = _get_group_tasks(
-            dag_id, task_group_id, session, dag_bag, logical_dates, run_ids, map_index
-        )
-
-        # Get unique (task_id, map_index) pairs
-        task_map_pairs = [(ti.task_id, ti.map_index) for ti in group_tasks]
-
-        if not task_map_pairs:
+        group_task_ids = _get_group_task_ids(dag_id, task_group_id, session, dag_bag)
+        if group_task_ids:
+            query = query.where(TI.task_id.in_(group_task_ids))
+        else:
             # If no task group tasks found, default to checking the task group ID itself
             # This matches the behavior in _get_external_task_group_task_ids
-            task_map_pairs = [(task_group_id, -1)]
-
-        # Update query to use task_id, map_index pairs
-        query = query.where(tuple_(TI.task_id, TI.map_index).in_(task_map_pairs))
+            query = query.where(TI.task_id == task_group_id, TI.map_index == -1)
 
     if states:
         if "null" in states:
@@ -1172,9 +1165,15 @@ def get_task_instance_states(
     run_id_task_state_map: dict[str, dict[str, Any]] = defaultdict(dict)
 
     query = select(TI).where(TI.dag_id == dag_id)
+    selected_task_ids = list(task_ids or [])
 
-    if task_ids:
-        query = query.where(TI.task_id.in_(task_ids))
+    if task_group_id:
+        selected_task_ids.extend(_get_group_task_ids(dag_id, task_group_id, session, dag_bag))
+
+    # Keep task_group_id load-bearing when the group resolves to no tasks; an
+    # empty IN filter must match nothing instead of returning every TI in the Dag.
+    if selected_task_ids or task_group_id:
+        query = query.where(TI.task_id.in_(selected_task_ids))
 
     if logical_dates:
         query = query.where(TI.logical_date.in_(logical_dates))
@@ -1186,13 +1185,6 @@ def get_task_instance_states(
         query = query.where(TI.map_index == map_index)
 
     results = session.scalars(query).all()
-
-    if task_group_id:
-        group_tasks = _get_group_tasks(
-            dag_id, task_group_id, session, dag_bag, logical_dates, run_ids, map_index
-        )
-
-        results = results + group_tasks if task_ids else group_tasks
 
     [
         run_id_task_state_map[task.run_id].update(
@@ -1233,16 +1225,12 @@ def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
     return max_tries != 0 and try_number <= max_tries
 
 
-def _get_group_tasks(
+def _get_group_task_ids(
     dag_id: str,
     task_group_id: str,
     session: SessionDep,
     dag_bag: DagBagDep,
-    logical_dates=None,
-    run_ids=None,
-    map_index: int | None = None,
-):
-    # Get all tasks in the task group
+) -> list[str]:
     dag = get_latest_version_of_dag(dag_bag, dag_id, session, include_reason=True)
     task_group = dag.task_group_dict.get(task_group_id)
     if not task_group:
@@ -1254,18 +1242,7 @@ def _get_group_tasks(
             },
         )
 
-    # First get all task instances to get the task_id, map_index pairs
-    group_tasks = session.scalars(
-        select(TI).where(
-            TI.dag_id == dag_id,
-            TI.task_id.in_(task.task_id for task in task_group.iter_tasks()),
-            *([TI.logical_date.in_(logical_dates)] if logical_dates else []),
-            *([TI.run_id.in_(run_ids)] if run_ids else []),
-            *([TI.map_index == map_index] if map_index is not None else []),
-        )
-    ).all()
-
-    return group_tasks
+    return [task.task_id for task in task_group.iter_tasks()]
 
 
 @ti_id_router.get(
