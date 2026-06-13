@@ -96,7 +96,7 @@ def _capture_task_instance_selects(session):
 
     def collect_selects(conn, cursor, statement, parameters, context, executemany):
         normalized = " ".join(statement.lower().split())
-        if normalized.startswith("select") and " from task_instance" in normalized:
+        if normalized.startswith("select") and re.search(r"\bfrom task_instance\b", normalized):
             statements.append(normalized)
 
     bind = session.get_bind()
