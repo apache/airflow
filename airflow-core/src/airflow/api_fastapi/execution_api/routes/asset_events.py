@@ -80,6 +80,7 @@ def get_asset_event_by_asset_name_uri(
     session: SessionDep,
     after: Annotated[UtcDateTime | None, Query(description="The start of the time range")] = None,
     before: Annotated[UtcDateTime | None, Query(description="The end of the time range")] = None,
+    partition_key: Annotated[str | None, Query(description="The partition key of the Asset Event")] = None,
     ascending: Annotated[bool, Query(description="Whether to sort results in ascending order")] = True,
     limit: Annotated[int | None, Query(description="The maximum number of results to return")] = None,
 ) -> AssetEventsResponse:
@@ -102,6 +103,8 @@ def get_asset_event_by_asset_name_uri(
         where_clause = and_(where_clause, AssetEvent.timestamp >= after)
     if before:
         where_clause = and_(where_clause, AssetEvent.timestamp <= before)
+    if partition_key is not None:
+        where_clause = and_(where_clause, AssetEvent.partition_key == partition_key)
 
     return _get_asset_events_through_sql_clauses(
         join_clause=AssetEvent.asset,
@@ -118,6 +121,7 @@ def get_asset_event_by_asset_alias(
     session: SessionDep,
     after: Annotated[UtcDateTime | None, Query(description="The start of the time range")] = None,
     before: Annotated[UtcDateTime | None, Query(description="The end of the time range")] = None,
+    partition_key: Annotated[str | None, Query(description="The partition key of the Asset Event")] = None,
     ascending: Annotated[bool, Query(description="Whether to sort results in ascending order")] = True,
     limit: Annotated[int | None, Query(description="The maximum number of results to return")] = None,
 ) -> AssetEventsResponse:
@@ -126,6 +130,8 @@ def get_asset_event_by_asset_alias(
         where_clause = and_(where_clause, AssetEvent.timestamp >= after)
     if before:
         where_clause = and_(where_clause, AssetEvent.timestamp <= before)
+    if partition_key is not None:
+        where_clause = and_(where_clause, AssetEvent.partition_key == partition_key)
 
     return _get_asset_events_through_sql_clauses(
         join_clause=AssetEvent.source_aliases,

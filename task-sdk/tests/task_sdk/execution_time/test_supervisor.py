@@ -1982,6 +1982,7 @@ REQUEST_TEST_CASES = [
             kwargs={
                 "uri": "s3://bucket/obj",
                 "name": "test",
+                "partition_key": None,
                 "after": None,
                 "before": None,
                 "limit": None,
@@ -2008,6 +2009,7 @@ REQUEST_TEST_CASES = [
             before=datetime(2024, 10, 15, 12, 0, 0, tzinfo=timezone.utc),
             limit=5,
             ascending=False,
+            partition_key="2024-10-31",
         ),
         expected_body={
             "asset_events": [
@@ -2025,6 +2027,7 @@ REQUEST_TEST_CASES = [
             kwargs={
                 "uri": "s3://bucket/obj",
                 "name": "test",
+                "partition_key": "2024-10-31",
                 "after": timezone.parse("2024-10-01T12:00:00Z"),
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,
@@ -2061,6 +2064,7 @@ REQUEST_TEST_CASES = [
             kwargs={
                 "uri": "s3://bucket/obj",
                 "name": None,
+                "partition_key": None,
                 "after": None,
                 "before": None,
                 "limit": None,
@@ -2104,6 +2108,7 @@ REQUEST_TEST_CASES = [
             kwargs={
                 "uri": "s3://bucket/obj",
                 "name": None,
+                "partition_key": None,
                 "after": timezone.parse("2024-10-01T12:00:00Z"),
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,
@@ -2140,6 +2145,7 @@ REQUEST_TEST_CASES = [
             kwargs={
                 "uri": None,
                 "name": "test",
+                "partition_key": None,
                 "after": None,
                 "before": None,
                 "limit": None,
@@ -2183,6 +2189,7 @@ REQUEST_TEST_CASES = [
             kwargs={
                 "uri": None,
                 "name": "test",
+                "partition_key": None,
                 "after": timezone.parse("2024-10-01T12:00:00Z"),
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,
@@ -2218,6 +2225,7 @@ REQUEST_TEST_CASES = [
             method_path="asset_events.get",
             kwargs={
                 "alias_name": "test_alias",
+                "partition_key": None,
                 "after": None,
                 "before": None,
                 "limit": None,
@@ -2243,6 +2251,7 @@ REQUEST_TEST_CASES = [
             before=datetime(2024, 10, 15, 12, 0, 0, tzinfo=timezone.utc),
             limit=5,
             ascending=False,
+            partition_key="2024-10-31",
         ),
         expected_body={
             "asset_events": [
@@ -2259,6 +2268,7 @@ REQUEST_TEST_CASES = [
             method_path="asset_events.get",
             kwargs={
                 "alias_name": "test_alias",
+                "partition_key": "2024-10-31",
                 "after": timezone.parse("2024-10-01T12:00:00Z"),
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,

@@ -66,6 +66,8 @@ from airflow.sdk.execution_time.comms import (
     DeleteXCom,
     DRCount,
     ErrorResponse,
+    GetAssetEventByAsset,
+    GetAssetEventByAssetAlias,
     GetConnection,
     GetDagRunState,
     GetDRCount,
@@ -92,6 +94,8 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.request_handlers import (
     handle_delete_variable,
     handle_delete_xcom,
+    handle_get_asset_event_by_asset,
+    handle_get_asset_event_by_asset_alias,
     handle_get_connection,
     handle_get_dag_run_state,
     handle_get_dr_count,
@@ -578,6 +582,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             resp, dump_opts = handle_get_dr_count(self.client, msg)
         elif isinstance(msg, GetDagRunState):
             resp, dump_opts = handle_get_dag_run_state(self.client, msg)
+        elif isinstance(msg, GetAssetEventByAsset):
+            resp, dump_opts = handle_get_asset_event_by_asset(self.client, msg)
+        elif isinstance(msg, GetAssetEventByAssetAlias):
+            resp, dump_opts = handle_get_asset_event_by_asset_alias(self.client, msg)
 
         elif isinstance(msg, GetTICount):
             resp, dump_opts = handle_get_ti_count(self.client, msg)

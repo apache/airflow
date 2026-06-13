@@ -774,12 +774,13 @@ class TestInletEventAccessor:
             asset=AssetResponse(name="test_uri", uri="test_uri", group="asset"),
         )
         events_result = AssetEventsResult(asset_events=[asset_event_resp])
-        mock_supervisor_comms.send.side_effect = [events_result] * 10
+        mock_supervisor_comms.send.side_effect = [events_result] * 11
 
         list(sample_inlet_evnets_accessor[TEST_ASSET])
         list(sample_inlet_evnets_accessor[TEST_ASSET].after("2024-01-01T00:00:00Z"))
         list(sample_inlet_evnets_accessor[TEST_ASSET].before("2024-01-01T00:00:00Z"))
         list(sample_inlet_evnets_accessor[TEST_ASSET].limit(10))
+        list(sample_inlet_evnets_accessor[TEST_ASSET].partition_key("2024-01-01"))
         list(
             sample_inlet_evnets_accessor[TEST_ASSET]
             .after("2024-01-01T00:00:00Z")
@@ -788,33 +789,33 @@ class TestInletEventAccessor:
         )
         list(sample_inlet_evnets_accessor[TEST_ASSET].ascending(False).limit(10))
 
-        assert mock_supervisor_comms.send.call_count == 6
+        assert mock_supervisor_comms.send.call_count == 7
 
         # test accessing the accessor without list() or []
         sample_inlet_evnets_accessor[TEST_ASSET].ascending(False).limit(10)
 
-        assert mock_supervisor_comms.send.call_count == 6
+        assert mock_supervisor_comms.send.call_count == 7
 
         # test accessing one of the elements
         res = sample_inlet_evnets_accessor[TEST_ASSET].ascending(False).limit(10)[0]
         assert res == asset_event_resp
-        assert mock_supervisor_comms.send.call_count == 7
+        assert mock_supervisor_comms.send.call_count == 8
 
         # test evaluating the accessor multiple times with the same filters
         res = sample_inlet_evnets_accessor[TEST_ASSET].ascending(False).limit(10)
         assert res[0] == asset_event_resp
         assert res[0] == asset_event_resp
 
-        assert mock_supervisor_comms.send.call_count == 8
+        assert mock_supervisor_comms.send.call_count == 9
 
         # test changing one of the filters
         assert res.after("2024-01-01T00:00:00Z")[0] == asset_event_resp
 
-        assert mock_supervisor_comms.send.call_count == 9
+        assert mock_supervisor_comms.send.call_count == 10
 
         # test len()
         assert len(sample_inlet_evnets_accessor[TEST_ASSET].ascending(True).limit(10)) == 1
-        assert mock_supervisor_comms.send.call_count == 10
+        assert mock_supervisor_comms.send.call_count == 11
 
         calls = mock_supervisor_comms.send.call_args_list
         assert calls[0][0][0] == GetAssetEventByAsset(
@@ -842,12 +843,21 @@ class TestInletEventAccessor:
         assert calls[4][0][0] == GetAssetEventByAsset(
             name="test_uri",
             uri="test://test/",
+            after=None,
+            before=None,
+            limit=None,
+            ascending=True,
+            partition_key="2024-01-01",
+        )
+        assert calls[5][0][0] == GetAssetEventByAsset(
+            name="test_uri",
+            uri="test://test/",
             after="2024-01-01T00:00:00Z",
             before="2024-01-02T00:00:00Z",
             limit=10,
             ascending=True,
         )
-        assert calls[5][0][0] == GetAssetEventByAsset(
+        assert calls[6][0][0] == GetAssetEventByAsset(
             name="test_uri", uri="test://test/", after=None, before=None, limit=10, ascending=False
         )
 
