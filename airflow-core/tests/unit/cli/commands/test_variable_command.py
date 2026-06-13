@@ -22,8 +22,10 @@ import os
 from contextlib import redirect_stdout
 from io import StringIO
 
+import httpx
 import pytest
 import yaml
+from airflowctl.api.operations import ServerResponseError
 from sqlalchemy import select
 
 from airflow import models
@@ -35,6 +37,12 @@ from airflow.utils.session import create_session
 from tests_common.test_utils.db import clear_db_variables
 
 pytestmark = pytest.mark.db_test
+
+
+def _server_error(status_code: int) -> ServerResponseError:
+    request = httpx.Request("GET", "http://testserver/api/v2/variables/foo")
+    response = httpx.Response(status_code, request=request, json={"detail": "boom"})
+    return ServerResponseError(message="boom", request=request, response=response)
 
 
 # Test data fixtures
@@ -324,12 +332,16 @@ class TestCliVariables:
             if item["key"] in ["empty_var", "none_var", "normal_var"]:
                 assert item["val"] == "***"
 
-    def test_variables_delete(self):
+    def test_variables_delete(self, mock_cli_api_client):
         """Test variable_delete command"""
-        variable_command.variables_set(self.parser.parse_args(["variables", "set", "foo", "bar"]))
         variable_command.variables_delete(self.parser.parse_args(["variables", "delete", "foo"]))
-        with pytest.raises(KeyError):
-            Variable.get("foo")
+        mock_cli_api_client.variables.delete.assert_called_once_with(variable_key="foo")
+
+    def test_variables_delete_missing(self, mock_cli_api_client):
+        """Deleting a missing variable exits with an error."""
+        mock_cli_api_client.variables.delete.side_effect = _server_error(404)
+        with pytest.raises(SystemExit):
+            variable_command.variables_delete(self.parser.parse_args(["variables", "delete", "foo"]))
 
     @pytest.mark.parametrize(
         "filename",
@@ -372,7 +384,8 @@ class TestCliVariables:
 
         variable_command.variables_set(self.parser.parse_args(["variables", "set", "bar", "updated"]))
         variable_command.variables_set(self.parser.parse_args(["variables", "set", "foo", '{"foo":"oops"}']))
-        variable_command.variables_delete(self.parser.parse_args(["variables", "delete", "foo"]))
+        # ``delete`` is migrated to airflowctl, so remove via the model here
+        Variable.delete("foo")
         with create_session() as session:
             variable_command.variables_import(
                 self.parser.parse_args(["variables", "import", os.fspath(path1)]), session=session
