@@ -33,13 +33,16 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
     exponential_backoff_retry,
 )
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.utils.helpers import merge_dicts
 
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.executors.workloads.base import WorkloadType
 
+    _SUPPORTED_WORKLOAD_TYPES = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
+
+if TYPE_CHECKING:
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.providers.amazon.aws.executors.batch.utils import BatchJobWorkloadKey
@@ -92,15 +95,10 @@ class AwsBatchExecutor(BaseExecutor):
 
     supports_multi_team: bool = True
     if AIRFLOW_V_3_3_PLUS:
-        supports_callbacks: bool = True
+        supported_workload_types: frozenset[WorkloadType] = _SUPPORTED_WORKLOAD_TYPES
 
     # AWS only allows a maximum number of JOBs in the describe_jobs function
     DESCRIBE_JOBS_BATCH_SIZE = 99
-
-    if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
-        # In the v3 path, we store workloads, not commands as strings.
-        # TODO: TaskSDK: move this type change into BaseExecutor
-        queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -129,28 +127,20 @@ class AwsBatchExecutor(BaseExecutor):
             fallback=CONFIG_DEFAULTS[AllBatchConfigKeys.MAX_SUBMIT_JOB_ATTEMPTS],
         )
 
-    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
-        from airflow.executors import workloads
-
-        if isinstance(workload, workloads.ExecuteTask):
-            self.queued_tasks[workload.ti.key] = workload
-            return
-        if AIRFLOW_V_3_3_PLUS and isinstance(workload, workloads.ExecuteCallback):
-            self.queued_callbacks[workload.callback.key] = workload
-            return
-        raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
-
     def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
         from airflow.executors import workloads
 
-        for w in workload_items:
-            if isinstance(w, workloads.ExecuteTask):
-                task_command = [w]
-                task_key = w.ti.key
-                queue = w.ti.queue
-                executor_config = w.ti.executor_config or {}
+        for workload in workload_items:
+            if isinstance(workload, workloads.ExecuteTask):
+                task_command = [workload]
+                task_key = workload.ti.key
+                queue = workload.ti.queue
+                executor_config = workload.ti.executor_config or {}
 
-                del self.queued_tasks[task_key]
+                if AIRFLOW_V_3_3_PLUS:
+                    del self.executor_queues[WorkloadType.EXECUTE_TASK][task_key]
+                else:
+                    del self.queued_tasks[task_key]
                 self.execute_async(
                     key=task_key,
                     command=task_command,  # type: ignore[arg-type]
@@ -158,18 +148,18 @@ class AwsBatchExecutor(BaseExecutor):
                     executor_config=executor_config,
                 )
                 self.running.add(task_key)
-            elif AIRFLOW_V_3_3_PLUS and isinstance(w, workloads.ExecuteCallback):
-                callback_command = [w]
-                callback_key = w.callback.key
+            elif AIRFLOW_V_3_3_PLUS and isinstance(workload, workloads.ExecuteCallback):
+                callback_command = [workload]
+                callback_key = workload.callback.key
                 queue = None
-                if isinstance(w.callback.data, dict) and "queue" in w.callback.data:
-                    queue = w.callback.data["queue"]
+                if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:
+                    queue = workload.callback.data["queue"]
 
-                del self.queued_callbacks[callback_key]
+                del self.executor_queues[WorkloadType.EXECUTE_CALLBACK][callback_key]
                 self.execute_async(key=callback_key, command=callback_command, queue=queue)  # type: ignore[arg-type]
                 self.running.add(callback_key)
             else:
-                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(w)}")
+                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
 
     def check_health(self):
         """Make a test API call to check the health of the Batch Executor."""

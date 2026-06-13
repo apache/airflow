@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field
 
-from airflow.executors.workloads.base import BaseWorkloadSchema
+from airflow.executors.workloads.base import BaseWorkloadSchema, WorkloadType
 from airflow.models.connection_test import ConnectionTestKey, ConnectionTestState
 
 if TYPE_CHECKING:
@@ -38,12 +38,17 @@ class TestConnection(BaseWorkloadSchema):
     timeout: int
     queue: str | None = None
 
-    type: Literal["TestConnection"] = Field(init=False, default="TestConnection")
+    type: Literal[WorkloadType.TEST_CONNECTION] = Field(init=False, default=WorkloadType.TEST_CONNECTION)
 
     @property
     def key(self) -> ConnectionTestKey:
         """Return the connection-test key (str UUID) for this workload."""
         return ConnectionTestKey(id=str(self.connection_test_id))
+
+    @property
+    def sort_key(self) -> int:
+        """Return the sort key for ordering within the connection-test priority group (FIFO)."""
+        return 0
 
     @property
     def display_name(self) -> str:

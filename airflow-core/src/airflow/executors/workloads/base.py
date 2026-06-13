@@ -21,6 +21,7 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Hashable
+from enum import Enum
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -30,6 +31,32 @@ from airflow.configuration import conf
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.executors.workloads.types import WorkloadState
+
+
+class WorkloadType(str, Enum):
+    """Central registry of executor workload types."""
+
+    EXECUTE_TASK = "ExecuteTask"
+    EXECUTE_CALLBACK = "ExecuteCallback"
+    TEST_CONNECTION = "TestConnection"
+
+
+# Central executor priority registry: tuple is ordered from highest priority to lowest.
+#
+# Adding a new workload type is a three-place change that must stay in sync:
+#   1. ``WorkloadType`` — declare the enum member.
+#   2. ``_workload_type_priority_order`` — insert it at the right priority slot.
+#   3. ``airflow.executors.workloads.QueueableWorkload`` — extend the discriminated union
+#      so ``queue_workload`` can accept the new schema.
+_workload_type_priority_order = (
+    WorkloadType.EXECUTE_CALLBACK,
+    WorkloadType.EXECUTE_TASK,
+    WorkloadType.TEST_CONNECTION,
+)
+
+WORKLOAD_TYPE_PRIORITY: dict[WorkloadType, int] = {
+    name: idx for idx, name in enumerate(_workload_type_priority_order)
+}
 
 
 class BaseWorkload:
@@ -161,3 +188,15 @@ class BaseDagBundleWorkload(BaseWorkloadSchema, ABC):
         no intermediate state is emitted.
         """
         return None
+
+    @property
+    def sort_key(self) -> int:
+        """
+        Return the sort key for ordering workloads within the same priority.
+
+        The default of ``0`` gives FIFO behaviour (Python's stable sort preserves
+        insertion order among equal keys).  Override in subclasses that need
+        priority ordering within their priority group — for example, ``ExecuteTask`` returns
+        ``self.ti.priority_weight`` so that lower-weight tasks are scheduled first.
+        """
+        return 0

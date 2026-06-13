@@ -51,11 +51,14 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import Stats, conf
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.executors.workloads.base import WorkloadType
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -79,11 +82,6 @@ class KubernetesExecutor(BaseExecutor):
     RUNNING_POD_LOG_LINES = 100
     supports_ad_hoc_ti_run: bool = True
     supports_multi_team: bool = True
-
-    if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
-        # In the v3 path, we store workloads, not commands as strings.
-        # TODO: TaskSDK: move this type change into BaseExecutor
-        queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -232,14 +230,6 @@ class KubernetesExecutor(BaseExecutor):
         # try and remove it from the QUEUED state while we process it
         self.last_handled[key] = time.time()
 
-    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
-        from airflow.executors import workloads
-
-        if not isinstance(workload, workloads.ExecuteTask):
-            raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
-        ti = workload.ti
-        self.queued_tasks[ti.key] = workload
-
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         from airflow.executors.workloads import ExecuteTask
 
@@ -254,7 +244,10 @@ class KubernetesExecutor(BaseExecutor):
             queue = w.ti.queue
             executor_config = w.ti.executor_config or {}
 
-            del self.queued_tasks[key]
+            if AIRFLOW_V_3_3_PLUS:
+                del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
+            else:
+                del self.queued_tasks[key]
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
             self.running.add(key)
 
@@ -276,7 +269,10 @@ class KubernetesExecutor(BaseExecutor):
 
         if self.running:
             self.log.debug("self.running: %s", self.running)
-        if self.queued_tasks:
+        if AIRFLOW_V_3_3_PLUS:
+            if self.executor_queues:
+                self.log.debug("self.queued: %s", self.executor_queues)
+        elif self.queued_tasks:
             self.log.debug("self.queued: %s", self.queued_tasks)
         self.kube_scheduler.sync()
 
@@ -626,8 +622,12 @@ class KubernetesExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert self.kube_client
             assert self.kube_scheduler
+
         self.running.discard(ti.key)
-        self.queued_tasks.pop(ti.key, None)
+        if AIRFLOW_V_3_3_PLUS:
+            self.executor_queues[WorkloadType.EXECUTE_TASK].pop(ti.key, None)
+        else:
+            self.queued_tasks.pop(ti.key, None)
         pod_combined_search_str_to_pod_map = self.get_pod_combined_search_str_to_pod_map()
         # Build the pod selector
         base_label_selector = f"dag_id={ti.dag_id},task_id={ti.task_id}"

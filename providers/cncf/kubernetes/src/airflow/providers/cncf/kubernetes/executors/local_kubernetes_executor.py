@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from deprecated import deprecated
 
@@ -95,15 +95,6 @@ class LocalKubernetesExecutor(BaseExecutor):
     def _task_event_logs(self, value):
         """Not implemented for hybrid executors."""
 
-    @property
-    def queued_tasks(self) -> dict[TaskInstanceKey, Any]:
-        """Return queued tasks from local and kubernetes executor."""
-        return self.local_executor.queued_tasks | self.kubernetes_executor.queued_tasks
-
-    @queued_tasks.setter
-    def queued_tasks(self, value) -> None:
-        """Not implemented for hybrid executors."""
-
     @property  # type: ignore[override]
     def running(self) -> set[TaskInstanceKey]:
         """Return running tasks from local and kubernetes executor."""
@@ -144,7 +135,7 @@ class LocalKubernetesExecutor(BaseExecutor):
     @property
     def slots_occupied(self):
         """Number of tasks this executor instance is currently managing."""
-        return len(self.running) + len(self.queued_tasks)
+        return self.local_executor.slots_occupied + self.kubernetes_executor.slots_occupied
 
     def queue_command(
         self,

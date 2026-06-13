@@ -3759,7 +3759,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ct.result_message = reason
                 self.log.warning("Failing connection test %s: %s", ct.id, reason)
                 continue
-            if not executor.supports_connection_test:
+            if workloads.WorkloadType.TEST_CONNECTION not in executor.supported_workload_types:
                 exec_name = executor.name
                 name = ct.executor or (exec_name and (exec_name.alias or exec_name.module_path))
                 reason = f"Executor '{name}' does not support connection testing"
@@ -3821,7 +3821,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             stats.incr("connection_test.reaped", tags={"prior_state": prior_state_value})
             key = ConnectionTestKey(id=str(ct.id))
             for executor in self.executors:
-                if executor.supports_connection_test:
+                if workloads.WorkloadType.TEST_CONNECTION in executor.supported_workload_types:
                     executor.fail_connection_test(key)
 
         session.flush()
