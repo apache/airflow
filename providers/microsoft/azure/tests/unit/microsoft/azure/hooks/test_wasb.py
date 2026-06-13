@@ -45,6 +45,13 @@ CONN_STRING = (
 ACCESS_KEY_STRING = "AccountName=name;skdkskd"
 PROXIES = {"http": "http_proxy_uri", "https": "https_proxy_uri"}
 
+# A SAS token is a query string (not a path segment). Use a representative token and the
+# equivalent full SAS URL so the resulting BlobServiceClient.url carries it in the query.
+# This is what azure-storage-blob actually uses to sign requests, and is stable across SDK
+# versions.
+SAS_TOKEN = "?sv=2021-08-06&ss=b&srt=co&sp=r&sig=samplesignature"
+HTTPS_SAS_TOKEN = f"https://login.blob.core.windows.net/{SAS_TOKEN}"
+
 
 @pytest.fixture
 def mocked_blob_service_client():
@@ -147,24 +154,24 @@ class TestWasbHook:
                 conn_id="sas_conn_id",
                 conn_type=self.connection_type,
                 login=self.login,
-                extra={"sas_token": "token", "proxies": self.proxies},
+                extra={"sas_token": SAS_TOKEN, "proxies": self.proxies},
             ),
             Connection(
                 conn_id=self.extra__wasb__sas_conn_id,
                 conn_type=self.connection_type,
                 login=self.login,
-                extra={"extra__wasb__sas_token": "token", "proxies": self.proxies},
+                extra={"extra__wasb__sas_token": SAS_TOKEN, "proxies": self.proxies},
             ),
             Connection(
                 conn_id=self.http_sas_conn_id,
                 conn_type=self.connection_type,
-                extra={"sas_token": "https://login.blob.core.windows.net/token", "proxies": self.proxies},
+                extra={"sas_token": HTTPS_SAS_TOKEN, "proxies": self.proxies},
             ),
             Connection(
                 conn_id=self.extra__wasb__http_sas_conn_id,
                 conn_type=self.connection_type,
                 extra={
-                    "extra__wasb__sas_token": "https://login.blob.core.windows.net/token",
+                    "extra__wasb__sas_token": HTTPS_SAS_TOKEN,
                     "proxies": self.proxies,
                 },
             ),
@@ -364,7 +371,9 @@ class TestWasbHook:
         assert conn.url.startswith("https://")
         if hook_conn.login:
             assert hook_conn.login in conn.url
-        assert conn.url.endswith(sas_token + "/")
+        # The SAS token must be carried in the URL query string so the SDK signs requests with
+        # it.
+        assert sas_token.lstrip("?") in conn.url
 
     @pytest.mark.parametrize(
         argnames="conn_id_str",
