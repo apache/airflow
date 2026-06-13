@@ -677,6 +677,12 @@ metrics:
     legacy_name: "dagrun.schedule_delay.{dag_id}"
     name_variables: ["dag_id"]
 
+  - name: "triggerer.batch_trigger_creation_duration"
+    description: "Time in milliseconds spent creating a batch of pending triggers."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "scheduler.critical_section_duration"
     description: "Milliseconds spent in the critical section of scheduler loop"
     type: "timer"

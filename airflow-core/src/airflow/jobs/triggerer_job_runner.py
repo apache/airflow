@@ -312,6 +312,7 @@ class messages:
         """Tell the async trigger runner process to start, and where to send status update messages."""
 
         type: Literal["StartTriggerer"] = "StartTriggerer"
+        team_name: str | None = None
 
     class TriggerStateChanges(BaseModel):
         """
@@ -541,7 +542,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         proc_id = job.id if job is not None else uuid4()
         proc = super().start(id=proc_id, job=job, target=cls.run_in_process, logger=logger, **kwargs)
 
-        msg = messages.StartTriggerer()
+        team_name = kwargs.get("team_name")
+        msg = messages.StartTriggerer(team_name=team_name)
         proc.send_msg(msg, request_id=0)
         return proc
 
@@ -1160,6 +1162,9 @@ class TriggerRunner:
     # Outbound queue of failed triggers
     failed_triggers: deque[tuple[int, BaseException | None]]
 
+    # Team associated with this triggerer instance.
+    team_name: str | None
+
     # Should-we-stop flag
     stop: bool = False
     _stop_event: anyio.Event | None = None
@@ -1177,6 +1182,7 @@ class TriggerRunner:
         self.to_cancel = deque()
         self.events = deque()
         self.failed_triggers = deque()
+        self.team_name = None
         self.job_id = None
         self._stop_event = None
         self._shared_streams = SharedStreamManager(
@@ -1295,6 +1301,8 @@ class TriggerRunner:
         if not isinstance(msg, messages.StartTriggerer):
             raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
 
+        self.team_name = msg.team_name
+
         await self.comms_decoder.start_reader()
 
     @classmethod
@@ -1318,6 +1326,12 @@ class TriggerRunner:
 
     async def create_triggers(self):
         """Drain the to_create queue and create all new triggers that have been requested in the DB."""
+        # Emit batch creation duration only when triggers were processed.
+        has_work = bool(self.to_create)
+
+        if has_work:
+            creation_start = time.monotonic()
+
         while self.to_create:
             await asyncio.sleep(0)
             context: Context | None = None
@@ -1384,6 +1398,13 @@ class TriggerRunner:
                 "name": trigger_name,
                 "events": 0,
             }
+
+        if has_work:
+            stats.timing(
+                "triggerer.batch_trigger_creation_duration",
+                (time.monotonic() - creation_start) * 1000,
+                tags=prune_dict({"team_name": self.team_name}),
+            )
 
     async def cancel_triggers(self):
         """
