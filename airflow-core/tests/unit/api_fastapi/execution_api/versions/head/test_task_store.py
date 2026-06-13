@@ -49,6 +49,14 @@ def reset_state_tables():
         session.execute(delete(DagRun))
 
 
+@pytest.fixture(autouse=True)
+def reconfigure_async_db_engine():
+    # Rebind the async engine to each test's event loop.
+    from airflow.settings import _configure_async_session
+
+    _configure_async_session()
+
+
 def _api_url(ti_id, key: str | None = None) -> str:
     base = f"/execution/store/ti/{ti_id}"
     return f"{base}/{key}" if key else base
