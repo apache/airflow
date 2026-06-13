@@ -8234,6 +8234,17 @@ export const $BaseNodeResponse = {
             type: 'string',
             enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'dag', 'sensor', 'trigger'],
             title: 'Type'
+        },
+        team: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team'
         }
     },
     type: 'object',
@@ -9755,6 +9766,17 @@ export const $NodeResponse = {
             type: 'string',
             enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'dag', 'sensor', 'trigger'],
             title: 'Type'
+        },
+        team: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team'
         },
         children: {
             anyOf: [
