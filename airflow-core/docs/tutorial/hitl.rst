@@ -208,7 +208,17 @@ API (``PATCH .../hitlDetails``) of an api-server sharing the metadata database (
 the test run resumes the task and continues with downstream tasks.
 
 This also lets AI agents drive a HITL pipeline end-to-end locally: run ``airflow dags test``, watch
-for the waiting log line, ask the human, and submit their answer through the HITL REST API.
+for the waiting log line, ask the human, and submit their answer through the HITL REST API. The two
+calls involved (``~`` works as a wildcard for ``dag_id`` and ``dag_run_id``):
+
+.. code-block:: text
+
+    # Discover pending requests (subject, options, params, run/task identifiers)
+    GET /api/v2/dags/~/dagRuns/~/taskInstances/hitlDetails?response_received=false
+
+    # Submit the response; the parked task resumes immediately
+    PATCH /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails
+    {"chosen_options": ["Approve"], "params_input": {}}
 
 Benefits and Common Use Cases
 -----------------------------
