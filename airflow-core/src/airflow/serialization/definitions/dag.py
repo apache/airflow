@@ -33,7 +33,14 @@ from sqlalchemy import func, or_, select, tuple_
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, DagNotPartitionedError, NodeNotFound, TaskNotFound
+from airflow.exceptions import (
+    AirflowException,
+    DagNotPartitionedError,
+    InvalidPartitionKeyError,
+    NodeNotFound,
+    TaskNotFound,
+)
+from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
@@ -502,20 +509,27 @@ class SerializedDAG:
 
     def validate_partition_key(self, partition_key: str | None) -> None:
         """
-        Raise ``DagNotPartitionedError`` if a partition key is supplied for a non-partitioned Dag.
+        Validate a partition key against Dag partitioning state and content constraints.
 
-        A ``None`` value is always accepted. A non-``None`` value is accepted only when the
-        Dag's timetable sets ``partitioned=True`` or ``partitioned_at_runtime=True``.
+        A ``None`` value is always accepted. A non-``None`` value must be non-empty,
+        at most ``ID_LEN`` characters long, and may only be supplied when the Dag's
+        timetable sets ``partitioned=True`` or ``partitioned_at_runtime=True``.
 
         :param partition_key: The partition key to validate, or ``None`` to skip validation.
         :raises DagNotPartitionedError: When ``partition_key`` is not ``None`` and the Dag's
             timetable is neither ``partitioned`` nor ``partitioned_at_runtime``.
+        :raises InvalidPartitionKeyError: When ``partition_key`` is an empty string or
+            exceeds ``ID_LEN`` characters.
         """
-        if (
-            partition_key is not None
-            and not self.timetable.partitioned
-            and not self.timetable.partitioned_at_runtime
-        ):
+        if partition_key is None:
+            return
+        if not partition_key.strip():
+            raise InvalidPartitionKeyError("partition_key must not be empty or whitespace-only.")
+        if len(partition_key) > ID_LEN:
+            raise InvalidPartitionKeyError(
+                f"partition_key must be at most {ID_LEN} characters; got {len(partition_key)}."
+            )
+        if not self.timetable.partitioned and not self.timetable.partitioned_at_runtime:
             raise DagNotPartitionedError(
                 f"Dag '{self.dag_id}' is not a partitioned Dag and does not accept a partition_key."
             )

@@ -76,8 +76,9 @@ from airflow.api_fastapi.execution_api.security import (
     require_auth,
 )
 from airflow.configuration import conf
-from airflow.exceptions import TaskNotFound
+from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
 from airflow.models.asset import AssetActive
+from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.hitl import HITLDetail
@@ -423,6 +424,17 @@ def ti_update_state(
             },
         )
 
+    # Validate outlet event partition keys early, before entering the catch-all
+    # except block that would otherwise swallow the HTTPException and mark the TI failed.
+    if isinstance(ti_patch_payload, TISuccessStatePayload):
+        try:
+            _validate_outlet_event_partition_keys(ti_patch_payload.outlet_events)
+        except InvalidPartitionKeyError as e:
+            raise HTTPException(
+                status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+                detail={"reason": "invalid_partition_key", "message": str(e)},
+            ) from e
+
     # We exclude_unset to avoid updating fields that are not set in the payload
     data = ti_patch_payload.model_dump(
         exclude={"task_outlets", "outlet_events", "retry_delay_seconds", "retry_reason"},
@@ -569,6 +581,28 @@ def _handle_fail_fast_for_dag(ti: TI, dag_id: str, session: SessionDep, dag_bag:
         task_dict = getattr(ser_dag, "task_dict")
         task_teardown_map = {k: v.is_teardown for k, v in task_dict.items()}
         _stop_remaining_tasks(task_instance=ti, task_teardown_map=task_teardown_map, session=session)
+
+
+def _validate_outlet_event_partition_keys(outlet_events: list[dict[str, Any]]) -> None:
+    """
+    Validate partition_key values embedded in outlet events.
+
+    Raises ``InvalidPartitionKeyError`` (which the caller translates to HTTP 422)
+    if any per-emission partition key is empty/whitespace-only or exceeds the
+    ``ID_LEN`` column width used in the metadata database.
+    """
+    for event in outlet_events:
+        pk = event.get("partition_key")
+        if pk is None:
+            continue
+        if not pk.strip():
+            raise InvalidPartitionKeyError(
+                f"partition_key in outlet event must not be empty or whitespace-only; got {pk!r}."
+            )
+        if len(pk) > ID_LEN:
+            raise InvalidPartitionKeyError(
+                f"partition_key in outlet event must be at most {ID_LEN} characters; got {len(pk)}."
+            )
 
 
 def _create_ti_state_update_query_and_update_state(
