@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import urllib.parse
 from typing import TYPE_CHECKING
 
 from airflow.providers.common.compat.assets import Asset
@@ -25,6 +26,10 @@ if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
     from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
+
+# Preserve the empty-authority "hdfs:///path" (fs.defaultFS) form through urlunsplit, like "file".
+if "hdfs" not in urllib.parse.uses_netloc:
+    urllib.parse.uses_netloc.append("hdfs")
 
 
 def sanitize_uri(uri: SplitResult) -> SplitResult:

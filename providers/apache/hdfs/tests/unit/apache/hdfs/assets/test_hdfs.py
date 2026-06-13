@@ -42,16 +42,22 @@ from airflow.providers.common.compat.assets import Asset
             "hdfs://namenode/data/file.csv",
             id="no-explicit-port",
         ),
-        # ``hdfs:///path`` (Hadoop ``fs.defaultFS``) accepted; ``urlunsplit`` collapses the empty authority to ``hdfs:/path``.
+        # hdfs:///path (fs.defaultFS) preserves the empty authority.
         pytest.param(
             "hdfs:///apps/myapp/data/bronze/raw/table.parquet",
-            "hdfs:/apps/myapp/data/bronze/raw/table.parquet",
+            "hdfs:///apps/myapp/data/bronze/raw/table.parquet",
             id="default-fs-no-host",
         ),
         pytest.param(
             "hdfs:///data/file.csv",
-            "hdfs:/data/file.csv",
+            "hdfs:///data/file.csv",
             id="default-fs-short-path",
+        ),
+        # Bare hdfs:/path canonicalizes to the empty-authority form.
+        pytest.param(
+            "hdfs:/data/file.csv",
+            "hdfs:///data/file.csv",
+            id="default-fs-single-slash",
         ),
     ],
 )
