@@ -189,13 +189,37 @@ class TestGcpSqlHookDefaultProjectId:
             {"name": "operation_id"},
         ]
         wait_for_operation_to_complete.return_value = None
-        # First submit returns 409 ``operationInProgress``. ``import_instance`` re-raises it past its
+        # First submit returns 409 ``operationInProgress``. ``_submit_import`` re-raises it past its
         # friendly-message wrapper (instead of converting it to AirflowException), so
         # ``operation_in_progress_retry`` sees the raw HttpError, retries, and the second submit
         # succeeds; the resulting operation is awaited exactly once.
         self.cloudsql_hook.import_instance(project_id="example-project", instance="instance", body={})
         assert import_method.call_count == 2
         assert execute_method.call_count == 2
+        wait_for_operation_to_complete.assert_called_once_with(
+            project_id="example-project", operation_name="operation_id"
+        )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete")
+    def test_instance_import_does_not_resubmit_when_polling_fails(
+        self, wait_for_operation_to_complete, get_conn
+    ):
+        import_method = get_conn.return_value.instances.return_value.import_
+        execute_method = import_method.return_value.execute
+        execute_method.return_value = {"name": "operation_id"}
+        wait_for_operation_to_complete.side_effect = HttpError(
+            resp=httplib2.Response({"status": 429}),
+            content=b"rate limited",
+        )
+        # The submit succeeds, then the operation-status polling raises a retryable 429. The retry
+        # scope must not include the polling: re-running ``import_instance`` would re-submit an
+        # import that was already accepted and import the same data twice. The task must fail
+        # instead, with exactly one submit on record.
+        with pytest.raises(AirflowException, match="Importing instance instance failed"):
+            self.cloudsql_hook.import_instance(project_id="example-project", instance="instance", body={})
+        import_method.assert_called_once_with(body={}, instance="instance", project="example-project")
+        execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
             project_id="example-project", operation_name="operation_id"
         )
