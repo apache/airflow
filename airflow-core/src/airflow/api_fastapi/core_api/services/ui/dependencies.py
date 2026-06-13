@@ -21,6 +21,7 @@ from collections import defaultdict, deque
 from typing import TYPE_CHECKING
 
 from airflow.models.asset import AssetModel
+from airflow.models.dag import DagModel
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -133,6 +134,15 @@ def get_scheduling_dependencies(readable_dag_ids: set[str] | None = None) -> dic
                     source = dep.node_id
                     target = dep.target if ":" in dep.target else f"dag:{dep.target}"
                     edge_tuples.add((source, target))
+
+    dag_ids = [node["label"] for node in nodes_dict.values() if node["type"] == "dag"]
+    if dag_ids:
+        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids)
+        for node in nodes_dict.values():
+            if node["type"] == "dag":
+                team_name = dag_id_to_team.get(node["label"])
+                if team_name:
+                    node["team"] = team_name
 
     return {
         "nodes": list(nodes_dict.values()),
@@ -266,6 +276,17 @@ def get_data_dependencies(
                 for outlet_ref in outlet_refs:
                     if outlet_ref.asset_id not in processed_assets:
                         assets_to_process.append(outlet_ref.asset_id)
+
+    all_dag_ids = list({dag_id for dag_id, _ in processed_tasks})
+    if all_dag_ids:
+        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(all_dag_ids, session=session)
+        for node in nodes_dict.values():
+            if not node["id"].startswith("task:"):
+                continue
+            dag_id = node["id"].removeprefix("task:").split(SEPARATOR, 1)[0]
+            team_name = dag_id_to_team.get(dag_id)
+            if team_name:
+                node["team"] = team_name
 
     return {
         "nodes": list(nodes_dict.values()),

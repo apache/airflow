@@ -1675,6 +1675,85 @@ class TestTIUpdateState:
         ti = session.get(TaskInstance, ti.id)
         assert ti.state == State.FAILED
 
+    # DataError handling: an oversized field the DB rejects must surface as 422 (not an opaque 500
+    # or a silent mark-FAILED). Only MySQL/Postgres enforce varchar limits; SQLite ignores them.
+    @pytest.mark.backend("mysql", "postgres")
+    def test_ti_run_oversized_field_returns_422(self, client, session, create_task_instance):
+        """ti_run: a DataError on the running-state UPDATE surfaces as 422, not 500."""
+        ti = create_task_instance(
+            task_id="test_ti_run_dataerror",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "h" * 1100,  # > hostname varchar(1000)
+                "unixname": "u",
+                "pid": 1,
+                "start_date": "2024-09-30T12:00:00Z",
+            },
+        )
+        assert response.status_code == 422
+        assert response.json()["detail"]["reason"] == "Value rejected by database"
+
+    @pytest.mark.backend("mysql", "postgres")
+    def test_ti_update_state_oversized_field_returns_422(self, client, session, create_task_instance):
+        """ti_update_state: a DataError on the state UPDATE surfaces as 422, not 500."""
+        ti = create_task_instance(
+            task_id="test_ti_update_dataerror",
+            state=State.RUNNING,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "up_for_retry",
+                "end_date": "2024-09-30T12:00:00Z",
+                "rendered_map_index": "x" * 300,  # > rendered_map_index varchar(250)
+            },
+        )
+        assert response.status_code == 422
+        assert response.json()["detail"]["reason"] == "Value rejected by database"
+
+    @pytest.mark.backend("mysql", "postgres")
+    def test_ti_update_state_dataerror_does_not_silently_fail(self, client, session, create_task_instance):
+        """A DataError raised while building the state update must not silently mark the TI FAILED."""
+        ti = create_task_instance(
+            task_id="test_ti_defer_dataerror",
+            state=State.RUNNING,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "deferred",
+                "classpath": "c" * 1100,  # > trigger.classpath varchar(1000)
+                "next_method": "execute_complete",
+                "trigger_kwargs": {},
+                "next_kwargs": {},
+            },
+        )
+        assert response.status_code == 422
+        assert response.json()["detail"]["reason"] == "Value rejected by database"
+
+        # The bare `except Exception` would have marked this FAILED behind the worker's back.
+        session.expire_all()
+        assert session.get(TaskInstance, ti.id).state == State.RUNNING
+
     def test_ti_update_state_handle_retry(self, client, session, create_task_instance):
         ti = create_task_instance(
             task_id="test_ti_update_state_to_retry",
