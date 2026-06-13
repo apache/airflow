@@ -42,9 +42,12 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
+from airflow.process_context import override_process_context
 
 if TYPE_CHECKING:
     import httpx
+    from a2wsgi.asgi_typing import ASGIApp as A2WSGIApp
+    from starlette.types import ASGIApp, Receive, Scope, Send
 
 import structlog
 from structlog.contextvars import bind_contextvars
@@ -348,6 +351,17 @@ def get_extra_schemas() -> dict[str, dict]:
     }
 
 
+class _RequestScopedServerContextApp:
+    """Wrap an ASGI app so in-process requests behave like server-side API handling."""
+
+    def __init__(self, app: FastAPI) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        with override_process_context("server"):
+            await self.app(scope, receive, send)
+
+
 @attrs.define()
 class InProcessExecutionAPI:
     """
@@ -357,11 +371,12 @@ class InProcessExecutionAPI:
     needed so that we can use the sync httpx client
     """
 
+    request_scoped_server_context: bool = attrs.field(default=False, kw_only=True)
     _app: FastAPI | None = None
     _cm: AsyncExitStack | None = None
 
     @cached_property
-    def app(self):
+    def app(self) -> FastAPI:
         if not self._app:
             from airflow.api_fastapi.common.dagbag import create_dag_bag
             from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
@@ -392,13 +407,19 @@ class InProcessExecutionAPI:
         return self._app
 
     @cached_property
+    def asgi_app(self) -> ASGIApp:
+        if self.request_scoped_server_context:
+            return _RequestScopedServerContextApp(self.app)
+        return self.app
+
+    @cached_property
     def transport(self) -> httpx.WSGITransport:
         import asyncio
 
         import httpx
         from a2wsgi import ASGIMiddleware
 
-        middleware = ASGIMiddleware(self.app)
+        middleware = ASGIMiddleware(cast("A2WSGIApp", self.asgi_app))
 
         # https://github.com/abersheeran/a2wsgi/discussions/64
         async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
@@ -413,4 +434,4 @@ class InProcessExecutionAPI:
     def atransport(self) -> httpx.ASGITransport:
         import httpx
 
-        return httpx.ASGITransport(app=self.app)
+        return httpx.ASGITransport(app=self.asgi_app)

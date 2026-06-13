@@ -18,6 +18,8 @@
 from __future__ import annotations
 
 import json
+import queue
+import threading
 from unittest import mock
 from unittest.mock import patch
 
@@ -25,7 +27,13 @@ import pytest
 
 from airflow.sdk import Variable
 from airflow.sdk.configuration import initialize_secrets_backends
-from airflow.sdk.execution_time.comms import GetVariableKeys, PutVariable, VariableKeysResult, VariableResult
+from airflow.sdk.execution_time.comms import (
+    GetVariableKeys,
+    MaskSecret,
+    PutVariable,
+    VariableKeysResult,
+    VariableResult,
+)
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests_common.test_utils.config import conf_vars
@@ -262,6 +270,72 @@ class TestVariableFromSecrets:
         mock_env_get.return_value = "fake_value"
         Variable.get(key="fake_var_key")
         mock_env_get.assert_called_once_with(key="fake_var_key")
+
+    def test_get_variable_env_var_in_virtualenv_does_not_wait_for_supervisor_comms(self, monkeypatch):
+        """Regression test for Variable.get() hanging in PythonVirtualenvOperator child processes."""
+        from airflow.sdk.execution_time import task_runner
+        from airflow.sdk.execution_time.cache import SecretCache
+
+        events = queue.Queue()
+        release_supervisor_comms = threading.Event()
+
+        class BlockingSupervisorComms:
+            def send(self, *args, **kwargs):
+                events.put("supervisor_comms")
+                release_supervisor_comms.wait(timeout=5)
+
+        SecretCache.reset()
+        monkeypatch.setenv("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", "1")
+        monkeypatch.setenv("AIRFLOW_VAR_DEMO_MESSAGE", "hello from env")
+        monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", BlockingSupervisorComms(), raising=False)
+
+        result = {}
+        error = {}
+
+        def get_variable():
+            try:
+                result["value"] = Variable.get(key="DEMO_MESSAGE")
+            except BaseException as exc:
+                error["exception"] = exc
+            finally:
+                events.put("done")
+
+        thread = threading.Thread(target=get_variable, daemon=True)
+        thread.start()
+        first_event = events.get(timeout=5)
+
+        release_supervisor_comms.set()
+        thread.join(timeout=5)
+
+        assert first_event == "done", (
+            "Variable.get() should not wait for supervisor comms when an env var backend returns the value "
+            "inside a PythonVirtualenvOperator child process."
+        )
+        assert error == {}
+        assert result == {"value": "hello from env"}
+
+    def test_get_variable_env_var_in_virtualenv_notifies_reinitialized_supervisor_comms(self, monkeypatch):
+        from airflow.sdk.execution_time import task_runner
+        from airflow.sdk.execution_time.cache import SecretCache
+
+        class ReinitializedSupervisorComms:
+            socket = object()
+
+            def __init__(self):
+                self.sent_messages = []
+
+            def send(self, msg):
+                self.sent_messages.append(msg)
+
+        comms = ReinitializedSupervisorComms()
+
+        SecretCache.reset()
+        monkeypatch.setenv("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", "1")
+        monkeypatch.setenv("AIRFLOW_VAR_DEMO_MESSAGE", "hello from env")
+        monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", comms, raising=False)
+
+        assert Variable.get(key="DEMO_MESSAGE") == "hello from env"
+        assert comms.sent_messages == [MaskSecret(value="hello from env", name="DEMO_MESSAGE")]
 
     @conf_vars(
         {

@@ -49,6 +49,12 @@ class TestConnection:
         yield
         get_fernet.cache_clear()
 
+    @pytest.fixture(autouse=True)
+    def clear_process_context(self, monkeypatch):
+        """Isolate tests from process-wide execution context left behind by other imports."""
+        monkeypatch.delenv("_AIRFLOW_PROCESS_CONTEXT", raising=False)
+        monkeypatch.delitem(sys.modules, "airflow.sdk.execution_time.task_runner", raising=False)
+
     @pytest.mark.parametrize(
         (
             "uri",
@@ -454,6 +460,28 @@ class TestConnection:
         with mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": mock_task_runner}):
             with pytest.raises(AirflowNotFoundException):
                 Connection.get_connection_from_secrets("test_conn")
+
+    @mock.patch.dict("os.environ", {"_AIRFLOW_PROCESS_CONTEXT": "server"})
+    def test_connection_from_json_uses_core_path_when_server_context(self):
+        """Server context should prefer core Connection.from_json even if comms exist."""
+        fake_task_runner = mock.MagicMock()
+        fake_task_runner.SUPERVISOR_COMMS = True
+
+        with (
+            mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": fake_task_runner}),
+            mock.patch(
+                "airflow.sdk.Connection.from_json",
+                side_effect=AssertionError(
+                    "Connection.from_json should not route through Task SDK in server context"
+                ),
+            ),
+        ):
+            result = Connection.from_json('{"conn_type": "http", "host": "localhost"}', conn_id="test_conn")
+
+        assert isinstance(result, Connection)
+        assert result.conn_id == "test_conn"
+        assert result.conn_type == "http"
+        assert result.host == "localhost"
 
     @mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": None})
     @mock.patch("airflow.sdk.Connection")
