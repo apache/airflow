@@ -1170,6 +1170,8 @@ def get_task_instance_states(
     if task_group_id:
         selected_task_ids.extend(_get_group_task_ids(dag_id, task_group_id, session, dag_bag))
 
+    # Keep task_group_id load-bearing when the group resolves to no tasks; an
+    # empty IN filter must match nothing instead of returning every TI in the Dag.
     if selected_task_ids or task_group_id:
         query = query.where(TI.task_id.in_(selected_task_ids))
 
