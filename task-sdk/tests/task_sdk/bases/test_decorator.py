@@ -24,7 +24,8 @@ from pathlib import Path
 
 import pytest
 
-from airflow.sdk import task
+import pendulum
+from airflow.sdk import dag, task
 from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS, DecoratedOperator, is_async_callable
 
 RAW_CODE = """
@@ -383,3 +384,37 @@ class TestAsyncCallable:
             return 42
 
         assert not is_async_callable(sync_task_fn)
+
+
+class TestTaskDocstringDedent:
+    """Tests for task docstring dedent behavior using inspect.cleandoc."""
+
+    def test_task_docstring_dedent_applied(self):
+        """Test that task docstring is dedented when passed via function docstring."""
+
+        @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+        def pipeline():
+            @task
+            def my_task():
+                """
+                This task does something important.
+
+                In case of error you should do the following:
+                1. Check the logs
+                2. Verify the configuration
+                3. Contact support
+                """
+
+            return my_task()
+
+        dag_obj = pipeline()
+        task_obj = dag_obj.task_dict["my_task"]
+
+        # Verify that the docstring is dedented (no leading whitespace on each line)
+        expected_doc = """This task does something important.
+
+In case of error you should do the following:
+1. Check the logs
+2. Verify the configuration
+3. Contact support"""
+        assert task_obj.doc_md == expected_doc
