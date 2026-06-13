@@ -4635,6 +4635,8 @@ export class PartitionedDagRunService {
      * Get Partitioned Dag Runs
      * Return PartitionedDagRuns. Filter by dag_id and/or has_created_dag_run_id.
      * @param data The data for the request.
+     * @param data.limit
+     * @param data.offset
      * @param data.dagId
      * @param data.hasCreatedDagRunId
      * @returns PartitionedDagRunCollectionResponse Successful Response
@@ -4645,6 +4647,8 @@ export class PartitionedDagRunService {
             method: 'GET',
             url: '/ui/partitioned_dag_runs',
             query: {
+                limit: data.limit,
+                offset: data.offset,
                 dag_id: data.dagId,
                 has_created_dag_run_id: data.hasCreatedDagRunId
             },
