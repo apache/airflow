@@ -227,7 +227,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     # Make sure connection is imported this way for type checking, otherwise when importing
     # the backend it will get a circular dependency and fail
     if TYPE_CHECKING:
-        from airflow.models.connection import Connection
+        from airflow.providers.common.compat.sdk import Connection
 
     def get_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:
         """
@@ -237,9 +237,10 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
         :return: A Connection object constructed from Vault data
         """
-        # The Connection needs to be locally imported because otherwise we get into cyclic import
-        # problems when instantiating the backend during configuration
-        from airflow.models.connection import Connection
+        # Use the compat SDK Connection (Pydantic in Airflow 3, SQLAlchemy in Airflow 2) to avoid
+        # triggering SQLAlchemy mapper initialization for unrelated models (e.g. DagModel) in
+        # task-execution subprocesses such as PythonVirtualenvOperator.
+        from airflow.providers.common.compat.sdk import Connection
 
         response = self._get_team_or_global_secret(self.connections_path, team_name, conn_id)
         if response is None:
@@ -247,9 +248,24 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
         uri = response.get("conn_uri")
         if uri:
-            return Connection(conn_id, uri=uri)
+            # from_uri is available on the SDK Connection (Airflow 3.2+ / task-sdk 1.2.0+).
+            # On Airflow 2 the SQLAlchemy Connection accepts uri= in its __init__.
+            # On Airflow 3.0/3.1 the attrs-based Connection has neither from_uri nor a uri=
+            # constructor arg; return None so the secrets-backend loop tries the next backend.
+            if hasattr(Connection, "from_uri"):
+                return Connection.from_uri(uri, conn_id=conn_id)
+            try:
+                return Connection(conn_id=conn_id, uri=uri)  # type: ignore[call-arg]
+            except (TypeError, ValueError):
+                self.log.warning(
+                    "Cannot deserialize conn_uri for connection '%s': upgrade to Airflow 3.2+ "
+                    "or store the connection using individual fields (conn_type, host, login, "
+                    "etc.) in Vault.",
+                    conn_id,
+                )
+                return None
 
-        return Connection(conn_id, **response)
+        return Connection(conn_id=conn_id, **response)
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
