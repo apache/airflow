@@ -18,281 +18,235 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
+import httpx
 import pytest
-from sqlalchemy import delete, func, select
+from airflowctl.api.operations import ServerResponseError
 
-from airflow import models, settings
 from airflow.cli import cli_parser
 from airflow.cli.commands import pool_command
-from airflow.models import Pool
-from airflow.settings import Session
-from airflow.utils.db import add_default_pool_if_not_exists
 
-pytestmark = pytest.mark.db_test
+from tests_common.test_utils.config import conf_vars
+
+
+def _pool(name, slots, description="", include_deferred=False, team_name=None):
+    """Build a stand-in for the airflowctl ``PoolResponse`` returned by the client."""
+    return SimpleNamespace(
+        name=name,
+        slots=slots,
+        description=description,
+        include_deferred=include_deferred,
+        team_name=team_name,
+    )
+
+
+def _server_error(status_code: int) -> ServerResponseError:
+    request = httpx.Request("GET", "http://testserver/api/v2/pools/foo")
+    response = httpx.Response(status_code, request=request, json={"detail": "boom"})
+    return ServerResponseError(message="boom", request=request, response=response)
 
 
 class TestCliPools:
     @classmethod
     def setup_class(cls):
-        cls.dagbag = models.DagBag()
         cls.parser = cli_parser.get_parser()
-        settings.configure_orm()
-        cls.session = Session
-        cls._cleanup()
 
-    def tearDown(self):
-        self._cleanup()
-
-    @staticmethod
-    def _cleanup(session=None):
-        if session is None:
-            session = Session()
-        session.execute(delete(Pool).where(Pool.pool != Pool.DEFAULT_POOL_NAME))
-        session.commit()
-        add_default_pool_if_not_exists()
-        session.close()
-
-    def test_pool_list(self, stdout_capture):
-        pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
+    def test_pool_list(self, mock_cli_api_client, stdout_capture):
+        mock_cli_api_client.pools.list.return_value.pools = [_pool("foo", 1, "test")]
         with stdout_capture as stdout:
             pool_command.pool_list(self.parser.parse_args(["pools", "list"]))
 
         assert "foo" in stdout.getvalue()
+        mock_cli_api_client.pools.list.assert_called_once()
 
-    def test_pool_list_with_args(self):
+    def test_pool_list_with_args(self, mock_cli_api_client):
+        mock_cli_api_client.pools.list.return_value.pools = [_pool("foo", 1, "test")]
         pool_command.pool_list(self.parser.parse_args(["pools", "list", "--output", "json"]))
 
-    def test_pool_create(self):
+    def test_pool_create(self, mock_cli_api_client):
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
-        assert self.session.scalar(select(func.count()).select_from(Pool)) == 2
 
-    def test_pool_update_deferred(self):
-        pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
-        assert self.session.scalar(select(Pool).where(Pool.pool == "foo")).include_deferred is False
+        mock_cli_api_client.pools.create.assert_called_once()
+        body = mock_cli_api_client.pools.create.call_args.kwargs["pool"]
+        # core_api PoolBody exposes the name via the ``pool`` attribute (alias ``name``).
+        assert body.pool == "foo"
+        assert body.slots == 1
+        assert body.description == "test"
+        assert body.include_deferred is False
 
+    def test_pool_create_include_deferred(self, mock_cli_api_client):
         pool_command.pool_set(
             self.parser.parse_args(["pools", "set", "foo", "1", "test", "--include-deferred"])
         )
-        assert self.session.scalar(select(Pool).where(Pool.pool == "foo")).include_deferred is True
 
-        pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
-        assert self.session.scalar(select(Pool).where(Pool.pool == "foo")).include_deferred is False
+        body = mock_cli_api_client.pools.create.call_args.kwargs["pool"]
+        assert body.include_deferred is True
 
-    def test_pool_get(self):
-        pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
-        pool_command.pool_get(self.parser.parse_args(["pools", "get", "foo"]))
+    def test_pool_get(self, mock_cli_api_client, stdout_capture):
+        mock_cli_api_client.pools.get.return_value = _pool("foo", 1, "test")
+        with stdout_capture as stdout:
+            pool_command.pool_get(self.parser.parse_args(["pools", "get", "foo"]))
 
-    def test_pool_delete(self):
-        pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
+        assert "foo" in stdout.getvalue()
+        mock_cli_api_client.pools.get.assert_called_once_with(pool_name="foo")
+
+    def test_pool_get_missing(self, mock_cli_api_client):
+        mock_cli_api_client.pools.get.side_effect = _server_error(404)
+        with pytest.raises(SystemExit, match="Pool foo does not exist"):
+            pool_command.pool_get(self.parser.parse_args(["pools", "get", "foo"]))
+
+    def test_pool_get_other_error_reraised(self, mock_cli_api_client):
+        mock_cli_api_client.pools.get.side_effect = _server_error(500)
+        with pytest.raises(ServerResponseError):
+            pool_command.pool_get(self.parser.parse_args(["pools", "get", "foo"]))
+
+    def test_pool_delete(self, mock_cli_api_client):
         pool_command.pool_delete(self.parser.parse_args(["pools", "delete", "foo"]))
-        assert self.session.scalar(select(func.count()).select_from(Pool)) == 1
+        mock_cli_api_client.pools.delete.assert_called_once_with(pool="foo")
 
-    def test_pool_import_nonexistent(self):
+    def test_pool_delete_missing(self, mock_cli_api_client):
+        mock_cli_api_client.pools.delete.side_effect = _server_error(404)
+        with pytest.raises(SystemExit, match="Pool foo does not exist"):
+            pool_command.pool_delete(self.parser.parse_args(["pools", "delete", "foo"]))
+
+    def test_pool_import_nonexistent(self, mock_cli_api_client):
         with pytest.raises(SystemExit):
             pool_command.pool_import(self.parser.parse_args(["pools", "import", "nonexistent.json"]))
 
-    def test_pool_import_invalid_json(self, tmp_path):
+    def test_pool_import_invalid_json(self, mock_cli_api_client, tmp_path):
         invalid_pool_import_file_path = tmp_path / "pools_import_invalid.json"
-        with open(invalid_pool_import_file_path, mode="w") as file:
-            file.write("not valid json")
+        invalid_pool_import_file_path.write_text("not valid json")
 
         with pytest.raises(SystemExit):
             pool_command.pool_import(
                 self.parser.parse_args(["pools", "import", str(invalid_pool_import_file_path)])
             )
 
-    def test_pool_import_invalid_pools(self, tmp_path):
+    def test_pool_import_invalid_pools(self, mock_cli_api_client, tmp_path):
         invalid_pool_import_file_path = tmp_path / "pools_import_invalid.json"
+        # Missing ``slots`` makes the entry invalid.
         pool_config_input = {"foo": {"description": "foo_test", "include_deferred": False}}
-        with open(invalid_pool_import_file_path, mode="w") as file:
-            json.dump(pool_config_input, file)
+        invalid_pool_import_file_path.write_text(json.dumps(pool_config_input))
 
         with pytest.raises(SystemExit):
             pool_command.pool_import(
                 self.parser.parse_args(["pools", "import", str(invalid_pool_import_file_path)])
             )
 
-    def test_pool_import_backwards_compatibility(self, tmp_path):
+    def test_pool_import(self, mock_cli_api_client, tmp_path):
         pool_import_file_path = tmp_path / "pools_import.json"
-        pool_config_input = {
-            # JSON before version 2.7.0 does not contain `include_deferred`
-            "foo": {"description": "foo_test", "slots": 1},
-        }
-        with open(pool_import_file_path, mode="w") as file:
-            json.dump(pool_config_input, file)
-
-        pool_command.pool_import(self.parser.parse_args(["pools", "import", str(pool_import_file_path)]))
-
-        assert self.session.scalar(select(Pool).where(Pool.pool == "foo")).include_deferred is False
-
-    def test_pool_import_export(self, tmp_path):
-        pool_import_file_path = tmp_path / "pools_import.json"
-        pool_export_file_path = tmp_path / "pools_export.json"
         pool_config_input = {
             "foo": {"description": "foo_test", "slots": 1, "include_deferred": True},
-            "default_pool": {
-                "description": "Default pool",
-                "slots": 128,
-                "include_deferred": False,
-            },
-            "baz": {"description": "baz_test", "slots": 2, "include_deferred": False},
+            # JSON before version 2.7.0 does not contain ``include_deferred``.
+            "bar": {"description": "bar_test", "slots": 2},
         }
-        with open(pool_import_file_path, mode="w") as file:
-            json.dump(pool_config_input, file)
+        pool_import_file_path.write_text(json.dumps(pool_config_input))
 
-        # Import json
         pool_command.pool_import(self.parser.parse_args(["pools", "import", str(pool_import_file_path)]))
 
-        # Export json
+        assert mock_cli_api_client.pools.create.call_count == 2
+        bodies = {
+            call.kwargs["pool"].pool: call.kwargs["pool"]
+            for call in mock_cli_api_client.pools.create.call_args_list
+        }
+        assert bodies["foo"].include_deferred is True
+        # Missing ``include_deferred`` defaults to False (backwards compatibility).
+        assert bodies["bar"].include_deferred is False
+
+    def test_pool_export(self, mock_cli_api_client, tmp_path):
+        pool_export_file_path = tmp_path / "pools_export.json"
+        mock_cli_api_client.pools.list.return_value.pools = [
+            _pool("foo", 1, "foo_test", include_deferred=True),
+            _pool("baz", 2, "baz_test", include_deferred=False),
+        ]
+
         pool_command.pool_export(self.parser.parse_args(["pools", "export", str(pool_export_file_path)]))
 
-        with open(pool_export_file_path) as file:
-            pool_config_output = json.load(file)
-            assert pool_config_input == pool_config_output, "Input and output pool files are not same"
+        exported = json.loads(pool_export_file_path.read_text())
+        assert exported == {
+            "foo": {"slots": 1, "description": "foo_test", "include_deferred": True},
+            "baz": {"slots": 2, "description": "baz_test", "include_deferred": False},
+        }
 
-    def test_pool_set_with_team_name(self):
-        """Test that pool_set with --team-name assigns the pool to the team when multi_team is enabled."""
-        from airflow.models.team import Team
+    def test_pool_set_with_team_name(self, mock_cli_api_client):
+        """``--team-name`` is forwarded to the airflowctl client when multi_team is enabled."""
+        with conf_vars({("core", "multi_team"): "True"}):
+            pool_command.pool_set(
+                self.parser.parse_args(
+                    ["pools", "set", "team_pool", "5", "team pool", "--team-name", "test_team"]
+                )
+            )
 
-        from tests_common.test_utils.config import conf_vars
+        body = mock_cli_api_client.pools.create.call_args.kwargs["pool"]
+        assert body.team_name == "test_team"
 
-        # Create the team first
-        team = Team(name="test_team")
-        self.session.add(team)
-        self.session.commit()
-
-        try:
-            with conf_vars({("core", "multi_team"): "True"}):
+    def test_pool_set_team_name_rejected_when_multi_team_disabled(self, mock_cli_api_client):
+        """``PoolBody`` rejects a team_name (client-side) when multi_team is disabled."""
+        with conf_vars({("core", "multi_team"): "False"}):
+            with pytest.raises(ValueError, match="team_name cannot be set when multi_team mode is disabled"):
                 pool_command.pool_set(
                     self.parser.parse_args(
                         ["pools", "set", "team_pool", "5", "team pool", "--team-name", "test_team"]
                     )
                 )
+        mock_cli_api_client.pools.create.assert_not_called()
 
-            pool = self.session.scalar(select(Pool).where(Pool.pool == "team_pool"))
-            assert pool is not None
-            assert pool.team_name == "test_team"
-            assert pool.slots == 5
-        finally:
-            self.session.execute(delete(Pool).where(Pool.pool == "team_pool"))
-            self.session.execute(delete(Team).where(Team.name == "test_team"))
-            self.session.commit()
-
-    def test_pool_set_team_name_rejected_when_multi_team_disabled(self):
-        """Test that pool_set with --team-name raises when multi_team is disabled."""
-        from airflow.models.team import Team
-
-        from tests_common.test_utils.config import conf_vars
-
-        team = Team(name="test_team")
-        self.session.add(team)
-        self.session.commit()
-
-        try:
-            with conf_vars({("core", "multi_team"): "False"}):
-                with pytest.raises(
-                    ValueError, match="team_name cannot be set when multi_team mode is disabled"
-                ):
-                    pool_command.pool_set(
-                        self.parser.parse_args(
-                            ["pools", "set", "team_pool", "5", "team pool", "--team-name", "test_team"]
-                        )
-                    )
-        finally:
-            self.session.execute(delete(Pool).where(Pool.pool == "team_pool"))
-            self.session.execute(delete(Team).where(Team.name == "test_team"))
-            self.session.commit()
-
-    def test_pool_set_without_team_name(self):
-        """Test that pool_set without --team-name leaves team_name as None."""
+    def test_pool_set_without_team_name(self, mock_cli_api_client):
+        """Without ``--team-name`` the forwarded body has ``team_name`` as None."""
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "no_team_pool", "3", "no team"]))
 
-        pool = self.session.scalar(select(Pool).where(Pool.pool == "no_team_pool"))
-        assert pool is not None
-        assert pool.team_name is None
+        body = mock_cli_api_client.pools.create.call_args.kwargs["pool"]
+        assert body.team_name is None
 
-    def test_pool_import_export_with_team_name(self, tmp_path):
-        """Test that import/export round-trips the team_name field."""
-        from airflow.models.team import Team
-
-        from tests_common.test_utils.config import conf_vars
-
-        team = Team(name="import_team")
-        self.session.add(team)
-        self.session.commit()
-
+    def test_pool_import_forwards_team_name(self, mock_cli_api_client, tmp_path):
+        """Import forwards each pool's ``team_name`` (or None) to the airflowctl client."""
         pool_import_file_path = tmp_path / "pools_import_team.json"
-        pool_export_file_path = tmp_path / "pools_export_team.json"
-        pool_config_input = {
-            "team_pool_a": {
-                "slots": 10,
-                "description": "team pool",
-                "include_deferred": False,
-                "team_name": "import_team",
-            },
-            "global_pool": {
-                "slots": 5,
-                "description": "global pool",
-                "include_deferred": False,
-            },
+        pool_import_file_path.write_text(
+            json.dumps(
+                {
+                    "team_pool_a": {
+                        "slots": 10,
+                        "description": "team pool",
+                        "include_deferred": False,
+                        "team_name": "import_team",
+                    },
+                    "global_pool": {"slots": 5, "description": "global pool", "include_deferred": False},
+                }
+            )
+        )
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            pool_command.pool_import(self.parser.parse_args(["pools", "import", str(pool_import_file_path)]))
+
+        bodies = {
+            call.kwargs["pool"].pool: call.kwargs["pool"]
+            for call in mock_cli_api_client.pools.create.call_args_list
         }
+        assert bodies["team_pool_a"].team_name == "import_team"
+        assert bodies["global_pool"].team_name is None
 
-        with open(pool_import_file_path, mode="w") as file:
-            json.dump(pool_config_input, file)
+    def test_pool_export_includes_team_name(self, mock_cli_api_client, tmp_path):
+        """Export writes ``team_name`` only for pools that have one."""
+        pool_export_file_path = tmp_path / "pools_export_team.json"
+        mock_cli_api_client.pools.list.return_value.pools = [
+            _pool("team_pool_a", 10, "team pool", team_name="import_team"),
+            _pool("global_pool", 5, "global pool"),
+        ]
 
-        try:
-            with conf_vars({("core", "multi_team"): "True"}):
-                pool_command.pool_import(
-                    self.parser.parse_args(["pools", "import", str(pool_import_file_path)])
-                )
+        pool_command.pool_export(self.parser.parse_args(["pools", "export", str(pool_export_file_path)]))
 
-            # Verify team assignment
-            pool = self.session.scalar(select(Pool).where(Pool.pool == "team_pool_a"))
-            assert pool is not None
-            assert pool.team_name == "import_team"
+        exported = json.loads(pool_export_file_path.read_text())
+        assert exported["team_pool_a"]["team_name"] == "import_team"
+        assert "team_name" not in exported["global_pool"]
 
-            global_pool = self.session.scalar(select(Pool).where(Pool.pool == "global_pool"))
-            assert global_pool is not None
-            assert global_pool.team_name is None
+    def test_pool_list_shows_team_name(self, mock_cli_api_client, stdout_capture):
+        """Pool list output includes the team_name column."""
+        mock_cli_api_client.pools.list.return_value.pools = [
+            _pool("list_pool", 5, "desc", team_name="list_team")
+        ]
 
-            # Export and verify
-            pool_command.pool_export(self.parser.parse_args(["pools", "export", str(pool_export_file_path)]))
+        with stdout_capture as stdout:
+            pool_command.pool_list(self.parser.parse_args(["pools", "list"]))
 
-            with open(pool_export_file_path) as file:
-                pool_config_output = json.load(file)
-
-            assert pool_config_output["team_pool_a"]["team_name"] == "import_team"
-            assert "team_name" not in pool_config_output["global_pool"]
-        finally:
-            self.session.execute(delete(Pool).where(Pool.pool.in_(["team_pool_a", "global_pool"])))
-            self.session.execute(delete(Team).where(Team.name == "import_team"))
-            self.session.commit()
-
-    def test_pool_list_shows_team_name(self, stdout_capture):
-        """Test that pool list output includes the team_name column."""
-        from airflow.models.team import Team
-
-        from tests_common.test_utils.config import conf_vars
-
-        team = Team(name="list_team")
-        self.session.add(team)
-        self.session.commit()
-
-        try:
-            with conf_vars({("core", "multi_team"): "True"}):
-                pool_command.pool_set(
-                    self.parser.parse_args(
-                        ["pools", "set", "list_pool", "5", "desc", "--team-name", "list_team"]
-                    )
-                )
-
-            with stdout_capture as stdout:
-                pool_command.pool_list(self.parser.parse_args(["pools", "list"]))
-
-            output = stdout.getvalue()
-            assert "list_team" in output
-        finally:
-            self.session.execute(delete(Pool).where(Pool.pool == "list_pool"))
-            self.session.execute(delete(Team).where(Team.name == "list_team"))
-            self.session.commit()
+        assert "list_team" in stdout.getvalue()

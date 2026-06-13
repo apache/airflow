@@ -1,4 +1,4 @@
-/*
+/*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,30 +17,26 @@
  * under the License.
  */
 
-plugins {
-    application
+/**
+ * Shared primitives for E2E API helpers.
+ */
+import type { APIRequestContext, Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
+import { testConfig } from "playwright.config";
+
+export type RequestLike = APIRequestContext | Page;
+
+export function getRequestContext(source: RequestLike): APIRequestContext {
+  if ("request" in source) {
+    return source.request;
+  }
+
+  return source;
 }
 
-dependencies {
-    annotationProcessor(project(":sdk"))
-    implementation(project(":sdk"))
-    implementation("org.slf4j:slf4j-simple:2.0.17")
-}
+export const { baseUrl } = testConfig.connection;
 
-sourceSets {
-    main {
-        java.srcDir("src/java")
-    }
-}
-
-application {
-    mainClass = "org.apache.airflow.example.ExampleBundleBuilder"
-}
-
-tasks.withType<Jar> {
-    manifest {
-        attributes(
-            "Main-Class" to application.mainClass.get(),
-        )
-    }
+/** Generate a unique run ID: `{prefix}_{uuid8}`. */
+export function uniqueRunId(prefix: string): string {
+  return `${prefix}_${randomUUID().slice(0, 8)}`;
 }
