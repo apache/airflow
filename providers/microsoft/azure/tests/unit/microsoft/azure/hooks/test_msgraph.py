@@ -577,6 +577,18 @@ class TestResponseHandler:
 
         assert isinstance(actual, bytes)
         assert actual == users
+        
+    def test_default_response_handler_when_unicode_content(self):
+        dummy = load_file_from_resources(
+            dirname(__file__), "..", "resources", "dummy.pdf", mode="rb", encoding=None
+        )
+        response = mock_response(200, dummy)
+        response.json.side_effect = UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")
+
+        actual = asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
+
+        assert isinstance(actual, bytes)
+        assert actual == dummy
 
     def test_default_response_handler_when_no_content_but_headers(self):
         response = mock_response(200, headers={"RequestId": "ffb6096e-d409-4826-aaeb-b5d4b165dc4d"})
