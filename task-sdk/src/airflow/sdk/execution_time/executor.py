@@ -37,6 +37,7 @@ from asyncio import (
 )
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import Executor, ThreadPoolExecutor
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, cast
 
 from airflow.sdk import BaseAsyncOperator, BaseOperator, TaskInstanceState, timezone
@@ -107,15 +108,13 @@ class AsyncAwareExecutor(Executor):
                 task.cancel()
 
         if wait and self._async_tasks:
-            try:
+            with suppress(TimeoutError, AsyncTimeoutError):
                 self._loop.run_until_complete(
                     wait_for(
                         gather(*self._async_tasks, return_exceptions=True),
                         timeout=10.0,
                     )
                 )
-            except (TimeoutError, AsyncTimeoutError):
-                pass  # Best effort — don't hang forever
 
         self._thread_pool.shutdown(wait=wait, cancel_futures=cancel_futures)
 
