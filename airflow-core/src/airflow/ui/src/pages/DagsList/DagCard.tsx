@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, SimpleGrid, Spinner } from "@chakra-ui/react";
+import { Box, Flex, Grid, GridItem, HStack, Spinner } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
@@ -30,15 +30,19 @@ import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { RouterLink, Tooltip } from "src/components/ui";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
+import { DagRunStateCounts } from "./DagRunStateCounts";
 import { DagTags } from "./DagTags";
 import { RecentRuns } from "./RecentRuns";
 import { Schedule } from "./Schedule";
 
 type Props = {
   readonly dag: DAGWithLatestDagRunsResponse;
+  readonly runStateCounts: Record<string, number> | undefined;
+  readonly runStateCountsLoading: boolean;
+  readonly stateCountLimit: number | undefined;
 };
 
-export const DagCard = ({ dag }: Props) => {
+export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCountLimit }: Props) => {
   const { t: translate } = useTranslation(["common", "dag"]);
   const [latestRun] = dag.latest_dag_runs;
 
@@ -68,42 +72,64 @@ export const DagCard = ({ dag }: Props) => {
           <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} />
         </HStack>
       </Flex>
-      <SimpleGrid columns={4} gap={1} height={20} px={3} py={1}>
-        <Stat data-testid="schedule" label={translate("dagDetails.schedule")}>
-          <Schedule
-            assetExpression={dag.asset_expression}
-            dagId={dag.dag_id}
-            timetableDescription={dag.timetable_description}
-            timetablePartitioned={dag.timetable_partitioned}
-            timetableSummary={dag.timetable_summary}
-          />
-        </Stat>
-        <Stat data-testid="latest-run" label={translate("dagDetails.latestRun")}>
-          {latestRun ? (
-            <RouterLink to={`/dags/${latestRun.dag_id}/runs/${latestRun.run_id}`}>
-              <DagRunInfo
-                endDate={latestRun.end_date}
-                logicalDate={latestRun.logical_date}
-                runAfter={latestRun.run_after}
-                startDate={latestRun.start_date}
-                state={latestRun.state}
-              />
-              {isStatePending(latestRun.state) && !dag.is_paused && Boolean(refetchInterval) ? (
-                <Spinner />
-              ) : undefined}
-            </RouterLink>
-          ) : undefined}
-        </Stat>
-        <Stat data-testid="next-run" label={translate("dagDetails.nextRun")}>
-          {!dag.is_paused && Boolean(dag.next_dagrun_run_after) ? (
-            <DagRunInfo
-              logicalDate={dag.next_dagrun_logical_date}
-              runAfter={dag.next_dagrun_run_after as string}
+      <Grid gap={1} px={3} py={2} templateColumns="repeat(4, 1fr)" templateRows="auto auto">
+        <GridItem gridColumn={1} gridRow={1}>
+          <Stat data-testid="schedule" label={translate("dagDetails.schedule")}>
+            <Schedule
+              assetExpression={dag.asset_expression}
+              dagId={dag.dag_id}
+              timetableDescription={dag.timetable_description}
+              timetablePartitioned={dag.timetable_partitioned}
+              timetableSummary={dag.timetable_summary}
             />
-          ) : undefined}
-        </Stat>
-        <RecentRuns latestRuns={dag.latest_dag_runs} />
-      </SimpleGrid>
+          </Stat>
+        </GridItem>
+        <GridItem gridColumn={2} gridRow={1}>
+          <Stat data-testid="latest-run" label={translate("dagDetails.latestRun")}>
+            {latestRun ? (
+              <RouterLink to={`/dags/${latestRun.dag_id}/runs/${latestRun.run_id}`}>
+                <DagRunInfo
+                  endDate={latestRun.end_date}
+                  logicalDate={latestRun.logical_date}
+                  runAfter={latestRun.run_after}
+                  startDate={latestRun.start_date}
+                  state={latestRun.state}
+                />
+                {isStatePending(latestRun.state) && !dag.is_paused && Boolean(refetchInterval) ? (
+                  <Spinner />
+                ) : undefined}
+              </RouterLink>
+            ) : undefined}
+          </Stat>
+        </GridItem>
+        <GridItem gridColumn={3} gridRow={1}>
+          <Stat data-testid="next-run" label={translate("dagDetails.nextRun")}>
+            {!dag.is_paused && Boolean(dag.next_dagrun_run_after) ? (
+              <DagRunInfo
+                logicalDate={dag.next_dagrun_logical_date}
+                runAfter={dag.next_dagrun_run_after as string}
+              />
+            ) : undefined}
+          </Stat>
+        </GridItem>
+        <GridItem
+          alignItems="flex-end"
+          display="flex"
+          gridColumn={4}
+          gridRow="1 / 3"
+          justifyContent="flex-end"
+        >
+          <RecentRuns latestRuns={dag.latest_dag_runs} />
+        </GridItem>
+        <GridItem alignSelf="end" gridColumn={1} gridRow={2}>
+          <DagRunStateCounts
+            counts={runStateCounts}
+            dagId={dag.dag_id}
+            isLoading={runStateCountsLoading}
+            stateCountLimit={stateCountLimit}
+          />
+        </GridItem>
+      </Grid>
     </Box>
   );
 };
