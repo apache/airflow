@@ -374,7 +374,7 @@ class TestWasbHook:
         if sas_token.startswith("https"):
             # HTTPS SAS URL: the full URL is passed to BlobServiceClient as-is;
             # credential handling is left to the SDK.
-            assert conn.url.startswith("https://")
+            assert sas_token in conn.url
         else:
             # Plain SAS token: the hook wraps it in AzureSasCredential.
             assert isinstance(conn.credential, AzureSasCredential)
