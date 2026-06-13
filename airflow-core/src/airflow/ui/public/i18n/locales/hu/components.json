@@ -135,7 +135,7 @@
     "intervalEnd": "Befejezés",
     "intervalStart": "Kezdés",
     "loading": "Dag információk betöltése...",
-    "loadingFailed": "A Dag információk betöltése sikertelen. Kéregm, próbálja újra.",
+    "loadingFailed": "A Dag információk betöltése sikertelen. Kérem, próbálja újra.",
     "manualRunDenied": "Kézi futtatás nem engedélyezett ennél a Dag-nél",
     "runIdHelp": "Opcionális, ha nincs megadva, automatikusan generálásra kerül",
     "selectDescription": "Indítsa el ennek a Dag-nek egyetlen futását",
