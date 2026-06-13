@@ -294,7 +294,12 @@
       "confluent-kafka>=2.6.0; python_version < '3.14'"
     ],
     "devel-deps": [],
-    "plugins": [],
+    "plugins": [
+      {
+        "name": "kafka_listener",
+        "plugin-class": "airflow.providers.apache.kafka.plugins.listener.KafkaListenerPlugin"
+      }
+    ],
     "cross-providers-deps": [
       "common.compat",
       "common.messaging",
