@@ -122,6 +122,7 @@ fi
 AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
 PYTHON_LTO=${PYTHON_LTO:-true}
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
+TEMURIN_VERSION=${TEMURIN_VERSION:-11}
 RUSTUP_DEFAULT_TOOLCHAIN=${RUSTUP_DEFAULT_TOOLCHAIN:-stable}
 RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.0}
 COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
@@ -495,6 +496,24 @@ function install_golang() {
     rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
 }
 
+function install_jdk() {
+    # Install Eclipse Temurin JDK from the Adoptium apt repository (https://adoptium.net/installation/linux/).
+    apt-get update -qq
+    apt-get install -y --no-install-recommends wget gnupg apt-transport-https ca-certificates
+    mkdir -p /etc/apt/keyrings
+    wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public \
+        | tee /etc/apt/keyrings/adoptium.asc > /dev/null
+    # shellcheck disable=SC1091
+    DISTRO_CODENAME=$(. /etc/os-release; echo "${VERSION_CODENAME}")
+    echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] \
+https://packages.adoptium.net/artifactory/deb ${DISTRO_CODENAME} main" \
+        | tee /etc/apt/sources.list.d/adoptium.list > /dev/null
+    apt-get update -qq
+    apt-get install -y --no-install-recommends "temurin-${TEMURIN_VERSION}-jdk"
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+}
+
 function install_rustup() {
     local arch
     arch="$(dpkg --print-architecture)"
@@ -540,6 +559,7 @@ else
     install_rustup
     if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
         install_golang
+        install_jdk
     fi
     install_docker_cli
     apt_clean
