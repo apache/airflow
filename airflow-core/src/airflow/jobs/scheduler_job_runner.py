@@ -3530,18 +3530,39 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @provide_session
     def _remove_unreferenced_triggers(self, *, session: Session = NEW_SESSION) -> None:
-        """Remove triggers that are no longer used by anything."""
-        session.execute(
-            delete(Trigger)
-            .where(
-                ~exists(
-                    select(AssetWatcherModel.trigger_id).where(AssetWatcherModel.trigger_id == Trigger.id)
-                ),
-                ~exists(select(Callback.trigger_id).where(Callback.trigger_id == Trigger.id)),
-                ~exists(select(TaskInstance.trigger_id).where(TaskInstance.trigger_id == Trigger.id)),
-            )
-            .execution_options(synchronize_session="fetch")
+        """
+        Remove triggers that are no longer used by anything.
+
+        Deletes in bounded batches (each followed by a commit) instead of one
+        unbounded statement, so we don't hold row locks on ``trigger`` for the
+        duration of a single transaction (which would block the triggerer's
+        own writers) or stall the scheduler main loop while many rows are
+        removed. Batch size is tunable via
+        ``[scheduler] unreferenced_triggers_cleanup_batch_size``; ``0``
+        disables batching and restores the single-statement behaviour.
+        """
+        batch_size = conf.getint("scheduler", "unreferenced_triggers_cleanup_batch_size", fallback=500)
+        unreferenced = and_(
+            ~exists(select(AssetWatcherModel.trigger_id).where(AssetWatcherModel.trigger_id == Trigger.id)),
+            ~exists(select(Callback.trigger_id).where(Callback.trigger_id == Trigger.id)),
+            ~exists(select(TaskInstance.trigger_id).where(TaskInstance.trigger_id == Trigger.id)),
         )
+
+        while True:
+            id_query = select(Trigger.id).where(unreferenced)
+            if batch_size > 0:
+                id_query = id_query.limit(batch_size)
+            ids_to_delete = session.scalars(id_query).all()
+            if not ids_to_delete:
+                break
+            session.execute(
+                delete(Trigger)
+                .where(Trigger.id.in_(ids_to_delete))
+                .execution_options(synchronize_session=False)
+            )
+            session.commit()
+            if batch_size <= 0 or len(ids_to_delete) < batch_size:
+                break
 
     @provide_session
     def _update_asset_orphanage(self, *, session: Session = NEW_SESSION) -> None:
