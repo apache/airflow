@@ -48,6 +48,7 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionPoolBody,
     BulkCreateActionVariableBody,
     BulkResponse,
+    ClearTaskInstancesBody,
     Config,
     ConfigOption,
     ConfigSection,
@@ -91,6 +92,7 @@ from airflowctl.api.datamodels.generated import (
     QueuedEventCollectionResponse,
     QueuedEventResponse,
     ReprocessBehavior,
+    TaskInstanceCollectionResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -1905,6 +1907,33 @@ class TestXComOperations:
             map_index=self.map_index,
         )
         assert response == self.key
+
+
+class TestTasksOperations:
+    dag_id: str = "dag_id"
+    body = ClearTaskInstancesBody(
+        start_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        end_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+    )
+    task_instance_collection_response = TaskInstanceCollectionResponse(
+        task_instances=[],
+        total_entries=0,
+    )
+
+    def test_clear(self):
+        expected_body = self.body.model_dump(mode="json", exclude_none=True)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/clearTaskInstances"
+            assert request.headers.get("content-type", "").startswith("application/json")
+            assert json.loads(request.content.decode()) == expected_body
+            return httpx.Response(
+                200, json=json.loads(self.task_instance_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.tasks.clear(dag_id=self.dag_id, body=self.body)
+        assert response == self.task_instance_collection_response
 
 
 class TestPluginsOperations:
