@@ -1229,12 +1229,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return conf.getboolean("traces", "otel_on")
 
     def _process_executor_events(self, executor: BaseExecutor, session: Session) -> int:
-        return SchedulerJobRunner.process_executor_events(
-            executor=executor,
-            job_id=self.job.id,
-            scheduler_dag_bag=self.scheduler_dag_bag,
-            session=session,
-        )
+        try:
+            return SchedulerJobRunner.process_executor_events(
+                executor=executor,
+                job_id=self.job.id,
+                scheduler_dag_bag=self.scheduler_dag_bag,
+                session=session,
+            )
+        except Exception as exc:
+            stats.incr("scheduler.executor_events.failed", tags={"exception_class": type(exc).__name__})
+            raise
 
     @classmethod
     def process_executor_events(
@@ -1272,6 +1276,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
         event_buffer = executor.get_event_buffer()
+        num_events = len(event_buffer)
         tis_with_right_state: list[TaskInstanceKey] = []
         callback_keys_with_events: list[CallbackKey] = []
 
@@ -1333,11 +1338,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Return if no finished tasks
         if not tis_with_right_state:
+            stats.gauge("scheduler.executor_events.batch_size", num_events)
+            stats.incr("scheduler.executor_events.processed", num_events)
             return len(event_buffer)
 
         # Check state of finished tasks
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
         if filter_for_tis is None:
+            stats.gauge("scheduler.executor_events.batch_size", num_events)
+            stats.incr("scheduler.executor_events.processed", num_events)
             return len(event_buffer)
         asset_loader, alias_loader = _eager_load_dag_run_for_validation()
         query = (
@@ -1554,6 +1563,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Update task state - emails are handled by DAG processor now
                 ti.handle_failure(error=msg, session=session)
 
+        stats.gauge("scheduler.executor_events.batch_size", num_events)
+        stats.incr("scheduler.executor_events.processed", num_events)
         return len(event_buffer)
 
     def _execute(self) -> int | None:
@@ -1589,7 +1600,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if settings.Session is not None:
                 settings.Session.remove()
-        except Exception:
+        except Exception as exc:
+            stats.incr("scheduler.loop_exceptions", tags={"exception_class": type(exc).__name__})
             self.log.exception("Exception when executing SchedulerJob._run_scheduler_loop")
             raise
         finally:
@@ -3252,7 +3264,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     stats.incr("scheduler.orphaned_tasks.cleared", len(to_reset))
                     stats.incr("scheduler.orphaned_tasks.adopted", len(tis_to_adopt_or_reset) - len(to_reset))
-
                     if to_reset:
                         task_instance_str = "\n\t".join(reset_tis_message)
                         self.log.info(
@@ -3400,6 +3411,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if task_instances_without_heartbeats := self._find_task_instances_without_heartbeats(
                 session=session
             ):
+                stats.incr(
+                    "scheduler.zombies.detected",
+                    len(task_instances_without_heartbeats),
+                    tags={"reason": "heartbeat_timeout"},
+                )
                 self._purge_task_instances_without_heartbeats(
                     task_instances_without_heartbeats, session=session
                 )
