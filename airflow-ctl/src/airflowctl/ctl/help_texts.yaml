@@ -69,6 +69,7 @@ dags:
 dagrun:
   get: "Retrieve a Dag run by Dag ID and run ID"
   list: "List Dag runs, optionally filtered by state and date range"
+  clear: "Clear a Dag run by Dag ID and run ID"
 
 jobs:
   list: "List scheduler, triggerer, and other Airflow jobs"
