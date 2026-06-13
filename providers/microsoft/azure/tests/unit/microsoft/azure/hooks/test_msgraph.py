@@ -534,6 +534,45 @@ class TestKiotaRequestAdapterHook:
 
             assert isinstance(credentials, AbstractAsyncContextManager)
 
+    @pytest.mark.asyncio
+    async def test_send_request_invalidates_cache_and_retries_on_value_error(self):
+        """send_request must drop the cached adapter and re-raise on any exception."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            # Pre-populate the cache with a stale adapter whose transport raises ValueError.
+            stale_adapter = Mock(spec=HttpxRequestAdapter)
+            stale_adapter.send_no_response_content_async = Mock(
+                side_effect=ValueError("HTTP transport has already been closed.")
+            )
+            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, stale_adapter)
+
+            with pytest.raises(ValueError, match="HTTP transport has already been closed."):
+                await hook.run(url="users")
+
+            # The stale adapter was tried and should have been evicted from the cache.
+            stale_adapter.send_no_response_content_async.assert_called_once()
+            assert hook.conn_id not in hook.cached_request_adapters
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("error_message", ["HTTP transport has already been closed.", "some other error"])
+    async def test_send_request_invalidates_cache_on_any_value_error(self, error_message):
+        """send_request must drop the cached adapter on any ValueError, regardless of the message."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            stale_adapter = Mock(spec=HttpxRequestAdapter)
+            stale_adapter.send_no_response_content_async = Mock(
+                side_effect=ValueError(error_message)
+            )
+            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, stale_adapter)
+
+            with pytest.raises(ValueError, match=error_message):
+                await hook.run(url="users")
+
+            stale_adapter.send_no_response_content_async.assert_called_once()
+            assert hook.conn_id not in hook.cached_request_adapters
+
 
 class TestKiotaRequestAdapterHookProtocol:
     """Test protocol handling in KiotaRequestAdapterHook."""
