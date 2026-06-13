@@ -880,8 +880,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         # Work out the two difference sets
         new_trigger_ids = requested_trigger_ids - known_trigger_ids
         cancel_trigger_ids = self.running_triggers - requested_trigger_ids
+
         if new_trigger_ids:
-            self.creating_triggers.extend(self.build_trigger_workloads(new_trigger_ids))
+            workloads_to_create = self.build_trigger_workloads(new_trigger_ids)
+
+            queued_at = time.monotonic()
+
+            for workload in workloads_to_create:
+                workload.queued_at = queued_at
+
+            self.creating_triggers.extend(workloads_to_create)
 
         if cancel_trigger_ids:
             # Enqueue orphaned triggers for cancellation
@@ -1242,7 +1250,6 @@ class TriggerRunner:
             if trigger_id in self.triggers:
                 self.log.warning("Trigger %s had insertion attempted twice", trigger_id)
                 continue
-
             try:
                 trigger_class = self.get_trigger_by_classpath(workload.classpath)
             except BaseException as e:
@@ -1285,6 +1292,12 @@ class TriggerRunner:
             trigger_instance.trigger_id = trigger_id
             trigger_instance.triggerer_job_id = self.job_id
             trigger_instance.timeout_after = workload.timeout_after
+
+            if workload.queued_at is not None:
+                stats.timing(
+                    "triggerer.trigger_queue_delay",
+                    int((time.monotonic() - workload.queued_at) * 1000),
+                )
 
             self.triggers[trigger_id] = {
                 "task": asyncio.create_task(
