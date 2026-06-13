@@ -111,6 +111,64 @@ tolerance of the ones from ``days_back`` before you can use
     :end-before: [END howto_operator_snowflake_interval_check]
 
 
+.. _howto/operator:SnowflakeCheckOperator:
+
+SnowflakeCheckOperator
+======================
+
+Use the :class:`SnowflakeCheckOperator <airflow.providers.snowflake.operators.snowflake.SnowflakeCheckOperator>`
+to perform data quality checks against a Snowflake database. The operator expects a SQL query that returns
+a single row. Each value on that first row is evaluated using Python ``bool`` casting. If any of the values
+return ``False``, the check fails and the task errors out.
+
+This operator is useful as a data quality gate in your pipeline -- for example, verifying that a table is
+not empty, that a partition has been loaded, or that row counts match expectations.
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_data_quality.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_check]
+    :end-before: [END howto_operator_snowflake_check]
+    :dedent: 4
+
+
+.. _howto/operator:SnowflakeValueCheckOperator:
+
+SnowflakeValueCheckOperator
+===========================
+
+Use the :class:`SnowflakeValueCheckOperator <airflow.providers.snowflake.operators.snowflake.SnowflakeValueCheckOperator>`
+to perform a simple value check using SQL against a Snowflake database. The operator compares the result of
+a SQL query against a ``pass_value``, within a configurable ``tolerance``.
+
+This is useful for asserting that a metric (e.g., row count, sum, average) matches an expected value.
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_data_quality.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_value_check]
+    :end-before: [END howto_operator_snowflake_value_check]
+    :dedent: 4
+
+
+.. _howto/operator:SnowflakeIntervalCheckOperator:
+
+SnowflakeIntervalCheckOperator
+==============================
+
+Use the :class:`SnowflakeIntervalCheckOperator <airflow.providers.snowflake.operators.snowflake.SnowflakeIntervalCheckOperator>`
+to check that metrics for a given period are within an expected tolerance compared to a prior period
+(``days_back``, defaulting to 7 days). The operator constructs a query that compares the current day's
+values against historical values and fails if the ratio exceeds the specified thresholds.
+
+This is useful for detecting anomalies -- for example, a sudden drop in row count or revenue sum
+that may indicate a pipeline issue.
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_data_quality.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_interval_check]
+    :end-before: [END howto_operator_snowflake_interval_check]
+    :dedent: 4
+
+
 SnowflakeSqlApiOperator
 =======================
 
