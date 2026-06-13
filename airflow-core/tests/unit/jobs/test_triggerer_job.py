@@ -917,7 +917,7 @@ class TestTriggerRunner:
         assert trigger_runner._shared_streams._groups == {}
 
     def test_shared_stream_ack_mode_integration(self, session) -> None:
-        """A BaseEventTrigger whose producer factory is overridden advances only after the acked event's persistence is confirmed."""
+        """A BaseEventTrigger whose producer factory is overridden advances only after the event's derived trigger event is confirmed persisted."""
         advanced: list[Any] = []
         # Container lets _drive() write trigger_runner back for post-run assertions.
         state: dict[str, Any] = {}
@@ -928,8 +928,8 @@ class TestTriggerRunner:
                 # Stay alive so the manager can tear us down on unsubscribe.
                 await asyncio.Event().wait()
 
-            async def advance(self, broker_payload, outcome):
-                advanced.append(broker_payload)
+            async def advance(self, batch):
+                advanced.extend(item.broker_payload for item in batch)
                 state["advance_called"].set()
 
         class _AckSharedTrigger(BaseEventTrigger):
@@ -952,12 +952,9 @@ class TestTriggerRunner:
                 return _AckSharedProducer()
 
             async def filter_shared_stream(self, shared_stream):
-                async for raw, token in shared_stream:
+                async for raw in shared_stream:
                     if self.region is None or raw["region"] == self.region:
-                        await token.ack()
                         yield TriggerEvent(raw)
-                    else:
-                        await token.nack()
 
             async def run(self):  # pragma: no cover - replaced by filter_shared_stream
                 yield TriggerEvent({})
@@ -986,8 +983,8 @@ class TestTriggerRunner:
             _trigger_id, _event, seq = trigger_runner.events[0]
             assert seq is not None, "a shared ack trigger's event must carry a seq"
 
-            # The subscriber acked, but the advance is gated on persistence:
-            # nothing may advance before the confirmation arrives.
+            # The subscriber moved past the event, but the advance is gated
+            # on persistence: nothing may advance before the confirmation arrives.
             assert advanced == [], "advance must not run before the persist confirmation"
 
             # Simulate the supervisor confirming the persist on the next sync.
@@ -1009,7 +1006,7 @@ class TestTriggerRunner:
 
         # The producer's advance must have been called with the broker_payload.
         assert advanced == ["receipt-handle-1"], (
-            "producer.advance must be called once the acked event's persistence is confirmed"
+            "producer.advance must be called once the event's persistence is confirmed"
         )
         # Group is torn down on unsubscribe.
         assert trigger_runner._shared_streams._groups == {}
