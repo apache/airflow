@@ -27,7 +27,6 @@ from airflow.providers.common.compat.sdk import dag, task
 from airflow.providers.common.sql.config import DataSourceConfig
 
 if LLMSQLQueryOperator is not None:
-
     # [START howto_operator_llm_sql_basic]
     @dag(tags=["example"])
     def example_llm_sql_basic():

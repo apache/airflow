@@ -152,7 +152,6 @@ reference_datasource = DataSourceConfig(
 # ---------------------------------------------------------------------------
 
 if LLMSQLQueryOperator is not None:
-
     # [START example_llm_survey_interactive]
     @dag(tags=["example"])
     def example_llm_survey_interactive():

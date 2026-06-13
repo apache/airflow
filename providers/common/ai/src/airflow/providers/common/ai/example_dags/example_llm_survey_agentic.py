@@ -143,7 +143,6 @@ Focus on patterns and proportions rather than raw counts."""
 # ---------------------------------------------------------------------------
 
 if LLMSQLQueryOperator is not None:
-
     # [START example_llm_survey_agentic]
     @dag(tags=["example"])
     def example_llm_survey_agentic():
