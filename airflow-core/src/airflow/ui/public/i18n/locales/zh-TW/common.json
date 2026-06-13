@@ -146,6 +146,7 @@
     "startTime": "起始時間"
   },
   "generateToken": "產生權杖",
+  "key": "鍵",
   "logicalDate": "邏輯日期",
   "logout": "登出",
   "logoutConfirmation": "確定要登出嗎？",
@@ -262,7 +263,8 @@
       "any": "任何"
     },
     "tagPlaceholder": "依標籤篩選",
-    "to": "到"
+    "to": "到",
+    "updatedAt": "更新時間"
   },
   "task": {
     "documentation": "任務文件",
@@ -393,6 +395,7 @@
     "mustBeAtLeast": "必須至少為 {{min}}。",
     "mustBeValidNumber": "必須為有效的數字。"
   },
+  "value": "值",
   "wrap": {
     "hotkey": "w",
     "tooltip": "按 {{hotkey}} 切換換行",
