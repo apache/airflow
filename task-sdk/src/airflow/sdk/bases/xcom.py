@@ -511,7 +511,7 @@ class BaseXCom:
             raise RuntimeError(f"Expected XComSequenceSliceResult, received: {type(msg)} {msg}")
 
         if not msg.root:
-            return None
+            return []
 
         return [cls.deserialize_value(_XComValueWrapper(value)) for value in msg.root]
 
