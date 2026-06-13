@@ -279,6 +279,77 @@ class TestMigrateDatabaseJob:
         annotations = jmespath.search("metadata.annotations", docs[0])
         assert annotations["helm.sh/hook-weight"] == "1"
 
+    def test_default_hooks_run_post_install_pre_upgrade(self):
+        # post-install: the chart's bundled postgres is created as a regular
+        # release resource, so the job needs the DB to exist before it runs.
+        # pre-upgrade: the reconciler must run *before* helm rolls the new
+        # image, so on a downgrade it can exec ``airflow db downgrade`` in the
+        # still-running OLD api-server pod (the OLD image still ships the
+        # reverse alembic scripts; the new one does not).
+        # Tracked in https://github.com/apache/airflow/issues/68072.
+        docs = render_chart(
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert annotations["helm.sh/hook"] == "post-install,pre-upgrade"
+
+    def test_default_args_contain_bidirectional_migrate_script(self):
+        docs = render_chart(
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        args = jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        assert args[:2] == ["python", "-c"]
+        # Confirm the embedded script is the bidirectional reconciler.
+        assert "AIRFLOW_TARGET_VERSION" in args[2]
+        assert "airflow db downgrade" in args[2]
+        assert "airflow db migrate" in args[2]
+
+    def test_user_supplied_args_still_win(self):
+        custom_args = ["bash", "-c", "exec airflow db migrate"]
+        docs = render_chart(
+            values={"migrateDatabaseJob": {"args": custom_args}},
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == custom_args
+
+    def test_user_supplied_command_still_wins(self):
+        custom_command = ["/bin/my-entrypoint"]
+        docs = render_chart(
+            values={"migrateDatabaseJob": {"command": custom_command}},
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) == custom_command
+
+    def test_airflow_target_version_env_uses_airflow_version(self):
+        docs = render_chart(
+            values={"airflowVersion": "3.1.8"},
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        env = jmespath.search("spec.template.spec.containers[0].env", docs[0])
+        target_var = next((e for e in env if e["name"] == "AIRFLOW_TARGET_VERSION"), None)
+        assert target_var is not None
+        assert target_var["value"] == "3.1.8"
+
+    def test_pod_namespace_env_injected_via_downward_api(self):
+        docs = render_chart(
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        env = jmespath.search("spec.template.spec.containers[0].env", docs[0])
+        ns_var = next((e for e in env if e["name"] == "POD_NAMESPACE"), None)
+        assert ns_var is not None
+        assert ns_var["valueFrom"]["fieldRef"]["fieldPath"] == "metadata.namespace"
+
+    def test_release_name_env_set(self):
+        # The downgrade branch scopes the scale-to-zero step to workloads
+        # owned by this helm release via ``release=<RELEASE_NAME>``.
+        docs = render_chart(
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        env = jmespath.search("spec.template.spec.containers[0].env", docs[0])
+        release_var = next((e for e in env if e["name"] == "RELEASE_NAME"), None)
+        assert release_var is not None
+        assert release_var["value"] == "release-name"
+
     def test_should_add_extra_volumes(self):
         docs = render_chart(
             values={
@@ -352,16 +423,17 @@ class TestMigrateDatabaseJob:
         assert "ttlSecondsAfterFinished" not in spec
 
     def test_default_command_and_args_airflow_version(self):
+        # Default args now embed the bidirectional reconciliation script.
+        # The "args still win" / "command still wins" / "script body present"
+        # cases above cover the override semantics in detail.
         docs = render_chart(
             show_only=["templates/jobs/migrate-database-job.yaml"],
         )
 
         assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
-        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [
-            "bash",
-            "-c",
-            "exec \\\nairflow db migrate",
-        ]
+        args = jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        assert args[:2] == ["python", "-c"]
+        assert "airflow db migrate" in args[2]
 
     @pytest.mark.parametrize("command", [None, ["custom", "command"]])
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])
@@ -372,7 +444,13 @@ class TestMigrateDatabaseJob:
         )
 
         assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
-        assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        if args is None:
+            # When args is unset, the chart's bidirectional default kicks in
+            # (covered in detail by other tests in this class).
+            rendered_args = jmespath.search("spec.template.spec.containers[0].args", docs[0])
+            assert rendered_args[:2] == ["python", "-c"]
+        else:
+            assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_command_and_args_overrides_are_templated(self):
         docs = render_chart(
