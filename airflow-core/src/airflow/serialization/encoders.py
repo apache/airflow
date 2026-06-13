@@ -363,7 +363,10 @@ class _Serializer:
 
     @serialize_timetable.register
     def _(self, timetable: AssetTriggeredTimetable) -> dict[str, Any]:
-        return {"asset_condition": encode_asset_like(timetable.asset_condition)}
+        return {
+            "asset_condition": encode_asset_like(timetable.asset_condition),
+            "batch_asset_events": timetable.batch_asset_events,
+        }
 
     @serialize_timetable.register
     def _(self, timetable: EventsTimetable) -> dict[str, Any]:
