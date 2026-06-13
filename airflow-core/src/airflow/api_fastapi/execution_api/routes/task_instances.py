@@ -40,6 +40,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
+from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import override_ids
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
@@ -158,6 +159,9 @@ def ti_run(
             TI.try_number,
             TI.max_tries,
             TI.start_date,
+            TI.end_date,
+            TI.queued_dttm,
+            TI.queue,
             TI.next_method,
             TI.hostname,
             TI.unixname,
@@ -256,6 +260,20 @@ def ti_run(
     try:
         result = session.execute(query)
         log.info("Task instance state updated", rows_affected=getattr(result, "rowcount", 0))
+
+        # queued_duration was historically emitted on the move to RUNNING; in Airflow 3 that
+        # transition happens here rather than in the ORM, so emit it here (mirrors scheduled_duration).
+        # Emit only on the first try (no prior end_date), matching the Airflow 2 behavior.
+        if (
+            previous_state in (TaskInstanceState.QUEUED, TaskInstanceState.RESTARTING)
+            and ti.queued_dttm
+            and ti.end_date is None
+        ):
+            stats.timing(
+                "task.queued_duration",
+                timezone.utcnow() - ti.queued_dttm,
+                tags={"task_id": ti.task_id, "dag_id": ti.dag_id, "queue": ti.queue},
+            )
 
         dr = (
             session.scalars(
