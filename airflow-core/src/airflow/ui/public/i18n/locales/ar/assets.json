@@ -19,7 +19,7 @@
     "emptyState": "يخزّن مخزن الأصول قيماً مرتبطة بهوية الأصل، وتكون مشتركة عبر جميع تشغيلات Dag. يمكن للعمّال الكتابة إلى مخزن الأصول عبر Task SDK.",
     "lastUpdatedBy": "آخر تحديث بواسطة",
     "lastUpdatedByApi": "API",
-    "lastUpdatedByWatcher": "Watcher",
+    "lastUpdatedByWatcher": "المراقب",
     "title": "مخزن الأصول"
   },
   "consumingDags": "Dags المستهلكة",
