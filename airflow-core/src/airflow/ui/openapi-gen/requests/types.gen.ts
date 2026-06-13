@@ -3092,7 +3092,7 @@ export type WaitDagRunUntilFinishedData = {
      */
     interval: number;
     /**
-     * Collect result XCom from task. Can be set multiple times.
+     * Collect result XCom from task. Can be set multiple times. If unset, return value of the return task as specified in the dag (in present) is returned by default.
      */
     result?: Array<(string)> | null;
 };
