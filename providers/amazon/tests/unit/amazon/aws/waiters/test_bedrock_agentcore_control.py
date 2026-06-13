@@ -24,6 +24,17 @@ import pytest
 
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentCoreControlHook
 
+try:
+    botocore.session.get_session().get_service_model("bedrock-agentcore-control")
+    HAS_BEDROCK_AGENTCORE = True
+except botocore.exceptions.UnknownServiceError:
+    HAS_BEDROCK_AGENTCORE = False
+
+pytestmark = pytest.mark.skipif(
+    not HAS_BEDROCK_AGENTCORE,
+    reason="bedrock-agentcore-control not available in this botocore version",
+)
+
 
 class TestBedrockAgentCoreControlCustomWaiters:
     def test_service_waiters(self):
