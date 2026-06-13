@@ -285,14 +285,16 @@ def _validate_backfill_params(
         raise InvalidBackfillDate("Backfill cannot be executed for future dates.")
 
     depends_on_past = any(x.depends_on_past for x in dag.tasks)
-    if depends_on_past:
+    has_previous_tasks_dep = any(getattr(x, "depends_on_previous_tasks", None) for x in dag.tasks)
+    if depends_on_past or has_previous_tasks_dep:
         if reverse is True:
             raise InvalidBackfillDirection(
-                "Backfill cannot be run in reverse when the Dag has tasks where depends_on_past=True."
+                "Backfill cannot be run in reverse when the Dag has tasks where "
+                "depends_on_past=True or depends_on_previous_tasks is set."
             )
         if reprocess_behavior in (None, ReprocessBehavior.NONE):
             raise InvalidReprocessBehavior(
-                "Dag has tasks for which depends_on_past=True. "
+                "Dag has tasks for which depends_on_past=True or depends_on_previous_tasks is set. "
                 "You must set reprocess behavior to reprocess completed or reprocess failed."
             )
     if dag_run_conf is not None:
