@@ -1242,7 +1242,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 else:
                     consecutive_unknown = 0
                 time.sleep(poll_interval)
-            self._delete_driver_pod()
+            # Pod deletion is best-effort cleanup. If it fails (e.g. already garbage collected or RBAC
+            # denied), suppress the error so terminal_phase is still returned and the task
+            # succeeds. Raising here would skip the task_store write and force an unnecessary retry.
+            with contextlib.suppress(Exception):
+                self._delete_driver_pod()
             return terminal_phase
         finally:
             self._run_post_submit_commands()
