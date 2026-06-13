@@ -1228,12 +1228,20 @@ class KubernetesPodOperator(BaseOperator):
         istio_enabled = self.is_istio_enabled(remote_pod)
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, "status") else None
 
-        # if the pod fails or success, but we don't want to delete it
-        if (
-            pod_phase != PodPhase.SUCCEEDED
-            or self.on_finish_action == OnFinishAction.KEEP_POD
-            or self.on_finish_action == OnFinishAction.DELETE_ACTIVE_POD
-        ):
+        should_delete = (
+            self.on_finish_action == OnFinishAction.DELETE_POD
+            or (
+                self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
+                and pod_phase == PodPhase.SUCCEEDED
+            )
+            or (
+                self.on_finish_action == OnFinishAction.DELETE_ACTIVE_POD
+                and pod_phase in {PodPhase.RUNNING, PodPhase.PENDING}
+            )
+        )
+
+        # Patch the pod unless it is a succeeded pod that will be deleted.
+        if not (pod_phase == PodPhase.SUCCEEDED and should_delete):
             self.patch_already_checked(remote_pod, reraise=False)
 
         if istio_enabled or self.do_xcom_push:
