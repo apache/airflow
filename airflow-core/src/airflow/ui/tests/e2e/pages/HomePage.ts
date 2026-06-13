@@ -19,6 +19,9 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
 
+import type { UIAlert } from "openapi/requests/types.gen";
+import { COLLAPSED_UI_ALERTS_KEY } from "src/constants/localStorage";
+
 /**
  * Home/Dashboard Page Object
  */
@@ -28,6 +31,11 @@ export class HomePage extends BasePage {
   }
 
   public readonly activeDagsCard: Locator;
+  public readonly alertsAccordionContent: Locator;
+  public readonly alertsAccordionTrigger: Locator;
+  public readonly alertSeeLessButton: Locator;
+  public readonly alertSeeMoreButton: Locator;
+  public readonly alertsShowMoreButton: Locator;
   public readonly dagImportErrorsCard: Locator;
   public readonly dagProcessorHealth: Locator;
   public readonly dagRunMetrics: Locator;
@@ -69,6 +77,15 @@ export class HomePage extends BasePage {
     this.historicalMetricsSection = page.getByRole("heading", { name: "History" }).locator("..");
     this.dagRunMetrics = page.getByRole("heading", { name: /dag run/i }).first();
     this.taskInstanceMetrics = page.getByRole("heading", { name: /task instance/i }).first();
+
+    const alertsAccordion = page.getByTestId("dashboard-alerts");
+
+    this.alertsAccordionTrigger = alertsAccordion.locator('[data-part="item-trigger"]');
+    this.alertsAccordionContent = alertsAccordion.locator('[data-part="item-content"]').first();
+    this.alertsShowMoreButton = page.getByRole("button", { name: /more alert/i });
+
+    this.alertSeeMoreButton = page.getByRole("button", { exact: true, name: "See more" });
+    this.alertSeeLessButton = page.getByRole("button", { exact: true, name: "See less" });
   }
 
   /**
@@ -76,6 +93,13 @@ export class HomePage extends BasePage {
    */
   public async getActiveDagsCount(): Promise<number> {
     return this.getStatsCardCount(this.activeDagsCard);
+  }
+
+  /**
+   * Read the persisted collapsed state from localStorage
+   */
+  public async getAlertsCollapsedFromStorage(): Promise<boolean> {
+    return this.page.evaluate((key) => localStorage.getItem(key) === "true", COLLAPSED_UI_ALERTS_KEY);
   }
 
   /**
@@ -101,6 +125,22 @@ export class HomePage extends BasePage {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Stub the /ui/config response so the dashboard renders the given alerts.
+   */
+  public async mockDashboardAlerts(alerts: Array<UIAlert>): Promise<void> {
+    await this.page.route("**/ui/config", async (route) => {
+      const response = await route.fetch();
+      const body = (await response.json()) as Record<string, unknown>;
+
+      await route.fulfill({
+        body: JSON.stringify({ ...body, dashboard_alert: alerts }),
+        contentType: "application/json",
+        status: response.status(),
+      });
+    });
   }
 
   /**
