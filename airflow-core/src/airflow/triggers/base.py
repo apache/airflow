@@ -268,10 +268,9 @@ class BaseEventTrigger(BaseTrigger):
       events. Called once per group in the triggerer.
     * :meth:`filter_shared_stream` — convert the shared raw stream into this
       trigger's own ``TriggerEvent`` instances, applying any per-trigger
-      filtering or transformation. In ack mode, the stream yields
-      ``(event, token)`` pairs, where ``token`` is an
-      :class:`~airflow.triggers.shared_stream.AckToken`; call
-      ``await token.ack()`` once the event is accepted.
+      filtering or transformation. The stream has the same shape in ack
+      mode as on the fast path, so the filter needs no mode-specific
+      branches.
 
     Triggers whose ``shared_stream_key`` returns ``None`` (the default)
     keep the existing behavior: each trigger gets its own poll loop via
@@ -284,11 +283,11 @@ class BaseEventTrigger(BaseTrigger):
     :class:`~airflow.triggers.shared_stream.SharedStreamProducer` owns the
     broker connection, supplies events through its ``open_stream`` method
     (instead of :meth:`open_shared_stream`), and is told to advance the
-    broker — commit, delete, or ack the message — once all subscribers that
-    were online at broadcast time have resolved an event and the trigger
-    events they derived from it were persisted to the metadata database.
-    When this factory is not overridden, the fast path is taken: no ack
-    tokens are issued and subscribers receive raw events exactly as before.
+    broker — commit, delete, or ack the messages — through per-lane batches
+    of events whose subscribers have all moved past them and whose derived
+    trigger events were persisted to the metadata database. Subscribers
+    receive raw events in both modes; ack mode changes only the bookkeeping
+    behind the stream, never the filter code.
 
     See :mod:`airflow.triggers.shared_stream` for the full ack-mode design,
     including snapshot-at-fan-out semantics, per-event timeout behavior, and
@@ -384,15 +383,15 @@ class BaseEventTrigger(BaseTrigger):
         The manager calls it once per shared-stream group; the returned
         :class:`~airflow.triggers.shared_stream.SharedStreamProducer` owns
         the broker connection for the lifetime of one poll — it supplies
-        events through ``open_stream``, is told to advance the broker once
-        all subscribers have resolved an event and the trigger events they
-        derived from it were persisted, and is closed when the poll ends.
-        Do not open the broker connection here; open it lazily inside the
-        producer's ``open_stream``.
+        events through ``open_stream``, is told to advance the broker in
+        per-lane batches of events whose subscribers have all moved past
+        them and had their derived trigger events confirmed persisted, and
+        is closed when the poll ends. Do not open the broker connection
+        here; open it lazily inside the producer's ``open_stream``.
 
-        Triggers that do not override this method run the fast path: no ack
-        tokens are issued and subscribers receive raw events from
-        :meth:`open_shared_stream` exactly as before.
+        Triggers that do not override this method run the fast path:
+        subscribers receive raw events from :meth:`open_shared_stream`
+        exactly as before. The stream shape is the same in both modes.
         """
         raise NotImplementedError(f"{cls.__name__} does not implement create_shared_stream_producer")
 
@@ -405,6 +404,11 @@ class BaseEventTrigger(BaseTrigger):
         ``shared_stream`` to receive raw events from the shared poll, and
         ``yield`` a :class:`TriggerEvent` for each one that should fire this
         trigger.
+
+        In ack mode, to have the broker terminally drop a raw event rather
+        than producing a trigger event from it, call
+        :func:`~airflow.triggers.shared_stream.reject_shared_stream_event`
+        while handling that raw event instead of yielding.
 
         Required only when :meth:`shared_stream_key` returns non-``None``.
         """

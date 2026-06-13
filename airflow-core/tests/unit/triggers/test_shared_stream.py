@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import asyncio
 import time
-import weakref
 from collections.abc import Callable
 from contextlib import asynccontextmanager, suppress
+from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
@@ -29,13 +29,13 @@ import structlog
 from airflow.triggers.base import BaseEventTrigger, TriggerEvent
 from airflow.triggers.shared_stream import (
     AckTimeout,
-    AckToken,
     AdvanceOutcome,
     SharedStreamManager,
     SharedStreamProducer,
     _PollFailure,
     _SharedStreamGroup,
     _SubscriberOverflow,
+    reject_shared_stream_event,
 )
 
 
@@ -711,9 +711,10 @@ class _RecordingProducer(SharedStreamProducer):
             return None
         return self._lane_for(broker_payload)
 
-    async def advance(self, broker_payload, outcome):
-        self._trigger_cls.advanced.append(broker_payload)
-        self._trigger_cls.outcomes.append(outcome)
+    async def advance(self, batch):
+        self._trigger_cls.batches.append([item.broker_payload for item in batch])
+        self._trigger_cls.advanced.extend(item.broker_payload for item in batch)
+        self._trigger_cls.outcomes.extend(item.outcome for item in batch)
 
     async def aclose(self):
         self._trigger_cls.aclose_calls += 1
@@ -723,12 +724,15 @@ def _make_ack_required_trigger_class(events_with_payloads: list[tuple], *, lane_
     """
     Return a fresh trigger class whose ``create_shared_stream_producer``
     returns a :class:`_RecordingProducer` yielding ``(event, broker_payload)``
-    tuples and recording each advance call into class-level lists.
+    tuples and recording each advance call into class-level lists —
+    ``batches`` keeps one list per call, ``advanced`` / ``outcomes`` are the
+    flattened projections.
     """
 
     class _AckRequiredTrigger(_ProgrammableSharedStreamTrigger):
         advanced: list = []
         outcomes: list[AdvanceOutcome] = []
+        batches: list[list] = []
         aclose_calls: int = 0
 
         @classmethod
@@ -736,11 +740,38 @@ def _make_ack_required_trigger_class(events_with_payloads: list[tuple], *, lane_
             return _RecordingProducer(cls, events_with_payloads, lane_for=lane_for)
 
         async def filter_shared_stream(self, shared_stream):
-            async for raw, token in shared_stream:
-                await token.ack()
+            async for raw in shared_stream:
                 yield TriggerEvent(raw)
 
     return _AckRequiredTrigger
+
+
+def _make_reject_trigger_class(events_with_payloads: list[tuple], *, lane_for: Callable | None = None):
+    """
+    Like :func:`_make_ack_required_trigger_class`, but the filter rejects any
+    raw event whose payload is truthy on ``"reject"`` (calling
+    :func:`reject_shared_stream_event` instead of yielding) and yields a
+    ``TriggerEvent`` for the rest.
+    """
+
+    class _RejectTrigger(_ProgrammableSharedStreamTrigger):
+        advanced: list = []
+        outcomes: list[AdvanceOutcome] = []
+        batches: list[list] = []
+        aclose_calls: int = 0
+
+        @classmethod
+        def create_shared_stream_producer(cls, kwargs):
+            return _RecordingProducer(cls, events_with_payloads, lane_for=lane_for)
+
+        async def filter_shared_stream(self, shared_stream):
+            async for raw in shared_stream:
+                if raw.get("reject"):
+                    reject_shared_stream_event()
+                    continue
+                yield TriggerEvent(raw)
+
+    return _RejectTrigger
 
 
 async def _collect_ack_stream(trigger, stream, *, n: int) -> list:
@@ -762,8 +793,8 @@ class _BackgroundCollector:
     resumed and the item's binding window closes — exactly what a production
     ``filter_shared_stream`` loop does when it goes back for the next raw
     event. Breaking out of the loop instead would leave the generator
-    suspended at its yield with the binding window open, so an ack could
-    never complete.
+    suspended at its yield with the binding window open, so the event could
+    never resolve.
     """
 
     def __init__(self) -> None:
@@ -771,11 +802,6 @@ class _BackgroundCollector:
         # The exception (e.g. an injected AckTimeout) that ended the stream,
         # if any; the consuming task records it here instead of propagating.
         self.error: BaseException | None = None
-
-    @property
-    def tokens(self) -> list[AckToken]:
-        """The AckTokens collected so far (ack-mode raw streams only)."""
-        return [token for _raw, token in self.items]
 
     async def wait_for(self, n: int, *, timeout: float = 1.0) -> list:
         """Wait until ``n`` items have been collected and return them."""
@@ -865,8 +891,8 @@ def test_is_ack_required_multi_level_inheritance(override_level, expected):
 
 
 @pytest.mark.asyncio
-async def test_ack_required_producer_advances_after_all_subscribers_ack():
-    """Producer's advance hook fires exactly once after both subscribers ack."""
+async def test_ack_required_producer_advances_after_all_subscribers_resolve():
+    """Producer's advance hook fires exactly once after both subscribers move past the event."""
     cls = _make_ack_required_trigger_class(
         [
             ({"msg": "hello"}, "receipt-1"),
@@ -878,32 +904,34 @@ async def test_ack_required_producer_advances_after_all_subscribers_ack():
     t1, t2 = cls(), cls()
     key = t1.shared_stream_key()
     manager = SharedStreamManager()
+    next_task = None
     try:
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
         s2 = manager.subscribe(trigger_id=2, trigger=t2, key=key)
 
-        # Collect the (event, token) tuples without acking yet.
-        async with _consume_in_background(s1) as c1, _consume_in_background(s2) as c2:
-            await c1.wait_for(1)
+        # Subscriber 1 pulls the event and stays on it; subscriber 2 consumes
+        # it like a real filter loop (and thereby resolves it).
+        it1 = s1.__aiter__()
+        await _pull_raw(it1)
+        async with _consume_in_background(s2) as c2:
             await c2.wait_for(1)
-            tokens: list[AckToken] = [c1.tokens[0], c2.tokens[0]]
+            await asyncio.sleep(0)
+            assert len(cls.advanced) == 0, "advance must not fire while one subscriber is still on the event"
 
-            assert len(cls.advanced) == 0, "advance must not fire before all acks"
-
-            await tokens[0].ack()
-            assert len(cls.advanced) == 0, "advance must not fire after only one ack"
-
-            await tokens[1].ack()
+            next_task = await _resume_past_yield(it1)
             await asyncio.sleep(0)  # let the advance pump run
-            assert cls.advanced == ["receipt-1"], "advance must fire exactly once after all acks"
+            assert cls.advanced == ["receipt-1"], (
+                "advance must fire exactly once after all subscribers resolve"
+            )
     finally:
+        await _cancel_quietly(next_task)
         await manager.unsubscribe(1, key)
         await manager.unsubscribe(2, key)
 
 
 @pytest.mark.asyncio
-async def test_ack_required_producer_does_not_advance_on_partial_ack():
-    """Producer does not advance when only one of two subscribers has acknowledged."""
+async def test_ack_required_producer_does_not_advance_on_partial_resolution():
+    """Producer does not advance while one of two subscribers is still on the event."""
     cls = _make_ack_required_trigger_class(
         [
             ({"msg": "partial"}, "receipt-partial"),
@@ -919,28 +947,14 @@ async def test_ack_required_producer_does_not_advance_on_partial_ack():
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
         s2 = manager.subscribe(trigger_id=2, trigger=t2, key=key)
 
-        token1 = None
-        got_s2 = asyncio.Event()
-
-        async def grab_token1(stream):
-            nonlocal token1
-            async for _raw, token in stream:
-                token1 = token
-                break
-
-        async def drain_s2(stream):
-            async for _ in stream:  # pragma: no branch
-                got_s2.set()
-                break
-
-        await asyncio.gather(
-            asyncio.wait_for(grab_token1(s1), timeout=1.0),
-            asyncio.wait_for(drain_s2(s2), timeout=1.0),
-        )
-
-        await token1.ack()
-        await asyncio.sleep(0)
-        assert cls.advanced == [], "producer must not advance with only one of two acks"
+        # Subscriber 1 pulls the event but never resumes past it.
+        it1 = s1.__aiter__()
+        await _pull_raw(it1)
+        # Subscriber 2 consumes and resolves it.
+        async with _consume_in_background(s2) as c2:
+            await c2.wait_for(1)
+            await asyncio.sleep(0)
+            assert cls.advanced == [], "producer must not advance while a subscriber is still on the event"
     finally:
         await manager.unsubscribe(1, key)
         await manager.unsubscribe(2, key)
@@ -974,18 +988,16 @@ async def test_ack_timeout_force_fails_slow_subscriber_only():
         s_slow = manager.subscribe(trigger_id=2, trigger=t_slow, key=key)
 
         async def drain_slow(stream):
-            # Pull the (event, token) pair off the slow stream but never ack —
-            # the deliberately stalled subscriber the timeout must catch.
+            # Pull the raw event off the slow stream and stay on it — the
+            # deliberately stalled subscriber the timeout must catch.
             async for _ in stream:
                 break
 
         async with _consume_in_background(s_fast) as fast_collector:
+            # The fast subscriber consumes the event and resolves; the slow
+            # one stays on it.
             await fast_collector.wait_for(1)
             await asyncio.wait_for(drain_slow(s_slow), timeout=1.0)
-            token_fast = fast_collector.tokens[0]
-
-            # fast acks; slow doesn't.
-            await token_fast.ack()
 
             # Advance fake clock past ack_timeout; the timeout loop sees now() - created_at >= 0.1.
             fake_clock[0] = 0.2
@@ -998,14 +1010,14 @@ async def test_ack_timeout_force_fails_slow_subscriber_only():
             assert isinstance(sentinel, _PollFailure)
             assert isinstance(sentinel.exc, AckTimeout)
 
-            # Fast subscriber (already acked) must not have received a spurious AckTimeout.
+            # Fast subscriber (already resolved) must not have received a spurious AckTimeout.
             fast_queue = manager._groups[key]._subscribers.get(1)
             assert fast_queue is not None
             assert fast_queue.empty(), (
-                "fast (already-acked) subscriber must not receive a spurious AckTimeout"
+                "fast (already-resolved) subscriber must not receive a spurious AckTimeout"
             )
             assert fast_collector.error is None, (
-                "fast (already-acked) subscriber must not receive a spurious AckTimeout"
+                "fast (already-resolved) subscriber must not receive a spurious AckTimeout"
             )
 
             # After timeout the advance should have fired (pending emptied).
@@ -1017,7 +1029,7 @@ async def test_ack_timeout_force_fails_slow_subscriber_only():
 
 @pytest.mark.asyncio
 async def test_ack_timeout_at_cap_boundary_does_not_timeout():
-    """Subscriber acking inside the window (< ack_timeout) must NOT be force-failed."""
+    """Subscriber resolving inside the window (< ack_timeout) must NOT be force-failed."""
     cls = _make_ack_required_trigger_class(
         [
             ({"msg": "boundary-test"}, "receipt-boundary"),
@@ -1036,35 +1048,36 @@ async def test_ack_timeout_at_cap_boundary_does_not_timeout():
         return fake_clock[0]
 
     manager = SharedStreamManager(ack_timeout=0.1, _now=now)
+    next_task = None
     try:
         stream = manager.subscribe(trigger_id=1, trigger=t1, key=key)
 
-        async with _consume_in_background(stream) as collector:
-            await collector.wait_for(1)
-            token_ref = collector.tokens[0]
+        # Pull the event and stay on it so it remains outstanding.
+        it = stream.__aiter__()
+        await _pull_raw(it)
 
-            # Advance fake clock to 99 ms — strictly inside the 100 ms ack_timeout window.
-            # now() - created_at = 0.099 < 0.1, so the timeout loop must NOT fire.
-            fake_clock[0] = 0.099
-            # Let the timeout loop tick a few cadence cycles (cadence = max(0.01, 0.1/10) = 0.01s real).
-            await asyncio.sleep(0.05)
+        # Advance fake clock to 99 ms — strictly inside the 100 ms ack_timeout window.
+        # now() - created_at = 0.099 < 0.1, so the timeout loop must NOT fire.
+        fake_clock[0] = 0.099
+        # Let the timeout loop tick a few cadence cycles (cadence = max(0.01, 0.1/10) = 0.01s real).
+        await asyncio.sleep(0.05)
 
-            subscriber_queue = manager._groups[key]._subscribers.get(1)
-            assert subscriber_queue is not None
-            assert subscriber_queue.empty(), "subscriber must not have been force-failed at t=99ms"
-            assert collector.error is None, "subscriber must not have been force-failed at t=99ms"
+        subscriber_queue = manager._groups[key]._subscribers.get(1)
+        assert subscriber_queue is not None
+        assert subscriber_queue.empty(), "subscriber must not have been force-failed at t=99ms"
 
-            # Now ack — advance should fire.
-            await token_ref.ack()
-            await asyncio.sleep(0)
-            assert cls.advanced == ["receipt-boundary"]
+        # Now move past the event — advance should fire.
+        next_task = await _resume_past_yield(it)
+        await asyncio.sleep(0)
+        assert cls.advanced == ["receipt-boundary"]
     finally:
+        await _cancel_quietly(next_task)
         await manager.stop_all()
 
 
 @pytest.mark.asyncio
 async def test_ack_timeout_exactly_at_timeout_force_fails():
-    """Subscriber whose ack is exactly ``ack_timeout`` old IS force-failed (elapsed >= timeout)."""
+    """Subscriber still on an event exactly ``ack_timeout`` old IS force-failed (elapsed >= timeout)."""
     cls = _make_ack_required_trigger_class(
         [
             ({"msg": "exact-boundary"}, "receipt-exact"),
@@ -1087,7 +1100,7 @@ async def test_ack_timeout_exactly_at_timeout_force_fails():
         stream = manager.subscribe(trigger_id=1, trigger=t1, key=key)
 
         async def drain_one(s):
-            # Pull the (event, token) tuple but never ack.
+            # Pull the raw event and stay on it — never resume past the yield.
             async for _ in s:
                 break
 
@@ -1173,8 +1186,8 @@ async def test_late_subscriber_does_not_block_advance_of_earlier_event():
             yield {"msg": "late-test"}, "receipt-late"
             await asyncio.Event().wait()
 
-        async def advance(self, broker_payload, outcome):
-            self._trigger_cls.advanced.append(broker_payload)
+        async def advance(self, batch):
+            self._trigger_cls.advanced.extend(item.broker_payload for item in batch)
 
     class _LateTrigger(_ProgrammableSharedStreamTrigger):
         advanced: list = []
@@ -1184,8 +1197,7 @@ async def test_late_subscriber_does_not_block_advance_of_earlier_event():
             return _LateProducer(cls)
 
         async def filter_shared_stream(self, shared_stream):
-            async for raw, token in shared_stream:
-                await token.ack()
+            async for raw in shared_stream:
                 yield TriggerEvent(raw)
 
     _LateTrigger.advanced.clear()
@@ -1202,7 +1214,7 @@ async def test_late_subscriber_does_not_block_advance_of_earlier_event():
         proceed.set()
 
         # Give the poll task a few ticks to run past the yield and put the
-        # (event, token) tuple into the early subscriber's queue.
+        # raw event into the early subscriber's queue.
         deadline = asyncio.get_event_loop().time() + 1.0
         while asyncio.get_event_loop().time() < deadline:
             if manager._groups[key]._outstanding:
@@ -1218,13 +1230,13 @@ async def test_late_subscriber_does_not_block_advance_of_earlier_event():
         assert entry is not None
         assert 2 not in entry.pending, "late subscriber must not be in the pending set of earlier event"
 
-        # Collect from early subscriber (filter acks immediately).
+        # Collect from early subscriber (the filter loop resolves the event).
         async with _consume_in_background(t_early.filter_shared_stream(s_early)) as collector:
             events = await collector.wait_for(1)
             assert len(events) == 1
 
             await asyncio.sleep(0)
-            # The late subscriber did not participate in ack set; advance must have fired.
+            # The late subscriber did not participate in the pending set; advance must have fired.
             assert _LateTrigger.advanced == ["receipt-late"]
     finally:
         await manager.unsubscribe(1, key)
@@ -1232,97 +1244,8 @@ async def test_late_subscriber_does_not_block_advance_of_earlier_event():
 
 
 @pytest.mark.asyncio
-async def test_nack_removes_subscriber_from_ack_set_without_redeliver():
-    """nack() removes the subscriber from the pending set; no redeliver happens."""
-    cls = _make_ack_required_trigger_class(
-        [
-            ({"msg": "nack-test"}, "receipt-nack"),
-        ]
-    )
-    cls.advanced.clear()
-    cls.outcomes.clear()
-
-    t1, t2 = cls(), cls()
-    key = t1.shared_stream_key()
-    manager = SharedStreamManager()
-    try:
-        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
-        s2 = manager.subscribe(trigger_id=2, trigger=t2, key=key)
-
-        async with _consume_in_background(s1) as c1, _consume_in_background(s2) as c2:
-            await c1.wait_for(1)
-            await c2.wait_for(1)
-
-            # t1 acks, t2 nacks.
-            await c1.tokens[0].ack()
-            await c2.tokens[0].nack()
-            await asyncio.sleep(0)
-
-            assert cls.advanced == ["receipt-nack"], "advance must fire after ack + nack"
-
-            # No redelivery — the manager has no redeliver mechanism.
-            group = manager._groups.get(key)
-            if group:
-                assert len(group._outstanding) == 0
-    finally:
-        await manager.unsubscribe(1, key)
-        await manager.unsubscribe(2, key)
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("first", "second", "expected_outcome"),
-    [
-        pytest.param("ack", "nack", AdvanceOutcome(acked=1, nacked=0, failed=0), id="ack-then-nack"),
-        pytest.param("nack", "ack", AdvanceOutcome(acked=0, nacked=1, failed=0), id="nack-then-ack"),
-        pytest.param("ack", "ack", AdvanceOutcome(acked=1, nacked=0, failed=0), id="ack-then-ack"),
-        pytest.param("nack", "nack", AdvanceOutcome(acked=0, nacked=1, failed=0), id="nack-then-nack"),
-    ],
-)
-async def test_double_resolution_is_noop_and_counts_once(first, second, expected_outcome):
-    """Any second resolution call on a token is a no-op — _resolved blocks it.
-
-    advance fires exactly once, and the subscriber is counted once, by the
-    first call's resolution.
-    """
-    cls = _make_ack_required_trigger_class(
-        [
-            ({"msg": "cross-order"}, "receipt-cross"),
-        ]
-    )
-    cls.advanced.clear()
-    cls.outcomes.clear()
-
-    t1 = cls()
-    key = t1.shared_stream_key()
-    manager = SharedStreamManager()
-    try:
-        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
-
-        async with _consume_in_background(s1) as collector:
-            await collector.wait_for(1)
-            token = collector.tokens[0]
-            assert token is not None
-
-            # First call — should resolve the token and advance.
-            await getattr(token, first)()
-            await asyncio.sleep(0)
-            assert cls.advanced == ["receipt-cross"]
-
-            # Second call — must be a no-op, not raise; advance must not fire again.
-            await getattr(token, second)()
-            await asyncio.sleep(0)
-            assert cls.advanced == ["receipt-cross"], (
-                f"{second}() after {first}() must not trigger a second advance"
-            )
-            assert cls.outcomes == [expected_outcome]
-    finally:
-        await manager.unsubscribe(1, key)
-
-
-@pytest.mark.asyncio
-async def test_subscriber_unsubscribe_during_outstanding_ack():
-    """When a subscriber leaves while its ack is pending, the group advances without it."""
+async def test_subscriber_unsubscribe_during_outstanding_event():
+    """When a subscriber leaves while still on an event, the group advances without it."""
     cls = _make_ack_required_trigger_class(
         [
             ({"msg": "unsub-during-ack"}, "receipt-unsub"),
@@ -1338,17 +1261,19 @@ async def test_subscriber_unsubscribe_during_outstanding_ack():
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
         s2 = manager.subscribe(trigger_id=2, trigger=t2, key=key)
 
-        async with _consume_in_background(s1) as c1, _consume_in_background(s2) as c2:
+        # t1 consumes and resolves; t2 pulls the event, stays on it, then leaves.
+        it2 = s2.__aiter__()
+        async with _consume_in_background(s1) as c1:
             await c1.wait_for(1)
-            await c2.wait_for(1)
+            await _pull_raw(it2)
+            await asyncio.sleep(0)
+            assert cls.advanced == [], "the event still waits on subscriber 2"
 
-            # t1 acks; t2 leaves without acking (implicit ack-out via unsubscribe).
-            await c1.tokens[0].ack()
             await manager.unsubscribe(2, key)
             await asyncio.sleep(0)
 
             assert cls.advanced == ["receipt-unsub"], (
-                "unsubscribe must trigger implicit ack-out so producer can advance"
+                "unsubscribe must resolve the departing subscriber so the producer can advance"
             )
     finally:
         await manager.unsubscribe(1, key)
@@ -1370,10 +1295,9 @@ async def test_ack_mode_queue_full_during_fanout_does_not_break_iteration():
         s_ok = manager.subscribe(trigger_id=2, trigger=t_ok, key=key)
 
         # Pre-fill trigger 1's queue so put_nowait raises QueueFull at fan-out.
+        # The filler mirrors the internal (raw_event, event_id) queue shape.
         group = manager._groups[key]
-        group._subscribers[1].put_nowait(
-            ("filler", AckToken(event_id=-1, trigger_id=1, group_ref=weakref.ref(group)))
-        )
+        group._subscribers[1].put_nowait(("filler", -1))
 
         # t_full: its queue will be drained + replaced by _PollFailure(_SubscriberOverflow).
         # _drain() raises the inner exception, so we expect _SubscriberOverflow here.
@@ -1398,7 +1322,7 @@ async def test_ack_mode_queue_full_during_fanout_does_not_break_iteration():
             assert len(full_exc) == 1
             assert isinstance(full_exc[0], _SubscriberOverflow)
 
-            # t_ok got the real event and acknowledged it → advance was triggered.
+            # t_ok got the real event and resolved it → advance was triggered.
             assert len(ok_result) == 1
             assert ok_result[0].payload == {"msg": "burst"}
             assert cls.advanced == ["receipt-burst"]
@@ -1469,7 +1393,7 @@ async def test_empty_snapshot_advances_in_fanout_order(lane_for, events, expecte
             "advance must be called for every event, in fan-out order, even with no subscribers online"
         )
     assert len(cls.advanced) == len(events)
-    assert cls.outcomes == [AdvanceOutcome(0, 0, 0)] * len(events)
+    assert cls.outcomes == [AdvanceOutcome(0, 0)] * len(events)
     assert all(outcome.is_clean for outcome in cls.outcomes)
 
     del s1  # silence unused-variable warning
@@ -1488,7 +1412,7 @@ async def test_producer_advance_exception_is_logged():
             yield ({"msg": "event-2"}, "payload-2")
             await asyncio.Event().wait()
 
-        async def advance(self, broker_payload, outcome):
+        async def advance(self, batch):
             raise RuntimeError("simulated broker failure")
 
     class _RaisingAdvanceTrigger(_ProgrammableSharedStreamTrigger):
@@ -1497,8 +1421,7 @@ async def test_producer_advance_exception_is_logged():
             return _RaisingAdvanceProducer()
 
         async def filter_shared_stream(self, shared_stream):
-            async for raw, token in shared_stream:
-                await token.ack()
+            async for raw in shared_stream:
                 yield TriggerEvent(raw)
 
     t1 = _RaisingAdvanceTrigger()
@@ -1515,7 +1438,7 @@ async def test_producer_advance_exception_is_logged():
         group.log.error = mock_log_error
 
         async with _consume_in_background(t1.filter_shared_stream(s1)) as collector:
-            # Consume the first event — this triggers an ack and schedules advance.
+            # Consume the first event — the filter loop resolves it and schedules advance.
             events1 = await collector.wait_for(1)
             assert len(events1) == 1
 
@@ -1556,11 +1479,11 @@ async def test_stop_drains_in_flight_advance():
             yield ({"msg": "slow"}, "receipt-slow")
             await asyncio.Event().wait()
 
-        async def advance(self, broker_payload, outcome):
+        async def advance(self, batch):
             advance_started.set()
             await advance_may_finish.wait()
             await asyncio.sleep(0.05)  # ensure stop() must actually wait for us
-            self._trigger_cls.advanced.append(broker_payload)
+            self._trigger_cls.advanced.extend(item.broker_payload for item in batch)
             advance_done_at.append(time.monotonic())
 
     class _SlowAdvanceTrigger(_ProgrammableSharedStreamTrigger):
@@ -1571,8 +1494,7 @@ async def test_stop_drains_in_flight_advance():
             return _SlowAdvanceProducer(cls)
 
         async def filter_shared_stream(self, shared_stream):
-            async for raw, token in shared_stream:
-                await token.ack()
+            async for raw in shared_stream:
                 yield TriggerEvent(raw)
 
     _SlowAdvanceTrigger.advanced.clear()
@@ -1628,8 +1550,8 @@ async def test_ack_mode_late_subscriber_during_poll_failure_window_gets_fresh_gr
             yield {"region": "fresh"}, "receipt-fresh"
             await asyncio.Event().wait()
 
-        async def advance(self, broker_payload, outcome):
-            self._trigger_cls.advanced.append(broker_payload)
+        async def advance(self, batch):
+            self._trigger_cls.advanced.extend(item.broker_payload for item in batch)
 
     class _AckWindowTrigger(_ProgrammableSharedStreamTrigger):
         advanced: list = []
@@ -1639,8 +1561,7 @@ async def test_ack_mode_late_subscriber_during_poll_failure_window_gets_fresh_gr
             return _AckWindowProducer(cls)
 
         async def filter_shared_stream(self, shared_stream):
-            async for raw, token in shared_stream:
-                await token.ack()
+            async for raw in shared_stream:
                 yield TriggerEvent(raw)
 
     _AckWindowTrigger.advanced.clear()
@@ -1707,14 +1628,6 @@ async def test_directory_file_delete_trigger_path_unchanged():
         await manager.unsubscribe(1, key)
 
 
-async def _grab_tokens(stream, tokens: list, *, n: int) -> None:
-    """Pull ``(event, token)`` pairs off ``stream`` until ``tokens`` holds ``n`` items."""
-    async for _raw, token in stream:
-        tokens.append(token)
-        if len(tokens) >= n:
-            break
-
-
 @pytest.mark.asyncio
 async def test_out_of_order_resolve_still_advances_in_fanout_order():
     """Events resolved out of order are advanced strictly in fan-out order."""
@@ -1731,23 +1644,32 @@ async def test_out_of_order_resolve_still_advances_in_fanout_order():
     t1 = cls()
     key = t1.shared_stream_key()
     manager = SharedStreamManager()
+    next_task = None
     try:
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
 
-        async with _consume_in_background(s1) as collector:
-            await collector.wait_for(3)
-            tokens = collector.tokens
+        # Consume all three events, binding one persist seq to each so the
+        # confirmation order — not the consumption order — decides when each
+        # event resolves.
+        it = s1.__aiter__()
+        seqs: list[int] = []
+        for _ in range(3):
+            await _pull_raw(it)
+            seq = manager.bind_pending_event(trigger_id=1, key=key)
+            assert seq is not None
+            seqs.append(seq)
+        next_task = await _resume_past_yield(it)
 
-            # Resolve events 2 and 3 first — nothing may advance while event 1 is pending.
-            await tokens[1].ack()
-            await tokens[2].ack()
-            await asyncio.sleep(0)
-            assert cls.advanced == [], "no advance may run while the head event is unresolved"
+        # Resolve events 2 and 3 first — nothing may advance while event 1 is pending.
+        manager.confirm_persisted([seqs[1], seqs[2]])
+        await asyncio.sleep(0)
+        assert cls.advanced == [], "no advance may run while the head event is unresolved"
 
-            await tokens[0].ack()
-            await asyncio.sleep(0)
-            assert cls.advanced == ["p1", "p2", "p3"], "advances must run in fan-out order"
+        manager.confirm_persisted([seqs[0]])
+        await asyncio.sleep(0)
+        assert cls.advanced == ["p1", "p2", "p3"], "advances must run in fan-out order"
     finally:
+        await _cancel_quietly(next_task)
         await manager.unsubscribe(1, key)
 
 
@@ -1782,11 +1704,11 @@ async def test_pump_serializes_advance_calls(lane_for, payloads, expected_advanc
                     return super().get_advance_lane(broker_payload)
                 return lane_for(broker_payload)
 
-            async def advance(self, broker_payload, outcome):
+            async def advance(self, batch):
                 state["in_flight"] += 1
                 state["max_in_flight"] = max(state["max_in_flight"], state["in_flight"])
                 await release.wait()
-                advanced.append(broker_payload)
+                advanced.extend(item.broker_payload for item in batch)
                 state["in_flight"] -= 1
 
         class _BlockingAdvanceTrigger(_ProgrammableSharedStreamTrigger):
@@ -1795,8 +1717,7 @@ async def test_pump_serializes_advance_calls(lane_for, payloads, expected_advanc
                 return _BlockingAdvanceProducer()
 
             async def filter_shared_stream(self, shared_stream):
-                async for raw, token in shared_stream:
-                    await token.ack()
+                async for raw in shared_stream:
                     yield TriggerEvent(raw)
 
         return _BlockingAdvanceTrigger()
@@ -1808,13 +1729,10 @@ async def test_pump_serializes_advance_calls(lane_for, payloads, expected_advanc
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
 
         async with _consume_in_background(s1) as collector:
+            # Consuming both events resolves them; the pump starts the first
+            # advance, which blocks. No second call may start while one is in
+            # flight.
             await collector.wait_for(2)
-            tokens = collector.tokens
-
-            # Resolve both events; the pump starts the first advance, which
-            # blocks. The second must not start while one is in flight.
-            await tokens[0].ack()
-            await tokens[1].ack()
             for _ in range(5):
                 await asyncio.sleep(0)
             assert state["in_flight"] == 1, "exactly one advance may be in flight"
@@ -1836,11 +1754,6 @@ async def test_pump_serializes_advance_calls(lane_for, payloads, expected_advanc
         await manager.unsubscribe(1, key)
 
 
-# ---------------------------------------------------------------------------
-# Advance lanes (get_advance_lane)
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 async def test_lanes_advance_independently():
     """A lane whose events are resolved does not wait for another lane's unresolved head."""
@@ -1859,34 +1772,42 @@ async def test_lanes_advance_independently():
     t1 = cls()
     key = t1.shared_stream_key()
     manager = SharedStreamManager()
+    next_task = None
     try:
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
         group = manager._groups[key]
 
-        async with _consume_in_background(s1) as collector:
-            await collector.wait_for(4)
-            tokens = collector.tokens
+        # Consume all four events, binding a persist seq to each lane-"a"
+        # event so lane "a" stays unresolved while lane "b" resolves from
+        # consumption alone.
+        it = s1.__aiter__()
+        seqs: dict[str, int] = {}
+        for _ in range(4):
+            raw = await _pull_raw(it)
+            if raw["n"].startswith("a"):
+                seq = manager.bind_pending_event(trigger_id=1, key=key)
+                assert seq is not None
+                seqs[raw["n"]] = seq
+        next_task = await _resume_past_yield(it)
 
-            # Resolve lane "b" completely while lane "a" is fully unresolved.
-            await tokens[1].ack()  # b1
-            await tokens[3].ack()  # b2
-            for _ in range(5):
-                await asyncio.sleep(0)
-            assert cls.advanced == ["b1", "b2"], "lane b must advance without waiting for lane a's head"
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert cls.advanced == ["b1", "b2"], "lane b must advance without waiting for lane a's head"
 
-            await tokens[0].ack()  # a1
-            await tokens[2].ack()  # a2
-            for _ in range(5):
-                await asyncio.sleep(0)
+        manager.confirm_persisted([seqs["a1"]])
+        manager.confirm_persisted([seqs["a2"]])
+        for _ in range(5):
+            await asyncio.sleep(0)
 
-            # Contract: full per-lane projections in fan-out order. The global
-            # interleaving across lanes is a pump implementation detail.
-            assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2"]
-            assert [p for p in cls.advanced if p[0] == "b"] == ["b1", "b2"]
-            assert len(cls.advanced) == 4
-            # All lanes drained → the per-lane index is garbage-collected.
-            assert group._lane_queues == {}
+        # Contract: full per-lane projections in fan-out order. The global
+        # interleaving across lanes is a pump implementation detail.
+        assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2"]
+        assert [p for p in cls.advanced if p[0] == "b"] == ["b1", "b2"]
+        assert len(cls.advanced) == 4
+        # All lanes drained → the per-lane index is garbage-collected.
+        assert group._lane_queues == {}
     finally:
+        await _cancel_quietly(next_task)
         await manager.unsubscribe(1, key)
 
 
@@ -1908,133 +1829,35 @@ async def test_lane_internal_fifo_with_out_of_order_resolve():
     t1 = cls()
     key = t1.shared_stream_key()
     manager = SharedStreamManager()
+    next_task = None
     try:
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
 
-        async with _consume_in_background(s1) as collector:
-            await collector.wait_for(4)
-            tokens = collector.tokens
+        # Consume all four events; only a1 gets a persist seq, so a2, a3, and
+        # b1 resolve from consumption while head a1 stays pending.
+        it = s1.__aiter__()
+        a1_seq: int | None = None
+        for _ in range(4):
+            raw = await _pull_raw(it)
+            if raw["n"] == "a1":
+                a1_seq = manager.bind_pending_event(trigger_id=1, key=key)
+        next_task = await _resume_past_yield(it)
 
-            # Resolve a2 and a3 (head a1 stays pending) plus the noise lane.
-            await tokens[2].ack()  # a2
-            await tokens[3].ack()  # a3
-            await tokens[1].ack()  # b1
-            for _ in range(5):
-                await asyncio.sleep(0)
-            assert cls.advanced == ["b1"], "lane a may not advance while its own head is unresolved"
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert cls.advanced == ["b1"], "lane a may not advance while its own head is unresolved"
 
-            await tokens[0].ack()  # a1
-            for _ in range(5):
-                await asyncio.sleep(0)
+        assert a1_seq is not None
+        manager.confirm_persisted([a1_seq])
+        for _ in range(5):
+            await asyncio.sleep(0)
 
-            assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2", "a3"]
-            assert [p for p in cls.advanced if p[0] == "b"] == ["b1"]
-            assert len(cls.advanced) == 4
+        assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2", "a3"]
+        assert [p for p in cls.advanced if p[0] == "b"] == ["b1"]
+        assert len(cls.advanced) == 4
     finally:
+        await _cancel_quietly(next_task)
         await manager.unsubscribe(1, key)
-
-
-@pytest.mark.asyncio
-async def test_max_in_flight_one_across_lanes():
-    """Even with multiple lanes ready, at most one advance call is ever in flight."""
-    release = asyncio.Event()
-    state = {"in_flight": 0, "max_in_flight": 0}
-    advanced: list = []
-
-    class _BlockingLaneProducer(SharedStreamProducer):
-        async def open_stream(self):
-            yield {"n": "a1"}, "a1"
-            yield {"n": "b1"}, "b1"
-            await asyncio.Event().wait()
-
-        def get_advance_lane(self, broker_payload):
-            return broker_payload[0]
-
-        async def advance(self, broker_payload, outcome):
-            state["in_flight"] += 1
-            state["max_in_flight"] = max(state["max_in_flight"], state["in_flight"])
-            await release.wait()
-            advanced.append(broker_payload)
-            state["in_flight"] -= 1
-
-    class _BlockingLaneTrigger(_ProgrammableSharedStreamTrigger):
-        @classmethod
-        def create_shared_stream_producer(cls, kwargs):
-            return _BlockingLaneProducer()
-
-        async def filter_shared_stream(self, shared_stream):
-            async for raw, token in shared_stream:
-                await token.ack()
-                yield TriggerEvent(raw)
-
-    t1 = _BlockingLaneTrigger()
-    key = t1.shared_stream_key()
-    manager = SharedStreamManager()
-    try:
-        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
-
-        async with _consume_in_background(s1) as collector:
-            await collector.wait_for(2)
-            tokens = collector.tokens
-
-            # Resolve both lanes; the pump starts one advance, which blocks.
-            await tokens[0].ack()
-            await tokens[1].ack()
-            for _ in range(5):
-                await asyncio.sleep(0)
-            assert state["in_flight"] == 1, "the other lane's advance must not start while one is in flight"
-            assert advanced == []
-
-            release.set()
-            deadline = asyncio.get_event_loop().time() + 1.0
-            while asyncio.get_event_loop().time() < deadline:
-                if len(advanced) >= 2:
-                    break
-                await asyncio.sleep(0)
-
-            assert sorted(advanced) == ["a1", "b1"]
-            assert state["max_in_flight"] == 1, "advance calls must never overlap, even across lanes"
-    finally:
-        await manager.unsubscribe(1, key)
-
-
-@pytest.mark.asyncio
-async def test_empty_snapshot_routes_through_lane():
-    """Born-resolved events (no subscribers online) keep per-lane fan-out order."""
-    cls = _make_ack_required_trigger_class(
-        [
-            ({"n": "a1"}, "a1"),
-            ({"n": "b1"}, "b1"),
-            ({"n": "a2"}, "a2"),
-            ({"n": "b2"}, "b2"),
-        ],
-        lane_for=lambda payload: payload[0],
-    )
-    cls.advanced.clear()
-    cls.outcomes.clear()
-
-    t1 = cls()
-    key = t1.shared_stream_key()
-    manager = SharedStreamManager()
-
-    # Subscribe then immediately unsubscribe so the group exists but has zero
-    # subscribers when the events arrive.
-    s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
-    manager._groups[key].unsubscribe(1)  # remove without stopping the poll task
-
-    deadline = asyncio.get_event_loop().time() + 1.0
-    while asyncio.get_event_loop().time() < deadline:
-        if len(cls.advanced) >= 4:
-            break
-        await asyncio.sleep(0.01)
-
-    assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2"]
-    assert [p for p in cls.advanced if p[0] == "b"] == ["b1", "b2"]
-    assert len(cls.advanced) == 4
-    assert cls.outcomes == [AdvanceOutcome(0, 0, 0)] * 4
-
-    del s1  # silence unused-variable warning
-    await manager.stop_all()
 
 
 @pytest.mark.asyncio
@@ -2056,8 +1879,8 @@ async def test_get_advance_lane_raise_terminates_poll():
                 raise RuntimeError("lane boom")
             return None
 
-        async def advance(self, broker_payload, outcome):
-            advanced.append(broker_payload)
+        async def advance(self, batch):
+            advanced.extend(item.broker_payload for item in batch)
 
         async def aclose(self):
             aclose_calls.append(1)
@@ -2068,8 +1891,7 @@ async def test_get_advance_lane_raise_terminates_poll():
             return _RaisingLaneProducer()
 
         async def filter_shared_stream(self, shared_stream):
-            async for raw, token in shared_stream:
-                await token.ack()
+            async for raw in shared_stream:
                 yield TriggerEvent(raw)
 
     t1 = _RaisingLaneTrigger()
@@ -2080,7 +1902,7 @@ async def test_get_advance_lane_raise_terminates_poll():
     poll_task = manager._groups[key]._poll_task
     assert poll_task is not None
 
-    # Consume and ack the first event, then release the event whose
+    # Consume the first event, then release the event whose
     # get_advance_lane raises.
     events1 = await asyncio.wait_for(_collect_ack_stream(t1, s1, n=1), timeout=1.0)
     assert len(events1) == 1
@@ -2118,10 +1940,10 @@ async def test_stop_drains_all_lanes():
         def get_advance_lane(self, broker_payload):
             return broker_payload[0]
 
-        async def advance(self, broker_payload, outcome):
-            if broker_payload == "a1":
+        async def advance(self, batch):
+            if batch[0].broker_payload == "a1":
                 await release.wait()
-            advanced.append(broker_payload)
+            advanced.extend(item.broker_payload for item in batch)
 
     class _SlowFirstAdvanceTrigger(_ProgrammableSharedStreamTrigger):
         @classmethod
@@ -2129,8 +1951,7 @@ async def test_stop_drains_all_lanes():
             return _SlowFirstAdvanceProducer()
 
         async def filter_shared_stream(self, shared_stream):
-            async for raw, token in shared_stream:
-                await token.ack()
+            async for raw in shared_stream:
                 yield TriggerEvent(raw)
 
     t1 = _SlowFirstAdvanceTrigger()
@@ -2138,19 +1959,26 @@ async def test_stop_drains_all_lanes():
     manager = SharedStreamManager()
 
     s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
-    tokens: list[AckToken] = []
-    await asyncio.wait_for(_grab_tokens(s1, tokens, n=4), timeout=1.0)
+
+    # Consume all four events; every event except a1 gets a persist seq, so
+    # only a1 resolves from consumption alone.
+    it = s1.__aiter__()
+    seqs: dict[str, int] = {}
+    for _ in range(4):
+        raw = await _pull_raw(it)
+        if raw["n"] != "a1":
+            seq = manager.bind_pending_event(trigger_id=1, key=key)
+            assert seq is not None
+            seqs[raw["n"]] = seq
 
     # Start a1's advance and let it block in flight.
-    await tokens[0].ack()
     for _ in range(5):
         await asyncio.sleep(0)
 
-    # Resolve everything else while a1's advance is still in flight, then
-    # stop the group before the pump has a chance to dispatch them.
-    await tokens[1].ack()
-    await tokens[2].ack()
-    await tokens[3].ack()
+    # Resolve everything else while a1's advance is still in flight (b2's
+    # window closes on unsubscribe), then stop the group before the pump has
+    # a chance to dispatch them.
+    manager.confirm_persisted(seqs.values())
     stop_task = asyncio.create_task(manager.unsubscribe(1, key))
     for _ in range(5):
         await asyncio.sleep(0)
@@ -2158,227 +1986,7 @@ async def test_stop_drains_all_lanes():
     await asyncio.wait_for(stop_task, timeout=1.0)
 
     # Drain-on-stop: a single harvesting pass would miss a2 and b2, which
-    # only become lane heads after the first pass already visited their lanes.
-    assert [p for p in advanced if p[0] == "a"] == ["a1", "a2"]
-    assert [p for p in advanced if p[0] == "b"] == ["b1", "b2"]
-    assert len(advanced) == 4
-
-
-@pytest.mark.asyncio
-async def test_lanes_advance_independently():
-    """A lane whose events are resolved does not wait for another lane's unresolved head."""
-    cls = _make_ack_required_trigger_class(
-        [
-            ({"n": "a1"}, "a1"),
-            ({"n": "b1"}, "b1"),
-            ({"n": "a2"}, "a2"),
-            ({"n": "b2"}, "b2"),
-        ],
-        lane_for=lambda payload: payload[0],
-    )
-    cls.advanced.clear()
-    cls.outcomes.clear()
-
-    t1 = cls()
-    key = t1.shared_stream_key()
-    manager = SharedStreamManager()
-    try:
-        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
-        group = manager._groups[key]
-
-        async with _consume_in_background(s1) as collector:
-            await collector.wait_for(4)
-            tokens = collector.tokens
-
-            # Resolve lane "b" completely while lane "a" is fully unresolved.
-            await tokens[1].ack()  # b1
-            await tokens[3].ack()  # b2
-            for _ in range(5):
-                await asyncio.sleep(0)
-            assert cls.advanced == ["b1", "b2"], "lane b must advance without waiting for lane a's head"
-
-            await tokens[0].ack()  # a1
-            await tokens[2].ack()  # a2
-            for _ in range(5):
-                await asyncio.sleep(0)
-
-            # Contract: full per-lane projections in fan-out order. The global
-            # interleaving across lanes is a pump implementation detail.
-            assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2"]
-            assert [p for p in cls.advanced if p[0] == "b"] == ["b1", "b2"]
-            assert len(cls.advanced) == 4
-            # All lanes drained → the per-lane index is garbage-collected.
-            assert group._lane_queues == {}
-    finally:
-        await manager.unsubscribe(1, key)
-
-
-@pytest.mark.asyncio
-async def test_lane_internal_fifo_with_out_of_order_resolve():
-    """Out-of-order resolves within a lane still advance in fan-out order, per lane."""
-    cls = _make_ack_required_trigger_class(
-        [
-            ({"n": "a1"}, "a1"),
-            ({"n": "b1"}, "b1"),
-            ({"n": "a2"}, "a2"),
-            ({"n": "a3"}, "a3"),
-        ],
-        lane_for=lambda payload: payload[0],
-    )
-    cls.advanced.clear()
-    cls.outcomes.clear()
-
-    t1 = cls()
-    key = t1.shared_stream_key()
-    manager = SharedStreamManager()
-    try:
-        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
-
-        async with _consume_in_background(s1) as collector:
-            await collector.wait_for(4)
-            tokens = collector.tokens
-
-            # Resolve a2 and a3 (head a1 stays pending) plus the noise lane.
-            await tokens[2].ack()  # a2
-            await tokens[3].ack()  # a3
-            await tokens[1].ack()  # b1
-            for _ in range(5):
-                await asyncio.sleep(0)
-            assert cls.advanced == ["b1"], "lane a may not advance while its own head is unresolved"
-
-            await tokens[0].ack()  # a1
-            for _ in range(5):
-                await asyncio.sleep(0)
-
-            assert [p for p in cls.advanced if p[0] == "a"] == ["a1", "a2", "a3"]
-            assert [p for p in cls.advanced if p[0] == "b"] == ["b1"]
-            assert len(cls.advanced) == 4
-    finally:
-        await manager.unsubscribe(1, key)
-
-
-@pytest.mark.asyncio
-async def test_get_advance_lane_raise_terminates_poll():
-    """A get_advance_lane that raises fails the poll like any other poll failure."""
-    proceed_flag = asyncio.Event()
-    aclose_calls: list[int] = []
-    advanced: list = []
-
-    class _RaisingLaneProducer(SharedStreamProducer):
-        async def open_stream(self):
-            yield {"n": 1}, "p1"
-            await proceed_flag.wait()
-            yield {"n": 2}, "p2"
-            await asyncio.Event().wait()  # pragma: no cover
-
-        def get_advance_lane(self, broker_payload):
-            if broker_payload == "p2":
-                raise RuntimeError("lane boom")
-            return None
-
-        async def advance(self, broker_payload, outcome):
-            advanced.append(broker_payload)
-
-        async def aclose(self):
-            aclose_calls.append(1)
-
-    class _RaisingLaneTrigger(_ProgrammableSharedStreamTrigger):
-        @classmethod
-        def create_shared_stream_producer(cls, kwargs):
-            return _RaisingLaneProducer()
-
-        async def filter_shared_stream(self, shared_stream):
-            async for raw, token in shared_stream:
-                await token.ack()
-                yield TriggerEvent(raw)
-
-    t1 = _RaisingLaneTrigger()
-    key = t1.shared_stream_key()
-    manager = SharedStreamManager()
-
-    s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
-    poll_task = manager._groups[key]._poll_task
-    assert poll_task is not None
-
-    # Consume and ack the first event, then release the event whose
-    # get_advance_lane raises.
-    events1 = await asyncio.wait_for(_collect_ack_stream(t1, s1, n=1), timeout=1.0)
-    assert len(events1) == 1
-    proceed_flag.set()
-
-    async def consume():
-        async for _ in s1:
-            pass
-
-    with pytest.raises(RuntimeError, match="lane boom"):
-        await asyncio.wait_for(consume(), timeout=1.0)
-
-    assert key not in manager._groups, "the group must be evicted when get_advance_lane raises"
-    await asyncio.wait_for(poll_task, timeout=1.0)
-    assert sum(aclose_calls) == 1
-    # The first event was resolved before the failure → drained on the stop path.
-    assert advanced == ["p1"]
-    await manager.unsubscribe(1, key)
-
-
-@pytest.mark.asyncio
-async def test_stop_drains_all_lanes():
-    """On stop the pump keeps draining until every resolved event in every lane is advanced."""
-    release = asyncio.Event()
-    advanced: list = []
-
-    class _SlowFirstAdvanceProducer(SharedStreamProducer):
-        async def open_stream(self):
-            yield {"n": "a1"}, "a1"
-            yield {"n": "a2"}, "a2"
-            yield {"n": "b1"}, "b1"
-            yield {"n": "b2"}, "b2"
-            await asyncio.Event().wait()
-
-        def get_advance_lane(self, broker_payload):
-            return broker_payload[0]
-
-        async def advance(self, broker_payload, outcome):
-            if broker_payload == "a1":
-                await release.wait()
-            advanced.append(broker_payload)
-
-    class _SlowFirstAdvanceTrigger(_ProgrammableSharedStreamTrigger):
-        @classmethod
-        def create_shared_stream_producer(cls, kwargs):
-            return _SlowFirstAdvanceProducer()
-
-        async def filter_shared_stream(self, shared_stream):
-            async for raw, token in shared_stream:
-                await token.ack()
-                yield TriggerEvent(raw)
-
-    t1 = _SlowFirstAdvanceTrigger()
-    key = t1.shared_stream_key()
-    manager = SharedStreamManager()
-
-    s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
-    tokens: list[AckToken] = []
-    await asyncio.wait_for(_grab_tokens(s1, tokens, n=4), timeout=1.0)
-
-    # Start a1's advance and let it block in flight.
-    await tokens[0].ack()
-    for _ in range(5):
-        await asyncio.sleep(0)
-
-    # Resolve everything else while a1's advance is still in flight, then
-    # stop the group before the pump has a chance to dispatch them.
-    await tokens[1].ack()
-    await tokens[2].ack()
-    await tokens[3].ack()
-    stop_task = asyncio.create_task(manager.unsubscribe(1, key))
-    for _ in range(5):
-        await asyncio.sleep(0)
-    release.set()
-    await asyncio.wait_for(stop_task, timeout=1.0)
-
-    # Drain-on-stop: a single harvesting pass would miss a2 and b2, which
-    # only become lane heads after the first pass already visited their lanes.
+    # only become dispatchable after the first pass already visited their lanes.
     assert [p for p in advanced if p[0] == "a"] == ["a1", "a2"]
     assert [p for p in advanced if p[0] == "b"] == ["b1", "b2"]
     assert len(advanced) == 4
@@ -2388,11 +1996,10 @@ async def test_stop_drains_all_lanes():
 @pytest.mark.parametrize(
     ("second_action", "expected", "expected_clean"),
     [
-        pytest.param("ack", AdvanceOutcome(acked=2, nacked=0, failed=0), True, id="all-ack"),
-        pytest.param("nack", AdvanceOutcome(acked=1, nacked=1, failed=0), False, id="ack-plus-nack"),
+        pytest.param("consume", AdvanceOutcome(acked=2, failed=0), True, id="all-consume"),
         pytest.param(
             "unsubscribe",
-            AdvanceOutcome(acked=2, nacked=0, failed=0),
+            AdvanceOutcome(acked=2, failed=0),
             True,
             id="unsubscribe-counts-as-acked",
         ),
@@ -2407,19 +2014,17 @@ async def test_outcome_classification(second_action, expected, expected_clean):
     t1, t2 = cls(), cls()
     key = t1.shared_stream_key()
     manager = SharedStreamManager()
+    next_task = None
     try:
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
         s2 = manager.subscribe(trigger_id=2, trigger=t2, key=key)
 
-        async with _consume_in_background(s1) as c1, _consume_in_background(s2) as c2:
+        it2 = s2.__aiter__()
+        async with _consume_in_background(s1) as c1:
             await c1.wait_for(1)
-            await c2.wait_for(1)
-
-            await c1.tokens[0].ack()
-            if second_action == "ack":
-                await c2.tokens[0].ack()
-            elif second_action == "nack":
-                await c2.tokens[0].nack()
+            await _pull_raw(it2)
+            if second_action == "consume":
+                next_task = await _resume_past_yield(it2)
             else:
                 await manager.unsubscribe(2, key)
             await asyncio.sleep(0)
@@ -2429,8 +2034,9 @@ async def test_outcome_classification(second_action, expected, expected_clean):
             assert cls.outcomes[0].is_clean is expected_clean
             # Invariant: every subscriber in the broadcast snapshot is counted exactly once.
             outcome = cls.outcomes[0]
-            assert outcome.acked + outcome.nacked + outcome.failed == 2
+            assert outcome.acked + outcome.failed == 2
     finally:
+        await _cancel_quietly(next_task)
         await manager.unsubscribe(1, key)
         if second_action != "unsubscribe":
             await manager.unsubscribe(2, key)
@@ -2456,19 +2062,263 @@ async def test_outcome_counts_timeout_as_failed():
         s_fast = manager.subscribe(trigger_id=1, trigger=t_fast, key=key)
         s_slow = manager.subscribe(trigger_id=2, trigger=t_slow, key=key)
 
-        # The slow collector pulls its (event, token) pair but never resolves it.
-        async with _consume_in_background(s_fast) as c_fast, _consume_in_background(s_slow) as c_slow:
+        # The fast subscriber consumes and resolves; the slow one pulls the
+        # raw event and stays on it.
+        it_slow = s_slow.__aiter__()
+        async with _consume_in_background(s_fast) as c_fast:
             await c_fast.wait_for(1)
-            await c_slow.wait_for(1)
+            await _pull_raw(it_slow)
 
-            await c_fast.tokens[0].ack()
             fake_clock[0] = 0.2
             # Let the timeout loop tick (cadence = 0.01s real) and the pump dispatch.
             await asyncio.sleep(0.05)
 
             assert cls.advanced == ["receipt-to"]
-            assert cls.outcomes == [AdvanceOutcome(acked=1, nacked=0, failed=1)]
+            assert cls.outcomes == [AdvanceOutcome(acked=1, failed=1)]
             assert not cls.outcomes[0].is_clean
+    finally:
+        await manager.stop_all()
+
+
+@pytest.mark.asyncio
+async def test_reject_counts_as_rejected_not_acked_or_failed():
+    """A single subscriber rejecting an event resolves it as rejected, not acked or failed."""
+    cls = _make_reject_trigger_class([({"reject": True}, "receipt-reject")])
+    cls.advanced.clear()
+    cls.outcomes.clear()
+
+    t1 = cls()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+    try:
+        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+        async with _consume_in_background(t1.filter_shared_stream(s1)) as collector:
+            # The filter rejects the only event, so nothing is ever yielded;
+            # give the drain loop and the advance pump a tick to resolve and
+            # dispatch.
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            assert cls.advanced == ["receipt-reject"]
+            assert cls.outcomes == [AdvanceOutcome(acked=0, failed=0, rejected=1)]
+            assert collector.items == []
+    finally:
+        await manager.stop_all()
+
+
+@pytest.mark.asyncio
+async def test_reject_resolves_immediately_without_persist_gate():
+    """A reject advances at once, without waiting on any persist confirmation."""
+    cls = _make_reject_trigger_class([({"reject": True}, "receipt-now")])
+    cls.advanced.clear()
+    cls.outcomes.clear()
+
+    # A fake clock pinned at 0 proves the advance does not come from the ack
+    # timeout path: no time elapses, yet the reject still advances.
+    fake_clock: list[float] = [0.0]
+
+    def now() -> float:
+        return fake_clock[0]
+
+    t1 = cls()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager(ack_timeout=0.1, _now=now)
+    try:
+        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+        async with _consume_in_background(t1.filter_shared_stream(s1)):
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            # No persist confirmation sent and the clock never moved, yet the
+            # rejected event is already advanced.
+            assert cls.advanced == ["receipt-now"]
+            assert cls.outcomes == [AdvanceOutcome(acked=0, failed=0, rejected=1)]
+    finally:
+        await manager.stop_all()
+
+
+@pytest.mark.asyncio
+async def test_fan_out_mixed_ack_reject_fail_outcome():
+    """Three subscribers ack / reject / fail the same event; the outcome counts each once."""
+    fake_clock: list[float] = [0.0]
+
+    def now() -> float:
+        return fake_clock[0]
+
+    # One producer broadcasts a single event to three subscribers; subscriber
+    # behaviour is decided per trigger class.
+    ack_cls = _make_ack_required_trigger_class([({"msg": "mixed"}, "receipt-mixed")])
+    ack_cls.advanced.clear()
+    ack_cls.outcomes.clear()
+
+    t_ack, t_reject, t_slow = ack_cls(), ack_cls(), ack_cls()
+    key = t_ack.shared_stream_key()
+    manager = SharedStreamManager(ack_timeout=0.1, _now=now)
+    next_task = None
+    try:
+        s_ack = manager.subscribe(trigger_id=1, trigger=t_ack, key=key)
+        s_reject = manager.subscribe(trigger_id=2, trigger=t_reject, key=key)
+        s_slow = manager.subscribe(trigger_id=3, trigger=t_slow, key=key)
+
+        it_reject = s_reject.__aiter__()
+        it_slow = s_slow.__aiter__()
+        async with _consume_in_background(s_ack) as c_ack:
+            # Subscriber 1 consumes the event normally (acked).
+            await c_ack.wait_for(1)
+            # Subscriber 2 pulls the event and rejects it directly through the
+            # group, mirroring what reject_shared_stream_event would do while
+            # this subscriber's window is open.
+            await _pull_raw(it_reject)
+            manager._groups[key]._reject_pending_event(trigger_id=2, event_id=0)
+            # Subscriber 3 pulls the event and stalls, to be failed by the timeout.
+            await _pull_raw(it_slow)
+
+            fake_clock[0] = 0.2
+            await asyncio.sleep(0.05)
+
+            assert ack_cls.advanced == ["receipt-mixed"]
+            assert ack_cls.outcomes == [AdvanceOutcome(acked=1, failed=1, rejected=1)]
+            outcome = ack_cls.outcomes[0]
+            assert outcome.acked + outcome.rejected + outcome.failed == 3
+    finally:
+        await _cancel_quietly(next_task)
+        await manager.stop_all()
+
+
+@pytest.mark.asyncio
+async def test_reject_does_not_block_later_event_in_same_lane():
+    """A rejected event and a fully acked event both advance, in fan-out order."""
+    cls = _make_reject_trigger_class(
+        [
+            ({"reject": True}, "receipt-a"),
+            ({"reject": False, "msg": "b"}, "receipt-b"),
+        ]
+    )
+    cls.advanced.clear()
+    cls.outcomes.clear()
+
+    t1 = cls()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+    try:
+        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+        async with _consume_in_background(t1.filter_shared_stream(s1)) as collector:
+            # Event A is rejected (no TriggerEvent), event B yields one.
+            await collector.wait_for(1)
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+
+            assert cls.advanced == ["receipt-a", "receipt-b"]
+            assert cls.outcomes == [
+                AdvanceOutcome(acked=0, failed=0, rejected=1),
+                AdvanceOutcome(acked=1, failed=0, rejected=0),
+            ]
+    finally:
+        await manager.stop_all()
+
+
+@pytest.mark.asyncio
+async def test_reject_on_fast_path_is_no_op_and_event_still_fires():
+    """On the fast path the reject signal is ignored and the event fires normally."""
+
+    # The fast path has no producer: build a fast-mode trigger whose filter
+    # still calls reject_shared_stream_event for one event.
+    class _FastRejectTrigger(_ProgrammableSharedStreamTrigger):
+        async def filter_shared_stream(self, shared_stream):
+            async for raw in shared_stream:
+                if raw.get("reject"):
+                    reject_shared_stream_event()
+                yield TriggerEvent(raw)
+
+    events = [{"reject": True, "msg": "still-fires"}]
+
+    async def _open(cls_, kwargs):
+        for event in events:
+            yield event
+        await asyncio.Event().wait()
+
+    _FastRejectTrigger.open_shared_stream = classmethod(_open)
+
+    t1 = _FastRejectTrigger()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+    mock_log = MagicMock()
+    try:
+        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+        with mock.patch("airflow.triggers.shared_stream.log", mock_log):
+            collected = await asyncio.wait_for(_collect(t1.filter_shared_stream(s1), n=1), timeout=1.0)
+        # The event fired despite the reject call, and the warning was logged.
+        assert [e.payload for e in collected] == [{"reject": True, "msg": "still-fires"}]
+        assert mock_log.warning.mock_calls == [
+            mock.call("reject_shared_stream_event called outside an ack-mode binding window; ignored")
+        ]
+    finally:
+        await manager.unsubscribe(1, key)
+
+
+@pytest.mark.asyncio
+async def test_reject_outside_any_window_is_no_op():
+    """Calling the free function with no open window logs a warning and does not raise."""
+    mock_log = MagicMock()
+    with mock.patch("airflow.triggers.shared_stream.log", mock_log):
+        reject_shared_stream_event()  # must not raise
+    assert mock_log.warning.mock_calls == [
+        mock.call("reject_shared_stream_event called outside an ack-mode binding window; ignored")
+    ]
+
+
+@pytest.mark.parametrize(
+    ("outcome", "expected_clean"),
+    [
+        pytest.param(AdvanceOutcome(acked=2, failed=0, rejected=0), True, id="no-reject-no-fail"),
+        pytest.param(AdvanceOutcome(acked=2, failed=0, rejected=1), False, id="reject-makes-unclean"),
+        pytest.param(AdvanceOutcome(acked=2, failed=1, rejected=0), False, id="fail-makes-unclean"),
+    ],
+)
+def test_is_clean_requires_no_reject_and_no_fail(outcome, expected_clean):
+    """``is_clean`` is True only when both ``failed`` and ``rejected`` are zero."""
+    assert outcome.is_clean is expected_clean
+
+
+@pytest.mark.asyncio
+async def test_reject_then_yield_real_event_fires_but_does_not_bind():
+    """A subscriber that rejects an event and then yields one anyway: the late event fires but binds nothing."""
+
+    class _RejectThenYieldTrigger(_ProgrammableSharedStreamTrigger):
+        advanced: list = []
+        outcomes: list[AdvanceOutcome] = []
+        batches: list[list] = []
+        aclose_calls: int = 0
+
+        @classmethod
+        def create_shared_stream_producer(cls, kwargs):
+            return _RecordingProducer(cls, [({"reject": True}, "receipt-x")], lane_for=None)
+
+        async def filter_shared_stream(self, shared_stream):
+            async for raw in shared_stream:
+                reject_shared_stream_event()
+                # Subscriber-side logic error: still yield after rejecting.
+                yield TriggerEvent(raw)
+
+    cls = _RejectThenYieldTrigger
+    cls.advanced.clear()
+    cls.outcomes.clear()
+
+    t1 = cls()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+    try:
+        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+        async with _consume_in_background(t1.filter_shared_stream(s1)) as collector:
+            # The trigger event still fires despite the preceding reject.
+            fired = await collector.wait_for(1)
+            assert [e.payload for e in fired] == [{"reject": True}]
+
+            # The reject already popped the binding, so the late event binds
+            # nothing — bind_pending_event returns None and draws no seq.
+            assert manager.bind_pending_event(trigger_id=1, key=key) is None
+
+            await asyncio.sleep(0)
+            assert cls.advanced == ["receipt-x"]
+            assert cls.outcomes == [AdvanceOutcome(acked=0, failed=0, rejected=1)]
     finally:
         await manager.stop_all()
 
@@ -2502,7 +2352,7 @@ async def test_aclose_called_once_on_terminal_path():
             raise RuntimeError("open boom")
             yield  # pragma: no cover
 
-        async def advance(self, broker_payload, outcome):  # pragma: no cover
+        async def advance(self, batch):  # pragma: no cover
             pass
 
         async def aclose(self):
@@ -2514,7 +2364,7 @@ async def test_aclose_called_once_on_terminal_path():
             return _FailingOpenProducer()
 
         async def filter_shared_stream(self, shared_stream):
-            async for raw, _token in shared_stream:  # pragma: no cover
+            async for raw in shared_stream:  # pragma: no cover
                 yield TriggerEvent(raw)
 
     t1 = _FailingOpenTrigger()
@@ -2551,9 +2401,9 @@ async def test_pump_continues_after_advance_raises():
             yield {"n": 2}, "p2"
             await asyncio.Event().wait()
 
-        async def advance(self, broker_payload, outcome):
-            attempted.append(broker_payload)
-            if broker_payload == "p1":
+        async def advance(self, batch):
+            attempted.extend(item.broker_payload for item in batch)
+            if any(item.broker_payload == "p1" for item in batch):
                 raise RuntimeError("p1 boom")
 
     class _FirstRaiseTrigger(_ProgrammableSharedStreamTrigger):
@@ -2562,33 +2412,38 @@ async def test_pump_continues_after_advance_raises():
             return _FirstRaiseProducer()
 
         async def filter_shared_stream(self, shared_stream):
-            async for raw, token in shared_stream:
-                await token.ack()
+            async for raw in shared_stream:
                 yield TriggerEvent(raw)
 
     t1 = _FirstRaiseTrigger()
     key = t1.shared_stream_key()
     manager = SharedStreamManager()
+    next_task = None
     try:
         s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
         group = manager._groups[key]
         group.log = MagicMock()
 
-        async with _consume_in_background(s1) as collector:
-            await collector.wait_for(2)
-            tokens = collector.tokens
-            await tokens[0].ack()
-            await tokens[1].ack()
-            for _ in range(5):
-                await asyncio.sleep(0)
+        # Move past event 1; its advance dispatches alone and raises.
+        it = s1.__aiter__()
+        await _pull_raw(it)
+        pull2 = await _resume_past_yield(it)
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert attempted == ["p1"]
 
-            assert attempted == ["p1", "p2"], (
-                "the pump must move on to event 2 after event 1's advance raised"
-            )
-            error_calls = group.log.error.mock_calls
-            assert len(error_calls) == 1
-            assert "broker advance failed" in error_calls[0].args[0]
+        # Move past event 2; the pump must still dispatch it.
+        await asyncio.wait_for(pull2, timeout=1.0)
+        next_task = await _resume_past_yield(it)
+        for _ in range(5):
+            await asyncio.sleep(0)
+
+        assert attempted == ["p1", "p2"], "the pump must move on to event 2 after event 1's advance raised"
+        error_calls = group.log.error.mock_calls
+        assert len(error_calls) == 1
+        assert "broker advance failed" in error_calls[0].args[0]
     finally:
+        await _cancel_quietly(next_task)
         await manager.unsubscribe(1, key)
 
 
@@ -2608,9 +2463,9 @@ async def test_force_fail_clears_subscriber_from_all_outstanding_entries():
             yield {"n": 3}, "p3"
             await asyncio.Event().wait()
 
-        async def advance(self, broker_payload, outcome):
-            self._trigger_cls.advanced.append(broker_payload)
-            self._trigger_cls.outcomes.append(outcome)
+        async def advance(self, batch):
+            self._trigger_cls.advanced.extend(item.broker_payload for item in batch)
+            self._trigger_cls.outcomes.extend(item.outcome for item in batch)
 
     class _GatedTrigger(_ProgrammableSharedStreamTrigger):
         advanced: list = []
@@ -2621,8 +2476,7 @@ async def test_force_fail_clears_subscriber_from_all_outstanding_entries():
             return _GatedProducer(cls)
 
         async def filter_shared_stream(self, shared_stream):
-            async for raw, token in shared_stream:
-                await token.ack()
+            async for raw in shared_stream:
                 yield TriggerEvent(raw)
 
     t_dead, t_live = _GatedTrigger(), _GatedTrigger()
@@ -2635,12 +2489,9 @@ async def test_force_fail_clears_subscriber_from_all_outstanding_entries():
         manager.subscribe(trigger_id=1, trigger=t_dead, key=key)
         s_live = manager.subscribe(trigger_id=2, trigger=t_live, key=key)
 
-        # Live subscriber acks events 1 and 2; the dead subscriber never consumes.
+        # Live subscriber consumes events 1 and 2; the dead subscriber never consumes.
         async with _consume_in_background(s_live) as collector:
             await collector.wait_for(2)
-            tokens = collector.tokens
-            await tokens[0].ack()
-            await tokens[1].ack()
             await asyncio.sleep(0)
             assert _GatedTrigger.advanced == [], "events 1-2 still wait on the dead subscriber"
 
@@ -2654,14 +2505,13 @@ async def test_force_fail_clears_subscriber_from_all_outstanding_entries():
                     break
                 await asyncio.sleep(0)
             assert _GatedTrigger.advanced == ["p1", "p2"]
-            assert _GatedTrigger.outcomes == [AdvanceOutcome(acked=1, nacked=0, failed=1)] * 2
+            assert _GatedTrigger.outcomes == [AdvanceOutcome(acked=1, failed=1)] * 2
 
-            # The live subscriber resolves event 3 and it advances too.
+            # The live subscriber consumes event 3 and it advances too.
             await collector.wait_for(3)
-            await collector.tokens[2].ack()
             await asyncio.sleep(0)
             assert _GatedTrigger.advanced == ["p1", "p2", "p3"]
-            assert _GatedTrigger.outcomes[2] == AdvanceOutcome(acked=1, nacked=0, failed=1)
+            assert _GatedTrigger.outcomes[2] == AdvanceOutcome(acked=1, failed=1)
     finally:
         await manager.stop_all()
 
@@ -2676,7 +2526,7 @@ async def test_producer_factory_failure_is_terminal():
             raise RuntimeError("factory boom")
 
         async def filter_shared_stream(self, shared_stream):
-            async for raw, _token in shared_stream:  # pragma: no cover
+            async for raw in shared_stream:  # pragma: no cover
                 yield TriggerEvent(raw)
 
     t1 = _FactoryBoomTrigger()
@@ -2710,10 +2560,10 @@ async def test_stop_drains_resolved_prefix_and_abandons_unresolved():
             yield {"n": 2}, "p2"
             await asyncio.Event().wait()
 
-        async def advance(self, broker_payload, outcome):
+        async def advance(self, batch):
             advance_started.set()
             await advance_release.wait()
-            advanced.append(broker_payload)
+            advanced.extend(item.broker_payload for item in batch)
 
         async def aclose(self):
             aclose_calls.append(1)
@@ -2724,8 +2574,7 @@ async def test_stop_drains_resolved_prefix_and_abandons_unresolved():
             return _PrefixProducer()
 
         async def filter_shared_stream(self, shared_stream):
-            async for raw, token in shared_stream:
-                await token.ack()
+            async for raw in shared_stream:
                 yield TriggerEvent(raw)
 
     t1 = _PrefixTrigger()
@@ -2734,12 +2583,13 @@ async def test_stop_drains_resolved_prefix_and_abandons_unresolved():
 
     s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
 
-    tokens: list[AckToken] = []
-    await asyncio.wait_for(_grab_tokens(s1, tokens, n=2), timeout=1.0)
-
-    # Resolve only event 1; its advance starts and blocks.
-    await tokens[0].ack()
+    # Move past event 1 (resolving it) onto event 2, which stays unresolved
+    # because the subscriber never resumes past its yield.
+    it = s1.__aiter__()
+    await _pull_raw(it)
+    pull2 = await _resume_past_yield(it)
     await asyncio.wait_for(advance_started.wait(), timeout=1.0)
+    await asyncio.wait_for(pull2, timeout=1.0)
 
     # stop must wait for the in-flight advance of the resolved event...
     stop_task = asyncio.create_task(manager.stop_all())
@@ -2754,8 +2604,8 @@ async def test_stop_drains_resolved_prefix_and_abandons_unresolved():
     assert sum(aclose_calls) == 1, "the producer must still be closed after the drain"
 
 
-async def _pull_pair(stream_iter):
-    """Pull one ``(raw_event, token)`` pair off an ack-mode stream iterator."""
+async def _pull_raw(stream_iter):
+    """Pull one raw event off an ack-mode stream iterator."""
     return await asyncio.wait_for(stream_iter.__anext__(), timeout=1.0)
 
 
@@ -2763,7 +2613,7 @@ async def _resume_past_yield(stream_iter) -> asyncio.Task:
     """
     Resume the drain generator past its yield and leave it waiting.
 
-    Resuming closes the previous token's binding window — the exact moment a
+    Resuming closes the previous event's binding window — the exact moment a
     production filter loops back to pull the next raw event. The returned
     task is still waiting on the queue; the test must cancel it (or expect
     its failure) during cleanup.
@@ -2796,7 +2646,7 @@ async def test_multi_event_binding_gates_advance_on_every_seq():
     try:
         stream = manager.subscribe(trigger_id=1, trigger=t1, key=key)
         it = stream.__aiter__()
-        _raw, token = await _pull_pair(it)
+        await _pull_raw(it)
 
         # The subscriber derives two trigger events from the same raw event.
         seq1 = manager.bind_pending_event(trigger_id=1, key=key)
@@ -2805,7 +2655,6 @@ async def test_multi_event_binding_gates_advance_on_every_seq():
         assert seq2 is not None
         assert seq1 != seq2
 
-        await token.ack()
         next_task = await _resume_past_yield(it)
         assert cls.advanced == [], "advance must wait for both persist confirmations"
 
@@ -2816,7 +2665,7 @@ async def test_multi_event_binding_gates_advance_on_every_seq():
         manager.confirm_persisted([seq2])
         await asyncio.sleep(0)
         assert cls.advanced == ["p1"]
-        assert cls.outcomes == [AdvanceOutcome(acked=1, nacked=0, failed=0)]
+        assert cls.outcomes == [AdvanceOutcome(acked=1, failed=0)]
     finally:
         await _cancel_quietly(next_task)
         await manager.unsubscribe(1, key)
@@ -2824,7 +2673,7 @@ async def test_multi_event_binding_gates_advance_on_every_seq():
 
 @pytest.mark.asyncio
 async def test_filtered_out_event_resolves_on_next_pull_without_confirmation():
-    """An acked event with no bound trigger events resolves as soon as the filter pulls the next raw event."""
+    """An event with no bound trigger events resolves as soon as the filter pulls the next raw event."""
     cls = _make_ack_required_trigger_class([({"n": 1}, "p1")])
     cls.advanced.clear()
     cls.outcomes.clear()
@@ -2836,82 +2685,14 @@ async def test_filtered_out_event_resolves_on_next_pull_without_confirmation():
     try:
         stream = manager.subscribe(trigger_id=1, trigger=t1, key=key)
         it = stream.__aiter__()
-        _raw, token = await _pull_pair(it)
+        await _pull_raw(it)
 
-        # Filtered out: ack, derive nothing, loop back for the next raw event.
-        await token.ack()
+        # Filtered out: derive nothing, loop back for the next raw event.
         next_task = await _resume_past_yield(it)
         await asyncio.sleep(0)
 
         assert cls.advanced == ["p1"], "a filtered-out event must resolve without any confirmation"
-        assert cls.outcomes == [AdvanceOutcome(acked=1, nacked=0, failed=0)]
-    finally:
-        await _cancel_quietly(next_task)
-        await manager.unsubscribe(1, key)
-
-
-@pytest.mark.asyncio
-async def test_nack_with_bound_seq_resolves_immediately_and_late_confirm_is_noop():
-    """nack() resolves without waiting for confirmations; a confirmation arriving later is ignored."""
-    cls = _make_ack_required_trigger_class([({"n": 1}, "p1")])
-    cls.advanced.clear()
-    cls.outcomes.clear()
-
-    t1 = cls()
-    key = t1.shared_stream_key()
-    manager = SharedStreamManager()
-    try:
-        stream = manager.subscribe(trigger_id=1, trigger=t1, key=key)
-        it = stream.__aiter__()
-        _raw, token = await _pull_pair(it)
-
-        seq = manager.bind_pending_event(trigger_id=1, key=key)
-        assert seq is not None
-
-        # nack resolves immediately — no window close, no confirmation needed.
-        await token.nack()
-        await asyncio.sleep(0)
-        assert cls.advanced == ["p1"]
-        assert cls.outcomes == [AdvanceOutcome(acked=0, nacked=1, failed=0)]
-
-        # The late confirmation finds nothing and no-ops.
-        manager.confirm_persisted([seq])
-        await asyncio.sleep(0)
-        assert cls.advanced == ["p1"]
-        assert cls.outcomes == [AdvanceOutcome(acked=0, nacked=1, failed=0)]
-    finally:
-        await manager.unsubscribe(1, key)
-
-
-@pytest.mark.asyncio
-async def test_ack_before_yield_still_gates_advance_on_confirmation():
-    """Regression: an ack arriving before the event is bound must not bypass the persist gate."""
-    cls = _make_ack_required_trigger_class([({"n": 1}, "p1")])
-    cls.advanced.clear()
-    cls.outcomes.clear()
-
-    t1 = cls()
-    key = t1.shared_stream_key()
-    manager = SharedStreamManager()
-    next_task = None
-    try:
-        stream = manager.subscribe(trigger_id=1, trigger=t1, key=key)
-        it = stream.__aiter__()
-        _raw, token = await _pull_pair(it)
-
-        # ack-before-yield: the ack lands while the binding window is still
-        # open and nothing is bound yet.
-        await token.ack()
-        seq = manager.bind_pending_event(trigger_id=1, key=key)
-        assert seq is not None
-
-        next_task = await _resume_past_yield(it)
-        assert cls.advanced == [], "the early ack must not resolve ahead of the confirmation"
-
-        manager.confirm_persisted([seq])
-        await asyncio.sleep(0)
-        assert cls.advanced == ["p1"]
-        assert cls.outcomes == [AdvanceOutcome(acked=1, nacked=0, failed=0)]
+        assert cls.outcomes == [AdvanceOutcome(acked=1, failed=0)]
     finally:
         await _cancel_quietly(next_task)
         await manager.unsubscribe(1, key)
@@ -2935,14 +2716,13 @@ async def test_unsubscribe_with_unconfirmed_seq_waits_for_confirmation():
         it2 = s2.__aiter__()
 
         # Subscriber 1 fires (binds a trigger event) and immediately leaves.
-        _raw, _token1 = await _pull_pair(it1)
+        await _pull_raw(it1)
         seq = manager.bind_pending_event(trigger_id=1, key=key)
         assert seq is not None
         await manager.unsubscribe(1, key)
 
         # Subscriber 2 resolves cleanly.
-        _raw, token2 = await _pull_pair(it2)
-        await token2.ack()
+        await _pull_raw(it2)
         next_task = await _resume_past_yield(it2)
         await asyncio.sleep(0)
 
@@ -2952,8 +2732,8 @@ async def test_unsubscribe_with_unconfirmed_seq_waits_for_confirmation():
         manager.confirm_persisted([seq])
         await asyncio.sleep(0)
         assert cls.advanced == ["p1"]
-        # The departed subscriber still counts as acked (implicit ack-out).
-        assert cls.outcomes == [AdvanceOutcome(acked=2, nacked=0, failed=0)]
+        # The departed subscriber still counts as acked (implicit resolution).
+        assert cls.outcomes == [AdvanceOutcome(acked=2, failed=0)]
     finally:
         await _cancel_quietly(next_task)
         await manager.unsubscribe(2, key)
@@ -2974,15 +2754,15 @@ async def test_unsubscribe_with_unconfirmed_seq_waits_for_confirmation():
             [],
             [],
             1,
-            [AdvanceOutcome(acked=1, nacked=0, failed=0)],
+            [AdvanceOutcome(acked=1, failed=0)],
             id="below-timeout-confirm-recovers",
         ),
         pytest.param(
             0.2,
             ["p1"],
-            [AdvanceOutcome(acked=0, nacked=0, failed=1)],
+            [AdvanceOutcome(acked=0, failed=1)],
             0,
-            [AdvanceOutcome(acked=0, nacked=0, failed=1)],
+            [AdvanceOutcome(acked=0, failed=1)],
             id="late-confirm-after-timeout-is-noop",
         ),
     ],
@@ -3017,11 +2797,10 @@ async def test_unconfirmed_persist_confirm_timing_around_timeout(
     try:
         stream = manager.subscribe(trigger_id=1, trigger=t1, key=key)
         it = stream.__aiter__()
-        _raw, token = await _pull_pair(it)
+        await _pull_raw(it)
 
         seq = manager.bind_pending_event(trigger_id=1, key=key)
         assert seq is not None
-        await token.ack()
         next_task = await _resume_past_yield(it)
 
         fake_clock[0] = clock_value
@@ -3059,18 +2838,17 @@ async def test_unconfirmed_persist_at_timeout_fails_subscriber():
     try:
         stream = manager.subscribe(trigger_id=1, trigger=t1, key=key)
         it = stream.__aiter__()
-        _raw, token = await _pull_pair(it)
+        await _pull_raw(it)
 
         seq = manager.bind_pending_event(trigger_id=1, key=key)
         assert seq is not None
-        await token.ack()
         next_task = await _resume_past_yield(it)
 
         # Exactly at the timeout: the unconfirmed event is force-failed.
         fake_clock[0] = 0.1
         await asyncio.sleep(0.05)
         assert cls.advanced == ["p1"]
-        assert cls.outcomes == [AdvanceOutcome(acked=0, nacked=0, failed=1)]
+        assert cls.outcomes == [AdvanceOutcome(acked=0, failed=1)]
 
         # The still-online subscriber sees the AckTimeout; the confirmation
         # for the bound sequence number never arrives.
@@ -3095,11 +2873,10 @@ async def test_group_stop_abandons_unconfirmed_advance():
 
     stream = manager.subscribe(trigger_id=1, trigger=t1, key=key)
     it = stream.__aiter__()
-    _raw, token = await _pull_pair(it)
+    await _pull_raw(it)
 
     seq = manager.bind_pending_event(trigger_id=1, key=key)
     assert seq is not None
-    await token.ack()
 
     # Last subscriber leaves while the confirmation is still outstanding:
     # the group stops and the advance is abandoned — the broker redelivers.
@@ -3107,3 +2884,222 @@ async def test_group_stop_abandons_unconfirmed_advance():
     assert manager._groups == {}
     assert cls.advanced == [], "an unconfirmed advance must be abandoned at group stop"
     assert cls.aclose_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_pump_batches_contiguous_resolved_prefix():
+    """Events that resolve together are dispatched as one batch, in fan-out order."""
+    cls = _make_ack_required_trigger_class([({"n": 1}, "p1"), ({"n": 2}, "p2"), ({"n": 3}, "p3")])
+
+    t1 = cls()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+    next_task = None
+    try:
+        stream = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+
+        # Consume all three events, binding one persist seq to each so
+        # nothing resolves until the confirmations land.
+        it = stream.__aiter__()
+        seqs: list[int] = []
+        for _ in range(3):
+            await _pull_raw(it)
+            seq = manager.bind_pending_event(trigger_id=1, key=key)
+            assert seq is not None
+            seqs.append(seq)
+        next_task = await _resume_past_yield(it)
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert cls.batches == [], "nothing may advance while every event is unconfirmed"
+
+        # All three confirmations land in one synchronous call; the pump sees
+        # the whole lane resolved at once and dispatches a single batch.
+        manager.confirm_persisted(seqs)
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert cls.batches == [["p1", "p2", "p3"]], (
+            "one call must carry the lane's resolved prefix in fan-out order"
+        )
+    finally:
+        await _cancel_quietly(next_task)
+        await manager.unsubscribe(1, key)
+
+
+@pytest.mark.asyncio
+async def test_pump_batches_per_lane_independently():
+    """A batch never crosses a lane boundary; each lane's resolved prefix is its own call."""
+    cls = _make_ack_required_trigger_class(
+        [
+            ({"n": "a1"}, "a1"),
+            ({"n": "b1"}, "b1"),
+            ({"n": "a2"}, "a2"),
+            ({"n": "b2"}, "b2"),
+        ],
+        lane_for=lambda payload: payload[0],
+    )
+
+    t1 = cls()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+    next_task = None
+    try:
+        stream = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+
+        it = stream.__aiter__()
+        seqs: list[int] = []
+        for _ in range(4):
+            await _pull_raw(it)
+            seq = manager.bind_pending_event(trigger_id=1, key=key)
+            assert seq is not None
+            seqs.append(seq)
+        next_task = await _resume_past_yield(it)
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert cls.batches == []
+
+        # Everything resolves at once, but the batches stay per lane.
+        manager.confirm_persisted(seqs)
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert sorted(cls.batches) == [["a1", "a2"], ["b1", "b2"]], (
+            "each lane's resolved prefix must be dispatched as its own batch"
+        )
+    finally:
+        await _cancel_quietly(next_task)
+        await manager.unsubscribe(1, key)
+
+
+@pytest.mark.asyncio
+async def test_partial_prefix_waits_for_lane_head():
+    """Resolved events behind an unresolved head wait, then ship in one batch with it."""
+    cls = _make_ack_required_trigger_class([({"n": 1}, "p1"), ({"n": 2}, "p2"), ({"n": 3}, "p3")])
+
+    t1 = cls()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+    next_task = None
+    try:
+        stream = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+
+        it = stream.__aiter__()
+        seqs: list[int] = []
+        for _ in range(3):
+            await _pull_raw(it)
+            seq = manager.bind_pending_event(trigger_id=1, key=key)
+            assert seq is not None
+            seqs.append(seq)
+        next_task = await _resume_past_yield(it)
+
+        # Events 2 and 3 resolve out of order; the lane head is still pending.
+        manager.confirm_persisted([seqs[1], seqs[2]])
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert cls.batches == [], "no batch may ship while the lane head is unresolved"
+
+        # The head resolves; the whole prefix ships as one batch in fan-out order.
+        manager.confirm_persisted([seqs[0]])
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert cls.batches == [["p1", "p2", "p3"]]
+    finally:
+        await _cancel_quietly(next_task)
+        await manager.unsubscribe(1, key)
+
+
+@pytest.mark.asyncio
+async def test_advance_raise_abandons_whole_batch():
+    """A batch whose advance raises is logged and abandoned; later events form fresh batches."""
+    calls: list[list] = []
+    proceed = asyncio.Event()
+
+    class _RaiseOnFirstBatchProducer(SharedStreamProducer):
+        async def open_stream(self):
+            yield {"n": 1}, "p1"
+            yield {"n": 2}, "p2"
+            await proceed.wait()
+            yield {"n": 3}, "p3"
+            await asyncio.Event().wait()
+
+        async def advance(self, batch):
+            calls.append([item.broker_payload for item in batch])
+            if len(calls) == 1:
+                raise RuntimeError("batch boom")
+
+    class _RaiseOnFirstBatchTrigger(_ProgrammableSharedStreamTrigger):
+        @classmethod
+        def create_shared_stream_producer(cls, kwargs):
+            return _RaiseOnFirstBatchProducer()
+
+    t1 = _RaiseOnFirstBatchTrigger()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+    next_task = None
+    try:
+        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+        group = manager._groups[key]
+        group.log = MagicMock()
+
+        # Resolve events 1 and 2 together so they form one two-event batch.
+        it = s1.__aiter__()
+        seqs: list[int] = []
+        for _ in range(2):
+            await _pull_raw(it)
+            seq = manager.bind_pending_event(trigger_id=1, key=key)
+            assert seq is not None
+            seqs.append(seq)
+        next_task = await _resume_past_yield(it)
+        manager.confirm_persisted(seqs)
+        for _ in range(5):
+            await asyncio.sleep(0)
+
+        # The batch raised: it is logged, already off the books, and never
+        # dispatched again — the broker is left to redeliver.
+        assert calls == [["p1", "p2"]]
+        assert group._outstanding == {}
+        assert len(group.log.error.mock_calls) == 1
+
+        # The pump keeps running; a later event forms a fresh batch.
+        proceed.set()
+        await asyncio.wait_for(next_task, timeout=1.0)
+        next_task = await _resume_past_yield(it)
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert calls == [["p1", "p2"], ["p3"]]
+    finally:
+        await _cancel_quietly(next_task)
+        await manager.unsubscribe(1, key)
+
+
+@pytest.mark.asyncio
+async def test_trickle_resolution_yields_singleton_batches():
+    """Events that resolve one at a time degenerate to singleton batches (the old behavior)."""
+    cls = _make_ack_required_trigger_class([({"n": 1}, "p1"), ({"n": 2}, "p2"), ({"n": 3}, "p3")])
+
+    t1 = cls()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+    next_task = None
+    try:
+        stream = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+
+        it = stream.__aiter__()
+        seqs: list[int] = []
+        for _ in range(3):
+            await _pull_raw(it)
+            seq = manager.bind_pending_event(trigger_id=1, key=key)
+            assert seq is not None
+            seqs.append(seq)
+        next_task = await _resume_past_yield(it)
+
+        # Resolve one event per pump pass.
+        for seq in seqs:
+            manager.confirm_persisted([seq])
+            for _ in range(5):
+                await asyncio.sleep(0)
+
+        assert cls.batches == [["p1"], ["p2"], ["p3"]], (
+            "trickled resolutions must each ship as their own batch"
+        )
+    finally:
+        await _cancel_quietly(next_task)
+        await manager.unsubscribe(1, key)

@@ -167,7 +167,12 @@ For upstreams where the producer must advance (commit, delete, or ack) only
 after all subscribers have processed an event, override
 :meth:`~airflow.triggers.base.BaseEventTrigger.create_shared_stream_producer`
 to return a :class:`~airflow.triggers.shared_stream.SharedStreamProducer`.
-When this factory is overridden, the manager enters **ack mode**:
+When this factory is overridden, the manager enters **ack mode**. The
+subscriber side does not change: ``filter_shared_stream`` receives raw
+events exactly as on the fast path, so the same filter code works in both
+modes — the framework infers when the broker may advance from each
+subscriber's consumption progress and from the persistence of the trigger
+events it derived.
 
 1. The manager calls ``create_shared_stream_producer(kwargs)`` once per
    shared-stream group. The returned producer owns the broker connection for
@@ -176,37 +181,92 @@ When this factory is overridden, the manager enters **ack mode**:
 2. The producer's ``open_stream`` yields ``(event, broker_payload)`` tuples,
    where ``broker_payload`` is whatever the producer needs later (e.g. an
    SQS receipt handle, a Kafka offset, a Pub/Sub ack ID).
-3. Each subscriber's ``filter_shared_stream`` receives ``(event, token)``
-   pairs. The subscriber calls ``await token.ack()`` once it has accepted
-   the event, or ``await token.nack()`` to opt out.
+3. Each subscriber's ``filter_shared_stream`` receives raw events exactly
+   as in the fast path. A subscriber resolves an event once it has moved
+   past it (pulled the next raw event, or unsubscribed) and every
+   ``TriggerEvent`` it derived from the event has been persisted to the
+   metadata database.
 4. Once every subscriber in the fan-out set has resolved an event (by
-   ``ack()``, ``nack()``, unsubscribing, timing out, or overflowing its
-   queue) **and** every ``TriggerEvent`` the subscribers derived from it
-   has been persisted to the metadata database, the manager calls
-   ``await producer.advance(broker_payload, outcome)`` — commit the offset,
-   delete the SQS message, etc. The ``outcome`` is an
-   :class:`~airflow.triggers.shared_stream.AdvanceOutcome` carrying
-   per-event counts of how the subscribers resolved.
+   moving past it, unsubscribing, timing out, or overflowing its queue),
+   the manager calls ``await producer.advance(batch)`` with the contiguous
+   prefix of fully resolved events in the event's lane — commit the
+   offsets, delete the SQS messages, etc. Each item in the batch is an
+   :class:`~airflow.triggers.shared_stream.AdvanceItem` carrying the
+   event's ``broker_payload`` and an
+   :class:`~airflow.triggers.shared_stream.AdvanceOutcome` with per-event
+   counts of how the subscribers resolved.
 
-**Ordering guarantee**: by default every event belongs to the same lane,
-so advance calls are dispatched strictly in event order — ``advance`` for
-event N is awaited only after event N-1's ``advance`` returned (or failed
-and was logged). A producer can override ``get_advance_lane`` to narrow
-that ordering to within a lane: events whose lane values compare equal
-are advanced in event order relative to each other, while events in
-different lanes do not wait for one another. Either way, at most one
-``advance`` call is awaited at a time. When the poll ends, the manager
-calls ``await producer.aclose()`` once, best-effort.
+**Rejecting an event**: a subscriber's filter can actively refuse a raw
+event instead of yielding a trigger event from it, by calling
+:func:`~airflow.triggers.shared_stream.reject_shared_stream_event` while
+processing that event. This is distinct from an involuntary failure. A
+``failed`` count means a subscriber did not finish in time (ack timeout) or
+fell behind (queue overflow) — the right response is usually redelivery. A
+``rejected`` count means a subscriber decided the event must not produce a
+trigger event and should be terminally discarded — the right response is to
+dead-letter or ``nack`` it, not redeliver. The
+:class:`~airflow.triggers.shared_stream.AdvanceOutcome` reports both
+counts separately so the producer can apply the right per-broker action in
+``advance``:
+
+* Azure Service Bus: dead-letter the message when ``rejected`` is non-zero,
+  abandon it (so the broker redelivers) when only ``failed`` is non-zero,
+  and complete it when every subscriber accepted the event.
+* Pub/Sub: ``nack`` the message on a reject, otherwise ``ack`` it.
+
+The framework only reports the counts — it never dead-letters, ``nack`` s,
+or redelivers on its own; that broker-specific decision lives entirely in
+the producer's ``advance``.
+
+``reject_shared_stream_event`` is meaningful only while the filter is
+processing a raw event in ack mode (the binding window of that event is
+open). Called on the fast path, from a standalone ``run()``, or between two
+raw events, it logs a warning and does nothing, because there is no broker
+advance to influence. Because it resolves the event immediately, there is
+nothing to persist and the reject does not wait on the persistence gate.
+
+``is_clean`` is ``True`` only when an event has no rejects and no failures —
+every subscriber that was online at broadcast accepted it. A single reject
+or a single failure makes ``is_clean`` ``False``.
+
+Example — reject inside a filter:
+
+.. code-block:: python
+
+    from airflow.triggers.shared_stream import reject_shared_stream_event
+
+
+    async def filter_shared_stream(self, shared_stream):
+        async for raw in shared_stream:
+            if raw.get("malformed"):
+                # Never produce a trigger event from this; have the broker
+                # dead-letter it rather than redeliver it.
+                reject_shared_stream_event()
+                continue
+            yield TriggerEvent(raw)
+
+**Ordering guarantee**: by default every event belongs to the same lane.
+The items of a batch are in event order and form their lane's contiguous
+resolved prefix; within a lane, batches arrive strictly in order — the
+next ``advance`` is awaited only after the previous call returned (or
+failed and was logged). A producer can override ``get_advance_lane`` to
+narrow that ordering to within a lane: events whose lane values compare
+equal are batched and advanced in event order relative to each other,
+while events in different lanes do not wait for one another. Either way,
+at most one ``advance`` call is awaited at a time, and cumulative schemes
+such as a Kafka offset commit only need to commit the batch's last item.
+When the poll ends, the manager calls ``await producer.aclose()`` once,
+best-effort.
 
 Example — SQS-like producer:
 
 .. code-block:: python
 
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Sequence
     from typing import Any
 
     from airflow.triggers.base import BaseEventTrigger, TriggerEvent
-    from airflow.triggers.shared_stream import AdvanceOutcome, SharedStreamProducer
+    from airflow.triggers.shared_stream import AdvanceItem, SharedStreamProducer
 
 
     class SqsSharedStreamProducer(SharedStreamProducer):
@@ -222,11 +282,12 @@ Example — SQS-like producer:
                 for msg in messages:
                     yield msg["Body"], msg["ReceiptHandle"]
 
-        async def advance(self, broker_payload: Any, outcome: AdvanceOutcome) -> None:
-            # Called once all subscribers have resolved this message.
-            if outcome.is_clean:
-                await delete_sqs_message(self.client, self.queue_url, broker_payload)
-            # Otherwise leave the message for the visibility timeout to redeliver.
+        async def advance(self, batch: Sequence[AdvanceItem]) -> None:
+            # Called with one lane's batch of fully resolved messages.
+            for receipt_handle, outcome in batch:
+                if outcome.is_clean:
+                    await delete_sqs_message(self.client, self.queue_url, receipt_handle)
+                # Otherwise leave the message for the visibility timeout to redeliver.
 
         async def aclose(self) -> None:
             if self.client is not None:
@@ -253,12 +314,9 @@ Example — SQS-like producer:
             return SqsSharedStreamProducer(kwargs["queue_url"])
 
         async def filter_shared_stream(self, shared_stream):
-            async for raw, token in shared_stream:
+            async for raw in shared_stream:
                 if self.region is None or raw.get("region") == self.region:
-                    await token.ack()
                     yield TriggerEvent(raw)
-                else:
-                    await token.nack()
 
         async def run(self):
             yield TriggerEvent({})
@@ -291,50 +349,48 @@ the other partitions:
             topic, partition, _offset = broker_payload
             return topic, partition
 
-        async def advance(self, broker_payload, outcome):
-            topic, partition, offset = broker_payload
-            # Within one lane — here, one partition — advance calls arrive in
-            # event order, so this cumulative commit can never skip past an
-            # event that is still pending.
+        async def advance(self, batch):
+            # The batch is one lane's — here, one partition's — contiguous
+            # resolved prefix, in event order, so committing the offset of
+            # its last item covers the whole batch and can never skip past
+            # an event that is still pending.
+            topic, partition, offset = batch[-1].broker_payload
             await self.consumer.commit(topic, partition, offset + 1)
 
         async def aclose(self):
             if self.consumer is not None:
                 await self.consumer.stop()
 
-The order of ``ack()`` relative to ``yield`` does not affect correctness:
-an ack completes only after the subscriber has moved past the event and
-the trigger events it derived from it were persisted, so nothing depends
-on code running after the ``yield``. The one constraint on filter authors
-is the binding between raw events and the trigger events derived from
-them: yield every ``TriggerEvent`` derived from a raw event before pulling
-the next raw event from the shared stream — which is what a
-straightforward filter loop does anyway.
+The one constraint on filter authors is the binding between raw events and
+the trigger events derived from them: yield every ``TriggerEvent`` derived
+from a raw event before pulling the next raw event from the shared
+stream — which is what a straightforward filter loop does anyway.
 
-**Snapshot-at-fan-out**: the set of subscribers that must ack a given event
-is frozen at the moment the event is broadcast. A subscriber that joins
-after the event was dispatched is not added to that event's pending set.
+**Snapshot-at-fan-out**: the set of subscribers that must resolve a given
+event is frozen at the moment the event is broadcast. A subscriber that
+joins after the event was dispatched is not added to that event's pending
+set.
 
-**Per-event ack timeout**: if a subscriber has not called ``ack()`` or
-``nack()`` within the ack timeout (default 5 minutes, configurable via the
-``[triggerer] shared_stream_ack_timeout`` config option), the manager force-fails that
-subscriber's trigger. The same timeout covers an ack that is waiting on a
-persistence confirmation that never arrives. Other subscribers are not
-affected; once their acks arrive, the producer advances normally. The ack
-timeout is a manager-level safety net and does not replace any native broker
-session or visibility timeout.
+**Per-event ack timeout**: if a subscriber has not finished processing an
+event within the ack timeout (default 5 minutes, configurable via the
+``[triggerer] shared_stream_ack_timeout`` config option) — it is still on
+the event, or some of its derived trigger events were never confirmed
+persisted — the manager force-fails that subscriber's trigger. Other
+subscribers are not affected; once they resolve, the producer advances
+normally. The ack timeout is a manager-level safety net and does not
+replace any native broker session or visibility timeout.
 From the subscriber's perspective the force-fail surfaces as an ``AckTimeout``
 (importable from ``airflow.triggers.shared_stream``) raised by the
 ``shared_stream`` iterator inside ``filter_shared_stream``. Letting it propagate
 is fine — the trigger fails through the standard trigger-failure path; catch it
 only if the subscriber needs to run cleanup before failing.
 
-**Triggerer restart**: outstanding acks live in memory only. After a
-triggerer restart, the broker redelivers messages that were not yet
-acknowledged. Subscribers must therefore be idempotent.
+**Triggerer restart**: resolution state lives in memory only. After a
+triggerer restart, the broker redelivers messages that were never
+advanced. Subscribers must therefore be idempotent.
 
 **Durability**: the broker advance is gated on persistence. A subscriber's
-``ack()`` completes only after every ``TriggerEvent`` it derived from the
+resolution completes only after every ``TriggerEvent`` it derived from the
 event has been stored in the metadata database; the confirmation reaches
 the trigger runner on the next state sync, typically within a second or
 two. If the confirmation never arrives — the triggerer crashed, or the
@@ -346,21 +402,15 @@ group stops while events are still awaiting confirmation (for example,
 the last subscriber unsubscribes right after producing an event): the
 pending advances are abandoned and the broker redelivers those events.
 
-**nack() semantics**: ``nack()`` removes the subscriber from the pending
-ack set and is counted in the ``nacked`` field of the event's
-``AdvanceOutcome``. What that means for the broker is the producer's
-decision inside ``advance`` — commit anyway, skip the commit, or trigger an
-immediate redeliver (e.g. ``ChangeMessageVisibility(0)`` for SQS).
-
 **``shared_stream_subscriber_queue_size`` in ack mode**: the config bound
 still governs unprocessed raw events per subscriber. The manager does
-**not** wait for outstanding acks before pulling the next upstream event;
-back-pressure is queue-bound — a subscriber whose queue is full is
+**not** wait for outstanding resolutions before pulling the next upstream
+event; back-pressure is queue-bound — a subscriber whose queue is full is
 force-failed. The queue primarily guards against burst delivery before a
 subscriber's filter runs. Broker advances, by contrast, are dispatched in
-order within each lane: an event whose acks are still pending delays the
-advance of every later event in the same lane, with the ack timeout
-bounding that wait.
+order within each lane: an event with pending subscribers delays the
+advance of every later event in the same lane — resolved events behind it
+accumulate into the next batch — with the ack timeout bounding that wait.
 
 Verifying that sharing is active
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

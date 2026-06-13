@@ -2922,9 +2922,10 @@ triggerer:
     shared_stream_ack_timeout:
       description: |
         Per-event ack timeout in seconds for shared-stream triggers running in ack mode (triggers that
-        override ``BaseEventTrigger.create_shared_stream_producer``). A subscriber that has not called
-        ``token.ack()`` or ``token.nack()`` within this window is force-failed. Other subscribers in the
-        same group are unaffected; once their acks arrive the producer advances normally.
+        override ``BaseEventTrigger.create_shared_stream_producer``). A subscriber that has not finished
+        processing an event (moved past it and had its derived trigger events confirmed persisted) within
+        this window is force-failed. Other subscribers in the same group are unaffected; once they
+        resolve, the producer advances normally.
       version_added: 3.3.0
       type: float
       example: ~

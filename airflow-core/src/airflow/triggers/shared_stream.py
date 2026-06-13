@@ -34,34 +34,50 @@ When a trigger overrides
 :meth:`~airflow.triggers.base.BaseEventTrigger.create_shared_stream_producer`,
 the manager switches to **ack mode** for that stream.
 
+Subscribers receive the same stream of raw events in both modes: the same
+``filter_shared_stream`` code works unchanged on the fast path and in ack
+mode. The difference is resolution bookkeeping and the broker advance,
+both of which the manager derives from consumption progress — no extra
+subscriber API.
+
 The factory is called once per group and returns a
 :class:`SharedStreamProducer` that owns the broker connection for the
 lifetime of one poll. The manager drives the producer's ``open_stream``,
-which yields ``(raw_event, broker_payload)`` tuples, and hands
-``(raw_event, token)`` pairs — where ``token`` is an :class:`AckToken` — to
-each subscriber's queue instead of the raw event alone. A subscriber calls
-``await token.ack()`` once it has accepted the event, or
-``await token.nack()`` to opt out. An ack completes the subscriber's
-resolution only after the subscriber has moved past the event (pulled the
-next raw event, or unsubscribed) and every
-:class:`~airflow.triggers.base.TriggerEvent` it derived from the event has
-been confirmed persisted to the metadata database; ``nack()`` and
-force-failure resolve immediately. When every subscriber that was online
-at broadcast time has resolved the event, the manager calls
-``await producer.advance(broker_payload, outcome)`` exactly once — this is
-where the producer commits / deletes / acks on the broker. The
-:class:`AdvanceOutcome` carries per-event counts of how the subscribers
-resolved. Advance calls are dispatched by a single pump task: the
-producer's :meth:`~SharedStreamProducer.get_advance_lane` assigns each
-event to a lane, events in the same lane are advanced strictly in fan-out
-order, and events in different lanes do not wait for one another. At any
-moment at most one ``advance`` call is awaited globally; the default lane
+which yields ``(raw_event, broker_payload)`` tuples, and broadcasts each
+raw event to every subscriber's queue. A subscriber resolves an event
+once it has moved past it (pulled the next raw event, or unsubscribed)
+and every :class:`~airflow.triggers.base.TriggerEvent` it derived from
+the event has been confirmed persisted to the metadata database; an event
+the filter skips without yielding anything resolves cleanly as soon as
+the filter loops back for the next raw event. Force-failure resolves the
+subscriber immediately. When every subscriber that was online at
+broadcast time has resolved an event, the event is fully resolved and
+eligible for the broker advance: the manager calls
+``await producer.advance(batch)`` with one lane's contiguous prefix of
+fully resolved events — this is where the producer commits / deletes /
+acks on the broker. Each :class:`AdvanceItem` in the batch carries the
+event's ``broker_payload`` and an :class:`AdvanceOutcome` with per-event
+counts of how the subscribers resolved. Advances are dispatched by a
+single pump task: the producer's
+:meth:`~SharedStreamProducer.get_advance_lane` assigns each event to a
+lane; within a lane, batch items arrive in fan-out order and the next
+batch is awaited only after the call for the previous one returned (or
+raised and was logged); lanes do not wait for one another, but at any
+moment at most one ``advance`` call is awaited globally. The default lane
 assignment (every event in the same lane) preserves the original single
 global order. When the poll ends, the manager awaits ``producer.aclose()``
 once, best-effort.
 
-**Snapshot-at-fan-out**: the set of subscribers that must ack an event is
-frozen at broadcast time. A subscriber that joins after the event was
+**Subscriber reject**: instead of yielding a trigger event, a subscriber's
+filter can call :func:`reject_shared_stream_event` to terminally refuse the
+raw event it is currently processing. A reject resolves immediately (there
+is nothing to persist) and is counted in :attr:`AdvanceOutcome.rejected`,
+separate from an involuntary ``failed``: the producer is expected to
+dead-letter / ``nack`` rejects but redeliver failures. The framework only
+reports the counts — the per-broker decision lives in ``advance``.
+
+**Snapshot-at-fan-out**: the set of subscribers that must resolve an event
+is frozen at broadcast time. A subscriber that joins after the event was
 broadcast is not added to that event's pending set.
 
 **Persistence-gated advance**: the trigger events a subscriber derives
@@ -69,7 +85,7 @@ from a raw event are assigned sequence numbers as they leave the runner;
 the supervisor confirms each one after the event is stored in the
 metadata database, and the confirmation reaches the runner on the next
 state sync (typically one sync round, a second or two — well within the
-ack timeout). The subscriber's ack only completes once all of its
+ack timeout). The subscriber's resolution only completes once all of its
 sequence numbers for the event are confirmed. If a confirmation never arrives — the persist
 failed, or the triggerer crashed in between — the ack timeout fails the
 event, the producer does not commit, and the broker redelivers. The
@@ -78,33 +94,37 @@ the filter yielding each derived event before pulling the next raw event
 from the shared stream (the natural way to write a filter).
 
 **Per-event ack timeout**: a background task scans outstanding events.
-Any subscriber that has not acknowledged within ``ack_timeout`` seconds is
-force-failed via the existing :class:`_PollFailure` path (exception type
-:class:`AckTimeout`). The same timeout backstops persist confirmations
-that never arrive. Other subscribers are not affected; once the
-remaining acks arrive the producer advances normally.
+Any subscriber that has not finished processing an event within
+``ack_timeout`` seconds — still on the event, or its derived trigger
+events not yet confirmed persisted — is force-failed via the existing
+:class:`_PollFailure` path (exception type :class:`AckTimeout`). Other
+subscribers are not affected; once they resolve, the producer advances
+normally.
 
-**Triggerer restart**: outstanding acks are in-memory only. After a
-triggerer restart, the broker will redeliver unacknowledged events.
-Subscribers must therefore be idempotent. The same applies when a group
-stops while events are still awaiting persist confirmation (for example,
-the last subscriber unsubscribes right after producing an event): the
-pending advances are abandoned and the broker redelivers those events.
+**Triggerer restart**: resolution state is in-memory only. After a
+triggerer restart, the broker will redeliver events that were never
+advanced. Subscribers must therefore be idempotent. The same applies
+when a group stops while events are still awaiting persist confirmation
+(for example, the last subscriber unsubscribes right after producing an
+event): the pending advances are abandoned and the broker redelivers
+those events.
 
 **``shared_stream_subscriber_queue_size`` in ack mode**: the bound is
 still "unprocessed raw events per subscriber". The manager does **not**
-wait for outstanding acks before pulling the next event from the producer's
-stream; back-pressure is purely queue-bound — a subscriber whose queue is
-full is force-failed via :class:`_SubscriberOverflow`. The queue mainly
-protects against burst delivery before a subscriber's filter has had a
-chance to run. Broker advances, however, are dispatched by a single pump
-task in per-lane order: while a lane's head event still has pending
-subscribers, every later advance in that same lane waits (the ack timeout
-is the backstop that bounds this per-lane head-of-line wait).
+wait for outstanding resolutions before pulling the next event from the
+producer's stream; back-pressure is purely queue-bound — a subscriber
+whose queue is full is force-failed via :class:`_SubscriberOverflow`. The
+queue mainly protects against burst delivery before a subscriber's filter
+has had a chance to run. Broker advances, however, are dispatched by a
+single pump task in per-lane order: while a lane's head event still has
+pending subscribers, every later event in that same lane waits — resolved
+events behind the head accumulate into the next batch (the ack timeout is
+the backstop that bounds this per-lane head-of-line wait).
 
 Triggers that do **not** override ``create_shared_stream_producer`` run the
-**fast path**: no event IDs, no ack table, no AckToken — subscribers
-receive raw events as before (backward-compatible).
+**fast path**: no event IDs and no resolution bookkeeping. Subscribers
+see the exact same stream shape in both modes, so opting a trigger into
+ack mode never changes its filter code (backward-compatible).
 
 Lifecycle invariants
 --------------------
@@ -138,13 +158,13 @@ from __future__ import annotations
 import asyncio
 import itertools
 import time
-import weakref
 from abc import ABC, abstractmethod
 from collections import deque
-from collections.abc import AsyncGenerator, AsyncIterator, Callable, Hashable, Iterable, Iterator
+from collections.abc import AsyncGenerator, AsyncIterator, Callable, Hashable, Iterable, Iterator, Sequence
 from contextlib import suppress
+from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
 import structlog
 
@@ -155,7 +175,72 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger(__name__)
 
-__all__ = ["AckTimeout", "AckToken", "AdvanceOutcome", "SharedStreamManager", "SharedStreamProducer"]
+__all__ = [
+    "AckTimeout",
+    "AdvanceItem",
+    "AdvanceOutcome",
+    "SharedStreamManager",
+    "SharedStreamProducer",
+    "reject_shared_stream_event",
+]
+
+
+class _RejectContext(NamedTuple):
+    """
+    The open binding window in scope while a subscriber's filter runs in ack mode.
+
+    Set by :meth:`_SharedStreamGroup._ack_drain` for the duration of one raw
+    event's yield and read by :func:`reject_shared_stream_event`.
+    """
+
+    group: _SharedStreamGroup
+    trigger_id: int
+    event_id: int
+
+
+_reject_context: ContextVar[_RejectContext | None] = ContextVar("shared_stream_reject_context", default=None)
+"""Task-local handle to the binding window of the raw event currently being filtered.
+
+Only set while a subscriber's :meth:`~airflow.triggers.base.BaseEventTrigger.filter_shared_stream`
+is processing a raw event in ack mode; ``None`` otherwise (fast path, standalone
+``run()``, or between raw events). See :func:`reject_shared_stream_event`.
+"""
+
+
+def reject_shared_stream_event() -> None:
+    """
+    Reject the shared-stream raw event the calling filter is currently processing.
+
+    Call this from inside
+    :meth:`~airflow.triggers.base.BaseEventTrigger.filter_shared_stream` when,
+    instead of yielding a :class:`~airflow.triggers.base.TriggerEvent`, you
+    want the broker to treat the raw event as terminally refused — dead-letter
+    it (Azure Service Bus), ``nack`` it (Pub/Sub), and so on. A reject is
+    distinct from an involuntary failure: it counts toward
+    :attr:`AdvanceOutcome.rejected` rather than ``failed``, so a producer can
+    dead-letter rejects while still redelivering failures.
+
+    The reject resolves the event immediately; there is no derived trigger
+    event to persist first.
+
+    Only meaningful while a raw event's binding window is open — that is,
+    inside ``filter_shared_stream`` of an ack-mode stream, right after the
+    filter received a raw event. Called anywhere else (the fast path,
+    standalone ``run()``, or between two raw events) it logs a warning and is a
+    no-op, because there is no broker advance to influence.
+
+    Invariant: this relies on the filter running in the same asyncio task as
+    the one driving the raw-event binding window (a task-local context variable
+    carries the open window). Driving the filter iteration from a different task
+    (for example via :func:`asyncio.to_thread` or a freshly created task) would
+    make the open window invisible here and turn every reject into a no-op.
+    """
+    ctx = _reject_context.get()
+    if ctx is None:
+        log.warning("reject_shared_stream_event called outside an ack-mode binding window; ignored")
+        return
+    ctx.group._reject_pending_event(trigger_id=ctx.trigger_id, event_id=ctx.event_id)
+
 
 DEFAULT_SUBSCRIBER_QUEUE_MAX = 1024
 """Default per-subscriber queue size for shared streams.
@@ -173,9 +258,11 @@ in the triggerer this is overridden from the
 DEFAULT_ACK_TIMEOUT = 300.0
 """Default per-event ack timeout in seconds (5 minutes).
 
-When ack mode is active, a subscriber that has not called ``token.ack()`` or
-``token.nack()`` within this window is force-failed via :class:`AckTimeout`.
-Override per-manager with ``SharedStreamManager(ack_timeout=...)``.
+When ack mode is active, a subscriber that has not finished processing an
+event within this window — still on the event, or its derived trigger
+events not yet confirmed persisted — is force-failed via
+:class:`AckTimeout`. Override per-manager with
+``SharedStreamManager(ack_timeout=...)``.
 """
 
 
@@ -210,11 +297,13 @@ class _PollFailure:
 
 class AckTimeout(Exception):
     """
-    Raised in a subscriber whose ack did not arrive within the per-event timeout.
+    Raised in a subscriber that did not finish processing an event within the per-event timeout.
 
-    Treated the same as :class:`_SubscriberOverflow` — the subscriber's trigger
-    fails through the standard trigger-failure path. Other subscribers in the same
-    group are unaffected; their acks still advance the producer normally.
+    The subscriber is either still on the event, or some of its derived
+    trigger events were never confirmed persisted. Treated the same as
+    :class:`_SubscriberOverflow` — the subscriber's trigger fails through
+    the standard trigger-failure path. Other subscribers in the same group
+    are unaffected; once they resolve, the producer advances normally.
     """
 
 
@@ -226,25 +315,45 @@ class AdvanceOutcome:
     Every subscriber that was online when the event was broadcast is counted
     in exactly one field:
 
-    * ``acked`` — called ``token.ack()`` (or unsubscribed while the event
-      was outstanding — implicit ack-out) and every trigger event derived
-      from the event was confirmed persisted.
-    * ``nacked`` — called ``token.nack()``.
+    * ``acked`` — the subscriber moved past the event (pulled the next raw
+      event, or unsubscribed while the event was outstanding) and every
+      trigger event it derived from the event was confirmed persisted.
     * ``failed`` — force-failed by the manager (ack timeout — including a
       persist confirmation that never arrived — or queue overflow).
+    * ``rejected`` — the subscriber actively refused the event by calling
+      :func:`reject_shared_stream_event` from its filter. Terminal: the
+      broker should dead-letter / ``nack`` such events rather than redeliver
+      them, which is what distinguishes a reject from an involuntary
+      ``failed`` (where redelivery is the right response).
+
+    A producer reconciles these per-broker in :meth:`SharedStreamProducer.advance`
+    — the framework only reports the counts. For example a Service Bus producer
+    dead-letters when ``rejected`` is non-zero, abandons (redelivers) when only
+    ``failed`` is non-zero, and completes when every subscriber accepted the
+    event; a Pub/Sub producer ``nack`` s on a reject and ``ack`` s otherwise.
 
     An event broadcast while no subscribers were online carries all-zero
     counts and is clean.
     """
 
     acked: int
-    nacked: int
     failed: int
+    rejected: int = 0
 
     @property
     def is_clean(self) -> bool:
-        """Whether every subscriber accepted the event (``nacked`` and ``failed`` are both zero)."""
-        return self.nacked == 0 and self.failed == 0
+        """Whether every subscriber accepted the event — no active reject and no involuntary failure."""
+        return self.failed == 0 and self.rejected == 0
+
+
+class AdvanceItem(NamedTuple):
+    """One resolved event in the batch handed to :meth:`SharedStreamProducer.advance`."""
+
+    broker_payload: Any
+    """The opaque object the producer yielded with the raw event from ``open_stream``."""
+
+    outcome: AdvanceOutcome
+    """How the subscribers resolved the event."""
 
 
 class SharedStreamProducer(ABC):
@@ -272,19 +381,26 @@ class SharedStreamProducer(ABC):
         """
 
     @abstractmethod
-    async def advance(self, broker_payload: Any, outcome: AdvanceOutcome) -> None:
+    async def advance(self, batch: Sequence[AdvanceItem]) -> None:
         """
-        Advance the broker for one fully resolved event.
+        Advance the broker for one lane's batch of fully resolved events.
 
-        Within a lane — events for which :meth:`get_advance_lane` returned
-        equal values — calls arrive strictly in fan-out order: the call for
-        event N is awaited only after the call for event N-1 returned (or
-        raised and was logged). Across lanes the relative order is not
-        guaranteed, but at any moment at most one ``advance`` call is
-        awaited globally. This makes cumulative schemes such as a Kafka
-        offset commit safe within a lane. ``outcome`` carries the per-event
-        resolution counts; use it to decide whether to commit, skip, or
-        trigger a broker-side redeliver.
+        ``batch`` is never empty. Its items are in fan-out order and form a
+        contiguous resolved prefix of one lane — events for which
+        :meth:`get_advance_lane` returned equal values. Within a lane,
+        batches arrive strictly in order: the next batch is awaited only
+        after the call for the previous one returned (or raised and was
+        logged). Across lanes the relative order is not guaranteed, but at
+        any moment at most one ``advance`` call is awaited globally. This
+        makes cumulative schemes such as a Kafka offset commit safe within
+        a lane — committing the offset of the batch's last item covers the
+        whole batch. Each item's :class:`AdvanceOutcome` carries the
+        per-event resolution counts; use them to decide whether to commit,
+        skip, or trigger a broker-side redeliver.
+
+        If this method raises, the error is logged and the whole batch is
+        abandoned — the events are not dispatched again; the broker is
+        expected to redeliver whatever was not committed.
         """
 
     def get_advance_lane(self, broker_payload: Any) -> Hashable:
@@ -319,17 +435,15 @@ class SharedStreamProducer(ABC):
 
 
 @dataclass(slots=True)
-class _TokenBinding:
+class _SubscriberBinding:
     """
-    Per-(event, subscriber) resolution bookkeeping for one :class:`AckToken`.
+    Per-(event, subscriber) resolution bookkeeping.
 
-    A subscriber resolves as ``acked`` only when all three hold:
-    1. ``ack()`` was called (explicitly or implicitly on unsubscribe)
-    2. the binding window is closed (the subscriber moved past the event)
-    3. every trigger event seq the subscriber derived from the event has been confirmed persisted
+    A subscriber resolves as ``acked`` only when both hold:
+    1. the binding window is closed (the subscriber moved past the event)
+    2. every trigger event seq the subscriber derived from the event has been confirmed persisted
     """
 
-    acked: bool = False
     window_closed: bool = False
     unconfirmed_seqs: set[int] = field(default_factory=set)
 
@@ -338,84 +452,18 @@ class _TokenBinding:
 class _OutstandingEntry:
     """State for one outstanding (broadcast-but-not-yet-advanced) event."""
 
-    pending: set[int]  # trigger_ids still awaiting ack
+    pending: set[int]  # trigger_ids still awaiting resolution
     created_at: float  # monotonic clock at broadcast (via injectable _now)
     broker_payload: Any
     lane: Hashable  # producer.get_advance_lane(broker_payload), taken at fan-out
-    # Per-subscriber ack bookkeeping, created at fan-out alongside ``pending``
-    # and removed by ``_resolve_subscriber`` when the subscriber resolves.
-    bindings: dict[int, _TokenBinding] = field(default_factory=dict)
+    # Per-subscriber resolution bookkeeping, created at fan-out alongside
+    # ``pending`` and removed by ``_resolve_subscriber`` when the subscriber
+    # resolves.
+    bindings: dict[int, _SubscriberBinding] = field(default_factory=dict)
     # Resolution counts; together they form the event's AdvanceOutcome.
     acked: int = 0
-    nacked: int = 0
     failed: int = 0
-
-
-class AckToken:
-    """
-    Handed to subscribers alongside each shared-stream event in ack mode.
-
-    Call ``await token.ack()`` once the event has been accepted, or
-    ``await token.nack()`` to opt out — the resolution is reported to the
-    producer through the event's :class:`AdvanceOutcome`. Repeated calls are
-    no-ops. After the group stops, calls silently do nothing.
-
-    An ``ack()`` does not complete the subscriber's resolution on its own:
-    the event counts as ``acked`` only after the subscriber has moved past it
-    (pulled the next raw event or unsubscribed) and every trigger event the
-    subscriber derived from it has been confirmed persisted to the metadata
-    database. ``nack()`` resolves immediately.
-    """
-
-    __slots__ = ("_event_id", "_trigger_id", "_group_ref", "_resolved")
-
-    def __init__(
-        self,
-        *,
-        event_id: int,
-        trigger_id: int,
-        group_ref: weakref.ref[_SharedStreamGroup],
-    ) -> None:
-        self._event_id = event_id
-        self._trigger_id = trigger_id
-        self._group_ref = group_ref
-        self._resolved = False
-
-    def _resolve(self, resolution: Literal["acked", "nacked"]) -> None:
-        """Mark the token resolved and report it to the owning group, once."""
-        if self._resolved:
-            return
-        self._resolved = True
-        group = self._group_ref()
-        if group is None:
-            return
-        if resolution == "acked":
-            group._record_ack(event_id=self._event_id, trigger_id=self._trigger_id)
-        else:
-            group._record_nack(event_id=self._event_id, trigger_id=self._trigger_id)
-
-    async def ack(self) -> None:
-        """
-        Notify the producer that this subscriber has accepted the event.
-
-        Declared ``async`` so the token API leaves room for awaitable
-        implementations. The broker advance the ack feeds into may happen
-        later: it waits until the trigger events derived from this event are
-        persisted to the metadata database.
-        """
-        self._resolve("acked")
-
-    async def nack(self) -> None:
-        """
-        Opt out of this event; counted as ``nacked`` in the event's :class:`AdvanceOutcome`.
-
-        How the broker reacts is the producer's decision inside
-        :meth:`SharedStreamProducer.advance` — commit anyway, skip, or
-        trigger a redeliver. Declared ``async`` so the token API leaves room
-        for awaitable implementations. A ``nack()`` resolves the subscriber
-        immediately, without waiting for any persistence confirmation.
-        """
-        self._resolve("nacked")
+    rejected: int = 0
 
 
 async def _drain(queue: asyncio.Queue) -> AsyncGenerator[Any, None]:
@@ -474,9 +522,9 @@ class _SharedStreamGroup:
         # confirmation; entries are removed on confirmation or when the
         # owning binding resolves (late confirmations then no-op).
         self._seq_index: dict[int, tuple[int, int]] = {}
-        # Per subscriber: the token whose binding window is currently open —
-        # trigger events the subscriber emits now bind to this token.
-        self._current_token: dict[int, AckToken] = {}
+        # Per subscriber: the event id whose binding window is currently
+        # open — trigger events the subscriber emits now bind to this event.
+        self._open_windows: dict[int, int] = {}
         self._next_event_id: int = 0
         self._ack_timeout_task: asyncio.Task | None = None
         # Advance pump: a single task dispatches broker advances in per-lane
@@ -506,14 +554,15 @@ class _SharedStreamGroup:
 
     async def _run_advance_pump(self, producer: SharedStreamProducer) -> None:
         """
-        Dispatch broker advances in per-lane fan-out order, one at a time.
+        Dispatch broker advances in per-lane fan-out order, one batch at a time.
 
         A single task scans the lanes round-robin: each pass dispatches at
-        most one resolved head per lane, and passes repeat until one makes
-        no progress. An advance that raises is logged and the pump moves on.
-        On stop the pump keeps passing until every already-resolved
-        dispatchable event is drained, abandons unresolved entries to broker
-        redelivery, and exits.
+        most one batch per lane — the lane's contiguous resolved prefix —
+        and passes repeat until one makes no progress. An advance that
+        raises is logged, its batch is abandoned to broker redelivery, and
+        the pump moves on. On stop the pump keeps passing until every
+        already-resolved dispatchable event is drained, abandons unresolved
+        entries to broker redelivery, and exits.
         """
         while True:
             if not self._pump_stopping:
@@ -533,24 +582,35 @@ class _SharedStreamGroup:
                     # The deque head is always present in _outstanding: entry
                     # deletion belongs to the pump alone, and it removes the
                     # deque slot and the dict entry together below — a
-                    # KeyError here would be a bug.
-                    head_id = lane_queue[0]
-                    entry = self._outstanding[head_id]
-                    if entry.pending:
-                        continue
-                    lane_queue.popleft()
-                    del self._outstanding[head_id]
+                    # KeyError here would be a bug. Harvest the lane's
+                    # contiguous resolved prefix synchronously, before the
+                    # await, so an advance that raises abandons the whole
+                    # batch to broker redelivery.
+                    batch: list[AdvanceItem] = []
+                    while lane_queue and not self._outstanding[lane_queue[0]].pending:
+                        head_id = lane_queue.popleft()
+                        entry = self._outstanding.pop(head_id)
+                        batch.append(
+                            AdvanceItem(
+                                entry.broker_payload,
+                                AdvanceOutcome(
+                                    acked=entry.acked, failed=entry.failed, rejected=entry.rejected
+                                ),
+                            )
+                        )
                     if not lane_queue:
                         # Sole lane GC point; _poll recreates the lane on demand.
                         del self._lane_queues[lane]
-                    outcome = AdvanceOutcome(acked=entry.acked, nacked=entry.nacked, failed=entry.failed)
+                    if not batch:
+                        continue
                     try:
-                        await producer.advance(entry.broker_payload, outcome)
+                        await producer.advance(batch)
                     except Exception as exc:
                         self.log.error(
                             "Producer advance raised; broker advance failed",
                             key=self.key,
                             lane=lane,
+                            batch_size=len(batch),
                             exc_info=exc,
                         )
                     progress = True
@@ -610,7 +670,7 @@ class _SharedStreamGroup:
                         created_at=self._now(),
                         broker_payload=broker_payload,
                         lane=lane,
-                        bindings={trigger_id: _TokenBinding() for trigger_id in snapshot},
+                        bindings={trigger_id: _SubscriberBinding() for trigger_id in snapshot},
                     )
                     lane_queue.append(event_id)
                     if not snapshot:
@@ -619,12 +679,10 @@ class _SharedStreamGroup:
                         # in per-lane fan-out order.
                         self._advance_wakeup.set()
                         continue
-                    group_ref: weakref.ref[_SharedStreamGroup] = weakref.ref(self)
                     for trigger_id in snapshot:
                         queue = self._subscribers[trigger_id]
-                        token = AckToken(event_id=event_id, trigger_id=trigger_id, group_ref=group_ref)
                         try:
-                            queue.put_nowait((raw_event, token))
+                            queue.put_nowait((raw_event, event_id))
                         except asyncio.QueueFull:
                             self._fail_overflowed_subscriber(trigger_id, queue)
                             # The dead subscriber will never resolve anything
@@ -694,7 +752,7 @@ class _SharedStreamGroup:
         *,
         event_id: int,
         trigger_id: int,
-        resolution: Literal["acked", "nacked", "failed"],
+        resolution: Literal["acked", "failed", "rejected"],
     ) -> None:
         """
         Record one subscriber's resolution of one event.
@@ -706,7 +764,7 @@ class _SharedStreamGroup:
         calls for the same (event_id, trigger_id) are no-ops, which keeps
         every subscriber counted exactly once per event.
 
-        This is the single cleanup point for the subscriber's ack
+        This is the single cleanup point for the subscriber's resolution
         bookkeeping: the binding is popped and its unconfirmed seqs leave
         ``_seq_index``, so a persist confirmation arriving after the fact
         (e.g. after an ack timeout already failed the subscriber) finds
@@ -722,65 +780,61 @@ class _SharedStreamGroup:
                 self._seq_index.pop(seq, None)
         if resolution == "acked":
             entry.acked += 1
-        elif resolution == "nacked":
-            entry.nacked += 1
+        elif resolution == "rejected":
+            entry.rejected += 1
         else:
             entry.failed += 1
         if not entry.pending:
             self._advance_wakeup.set()
 
-    def _record_ack(self, *, event_id: int, trigger_id: int) -> None:
+    def _reject_pending_event(self, *, trigger_id: int, event_id: int) -> None:
         """
-        Record that the subscriber called ``ack()`` for one event.
+        Resolve the subscriber's current open-window event as rejected.
 
-        The subscriber resolves as acked only once the binding window is
-        closed and every bound seq is confirmed persisted; until then the
-        event stays outstanding (the ack timeout is the backstop).
+        Called by :func:`reject_shared_stream_event` while the subscriber's
+        binding window for ``event_id`` is open. Unlike a normal acceptance,
+        a reject resolves immediately — there is no derived trigger event, so
+        nothing has to be persisted first and the persist gate is skipped.
+
+        A subscriber that rejects an event and then still yields a real
+        trigger event for it is a subscriber-side logic error: the reject has
+        already popped the binding, so :meth:`bind_pending_event` returns
+        ``None`` and the late event simply does not bind to this raw event's
+        ack accounting (it still fires). The framework absorbs this safely
+        rather than raising.
         """
-        entry = self._outstanding.get(event_id)
-        if entry is None:
-            return
-        binding = entry.bindings.get(trigger_id)
-        if binding is None:
-            return  # already resolved (e.g. force-failed before the ack landed)
-        binding.acked = True
-        self._maybe_complete(event_id=event_id, trigger_id=trigger_id)
-
-    def _record_nack(self, *, event_id: int, trigger_id: int) -> None:
-        """Resolve the subscriber as nacked immediately; no persistence gating applies."""
-        self._resolve_subscriber(event_id=event_id, trigger_id=trigger_id, resolution="nacked")
+        self._resolve_subscriber(event_id=event_id, trigger_id=trigger_id, resolution="rejected")
 
     def _maybe_complete(self, *, event_id: int, trigger_id: int) -> None:
-        """Resolve the subscriber as acked once ack, window close, and all persist confirmations are in."""
+        """Resolve the subscriber as acked once the window is closed and all persist confirmations are in."""
         entry = self._outstanding.get(event_id)
         if entry is None:
             return
         binding = entry.bindings.get(trigger_id)
         if binding is None:
             return
-        if binding.acked and binding.window_closed and not binding.unconfirmed_seqs:
+        if binding.window_closed and not binding.unconfirmed_seqs:
             self._resolve_subscriber(event_id=event_id, trigger_id=trigger_id, resolution="acked")
 
-    def _close_binding_window(self, token: AckToken) -> None:
+    def _close_binding_window(self, *, event_id: int, trigger_id: int) -> None:
         """
-        Close the binding window of one yielded token.
+        Close the subscriber's binding window for one event.
 
         Called by ``_ack_drain`` the moment the subscriber pulls the next
         item — trigger events the subscriber emits from here on belong to
-        the next token, and an ack recorded for this one can now complete
+        the next event, and this one can now resolve for the subscriber
         (subject to persist confirmations).
         """
-        trigger_id = token._trigger_id
-        if self._current_token.get(trigger_id) is token:
-            del self._current_token[trigger_id]
-        entry = self._outstanding.get(token._event_id)
+        if self._open_windows.get(trigger_id) == event_id:
+            del self._open_windows[trigger_id]
+        entry = self._outstanding.get(event_id)
         if entry is None:
             return
         binding = entry.bindings.get(trigger_id)
         if binding is None:
             return
         binding.window_closed = True
-        self._maybe_complete(event_id=token._event_id, trigger_id=trigger_id)
+        self._maybe_complete(event_id=event_id, trigger_id=trigger_id)
 
     def bind_pending_event(self, *, trigger_id: int, seq_counter: Iterator[int]) -> int | None:
         """
@@ -789,13 +843,13 @@ class _SharedStreamGroup:
         Returns the seq the broker advance must wait on, or ``None`` when
         there is nothing to bind to — no window open (not in ack mode, or
         the event was emitted outside any raw event's window) or the
-        binding already resolved (nacked or force-failed). A seq is only
-        drawn from ``seq_counter`` when the event actually binds.
+        binding already resolved (force-failed). A seq is only drawn from
+        ``seq_counter`` when the event actually binds.
         """
-        token = self._current_token.get(trigger_id)
-        if token is None:
+        event_id = self._open_windows.get(trigger_id)
+        if event_id is None:
             return None
-        entry = self._outstanding.get(token._event_id)
+        entry = self._outstanding.get(event_id)
         if entry is None:
             return None
         binding = entry.bindings.get(trigger_id)
@@ -803,7 +857,7 @@ class _SharedStreamGroup:
             return None
         seq = next(seq_counter)
         binding.unconfirmed_seqs.add(seq)
-        self._seq_index[seq] = (token._event_id, trigger_id)
+        self._seq_index[seq] = (event_id, trigger_id)
         return seq
 
     def confirm_persisted(self, seqs: Iterable[int]) -> None:
@@ -811,7 +865,7 @@ class _SharedStreamGroup:
         Record persist confirmations for trigger event seqs bound in this group.
 
         Seqs that are not (or no longer) in ``_seq_index`` — another group's
-        seqs, or bindings that already resolved through nack / timeout —
+        seqs, or bindings that already resolved through timeout / overflow —
         are ignored.
         """
         for seq in seqs:
@@ -843,7 +897,7 @@ class _SharedStreamGroup:
 
     async def _run_ack_timeout_loop(self) -> None:
         """
-        Background task: force-fail subscribers whose ack is overdue.
+        Background task: force-fail subscribers whose resolution is overdue.
 
         Cadence is ``max(0.01, ack_timeout / 10)`` — runs ten times per timeout
         window, floored at 10 ms to avoid burning CPU when ``ack_timeout`` is small.
@@ -870,7 +924,9 @@ class _SharedStreamGroup:
                             _PollFailure(
                                 AckTimeout(
                                     f"shared stream {self.key!r} trigger {trigger_id} "
-                                    f"did not ack event {event_id} within {self._ack_timeout}s"
+                                    f"did not finish processing event {event_id} within "
+                                    f"{self._ack_timeout}s (still on the event, or its "
+                                    "trigger events not yet confirmed persisted)"
                                 )
                             ),
                         )
@@ -884,22 +940,40 @@ class _SharedStreamGroup:
         """
         Ack-mode counterpart of :func:`_drain`, tracking the binding window.
 
-        Between yielding ``(raw_event, token)`` and the subscriber pulling
-        the next item, the token's binding window is open: trigger events
-        the subscriber emits bind to it via :meth:`bind_pending_event`. The
-        window closes the moment the subscriber resumes this generator —
-        before we wait on the queue again — so a filtered-out event (acked,
-        nothing yielded) resolves as soon as the filter loops back for the
-        next raw event.
+        Unwraps the internal ``(raw_event, event_id)`` queue items and
+        yields the bare raw event, so the subscriber sees the same stream
+        shape as on the fast path. Between the yield and the subscriber
+        pulling the next item, the event's binding window is open: trigger
+        events the subscriber emits bind to it via
+        :meth:`bind_pending_event`. The window closes the moment the
+        subscriber resumes this generator — before we wait on the queue
+        again — so a filtered-out event (nothing yielded) resolves as soon
+        as the filter loops back for the next raw event. Closing the window
+        is the subscriber's acceptance of the event; no explicit call is
+        involved.
         """
         while True:
             item = await queue.get()
             if isinstance(item, _PollFailure):
                 raise item.exc
-            _, token = item
-            self._current_token[trigger_id] = token
-            yield item
-            self._close_binding_window(token)
+            raw_event, event_id = item
+            self._open_windows[trigger_id] = event_id
+            # Expose the open window to reject_shared_stream_event(), which the
+            # subscriber's filter may call instead of yielding. Clear it in
+            # ``finally`` so cancellation / exceptions also clear it and no
+            # window leaks across raw events. We assign ``None`` rather than
+            # ``reset(token)`` on purpose: each ``__anext__`` of this generator
+            # runs in its caller's context, which may be a different asyncio
+            # task than the one that set the value (the filter is resumed from
+            # a fresh task in some flows), and ``ContextVar.reset`` rejects a
+            # token created in another context. Windows never nest, so clearing
+            # to ``None`` is the correct restore.
+            _reject_context.set(_RejectContext(group=self, trigger_id=trigger_id, event_id=event_id))
+            try:
+                yield raw_event
+            finally:
+                _reject_context.set(None)
+            self._close_binding_window(event_id=event_id, trigger_id=trigger_id)
 
     def subscribe(self, trigger_id: int) -> AsyncIterator[Any]:
         """Register ``trigger_id`` as a subscriber and return its raw event stream."""
@@ -916,12 +990,13 @@ class _SharedStreamGroup:
         # (Airflow's standard idiom); dropping the queue is enough here.
         self._subscribers.pop(trigger_id, None)
         self._failed_subscribers.discard(trigger_id)
-        self._current_token.pop(trigger_id, None)
-        # Implicit ack-out: leaving counts as accepting every outstanding
-        # event, so the producer never waits forever for a subscriber that
-        # has left. The broker advance still waits for persist confirmation
-        # of any trigger events this subscriber derived from the event; with
-        # nothing unconfirmed the subscriber resolves immediately.
+        self._open_windows.pop(trigger_id, None)
+        # Implicit resolution: leaving closes the subscriber's window on
+        # every outstanding event, so the producer never waits forever for a
+        # subscriber that has left. The broker advance still waits for
+        # persist confirmation of any trigger events this subscriber derived
+        # from the event; with nothing unconfirmed the subscriber resolves
+        # immediately.
         for event_id, entry in list(self._outstanding.items()):
             binding = entry.bindings.get(trigger_id)
             if binding is None:
@@ -929,7 +1004,6 @@ class _SharedStreamGroup:
                 # _resolve_subscriber no-ops unless still pending.
                 self._resolve_subscriber(event_id=event_id, trigger_id=trigger_id, resolution="acked")
                 continue
-            binding.acked = True
             binding.window_closed = True
             self._maybe_complete(event_id=event_id, trigger_id=trigger_id)
 
@@ -1090,7 +1164,7 @@ class SharedStreamManager:
 
         Broadcast to every live group; each group resolves the sequence
         numbers it owns and ignores the rest. Sequence numbers whose binding
-        already resolved (``nack()``, timeout) or whose group has stopped
+        already resolved (timeout, overflow) or whose group has stopped
         are ignored.
         """
         # Materialize so a one-shot iterator is not exhausted by the first group.

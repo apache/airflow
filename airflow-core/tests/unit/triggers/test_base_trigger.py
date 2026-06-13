@@ -237,9 +237,9 @@ async def test_subclass_filter_shared_stream_applies_per_instance_match():
 def test_create_shared_stream_producer_raises_by_default():
     """A subclass that does not override create_shared_stream_producer gets NotImplementedError.
 
-    The manager detects this via MRO inspection and takes the fast path (no ack
-    tokens issued). But calling the method directly must still raise, confirming it
-    is not accidentally a no-op on the base class.
+    The manager detects this via MRO inspection and takes the fast path (no
+    resolution bookkeeping). But calling the method directly must still raise,
+    confirming it is not accidentally a no-op on the base class.
     """
     with pytest.raises(NotImplementedError, match="create_shared_stream_producer"):
         _PlainEventTrigger.create_shared_stream_producer({})
