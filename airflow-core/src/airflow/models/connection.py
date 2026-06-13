@@ -200,6 +200,10 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         if self.password:
             mask_secret(self.password)
             mask_secret(quote(self.password))
+        if self.port is not None and not 0 <= self.port <= 65535:
+            raise AirflowException(
+                f'The port number must be in the range 0-65535, received {self.port}.'
+            )
         self.team_name = team_name
 
     @staticmethod
