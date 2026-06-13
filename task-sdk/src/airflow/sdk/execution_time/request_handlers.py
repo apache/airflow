@@ -27,10 +27,11 @@ via ``send_msg``.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 from airflow.sdk.api.datamodels._generated import (
+    AssetResponse,
     ConnectionResponse,
     DagRunStateResponse,
     TaskStatesResponse,
@@ -40,16 +41,42 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceSliceResponse,
 )
 from airflow.sdk.execution_time.comms import (
+    AssetEventsResult,
+    AssetResult,
+    AssetStoreResult,
+    ClearAssetStoreByName,
+    ClearAssetStoreByUri,
+    ClearTaskStore,
     ConnectionResult,
+    CreateHITLDetailPayload,
+    DagResult,
+    DagRunResult,
     DagRunStateResult,
+    DeleteAssetStoreByName,
+    DeleteAssetStoreByUri,
+    DeleteTaskStore,
     DeleteVariable,
     DeleteXCom,
+    ErrorResponse,
+    GetAssetByName,
+    GetAssetByUri,
+    GetAssetEventByAsset,
+    GetAssetEventByAssetAlias,
+    GetAssetsByAlias,
+    GetAssetStoreByName,
+    GetAssetStoreByUri,
     GetConnection,
+    GetDag,
+    GetDagRun,
     GetDagRunState,
     GetDRCount,
     GetPreviousDagRun,
     GetPreviousTI,
+    GetPrevSuccessfulDagRun,
+    GetTaskBreadcrumbs,
+    GetTaskRescheduleStartDate,
     GetTaskStates,
+    GetTaskStore,
     GetTICount,
     GetVariable,
     GetVariableKeys,
@@ -57,11 +84,21 @@ from airflow.sdk.execution_time.comms import (
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
+    HITLDetailRequestResult,
+    InactiveAssetsResult,
     MaskSecret,
+    OKResponse,
     PrevSuccessfulDagRunResult,
     PutVariable,
+    SetAssetStoreByName,
+    SetAssetStoreByUri,
+    SetTaskStore,
     SetXCom,
+    TaskBreadcrumbsResult,
     TaskStatesResult,
+    TaskStoreResult,
+    TriggerDagRun,
+    ValidateInletsAndOutlets,
     VariableKeysResult,
     VariableResult,
     XComResult,
@@ -75,7 +112,25 @@ if TYPE_CHECKING:
 
     from airflow.sdk.api.client import Client
 
+_HANDLER_REGISTRY: dict[type, Callable] = {}
 
+
+def handles(msg_type):
+    def decorator(fn):
+        _HANDLER_REGISTRY[msg_type] = fn
+        return fn
+
+    return decorator
+
+
+def get_handler(msg_type):
+    handler = _HANDLER_REGISTRY.get(msg_type)
+    if handler is None:
+        raise TypeError(f"No handler registered for {msg_type.__name__}")
+    return handler
+
+
+@handles(GetConnection)
 def handle_get_connection(client: Client, msg: GetConnection) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch a connection and mask its sensitive fields."""
     conn = client.connections.get(msg.conn_id)
@@ -88,6 +143,7 @@ def handle_get_connection(client: Client, msg: GetConnection) -> tuple[BaseModel
     return conn, {}
 
 
+@handles(GetVariable)
 def handle_get_variable(client: Client, msg: GetVariable) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch a variable and mask its value."""
     var = client.variables.get(msg.key)
@@ -98,6 +154,7 @@ def handle_get_variable(client: Client, msg: GetVariable) -> tuple[BaseModel | N
     return var, {}
 
 
+@handles(GetVariableKeys)
 def handle_get_variable_keys(
     client: Client, msg: GetVariableKeys
 ) -> tuple[BaseModel | None, dict[str, bool]]:
@@ -109,23 +166,28 @@ def handle_get_variable_keys(
     )
 
 
-def handle_mask_secret(msg: MaskSecret) -> None:
+@handles(MaskSecret)
+def handle_mask_secret(client: Client, msg: MaskSecret) -> tuple[BaseModel | None, dict[str, bool]]:
     """Register a value with the secrets masker."""
     mask_secret(msg.value, msg.name)
+    return (None, {})
 
 
+@handles(PutVariable)
 def handle_put_variable(client: Client, msg: PutVariable) -> tuple[BaseModel | None, dict[str, bool]]:
     """Store a variable value."""
     client.variables.set(msg.key, msg.value, msg.description)
     return None, {}
 
 
+@handles(DeleteVariable)
 def handle_delete_variable(client: Client, msg: DeleteVariable) -> tuple[BaseModel | None, dict[str, bool]]:
     """Delete a variable value."""
     resp = client.variables.delete(msg.key)
     return resp, {}
 
 
+@handles(GetTICount)
 def handle_get_ti_count(client: Client, msg: GetTICount) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch task instance counts."""
     resp = client.task_instances.get_count(
@@ -140,6 +202,7 @@ def handle_get_ti_count(client: Client, msg: GetTICount) -> tuple[BaseModel | No
     return resp, {}
 
 
+@handles(GetTaskStates)
 def handle_get_task_states(client: Client, msg: GetTaskStates) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch task states and normalize them for supervisor response handling."""
     task_states_map = client.task_instances.get_task_states(
@@ -155,6 +218,7 @@ def handle_get_task_states(client: Client, msg: GetTaskStates) -> tuple[BaseMode
     return task_states_map, {}
 
 
+@handles(GetPreviousTI)
 def handle_get_previous_ti(client: Client, msg: GetPreviousTI) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch the previous task instance."""
     resp = client.task_instances.get_previous(
@@ -167,6 +231,7 @@ def handle_get_previous_ti(client: Client, msg: GetPreviousTI) -> tuple[BaseMode
     return resp, {}
 
 
+@handles(SetXCom)
 def handle_set_xcom(client: Client, msg: SetXCom) -> tuple[BaseModel | None, dict[str, bool]]:
     """Store an XCom value."""
     client.xcoms.set(
@@ -182,12 +247,14 @@ def handle_set_xcom(client: Client, msg: SetXCom) -> tuple[BaseModel | None, dic
     return None, {}
 
 
+@handles(DeleteXCom)
 def handle_delete_xcom(client: Client, msg: DeleteXCom) -> tuple[BaseModel | None, dict[str, bool]]:
     """Delete an XCom value."""
     client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
     return None, {}
 
 
+@handles(GetDRCount)
 def handle_get_dr_count(client: Client, msg: GetDRCount) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch dag run counts."""
     resp = client.dag_runs.get_count(
@@ -199,6 +266,7 @@ def handle_get_dr_count(client: Client, msg: GetDRCount) -> tuple[BaseModel | No
     return resp, {}
 
 
+@handles(GetDagRunState)
 def handle_get_dag_run_state(client: Client, msg: GetDagRunState) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch dag run state."""
     dr_resp = client.dag_runs.get_state(msg.dag_id, msg.run_id)
@@ -207,6 +275,7 @@ def handle_get_dag_run_state(client: Client, msg: GetDagRunState) -> tuple[BaseM
     return dr_resp, {}
 
 
+@handles(GetPreviousDagRun)
 def handle_get_previous_dag_run(
     client: Client, msg: GetPreviousDagRun
 ) -> tuple[BaseModel | None, dict[str, bool]]:
@@ -219,21 +288,24 @@ def handle_get_previous_dag_run(
     return resp, {}
 
 
+@handles(GetPrevSuccessfulDagRun)
 def handle_get_prev_successful_dag_run(
-    client: Client, subprocess_id: UUID
+    client: Client, msg: GetPrevSuccessfulDagRun
 ) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch the previous successful dag run using the caller's current id."""
-    dagrun_resp = client.task_instances.get_previous_successful_dagrun(subprocess_id)
+    dagrun_resp = client.task_instances.get_previous_successful_dagrun(msg.ti_id)
     dagrun_result = PrevSuccessfulDagRunResult.from_dagrun_response(dagrun_resp)
     return dagrun_result, {"exclude_unset": True}
 
 
+@handles(GetXComCount)
 def handle_get_xcom_count(client: Client, msg: GetXComCount) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch XCom count metadata."""
     resp = client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
     return resp, {}
 
 
+@handles(GetXComSequenceItem)
 def handle_get_xcom_sequence_item(
     client: Client, msg: GetXComSequenceItem
 ) -> tuple[BaseModel | None, dict[str, bool]]:
@@ -244,6 +316,7 @@ def handle_get_xcom_sequence_item(
     return xcom, {}
 
 
+@handles(GetXComSequenceSlice)
 def handle_get_xcom_sequence_slice(
     client: Client, msg: GetXComSequenceSlice
 ) -> tuple[BaseModel | None, dict[str, bool]]:
@@ -263,6 +336,7 @@ def handle_get_xcom_sequence_slice(
     return xcoms, {}
 
 
+@handles(GetXCom)
 def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch an XCom and normalize it for supervisor response handling."""
     xcom = client.xcoms.get(
@@ -272,3 +346,239 @@ def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dic
         xcom_result = XComResult.from_xcom_response(xcom)
         return xcom_result, {"exclude_unset": True}
     return xcom, {}
+
+
+@handles(GetAssetByName)
+def handle_get_asset_by_name(client: Client, msg: GetAssetByName) -> tuple[BaseModel | None, dict[str, bool]]:
+    asset_resp = client.assets.get(name=msg.name)
+    if isinstance(asset_resp, AssetResponse):
+        asset_result = AssetResult.from_asset_response(asset_resp)
+        return asset_result, {"exclude_unset": True}
+    return asset_resp, {}
+
+
+@handles(GetAssetByUri)
+def handle_get_asset_by_uri(client: Client, msg: GetAssetByUri) -> tuple[BaseModel | None, dict[str, bool]]:
+    asset_resp = client.assets.get(uri=msg.uri)
+    if isinstance(asset_resp, AssetResponse):
+        asset_result = AssetResult.from_asset_response(asset_resp)
+        return asset_result, {"exclude_unset": True}
+    return asset_resp, {}
+
+
+@handles(GetAssetsByAlias)
+def handle_get_assets_by_alias(
+    client: Client, msg: GetAssetsByAlias
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    asset_resp = client.assets.get_by_alias(alias_name=msg.alias_name)
+    return asset_resp, {}
+
+
+@handles(GetAssetEventByAsset)
+def handle_get_asset_event_by_asset(
+    client: Client, msg: GetAssetEventByAsset
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    asset_event_resp = client.asset_events.get(
+        uri=msg.uri,
+        name=msg.name,
+        after=msg.after,
+        before=msg.before,
+        ascending=msg.ascending,
+        limit=msg.limit,
+    )
+    asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
+    return asset_event_result, {"exclude_unset": True}
+
+
+@handles(GetAssetEventByAssetAlias)
+def handle_get_asset_event_by_asset_alias(
+    client: Client, msg: GetAssetEventByAssetAlias
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    asset_event_resp = client.asset_events.get(
+        alias_name=msg.alias_name,
+        after=msg.after,
+        before=msg.before,
+        ascending=msg.ascending,
+        limit=msg.limit,
+    )
+    asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
+    return asset_event_result, {"exclude_unset": True}
+
+
+@handles(TriggerDagRun)
+def handle_trigger_dag_run(client: Client, msg: TriggerDagRun) -> tuple[BaseModel | None, dict[str, bool]]:
+    resp = client.dag_runs.trigger(
+        msg.dag_id,
+        msg.run_id,
+        msg.conf,
+        msg.logical_date,
+        msg.run_after,
+        bool(msg.reset_dag_run),
+        msg.note,
+    )
+    return resp, {}
+
+
+@handles(GetDagRun)
+def handle_get_dag_run(client: Client, msg: GetDagRun) -> tuple[BaseModel | None, dict[str, bool]]:
+    dr_resp = client.dag_runs.get_detail(msg.dag_id, msg.run_id)
+    resp = DagRunResult.from_api_response(dr_resp)
+    return resp, {}
+
+
+@handles(GetDag)
+def handle_get_dag(client: Client, msg: GetDag) -> tuple[BaseModel | None, dict[str, bool]]:
+    dag = client.dags.get(
+        dag_id=msg.dag_id,
+    )
+    resp = DagResult.from_api_response(dag)
+    return resp, {}
+
+
+@handles(GetTaskRescheduleStartDate)
+def handle_get_task_reschedule_start_date(
+    client: Client, msg: GetTaskRescheduleStartDate
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    resp = client.task_instances.get_reschedule_start_date(msg.ti_id, msg.try_number)
+    return resp, {}
+
+
+@handles(GetTaskBreadcrumbs)
+def handle_get_task_breadcrumbs(
+    client: Client, msg: GetTaskBreadcrumbs
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    api_resp = client.task_instances.get_task_breakcrumbs(dag_id=msg.dag_id, run_id=msg.run_id)
+    resp = TaskBreadcrumbsResult.from_api_response(api_resp)
+    return resp, {}
+
+
+@handles(ValidateInletsAndOutlets)
+def handle_validate_inlets_and_outlets(
+    client: Client, msg: ValidateInletsAndOutlets
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    inactive_assets_resp = client.task_instances.validate_inlets_and_outlets(msg.ti_id)
+    resp = InactiveAssetsResult.from_inactive_assets_response(inactive_assets_resp)
+    return resp, {"exclude_unset": True}
+
+
+@handles(CreateHITLDetailPayload)
+def handle_create_hitl_detail_payload(
+    client: Client, msg: CreateHITLDetailPayload
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    hitl_detail_request = client.hitl.add_response(
+        ti_id=msg.ti_id,
+        options=msg.options,
+        subject=msg.subject,
+        body=msg.body,
+        defaults=msg.defaults,
+        params=msg.params,
+        multiple=msg.multiple,
+        assigned_users=msg.assigned_users,
+    )
+    resp = HITLDetailRequestResult.from_api_response(hitl_detail_request)
+    return resp, {"exclude_unset": True}
+
+
+@handles(GetTaskStore)
+def handle_get_task_store(client: Client, msg: GetTaskStore) -> tuple[BaseModel | None, dict[str, bool]]:
+    task_store = client.task_store.get(msg.ti_id, msg.key)
+    resp = (
+        task_store
+        if isinstance(task_store, ErrorResponse)
+        else TaskStoreResult.from_task_store_response(task_store)
+    )
+    return resp, {}
+
+
+@handles(SetTaskStore)
+def handle_set_task_store(client: Client, msg: SetTaskStore) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.task_store.set(msg.ti_id, msg.key, msg.value, expires_at=msg.expires_at)
+    return OKResponse(ok=True), {}
+
+
+@handles(DeleteTaskStore)
+def handle_delete_task_store(
+    client: Client, msg: DeleteTaskStore
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.task_store.delete(msg.ti_id, msg.key)
+    return OKResponse(ok=True), {}
+
+
+@handles(ClearTaskStore)
+def handle_clear_task_store(client: Client, msg: ClearTaskStore) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.task_store.clear(msg.ti_id, all_map_indices=msg.all_map_indices)
+    return OKResponse(ok=True), {}
+
+
+@handles(GetAssetStoreByName)
+def handle_get_asset_store_by_name(
+    client: Client, msg: GetAssetStoreByName
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    asset_store = client.asset_store.get(msg.key, name=msg.name)
+    resp = (
+        asset_store
+        if isinstance(asset_store, ErrorResponse)
+        else AssetStoreResult.from_asset_store_response(asset_store)
+    )
+    return resp, {}
+
+
+@handles(GetAssetStoreByUri)
+def handle_get_asset_store_by_uri(
+    client: Client, msg: GetAssetStoreByUri
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    asset_store = client.asset_store.get(msg.key, uri=msg.uri)
+    resp = (
+        asset_store
+        if isinstance(asset_store, ErrorResponse)
+        else AssetStoreResult.from_asset_store_response(asset_store)
+    )
+    return resp, {}
+
+
+@handles(SetAssetStoreByName)
+def handle_set_asset_store_by_name(
+    client: Client, msg: SetAssetStoreByName
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.asset_store.set(msg.key, msg.value, name=msg.name)
+    return OKResponse(ok=True), {}
+
+
+@handles(SetAssetStoreByUri)
+def handle_set_asset_store_by_uri(
+    client: Client, msg: SetAssetStoreByUri
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.asset_store.set(msg.key, msg.value, uri=msg.uri)
+    return OKResponse(ok=True), {}
+
+
+@handles(DeleteAssetStoreByName)
+def handle_delete_asset_store_by_name(
+    client: Client, msg: DeleteAssetStoreByName
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.asset_store.delete(msg.key, name=msg.name)
+    return OKResponse(ok=True), {}
+
+
+@handles(DeleteAssetStoreByUri)
+def handle_delete_asset_store_by_uri(
+    client: Client, msg: DeleteAssetStoreByUri
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.asset_store.delete(msg.key, uri=msg.uri)
+    return OKResponse(ok=True), {}
+
+
+@handles(ClearAssetStoreByName)
+def handle_clear_asset_store_by_name(
+    client: Client, msg: ClearAssetStoreByName
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.asset_store.clear(name=msg.name)
+    return OKResponse(ok=True), {}
+
+
+@handles(ClearAssetStoreByUri)
+def handle_clear_asset_store_by_uri(
+    client: Client, msg: ClearAssetStoreByUri
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.asset_store.clear(uri=msg.uri)
+    return OKResponse(ok=True), {}

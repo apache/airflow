@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-import functools
 import logging
 import math
 import os
@@ -88,22 +87,6 @@ from airflow.sdk.execution_time.comms import (
     XComResult,
     _new_encoder,
     _RequestFrame,
-)
-from airflow.sdk.execution_time.request_handlers import (
-    handle_delete_variable,
-    handle_delete_xcom,
-    handle_get_connection,
-    handle_get_dag_run_state,
-    handle_get_dr_count,
-    handle_get_previous_ti,
-    handle_get_task_states,
-    handle_get_ti_count,
-    handle_get_variable,
-    handle_get_variable_keys,
-    handle_get_xcom,
-    handle_mask_secret,
-    handle_put_variable,
-    handle_set_xcom,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
@@ -495,17 +478,15 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         **kwargs,
     ):
         proc_id = job.id if job is not None else uuid4()
-        proc = super().start(id=proc_id, job=job, target=cls.run_in_process, logger=logger, **kwargs)
 
-        msg = messages.StartTriggerer()
-        proc.send_msg(msg, request_id=0)
+        proc = super().start(
+            id=proc_id, job=job, client=cls.make_client(), target=cls.run_in_process, logger=logger, **kwargs
+        )
+        proc.send_msg(messages.StartTriggerer(), request_id=0)
         return proc
 
-    @functools.cached_property
-    def client(self) -> Client:
-        return self.make_client()
-
-    def make_client(self) -> Client:
+    @classmethod
+    def make_client(cls) -> Client:
         """
         Build the API client used to talk to the API server.
 
@@ -523,9 +504,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         return client
 
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger, req_id: int) -> None:
-
-        resp: BaseModel | None = None
-        dump_opts: dict[str, bool] = {}
         self._last_runner_comms = time.monotonic()
 
         if isinstance(msg, messages.TriggerStateChanges):
@@ -545,63 +523,32 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                         # Close the FD explicitly even if upload raised, otherwise the file
                         # handle leaks for every failed upload.
                         factory.close()
-
-            response = messages.TriggerStateSync(
-                to_create=[],
-                to_cancel=self.cancelling_triggers,
-            )
-
-            # Pull out of these dequeues in a thread-safe manner
+            sync = messages.TriggerStateSync(to_create=[], to_cancel=set())
+            sync.to_cancel = self.cancelling_triggers.copy()
             while self.creating_triggers:
                 workload = self.creating_triggers.popleft()
-                response.to_create.append(workload)
-            self.running_triggers.update(m.id for m in response.to_create)
-            resp = response
+                sync.to_create.append(workload)
+            self.running_triggers.update(m.id for m in sync.to_create)
+            self.send_msg(sync, request_id=req_id, error=None)
+            return
 
-        elif isinstance(msg, GetConnection):
-            resp, dump_opts = handle_get_connection(self.client, msg)
-        elif isinstance(msg, DeleteVariable):
-            resp, dump_opts = handle_delete_variable(self.client, msg)
-        elif isinstance(msg, GetVariable):
-            resp, dump_opts = handle_get_variable(self.client, msg)
-        elif isinstance(msg, GetVariableKeys):
-            resp, dump_opts = handle_get_variable_keys(self.client, msg)
-        elif isinstance(msg, PutVariable):
-            resp, dump_opts = handle_put_variable(self.client, msg)
-        elif isinstance(msg, DeleteXCom):
-            resp, dump_opts = handle_delete_xcom(self.client, msg)
-        elif isinstance(msg, GetXCom):
-            resp, dump_opts = handle_get_xcom(self.client, msg)
-        elif isinstance(msg, SetXCom):
-            resp, dump_opts = handle_set_xcom(self.client, msg)
-        elif isinstance(msg, GetDRCount):
-            resp, dump_opts = handle_get_dr_count(self.client, msg)
-        elif isinstance(msg, GetDagRunState):
-            resp, dump_opts = handle_get_dag_run_state(self.client, msg)
-
-        elif isinstance(msg, GetTICount):
-            resp, dump_opts = handle_get_ti_count(self.client, msg)
-
-        elif isinstance(msg, GetTaskStates):
-            resp, dump_opts = handle_get_task_states(self.client, msg)
-        elif isinstance(msg, GetPreviousTI):
-            resp, dump_opts = handle_get_previous_ti(self.client, msg)
-        elif isinstance(msg, UpdateHITLDetail):
+        if isinstance(msg, UpdateHITLDetail):
             api_resp = self.client.hitl.update_response(
                 ti_id=msg.ti_id,
                 chosen_options=msg.chosen_options,
                 params_input=msg.params_input,
             )
             resp = HITLDetailResponseResult.from_api_response(response=api_resp)
-        elif isinstance(msg, GetHITLDetailResponse):
+            self.send_msg(resp, request_id=req_id, error=None)
+            return
+
+        if isinstance(msg, GetHITLDetailResponse):
             api_resp = self.client.hitl.get_detail_response(ti_id=msg.ti_id)
             resp = HITLDetailResponseResult.from_api_response(response=api_resp)
-        elif isinstance(msg, MaskSecret):
-            handle_mask_secret(msg)
-        else:
-            raise ValueError(f"Unknown message type {type(msg)}")
+            self.send_msg(resp, request_id=req_id, error=None)
+            return
 
-        self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+        super()._handle_request(msg, log, req_id)
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""

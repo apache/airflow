@@ -73,6 +73,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import DAG, BaseHook, BaseOperator
+from airflow.sdk.api.client import Client
 from airflow.sdk.execution_time.comms import ToSupervisor, ToTask, _RequestFrame, _ResponseFrame
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -232,6 +233,7 @@ def supervisor_builder(mocker, session):
             stdin=mock_stdin,
             process=process,
             capacity=10,
+            client=mocker.Mock(spec=Client),
         )
         # Mock the selector
         mock_selector = mocker.Mock(spec=selectors.DefaultSelector)
@@ -264,6 +266,7 @@ def test_supervisor_stores_team_name(supervisor_builder, mocker, session):
         process=process,
         capacity=10,
         team_name="team_x",
+        client=mocker.Mock(spec=Client),
     )
     assert proc.team_name == "team_x"
 
@@ -276,6 +279,7 @@ def test_supervisor_stores_team_name(supervisor_builder, mocker, session):
         process=process,
         capacity=10,
         team_name=None,
+        client=mocker.Mock(spec=Client),
     )
     assert proc_global.team_name is None
 
@@ -309,24 +313,6 @@ def test_run_invokes_seams_in_order(supervisor_builder, mocker):
     supervisor.run()
 
     assert events == ["enter", "tick-1", "tick-2", "tick-3", "exit"]
-
-
-def test_client_delegates_to_make_client_and_caches_result(supervisor_builder, mocker):
-    """``supervisor.client`` delegates to ``make_client`` (the subclass-override hook)
-    and caches the result across accesses."""
-    supervisor = supervisor_builder()
-    make_client = mocker.patch.object(
-        TriggerRunnerSupervisor,
-        "make_client",
-        autospec=True,
-        return_value=mocker.sentinel.client,
-    )
-
-    first = supervisor.client
-    second = supervisor.client
-
-    assert first is second is mocker.sentinel.client  # cached — same object
-    make_client.assert_called_once_with(supervisor)
 
 
 def test_run_context_exits_when_subprocess_dies(supervisor_builder, mocker):
@@ -372,6 +358,7 @@ def jobless_supervisor(mocker):
         stdin=mock_stdin,
         process=process,
         capacity=10,
+        client=mocker.Mock(spec=Client),
     )
     mock_selector = mocker.Mock(spec=selectors.DefaultSelector)
     mock_selector.select.return_value = []
