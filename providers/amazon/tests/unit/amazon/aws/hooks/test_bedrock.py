@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from unittest import mock
 
+import botocore
 import pytest
 
 from airflow.providers.amazon.aws.hooks.bedrock import (
@@ -29,6 +30,12 @@ from airflow.providers.amazon.aws.hooks.bedrock import (
     BedrockRuntimeHook,
 )
 
+try:
+    botocore.session.get_session().get_service_model("bedrock-agentcore-control")
+    HAS_BEDROCK_AGENTCORE = True
+except botocore.exceptions.UnknownServiceError:
+    HAS_BEDROCK_AGENTCORE = False
+
 
 class TestBedrockHooks:
     @pytest.mark.parametrize(
@@ -38,8 +45,24 @@ class TestBedrockHooks:
             pytest.param(BedrockRuntimeHook(), "bedrock-runtime", id="bedrock-runtime"),
             pytest.param(BedrockAgentHook(), "bedrock-agent", id="bedrock-agent"),
             pytest.param(BedrockAgentRuntimeHook(), "bedrock-agent-runtime", id="bedrock-agent-runtime"),
-            pytest.param(BedrockAgentCoreControlHook(), "bedrock-agentcore-control", id="agentcore-control"),
-            pytest.param(BedrockAgentCoreHook(), "bedrock-agentcore", id="agentcore"),
+            pytest.param(
+                BedrockAgentCoreControlHook(),
+                "bedrock-agentcore-control",
+                id="agentcore-control",
+                marks=pytest.mark.skipif(
+                    not HAS_BEDROCK_AGENTCORE,
+                    reason="bedrock-agentcore-control not available in this botocore version",
+                ),
+            ),
+            pytest.param(
+                BedrockAgentCoreHook(),
+                "bedrock-agentcore",
+                id="agentcore",
+                marks=pytest.mark.skipif(
+                    not HAS_BEDROCK_AGENTCORE,
+                    reason="bedrock-agentcore not available in this botocore version",
+                ),
+            ),
         ],
     )
     def test_bedrock_hooks(self, test_hook, service_name):
