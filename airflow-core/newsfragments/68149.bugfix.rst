@@ -1,0 +1,1 @@
+Fix scheduler crash when rendering ``log_filename_template`` for asset-triggered or partitioned runs whose ``logical_date`` is ``None``; the renderer now falls back to ``run_after`` (matching the log reader) and degrades to the default ``run_id``-based template instead of aborting the scheduling loop.
