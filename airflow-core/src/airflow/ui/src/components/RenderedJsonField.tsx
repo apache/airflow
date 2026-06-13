@@ -32,13 +32,30 @@ type Props = {
   readonly collapsed?: boolean;
   readonly content: object;
   readonly enableClipboard?: boolean;
+  /**
+   * Enable extra navigation aids for large/deeply-nested JSON: bracket-pair
+   * colorization, indentation/bracket guides, sticky-scroll parent context, and
+   * always-visible folding controls. Defaults to false so existing usages are
+   * unchanged.
+   */
+  readonly showStructureGuides?: boolean;
 } & FlexProps;
 
-const RenderedJsonField = ({ collapsed = false, content, enableClipboard = true, ...rest }: Props) => {
+const RenderedJsonField = ({
+  collapsed = false,
+  content,
+  enableClipboard = true,
+  showStructureGuides = false,
+  ...rest
+}: Props) => {
   const contentFormatted = JSON.stringify(content, undefined, 2);
   const { beforeMount, theme } = useMonacoTheme();
   const lineCount = contentFormatted.split("\n").length;
-  const expandedHeight = Math.min(Math.max(lineCount * 19 + 10, MIN_HEIGHT), MAX_HEIGHT);
+  // Rendered templates (showStructureGuides) grow to fit the fully-expanded JSON so the
+  // page scrolls instead of trapping the content in an inner scroll area; other usages
+  // stay capped at MAX_HEIGHT.
+  const maxHeight = showStructureGuides ? Number.POSITIVE_INFINITY : MAX_HEIGHT;
+  const expandedHeight = Math.min(Math.max(lineCount * 19 + 10, MIN_HEIGHT), maxHeight);
   const [editorHeight, setEditorHeight] = useState(collapsed ? MIN_HEIGHT : expandedHeight);
   const [isReady, setIsReady] = useState(!collapsed);
   const editorRef = useRef<EditorInstance | null>(null);
@@ -50,7 +67,7 @@ const RenderedJsonField = ({ collapsed = false, content, enableClipboard = true,
       editorInstance.onDidContentSizeChange(() => {
         const contentHeight = editorInstance.getContentHeight();
 
-        setEditorHeight(Math.min(Math.max(contentHeight, MIN_HEIGHT), MAX_HEIGHT));
+        setEditorHeight(Math.min(Math.max(contentHeight, MIN_HEIGHT), maxHeight));
       });
 
       if (collapsed) {
@@ -65,7 +82,7 @@ const RenderedJsonField = ({ collapsed = false, content, enableClipboard = true,
         }
       }
     },
-    [collapsed],
+    [collapsed, maxHeight],
   );
 
   // Sync fold state when the `collapsed` prop changes after mount (e.g. via Expand/Collapse All).
@@ -113,6 +130,14 @@ const RenderedJsonField = ({ collapsed = false, content, enableClipboard = true,
           scrollbar: { vertical: "hidden", verticalScrollbarSize: 0 },
           scrollBeyondLastLine: false,
           wordWrap: "on",
+          ...(showStructureGuides
+            ? {
+                bracketPairColorization: { enabled: true },
+                guides: { bracketPairs: true, highlightActiveBracketPair: true, indentation: true },
+                showFoldingControls: "always" as const,
+                stickyScroll: { enabled: true },
+              }
+            : {}),
         }}
         theme={theme}
         value={contentFormatted}
