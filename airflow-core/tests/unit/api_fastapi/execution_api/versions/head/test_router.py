@@ -35,7 +35,7 @@ from airflow.api_fastapi.execution_api.security import (
 
 
 @pytest.fixture
-def client():
+def jwt_bearer_client():
     """Test client that exercises JWTBearer so request.scope is populated for the middleware."""
     from starlette.routing import Mount
 
@@ -83,10 +83,10 @@ def client():
 
 
 @pytest.fixture
-def exec_app(client):
+def exec_app(jwt_bearer_client):
     from starlette.routing import Mount
 
-    for route in client.app.routes:
+    for route in jwt_bearer_client.app.routes:
         if isinstance(route, Mount) and route.path == "/execution" and isinstance(route.app, FastAPI):
             return route.app
     raise RuntimeError("Execution API sub-app not found")
@@ -104,7 +104,7 @@ def exec_app(client):
 )
 @pytest.mark.db_test
 def test_expiring_token_is_reissued(
-    client, exec_app: FastAPI, time_machine, age, validity, expect_refreshed_token
+    jwt_bearer_client, exec_app: FastAPI, time_machine, age, validity, expect_refreshed_token
 ):
     moment = 1743451846  # A "random" unix epoch timestamp.
     auth = AsyncMock(spec=JWTValidator)
@@ -120,7 +120,7 @@ def test_expiring_token_is_reissued(
     lifespan.registry.register_value(JWTValidator, auth)
     # In order to test this we need any endpoint to hit. The easiest one to use is variable get
 
-    response = client.get("/execution/variables/key1", headers={"Authorization": "Bearer dummy"})
+    response = jwt_bearer_client.get("/execution/variables/key1", headers={"Authorization": "Bearer dummy"})
 
     if expect_refreshed_token:
         assert "Refreshed-API-Token" in response.headers
@@ -131,7 +131,9 @@ def test_expiring_token_is_reissued(
 
 
 @pytest.mark.db_test
-def test_token_expiring_mid_request_is_reissued_without_revalidation(client, exec_app: FastAPI, time_machine):
+def test_token_expiring_mid_request_is_reissued_without_revalidation(
+    jwt_bearer_client, exec_app: FastAPI, time_machine
+):
     """Middleware reissues from cached JWTBearer claims without re-validating the token.
 
     Regression test for the TOCTOU race in JWTReissueMiddleware: a heartbeat arrives with a
@@ -159,7 +161,7 @@ def test_token_expiring_mid_request_is_reissued_without_revalidation(client, exe
 
     lifespan.registry.register_value(JWTValidator, auth)
 
-    response = client.get("/execution/variables/key1", headers={"Authorization": "Bearer dummy"})
+    response = jwt_bearer_client.get("/execution/variables/key1", headers={"Authorization": "Bearer dummy"})
 
     assert "Refreshed-API-Token" in response.headers
     # avalidated_claims must be called exactly once — by JWTBearer only.
