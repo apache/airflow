@@ -98,6 +98,54 @@ class BaseXCom:
         )
 
     @classmethod
+    async def aset(
+        cls,
+        key: str,
+        value: Any,
+        *,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: int = -1,
+        dag_result: bool = False,
+        _mapped_length: int | None = None,
+    ) -> None:
+        """
+        Store an XCom value asynchronously.
+
+        :param key: Key to store the XCom.
+        :param value: XCom value to store.
+        :param dag_id: Dag ID.
+        :param task_id: Task ID.
+        :param run_id: Dag run ID for the task.
+        :param map_index: Optional map index to assign XCom for a mapped task.
+            The default is ``-1`` (set for a non-mapped task).
+        """
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        value = cls.serialize_value(
+            value=value,
+            key=key,
+            task_id=task_id,
+            dag_id=dag_id,
+            run_id=run_id,
+            map_index=map_index,
+        )
+
+        await SUPERVISOR_COMMS.asend(
+            SetXCom(
+                key=key,
+                value=value,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+                dag_result=dag_result,
+                mapped_length=_mapped_length,
+            ),
+        )
+
+    @classmethod
     def _set_xcom_in_db(
         cls,
         key: str,
