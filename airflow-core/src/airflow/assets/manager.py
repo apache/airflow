@@ -43,12 +43,15 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.log import Log
+from airflow.partition_mappers.identity import IdentityMapper
 from airflow.timetables.base import compute_rollup_fingerprint
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dag import DagModel
@@ -274,6 +277,7 @@ class AssetManager(LoggingMixin):
         source_alias_names: Collection[str] = (),
         session: Session,
         partition_key: str | None = None,
+        partition_date: datetime | None = None,
         source_is_api: bool = False,
         api_user_teams: set[str] | None = None,
         api_allow_consumer_teams: list[str] | None = None,
@@ -394,6 +398,7 @@ class AssetManager(LoggingMixin):
                 source_map_index=asset_event.source_map_index,
                 source_aliases=[aam.to_serialized() for aam in asset_alias_models],
                 partition_key=partition_key,
+                partition_date=partition_date,
             )
         )
 
@@ -436,6 +441,7 @@ class AssetManager(LoggingMixin):
             asset_id=asset_model.id,
             dags_to_queue=dags_to_queue,
             partition_key=partition_key,
+            partition_date=partition_date,
             event=asset_event,
             task_instance=task_instance,
             session=session,
@@ -481,6 +487,7 @@ class AssetManager(LoggingMixin):
         asset_id: int,
         dags_to_queue: set[DagModel],
         partition_key: str | None,
+        partition_date: datetime | None,
         event: AssetEvent,
         task_instance: TaskInstance | None,
         session: Session,
@@ -495,6 +502,7 @@ class AssetManager(LoggingMixin):
             partition_dags=partition_dags,
             event=event,
             partition_key=partition_key,
+            partition_date=partition_date,
             task_instance=task_instance,
             session=session,
         )
@@ -523,6 +531,7 @@ class AssetManager(LoggingMixin):
         partition_dags: Iterable[DagModel],
         event: AssetEvent,
         partition_key: str | None,
+        partition_date: datetime | None,
         task_instance: TaskInstance | None,
         session: Session,
     ) -> None:
@@ -570,9 +579,9 @@ class AssetManager(LoggingMixin):
             if (asset_model := session.scalar(select(AssetModel).where(AssetModel.id == asset_id))) is None:
                 raise RuntimeError(f"Could not find asset for asset_id={asset_id}")
 
+            mapper = timetable.get_partition_mapper(name=asset_model.name, uri=asset_model.uri)
             try:
                 # We'll need to catch every possible exception happen when mapping partition_key.
-                mapper = timetable.get_partition_mapper(name=asset_model.name, uri=asset_model.uri)
                 target_key = mapper.to_downstream(partition_key)
             except Exception as err:
                 log.exception(
@@ -639,9 +648,21 @@ class AssetManager(LoggingMixin):
                 )
                 continue
 
+            # Carry the producer's partition_date onto the APDR for IdentityMapper
+            # only: its key carries no temporal meaning, so the scheduler cannot
+            # re-derive the date at run creation and the producer's date (threaded
+            # in from its DagRun via register_asset_change) must be carried here.
+            # Temporal and composite mappers are resolved from the key by the
+            # scheduler via PartitionMapper.to_partition_date, so this is None for
+            # them.
+            target_partition_date: datetime | None = (
+                partition_date if isinstance(mapper, IdentityMapper) else None
+            )
+
             for target_key in target_keys:
                 apdr = cls._get_or_create_apdr(
                     target_key=target_key,
+                    target_partition_date=target_partition_date,
                     target_dag=target_dag,
                     rollup_fingerprint=fingerprint,
                     asset_id=asset_id,
@@ -662,6 +683,7 @@ class AssetManager(LoggingMixin):
         cls,
         *,
         target_key: str,
+        target_partition_date: datetime | None,
         target_dag: DagModel,
         rollup_fingerprint: dict,
         asset_id: int,
@@ -679,6 +701,15 @@ class AssetManager(LoggingMixin):
         ``rollup_fingerprint`` is the serialized mapper / window definition for all partitioned
         assets in the timetable at creation time; the scheduler discards APDRs whose stamp no
         longer matches the current timetable's fingerprint (mapper / window may have changed).
+
+        When an existing pending APDR is returned, its stored ``partition_date`` is kept if
+        the later event agrees or carries no date. If two contributing events resolve the
+        same ``target_key`` to **different** non-null ``partition_date`` values — the producing
+        assets disagree on the partition's datetime — picking one would be order-dependent
+        (arrival order / retries decide), so the carried date is suppressed (set to ``None``):
+        the consumer DagRun is created with no ``partition_date`` rather than a wrong, unstable
+        one. A ``None`` carried by a non-temporal event is not a conflict — for mixed mappers
+        the scheduler re-derives temporal dates from the key at run creation.
         """
         with _lock_asset_model(session=session, asset_id=asset_id):
             latest_apdr: AssetPartitionDagRun | None = session.scalar(
@@ -691,6 +722,27 @@ class AssetManager(LoggingMixin):
                 .limit(1)
             )
             if latest_apdr and latest_apdr.created_dag_run_id is None:
+                existing_partition_date = latest_apdr.partition_date
+                if (
+                    existing_partition_date is not None
+                    and target_partition_date is not None
+                    and existing_partition_date != target_partition_date
+                ):
+                    # Two contributing events carry conflicting partition_dates for the same
+                    # (target_key, target_dag). Choosing one would be order-dependent, so
+                    # suppress: the consumer DagRun gets partition_date=None rather than a
+                    # wrong, unstable value.
+                    log.warning(
+                        "Conflicting partition_date carried for the same target key; "
+                        "suppressing it so the consumer DagRun's partition_date is None. "
+                        "The producing assets likely disagree on the partition's datetime.",
+                        target_dag_id=target_dag.dag_id,
+                        target_key=target_key,
+                        existing_partition_date=existing_partition_date,
+                        incoming_partition_date=target_partition_date,
+                    )
+                    latest_apdr.partition_date = None
+                    session.flush()
                 cls.logger().debug(
                     "Existing APDR found for key %s dag_id %s",
                     target_key,
@@ -703,6 +755,7 @@ class AssetManager(LoggingMixin):
                 target_dag_id=target_dag.dag_id,
                 created_dag_run_id=None,
                 partition_key=target_key,
+                partition_date=target_partition_date,
                 rollup_fingerprint=rollup_fingerprint,
             )
             session.add(apdr)

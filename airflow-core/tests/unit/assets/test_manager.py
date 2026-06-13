@@ -29,6 +29,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from airflow import settings
+from airflow._shared.timezones import timezone
 from airflow.assets.manager import AssetManager
 from airflow.models.asset import (
     AssetAliasModel,
@@ -253,6 +254,7 @@ class TestAssetManager:
             try:
                 return AssetManager._get_or_create_apdr(
                     target_key="test_partition_key",
+                    target_partition_date=None,
                     target_dag=testing_dag,
                     rollup_fingerprint=rollup_fingerprint,
                     asset_id=asm.id,
@@ -274,6 +276,69 @@ class TestAssetManager:
 
         assert len(set(ids)) == 1
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 1
+
+    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    def test_get_or_create_apdr_suppresses_conflicting_partition_date(self, session):
+        """Two events resolving the same target key to different dates → suppress to None.
+
+        Rather than an order-dependent first-event-wins, conflicting carried dates produce a
+        deterministic ``None`` so the consumer DagRun is not stamped with a wrong, unstable date.
+        """
+        asm = AssetModel(uri="test://asset1/", name="partition_asset", group="asset")
+        testing_dag = DagModel(dag_id="testing_dag_pd_conflict", is_stale=False, bundle_name="testing")
+        session.add_all([asm, testing_dag])
+        session.commit()
+        fp = {"asset-1|test://asset1/": {"__type": "IdentityMapper", "__var": {}}}
+
+        first = AssetManager._get_or_create_apdr(
+            target_key="2026-05-20",
+            target_partition_date=timezone.parse("2026-05-20T00:00:00"),
+            target_dag=testing_dag,
+            rollup_fingerprint=fp,
+            asset_id=asm.id,
+            session=session,
+        )
+        assert first.partition_date == timezone.parse("2026-05-20T00:00:00")
+
+        # A second contributing event resolves the same key to a DIFFERENT date.
+        second = AssetManager._get_or_create_apdr(
+            target_key="2026-05-20",
+            target_partition_date=timezone.parse("2026-05-21T00:00:00"),
+            target_dag=testing_dag,
+            rollup_fingerprint=fp,
+            asset_id=asm.id,
+            session=session,
+        )
+        assert second.id == first.id  # same pending APDR
+        assert second.partition_date is None  # conflict suppressed, deterministic
+
+    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    def test_get_or_create_apdr_keeps_agreeing_partition_date(self, session):
+        """A later event carrying the same (or no) date does not trip the conflict suppression."""
+        asm = AssetModel(uri="test://asset1/", name="partition_asset", group="asset")
+        testing_dag = DagModel(dag_id="testing_dag_pd_agree", is_stale=False, bundle_name="testing")
+        session.add_all([asm, testing_dag])
+        session.commit()
+        fp = {"asset-1|test://asset1/": {"__type": "IdentityMapper", "__var": {}}}
+        source_date = timezone.parse("2026-05-20T00:00:00")
+
+        kwargs = dict(
+            target_key="2026-05-20",
+            target_dag=testing_dag,
+            rollup_fingerprint=fp,
+            asset_id=asm.id,
+            session=session,
+        )
+        first = AssetManager._get_or_create_apdr(target_partition_date=source_date, **kwargs)
+        # Same date agrees → kept.
+        same = AssetManager._get_or_create_apdr(target_partition_date=source_date, **kwargs)
+        assert same.id == first.id
+        assert same.partition_date == source_date
+        # A None-carrying event (e.g. a temporal mapper, resolved by the scheduler) is not a
+        # conflict → the existing date is kept.
+        with_none = AssetManager._get_or_create_apdr(target_partition_date=None, **kwargs)
+        assert with_none.id == first.id
+        assert with_none.partition_date == source_date
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.usefixtures("testing_dag_bundle")

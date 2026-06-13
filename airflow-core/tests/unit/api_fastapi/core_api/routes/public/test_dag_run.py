@@ -300,6 +300,7 @@ def get_dag_run_dict(run: DagRun):
         "note": run.note,
         "dag_versions": get_dag_versions_dict(run.dag_versions),
         "partition_key": None,
+        "partition_date": None,
     }
 
 
@@ -2331,6 +2332,7 @@ class TestTriggerDagRun:
             "triggered_by": "rest_api",
             "triggering_user_name": "test",
             "partition_key": None,
+            "partition_date": None,
         }
 
         assert response.json() == expected_response_json
@@ -2561,6 +2563,7 @@ class TestTriggerDagRun:
             "conf": {},
             "note": note,
             "partition_key": None,
+            "partition_date": None,
         }
 
         assert response_2.status_code == 409
@@ -2650,6 +2653,7 @@ class TestTriggerDagRun:
             "conf": {},
             "note": None,
             "partition_key": None,
+            "partition_date": None,
         }
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
