@@ -125,6 +125,48 @@ class TestAgentEngineHookWithDefaultProjectId:
 
         assert result == full_response
 
+    @mock.patch(AGENT_ENGINE_STRING.format("google.auth.transport.requests.AuthorizedSession"), autospec=True)
+    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_credentials"), autospec=True)
+    def test_query_agent_engine_parses_json_string_input(self, mock_get_credentials, mock_session_cls):
+        mock_response = mock.Mock()
+        mock_response.json.return_value = {"output": {"answer": "hello"}}
+        mock_session_cls.return_value.post.return_value = mock_response
+
+        result = self.hook.query_agent_engine(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            name=AGENT_ENGINE_NAME,
+            config={"class_method": "query", "input": '{"prompt": "hello"}'},
+        )
+
+        mock_session_cls.return_value.post.assert_called_once_with(
+            f"https://{GCP_LOCATION}-aiplatform.googleapis.com/v1beta1/{AGENT_ENGINE_NAME}:query",
+            json={"classMethod": "query", "input": {"prompt": "hello"}},
+        )
+        assert result == {"answer": "hello"}
+
+    @pytest.mark.parametrize(
+        "input_value",
+        [
+            "test string",
+            '"test string"',
+            '["prompt", "hello"]',
+            1,
+            ["prompt", "hello"],
+        ],
+    )
+    @mock.patch(AGENT_ENGINE_STRING.format("google.auth.transport.requests.AuthorizedSession"), autospec=True)
+    def test_query_agent_engine_rejects_non_object_input(self, mock_session_cls, input_value):
+        with pytest.raises(ValueError, match="Agent Engine query input must be a JSON object."):
+            self.hook.query_agent_engine(
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                name=AGENT_ENGINE_NAME,
+                config={"class_method": "query", "input": input_value},
+            )
+
+        mock_session_cls.assert_not_called()
+
     @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
     def test_update_agent_engine(self, mock_get_client):
         result = self.hook.update_agent_engine(

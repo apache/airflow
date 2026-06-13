@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 from collections.abc import Sequence
 from typing import Any
@@ -118,7 +119,15 @@ class AgentEngineHook(GoogleBaseHook):
         cfg = config if isinstance(config, dict) else {}
         body: dict[str, Any] = {"classMethod": cfg.get("class_method", "query")}
         if "input" in cfg:
-            body["input"] = cfg["input"]
+            input_val = cfg["input"]
+            if isinstance(input_val, str):
+                try:
+                    input_val = json.loads(input_val)
+                except json.JSONDecodeError as err:
+                    raise ValueError("Agent Engine query input must be a JSON object.") from err
+            if not isinstance(input_val, dict):
+                raise ValueError("Agent Engine query input must be a JSON object.")
+            body["input"] = input_val
 
         url = f"https://{location}-aiplatform.googleapis.com/v1beta1/{name}:query"
         session = google.auth.transport.requests.AuthorizedSession(self.get_credentials())
