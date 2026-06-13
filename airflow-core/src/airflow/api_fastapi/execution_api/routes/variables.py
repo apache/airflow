@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Security, status
 from sqlalchemy import func, select
 
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -29,7 +29,7 @@ from airflow.api_fastapi.execution_api.datamodels.variable import (
     VariablePostBody,
     VariableResponse,
 )
-from airflow.api_fastapi.execution_api.security import CurrentTIToken, get_team_name_dep
+from airflow.api_fastapi.execution_api.security import CurrentTIToken, get_team_name_dep, require_auth
 from airflow.models.variable import Variable
 
 
@@ -57,7 +57,9 @@ async def has_variable_access(
     return True
 
 
-router = APIRouter()
+router = APIRouter(
+    dependencies=[Security(require_auth, scopes=["token:execution", "token:workload"])],
+)
 
 log = logging.getLogger(__name__)
 
