@@ -28,7 +28,8 @@ from fastapi.responses import StreamingResponse
 from starlette.routing import Mount
 
 from airflow.api_fastapi.app import create_app
-from airflow.api_fastapi.core_api.app import init_config
+from airflow.api_fastapi.common.http_metrics import HttpMetricsMiddleware
+from airflow.api_fastapi.core_api.app import init_config, init_middlewares
 from airflow.api_fastapi.core_api.routes.public import authenticated_router
 from airflow.api_fastapi.core_api.routes.ui import ui_router
 from airflow.api_fastapi.core_api.security import get_user
@@ -177,3 +178,22 @@ class TestCorsMiddlewareConfig:
             app = FastAPI()
             with pytest.raises(AirflowConfigException, match=r"must not contain `\*`"):
                 init_config(app)
+
+
+class TestHttpMetricsMiddlewareRegistration:
+    @pytest.mark.parametrize(
+        ("metrics_config", "expected"),
+        [
+            pytest.param({}, False, id="disabled"),
+            pytest.param({("metrics", "statsd_on"): "True"}, True, id="enabled"),
+        ],
+    )
+    def test_registers_http_metrics_middleware_only_when_metrics_enabled(self, metrics_config, expected):
+        app = FastAPI()
+
+        with conf_vars(metrics_config):
+            init_middlewares(app)
+
+        registered_middlewares = {middleware.cls for middleware in app.user_middleware}
+
+        assert (HttpMetricsMiddleware in registered_middlewares) is expected

@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(logger_name="http.access")
 
-_HEALTH_PATHS = frozenset(["/api/v2/monitor/health"])
+_HEALTH_PATHS = frozenset(("/api/v2/monitor/health",))
 
 
 def _redact_query_string(query: str) -> str:
