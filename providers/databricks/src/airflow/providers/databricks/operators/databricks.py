@@ -1387,7 +1387,15 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     def _launch_job(self, context: Context | None = None) -> int | None:
         """Launch the job on Databricks."""
         run_json = self._get_run_json()
-        self.databricks_run_id = self._hook.submit_run(run_json)
+
+        # For any Operators that are inheriting from this DatabricksTaskBaseOperator,
+        # this will allow for them to render any fields specified in template_fields
+        # when the job is launched
+        templated_run_json: dict = (
+            self.render_template(content=run_json, context=context) if context is not None else run_json
+        )
+
+        self.databricks_run_id = self._hook.submit_run(templated_run_json)
         url = self._hook.get_run_page_url(self.databricks_run_id)
         self.log.info("Check the job run in Databricks: %s", url)
 
