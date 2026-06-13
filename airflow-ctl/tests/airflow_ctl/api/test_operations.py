@@ -91,6 +91,9 @@ from airflowctl.api.datamodels.generated import (
     QueuedEventCollectionResponse,
     QueuedEventResponse,
     ReprocessBehavior,
+    TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
+    TaskInstanceState,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -1272,6 +1275,52 @@ class TestDagRunOperations:
         assert response == self.dag_run_collection_response
         assert "state" not in captured_params
         assert captured_params["limit"] == "5"
+
+
+class TestTasksOperations:
+    dag_id = "dag_id"
+    dag_run_id = "manual__2025-01-24T00:00:00+00:00"
+    task_instance_response = TaskInstanceResponse(
+        id=uuid.uuid4(),
+        task_id="test_task",
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        map_index=-1,
+        logical_date=datetime.datetime(2025, 1, 24, 0, 0, 0),
+        run_after=datetime.datetime(2025, 1, 24, 0, 0, 0),
+        start_date=datetime.datetime(2025, 1, 24, 0, 0, 1),
+        end_date=datetime.datetime(2025, 1, 24, 0, 0, 2),
+        duration=1.0,
+        state=TaskInstanceState.SUCCESS,
+        try_number=1,
+        max_tries=0,
+        task_display_name="test_task",
+        dag_display_name=dag_id,
+        pool="default_pool",
+        pool_slots=1,
+        executor_config="{}",
+    )
+    task_instance_collection_response = TaskInstanceCollectionResponse(
+        task_instances=[task_instance_response],
+        total_entries=1,
+    )
+
+    def test_states_for_dag_run(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert (
+                request.url.path
+                == f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances"
+            )
+            assert dict(request.url.params)["limit"] == "25"
+            return httpx.Response(
+                200, json=json.loads(self.task_instance_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.tasks.states_for_dag_run(
+            dag_id=self.dag_id, dag_run_id=self.dag_run_id, limit=25
+        )
+        assert response == self.task_instance_collection_response
 
 
 class TestJobsOperations:
