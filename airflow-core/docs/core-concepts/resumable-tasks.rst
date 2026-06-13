@@ -82,7 +82,7 @@ Resumable tasks are useful when:
 
 **General pattern**
 
-The task reads a checkpoint from ``task_store`` at the start, does some work, writes an updated
+The task reads a checkpoint from ``task_state_store`` at the start, does some work, writes an updated
 checkpoint, and either continues or finishes. On the next run (whether due to a retry after a
 crash or a deliberate reschedule), it reads the checkpoint again and picks up from there.
 
@@ -96,17 +96,17 @@ crash or a deliberate reschedule), it reads the checkpoint again and picks up fr
 
         @task(retries=5)
         def process_files(context=None):
-            task_store = context["task_store"]
+            task_state_store = context["task_state_store"]
             files = ["a.csv", "b.csv", "c.csv", "d.csv"]
 
-            last_processed = task_store.get("last_processed")
+            last_processed = task_state_store.get("last_processed")
             start_index = 0
             if last_processed is not None:
                 start_index = files.index(last_processed) + 1
 
             for file in files[start_index:]:
                 # ... process the file ...
-                task_store.set("last_processed", file)
+                task_state_store.set("last_processed", file)
 
         process_files()
 
@@ -171,7 +171,7 @@ Comparison
      - No
    * - Handles crash recovery
      - Yes (via Triggerer)
-     - Yes (via task store checkpoint)
+     - Yes (via task state store checkpoint)
      - No
    * - Prevents duplicate job submission
      - Depends on operator implementation
