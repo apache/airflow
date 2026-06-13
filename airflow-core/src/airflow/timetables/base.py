@@ -26,7 +26,7 @@ from airflow._shared.timezones import timezone
 from airflow.serialization.definitions.assets import SerializedAssetBase
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Iterable, Iterator, Sequence
 
     from pendulum import DateTime
 
@@ -256,6 +256,22 @@ class Timetable(Protocol):
             f"{type(self).__name__} is not partitioned and does not define a "
             f"partition mapper (asset name={name!r}, uri={uri!r})."
         )
+        raise NotImplementedError(msg)
+
+    def iter_partition_dagrun_infos(
+        self,
+        *,
+        earliest_date: datetime.date,
+        latest_date: datetime.date,
+    ) -> Iterable[DagRunInfo]:
+        """
+        Yield one DagRunInfo per partition for calendar days in ``[earliest_date, latest_date]`` (both inclusive).
+
+        Only called for partitioned timetables (``partitioned is True``). The default
+        implementation raises :exc:`NotImplementedError`; timetables that set
+        ``partitioned = True`` must override this.
+        """
+        msg = f"{type(self).__name__} is partitioned but does not implement iter_partition_dagrun_infos."
         raise NotImplementedError(msg)
 
     def resolve_day_bound(self, day: datetime.date) -> DateTime:
