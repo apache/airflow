@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.execution_time.context import AssetStoreAccessors
     from airflow.serialization.serialized_objects import SerializedBaseOperator
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
@@ -296,6 +297,12 @@ class BaseEventTrigger(BaseTrigger):
     """
 
     supports_triggerer_queue: bool = False
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        # Injected by the triggerer before run() is called; mirrors how trigger_id is set
+        self.asset_store: AssetStoreAccessors | None = None
 
     @staticmethod
     def hash(classpath: str, kwargs: dict[str, Any]) -> int:

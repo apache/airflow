@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
 
 from airflow.sdk.bases.operator import BaseOperator
@@ -232,3 +234,25 @@ async def test_subclass_filter_shared_stream_applies_per_instance_match():
 
     payloads = [event.payload async for event in us.filter_shared_stream(stream())]
     assert [p["region"] for p in payloads] == ["us", "us"]
+
+
+def test_base_event_trigger_asset_store_initialized_to_none():
+    """asset_store is None before it is set."""
+    trigger = _PlainEventTrigger()
+    assert trigger.asset_store is None
+
+
+def test_base_event_trigger_asset_store_can_be_set():
+    """asset_store can be set once the Trigger is initialized."""
+    trigger = _PlainEventTrigger()
+    mock_store = MagicMock()
+    trigger.asset_store = mock_store
+    assert trigger.asset_store is mock_store
+
+
+def test_base_event_trigger_asset_store_independent_across_instances():
+    """a.asset_store does not impact b.asset_store."""
+    a = _PlainEventTrigger(name="a")
+    b = _PlainEventTrigger(name="b")
+    a.asset_store = MagicMock()
+    assert b.asset_store is None
