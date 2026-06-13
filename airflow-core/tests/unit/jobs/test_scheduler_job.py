@@ -68,7 +68,7 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
 )
 from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
-from airflow.models.callback import Callback, ExecutorCallback
+from airflow.models.callback import Callback, CallbackKey, ExecutorCallback
 from airflow.models.connection_test import (
     ConnectionTestKey,
     ConnectionTestRequest,
@@ -691,6 +691,106 @@ class TestSchedulerJob:
         assert session.get(ExecutorCallback, scheduled_callback.id).state == CallbackState.SCHEDULED
         assert session.get(ExecutorCallback, queued_callback.id).state == CallbackState.QUEUED
         assert session.get(ExecutorCallback, running_callback.id).state == CallbackState.RUNNING
+
+    @pytest.mark.parametrize(
+        ("db_state", "event_state", "expected_state"),
+        [
+            # RUNNING events are informational; the API is the source of truth for
+            # the QUEUED -> RUNNING transition, so RUNNING events never modify state.
+            (CallbackState.QUEUED, CallbackState.RUNNING, CallbackState.QUEUED),
+            # QUEUED -> terminal fallback: if the supervisor crashes before calling
+            # the start API, the executor still emits a terminal event and the
+            # scheduler must advance the row so it does not stay QUEUED forever.
+            (CallbackState.QUEUED, CallbackState.SUCCESS, CallbackState.SUCCESS),
+            (CallbackState.QUEUED, CallbackState.FAILED, CallbackState.FAILED),
+            (CallbackState.RUNNING, CallbackState.SUCCESS, CallbackState.SUCCESS),
+            (CallbackState.RUNNING, CallbackState.FAILED, CallbackState.FAILED),
+            # Stale events must not regress an already-terminal callback. The API
+            # path (POST /run, PATCH /state) is authoritative; events are a fallback.
+            (CallbackState.SUCCESS, CallbackState.RUNNING, CallbackState.SUCCESS),
+            (CallbackState.SUCCESS, CallbackState.FAILED, CallbackState.SUCCESS),
+            (CallbackState.FAILED, CallbackState.RUNNING, CallbackState.FAILED),
+            (CallbackState.FAILED, CallbackState.SUCCESS, CallbackState.FAILED),
+            # Already RUNNING in DB: a duplicate RUNNING event is a no-op.
+            (CallbackState.RUNNING, CallbackState.RUNNING, CallbackState.RUNNING),
+        ],
+    )
+    def test_process_executor_events_writes_callback_state_forward_only(
+        self, dag_maker, session, db_state, event_state, expected_state
+    ):
+        def test_callback():
+            pass
+
+        with dag_maker(dag_id="test_callback_forward_only"):
+            pass
+        dag_run = dag_maker.create_dagrun()
+
+        callback = Deadline(
+            deadline_time=timezone.utcnow(),
+            callback=SyncCallback(test_callback),
+            dagrun_id=dag_run.id,
+            deadline_alert_id=None,
+        ).callback
+        callback.state = db_state
+        callback.data["dag_run_id"] = dag_run.id
+        callback.data["dag_id"] = dag_run.dag_id
+        session.add(callback)
+        session.flush()
+
+        executor = MockExecutor(do_update=False)
+        executor.event_buffer[CallbackKey(id=str(callback.id))] = (event_state, None)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+        self.job_runner._process_executor_events(executor=executor, session=session)
+
+        session.flush()
+        session.expire_all()
+        assert session.get(ExecutorCallback, callback.id).state == expected_state
+
+    @pytest.mark.parametrize(
+        "db_state",
+        [CallbackState.QUEUED, CallbackState.RUNNING],
+    )
+    def test_process_executor_events_failed_event_captures_output(self, dag_maker, session, db_state):
+        """
+        A FAILED executor event must mark the callback row FAILED and persist the failure
+        message regardless of whether the row is still QUEUED (supervisor crashed before
+        the start API call) or already RUNNING (supervisor crashed mid-execution).
+        """
+
+        def test_callback():
+            pass
+
+        with dag_maker(dag_id="test_callback_failed_event_output"):
+            pass
+        dag_run = dag_maker.create_dagrun()
+
+        callback = Deadline(
+            deadline_time=timezone.utcnow(),
+            callback=SyncCallback(test_callback),
+            dagrun_id=dag_run.id,
+            deadline_alert_id=None,
+        ).callback
+        callback.state = db_state
+        callback.data["dag_run_id"] = dag_run.id
+        callback.data["dag_id"] = dag_run.dag_id
+        session.add(callback)
+        session.flush()
+
+        failure_message = "supervisor crashed before reporting state"
+        executor = MockExecutor(do_update=False)
+        executor.event_buffer[CallbackKey(id=str(callback.id))] = (CallbackState.FAILED, failure_message)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+        self.job_runner._process_executor_events(executor=executor, session=session)
+
+        session.flush()
+        session.expire_all()
+        persisted = session.get(ExecutorCallback, callback.id)
+        assert persisted.state == CallbackState.FAILED
+        assert persisted.output == failure_message
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
