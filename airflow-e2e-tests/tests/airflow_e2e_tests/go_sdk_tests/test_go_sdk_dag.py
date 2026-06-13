@@ -53,10 +53,14 @@ end-to-end:
    XCom crosses the Python <-> Go boundary in both directions.
 3. Structured task logs emitted by the Go binary over the coordinator logs
    channel reach Airflow's task-log store.
+4. The runtime context surfaced to Go tasks via ``sdk.CurrentContext`` is fully
+   populated on the coordinator path: the task-instance identifiers and the Dag
+   run's scheduling timestamps (logical_date / data_interval_start/end).
 """
 
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -92,13 +96,17 @@ class _CompletedRun:
         """Return the concatenated task-log records for *task_id*, retrying until present."""
         deadline = time.monotonic() + _LOG_FETCH_TIMEOUT
         while True:
-            resp = self.client.get_task_logs(
-                dag_id=_DAG_ID, run_id=self.run_id, task_id=task_id, try_number=try_number
-            )
-            text = "\n".join(str(entry) for entry in resp.get("content", []))
+            text = "\n".join(str(entry) for entry in self.log_records(task_id, try_number))
             if text.strip() or time.monotonic() > deadline:
                 return text
             time.sleep(3)
+
+    def log_records(self, task_id: str, try_number: int = 1) -> list[dict]:
+        """Return the structured task-log records (parsed JSON dicts) for *task_id*."""
+        resp = self.client.get_task_logs(
+            dag_id=_DAG_ID, run_id=self.run_id, task_id=task_id, try_number=try_number
+        )
+        return [entry for entry in resp.get("content", []) if isinstance(entry, dict)]
 
 
 @pytest.fixture(scope="module")
@@ -172,6 +180,49 @@ def test_extract_logs_show_beep_loop(completed_run: _CompletedRun):
     beeps = logs.count("After the beep the time will be")
     assert beeps == 10, f"expected 10 'After the beep the time will be' log lines from extract, got {beeps}"
     assert "Goodbye from task" in logs, "extract task should log 'Goodbye from task'"
+
+
+def test_extract_logs_show_runtime_context(completed_run: _CompletedRun):
+    """The Go 'extract' task logs every field surfaced by ``sdk.CurrentContext``.
+
+    ``extract`` (main.go) emits one ``task runtime context`` record whose fields
+    are grouped under ``context.ti.*`` and ``context.dag_run.*``. This confirms
+    the coordinator path populates the full runtime context end-to-end -- the
+    task-instance identifiers and the Dag run's scheduling timestamps (the
+    ti_context.dag_run.* dates the supervisor sends over msgpack).
+    """
+    # The fields are emitted as structured attributes on a single log record,
+    # so read them from the parsed record rather than the rendered text.
+    records = completed_run.log_records("extract")
+    record = next((r for r in records if r.get("event") == "task runtime context"), None)
+    assert record is not None, (
+        f"extract should emit a 'task runtime context' record; events seen: "
+        f"{[r.get('event') for r in records]}"
+    )
+
+    run_id = completed_run.run_id
+
+    # Task-instance identifiers come straight from the task instance.
+    assert record.get("context.ti.dag_id") == _DAG_ID, record
+    assert record.get("context.ti.task_id") == "extract", record
+    assert record.get("context.ti.run_id") == run_id, record
+    assert str(record.get("context.ti.try_number")) == "1", record
+    # Unmapped task -> nil *int -> logged as null.
+    assert record.get("context.ti.map_index") is None, record
+
+    # The Dag run mirrors the same ids and carries the scheduling timestamps.
+    assert record.get("context.dag_run.dag_id") == _DAG_ID, record
+    assert record.get("context.dag_run.run_id") == run_id, record
+
+    iso_prefix = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")
+    for ts_field in (
+        "context.dag_run.logical_date",
+        "context.dag_run.data_interval_start",
+        "context.dag_run.data_interval_end",
+    ):
+        value = record.get(ts_field)
+        assert value, f"{ts_field} should be present and non-empty; record: {record}"
+        assert iso_prefix.match(str(value)), f"{ts_field} should be an ISO-8601 timestamp, got {value!r}"
 
 
 def test_transform_logs_show_variable_read(completed_run: _CompletedRun):

@@ -108,43 +108,6 @@ class TestServiceAccountAnnotations:
             (
                 {
                     "workers": {
-                        "serviceAccount": {
-                            "annotations": {
-                                "example": "worker",
-                            },
-                        },
-                    },
-                },
-                "templates/workers/worker-serviceaccount.yaml",
-                {
-                    "example": "worker",
-                },
-            ),
-            (
-                {
-                    "workers": {
-                        "celery": {
-                            "serviceAccount": {
-                                "annotations": {
-                                    "example": "worker",
-                                },
-                            }
-                        },
-                    },
-                },
-                "templates/workers/worker-serviceaccount.yaml",
-                {
-                    "example": "worker",
-                },
-            ),
-            (
-                {
-                    "workers": {
-                        "serviceAccount": {
-                            "annotations": {
-                                "worker": "example",
-                            },
-                        },
                         "celery": {
                             "serviceAccount": {
                                 "annotations": {
@@ -163,47 +126,6 @@ class TestServiceAccountAnnotations:
                 {
                     "executor": "KubernetesExecutor",
                     "workers": {
-                        "serviceAccount": {
-                            "annotations": {
-                                "example": "worker",
-                            },
-                        },
-                        "kubernetes": {"serviceAccount": {"create": True}},
-                    },
-                },
-                "templates/workers/worker-kubernetes-serviceaccount.yaml",
-                {
-                    "example": "worker",
-                },
-            ),
-            (
-                {
-                    "executor": "KubernetesExecutor",
-                    "workers": {
-                        "kubernetes": {
-                            "serviceAccount": {
-                                "create": True,
-                                "annotations": {
-                                    "example": "worker",
-                                },
-                            }
-                        },
-                    },
-                },
-                "templates/workers/worker-kubernetes-serviceaccount.yaml",
-                {
-                    "example": "worker",
-                },
-            ),
-            (
-                {
-                    "executor": "KubernetesExecutor",
-                    "workers": {
-                        "serviceAccount": {
-                            "annotations": {
-                                "worker": "example",
-                            },
-                        },
                         "kubernetes": {
                             "serviceAccount": {
                                 "create": True,
@@ -438,25 +360,6 @@ class TestServiceAccountAnnotations:
         assert annotations["iam.gke.io/gcp-service-account"] == "release-name-worker@project.iam"
 
     def test_tpl_rendered_annotations_kubernetes_worker(self):
-        """Test KubernetesExecutor worker SA annotations support tpl rendering."""
-        k8s_objects = render_chart(
-            values={
-                "executor": "KubernetesExecutor",
-                "workers": {
-                    "serviceAccount": {
-                        "annotations": {
-                            "iam.gke.io/gcp-service-account": "{{ .Release.Name }}-worker@project.iam",
-                        },
-                    },
-                },
-            },
-            show_only=["templates/workers/worker-serviceaccount.yaml"],
-        )
-        assert len(k8s_objects) == 1
-        annotations = k8s_objects[0]["metadata"]["annotations"]
-        assert annotations["iam.gke.io/gcp-service-account"] == "release-name-worker@project.iam"
-
-    def test_tpl_rendered_annotations_kubernetes_worker_separate(self):
         """Test worker-kubernetes-serviceaccount.yaml support tpl rendering."""
         k8s_objects = render_chart(
             values={
@@ -511,42 +414,11 @@ class TestServiceAccountAnnotations:
         (
             {
                 "workers": {
-                    "podAnnotations": {
-                        "example": "{{ .Release.Name }}-worker",
-                    },
-                },
-            },
-            "templates/workers/worker-deployment.yaml",
-            {
-                "example": "release-name-worker",
-            },
-        ),
-        (
-            {
-                "workers": {
                     "celery": {
                         "podAnnotations": {
                             "example": "{{ .Release.Name }}-worker",
                         },
                     }
-                },
-            },
-            "templates/workers/worker-deployment.yaml",
-            {
-                "example": "release-name-worker",
-            },
-        ),
-        (
-            {
-                "workers": {
-                    "podAnnotations": {
-                        "test": "test",
-                    },
-                    "celery": {
-                        "podAnnotations": {
-                            "example": "{{ .Release.Name }}-worker",
-                        },
-                    },
                 },
             },
             "templates/workers/worker-deployment.yaml",

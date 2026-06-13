@@ -31,6 +31,7 @@ Don't spell out **Directed Acyclic Graph** except for historical context.
 `<PROJECT>` is folder where pyproject.toml of the package you want to test is located. For example, `airflow-core` or `providers/amazon`.
 `<target_branch>` is the branch the PR will be merged into — usually `main`, but could be `v3-1-test` when creating a PR for the 3.1 branch.
 
+<!-- START generated-commands, please keep comment here to allow auto update -->
 - **Run a single test:** `uv run --project <PROJECT> pytest path/to/test.py::TestClass::test_method -xvs`
 - **Run a test file:** `uv run --project <PROJECT> pytest path/to/test.py -xvs`
 - **Run all tests in package:** `uv run --project <PROJECT> pytest path/to/package -xvs`
@@ -54,6 +55,7 @@ Don't spell out **Directed Acyclic Graph** except for historical context.
 - **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual`
 - **Build docs:** `breeze build-docs`
 - **Determine which tests to run based on changed files:** `breeze selective-checks --commit-ref <commit_with_squashed_changes>`
+<!-- END generated-commands, please keep comment here to allow auto update -->
 
 SQLite is the default backend. Use `--backend postgres` or `--backend mysql` for integration tests that need those databases. If Docker networking fails, run `docker network prune`.
 

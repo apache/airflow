@@ -170,7 +170,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--allow-pre-releases",
                 "--use-distributions-from-dist",
                 "--install-airflow-python-client",
-                "--sdk",
             ],
         },
         {
@@ -254,7 +253,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--builder",
                 "--use-uv",
-                "--sdk",
             ],
         },
         {

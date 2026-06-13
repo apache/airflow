@@ -1,7 +1,7 @@
 airflow-core/src/airflow/api/common/delete_dag.py::1
 airflow-core/src/airflow/api_fastapi/core_api/app.py::1
 airflow-core/src/airflow/cli/cli_parser.py::1
-airflow-core/src/airflow/cli/commands/dag_command.py::3
+airflow-core/src/airflow/cli/commands/dag_command.py::1
 airflow-core/src/airflow/cli/commands/db_command.py::1
 airflow-core/src/airflow/config_templates/airflow_local_settings.py::1
 airflow-core/src/airflow/dag_processing/dagbag.py::1
