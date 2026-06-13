@@ -53,6 +53,9 @@ DEFAULT_SPARK_BINARY = "spark-submit"
 ALLOWED_SPARK_BINARIES = [DEFAULT_SPARK_BINARY, "spark2-submit", "spark3-submit"]
 
 _K8S_WAIT_APP_COMPLETION_CONF = "spark.kubernetes.submission.waitAppCompletion"
+_K8S_DRIVER_POD_NAME_REGEX = re.compile(
+    r"(?:^|\s)submission ID spark:([a-z0-9](?:[-a-z0-9]*[a-z0-9])?-driver)(?=\s|$)"
+)
 
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
@@ -838,7 +841,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     self._kubernetes_driver_pod = match_driver_pod.group(1)
                     self.log.info("Identified spark driver pod: %s", self._kubernetes_driver_pod)
                 if not self._kubernetes_driver_pod:
-                    match_submission_id = re.search(r"submission ID spark:(.+?-driver)", line)
+                    match_submission_id = _K8S_DRIVER_POD_NAME_REGEX.search(line)
                     if match_submission_id:
                         self._kubernetes_driver_pod = match_submission_id.group(1)
                         self.log.info("Identified spark driver pod: %s", self._kubernetes_driver_pod)

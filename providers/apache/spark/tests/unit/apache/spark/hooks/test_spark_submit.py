@@ -941,17 +941,24 @@ class TestSparkSubmitHook:
         # Then
         assert hook._spark_exit_code == 999
 
-    def test_process_spark_submit_log_k8s_submission_id_format(self):
+    @pytest.mark.parametrize(
+        "pod_name",
+        [
+            "arrow-spark-c8e2e29e73db9c93-driver",
+            "victim-driver-foo-abc-driver",
+        ],
+    )
+    def test_process_spark_submit_log_k8s_submission_id_format(self, pod_name):
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster")
         log_lines = [
-            "INFO Client: Deployed Spark application arrow-spark with application ID "
+            f"INFO Client: Deployed Spark application {pod_name.removesuffix('-driver')} with application ID "
             "spark-1e22d65826b74ac2927249b0e607ed54 and submission ID "
-            "spark:arrow-spark-c8e2e29e73db9c93-driver into Kubernetes",
+            f"spark:{pod_name} into Kubernetes",
         ]
 
         hook._process_spark_submit_log(log_lines)
 
-        assert hook._kubernetes_driver_pod == "arrow-spark-c8e2e29e73db9c93-driver"
+        assert hook._kubernetes_driver_pod == pod_name
 
     def test_process_spark_client_mode_submit_log_k8s(self):
         # Given
