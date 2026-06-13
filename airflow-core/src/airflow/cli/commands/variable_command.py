@@ -23,10 +23,12 @@ import json
 import os
 from typing import TYPE_CHECKING
 
+from airflowctl.api.operations import ServerResponseError
 from sqlalchemy import select
 
+from airflow.cli.api_client import NEW_API_CLIENT, Client, provide_api_client
 from airflow.cli.simple_table import AirflowConsole
-from airflow.cli.utils import SENSITIVE_PLACEHOLDER, print_export_output
+from airflow.cli.utils import SENSITIVE_PLACEHOLDER, deprecated_for_airflowctl, print_export_output
 from airflow.exceptions import (
     AirflowFileParseException,
     AirflowUnsupportedFileTypeException,
@@ -92,19 +94,26 @@ def variables_list(args):
             AirflowConsole().print_as(data=variables, output=args.output, mapper=None)
 
 
+@deprecated_for_airflowctl("airflowctl variables get")
 @suppress_logs_and_warning
 @providers_configuration_loaded
-def variables_get(args):
+@provide_api_client
+def variables_get(args, api_client: Client = NEW_API_CLIENT):
     """Display variable by a given name."""
     try:
-        if args.default is None:
-            var = Variable.get(args.key, deserialize_json=args.json)
-            print(var)
-        else:
-            var = Variable.get(args.key, deserialize_json=args.json, default_var=args.default)
-            print(var)
-    except (ValueError, KeyError) as e:
-        raise SystemExit(str(e).strip("'\""))
+        variable = api_client.variables.get(variable_key=args.key)
+    except ServerResponseError as e:
+        if e.response.status_code == 404:
+            if args.default is not None:
+                print(args.default)
+                return
+            raise SystemExit(f"Variable {args.key} does not exist")
+        raise
+    value = variable.value
+    if args.json and value is not None:
+        print(json.loads(value))
+    else:
+        print(value)
 
 
 @cli_utils.action_cli

@@ -22,8 +22,11 @@ import os
 from contextlib import redirect_stdout
 from io import StringIO
 
+import httpx
 import pytest
 import yaml
+from airflowctl.api.datamodels.generated import VariableResponse
+from airflowctl.api.operations import ServerResponseError
 from sqlalchemy import select
 
 from airflow import models
@@ -35,6 +38,12 @@ from airflow.utils.session import create_session
 from tests_common.test_utils.db import clear_db_variables
 
 pytestmark = pytest.mark.db_test
+
+
+def _server_error(status_code: int) -> ServerResponseError:
+    request = httpx.Request("GET", "http://testserver/api/v2/variables/foo")
+    response = httpx.Response(status_code, request=request, json={"detail": "boom"})
+    return ServerResponseError(message="boom", request=request, response=response)
 
 
 # Test data fixtures
@@ -152,23 +161,43 @@ class TestCliVariables:
         with pytest.raises(KeyError):
             Variable.get("foo1")
 
-    def test_variables_get(self, stdout_capture):
-        Variable.set("foo", {"foo": "bar"}, serialize_json=True)
+    def test_variables_get(self, mock_cli_api_client, stdout_capture):
+        mock_cli_api_client.variables.get.return_value = VariableResponse(
+            key="foo", value='{\n  "foo": "bar"\n}', is_encrypted=False
+        )
 
         with stdout_capture as stdout:
             variable_command.variables_get(self.parser.parse_args(["variables", "get", "foo"]))
             assert stdout.getvalue() == '{\n  "foo": "bar"\n}\n'
+        mock_cli_api_client.variables.get.assert_called_once_with(variable_key="foo")
 
-    def test_get_variable_default_value(self, stdout_capture):
+    def test_variables_get_json_deserializes_value(self, mock_cli_api_client, stdout_capture):
+        mock_cli_api_client.variables.get.return_value = VariableResponse(
+            key="foo", value='{"foo": "bar"}', is_encrypted=False
+        )
+
+        with stdout_capture as stdout:
+            variable_command.variables_get(self.parser.parse_args(["variables", "get", "foo", "--json"]))
+            assert stdout.getvalue() == "{'foo': 'bar'}\n"
+
+    def test_get_variable_default_value(self, mock_cli_api_client, stdout_capture):
+        mock_cli_api_client.variables.get.side_effect = _server_error(404)
+
         with stdout_capture as stdout:
             variable_command.variables_get(
                 self.parser.parse_args(["variables", "get", "baz", "--default", "bar"])
             )
             assert stdout.getvalue() == "bar\n"
 
-    def test_get_variable_missing_variable(self):
+    def test_get_variable_missing_variable(self, mock_cli_api_client):
+        mock_cli_api_client.variables.get.side_effect = _server_error(404)
         with pytest.raises(SystemExit):
             variable_command.variables_get(self.parser.parse_args(["variables", "get", "no-existing-VAR"]))
+
+    def test_get_variable_other_error_reraised(self, mock_cli_api_client):
+        mock_cli_api_client.variables.get.side_effect = _server_error(500)
+        with pytest.raises(ServerResponseError):
+            variable_command.variables_get(self.parser.parse_args(["variables", "get", "foo"]))
 
     def test_variables_set_different_types(self):
         """Test storage of various data types"""
