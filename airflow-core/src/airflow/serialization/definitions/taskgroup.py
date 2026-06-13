@@ -251,6 +251,11 @@ class SerializedTaskGroup(DAGNode):
         self, child_idx: int, child: DAGNode, id_to_idx: dict[str, int]
     ) -> tuple[int, ...]:
         upstream_ids = child.upstream_task_ids
+        if isinstance(child, SerializedTaskGroup):
+            root_upstream_ids = set()
+            for root_task in child.get_roots():
+                root_upstream_ids.update(root_task.upstream_task_ids)
+            upstream_ids = upstream_ids | root_upstream_ids
         if not upstream_ids:
             return ()
         sib_deps: set[int] = set()
