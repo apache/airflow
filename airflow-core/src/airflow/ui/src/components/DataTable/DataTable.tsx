@@ -56,6 +56,7 @@ type DataTableProps<TData> = {
   readonly nextCursor?: string | null;
   readonly noRowsMessage?: ReactNode;
   readonly onDisplayToggleChange?: (mode: "card" | "table") => void;
+  readonly onRowClick?: (row: Row<TData>) => void;
   readonly onStateChange?: (state: TableState) => void;
   readonly previousCursor?: string | null;
   readonly renderSubComponent?: (props: { row: Row<TData> }) => React.ReactElement;
@@ -82,6 +83,7 @@ export const DataTable = <TData,>({
   nextCursor,
   noRowsMessage,
   onDisplayToggleChange,
+  onRowClick,
   onStateChange,
   previousCursor,
   showDisplayToggle,
@@ -190,7 +192,7 @@ export const DataTable = <TData,>({
       {rowCountHeading}
       <Box flex={1} minH={0} overflow="auto">
         {hasRows && display === "table" ? (
-          <TableList allowFiltering={showColumnsFilter} table={table} />
+          <TableList allowFiltering={showColumnsFilter} onRowClick={onRowClick} table={table} />
         ) : undefined}
         {hasRows && display === "card" && cardDef !== undefined ? (
           <CardList cardDef={cardDef} isLoading={isLoading} rows={rows} />

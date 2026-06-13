@@ -26,11 +26,17 @@ import FilterMenuButton from "./FilterMenuButton";
 
 type DataTableProps<TData> = {
   readonly allowFiltering: boolean;
+  readonly onRowClick?: (row: Row<TData>) => void;
   readonly renderSubComponent?: (props: { row: Row<TData> }) => React.ReactElement;
   readonly table: TanStackTable<TData>;
 };
 
-export const TableList = <TData,>({ allowFiltering, renderSubComponent, table }: DataTableProps<TData>) => {
+export const TableList = <TData,>({
+  allowFiltering,
+  onRowClick,
+  renderSubComponent,
+  table,
+}: DataTableProps<TData>) => {
   "use no memo"; // remove if https://github.com/TanStack/table/issues/5567 is resolved
   const { t: translate } = useTranslation("components");
 
@@ -87,7 +93,22 @@ export const TableList = <TData,>({ allowFiltering, renderSubComponent, table }:
       <Table.Body>
         {table.getRowModel().rows.map((row) => (
           <Fragment key={row.id}>
-            <Table.Row>
+            <Table.Row
+              _hover={onRowClick === undefined ? undefined : { bg: "bg.subtle" }}
+              cursor={onRowClick === undefined ? undefined : "pointer"}
+              onClick={onRowClick === undefined ? undefined : () => onRowClick(row)}
+              onKeyDown={(event) => {
+                if (event.target !== event.currentTarget) {
+                  return;
+                }
+
+                if ((event.key === "Enter" || event.key === " ") && onRowClick !== undefined) {
+                  event.preventDefault();
+                  onRowClick(row);
+                }
+              }}
+              tabIndex={onRowClick === undefined ? undefined : 0}
+            >
               {/* first row is a normal row */}
               {row.getVisibleCells().map((cell) => (
                 <Table.Cell data-testid={`table-cell-${cell.column.id}`} key={cell.id}>

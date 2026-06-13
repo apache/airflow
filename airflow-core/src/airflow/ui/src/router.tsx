@@ -102,7 +102,7 @@ export const routerConfig = [
         index: true,
       },
       {
-        element: <HITLTaskInstances />,
+        element: <HITLTaskInstances enableHITLReviewDrawer />,
         path: "required_actions",
       },
       {
@@ -188,7 +188,7 @@ export const routerConfig = [
           { element: <DagRuns />, path: "runs" },
           { element: <Tasks />, path: "tasks" },
           { element: <Calendar />, path: "calendar" },
-          { element: <HITLTaskInstances />, path: "required_actions" },
+          { element: <Overview />, path: "required_actions" },
           { element: <Backfills />, path: "backfills" },
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
@@ -201,7 +201,7 @@ export const routerConfig = [
       {
         children: [
           { element: <TaskInstances />, index: true },
-          { element: <HITLTaskInstances />, path: "required_actions" },
+          { element: <TaskInstances />, path: "required_actions" },
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
           { element: <DagRunDetails />, path: "details" },
