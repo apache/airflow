@@ -508,7 +508,7 @@ class BaseXCom:
         )
 
         if not isinstance(msg, XComSequenceSliceResult):
-            raise TypeError(f"Expected XComSequenceSliceResult, received: {type(msg)} {msg}")
+            raise RuntimeError(f"Expected XComSequenceSliceResult, received: {type(msg)} {msg}")
 
         if not msg.root:
             return None
