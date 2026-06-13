@@ -264,7 +264,9 @@ repos:
           ^\.github/workflows/ci-(arm|amd)\.yml$|
           ^\.github/workflows/codeql-analysis\.yml$|
           ^java-sdk/buildSrc/src/main/kotlin/airflow-jvm-conventions\.gradle\.kts$|
-          ^scripts/docker/install_jdk\.sh$
+          ^scripts/docker/install_os_dependencies\.sh$|
+          ^Dockerfile$|
+          ^Dockerfile\.ci$
         pass_filenames: false
         require_serial: true
       - id: check-partition-mapper-defaults-in-sync
