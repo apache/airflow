@@ -215,7 +215,7 @@ providers/google/src/airflow/providers/google/cloud/hooks/cloud_build.py::3
 providers/google/src/airflow/providers/google/cloud/hooks/cloud_composer.py::5
 providers/google/src/airflow/providers/google/cloud/hooks/cloud_memorystore.py::5
 providers/google/src/airflow/providers/google/cloud/hooks/cloud_run.py::1
-providers/google/src/airflow/providers/google/cloud/hooks/cloud_sql.py::32
+providers/google/src/airflow/providers/google/cloud/hooks/cloud_sql.py::33
 providers/google/src/airflow/providers/google/cloud/hooks/cloud_storage_transfer_service.py::5
 providers/google/src/airflow/providers/google/cloud/hooks/compute.py::6
 providers/google/src/airflow/providers/google/cloud/hooks/compute_ssh.py::6
