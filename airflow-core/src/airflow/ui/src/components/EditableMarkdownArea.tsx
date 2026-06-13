@@ -19,39 +19,59 @@
 import { Box, VStack, Editable, Text } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
 import { useState, useRef } from "react";
+import type { Components } from "react-markdown";
 
 import ReactMarkdown from "./ReactMarkdown";
 
 const EditableMarkdownArea = ({
+  autoSize = false,
+  components,
   mdContent,
   onBlur,
+  onFocus,
+  padding = 4,
   placeholder,
   setMdContent,
 }: {
+  readonly autoSize?: boolean;
+  readonly components?: Partial<Components>;
   readonly mdContent?: string | null;
   readonly onBlur?: () => void;
+  readonly onFocus?: () => void;
+  readonly padding?: number;
   readonly placeholder?: string | null;
   readonly setMdContent: (value: string) => void;
 }) => {
   const [currentValue, setCurrentValue] = useState(mdContent ?? "");
   const prevMdContentRef = useRef(mdContent);
+  const textareaRef = useRef<HTMLInputElement>(null);
 
-  // Sync local state with prop changes
+  // Sync local state with prop changes (e.g. revert-on-error from parent)
   if (mdContent !== prevMdContentRef.current) {
     setCurrentValue(mdContent ?? "");
     prevMdContentRef.current = mdContent;
   }
 
+  const resizeTextarea = () => {
+    const el = textareaRef.current;
+
+    if (autoSize && el !== null) {
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  };
+
   return (
-    <Box height="100%" p={4} width="100%">
+    <Box height={autoSize ? undefined : "100%"} p={padding} width="100%">
       <Editable.Root
-        height="100%"
+        height={autoSize ? undefined : "100%"}
         onBlur={onBlur}
         onChange={(event: ChangeEvent<HTMLInputElement>) => {
           const { value } = event.target;
 
           setCurrentValue(value);
           setMdContent(value);
+          resizeTextarea();
         }}
         value={currentValue}
       >
@@ -60,21 +80,31 @@ const EditableMarkdownArea = ({
           alignItems="flex-start"
           as={VStack}
           gap="0"
-          height="100%"
-          overflowY="auto"
+          height={autoSize ? undefined : "100%"}
+          overflowY={autoSize ? undefined : "auto"}
           width="100%"
         >
           {Boolean(currentValue) ? (
-            <ReactMarkdown>{currentValue}</ReactMarkdown>
+            <ReactMarkdown components={components}>{currentValue}</ReactMarkdown>
           ) : (
             <Text color="fg.subtle">{placeholder}</Text>
           )}
         </Editable.Preview>
         <Editable.Textarea
+          _focus={{ borderColor: "brand.focusRing" }}
+          borderColor="transparent"
+          borderRadius="sm"
+          borderWidth="1px"
           data-testid="markdown-input"
-          height="100%"
-          overflowY="auto"
+          height={autoSize ? undefined : "100%"}
+          onFocus={() => {
+            // Resize on focus so the textarea fits existing content when first opened
+            resizeTextarea();
+            onFocus?.();
+          }}
+          overflow={autoSize ? "hidden" : "auto"}
           placeholder={placeholder ?? ""}
+          ref={textareaRef}
           resize="none"
         />
       </Editable.Root>
