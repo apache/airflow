@@ -159,6 +159,8 @@ class Callback(Base, BaseWorkload):
     def get_metric_info(self, status: CallbackState, result: Any) -> dict:
         tags = {"result": result, **self.data}
         tags.pop("prefix", None)
+        for key in ("dag_id", "run_id", "deadline_id", "deadline_time", "dag_run_id"):
+            tags.pop(key, None)
 
         if "kwargs" in tags:
             # Remove the context (if exists) to keep the tags simple
@@ -228,20 +230,24 @@ class TriggererCallback(Callback):
         return f"{self.data['path']}({self.data['kwargs'] or ''}) on a triggerer"
 
     def queue(self, *, session: Session) -> None:
+        from airflow.models.dag import DagModel
         from airflow.models.trigger import Trigger
         from airflow.triggers.callback import CallbackTrigger
 
         team_name: str | None = None
         if self.bundle_name and conf.getboolean("core", "multi_team"):
             team_name = DagBundleModel.get_team_name(self.bundle_name, session=session)
+        elif dag_id := self.data.get("dag_id"):
+            team_name = DagModel.get_team_name(dag_id, session=session)
 
-        self.trigger = Trigger.from_object(
+        trigger = Trigger.from_object(
             CallbackTrigger(
                 callback_path=self.data["path"],
                 callback_kwargs=self.data["kwargs"],
             )
         )
-        self.trigger.team_name = team_name
+        trigger.team_name = team_name
+        self.trigger = trigger
         super().queue(session=session)
 
     def handle_event(self, event: TriggerEvent, session: Session):

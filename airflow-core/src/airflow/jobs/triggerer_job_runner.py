@@ -752,10 +752,26 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         session: Session,
     ) -> workloads.RunTrigger | None:
         if trigger.task_instance is None:
+            # Only fetch DagRun data for callback triggers (not all non-task triggers).
+            dag_run_data = (
+                self._fetch_callback_dag_run_data(trigger, session=session) if trigger.callback else None
+            )
+            if trigger.callback and dag_run_data is None:
+                # Only skip when routing data was present but the DagRun lookup failed
+                # (transient DB/API issue). Old 3.2.x callbacks without dag_id/run_id
+                # pass through — their trigger's run() falls back to stored kwargs["context"].
+                callback_data = trigger.callback.data or {}
+                if callback_data.get("dag_id") and callback_data.get("run_id"):
+                    log.warning(
+                        "Skipping callback trigger — DagRun not found for context",
+                        trigger_id=trigger.id,
+                    )
+                    return None
             return workloads.RunTrigger(
                 id=trigger.id,
                 classpath=trigger.classpath,
                 encrypted_kwargs=trigger.encrypted_kwargs,
+                dag_run_data=dag_run_data,
             )
 
         if not trigger.task_instance.dag_version_id:
@@ -811,6 +827,45 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             ti=ser_ti,
             timeout_after=trigger.task_instance.trigger_timeout,
         )
+
+    def _fetch_callback_dag_run_data(self, trigger: Trigger, *, session: Session) -> dict | None:
+        """
+        Fetch DagRun data for deadline callback triggers.
+
+        When a callback trigger has dag_id/run_id stored in its associated Callback.data,
+        fetch the DagRun and return serialized dag_run_data so the TriggerRunner can build
+        a standard Context at runtime (same pattern as start_from_trigger).
+        """
+        from airflow.models.dagrun import DagRun
+
+        # The trigger's callback relationship stores the identifiers we need
+        if not trigger.callback:
+            return None
+
+        callback_data = trigger.callback.data
+        dag_id = callback_data.get("dag_id")
+        run_id = callback_data.get("run_id")
+        if not dag_id or not run_id:
+            return None
+
+        dagrun = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
+        if not dagrun:
+            log.warning(
+                "Could not find DagRun for callback context",
+                dag_id=dag_id,
+                run_id=run_id,
+                trigger_id=trigger.id,
+            )
+            return None
+
+        data = dagrun.dag_run_data.model_dump(exclude_unset=True)
+        # Pass deadline metadata through so _build_context_from_dag_run_data can expose
+        # context["deadline"] for template rendering ({{ deadline.deadline_time }}).
+        deadline_id = callback_data.get("deadline_id")
+        deadline_time = callback_data.get("deadline_time")
+        if deadline_id or deadline_time:
+            data["_deadline"] = {"id": deadline_id, "deadline_time": deadline_time}
+        return data
 
     def fetch_trigger_details(self, trigger_ids: set[int], *, session: Session) -> dict[int, Trigger]:
         """Fetch trigger rows by ID."""
@@ -1232,6 +1287,25 @@ class TriggerRunner:
             ),
         )
 
+    @staticmethod
+    def _build_context_from_dag_run_data(dag_run_data: dict) -> Context:
+        """
+        Build a standard Context dict from serialized dag_run_data for callback triggers.
+
+        This provides the same DagRun-level context fields (dag_run, run_id, logical_date,
+        ds, ts, etc.) that task-bound triggers get via RuntimeTaskInstance.get_template_context(),
+        but without task-specific fields since callbacks are not tied to a task.
+        """
+        from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel
+        from airflow.sdk.execution_time.context import build_context_from_dag_run
+
+        deadline_info = dag_run_data.pop("_deadline", None)
+        dag_run = DRDataModel(**dag_run_data)
+        context = build_context_from_dag_run(dag_run)
+        if deadline_info:
+            context["deadline"] = deadline_info  # type: ignore[literal-required]
+        return context  # type: ignore[return-value]
+
     async def create_triggers(self):
         """Drain the to_create queue and create all new triggers that have been requested in the DB."""
         while self.to_create:
@@ -1278,6 +1352,12 @@ class TriggerRunner:
                 else:
                     trigger_name = f"ID {trigger_id}"
                     trigger_instance = trigger_class(**deserialised_kwargs)
+                    # For callback triggers with dag_run_data, build a standard Context
+                    # and set it on the trigger instance — the same pattern as
+                    # trigger_instance.task_instance = runtime_ti for task-bound triggers.
+                    if workload.dag_run_data:
+                        context = self._build_context_from_dag_run_data(workload.dag_run_data)
+                        trigger_instance._callback_context = context
             except TypeError as err:
                 self.log.error("Trigger failed to inflate", error=err)
                 self.failed_triggers.append((trigger_id, err))

@@ -32,11 +32,18 @@ import attrs
 import structlog
 from pydantic import Field, TypeAdapter
 
-from airflow.sdk._shared.module_loading import UNUSUAL_MODULE_PREFIX, accepts_context, accepts_keyword_args
+from airflow.sdk._shared.module_loading import (
+    UNUSUAL_MODULE_PREFIX,
+    accepts_context,
+    accepts_keyword_args,
+    load_mangled_dag_module,
+)
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    DagRunResult,
     ErrorResponse,
     GetConnection,
+    GetDagRun,
     GetVariable,
     GetVariableKeys,
     MaskSecret,
@@ -54,6 +61,7 @@ from airflow.sdk.execution_time.supervisor import (
     _ensure_client,
     _make_process_nondumpable,
 )
+from airflow.utils.file import get_unique_dag_module_name
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
@@ -76,9 +84,10 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="callback_superviso
 
 # The set of messages that a callback subprocess can send to the supervisor.
 # This is a minimal subset of ToSupervisor: read-only access to Connections
-# and Variables, plus MaskSecret for the secrets masker.
+# and Variables, plus MaskSecret for the secrets masker, plus GetDagRun for
+# building context from DagRun identifiers.
 CallbackToSupervisor = Annotated[
-    GetConnection | GetVariable | GetVariableKeys | MaskSecret,
+    GetConnection | GetDagRun | GetVariable | GetVariableKeys | MaskSecret,
     Field(discriminator="type"),
 ]
 
@@ -121,18 +130,21 @@ def execute_callback(
         # If the callback is defined within the Dag module, the module path is modified during DAG serialization.
         # Attempt to import it using the path of the Dag file.
         if module_path.startswith(UNUSUAL_MODULE_PREFIX):
-            if not dag_rel_path:
+            if module_path in sys.modules:
+                module = sys.modules[module_path]
+            elif not dag_rel_path:
                 return False, "Dag relative path not found."
-            if not bundle_path:
+            elif not bundle_path:
                 return False, "Bundle path not found."
-            abs_path = Path(bundle_path) / Path(dag_rel_path)
-            spec = spec_from_file_location(module_path, abs_path)
-            if spec is None:
-                return False, f"Could not create module spec for {module_path}"
-            if spec.loader is None:
-                return False, f"Module spec has no loader for {module_path}"
-            module = module_from_spec(spec)
-            spec.loader.exec_module(module)
+            else:
+                abs_path = Path(bundle_path) / Path(dag_rel_path)
+                spec = spec_from_file_location(module_path, abs_path)
+                if spec is None:
+                    return False, f"Could not create module spec for {module_path}"
+                if spec.loader is None:
+                    return False, f"Module spec has no loader for {module_path}"
+                module = module_from_spec(spec)
+                spec.loader.exec_module(module)
         else:
             module = import_module(module_path)
         callback_callable = getattr(module, function_name)
@@ -198,7 +210,11 @@ class CallbackSubprocess(WatchedSubprocess):
         id: str,
         callback_path: str,
         callback_kwargs: dict,
-        dag_rel_path: os.PathLike[str],
+        dag_rel_path: os.PathLike[str] | str = "",
+        dag_id: str | None = None,
+        run_id: str | None = None,
+        deadline_id: str | None = None,
+        deadline_time: str | None = None,
         bundle_info: _BundleInfoLike | None = None,
         client: Client,
         logger: FilteringBoundLogger | None = None,
@@ -234,6 +250,12 @@ class CallbackSubprocess(WatchedSubprocess):
                         _log.debug(
                             "Added bundle path to sys.path", bundle_name=bundle_info.name, path=bundle_path
                         )
+                    # DAG processor loads bundle files with a mangled module name
+                    # (unusual_prefix_{hash}_{stem}) to avoid collisions. The callback path
+                    # was serialized using that mangled name. Register the module under that
+                    # name so import_string can find it in the subprocess.
+                    if callback_path and callback_path.startswith("unusual_prefix_"):
+                        _register_unusual_prefix_module(callback_path, bundle.path, _log)
                 except Exception:
                     _log.warning(
                         "Failed to initialize DAG bundle for callback",
@@ -241,9 +263,25 @@ class CallbackSubprocess(WatchedSubprocess):
                         exc_info=True,
                     )
 
+            # When DagRun identifiers are provided, fetch the DagRun via SUPERVISOR_COMMS
+            # and build a context dict to pass to the callback function.
+            effective_kwargs = dict(callback_kwargs)
+            if dag_id and run_id:
+                context = _fetch_and_build_context(task_runner.SUPERVISOR_COMMS, dag_id, run_id, _log)
+                if context is None:
+                    _log.error(
+                        "Cannot execute callback without context — failing to surface the error rather than running degraded",
+                        dag_id=dag_id,
+                        run_id=run_id,
+                    )
+                    sys.exit(1)
+                if deadline_id or deadline_time:
+                    context["deadline"] = {"id": deadline_id, "deadline_time": deadline_time}
+                effective_kwargs["context"] = context
+
             success, error_msg = execute_callback(
                 callback_path=callback_path,
-                callback_kwargs=callback_kwargs,
+                callback_kwargs=effective_kwargs,
                 dag_rel_path=dag_rel_path,
                 bundle_path=bundle_path,
                 log=_log,
@@ -356,6 +394,9 @@ class CallbackSubprocess(WatchedSubprocess):
 
         if isinstance(msg, GetConnection):
             resp, dump_opts = handle_get_connection(self.client, msg)
+        elif isinstance(msg, GetDagRun):
+            dr_resp = self.client.dag_runs.get_detail(msg.dag_id, msg.run_id)
+            resp = DagRunResult.from_api_response(dr_resp)
         elif isinstance(msg, GetVariable):
             resp, dump_opts = handle_get_variable(self.client, msg)
         elif isinstance(msg, GetVariableKeys):
@@ -377,6 +418,28 @@ class CallbackSubprocess(WatchedSubprocess):
         self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
 
 
+def _register_unusual_prefix_module(callback_path: str, bundle_path, _log) -> None:
+    """
+    Register a DAG-bundle callback module under its unusual_prefix_{hash}_{stem} name.
+
+    Resolves the stem from the mangled module name, walks the bundle tree to find
+    the file (handling nested directories), then delegates to load_mangled_dag_module.
+    """
+    mod_name = callback_path.split(".")[0]
+    if mod_name in sys.modules:
+        return
+
+    # Validate this is a mangled name: unusual_prefix_{hex40}_{stem}
+    if len(mod_name.split("_", 3)) < 4:
+        return
+
+    for file_path in Path(bundle_path).rglob("*.py"):
+        if get_unique_dag_module_name(str(file_path)) == mod_name:
+            load_mangled_dag_module(mod_name, str(file_path))
+            return
+    _log.debug("Could not find matching file for module %s in bundle", mod_name)
+
+
 def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLogger, BinaryIO]:
     """Configure file-based logging for the callback subprocess."""
     from airflow.sdk.execution_time.supervisor import _remote_logging_conn
@@ -392,12 +455,51 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
     return logger, log_file_descriptor
 
 
+def _fetch_and_build_context(
+    comms,
+    dag_id: str,
+    run_id: str,
+    _log,
+) -> dict | None:
+    """
+    Fetch DagRun via SUPERVISOR_COMMS and build a standard context dict.
+
+    Called inside the forked subprocess when DagRun identifiers are available.
+    Returns a context dict with dag_run, run_id, logical_date, ds, ts, etc.
+    Task-specific fields are absent since callbacks are not tied to a task.
+    """
+    try:
+        from airflow.sdk.execution_time.context import build_context_from_dag_run
+
+        response = comms.send(GetDagRun(dag_id=dag_id, run_id=run_id))
+        if not isinstance(response, DagRunResult):
+            _log.warning(
+                "Unexpected response when fetching DagRun for callback context",
+                response_type=type(response).__name__,
+            )
+            return None
+
+        return build_context_from_dag_run(response)
+    except Exception:
+        _log.warning(
+            "Failed to fetch DagRun for callback context",
+            dag_id=dag_id,
+            run_id=run_id,
+            exc_info=True,
+        )
+        return None
+
+
 def supervise_callback(
     *,
     id: str,
     callback_path: str,
     callback_kwargs: dict,
-    dag_rel_path: os.PathLike[str],
+    dag_rel_path: os.PathLike[str] | str = "",
+    dag_id: str | None = None,
+    run_id: str | None = None,
+    deadline_id: str | None = None,
+    deadline_time: str | None = None,
     log_path: str | None = None,
     bundle_info: _BundleInfoLike | None = None,
     token: str = "",
@@ -411,6 +513,10 @@ def supervise_callback(
     :param callback_path: Dot-separated import path to the callback function or class.
     :param callback_kwargs: Keyword arguments to pass to the callback.
     :param dag_rel_path: Relative path to the DAG file.
+    :param dag_id: DAG ID for fetching DagRun context (optional, for deadline callbacks).
+    :param run_id: Run ID for fetching DagRun context (optional, for deadline callbacks).
+    :param deadline_id: Deadline ID to include in context["deadline"] (optional).
+    :param deadline_time: ISO deadline time to include in context["deadline"] (optional).
     :param log_path: Path to write logs, if required.
     :param bundle_info: When provided, the bundle's path is added to sys.path so callbacks in Dag Bundles are importable.
     :param token: Authentication token for the API client.
@@ -437,6 +543,10 @@ def supervise_callback(
                 callback_path=callback_path,
                 callback_kwargs=callback_kwargs,
                 dag_rel_path=dag_rel_path,
+                dag_id=dag_id,
+                run_id=run_id,
+                deadline_id=deadline_id,
+                deadline_time=deadline_time,
                 bundle_info=bundle_info,
                 client=client,
                 logger=logger,

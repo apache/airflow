@@ -28,6 +28,7 @@ import uuid6
 from sqlalchemy import Boolean, ForeignKey, Index, Integer, Uuid, and_, func, inspect, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm.attributes import flag_modified
 
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
@@ -217,46 +218,35 @@ class Deadline(Base):
 
     def handle_miss(self, session: Session):
         """Handle a missed deadline by queueing the callback."""
+        # Routing identifiers: stored at the top level of callback.data so the triggerer/executor
+        # can locate the DagRun and build execution context *before* invoking the callback.
+        # These are NOT user payload — they are consumed by infrastructure (_fetch_callback_dag_run_data
+        # in triggerer_job_runner and _fetch_and_build_context in callback_supervisor) and stripped
+        # before the callback function is called.
+        # TODO: A dedicated `routing_data` field on Callback would make this separation explicit
+        # and avoid mixing routing metadata with user kwargs in the same JSON blob. Deferred because
+        # changing the Callback model would require a migration and coordination with the executor path.
+        self.callback.data["dag_id"] = self.dagrun.dag_id
+        self.callback.data["run_id"] = self.dagrun.run_id
 
-        def get_simple_context():
-            from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
-            from airflow.models import DagRun
-
-            # TODO: Use the TaskAPI from within Triggerer to fetch full context instead of sending this context
-            #  from the scheduler
-
-            # Fetch the DagRun from the database again to avoid errors when self.dagrun's relationship fields
-            # are not in the current session.
-            dagrun = session.get(DagRun, self.dagrun_id)
-
-            return {
-                "dag_run": DAGRunResponse.model_validate(dagrun).model_dump(mode="json"),
-                "deadline": {"id": self.id, "deadline_time": self.deadline_time},
-            }
+        # Deadline-specific info goes into the routing data (not user kwargs).
+        # The context builder (_fetch_and_build_context / _fetch_callback_dag_run_data) exposes
+        # these as context["deadline"] = {"id": ..., "deadline_time": ...} so templates like
+        # {{ deadline.deadline_time }} continue to work.
+        self.callback.data["deadline_id"] = str(self.id)
+        self.callback.data["deadline_time"] = self.deadline_time.isoformat()
 
         if isinstance(self.callback, TriggererCallback):
-            # Update the callback with context before queuing
-            if "kwargs" not in self.callback.data:
-                self.callback.data["kwargs"] = {}
-            self.callback.data["kwargs"] = (self.callback.data.get("kwargs") or {}) | {
-                "context": get_simple_context()
-            }
-
             self.callback.queue(session=session)
+            flag_modified(self.callback, "data")
             session.add(self.callback)
             session.flush()
 
         elif isinstance(self.callback, ExecutorCallback):
-            if "kwargs" not in self.callback.data:
-                self.callback.data["kwargs"] = {}
-            self.callback.data["kwargs"] = (self.callback.data.get("kwargs") or {}) | {
-                "context": get_simple_context()
-            }
-            self.callback.data["deadline_id"] = str(self.id)
+            # dag_run_id (integer PK) is required by the scheduler's ExecuteCallback.make()
             self.callback.data["dag_run_id"] = str(self.dagrun.id)
-            self.callback.data["dag_id"] = self.dagrun.dag_id
-
             self.callback.state = CallbackState.PENDING
+            flag_modified(self.callback, "data")
             session.add(self.callback)
             session.flush()
 

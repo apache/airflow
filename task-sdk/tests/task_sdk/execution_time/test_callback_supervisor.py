@@ -30,17 +30,30 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 import structlog
 
+from airflow.sdk._shared.timezones import timezone
+from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, DagRunType
 from airflow.sdk.execution_time.callback_supervisor import CallbackSubprocess, Path, execute_callback
 from airflow.sdk.execution_time.comms import (
     BundleInfo,
     ConnectionResult,
     GetConnection,
+    GetDagRun,
     GetVariable,
     GetVariableKeys,
     MaskSecret,
     VariableKeysResult,
     VariableResult,
     _RequestFrame,
+)
+
+# A minimal DagRun instance used in the GetDagRun test case.
+_MOCK_DAG_RUN = DagRun(
+    dag_id="test_dag",
+    run_id="test_run",
+    run_after=timezone.parse("2024-01-01T00:00:00+00:00"),
+    run_type=DagRunType.MANUAL,
+    state=DagRunState.RUNNING,
+    consumed_asset_events=[],
 )
 
 
@@ -195,6 +208,15 @@ class TestCallbackHandleRequest:
                 response=ConnectionResult(conn_id="test_conn", conn_type="mysql", password="secret"),
             ),
             mask_secret_args=("secret",),
+        ),
+        RequestCase(
+            message=GetDagRun(dag_id="test_dag", run_id="test_run"),
+            test_id="get_dag_run",
+            client_mock=ClientMock(
+                method_path="dag_runs.get_detail",
+                args=("test_dag", "test_run"),
+                response=_MOCK_DAG_RUN,
+            ),
         ),
         RequestCase(
             message=GetVariable(key="test_key"),
@@ -528,3 +550,158 @@ class TestCallbackSubprocessStart:
             self.mock_super_start.call_args.kwargs["target"]()
 
         assert exc_info.value.code == 1
+
+
+class TestFetchAndBuildContext:
+    """Tests for _fetch_and_build_context."""
+
+    def test_returns_none_on_unexpected_response(self, mocker):
+        """When the comms channel returns a non-DagRunResult, context should be None."""
+        from airflow.sdk.execution_time.callback_supervisor import _fetch_and_build_context
+        from airflow.sdk.execution_time.comms import ErrorResponse
+
+        mock_comms = mocker.Mock()
+        mock_comms.send.return_value = ErrorResponse(
+            error="API_SERVER_ERROR",
+            detail={"status_code": 404, "message": "DagRun not found"},
+        )
+        log = structlog.get_logger()
+
+        result = _fetch_and_build_context(mock_comms, "missing_dag", "missing_run", log)
+
+        assert result is None
+
+    def test_returns_none_on_exception(self, mocker):
+        """When the comms channel raises an exception, context should be None."""
+        from airflow.sdk.execution_time.callback_supervisor import _fetch_and_build_context
+
+        mock_comms = mocker.Mock()
+        mock_comms.send.side_effect = RuntimeError("connection lost")
+        log = structlog.get_logger()
+
+        result = _fetch_and_build_context(mock_comms, "dag_1", "run_1", log)
+
+        assert result is None
+
+    def test_returns_context_dict_on_success(self, mocker):
+        """When DagRunResult is returned, a context dict is built."""
+        from airflow.sdk.execution_time.callback_supervisor import _fetch_and_build_context
+        from airflow.sdk.execution_time.comms import DagRunResult
+
+        mock_comms = mocker.Mock()
+        mock_comms.send.return_value = DagRunResult(
+            dag_id="test_dag",
+            run_id="test_run",
+            run_after=timezone.parse("2024-01-01T00:00:00+00:00"),
+            run_type="manual",
+            state="running",
+            consumed_asset_events=[],
+        )
+        log = structlog.get_logger()
+
+        result = _fetch_and_build_context(mock_comms, "test_dag", "test_run", log)
+
+        assert result is not None
+        assert result["dag_run"].dag_id == "test_dag"
+        assert result["dag_run"].run_id == "test_run"
+
+    def test_subprocess_exits_when_context_is_none(self, mocker):
+        """When _fetch_and_build_context returns None, the subprocess target calls sys.exit(1)."""
+        from airflow.sdk.execution_time.callback_supervisor import _fetch_and_build_context
+
+        # Verify that the function returns None in error cases, which triggers sys.exit(1)
+        # in the _target closure. Testing the actual fork/exit is beyond unit test scope,
+        # but we can verify the contract: None return → caller exits.
+        mock_comms = mocker.Mock()
+        mock_comms.send.side_effect = RuntimeError("boom")
+        log = structlog.get_logger()
+
+        result = _fetch_and_build_context(mock_comms, "dag", "run", log)
+        assert result is None
+
+
+class TestLoadMangledModule:
+    """Tests for _load_mangled_module."""
+
+    def test_loads_real_file_under_mangled_name(self, tmp_path):
+        import sys
+
+        from airflow.sdk._shared.module_loading import load_mangled_dag_module
+
+        stem = "my_dag"
+        mod_name = f"unusual_prefix_{'a' * 40}_{stem}"
+        (tmp_path / f"{stem}.py").write_text("def my_callback(): return 42\n")
+
+        result = load_mangled_dag_module(mod_name, str(tmp_path / f"{stem}.py"))
+
+        assert result is True
+        assert mod_name in sys.modules
+        assert sys.modules[mod_name].my_callback() == 42
+        sys.modules.pop(mod_name)
+
+    def test_returns_false_when_file_missing(self, tmp_path):
+        from airflow.sdk._shared.module_loading import load_mangled_dag_module
+
+        result = load_mangled_dag_module(
+            "unusual_prefix_" + "b" * 40 + "_absent",
+            str(tmp_path / "absent.py"),
+        )
+
+        assert result is False
+
+    def test_returns_false_on_syntax_error(self, tmp_path):
+        import sys
+
+        from airflow.sdk._shared.module_loading import load_mangled_dag_module
+
+        stem = "bad_dag"
+        mod_name = f"unusual_prefix_{'c' * 40}_{stem}"
+        (tmp_path / f"{stem}.py").write_text("def broken(: pass\n")  # syntax error
+
+        result = load_mangled_dag_module(mod_name, str(tmp_path / f"{stem}.py"))
+
+        assert result is False
+        assert mod_name not in sys.modules
+
+    def test_skips_registration_when_already_in_sys_modules(self, tmp_path, mocker):
+        import sys
+
+        from airflow.sdk.execution_time.callback_supervisor import _register_unusual_prefix_module
+        from airflow.utils.file import get_unique_dag_module_name
+
+        stem = "cached_dag"
+        (tmp_path / f"{stem}.py").write_text("def fn(): return 'cached'\n")
+        mod_name = get_unique_dag_module_name(str(tmp_path / f"{stem}.py"))
+
+        log = mocker.Mock()
+        _register_unusual_prefix_module(f"{mod_name}.fn", tmp_path, log)
+        assert mod_name in sys.modules
+
+        # Second call should be a no-op; module should not be re-loaded
+        (tmp_path / f"{stem}.py").write_text("def fn(): return 'new'\n")
+        _register_unusual_prefix_module(f"{mod_name}.fn", tmp_path, log)
+
+        assert sys.modules[mod_name].fn() == "cached"
+        sys.modules.pop(mod_name)
+
+    def test_finds_file_with_dashes_and_dots_in_name(self, tmp_path, mocker):
+        """File with dashes/dots (my-dag.file.py) is found despite sanitized stem."""
+        import sys
+
+        from airflow.sdk.execution_time.callback_supervisor import _register_unusual_prefix_module
+        from airflow.utils.file import get_unique_dag_module_name
+
+        # File with dashes and dots: stem "my-dag.file" sanitizes to "my_dag_file"
+        dag_file = tmp_path / "my-dag.file.py"
+        dag_file.write_text("def callback(): return 'dashed'\n")
+        mod_name = get_unique_dag_module_name(str(dag_file))
+
+        # Verify the stem was sanitized
+        assert "my_dag_file" in mod_name
+
+        log = mocker.Mock()
+        _register_unusual_prefix_module(f"{mod_name}.callback", tmp_path, log)
+
+        assert mod_name in sys.modules
+        assert sys.modules[mod_name].callback() == "dashed"
+        sys.modules.pop(mod_name)
