@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import json
 import multiprocessing
@@ -25,6 +26,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
+from kubernetes_asyncio import client as async_client
 from urllib3.exceptions import ReadTimeoutError
 
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
@@ -38,7 +40,7 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
     KubernetesResults,
     KubernetesWatch,
 )
-from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
+from airflow.providers.cncf.kubernetes.kube_client import get_async_kube_client, get_kube_client
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     annotations_for_logging_task_metadata,
     annotations_to_key,
@@ -465,6 +467,20 @@ def _analyze_main_containers(pod_status: k8s.V1PodStatus) -> FailureDetails | No
     return _analyze_containers(container_statuses, "main")
 
 
+def _to_sync_api_exception(async_exc: async_client.exceptions.ApiException) -> ApiException:
+    """
+    Convert a ``kubernetes_asyncio`` ApiException into the sync client's ApiException.
+
+    The KubernetesExecutor's pod-publish error handling matches on
+    ``kubernetes.client.rest.ApiException``; converting lets the concurrent creation path
+    reuse that handling (retry / exceeded-quota / 429 backoff) unchanged.
+    """
+    sync_exc = ApiException(status=async_exc.status, reason=async_exc.reason)
+    sync_exc.body = async_exc.body
+    sync_exc.headers = async_exc.headers
+    return sync_exc
+
+
 class AirflowKubernetesScheduler(LoggingMixin):
     """Airflow Scheduler for Kubernetes."""
 
@@ -486,6 +502,12 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.watcher_queue = self._manager.Queue()
         self.scheduler_job_id = scheduler_job_id
         self.kube_watchers = self._make_kube_watchers()
+        # Async pod-creation state; populated lazily, only used when async_pod_creation is enabled.
+        self._async_loop: asyncio.AbstractEventLoop | None = None
+        self._async_pod_client: async_client.CoreV1Api | None = None
+        self.pod_creation_max_concurrency = (
+            self.kube_config.pod_creation_max_concurrency or self.kube_config.worker_pods_creation_batch_size
+        )
 
     def run_pod_async(self, pod: k8s.V1Pod, **kwargs):
         """Run POD asynchronously."""
@@ -554,6 +576,19 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def run_next(self, next_job: KubernetesJob) -> None:
         """Receives the next job to run, builds the pod, and creates it."""
+        pod = self._build_pod_request(next_job)
+        # the watcher will monitor pods, so we do not block.
+        self.run_pod_async(pod, **self.kube_config.kube_client_request_args)
+        self.log.debug("Kubernetes Job created!")
+
+    def _build_pod_request(self, next_job: KubernetesJob) -> k8s.V1Pod:
+        """
+        Build the worker pod request object for a job.
+
+        Performs no API calls. May raise ``PodMutationHookException`` or
+        ``PodReconciliationError`` from the pod-mutation hook / pod reconciliation, matching
+        the build step of the original ``run_next``.
+        """
         key = next_job.key
         command = next_job.command
         kube_executor_config = next_job.kube_executor_config
@@ -606,10 +641,93 @@ class AirflowKubernetesScheduler(LoggingMixin):
         )
         self.log.debug("Kubernetes running for command %s", command)
         self.log.debug("Kubernetes launching image %s", pod.spec.containers[0].image)
+        return pod
 
-        # the watcher will monitor pods, so we do not block.
-        self.run_pod_async(pod, **self.kube_config.kube_client_request_args)
-        self.log.debug("Kubernetes Job created!")
+    def run_next_batch(self, next_jobs: list[KubernetesJob]) -> list[tuple[KubernetesJob, Exception | None]]:
+        """
+        Build and create a batch of worker pods, parallelizing the create API calls.
+
+        Pod request objects are built synchronously (pod-mutation hook, reconciliation),
+        then the create calls are issued concurrently against the Kubernetes API using the
+        asynchronous client, bounded by ``pod_creation_max_concurrency``. Returns one
+        ``(job, exception)`` pair per job (``exception`` is ``None`` on success). Build and
+        create failures are returned rather than raised so the caller can apply the same
+        per-task handling as the sequential path.
+        """
+        built: list[tuple[KubernetesJob, k8s.V1Pod | None, Exception | None]] = []
+        for job in next_jobs:
+            try:
+                built.append((job, self._build_pod_request(job), None))
+            except Exception as e:
+                built.append((job, None, e))
+
+        to_create = [(job, pod) for job, pod, build_err in built if build_err is None and pod is not None]
+        create_errors: dict[int, Exception | None] = {}
+        if to_create:
+            create_errors = self._run_pods_async(to_create)
+
+        return [
+            (job, build_err if build_err is not None else create_errors.get(id(job)))
+            for job, _, build_err in built
+        ]
+
+    def _run_pods_async(
+        self, jobs_and_pods: list[tuple[KubernetesJob, k8s.V1Pod]]
+    ) -> dict[int, Exception | None]:
+        """Create the given pods concurrently on a dedicated event loop; return per-job error (or None)."""
+        if self._async_loop is None:
+            self._async_loop = asyncio.new_event_loop()
+        return self._async_loop.run_until_complete(self._create_pods_async(jobs_and_pods))
+
+    async def _create_pods_async(
+        self, jobs_and_pods: list[tuple[KubernetesJob, k8s.V1Pod]]
+    ) -> dict[int, Exception | None]:
+        """Issue create_namespaced_pod calls concurrently, bounded by a semaphore."""
+        if self._async_pod_client is None:
+            self._async_pod_client = await get_async_kube_client()
+        api = self._async_pod_client
+        semaphore = asyncio.Semaphore(self.pod_creation_max_concurrency)
+        request_kwargs: dict[str, Any] = self.kube_config.kube_client_request_args or {}
+
+        async def _create(pod: k8s.V1Pod) -> None:
+            # Sanitize with the sync client (identical to run_pod_async) to guarantee the
+            # request body matches the sequential path exactly.
+            sanitized_pod = self.kube_client.api_client.sanitize_for_serialization(pod)
+            async with semaphore:
+                try:
+                    with Stats.timer("kubernetes_executor.pod_creation"):
+                        await api.create_namespaced_pod(
+                            body=sanitized_pod, namespace=pod.metadata.namespace, **request_kwargs
+                        )
+                    Stats.incr("kubernetes_executor.pod_creation_status", tags={"status": "200"})
+                except async_client.exceptions.ApiException as e:
+                    Stats.incr("kubernetes_executor.pod_creation_status", tags={"status": str(e.status)})
+                    raise _to_sync_api_exception(e) from e
+                except Exception:
+                    Stats.incr("kubernetes_executor.pod_creation_status", tags={"status": "error"})
+                    raise
+
+        outcomes = await asyncio.gather(*(_create(pod) for _, pod in jobs_and_pods), return_exceptions=True)
+        return {
+            id(job): (outcome if isinstance(outcome, Exception) else None)
+            for (job, _), outcome in zip(jobs_and_pods, outcomes)
+        }
+
+    def _close_async_pod_client(self) -> None:
+        """Close the async pod client and its event loop, if they were created."""
+        if self._async_loop is None:
+            return
+        if self._async_pod_client is not None:
+            try:
+                # CoreV1Api sets self.api_client in __init__, but kubernetes_asyncio's
+                # swagger-codegen stubs don't expose it at the class level.
+                api_client = self._async_pod_client.api_client  # type: ignore[attr-defined]
+                self._async_loop.run_until_complete(api_client.close())
+            except Exception:
+                self.log.warning("Error while closing async pod client", exc_info=True)
+        self._async_loop.close()
+        self._async_loop = None
+        self._async_pod_client = None
 
     def delete_pod(self, pod_name: str, namespace: str) -> None:
         """Delete Pod from a namespace; does not raise if it does not exist."""
@@ -717,6 +835,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def terminate(self) -> None:
         """Terminates the watcher."""
+        self._close_async_pod_client()
         self.log.debug("Terminating kube_watchers...")
         for kube_watcher in self.kube_watchers.values():
             kube_watcher.terminate()
