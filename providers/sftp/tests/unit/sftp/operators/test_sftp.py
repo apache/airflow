@@ -28,11 +28,13 @@ from unittest import mock
 import paramiko
 import pytest
 
+from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, Connection
 from airflow.providers.common.compat.openlineage.facet import Dataset
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.operators.sftp import SFTPOperation, SFTPOperator
+from airflow.providers.sftp.triggers.sftp import SFTPOperatorTrigger
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils import timezone
@@ -675,3 +677,123 @@ class TestSFTPOperator:
 
         assert lineage.inputs == expected[0]
         assert lineage.outputs == expected[1]
+
+
+class TestSFTPOperatorDeferrable:
+    """Tests for SFTPOperator deferrable mode."""
+
+    def test_sftp_operator_defers_when_deferrable_true(self):
+        """Test that SFTPOperator defers when deferrable=True."""
+        operator = SFTPOperator(
+            task_id="test_sftp_defer",
+            ssh_conn_id="ssh_default",
+            local_filepath="/tmp/test.txt",
+            remote_filepath="/remote/test.txt",
+            operation=SFTPOperation.PUT,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(context={})
+        assert isinstance(exc.value.trigger, SFTPOperatorTrigger)
+        assert exc.value.method_name == "execute_complete"
+
+    def test_sftp_operator_execute_complete_success(self):
+        """Test execute_complete returns local_filepath on success."""
+        operator = SFTPOperator(
+            task_id="test_sftp_complete",
+            ssh_conn_id="ssh_default",
+            local_filepath="/tmp/test.txt",
+            remote_filepath="/remote/test.txt",
+            operation=SFTPOperation.PUT,
+            deferrable=True,
+        )
+        event = {"status": "success", "local_filepath": "/tmp/test.txt"}
+        result = operator.execute_complete(context={}, event=event)
+        assert result == "/tmp/test.txt"
+
+    def test_sftp_operator_execute_complete_raises_on_error(self):
+        """Test execute_complete raises AirflowException on error."""
+        operator = SFTPOperator(
+            task_id="test_sftp_error",
+            ssh_conn_id="ssh_default",
+            local_filepath="/tmp/test.txt",
+            remote_filepath="/remote/test.txt",
+            operation=SFTPOperation.PUT,
+            deferrable=True,
+        )
+        event = {"status": "error", "message": "Connection refused"}
+        with pytest.raises(AirflowException, match="Connection refused"):
+            operator.execute_complete(context={}, event=event)
+
+
+class TestSFTPOperatorTrigger:
+    """Tests for SFTPOperatorTrigger."""
+
+    def test_serialize_roundtrip(self):
+        """Test that serialize() produces correct output for reconstruction."""
+        trigger = SFTPOperatorTrigger(
+            ssh_conn_id="ssh_default",
+            local_filepath="/tmp/test.txt",
+            remote_filepath="/remote/test.txt",
+            operation="put",
+            confirm=True,
+            create_intermediate_dirs=False,
+            remote_host=None,
+            concurrency=1,
+            prefetch=True,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.sftp.triggers.sftp.SFTPOperatorTrigger"
+        assert kwargs["ssh_conn_id"] == "ssh_default"
+        assert kwargs["local_filepath"] == "/tmp/test.txt"
+        assert kwargs["remote_filepath"] == "/remote/test.txt"
+        assert kwargs["operation"] == "put"
+        assert kwargs["confirm"] is True
+        assert kwargs["remote_host"] is None
+        assert kwargs["concurrency"] == 1
+        assert kwargs["prefetch"] is True
+
+    def test_run_success(self):
+        """Test run() yields TriggerEvent with status success."""
+        import asyncio
+        from unittest.mock import patch
+
+        trigger = SFTPOperatorTrigger(
+            ssh_conn_id="ssh_default",
+            local_filepath="/tmp/test.txt",
+            remote_filepath="/remote/test.txt",
+            operation="put",
+        )
+        with patch.object(trigger, "_do_transfer", return_value=None):
+            events = []
+
+            async def collect():
+                async for event in trigger.run():
+                    events.append(event)
+
+            asyncio.run(collect())
+        assert len(events) == 1
+        assert events[0].payload["status"] == "success"
+
+    def test_run_error(self):
+        """Test run() yields TriggerEvent with status error on exception."""
+        import asyncio
+        from unittest.mock import patch
+
+        trigger = SFTPOperatorTrigger(
+            ssh_conn_id="ssh_default",
+            local_filepath="/tmp/test.txt",
+            remote_filepath="/remote/test.txt",
+            operation="put",
+        )
+        with patch.object(trigger, "_do_transfer", side_effect=Exception("Connection failed")):
+            events = []
+
+            async def collect():
+                async for event in trigger.run():
+                    events.append(event)
+
+            asyncio.run(collect())
+        assert len(events) == 1
+        assert events[0].payload["status"] == "error"
+        assert "Connection failed" in events[0].payload["message"]
