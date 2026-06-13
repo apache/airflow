@@ -24,6 +24,7 @@ from pluggy import HookspecMarker
 
 if TYPE_CHECKING:
     # These imports are for type checking only - no runtime dependency
+    from airflow.listeners.types import FailureDetails
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.utils.state import TaskInstanceState
@@ -52,8 +53,31 @@ def on_task_instance_failed(
     previous_state: TaskInstanceState | None,
     task_instance: RuntimeTaskInstance | TaskInstance,
     error: None | str | BaseException,
+    failure_details: FailureDetails | None,
 ):
-    """Execute when task state changes to FAIL. previous_state can be None."""
+    """
+    Execute when task state changes to FAIL. previous_state can be None.
+
+    :param previous_state: Previous state of the task instance (can be None)
+    :param task_instance: The task instance object
+    :param error: The exception that caused the failure (or human-readable
+        message string for API-driven manual transitions)
+    :param failure_details: Structured infrastructure-side failure context
+        populated by the executor when the failure cause originates outside
+        the worker process — e.g. ``OOMKilled`` / ``PodEvicted`` on Kubernetes,
+        ``WorkerLost`` on Celery. ``None`` when no executor-side cause is
+        available.
+
+        Pluggy dispatches by parameter name, so existing ``hookimpl``
+        implementations that don't declare ``failure_details`` keep working
+        unchanged. Implementations that DO declare it must not assign a
+        default value (``failure_details=None``) — pluggy treats the
+        impl-side default as authoritative and silently overrides the value
+        the caller passed. Declare it without a default::
+
+            @hookimpl
+            def on_task_instance_failed(self, previous_state, task_instance, error, failure_details): ...
+    """
 
 
 @hookspec
