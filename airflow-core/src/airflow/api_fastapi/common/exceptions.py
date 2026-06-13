@@ -24,7 +24,7 @@ from enum import Enum
 from typing import Generic, TypeVar
 
 from fastapi import HTTPException, Request, status
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DataError, IntegrityError
 
 from airflow.configuration import conf
 from airflow.exceptions import DeserializationError
@@ -108,6 +108,52 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
         return False
 
 
+class DataErrorHandler(BaseErrorHandler[DataError]):
+    """
+    Translate ``sqlalchemy.exc.DataError`` into a 422.
+
+    The database rejected a value that passed Pydantic validation (too long, out
+    of range, or the wrong type for its column), so it is a client error, not a
+    500. The statement and underlying DB error are logged under a lookup id and
+    returned to the caller only when ``[api] expose_stacktrace`` is set, mirroring
+    ``_UniqueConstraintErrorHandler``.
+    """
+
+    def __init__(self):
+        super().__init__(DataError)
+
+    def exception_handler(self, request: Request, exc: DataError):
+        """Handle DataError exception."""
+        exception_id = get_random_string()
+        stacktrace = ""
+        for tb in traceback.format_tb(exc.__traceback__):
+            stacktrace += tb
+
+        log_message = f"Error with id {exception_id}, statement: {exc.statement}\n{stacktrace}"
+        log.error(log_message)
+        if conf.get("api", "expose_stacktrace") == "True":
+            message = log_message
+            statement = str(exc.statement)
+            orig_error = str(exc.orig)
+        else:
+            message = (
+                "Serious error when handling your request. Check logs for more details - "
+                f"you will find it in api server when you look for ID {exception_id}"
+            )
+            statement = "hidden"
+            orig_error = "hidden"
+
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "reason": "Value rejected by database",
+                "statement": statement,
+                "orig_error": orig_error,
+                "message": message,
+            },
+        )
+
+
 class DagErrorHandler(BaseErrorHandler[DeserializationError]):
     """Handler for Dag related errors."""
 
@@ -122,4 +168,8 @@ class DagErrorHandler(BaseErrorHandler[DeserializationError]):
         )
 
 
-ERROR_HANDLERS: list[BaseErrorHandler] = [_UniqueConstraintErrorHandler(), DagErrorHandler()]
+ERROR_HANDLERS: list[BaseErrorHandler] = [
+    _UniqueConstraintErrorHandler(),
+    DataErrorHandler(),
+    DagErrorHandler(),
+]
