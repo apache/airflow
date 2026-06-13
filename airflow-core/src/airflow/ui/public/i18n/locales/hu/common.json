@@ -205,7 +205,7 @@
   },
   "search": {
     "advanced": {
-      "description": "Egyezés az érték bármely részén (részszöveges keresés). Nagy telepítéseknél lassabb, mert nem tudja használni az alapértelmezett B-fa indexet. További részletek a dokumentáció egyedi metaadatindexekről szóló részében.",
+      "description": "Egyezés a szöveg bármely részével (szövegtöredék keresése). Nagyobb megvalósítások esetén lassabb, mert nem használható az alapértelmezett B-fa indexelés. További részletek a dokumentáció egyedi metaadatindexekről szóló részében.",
       "title": "Egyezés bárhol"
     }
   },
@@ -292,7 +292,7 @@
     "priorityWeight": "Prioritás súlya",
     "queue": "Sor",
     "queuedWhen": "Sorba állítva ekkor",
-    "renderedMapIndex": "Megjelenített Map Index",
+    "renderedMapIndex": "Generált Térkép Index",
     "scheduledWhen": "Ütemezve ekkor",
     "triggerer": {
       "assigned": "Hozzárendelt indító",
@@ -329,7 +329,7 @@
       "error": "Tömeges törlési kérelem sikertelen: {{resourceName}}",
       "success": {
         "description": "{{count}} {{resourceName}} sikeresen törölve. Kulcsok: {{keys}}",
-        "title": "Tömeges törlés kérelem elküldve: {{resourceName}}"
+        "title": "Tömeges törlési kérelem elküldve: {{resourceName}}"
       }
     },
     "bulkDelete": {
@@ -340,10 +340,10 @@
       }
     },
     "bulkUpdate": {
-      "error": "Tömeges frissítés kérése sikertelen: {{resourceName}}",
+      "error": "Tömeges frissítési kérelem sikertelen: {{resourceName}}",
       "success": {
         "description": "{{count}} {{resourceName}} sikeresen frissítve. Kulcsok: {{keys}}",
-        "title": "Tömeges frissítés kérelem elküldve: {{resourceName}}"
+        "title": "Tömeges frissítési kérelem elküldve: {{resourceName}}"
       }
     },
     "create": {
@@ -385,7 +385,7 @@
     "title": "Token generálása",
     "tokenExpiresIn": "Ez a token {{duration}} múlva lejár.",
     "tokenGenerated": "A token sikeresen létrejött.",
-    "tokenShownOnce": "Ez a token csak egyszer jelenik meg. Másolja ki most."
+    "tokenShownOnce": "Ez a token többször nem jelenik meg. Mentse el most!"
   },
   "total": "Összes: {{state}}",
   "triggered": "Indítva",
@@ -393,7 +393,7 @@
   "user": "Felhasználó",
   "validation": {
     "mustBeAtLeast": "Legalább {{min}} értékűnek kell lennie.",
-    "mustBeValidNumber": "Érvényes számot kell megadni."
+    "mustBeValidNumber": "Valódi számot kell megadni."
   },
   "value": "Érték",
   "wrap": {

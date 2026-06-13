@@ -41,7 +41,7 @@
     "parsedAt": "Feldolgozás ideje:"
   },
   "deadlineAlerts": {
-    "completionRule": "A(z) {{interval}}-on belül kell teljesíteni a(z) {{reference}}-hoz képest",
+    "completionRule": "{{reference}} : ehhez képest, {{interval}} -en/án belül kell teljesíteni.",
     "count_one": "{{count}} határidő",
     "count_other": "{{count}} határidő",
     "referenceType": {
@@ -52,19 +52,19 @@
   },
   "deadlineStatus": {
     "actual": "Tényleges",
-    "expected": "Várt",
-    "finishedEarly": "határidő előtt befejezve ennyivel: {{duration}}",
-    "finishedLate": "határidő után befejezve ennyivel: {{duration}}",
+    "expected": "Várható",
+    "finishedEarly": "Határidő előtt befejezve. Ennyivel: {{duration}}",
+    "finishedLate": "Határidőn túli befejezés. Elhúzódás: {{duration}}",
     "label": "Határidő",
     "met": "Teljesítve",
     "missed": "Elmulasztva",
-    "missedCount_one": "{{count}} elmulasztott határidő",
-    "missedCount_other": "{{count}} elmulasztott határidő",
+    "missedCount_one": "Elmulasztott határidők : {{count}}",
+    "missedCount_other": "Elmulasztott határidők : {{count}}",
     "mixedCount": "{{missedCount}} elmulasztott, {{upcomingCount}} közelgő",
     "stillRunning": "Még fut",
     "upcoming": "Közelgő",
-    "upcomingCount_one": "{{count}} közelgő határidő",
-    "upcomingCount_other": "{{count}} közelgő határidő"
+    "upcomingCount_one": "Közelgő határidők : {{count}}",
+    "upcomingCount_other": "Közelgő határidők : {{count}}"
   },
   "extraLinks": "Extra hivatkozások",
   "grid": {
@@ -145,8 +145,8 @@
     "buttons": {
       "options": "Beállítások",
       "showGantt": "Gantt-diagram megjelenítése",
-      "showGraphShortcut": "Gráf megjelenítése (g megnyomása)",
-      "showGridShortcut": "Rács megjelenítése (g megnyomása)"
+      "showGraphShortcut": "Gráf megjelenítése (Nyomja meg a g billentyűt)",
+      "showGridShortcut": "Rács megjelenítése (Nyomja meg a g billentyűt)"
     },
     "dagRuns": {
       "label": "Dag futások száma"
@@ -168,7 +168,7 @@
       "durationGte": "Min. időtartam (s)",
       "durationGteHint": "A leképezett feladatoknál az összes példány teljes időtartamát mutatja",
       "mapIndex": "Min. map index",
-      "mapIndexHint": "A leképezett feladatokat legalább eddig az indexig bontja ki",
+      "mapIndexHint": "A legalább a megadott indexig kibontott, leképezett feladatok megjelenítése.",
       "selectStatus": "Állapot kiválasztása",
       "selectTaskGroup": "Feladatcsoport kiválasztása",
       "title": "Feladat szűrők"
@@ -190,7 +190,7 @@
       "direction": "Irány",
       "label": "Szűrő",
       "mode": "Mód",
-      "modeTooltip": "A statikus mód megtartja az aktuális nézetet, míg a bejárás mód automatikusan frissíti a szűrőt.",
+      "modeTooltip": "A statikus mód megtartja az aktuális nézetet feladat váltás közben is, míg a bejárás mód automatikusan frissíti az aktuális szűrőt a kiválasztott feladathoz az egyszerűbb Dag bejárás érdekében.",
       "modes": {
         "static": "Statikus",
         "traverse": "Bejárás"
@@ -207,12 +207,12 @@
   "parse": {
     "toaster": {
       "error": {
-        "description": "A Dag feldolgozási kérelem meghiúsult.",
+        "description": "A Dag feldolgozási kérelem meghiúsult. Lehetnek még feldolgozásra váró kérelmek.",
         "title": "Dag újrafeldolgozása sikertelen"
       },
       "success": {
-        "description": "A Dag újrafeldolgozása hamarosan megtörténik.",
-        "title": "Újrafeldolgozási kérelem elküldve"
+        "description": "A Dag hamarosan újra feldolgozásra kerül.",
+        "title": "Újrafeldolgozási kérelem sikeresen elküldve"
       }
     }
   },
@@ -245,14 +245,14 @@
     "clearAll": {
       "resource": "összes feladat tároló",
       "title": "Összes feladat tároló törlése",
-      "warning": "Az összes feladat tároló törlődik. A feladatok nem tudják folytatni az állapotukat."
+      "warning": "Az összes feladat tároló törlődni fog. A feladatok melyek ezt a tárolót használták a külső folyamatok nyomon követésére, csak az alapoktól való újra futtatás után lesznek képesek folytatni a munkát."
     },
     "delete": "Feladat tároló törlése",
-    "deleteWarning": "A feladat elveszíti ezt a perzisztens memóriát.",
+    "deleteWarning": "A feladat tárolt memóriája törlődni fog. Amennyiben ez a feladat az adott kulcsot egy külső folyamat nyomon követésére használta (pl. külsős job id) nem lesz képes azt folytatni. ",
     "edit": "Feladat tároló szerkesztése",
-    "emptyStore": "A feladat tároló értékeket tart fenn a próbálkozások között.",
+    "emptyStore": "A feladat tárolóba mentett értékek a próbálkozások között is elérhetőek. A munkapéldányok a Task SDK segítségével módosíthatják a tárolót.",
     "expiresAt": {
-      "column": "Lejárat",
+      "column": "Lejárat ideje",
       "custom": "Egyéni",
       "default": "Alapértelmezett ({{interval}})",
       "label": "Lejárat",

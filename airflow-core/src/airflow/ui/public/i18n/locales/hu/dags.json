@@ -36,7 +36,7 @@
     },
     "clearAllMapped": {
       "button": "Összes leképezett feladat törlése",
-      "buttonTooltip": "Shift+C megnyomásával az összes leképezett feladatpéldány törlése",
+      "buttonTooltip": "Shift+C megnyomásával az összes leképezett feladatpéldányt törölheti.",
       "title": "Összes leképezett feladatpéldány törlése"
     },
     "confirmationDialog": {
