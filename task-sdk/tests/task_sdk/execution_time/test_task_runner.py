@@ -2294,6 +2294,39 @@ class TestRuntimeTaskInstance:
                         ),
                     )
 
+    @pytest.mark.asyncio
+    async def test_axcom_pull(
+        self,
+        create_runtime_ti,
+        mock_supervisor_comms,
+        spy_agency,
+    ):
+        """
+        Test that a task makes an expected call to the Supervisor to pull an XCom value asynchronously.
+        """
+        spy_agency.spy_on(deserialize)
+
+        task = BaseOperator(task_id="pull_task")
+        runtime_ti = create_runtime_ti(task=task)
+
+        xcom_value = "hello"
+        ser_value = BaseXCom.serialize_value(xcom_value)
+        mock_supervisor_comms.asend.return_value = XComResult(key="key", value=ser_value)
+
+        value = await runtime_ti.axcom_pull(key="key", task_ids="push_task", map_indexes=-1)
+
+        assert value == xcom_value
+        spy_agency.assert_spy_called_with(deserialize, ser_value)
+        mock_supervisor_comms.asend.assert_called_once_with(
+            GetXCom(
+                key="key",
+                dag_id="test_dag",
+                run_id="test_run",
+                task_id="push_task",
+                map_index=-1,
+            ),
+        )
+
     @pytest.mark.parametrize(
         ("task_ids", "map_indexes", "expected_value"),
         [
