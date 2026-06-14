@@ -1887,6 +1887,9 @@ export type TriggerDAGRunPostBody = {
 export type TriggerResponse = {
     id: number;
     classpath: string;
+    /**
+     * @deprecated
+     */
     kwargs: string;
     created_date: string;
     queue: string | null;
