@@ -40,6 +40,7 @@ from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
+from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
@@ -151,6 +152,7 @@ def setup(request, dag_maker, *, session=None):
     with dag_maker(DAG1_ID, schedule=None, start_date=START_DATE1, serialized=True):
         task1 = EmptyOperator(task_id="task_1")
         task2 = EmptyOperator(task_id="task_2")
+        dag_maker.dag.add_result(task2.output)
 
     dag_run1 = dag_maker.create_dagrun(
         run_id=DAG1_RUN1_ID,
@@ -172,7 +174,16 @@ def setup(request, dag_maker, *, session=None):
         ti.task = task
         ti.state = State.SUCCESS
         session.merge(ti)
-        ti.xcom_push("return_value", f"result_{i}")
+        XComModel.set(
+            key="return_value",
+            value=f"result_{i}",
+            task_id=ti.task_id,
+            dag_id=ti.dag_id,
+            run_id=ti.run_id,
+            map_index=ti.map_index,
+            dag_result=task.returns_dag_result,
+            session=session,
+        )
 
     dag_run2 = dag_maker.create_dagrun(
         run_id=DAG1_RUN2_ID,
@@ -2908,22 +2919,47 @@ class TestWaitDagRun:
         assert response.status_code == 422
 
     @pytest.mark.parametrize(
-        ("run_id", "state"),
-        [(DAG1_RUN1_ID, DAG1_RUN1_STATE), (DAG1_RUN2_ID, DAG1_RUN2_STATE)],
+        ("run_id", "expected"),
+        [
+            pytest.param(
+                DAG1_RUN1_ID,
+                {"state": DAG1_RUN1_STATE, "results": {"task_2": '"result_2"'}},
+                id="return-result-task",
+            ),
+            pytest.param(
+                DAG1_RUN2_ID,
+                {"state": DAG1_RUN2_STATE},
+                id="no-result-task",
+            ),
+        ],
     )
-    def test_should_respond_200_immediately_for_finished_run(self, test_client, run_id, state):
+    def test_should_respond_200_with_implicit_return_value(self, test_client, run_id, expected):
         response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{run_id}/wait", params={"interval": "100"})
         assert response.status_code == 200
         data = response.json()
-        assert data == {"state": state}
+        assert data == expected
 
-    def test_collect_task(self, test_client):
+    @pytest.mark.parametrize(
+        ("requested", "results"),
+        [
+            pytest.param("task_1", {"task_1": '"result_1"'}, id="only-non-result"),
+            pytest.param("task_2", {"task_2": '"result_2"'}, id="only-result"),
+        ],
+    )
+    def test_should_respond_200_with_explicit_return_value(self, test_client, requested, results):
         response = test_client.get(
-            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait", params={"interval": "1", "result": "task_1"}
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
+            params={"interval": "1", "result": requested},
         )
         assert response.status_code == 200
         data = response.json()
-        assert data == {"state": DagRunState.SUCCESS, "results": {"task_1": '"result_1"'}}
+        assert data == {"state": DagRunState.SUCCESS, "results": results}
+
+    def test_collect_authored_task_results(self, test_client):
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait", params={"interval": "1"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data == {"state": DagRunState.SUCCESS, "results": {"task_2": '"result_2"'}}
 
     def test_should_respond_403_when_user_lacks_xcom_permission(self, test_client):
         with mock.patch(
@@ -2947,10 +2983,17 @@ class TestWaitDagRun:
 
     def test_should_respond_200_without_result_when_user_lacks_xcom_permission(self, test_client):
         """Waiting without result parameter should not require XCom permissions."""
-        response = test_client.get(
-            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
-            params={"interval": "1"},
-        )
+        with mock.patch(
+            "airflow.api_fastapi.core_api.routes.public.dag_run.get_auth_manager",
+            autospec=True,
+        ) as mock_get_auth_manager:
+            mock_get_auth_manager.return_value.is_authorized_dag.return_value = False
+
+            response = test_client.get(
+                f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
+                params={"interval": "1"},
+            )
+
         assert response.status_code == 200
         data = response.json()
         assert data == {"state": DagRunState.SUCCESS}

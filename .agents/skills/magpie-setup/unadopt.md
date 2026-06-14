@@ -249,7 +249,13 @@ pointing at a deleted snapshot.
    [`adopt.md` Step 7](adopt.md) that are present, and leave
    any adopter-added entries (e.g. unrelated rules near the
    adoption block) untouched. Do not collapse blank lines —
-   the diff stays minimal.
+   the diff stays minimal. **Exception:** leave `__pycache__/`
+   and `*.pyc` in place — they are stock Python entries that
+   most repos carry independently of the framework, so removing
+   them would break the adopter's own Python ignores. Only drop
+   them if they sit unambiguously inside the steward-managed
+   block (under the same comment header the adopt flow wrote)
+   and the repo has no other Python sources.
 6. **Doc sections.** For each of `README.md`, `AGENTS.md`,
    `CONTRIBUTING.md` that contains an adoption section,
    remove the section. The boundaries are the section
@@ -372,6 +378,10 @@ need a human re-read.
   adopter also has `/.apache-magpie/foo` for unrelated
   reasons) → only the exact adopt-template lines are
   removed; adopter rules stay.
+- **Stock Python entries (`__pycache__/`, `*.pyc`)** → left
+  in place by default per Step 5; they predate adoption in
+  most repos, so removing them would break the adopter's own
+  Python ignores.
 - **Adopter ran `unadopt` then realised they wanted to keep
   override content** → the override directory was preserved
   by default; if they passed `--purge-overrides` and

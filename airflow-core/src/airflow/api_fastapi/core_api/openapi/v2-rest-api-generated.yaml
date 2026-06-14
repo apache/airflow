@@ -2980,9 +2980,13 @@ paths:
             items:
               type: string
           - type: 'null'
-          description: Collect result XCom from task. Can be set multiple times.
+          description: Collect result XCom from task. Can be set multiple times. If
+            unset, return value of the return task as specified in the dag (in present)
+            is returned by default.
           title: Result
-        description: Collect result XCom from task. Can be set multiple times.
+        description: Collect result XCom from task. Can be set multiple times. If
+          unset, return value of the return task as specified in the dag (in present)
+          is returned by default.
       responses:
         '200':
           description: Successful Response
@@ -16496,6 +16500,7 @@ components:
         kwargs:
           type: string
           title: Kwargs
+          deprecated: true
         created_date:
           type: string
           format: date-time
