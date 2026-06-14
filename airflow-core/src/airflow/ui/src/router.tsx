@@ -38,6 +38,7 @@ import { Overview } from "src/pages/Dag/Overview";
 import { Tasks } from "src/pages/Dag/Tasks";
 import { DagRuns } from "src/pages/DagRuns";
 import { DagsList } from "src/pages/DagsList";
+import { ScheduleOverview } from "src/pages/DagsList/ScheduleOverview";
 import { Dashboard } from "src/pages/Dashboard";
 import { Deadlines } from "src/pages/Deadlines";
 import { ErrorPage } from "src/pages/Error";
@@ -108,6 +109,10 @@ export const routerConfig = [
       {
         element: <DagsList />,
         path: "dags",
+      },
+      {
+        element: <ScheduleOverview />,
+        path: "dags/schedule",
       },
       {
         element: (

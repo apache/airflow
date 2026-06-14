@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { type QueryClient } from "@tanstack/react-query";
-import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, ScheduleOverviewService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -2070,6 +2070,23 @@ export const ensureUseCalendarServiceGetCalendarData = (queryClient: QueryClient
   partitionDateLt?: string;
   partitionDateLte?: string;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseCalendarServiceGetCalendarKeyFn({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }), queryFn: () => CalendarService.getCalendar({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }) });
+/**
+* Get Dag Schedule Overview
+* Aggregate per-Dag typical start / end times across the deployment.
+* @param data The data for the request.
+* @param data.runAfterGte
+* @param data.runAfterLte
+* @param data.dagIdPattern
+* @param data.dagDisplayNamePattern
+* @returns DagScheduleOverviewCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseScheduleOverviewServiceGetDagScheduleOverviewData = (queryClient: QueryClient, { dagDisplayNamePattern, dagIdPattern, runAfterGte, runAfterLte }: {
+  dagDisplayNamePattern?: string;
+  dagIdPattern?: string;
+  runAfterGte?: string;
+  runAfterLte?: string;
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseScheduleOverviewServiceGetDagScheduleOverviewKeyFn({ dagDisplayNamePattern, dagIdPattern, runAfterGte, runAfterLte }), queryFn: () => ScheduleOverviewService.getDagScheduleOverview({ dagDisplayNamePattern, dagIdPattern, runAfterGte, runAfterLte }) });
 /**
 * List Teams
 * @param data The data for the request.

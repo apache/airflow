@@ -173,6 +173,7 @@
     "home": "Home",
     "legacyFabViews": "Legacy Views",
     "plugins": "Plugins",
+    "scheduleOverview": "Schedule Overview",
     "security": "Security"
   },
   "noItemsFound": "No {{modelName}} found",

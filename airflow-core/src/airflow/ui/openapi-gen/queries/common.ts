@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryResult } from "@tanstack/react-query";
-import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, ScheduleOverviewService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<TData = AssetServiceGetAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
@@ -1027,6 +1027,15 @@ export const UseCalendarServiceGetCalendarKeyFn = ({ dagId, granularity, logical
   partitionDateLt?: string;
   partitionDateLte?: string;
 }, queryKey?: Array<unknown>) => [useCalendarServiceGetCalendarKey, ...(queryKey ?? [{ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }])];
+export type ScheduleOverviewServiceGetDagScheduleOverviewDefaultResponse = Awaited<ReturnType<typeof ScheduleOverviewService.getDagScheduleOverview>>;
+export type ScheduleOverviewServiceGetDagScheduleOverviewQueryResult<TData = ScheduleOverviewServiceGetDagScheduleOverviewDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useScheduleOverviewServiceGetDagScheduleOverviewKey = "ScheduleOverviewServiceGetDagScheduleOverview";
+export const UseScheduleOverviewServiceGetDagScheduleOverviewKeyFn = ({ dagDisplayNamePattern, dagIdPattern, runAfterGte, runAfterLte }: {
+  dagDisplayNamePattern?: string;
+  dagIdPattern?: string;
+  runAfterGte?: string;
+  runAfterLte?: string;
+} = {}, queryKey?: Array<unknown>) => [useScheduleOverviewServiceGetDagScheduleOverviewKey, ...(queryKey ?? [{ dagDisplayNamePattern, dagIdPattern, runAfterGte, runAfterLte }])];
 export type TeamsServiceListTeamsDefaultResponse = Awaited<ReturnType<typeof TeamsService.listTeams>>;
 export type TeamsServiceListTeamsQueryResult<TData = TeamsServiceListTeamsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTeamsServiceListTeamsKey = "TeamsServiceListTeams";

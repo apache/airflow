@@ -2235,6 +2235,31 @@ export type DagRunStatsResponse = {
 };
 
 /**
+ * Response model for the cross-Dag schedule overview endpoint.
+ */
+export type DagScheduleOverviewCollectionResponse = {
+    total_entries: number;
+    entries: Array<DagScheduleOverviewEntry>;
+};
+
+/**
+ * Aggregate, time-of-day statistics for a single Dag from its recent successful runs.
+ */
+export type DagScheduleOverviewEntry = {
+    dag_id: string;
+    dag_display_name: string;
+    recent_runs_count: number;
+    oldest_logical_date: string | null;
+    newest_logical_date: string | null;
+    start_mean_seconds: number | null;
+    start_median_seconds: number | null;
+    end_mean_seconds: number | null;
+    end_median_seconds: number | null;
+    duration_mean_seconds: number | null;
+    duration_median_seconds: number | null;
+};
+
+/**
  * Dashboard DAG Stats serializer for responses.
  */
 export type DashboardDagStatsResponse = {
@@ -4560,6 +4585,15 @@ export type GetCalendarData = {
 };
 
 export type GetCalendarResponse = CalendarTimeRangeCollectionResponse;
+
+export type GetDagScheduleOverviewData = {
+    dagDisplayNamePattern?: string | null;
+    dagIdPattern?: string | null;
+    runAfterGte?: string | null;
+    runAfterLte?: string | null;
+};
+
+export type GetDagScheduleOverviewResponse = DagScheduleOverviewCollectionResponse;
 
 export type ListTeamsData = {
     limit?: number;
@@ -8362,6 +8396,21 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: CalendarTimeRangeCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dag_schedule_overview': {
+        get: {
+            req: GetDagScheduleOverviewData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagScheduleOverviewCollectionResponse;
                 /**
                  * Validation Error
                  */

@@ -76,6 +76,19 @@
       "upstream": "Upstream"
     }
   },
+  "scheduleOverview": {
+    "dagColumn": "Dag",
+    "filterPlaceholder": "Filter Dags by id",
+    "noDags": "No Dags to display.",
+    "noData": "No recent runs",
+    "noRecentRuns": "No recent successful runs",
+    "recentRuns_one": "{{count}} recent successful run",
+    "recentRuns_other": "{{count}} recent successful runs",
+    "subtitle_one": "Showing typical start and end times for {{count}} Dag, aggregated from recent successful runs.",
+    "subtitle_other": "Showing typical start and end times for {{count}} Dags, aggregated from recent successful runs.",
+    "timelineColumn": "Typical 24h run window (UTC)",
+    "timelineRange": "{{start}} → {{end}} (UTC)"
+  },
   "search": {
     "advanced": "Advanced Search",
     "clear": "Clear search",

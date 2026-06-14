@@ -8918,6 +8918,146 @@ export const $DagRunStatsResponse = {
     description: 'DAG Run statistics serializer for responses.'
 } as const;
 
+export const $DagScheduleOverviewCollectionResponse = {
+    properties: {
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        },
+        entries: {
+            items: {
+                '$ref': '#/components/schemas/DagScheduleOverviewEntry'
+            },
+            type: 'array',
+            title: 'Entries'
+        }
+    },
+    type: 'object',
+    required: ['total_entries', 'entries'],
+    title: 'DagScheduleOverviewCollectionResponse',
+    description: 'Response model for the cross-Dag schedule overview endpoint.'
+} as const;
+
+export const $DagScheduleOverviewEntry = {
+    properties: {
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        dag_display_name: {
+            type: 'string',
+            title: 'Dag Display Name'
+        },
+        recent_runs_count: {
+            type: 'integer',
+            minimum: 0,
+            title: 'Recent Runs Count'
+        },
+        oldest_logical_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Oldest Logical Date'
+        },
+        newest_logical_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Newest Logical Date'
+        },
+        start_mean_seconds: {
+            anyOf: [
+                {
+                    type: 'integer',
+                    maximum: 86399,
+                    minimum: 0
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Mean Seconds'
+        },
+        start_median_seconds: {
+            anyOf: [
+                {
+                    type: 'integer',
+                    maximum: 86399,
+                    minimum: 0
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Median Seconds'
+        },
+        end_mean_seconds: {
+            anyOf: [
+                {
+                    type: 'integer',
+                    maximum: 86399,
+                    minimum: 0
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Mean Seconds'
+        },
+        end_median_seconds: {
+            anyOf: [
+                {
+                    type: 'integer',
+                    maximum: 86399,
+                    minimum: 0
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Median Seconds'
+        },
+        duration_mean_seconds: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration Mean Seconds'
+        },
+        duration_median_seconds: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration Median Seconds'
+        }
+    },
+    type: 'object',
+    required: ['dag_id', 'dag_display_name', 'recent_runs_count', 'oldest_logical_date', 'newest_logical_date', 'start_mean_seconds', 'start_median_seconds', 'end_mean_seconds', 'end_median_seconds', 'duration_mean_seconds', 'duration_median_seconds'],
+    title: 'DagScheduleOverviewEntry',
+    description: 'Aggregate, time-of-day statistics for a single Dag from its recent successful runs.'
+} as const;
+
 export const $DashboardDagStatsResponse = {
     properties: {
         active_dag_count: {
