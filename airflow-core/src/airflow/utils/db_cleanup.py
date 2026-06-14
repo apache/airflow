@@ -27,7 +27,7 @@ import csv
 import logging
 import os
 from collections.abc import Generator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
@@ -299,12 +299,23 @@ def _do_delete(
             session.execute(delete)
             session.commit()
 
-        except BaseException as e:
-            raise e
+        except BaseException:
+            # Roll back the failed transaction so its locks are released before
+            # the archive table is dropped in the ``finally`` block below.
+            # ``rollback()`` itself can raise (e.g. the connection died); suppress
+            # it so it does not shadow the original error being re-raised.
+            with suppress(Exception):
+                session.rollback()
+            raise
         finally:
             if target_table is not None and skip_archive:
-                bind = session.get_bind()
-                target_table.drop(bind=bind)
+                # Drop the archive table on the session's own connection. Binding
+                # the drop to ``session.get_bind()`` (the Engine) would check out a
+                # *second* pooled connection, and on MySQL its ``DROP TABLE`` blocks
+                # indefinitely on the metadata lock still held by this session's
+                # open transaction when the DELETE above failed -- the ``db clean``
+                # hang reported in #66177.
+                target_table.drop(bind=session.connection())
                 session.commit()
 
     print("Finished Performing Delete")
