@@ -478,7 +478,8 @@ def test_serialize_timetable_complex_with_alias():
                     ],
                 },
             ],
-        }
+        },
+        "batch_asset_events": True,
     }
 
 
@@ -493,7 +494,8 @@ def test_serialize_timetable_single_asset():
             "name": "a",
             "group": "asset",
             "extra": {},
-        }
+        },
+        "batch_asset_events": True,
     }
 
 
@@ -508,7 +510,8 @@ def test_serialize_timetable_list_of_assets():
                 {"__type": DagAttributeTypes.ASSET, "uri": "a", "name": "a", "group": "asset", "extra": {}},
                 {"__type": DagAttributeTypes.ASSET, "uri": "b", "name": "b", "group": "asset", "extra": {}},
             ],
-        }
+        },
+        "batch_asset_events": True,
     }
 
 
@@ -564,7 +567,8 @@ def test_serialize_timetable_with_complex_logical_condition():
                     ],
                 },
             ],
-        }
+        },
+        "batch_asset_events": True,
     }
 
 
