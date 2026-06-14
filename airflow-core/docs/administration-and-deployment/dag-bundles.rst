@@ -69,7 +69,7 @@ Dag bundles are configured in :ref:`config:dag_processor__dag_bundle_config_list
     configuration can read these values verbatim, so they must not contain secrets.
 
     Do **not** embed credentials directly in bundle ``kwargs`` — for example a
-    token inlined into a ``repo_url`` like
+    token placed directly in a ``repo_url`` like
     ``https://x-access-token:<token>@github.com/org/repo.git``. Instead reference
     an Airflow :doc:`Connection <../authoring-and-scheduling/connections>`
     (``git_conn_id`` for Git, ``aws_conn_id`` for S3, ``gcp_conn_id`` for GCS) and
