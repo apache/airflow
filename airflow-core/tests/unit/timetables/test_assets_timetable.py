@@ -268,6 +268,44 @@ def test_run_ordering_inheritance(core_asset_timetable) -> None:
     assert core_asset_timetable.run_ordering == AssetTriggeredTimetable.run_ordering
 
 
+def test_asset_triggered_timetable_serialize():
+    """AssetTriggeredTimetable.serialize includes batch_asset_events."""
+    asset = SerializedAsset(name="test", uri="test://uri", group="asset", extra={}, watchers=[])
+    timetable = AssetTriggeredTimetable(assets=asset)
+    serialized = timetable.serialize()
+    assert serialized["batch_asset_events"] is True
+    assert "asset_condition" in serialized
+
+
+def test_asset_triggered_timetable_deserialize():
+    """AssetTriggeredTimetable.deserialize recovers batch_asset_events."""
+    asset = SerializedAsset(name="test", uri="test://uri", group="asset", extra={}, watchers=[])
+    data = {
+        "asset_condition": {
+            "__type": "asset",
+            "name": "test",
+            "uri": "test://uri",
+            "group": "asset",
+            "extra": {},
+        },
+        "batch_asset_events": True,
+    }
+    timetable = AssetTriggeredTimetable.deserialize(data)
+    assert timetable.batch_asset_events is True
+    assert timetable.asset_condition == asset
+
+
+def test_asset_triggered_timetable_batch_asset_events_false_roundtrip():
+    """AssetTriggeredTimetable batch_asset_events=False survives serialize → deserialize."""
+    asset = SerializedAsset(name="test", uri="test://uri", group="asset", extra={}, watchers=[])
+    timetable = AssetTriggeredTimetable(assets=asset, batch_asset_events=False)
+    serialized = timetable.serialize()
+    assert serialized["batch_asset_events"] is False
+
+    deserialized = AssetTriggeredTimetable.deserialize(serialized)
+    assert deserialized.batch_asset_events is False
+
+
 @pytest.mark.db_test
 class TestAssetConditionWithTimetable:
     @pytest.fixture(autouse=True)

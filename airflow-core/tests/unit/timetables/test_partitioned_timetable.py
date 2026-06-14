@@ -194,6 +194,7 @@ class TestPartitionedAssetTimetable:
             assets=ser_asset, partition_mapper_config={ser_asset: IdentityMapper()}
         )
         assert timetable.serialize() == {
+            "batch_asset_events": True,
             "asset_condition": {
                 "__type": DagAttributeTypes.ASSET,
                 "name": "test",
@@ -225,6 +226,7 @@ class TestPartitionedAssetTimetable:
     def test_deserialize(self):
         timetable = PartitionedAssetTimetable.deserialize(
             {
+                "batch_asset_events": True,
                 "asset_condition": {
                     "__type": DagAttributeTypes.ASSET,
                     "name": "test",
@@ -257,6 +259,21 @@ class TestPartitionedAssetTimetable:
         assert timetable.asset_condition == ser_asset
         assert isinstance(timetable.default_partition_mapper, IdentityMapper)
         assert isinstance(timetable.partition_mapper_config[ser_asset], IdentityMapper)
+        assert timetable.batch_asset_events is True
+
+    def test_serialize_deserialize_batch_asset_events_false(self):
+        """Serialize/deserialize round-trip preserves batch_asset_events=False."""
+        ser_asset = ensure_serialized_asset(Asset("test"))
+        timetable = PartitionedAssetTimetable(
+            assets=ser_asset,
+            partition_mapper_config={ser_asset: IdentityMapper()},
+            batch_asset_events=False,
+        )
+        serialized = timetable.serialize()
+        assert serialized["batch_asset_events"] is False
+
+        deserialized = PartitionedAssetTimetable.deserialize(serialized)
+        assert deserialized.batch_asset_events is False
 
     def test_partitioned_asset_timetable_resolve_day_bound_returns_midnight_utc(self):
         """PartitionedAssetTimetable has no local timezone; resolve_day_bound uses the base default.
