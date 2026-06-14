@@ -80,7 +80,7 @@ class TestBaseHook:
 
         hook = BaseHook(logger_name="")
         await hook.aget_connection(conn_id="test_conn")
-        mock_supervisor_comms.asend.assert_called_once_with(
+        mock_supervisor_comms.asend.assert_any_call(
             msg=GetConnection(conn_id="test_conn"),
         )
 
@@ -116,8 +116,8 @@ class TestBaseHook:
 
         result = await BaseHook.aget_hook(conn_id="test_conn")
 
-        # asend() must have been called — never the blocking send() for GetConnection
-        mock_supervisor_comms.asend.assert_called_once_with(
+        # asend() must have been called for GetConnection — never the blocking send()
+        mock_supervisor_comms.asend.assert_any_call(
             msg=GetConnection(conn_id="test_conn"),
         )
         # send() must not have been used for GetConnection (other messages like MaskSecret are allowed)

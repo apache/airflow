@@ -264,6 +264,28 @@ def mask_secret(secret: JsonValue, name: str | None = None) -> None:
             comms.send(MaskSecret(value=secret, name=name))
 
 
+async def amask_secret(secret: JsonValue, name: str | None = None) -> None:
+    """
+    Async version of mask_secret for use in async contexts.
+
+    Uses asend() instead of send() to avoid deadlock when called from within
+    an async task that already has an asend() in flight.
+    """
+    from contextlib import suppress
+
+    from airflow.sdk._shared.secrets_masker import _secrets_masker
+
+    _secrets_masker().add_mask(secret, name)
+
+    with suppress(Exception):
+        # Try to tell supervisor (only if in task execution context)
+        from airflow.sdk.execution_time import task_runner
+        from airflow.sdk.execution_time.comms import MaskSecret
+
+        if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
+            await comms.asend(MaskSecret(value=secret, name=name))
+
+
 def reset_logging():
     """
     Convince for testing. Not for production use.
