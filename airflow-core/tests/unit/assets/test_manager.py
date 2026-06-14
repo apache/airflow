@@ -283,9 +283,7 @@ class TestAssetManager:
         second call returns the same APDR — they accumulate on one row.
         """
         asm = AssetModel(uri="test://reuse-true/", name="reuse_asset_true", group="asset")
-        testing_dag = DagModel(
-            dag_id="reuse_test_dag_true", is_stale=False, bundle_name="testing"
-        )
+        testing_dag = DagModel(dag_id="reuse_test_dag_true", is_stale=False, bundle_name="testing")
         session.add_all([asm, testing_dag])
         session.commit()
         session.flush()
@@ -322,12 +320,8 @@ class TestAssetManager:
         event gets its own APDR — the scheduler later produces one DagRun per
         event.
         """
-        asm = AssetModel(
-            uri="test://reuse-false/", name="reuse_asset_false", group="asset"
-        )
-        testing_dag = DagModel(
-            dag_id="reuse_test_dag_false", is_stale=False, bundle_name="testing"
-        )
+        asm = AssetModel(uri="test://reuse-false/", name="reuse_asset_false", group="asset")
+        testing_dag = DagModel(dag_id="reuse_test_dag_false", is_stale=False, bundle_name="testing")
         session.add_all([asm, testing_dag])
         session.commit()
         session.flush()

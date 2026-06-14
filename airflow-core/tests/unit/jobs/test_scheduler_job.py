@@ -10091,9 +10091,7 @@ def test_partitioned_batch_asset_events_true_single_dagrun(dag_maker: DagMaker, 
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
-def test_partitioned_batch_asset_events_false_one_dagrun_per_event(
-    dag_maker: DagMaker, session: Session
-):
+def test_partitioned_batch_asset_events_false_one_dagrun_per_event(dag_maker: DagMaker, session: Session):
     """batch_asset_events=False: each event gets its own APDR → one DagRun per event.
 
     Two events for the same partition key produce two APDRs (no reuse).
@@ -10182,9 +10180,7 @@ def test_non_partitioned_batch_asset_events_true_single_dagrun(
         select(DagModel).where(DagModel.dag_id == "non-part-batch-true-consumer")
     )
     assert dag_model is not None
-    asset_model: AssetModel = session.scalar(
-        select(AssetModel).where(AssetModel.uri == asset_1.uri)
-    )
+    asset_model: AssetModel = session.scalar(select(AssetModel).where(AssetModel.uri == asset_1.uri))
     assert asset_model is not None
 
     # Create two asset events with timestamps clearly before the ADRQ's created_at.
@@ -10220,9 +10216,7 @@ def test_non_partitioned_batch_asset_events_true_single_dagrun(
         session=session,
     )
 
-    dag_runs = session.scalars(
-        select(DagRun).where(DagRun.dag_id == "non-part-batch-true-consumer")
-    ).all()
+    dag_runs = session.scalars(select(DagRun).where(DagRun.dag_id == "non-part-batch-true-consumer")).all()
     assert len(dag_runs) == 1
     dag_run = dag_runs[0]
     assert dag_run.run_type == DagRunType.ASSET_TRIGGERED
@@ -10232,9 +10226,9 @@ def test_non_partitioned_batch_asset_events_true_single_dagrun(
     # The ADRQ should have been cleaned up.
     assert (
         session.scalar(
-            select(func.count()).select_from(AssetDagRunQueue).where(
-                AssetDagRunQueue.target_dag_id == "non-part-batch-true-consumer"
-            )
+            select(func.count())
+            .select_from(AssetDagRunQueue)
+            .where(AssetDagRunQueue.target_dag_id == "non-part-batch-true-consumer")
         )
         == 0
     )
@@ -10268,9 +10262,7 @@ def test_non_partitioned_batch_asset_events_false_one_dagrun_per_event(
         select(DagModel).where(DagModel.dag_id == "non-part-batch-false-consumer")
     )
     assert dag_model is not None
-    asset_model: AssetModel = session.scalar(
-        select(AssetModel).where(AssetModel.uri == asset_1.uri)
-    )
+    asset_model: AssetModel = session.scalar(select(AssetModel).where(AssetModel.uri == asset_1.uri))
     assert asset_model is not None
 
     now = timezone.utcnow()
@@ -10318,9 +10310,9 @@ def test_non_partitioned_batch_asset_events_false_one_dagrun_per_event(
     # ADRQ cleaned up.
     assert (
         session.scalar(
-            select(func.count()).select_from(AssetDagRunQueue).where(
-                AssetDagRunQueue.target_dag_id == "non-part-batch-false-consumer"
-            )
+            select(func.count())
+            .select_from(AssetDagRunQueue)
+            .where(AssetDagRunQueue.target_dag_id == "non-part-batch-false-consumer")
         )
         == 0
     )
