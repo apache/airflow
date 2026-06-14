@@ -67,6 +67,7 @@ class Variable:
             return _set_variable(key, value, description, serialize_json=serialize_json)
         except AirflowRuntimeError as e:
             log.exception(e)
+            raise
 
     @classmethod
     def keys(cls, prefix: str | None = None) -> Sequence[str]:
@@ -101,3 +102,4 @@ class Variable:
             _delete_variable(key=key)
         except AirflowRuntimeError as e:
             log.exception(e)
+            raise
