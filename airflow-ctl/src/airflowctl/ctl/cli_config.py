@@ -319,6 +319,16 @@ ARG_REMOTE = Arg(
     action="store_true",
 )
 
+# Providers command args
+ARG_PROVIDER_NAME = Arg(
+    flags=("provider_name",), type=str, help="Provider package name, e.g. apache-airflow-providers-amazon"
+)
+ARG_PROVIDER_FULL = Arg(
+    flags=("-f", "--full"),
+    action="store_true",
+    help="Show full provider information instead of just the version.",
+)
+
 
 class ActionCommand(NamedTuple):
     """Single CLI command."""
@@ -1015,6 +1025,15 @@ VARIABLE_COMMANDS = (
     ),
 )
 
+PROVIDER_COMMANDS = (
+    ActionCommand(
+        name="get",
+        help="Get information about a single provider.",
+        func=lazy_load_command("airflowctl.ctl.commands.provider_command.get"),
+        args=(ARG_PROVIDER_NAME, ARG_PROVIDER_FULL, ARG_OUTPUT),
+    ),
+)
+
 core_commands: list[CLICommand] = [
     GroupCommand(
         name="auth",
@@ -1041,6 +1060,11 @@ core_commands: list[CLICommand] = [
         name="pools",
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
+    ),
+    GroupCommand(
+        name="providers",
+        help="Manage Airflow providers",
+        subcommands=PROVIDER_COMMANDS,
     ),
     ActionCommand(
         name="version",
