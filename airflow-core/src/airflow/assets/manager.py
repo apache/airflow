@@ -646,6 +646,7 @@ class AssetManager(LoggingMixin):
                     rollup_fingerprint=fingerprint,
                     asset_id=asset_id,
                     session=session,
+                    allow_reuse=timetable.batch_asset_events,
                 )
                 log_record = PartitionedAssetKeyLog(
                     asset_id=asset_id,
@@ -666,6 +667,7 @@ class AssetManager(LoggingMixin):
         rollup_fingerprint: dict,
         asset_id: int,
         session: Session,
+        allow_reuse: bool = True,
     ) -> AssetPartitionDagRun:
         """
         Get or create an APDR.
@@ -679,6 +681,12 @@ class AssetManager(LoggingMixin):
         ``rollup_fingerprint`` is the serialized mapper / window definition for all partitioned
         assets in the timetable at creation time; the scheduler discards APDRs whose stamp no
         longer matches the current timetable's fingerprint (mapper / window may have changed).
+
+        When ``allow_reuse=True`` (default), an existing pending APDR for the same
+        ``(target_dag, partition_key)`` is reused — multiple events accumulate on one
+        APDR. When ``allow_reuse=False`` (set when the timetable's ``batch_asset_events``
+        is ``False``), a new APDR is always created so each event gets its own APDR
+        and the scheduler produces one DagRun per event.
         """
         with _lock_asset_model(session=session, asset_id=asset_id):
             latest_apdr: AssetPartitionDagRun | None = session.scalar(
@@ -690,7 +698,7 @@ class AssetManager(LoggingMixin):
                 .order_by(AssetPartitionDagRun.id.desc())
                 .limit(1)
             )
-            if latest_apdr and latest_apdr.created_dag_run_id is None:
+            if latest_apdr and latest_apdr.created_dag_run_id is None and allow_reuse:
                 cls.logger().debug(
                     "Existing APDR found for key %s dag_id %s",
                     target_key,
