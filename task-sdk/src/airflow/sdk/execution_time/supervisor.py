@@ -2098,7 +2098,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
                 state, msg, error = run(ti, context, log)
                 context["exception"] = error
-                finalize(ti, state, context, log, error)
+                finalize(ti, state, context, log, error, msg=msg)
 
                 # In the normal subprocess model, the task runner calls this before exiting.
                 # Since we're running in-process, we manually notify the API server that
