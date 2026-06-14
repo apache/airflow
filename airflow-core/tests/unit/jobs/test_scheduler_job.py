@@ -10176,9 +10176,7 @@ def test_non_partitioned_batch_asset_events_true_single_dagrun(
         EmptyOperator(task_id="task")
     session.commit()
 
-    dag_model = session.scalar(
-        select(DagModel).where(DagModel.dag_id == "non-part-batch-true-consumer")
-    )
+    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == "non-part-batch-true-consumer"))
     assert dag_model is not None
     asset_model = session.scalar(select(AssetModel).where(AssetModel.uri == asset_1.uri))
     assert asset_model is not None
@@ -10258,9 +10256,7 @@ def test_non_partitioned_batch_asset_events_false_one_dagrun_per_event(
         EmptyOperator(task_id="task")
     session.commit()
 
-    dag_model = session.scalar(
-        select(DagModel).where(DagModel.dag_id == "non-part-batch-false-consumer")
-    )
+    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == "non-part-batch-false-consumer"))
     assert dag_model is not None
     asset_model = session.scalar(select(AssetModel).where(AssetModel.uri == asset_1.uri))
     assert asset_model is not None
