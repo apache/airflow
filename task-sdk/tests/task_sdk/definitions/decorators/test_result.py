@@ -55,3 +55,15 @@ def test_retain_returns_dag_result_when_other_attrs_are_overridden():
     with DAG("test_retain_returns_dag_result_when_other_attrs_are_overridden") as dag:
         foo.override(task_id="foo2")()
     assert dag.get_task("foo2").returns_dag_result is True
+
+
+def test_retain_returns_dag_result_when_task_is_expanded():
+    @result
+    @task
+    def foo(x):
+        return x
+
+    with DAG("test_retain_returns_dag_result_when_task_is_expanded") as dag:
+        foo.expand(x=[1, 2, 3])
+
+    assert dag.get_task("foo").returns_dag_result is True
