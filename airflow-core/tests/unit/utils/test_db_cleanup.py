@@ -1032,3 +1032,107 @@ class TestConnectionTestRequestCleanup:
             assert seeded[state] in survivors, f"{state} row should NOT be cleaned up"
         for state in ("success", "failed"):
             assert seeded[state] not in survivors, f"{state} row should be cleaned up"
+
+
+@pytest.mark.db_test
+class TestDagVersionReferenceSkip:
+    """Regression tests for the dag_version foreign-key violation in ``airflow db clean``.
+
+    An old ``dag_version`` row can still be referenced by a newer task instance
+    (``task_instance.dag_version_id`` is ``ON DELETE RESTRICT``) or dag run
+    (``dag_run.created_dag_version_id`` is ``ON DELETE SET NULL``) that is not itself in scope
+    for deletion. Deleting it must be skipped rather than raising a ForeignKeyViolation or
+    nulling a surviving row's reference. See https://github.com/apache/airflow/issues/56192.
+    """
+
+    @staticmethod
+    def _setup_two_versions(session, *, base_date):
+        """Create a dag with an old version (in scope) and a newer latest version (kept)."""
+        bundle_name = "testing"
+        session.add(DagBundleModel(name=bundle_name))
+        session.flush()
+        dag_id = "dag_version_cleanup"
+        dag = DAG(dag_id=dag_id)
+        session.add(DagModel(dag_id=dag_id, bundle_name=bundle_name))
+        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+        old_version = DagVersion.get_latest_version(dag_id, session=session)
+        new_version = DagVersion.write_dag(dag_id=dag_id, bundle_name=bundle_name, session=session)
+        session.flush()
+        # old_version predates the cutoff and is not the latest -> in scope;
+        # new_version is the latest and recent -> kept by keep_last.
+        old_version.created_at = base_date
+        new_version.created_at = base_date.add(days=20)
+        session.flush()
+        return dag, old_version, new_version
+
+    @staticmethod
+    def _add_run_with_ti(session, *, dag, run_id, start_date, ti_version_id, run_version_id):
+        dag_run = DagRun(dag.dag_id, run_id=run_id, run_type=DagRunType.MANUAL, start_date=start_date)
+        dag_run.created_dag_version_id = run_version_id
+        ti = create_task_instance(
+            PythonOperator(task_id="task", python_callable=print),
+            run_id=run_id,
+            dag_version_id=ti_version_id,
+        )
+        ti.dag_id = dag.dag_id
+        ti.start_date = start_date
+        session.add_all([dag_run, ti])
+
+    def test_old_version_referenced_by_surviving_ti_is_skipped(self):
+        """An old, non-latest version still referenced by a recent task instance is not deleted."""
+        base_date = pendulum.datetime(2022, 1, 1, tz="UTC")
+        with create_session() as session:
+            dag, old_version, new_version = self._setup_two_versions(session, base_date=base_date)
+            old_version_id, new_version_id = old_version.id, new_version.id
+            # A recent (out-of-scope) run whose task instance still references the OLD version.
+            self._add_run_with_ti(
+                session,
+                dag=dag,
+                run_id="recent",
+                start_date=base_date.add(days=20),
+                ti_version_id=old_version_id,
+                run_version_id=new_version_id,
+            )
+            session.commit()
+
+            # Must complete without a ForeignKeyViolation and preserve the still-referenced version.
+            run_cleanup(
+                clean_before_timestamp=base_date.add(days=10),
+                table_names=["dag_version"],
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            remaining = set(session.scalars(select(DagVersion.id)).all())
+            assert old_version_id in remaining, "referenced old version must not be deleted"
+            assert new_version_id in remaining
+
+    def test_old_version_without_references_is_deleted(self):
+        """An old, non-latest version with no remaining references is still deleted."""
+        base_date = pendulum.datetime(2022, 1, 1, tz="UTC")
+        with create_session() as session:
+            dag, old_version, new_version = self._setup_two_versions(session, base_date=base_date)
+            old_version_id, new_version_id = old_version.id, new_version.id
+            # The surviving run/ti reference the LATEST version, so the old version is unreferenced.
+            self._add_run_with_ti(
+                session,
+                dag=dag,
+                run_id="recent",
+                start_date=base_date.add(days=20),
+                ti_version_id=new_version_id,
+                run_version_id=new_version_id,
+            )
+            session.commit()
+
+            run_cleanup(
+                clean_before_timestamp=base_date.add(days=10),
+                table_names=["dag_version"],
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            remaining = set(session.scalars(select(DagVersion.id)).all())
+            assert old_version_id not in remaining, "unreferenced old version should be deleted"
+            assert new_version_id in remaining

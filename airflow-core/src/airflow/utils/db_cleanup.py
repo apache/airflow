@@ -77,6 +77,11 @@ class _TableConfig:
         supply additional filters here (e.g. externally triggered dag runs)
     :param keep_last_group_by: if keeping the last record, can keep the last record for each group
     :param dependent_tables: list of tables which have FK relationship with this table
+    :param skip_if_referenced_by: mapping of ``referencing_table_name -> foreign_key_column_name``.
+        A row is excluded from deletion while its primary key is still referenced from any of these
+        columns. This prevents a foreign-key violation when an old parent row (e.g. an old
+        ``dag_version``) is still referenced by a newer child row that is not itself in scope for
+        deletion. The referenced primary key is assumed to be the ``id`` column.
     :param extra_filters: SQLAlchemy expressions ANDed with the recency filter; referenced columns must be in ``extra_columns``.
     """
 
@@ -91,20 +96,25 @@ class _TableConfig:
     # because the relationships are unlikely to change and the number of tables is small.
     # Relying on automation here would increase complexity and reduce maintainability.
     dependent_tables: list[str] | None = None
+    skip_if_referenced_by: dict[str, str] | None = None
     extra_filters: list[Any] | None = None
 
     def __post_init__(self):
         self.recency_column = column(self.recency_column_name)
+        model_columns = [column(x) for x in self.extra_columns or []]
+        # When rows must be excluded while still referenced by other tables, the primary key has to
+        # be part of the lightweight table model so it can be referenced in the generated query.
+        self.pk_column = column("id") if self.skip_if_referenced_by else None
+        if self.pk_column is not None:
+            model_columns.append(self.pk_column)
         if self.dag_id_column_name is None:
             self.dag_id_column = None
-            self.orm_model: Base = table(
-                self.table_name, *[column(x) for x in self.extra_columns or []], self.recency_column
-            )
+            self.orm_model: Base = table(self.table_name, *model_columns, self.recency_column)
         else:
             self.dag_id_column = column(self.dag_id_column_name)
             self.orm_model: Base = table(
                 self.table_name,
-                *[column(x) for x in self.extra_columns or []],
+                *model_columns,
                 self.dag_id_column,
                 self.recency_column,
             )
@@ -178,6 +188,15 @@ config_list: list[_TableConfig] = [
         dag_id_column_name="dag_id",
         keep_last=True,
         keep_last_group_by=["dag_id"],
+        # task_instance.dag_version_id is ON DELETE RESTRICT and dag_run.created_dag_version_id is
+        # ON DELETE SET NULL, so an old dag_version that is still referenced by a newer (out-of-scope)
+        # task instance or dag run must not be deleted -- otherwise the delete raises a foreign-key
+        # violation (task_instance) or silently nulls a surviving row's reference (dag_run).
+        # See https://github.com/apache/airflow/issues/56192
+        skip_if_referenced_by={
+            "task_instance": "dag_version_id",
+            "dag_run": "created_dag_version_id",
+        },
     ),
     _TableConfig(table_name="deadline", recency_column_name="deadline_time", dag_id_column_name="dag_id"),
     _TableConfig(table_name="revoked_token", recency_column_name="exp"),
@@ -344,6 +363,23 @@ def _compile_create_table_as__other(element, compiler, **kw):
     return f"CREATE TABLE {element.name} AS {compiler.process(element.query)}"
 
 
+def _build_skip_if_referenced_filter(*, base_table, skip_if_referenced_by: dict[str, str]) -> list[Any]:
+    """
+    Build filter conditions that exclude rows still referenced by other tables.
+
+    For each ``referencing_table -> foreign_key_column`` mapping, the base table's ``id`` is
+    excluded when it still appears in that foreign-key column, so a parent row is only deleted
+    once nothing references it.
+    """
+    base_pk = base_table.c["id"]
+    conditions: list[Any] = []
+    for ref_table_name, ref_column_name in skip_if_referenced_by.items():
+        ref_table = table(ref_table_name, column(ref_column_name))
+        referenced_ids = select(ref_table.c[ref_column_name]).where(ref_table.c[ref_column_name].is_not(None))
+        conditions.append(base_pk.not_in(referenced_ids))
+    return conditions
+
+
 def _build_query(
     *,
     orm_model,
@@ -357,6 +393,7 @@ def _build_query(
     dag_ids: list[str] | None = None,
     exclude_dag_ids: list[str] | None = None,
     extra_filters: list[Any] | None = None,
+    skip_if_referenced_by: dict[str, str] | None = None,
     **kwargs,
 ) -> Select:
     base_table_alias = "base"
@@ -367,6 +404,13 @@ def _build_query(
 
     if extra_filters:
         conditions.extend(extra_filters)
+
+    if skip_if_referenced_by:
+        conditions.extend(
+            _build_skip_if_referenced_filter(
+                base_table=base_table, skip_if_referenced_by=skip_if_referenced_by
+            )
+        )
 
     if (dag_ids or exclude_dag_ids) and dag_id_column is not None:
         base_table_dag_id_col = base_table.c[dag_id_column.name]
@@ -414,6 +458,7 @@ def _cleanup_table(
     session: Session,
     batch_size: int | None = None,
     extra_filters: list[Any] | None = None,
+    skip_if_referenced_by: dict[str, str] | None = None,
     **kwargs,
 ) -> None:
     print()
@@ -430,6 +475,7 @@ def _cleanup_table(
         keep_last_group_by=keep_last_group_by,
         clean_before_timestamp=clean_before_timestamp,
         extra_filters=extra_filters,
+        skip_if_referenced_by=skip_if_referenced_by,
         session=session,
     )
     logger.debug("old rows query:\n%s", query.selectable.compile())
