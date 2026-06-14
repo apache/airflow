@@ -424,6 +424,8 @@ For more detailed information on ``AssetOrTimeSchedule``, refer to the correspon
 Controlling DagRun creation per asset event
 ---------------------------------------------
 
+.. versionadded:: 3.3.0
+
 By default, when multiple asset events arrive for the same Dag between
 scheduler ticks, they are batched into a single DagRun. Set
 ``batch_asset_events=False`` on the timetable to create one DagRun per
