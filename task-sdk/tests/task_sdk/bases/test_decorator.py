@@ -22,9 +22,9 @@ import importlib.util
 import textwrap
 from pathlib import Path
 
+import pendulum
 import pytest
 
-import pendulum
 from airflow.sdk import dag, task
 from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS, DecoratedOperator, is_async_callable
 
@@ -418,3 +418,129 @@ In case of error you should do the following:
 2. Verify the configuration
 3. Contact support"""
         assert task_obj.doc_md == expected_doc
+
+    def test_task_docstring_dedent_with_explicit_doc_md(self):
+        """Test that explicit doc_md is not overridden by function docstring."""
+
+        @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+        def pipeline():
+            @task(doc_md="Explicit documentation")
+            def my_task():
+                """
+                This is the function docstring.
+                """
+
+            return my_task()
+
+        dag_obj = pipeline()
+        task_obj = dag_obj.task_dict["my_task"]
+
+        # Verify that explicit doc_md is used
+        assert task_obj.doc_md == "Explicit documentation"
+
+    def test_task_docstring_dedent_with_multiline_indentation(self):
+        """Test that task docstring with complex indentation is properly dedented."""
+
+        @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+        def pipeline():
+            @task
+            def my_task():
+                """
+                Task description.
+
+                This is a more complex example with nested indentation:
+
+                - First level
+                    - Second level
+                        - Third level
+
+                And some code:
+
+                ```python
+                def example():
+                    return "value"
+                ```
+                """
+
+            return my_task()
+
+        dag_obj = pipeline()
+        task_obj = dag_obj.task_dict["my_task"]
+
+        # Verify that the docstring is dedented properly
+        expected_doc = """Task description.
+
+This is a more complex example with nested indentation:
+
+- First level
+    - Second level
+        - Third level
+
+And some code:
+
+```python
+def example():
+    return "value"
+```"""
+        assert task_obj.doc_md == expected_doc
+
+    def test_task_no_docstring(self):
+        """Test that task without docstring has no doc_md."""
+
+        @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+        def pipeline():
+            @task
+            def my_task():
+                pass
+
+            return my_task()
+
+        dag_obj = pipeline()
+        task_obj = dag_obj.task_dict["my_task"]
+
+        # Verify that doc_md is None when there's no docstring
+        assert task_obj.doc_md is None
+
+    def test_task_docstring_dedent_simple(self):
+        """Test that a simple indented docstring is dedented and stripped correctly."""
+
+        @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+        def pipeline():
+            @task
+            def my_task():
+                """My task description."""
+
+            return my_task()
+
+        dag_obj = pipeline()
+        task_obj = dag_obj.task_dict["my_task"]
+
+        # Verify leading/trailing whitespace is stripped
+        assert task_obj.doc_md == "My task description."
+
+    def test_task_docstring_already_dedented(self):
+        """Test that already-dedented docstrings are handled as a no-op by inspect.cleandoc.
+
+        When a docstring has no common leading whitespace, inspect.cleandoc should
+        return it unchanged and only remove surrounding whitespace.
+        """
+        import inspect
+
+        # Verify inspect.cleandoc behavior on non-indented strings
+        raw_doc = "This docstring has no leading indentation."
+        assert inspect.cleandoc(raw_doc) == "This docstring has no leading indentation."
+
+        # With a simple one-liner docstring (no common indent to strip)
+        @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+        def pipeline():
+            @task
+            def my_task():
+                """This docstring has no leading indentation."""
+
+            return my_task()
+
+        dag_obj = pipeline()
+        task_obj = dag_obj.task_dict["my_task"]
+
+        # The docstring should be unchanged after cleandoc
+        assert task_obj.doc_md == "This docstring has no leading indentation."
