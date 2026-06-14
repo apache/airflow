@@ -16,22 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useContext, useEffect } from "react";
+import { createContext } from "react";
 
-import { DocumentTitleContext } from "./documentTitleContext";
-
-export const useDocumentTitle = (pageTitle?: string | null) => {
-  const setPageTitle = useContext(DocumentTitleContext);
-
-  useEffect(() => {
-    if (setPageTitle === undefined || typeof pageTitle !== "string" || pageTitle.length === 0) {
-      return undefined;
-    }
-
-    setPageTitle(pageTitle);
-
-    return () => {
-      setPageTitle(null);
-    };
-  }, [pageTitle, setPageTitle]);
-};
+export const DocumentTitleContext = createContext<((pageTitle: string | null) => void) | undefined>(
+  undefined,
+);
