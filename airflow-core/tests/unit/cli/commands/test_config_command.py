@@ -21,7 +21,10 @@ import re
 import shutil
 from unittest import mock
 
+import httpx
 import pytest
+from airflowctl.api.datamodels.generated import Config, ConfigOption, ConfigSection
+from airflowctl.api.operations import ServerResponseError
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import config_command
@@ -31,6 +34,12 @@ from airflow.configuration import conf
 from tests_common.test_utils.config import conf_vars
 
 STATSD_CONFIG_BEGIN_WITH = "# `StatsD <https://github.com/statsd/statsd>`"
+
+
+def _server_error(status_code: int) -> ServerResponseError:
+    request = httpx.Request("GET", "http://testserver/api/v2/config/section/core/option/executor")
+    response = httpx.Response(status_code, request=request, json={"detail": "boom"})
+    return ServerResponseError(message="boom", request=request, response=response)
 
 
 class TestCliConfigList:
@@ -245,29 +254,32 @@ class TestCliConfigGetValue:
     def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    @conf_vars({("core", "test_key"): "test_value"})
-    def test_should_display_value(self, stdout_capture):
+    def test_should_display_value(self, mock_cli_api_client, stdout_capture):
+        mock_cli_api_client.configs.get.return_value = Config(
+            sections=[ConfigSection(name="core", options=[ConfigOption(key="test_key", value="test_value")])]
+        )
+
         with stdout_capture as temp_stdout:
             config_command.get_value(self.parser.parse_args(["config", "get-value", "core", "test_key"]))
 
         assert temp_stdout.getvalue().strip() == "test_value"
+        mock_cli_api_client.configs.get.assert_called_once_with(section="core", option="test_key")
 
-    @mock.patch("airflow.cli.commands.config_command.conf")
-    def test_should_not_raise_exception_when_section_for_config_with_value_defined_elsewhere_is_missing(
-        self, mock_conf
-    ):
-        # no section in config
-        mock_conf.has_section.return_value = False
-        # pretend that the option is defined by other means
-        mock_conf.has_option.return_value = True
+    def test_should_be_silent_when_option_is_missing(self, mock_cli_api_client, stdout_capture):
+        mock_cli_api_client.configs.get.side_effect = _server_error(404)
 
-        config_command.get_value(self.parser.parse_args(["config", "get-value", "some_section", "value"]))
+        with stdout_capture as temp_stdout:
+            config_command.get_value(
+                self.parser.parse_args(["config", "get-value", "missing-section", "dags_folder"])
+            )
 
-    def test_should_raise_exception_when_option_is_missing(self, caplog):
-        config_command.get_value(
-            self.parser.parse_args(["config", "get-value", "missing-section", "dags_folder"])
-        )
-        assert "section/key [missing-section/dags_folder] not found in config" in caplog.text
+        assert temp_stdout.getvalue() == ""
+
+    def test_should_reraise_non_404_error(self, mock_cli_api_client):
+        mock_cli_api_client.configs.get.side_effect = _server_error(403)
+
+        with pytest.raises(ServerResponseError):
+            config_command.get_value(self.parser.parse_args(["config", "get-value", "core", "executor"]))
 
 
 class TestConfigLint:

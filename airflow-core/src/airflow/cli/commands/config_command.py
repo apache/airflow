@@ -25,12 +25,15 @@ from io import StringIO
 from typing import Any, NamedTuple
 
 import pygments
+from airflowctl.api.operations import ServerResponseError
 from pygments.lexers.configs import IniLexer
 
+from airflow.cli.api_client import NEW_API_CLIENT, Client, provide_api_client
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import deprecated_for_airflowctl
 from airflow.configuration import AIRFLOW_CONFIG, ConfigModifications, conf
 from airflow.exceptions import AirflowConfigException
-from airflow.utils.cli import should_use_colors
+from airflow.utils.cli import should_use_colors, suppress_logs_and_warning
 from airflow.utils.code_utils import get_terminal_formatter
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
@@ -63,19 +66,20 @@ def show_config(args):
     print(code)
 
 
+@deprecated_for_airflowctl("airflowctl config get")
+@suppress_logs_and_warning
 @providers_configuration_loaded
-def get_value(args):
+@provide_api_client
+def get_value(args, api_client: Client = NEW_API_CLIENT):
     """Get one value from configuration."""
-    # while this will make get_value quite a bit slower we must initialize configuration
-    # for providers because we do not know what sections and options will be available after
-    # providers are initialized. Theoretically Providers might add new sections and options
-    # but also override defaults for existing options, so without loading all providers we
-    # cannot be sure what is the final value of the option.
     try:
-        value = conf.get(args.section, args.option)
-        print(value)
-    except AirflowConfigException:
-        pass
+        config = api_client.configs.get(section=args.section, option=args.option)
+    except ServerResponseError as e:
+        # Preserve the historical behaviour of staying silent when the option is unknown.
+        if e.response.status_code == 404:
+            return
+        raise
+    print(config.sections[0].options[0].value)
 
 
 class ConfigParameter(NamedTuple):
