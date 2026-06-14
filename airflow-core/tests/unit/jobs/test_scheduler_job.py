@@ -10176,11 +10176,11 @@ def test_non_partitioned_batch_asset_events_true_single_dagrun(
         EmptyOperator(task_id="task")
     session.commit()
 
-    dag_model: DagModel = session.scalar(
+    dag_model = session.scalar(
         select(DagModel).where(DagModel.dag_id == "non-part-batch-true-consumer")
     )
     assert dag_model is not None
-    asset_model: AssetModel = session.scalar(select(AssetModel).where(AssetModel.uri == asset_1.uri))
+    asset_model = session.scalar(select(AssetModel).where(AssetModel.uri == asset_1.uri))
     assert asset_model is not None
 
     # Create two asset events with timestamps clearly before the ADRQ's created_at.
@@ -10250,7 +10250,7 @@ def test_non_partitioned_batch_asset_events_false_one_dagrun_per_event(
     with dag_maker(
         dag_id="non-part-batch-false-consumer",
         schedule=AssetTriggeredTimetable(
-            assets=asset_1,
+            assets=asset_1,  # type: ignore[arg-type]
             batch_asset_events=False,
         ),
         session=session,
@@ -10258,11 +10258,11 @@ def test_non_partitioned_batch_asset_events_false_one_dagrun_per_event(
         EmptyOperator(task_id="task")
     session.commit()
 
-    dag_model: DagModel = session.scalar(
+    dag_model = session.scalar(
         select(DagModel).where(DagModel.dag_id == "non-part-batch-false-consumer")
     )
     assert dag_model is not None
-    asset_model: AssetModel = session.scalar(select(AssetModel).where(AssetModel.uri == asset_1.uri))
+    asset_model = session.scalar(select(AssetModel).where(AssetModel.uri == asset_1.uri))
     assert asset_model is not None
 
     now = timezone.utcnow()
