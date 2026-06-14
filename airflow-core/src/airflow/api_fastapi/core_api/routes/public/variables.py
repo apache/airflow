@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from typing import Annotated
+from urllib.parse import unquote
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import delete, select
@@ -50,6 +51,13 @@ from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.variable import Variable
 
 variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
+
+
+def _resolve_patch_variable_key(variable_key: str, patch_body: VariableBody) -> str:
+    decoded_variable_key = unquote(variable_key)
+    if decoded_variable_key == patch_body.key:
+        return decoded_variable_key
+    return variable_key
 
 
 @variables_router.delete(
@@ -149,6 +157,7 @@ def patch_variable(
     update_mask: list[str] | None = Query(None),
 ) -> VariableResponse:
     """Update a variable by key."""
+    variable_key = _resolve_patch_variable_key(variable_key, patch_body)
     variable = update_orm_from_pydantic(variable_key, patch_body, update_mask, session)
     return variable
 

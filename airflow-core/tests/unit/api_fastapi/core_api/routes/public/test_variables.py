@@ -547,6 +547,43 @@ class TestPatchVariable(TestVariableEndpoint):
         }
         check_last_log(session, dag_id=None, event="patch_variable", logical_date=None)
 
+    @pytest.mark.enable_redact
+    @pytest.mark.parametrize(
+        "path_key",
+        [
+            pytest.param(f"%2F{TEST_VARIABLE_KEY}", id="encoded-slash"),
+            # TestClient decodes the URL once before Starlette builds the ASGI scope, so this
+            # represents the ASGI path produced by an external request with ``%252F``.
+            pytest.param(f"%25252F{TEST_VARIABLE_KEY}", id="encoded-slash-in-asgi-path"),
+        ],
+    )
+    def test_patch_leading_slash_key_should_respond_200(self, test_client, session, path_key):
+        key = f"/{TEST_VARIABLE_KEY}"
+        Variable.set(
+            key=key,
+            value=TEST_VARIABLE_VALUE,
+            description=TEST_VARIABLE_DESCRIPTION,
+        )
+
+        response = test_client.patch(
+            f"/variables/{path_key}",
+            json={
+                "key": key,
+                "value": "The new value",
+                "description": "The new description",
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "key": key,
+            "value": "The new value",
+            "description": "The new description",
+            "is_encrypted": True,
+            "team_name": None,
+        }
+        check_last_log(session, dag_id=None, event="patch_variable", logical_date=None)
+
     def test_patch_should_respond_400(self, test_client):
         response = test_client.patch(
             f"/variables/{TEST_VARIABLE_KEY}",
