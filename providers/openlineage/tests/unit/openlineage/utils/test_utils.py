@@ -92,6 +92,7 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_3_PLUS,
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
 )
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
@@ -2469,7 +2470,7 @@ class TestDagInfoAirflow3:
         )
 
         result = DagInfo(dag)
-        assert dict(result) == {
+        expected: dict = {
             "dag_id": "dag_id",
             "description": None,
             "fileloc": pathlib.Path(__file__).resolve().as_posix(),
@@ -2485,10 +2486,12 @@ class TestDagInfoAirflow3:
                     "group": "asset",
                     "extra": {"a": 1},
                 },
-                "batch_asset_events": True,
             },
             "timetable_summary": "Asset",
         }
+        if AIRFLOW_V_3_3_PLUS:
+            expected["timetable"]["batch_asset_events"] = True
+        assert dict(result) == expected
 
     def test_dag_info_schedule_list_single_assets(self):
         dag = DAG(
@@ -2498,7 +2501,7 @@ class TestDagInfoAirflow3:
         )
 
         result = DagInfo(dag)
-        assert dict(result) == {
+        expected: dict = {
             "dag_id": "dag_id",
             "description": None,
             "fileloc": pathlib.Path(__file__).resolve().as_posix(),
@@ -2519,10 +2522,12 @@ class TestDagInfoAirflow3:
                         }
                     ],
                 },
-                "batch_asset_events": True,
             },
             "timetable_summary": "Asset",
         }
+        if AIRFLOW_V_3_3_PLUS:
+            expected["timetable"]["batch_asset_events"] = True
+        assert dict(result) == expected
 
     def test_dag_info_schedule_list_two_assets(self):
         dag = DAG(
@@ -2532,7 +2537,7 @@ class TestDagInfoAirflow3:
         )
 
         result = DagInfo(dag)
-        assert dict(result) == {
+        expected: dict = {
             "dag_id": "dag_id",
             "description": None,
             "fileloc": pathlib.Path(__file__).resolve().as_posix(),
@@ -2554,10 +2559,12 @@ class TestDagInfoAirflow3:
                         {"__type": "asset", "uri": "uri2", "name": "uri2", "group": "asset", "extra": {}},
                     ],
                 },
-                "batch_asset_events": True,
             },
             "timetable_summary": "Asset",
         }
+        if AIRFLOW_V_3_3_PLUS:
+            expected["timetable"]["batch_asset_events"] = True
+        assert dict(result) == expected
 
     def test_dag_info_schedule_assets_logical_condition(self):
         dag = DAG(
@@ -2567,7 +2574,7 @@ class TestDagInfoAirflow3:
         )
 
         result = DagInfo(dag)
-        assert dict(result) == {
+        expected: dict = {
             "dag_id": "dag_id",
             "description": None,
             "fileloc": pathlib.Path(__file__).resolve().as_posix(),
@@ -2619,10 +2626,12 @@ class TestDagInfoAirflow3:
                         },
                     ],
                 },
-                "batch_asset_events": True,
             },
             "timetable_summary": "Asset",
         }
+        if AIRFLOW_V_3_3_PLUS:
+            expected["timetable"]["batch_asset_events"] = True
+        assert dict(result) == expected
 
     def test_dag_info_schedule_asset_or_time_schedule(self):
         from airflow.timetables.assets import AssetOrTimeSchedule
