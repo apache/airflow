@@ -61,6 +61,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.tags import format_tags
+from airflow.configuration import conf
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 from airflow.utils.helpers import chunks
@@ -196,7 +197,10 @@ class S3Hook(AwsBaseHook):
         kwargs["client_type"] = "s3"
         kwargs["aws_conn_id"] = aws_conn_id
         self._requester_pays = kwargs.pop("requester_pays", False)
-        self.enable_hook_level_lineage = kwargs.pop("enable_hook_level_lineage", True)
+        self.enable_hook_level_lineage = kwargs.pop(
+            "enable_hook_level_lineage",
+            conf.getboolean("lineage", "default_hook_lineage", fallback=True),
+        )
 
         if transfer_config_args and not isinstance(transfer_config_args, dict):
             raise TypeError(f"transfer_config_args expected dict, got {type(transfer_config_args).__name__}.")

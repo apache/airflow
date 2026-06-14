@@ -77,6 +77,22 @@ def s3_bucket(mocked_s3_res):
     return bucket
 
 
+    def test_hook_lineage_reads_from_conf(self):
+        """Test that enable_hook_level_lineage defaults to conf value."""
+        from unittest.mock import patch
+        from airflow.configuration import conf
+
+        # When conf sets default_hook_lineage=False, hook should default to False
+        with patch.object(conf, "getboolean", return_value=False) as mock_conf:
+            hook = S3Hook()
+            mock_conf.assert_called_with("lineage", "default_hook_lineage", fallback=True)
+            assert hook.enable_hook_level_lineage is False
+
+        # Per-instance override still works even when conf says False
+        hook_override = S3Hook(enable_hook_level_lineage=True)
+        assert hook_override.enable_hook_level_lineage is True
+
+
 class TestAwsS3Hook:
     @mock_aws
     def test_get_conn(self):
