@@ -48,6 +48,7 @@ from airflow.utils.db_cleanup import (
     _confirm_drop_archives,
     _dump_table_to_file,
     _get_archived_table_names,
+    _TableConfig,
     config_dict,
     drop_archived_tables,
     export_archived_records,
@@ -474,6 +475,88 @@ class TestDBCleanup:
             model = config_dict["dag_run"].orm_model
             assert session.scalar(select(func.count()).select_from(model)) == 5
             assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
+
+    def test_dag_version_cleanup_skips_versions_pinned_by_task_instance(self):
+        """db clean must skip dag_version rows still referenced by a task instance.
+
+        ``task_instance.dag_version_id`` is ``ON DELETE RESTRICT``, so deleting a referenced
+        ``dag_version`` fails the foreign key. Cleanup must skip those rows while still pruning
+        genuinely orphaned older versions.
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        bundle_name = f"testing-{uuid4()}"
+        dag_id = f"test_dag_{uuid4()}"
+
+        with create_session() as session:
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+            session.add(DagModel(dag_id=dag_id, bundle_name=bundle_name))
+            session.flush()
+
+            pinned_old = DagVersion(
+                dag_id=dag_id,
+                version_number=1,
+                bundle_name=bundle_name,
+                created_at=base_date,
+                last_updated=base_date,
+            )
+            orphan_old = DagVersion(
+                dag_id=dag_id,
+                version_number=2,
+                bundle_name=bundle_name,
+                created_at=base_date.add(minutes=1),
+                last_updated=base_date.add(minutes=1),
+            )
+            latest = DagVersion(
+                dag_id=dag_id,
+                version_number=3,
+                bundle_name=bundle_name,
+                created_at=base_date.add(minutes=2),
+                last_updated=base_date.add(minutes=2),
+            )
+            session.add_all([pinned_old, orphan_old, latest])
+            session.flush()
+
+            dag = DAG(dag_id=dag_id)
+            dag_run = DagRun(dag_id, run_id="run-1", run_type=DagRunType.MANUAL, start_date=base_date)
+            ti = create_task_instance(
+                PythonOperator(task_id="dummy-task", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=pinned_old.id,
+            )
+            ti.dag_id = dag.dag_id
+            ti.start_date = base_date
+            session.add_all([dag_run, ti])
+            session.commit()
+
+            pinned_id, orphan_id, latest_id = pinned_old.id, orphan_old.id, latest.id
+
+            # Previously this raised an IntegrityError on the FK; it must now succeed.
+            _cleanup_table(
+                **config_dict["dag_version"].__dict__,
+                clean_before_timestamp=base_date.add(days=10),
+                dry_run=False,
+                session=session,
+                table_names=["dag_version"],
+                skip_archive=True,
+            )
+
+            remaining = set(session.scalars(select(DagVersion.id).where(DagVersion.dag_id == dag_id)).all())
+
+        assert pinned_id in remaining  # still referenced by a task instance -> skipped
+        assert latest_id in remaining  # kept by keep_last
+        assert orphan_id not in remaining  # old and unreferenced -> pruned
+
+    def test_table_config_skip_if_referenced_requires_pk_column(self):
+        """A misconfigured skip_if_referenced (pk not in columns) must fail fast at construction."""
+        with pytest.raises(ValueError, match="referenced_pk_column"):
+            _TableConfig(
+                table_name="dag_version",
+                recency_column_name="created_at",
+                dag_id_column_name="dag_id",
+                skip_if_referenced=[("task_instance", "dag_version_id")],
+                # "id" intentionally omitted from extra_columns
+            )
 
     @patch("airflow.utils.db.reflect_tables")
     def test_skip_archive_failure_will_remove_table(self, reflect_tables_mock):
