@@ -326,3 +326,21 @@ def test_read_sql_to_polars_by_chunks_no_cursor_cleanup():
     )
 
     es.sql.clear_cursor.assert_not_called()
+
+
+def test_read_sql_to_polars_clears_cursor_on_pagination_error():
+    es = MagicMock()
+
+    es.sql.query.side_effect = [
+        {
+            "columns": COLUMNS,
+            "rows": [[1, "a"]],
+            "cursor": "cursor_1",
+        },
+        RuntimeError("boom"),
+    ]
+
+    with pytest.raises(RuntimeError, match="boom"):
+        read_sql_to_polars(es, "SELECT *")
+
+    es.sql.clear_cursor.assert_called_once()

@@ -278,7 +278,6 @@ class TestElasticsearchSQLHook:
 
     @mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.read_sql_to_polars_by_chunks")
     def test_get_df_polars_df_by_chunks(self, mock_reader):
-        mock_reader.return_value = "df"
 
         self.conn.es = MagicMock()
 
