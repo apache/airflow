@@ -65,6 +65,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunState,
     DagRunType,
     PreviousTIResponse,
+    TaskInstance,
     TaskInstanceState,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
@@ -73,11 +74,11 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     AssetsByAliasResult,
-    AssetStoreResult,
+    AssetStateStoreResult,
     AwaitInputTask,
-    ClearAssetStoreByName,
-    ClearAssetStoreByUri,
-    ClearTaskStore,
+    ClearAssetStateStoreByName,
+    ClearAssetStateStoreByUri,
+    ClearTaskStateStore,
     CommsDecoder,
     ConnectionResult,
     CreateHITLDetailPayload,
@@ -85,9 +86,9 @@ from airflow.sdk.execution_time.comms import (
     DagRunResult,
     DagRunStateResult,
     DeferTask,
-    DeleteAssetStoreByName,
-    DeleteAssetStoreByUri,
-    DeleteTaskStore,
+    DeleteAssetStateStoreByName,
+    DeleteAssetStateStoreByUri,
+    DeleteTaskStateStore,
     DeleteVariable,
     DeleteXCom,
     DRCount,
@@ -97,8 +98,8 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetAssetsByAlias,
-    GetAssetStoreByName,
-    GetAssetStoreByUri,
+    GetAssetStateStoreByName,
+    GetAssetStateStoreByUri,
     GetConnection,
     GetDag,
     GetDagRun,
@@ -111,7 +112,7 @@ from airflow.sdk.execution_time.comms import (
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
     GetTaskStates,
-    GetTaskStore,
+    GetTaskStateStore,
     GetTICount,
     GetVariable,
     GetVariableKeys,
@@ -131,11 +132,11 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
-    SetAssetStoreByName,
-    SetAssetStoreByUri,
+    SetAssetStateStoreByName,
+    SetAssetStateStoreByUri,
     SetRenderedFields,
     SetRenderedMapIndex,
-    SetTaskStore,
+    SetTaskStateStore,
     SetXCom,
     SkipDownstreamTasks,
     SucceedTask,
@@ -143,7 +144,7 @@ from airflow.sdk.execution_time.comms import (
     TaskRescheduleStartDate,
     TaskState,
     TaskStatesResult,
-    TaskStoreResult,
+    TaskStateStoreResult,
     TICount,
     ToSupervisor,
     TriggerDagRun,
@@ -172,7 +173,6 @@ from airflow.sdk.execution_time.supervisor import (
     supervise_task,
 )
 from airflow.sdk.execution_time.task_runner import run
-from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
 
 from tests_common.test_utils.config import conf_vars
 
@@ -235,16 +235,14 @@ class TestSupervisor:
         """
         Test that the supervisor validates server URL and dry_run parameter combinations correctly.
         """
-        ti = TaskInstanceDTO(
+        ti = TaskInstance(
             id=uuid7(),
             task_id="async",
             dag_id="super_basic_deferred_run",
             run_id="d",
             try_number=1,
             dag_version_id=uuid7(),
-            pool_slots=1,
             queue="default",
-            priority_weight=1,
         )
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
@@ -271,16 +269,14 @@ class TestSupervisor:
         client_with_ti_start,
     ):
         """SIGTERM to the supervisor process is forwarded to the task subprocess."""
-        ti = TaskInstanceDTO(
+        ti = TaskInstance(
             id=uuid7(),
             task_id="signal_task",
             dag_id="signal_forward_test",
             run_id="r",
             try_number=1,
             dag_version_id=uuid7(),
-            pool_slots=1,
             queue="default",
-            priority_weight=1,
         )
         bundle_info = BundleInfo(name="my-bundle", version=None)
 
@@ -379,16 +375,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -457,16 +451,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -557,16 +549,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=make_client(transport=httpx.MockTransport(handle_request)),
             target=subprocess_main,
@@ -589,16 +579,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -627,16 +615,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=uuid7(),
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=mock_client,
             target=subprocess_main,
@@ -674,16 +660,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=uuid7(),
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=mock_client,
             target=lambda: None,
@@ -720,16 +704,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=sdk_client.Client(base_url="", dry_run=True, token=""),
             target=subprocess_main,
@@ -765,16 +747,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=sdk_client.Client(base_url="", dry_run=True, token=""),
             target=subprocess_main,
@@ -789,16 +769,14 @@ class TestWatchedSubprocess:
         time_machine.move_to(instant, tick=False)
 
         dagfile_path = test_dags_dir
-        ti = TaskInstanceDTO(
+        ti = TaskInstance(
             id=uuid7(),
             task_id="hello",
             dag_id="super_basic_run",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
-            pool_slots=1,
             queue="default",
-            priority_weight=1,
         )
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
@@ -833,16 +811,14 @@ class TestWatchedSubprocess:
         """
         instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 0)
 
-        ti = TaskInstanceDTO(
+        ti = TaskInstance(
             id=uuid7(),
             task_id="async",
             dag_id="super_basic_deferred_run",
             run_id="d",
             try_number=1,
             dag_version_id=uuid7(),
-            pool_slots=1,
             queue="default",
-            priority_weight=1,
         )
 
         # Create a mock client to assert calls to the client
@@ -963,16 +939,14 @@ class TestWatchedSubprocess:
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=make_client(transport=httpx.MockTransport(handle_request)),
             target=subprocess_main,
@@ -1049,16 +1023,14 @@ class TestWatchedSubprocess:
             ActivitySubprocess.start(
                 dag_rel_path=os.devnull,
                 bundle_info=FAKE_BUNDLE,
-                what=TaskInstanceDTO(
+                what=TaskInstance(
                     id=ti_id,
                     task_id="b",
                     dag_id="c",
                     run_id="d",
                     try_number=1,
                     dag_version_id=uuid7(),
-                    pool_slots=1,
                     queue="default",
-                    priority_weight=1,
                 ),
                 client=make_client(transport=httpx.MockTransport(handle_request)),
                 target=subprocess_main,
@@ -1262,16 +1234,14 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -1425,16 +1395,14 @@ class TestWatchedSubprocessKill:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstanceDTO(
+            what=TaskInstance(
                 id=ti_id,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
-                pool_slots=1,
                 queue="default",
-                priority_weight=1,
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -2846,17 +2814,17 @@ REQUEST_TEST_CASES = [
         test_id="get_dag",
     ),
     RequestTestCase(
-        message=GetTaskStore(ti_id=TI_ID, key="job_id"),
+        message=GetTaskStateStore(ti_id=TI_ID, key="job_id"),
         test_id="get_task_store",
         client_mock=ClientMock(
-            method_path="task_store.get",
+            method_path="task_state_store.get",
             args=(TI_ID, "job_id"),
-            response=TaskStoreResult(value="spark_app_001"),
+            response=TaskStateStoreResult(value="spark_app_001"),
         ),
-        expected_body={"value": "spark_app_001", "type": "TaskStoreResult"},
+        expected_body={"value": "spark_app_001", "type": "TaskStateStoreResult"},
     ),
     RequestTestCase(
-        message=SetTaskStore(
+        message=SetTaskStateStore(
             ti_id=TI_ID,
             key="job_id",
             value="spark_app_001",
@@ -2864,7 +2832,7 @@ REQUEST_TEST_CASES = [
         ),
         test_id="set_task_store",
         client_mock=ClientMock(
-            method_path="task_store.set",
+            method_path="task_state_store.set",
             args=(TI_ID, "job_id", "spark_app_001"),
             kwargs={"expires_at": datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc)},
             response=OKResponse(ok=True),
@@ -2872,7 +2840,7 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=SetTaskStore(
+        message=SetTaskStateStore(
             ti_id=TI_ID,
             key="job_id",
             value="spark_app_001",
@@ -2880,7 +2848,7 @@ REQUEST_TEST_CASES = [
         ),
         test_id="set_task_store_with_expires_at",
         client_mock=ClientMock(
-            method_path="task_store.set",
+            method_path="task_state_store.set",
             args=(TI_ID, "job_id", "spark_app_001"),
             kwargs={"expires_at": datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc)},
             response=OKResponse(ok=True),
@@ -2888,20 +2856,20 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=DeleteTaskStore(ti_id=TI_ID, key="job_id"),
+        message=DeleteTaskStateStore(ti_id=TI_ID, key="job_id"),
         test_id="delete_task_store",
         client_mock=ClientMock(
-            method_path="task_store.delete",
+            method_path="task_state_store.delete",
             args=(TI_ID, "job_id"),
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=ClearTaskStore(ti_id=TI_ID),
+        message=ClearTaskStateStore(ti_id=TI_ID),
         test_id="clear_task_store",
         client_mock=ClientMock(
-            method_path="task_store.clear",
+            method_path="task_state_store.clear",
             args=(TI_ID,),
             kwargs={"all_map_indices": False},
             response=OKResponse(ok=True),
@@ -2909,10 +2877,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=ClearTaskStore(ti_id=TI_ID, all_map_indices=True),
+        message=ClearTaskStateStore(ti_id=TI_ID, all_map_indices=True),
         test_id="clear_task_store_all_map_indices",
         client_mock=ClientMock(
-            method_path="task_store.clear",
+            method_path="task_state_store.clear",
             args=(TI_ID,),
             kwargs={"all_map_indices": True},
             response=OKResponse(ok=True),
@@ -2920,34 +2888,34 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=GetAssetStoreByName(name="debug_watcher_asset", key="watermark"),
+        message=GetAssetStateStoreByName(name="debug_watcher_asset", key="watermark"),
         test_id="get_asset_store_by_name",
         client_mock=ClientMock(
-            method_path="asset_store.get",
+            method_path="asset_state_store.get",
             args=("watermark",),
             kwargs={"name": "debug_watcher_asset"},
-            response=AssetStoreResult(value="2026-04-30T00:00:00Z"),
+            response=AssetStateStoreResult(value="2026-04-30T00:00:00Z"),
         ),
-        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStoreResult"},
+        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStateStoreResult"},
     ),
     RequestTestCase(
-        message=GetAssetStoreByUri(uri="s3://bucket/key", key="watermark"),
+        message=GetAssetStateStoreByUri(uri="s3://bucket/key", key="watermark"),
         test_id="get_asset_store_by_uri",
         client_mock=ClientMock(
-            method_path="asset_store.get",
+            method_path="asset_state_store.get",
             args=("watermark",),
             kwargs={"uri": "s3://bucket/key"},
-            response=AssetStoreResult(value="2026-04-30T00:00:00Z"),
+            response=AssetStateStoreResult(value="2026-04-30T00:00:00Z"),
         ),
-        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStoreResult"},
+        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStateStoreResult"},
     ),
     RequestTestCase(
-        message=SetAssetStoreByName(
+        message=SetAssetStateStoreByName(
             name="debug_watcher_asset", key="watermark", value="2026-04-30T00:00:00Z"
         ),
-        test_id="set_asset_store_by_name",
+        test_id="set_asset_state_store_by_name",
         client_mock=ClientMock(
-            method_path="asset_store.set",
+            method_path="asset_state_store.set",
             args=("watermark", "2026-04-30T00:00:00Z"),
             kwargs={"name": "debug_watcher_asset"},
             response=OKResponse(ok=True),
@@ -2955,10 +2923,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=SetAssetStoreByUri(uri="s3://bucket/key", key="watermark", value="2026-04-30T00:00:00Z"),
-        test_id="set_asset_store_by_uri",
+        message=SetAssetStateStoreByUri(uri="s3://bucket/key", key="watermark", value="2026-04-30T00:00:00Z"),
+        test_id="set_asset_state_store_by_uri",
         client_mock=ClientMock(
-            method_path="asset_store.set",
+            method_path="asset_state_store.set",
             args=("watermark", "2026-04-30T00:00:00Z"),
             kwargs={"uri": "s3://bucket/key"},
             response=OKResponse(ok=True),
@@ -2966,10 +2934,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=DeleteAssetStoreByName(name="debug_watcher_asset", key="watermark"),
+        message=DeleteAssetStateStoreByName(name="debug_watcher_asset", key="watermark"),
         test_id="delete_asset_store_by_name",
         client_mock=ClientMock(
-            method_path="asset_store.delete",
+            method_path="asset_state_store.delete",
             args=("watermark",),
             kwargs={"name": "debug_watcher_asset"},
             response=OKResponse(ok=True),
@@ -2977,10 +2945,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=DeleteAssetStoreByUri(uri="s3://bucket/key", key="watermark"),
+        message=DeleteAssetStateStoreByUri(uri="s3://bucket/key", key="watermark"),
         test_id="delete_asset_store_by_uri",
         client_mock=ClientMock(
-            method_path="asset_store.delete",
+            method_path="asset_state_store.delete",
             args=("watermark",),
             kwargs={"uri": "s3://bucket/key"},
             response=OKResponse(ok=True),
@@ -2988,10 +2956,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=ClearAssetStoreByName(name="debug_watcher_asset"),
+        message=ClearAssetStateStoreByName(name="debug_watcher_asset"),
         test_id="clear_asset_store_by_name",
         client_mock=ClientMock(
-            method_path="asset_store.clear",
+            method_path="asset_state_store.clear",
             args=(),
             kwargs={"name": "debug_watcher_asset"},
             response=OKResponse(ok=True),
@@ -2999,10 +2967,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=ClearAssetStoreByUri(uri="s3://bucket/key"),
+        message=ClearAssetStateStoreByUri(uri="s3://bucket/key"),
         test_id="clear_asset_store_by_uri",
         client_mock=ClientMock(
-            method_path="asset_store.clear",
+            method_path="asset_state_store.clear",
             args=(),
             kwargs={"uri": "s3://bucket/key"},
             response=OKResponse(ok=True),
@@ -3454,16 +3422,14 @@ class TestInProcessTestSupervisor:
         task.dag = DAG(dag_id="test_dag")
 
         # Create a simple TaskInstance datamodel to pass to the supervisor
-        ti = TaskInstanceDTO(
+        ti = TaskInstance(
             id=uuid7(),
             dag_version_id=uuid7(),
             dag_id="test_dag",
             task_id=task.task_id,
             run_id="r",
             try_number=1,
-            pool_slots=1,
             queue="default",
-            priority_weight=1,
         )
 
         # Patch the API client used by InProcessTestSupervisor to return a predictable TI context
@@ -3880,16 +3846,14 @@ def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
     proc = ActivitySubprocess.start(
         dag_rel_path=os.devnull,
         bundle_info=FAKE_BUNDLE,
-        what=TaskInstanceDTO(
+        what=TaskInstance(
             id="4d828a62-a417-4936-a7a6-2b3fabacecab",
             task_id="b",
             dag_id="c",
             run_id="d",
             try_number=1,
             dag_version_id=uuid7(),
-            pool_slots=1,
             queue="default",
-            priority_weight=1,
         ),
         client=client_with_ti_start,
         target=subprocess_main,

@@ -137,6 +137,8 @@ def find_task_relatives(
             yield task.task_id
         if downstream:
             for relative in task.get_flat_relatives(upstream=False):
+                if relative.is_teardown:
+                    continue
                 yield relative.task_id
         if upstream:
             for relative in task.get_flat_relatives(upstream=True):
