@@ -10187,7 +10187,7 @@ def test_non_partitioned_batch_asset_events_true_single_dagrun(
     )
     assert asset_model is not None
 
-    # Create two asset events within the triggered window.
+    # Create two asset events with timestamps clearly before the ADRQ's created_at.
     now = timezone.utcnow()
     event_1 = AssetEvent(
         asset_id=asset_model.id,
@@ -10195,7 +10195,7 @@ def test_non_partitioned_batch_asset_events_true_single_dagrun(
         source_dag_id="non-part-batch-true-consumer",
         source_run_id="test-run",
         source_map_index=-1,
-        timestamp=now,
+        timestamp=now - timedelta(minutes=5),
     )
     event_2 = AssetEvent(
         asset_id=asset_model.id,
@@ -10203,7 +10203,7 @@ def test_non_partitioned_batch_asset_events_true_single_dagrun(
         source_dag_id="non-part-batch-true-consumer",
         source_run_id="test-run",
         source_map_index=-1,
-        timestamp=now + timedelta(seconds=1),
+        timestamp=now - timedelta(minutes=4),
     )
     session.add_all([event_1, event_2])
     session.flush()
@@ -10280,7 +10280,7 @@ def test_non_partitioned_batch_asset_events_false_one_dagrun_per_event(
         source_dag_id="non-part-batch-false-consumer",
         source_run_id="test-run",
         source_map_index=-1,
-        timestamp=now,
+        timestamp=now - timedelta(minutes=5),
     )
     event_2 = AssetEvent(
         asset_id=asset_model.id,
@@ -10288,7 +10288,7 @@ def test_non_partitioned_batch_asset_events_false_one_dagrun_per_event(
         source_dag_id="non-part-batch-false-consumer",
         source_run_id="test-run",
         source_map_index=-1,
-        timestamp=now + timedelta(seconds=1),
+        timestamp=now - timedelta(minutes=4),
     )
     session.add_all([event_1, event_2])
     session.flush()

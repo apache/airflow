@@ -379,6 +379,7 @@ class TestAssetConditionWithTimetable:
 
         serialized_timetable_dict = DagSerialization.to_dict(dag)["dag"]["timetable"]["__var"]
         assert serialized_timetable_dict == {
+            "batch_asset_events": True,
             "asset_condition": {
                 "__type": "asset_any",
                 "objects": [
