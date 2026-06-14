@@ -770,14 +770,27 @@ class SerializedDagModel(Base):
     def latest_item_select_object(cls, dag_id):
         from airflow.settings import engine
 
+        # Order by the version's version_number (monotonic, unique per dag_id), not created_at,
+        # so the latest serialized DAG is picked deterministically even when two versions share a
+        # created_at timestamp.
         if engine.dialect.name == "mysql":
             # Prevent "Out of sort memory" caused by large values in cls.data column for MySQL.
             # Details in https://github.com/apache/airflow/pull/55589
             latest_item_id = (
-                select(cls.id).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
+                select(cls.id)
+                .join(DagVersion, cls.dag_version_id == DagVersion.id)
+                .where(cls.dag_id == dag_id)
+                .order_by(DagVersion.version_number.desc())
+                .limit(1)
             )
             return select(cls).where(cls.id == latest_item_id)
-        return select(cls).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
+        return (
+            select(cls)
+            .join(DagVersion, cls.dag_version_id == DagVersion.id)
+            .where(cls.dag_id == dag_id)
+            .order_by(DagVersion.version_number.desc())
+            .limit(1)
+        )
 
     @classmethod
     @provide_session
@@ -791,20 +804,24 @@ class SerializedDagModel(Base):
         :param session: The database session.
         :return: The latest serialized dag of the DAGs.
         """
-        # Subquery to get the latest serdag per dag_id
-        latest_serdag_subquery = (
-            select(cls.dag_id, func.max(cls.created_at).label("created_at"))
-            .where(cls.dag_id.in_(dag_ids))
-            .group_by(cls.dag_id)
+        # Subquery to get the max version_number per dag_id. Using version_number (monotonic and
+        # unique per dag_id) rather than max(created_at) is deterministic and, crucially, avoids
+        # returning two rows for a dag_id when versions share a created_at timestamp.
+        latest_version_subquery = (
+            select(DagVersion.dag_id, func.max(DagVersion.version_number).label("max_version"))
+            .join(cls, cls.dag_version_id == DagVersion.id)
+            .where(DagVersion.dag_id.in_(dag_ids))
+            .group_by(DagVersion.dag_id)
             .subquery()
         )
         latest_serdags = session.scalars(
             select(cls)
+            .join(DagVersion, cls.dag_version_id == DagVersion.id)
             .join(
-                latest_serdag_subquery,
-                cls.created_at == latest_serdag_subquery.c.created_at,
+                latest_version_subquery,
+                (DagVersion.dag_id == latest_version_subquery.c.dag_id)
+                & (DagVersion.version_number == latest_version_subquery.c.max_version),
             )
-            .where(cls.dag_id.in_(dag_ids))
         ).all()
         return latest_serdags or []
 
@@ -817,14 +834,22 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         :returns: a dict of DAGs read from database
         """
-        latest_serialized_dag_subquery = (
-            select(cls.dag_id, func.max(cls.created_at).label("max_created")).group_by(cls.dag_id).subquery()
+        # Pick the serialized DAG of the max version_number per dag_id (deterministic and unique,
+        # unlike max(created_at) which can tie). Note: this also fixes the join condition, which
+        # previously used Python ``and`` (short-circuiting to a single clause) instead of ``&``.
+        latest_version_subquery = (
+            select(DagVersion.dag_id, func.max(DagVersion.version_number).label("max_version"))
+            .join(cls, cls.dag_version_id == DagVersion.id)
+            .group_by(DagVersion.dag_id)
+            .subquery()
         )
         serialized_dags = session.scalars(
-            select(cls).join(
-                latest_serialized_dag_subquery,
-                (cls.dag_id == latest_serialized_dag_subquery.c.dag_id)
-                and (cls.created_at == latest_serialized_dag_subquery.c.max_created),
+            select(cls)
+            .join(DagVersion, cls.dag_version_id == DagVersion.id)
+            .join(
+                latest_version_subquery,
+                (DagVersion.dag_id == latest_version_subquery.c.dag_id)
+                & (DagVersion.version_number == latest_version_subquery.c.max_version),
             )
         )
 
