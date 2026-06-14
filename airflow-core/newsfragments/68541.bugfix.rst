@@ -1,0 +1,1 @@
+Validate that ``Connection.port`` is within the TCP/UDP range (1-65535) on all write paths (model constructor, ``from_json``, REST API, and CLI). Port ``0`` and negative values are now rejected. Read paths and ORM loads are unchanged so existing rows with out-of-range values continue to load.
