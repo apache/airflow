@@ -22,7 +22,7 @@ import re
 
 import pytest
 
-from airflow.sdk import result, task
+from airflow.sdk import DAG, result, task
 
 
 def test_result_error_if_not_task():
@@ -44,3 +44,14 @@ def test_result_marks_returns_dag_result():
 
     t = foo()
     assert t.operator.returns_dag_result is True
+
+
+def test_retain_returns_dag_result_when_other_attrs_are_overridden():
+    @result
+    @task
+    def foo():
+        pass
+
+    with DAG("test_retain_returns_dag_result_when_other_attrs_are_overridden") as dag:
+        foo.override(task_id="foo2")()
+    assert dag.get_task("foo2").returns_dag_result is True
