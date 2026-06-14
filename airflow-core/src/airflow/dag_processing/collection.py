@@ -1029,7 +1029,7 @@ class AssetModelOperation(NamedTuple):
                 continue
             referenced_outlets = {
                 (task_id, assets[d.name, d.uri]): (
-                    d.access_control.get("consumer_teams", []),
+                    d.access_control.get("consumer_teams"),
                     d.access_control.get("allow_global", True),
                 )
                 for task_id, d in references

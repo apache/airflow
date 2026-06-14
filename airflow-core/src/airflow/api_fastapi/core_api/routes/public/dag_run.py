@@ -20,7 +20,6 @@ from __future__ import annotations
 import textwrap
 from typing import Annotated, Literal, cast
 
-import structlog
 from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import StreamingResponse
@@ -28,11 +27,6 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from airflow.api.common.mark_tasks import (
-    set_dag_run_state_to_failed,
-    set_dag_run_state_to_queued,
-    set_dag_run_state_to_success,
-)
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.cursors import (
@@ -106,18 +100,17 @@ from airflow.api_fastapi.core_api.services.public.dag_run import (
     DagRunWaiter,
     dry_run_clear_dag_run,
     get_dag_run_and_dag_for_clear,
+    patch_dag_run_note,
+    patch_dag_run_state,
     perform_clear_dag_run,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
-from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent
 from airflow.models.dag_version import DagVersion
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
-
-log = structlog.get_logger(__name__)
 
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
 dag_run_at_dag_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}")
@@ -227,33 +220,12 @@ def patch_dag_run(
     data = patch_body.model_dump(include=fields_to_update, by_alias=True)
 
     for attr_name, attr_value_raw in data.items():
-        if attr_name == "state":
-            attr_value = getattr(patch_body, "state")
-            if attr_value == DagRunMutableStates.SUCCESS:
-                set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
-                try:
-                    get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
-                except Exception:
-                    log.exception("error calling listener")
-
-            # TODO AIP-103: https://github.com/apache/airflow/issues/66755
-            # Handle clearing states for all task instances in a dagrun when cleared
-            elif attr_value == DagRunMutableStates.QUEUED:
-                set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
-                # Not notifying on queued - only notifying on RUNNING, this is happening in scheduler
-            elif attr_value == DagRunMutableStates.FAILED:
-                set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
-                try:
-                    get_listener_manager().hook.on_dag_run_failed(dag_run=dag_run, msg="")
-                except Exception:
-                    log.exception("error calling listener")
+        if attr_name == "state" and patch_body.state is not None:
+            patch_dag_run_state(dag=dag, dag_run=dag_run, state=patch_body.state, session=session)
         elif attr_name == "note":
             updated_dag_run = session.get(DagRun, dag_run.id)
-            if updated_dag_run and updated_dag_run.dag_run_note is None:
-                updated_dag_run.note = (attr_value_raw, user.get_id())
-            elif updated_dag_run:
-                updated_dag_run.dag_run_note.content = attr_value_raw
-                updated_dag_run.dag_run_note.user_id = user.get_id()
+            if updated_dag_run is not None:
+                patch_dag_run_note(dag_run=updated_dag_run, note=attr_value_raw, user=user)
 
     final_dag_run = session.get(DagRun, dag_run.id)
     if not final_dag_run:
@@ -270,9 +242,13 @@ def bulk_dag_runs(
     request: BulkBody[BulkDAGRunBody],
     session: SessionDep,
     dag_id: str,
+    dag_bag: DagBagDep,
+    user: GetUserDep,
 ) -> BulkResponse:
-    """Bulk delete Dag Runs."""
-    return BulkDagRunService(session=session, request=request, dag_id=dag_id).handle_request()
+    """Bulk update or delete Dag Runs."""
+    return BulkDagRunService(
+        session=session, request=request, dag_id=dag_id, dag_bag=dag_bag, user=user
+    ).handle_request()
 
 
 @dag_run_router.get(
@@ -727,21 +703,29 @@ def wait_dag_run_until_finished(
     interval: Annotated[float, Query(gt=0.0, description="Seconds to wait between dag run state checks")],
     result_task_ids: Annotated[
         list[str] | None,
-        Query(alias="result", description="Collect result XCom from task. Can be set multiple times."),
+        Query(
+            alias="result",
+            description=(
+                "Collect result XCom from task. Can be set multiple times. "
+                "If unset, return value of the return task as specified in the "
+                "dag (in present) is returned by default."
+            ),
+        ),
     ] = None,
 ):
     "Wait for a dag run until it finishes, and return its result(s)."
-    if result_task_ids:
-        if not get_auth_manager().is_authorized_dag(
-            method="GET",
-            access_entity=DagAccessEntity.XCOM,
-            details=DagDetails(id=dag_id),
-            user=user,
-        ):
+    if not get_auth_manager().is_authorized_dag(
+        method="GET",
+        access_entity=DagAccessEntity.XCOM,
+        details=DagDetails(id=dag_id),
+        user=user,
+    ):
+        if result_task_ids:
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
                 "User is not authorized to read XCom data for this Dag",
             )
+        result_task_ids = []  # Explicitly not returning any XCom results.
     if not session.scalar(select(1).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)):
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,

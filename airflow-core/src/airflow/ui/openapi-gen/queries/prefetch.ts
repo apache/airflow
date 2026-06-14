@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { type QueryClient } from "@tanstack/react-query";
-import { AssetService, AssetStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -408,7 +408,7 @@ export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (queryClient: Quer
 * @param data.dagId
 * @param data.dagRunId
 * @param data.interval Seconds to wait between dag run state checks
-* @param data.result Collect result XCom from task. Can be set multiple times.
+* @param data.result Collect result XCom from task. Can be set multiple times. If unset, return value of the return task as specified in the dag (in present) is returned by default.
 * @returns unknown Successful Response
 * @throws ApiError
 */
@@ -438,7 +438,7 @@ export const prefetchUseDagRunServiceGetDagRunStats = (queryClient: QueryClient,
 * @param data.dagId
 * @param data.dagRunId
 * @param data.interval Seconds to wait between dag run state checks
-* @param data.result Collect result XCom from task. Can be set multiple times.
+* @param data.result Collect result XCom from task. Can be set multiple times. If unset, return value of the return task as specified in the dag (in present) is returned by default.
 * @returns unknown Successful Response
 * @throws ApiError
 */
@@ -1372,16 +1372,20 @@ export const prefetchUseImportErrorServiceGetImportError = (queryClient: QueryCl
 *
 * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``filename_prefix_pattern`` parameter when possible.
 * @param data.filenamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+* @param data.filename Exact filename match. Returns only the import error for this specific file path.
+* @param data.bundleName Exact bundle name match. Returns only import errors from this specific bundle.
 * @returns ImportErrorCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseImportErrorServiceGetImportErrors = (queryClient: QueryClient, { filenamePattern, filenamePrefixPattern, limit, offset, orderBy }: {
+export const prefetchUseImportErrorServiceGetImportErrors = (queryClient: QueryClient, { bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }: {
+  bundleName?: string;
+  filename?: string;
   filenamePattern?: string;
   filenamePrefixPattern?: string;
   limit?: number;
   offset?: number;
   orderBy?: string[];
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ filenamePattern, filenamePrefixPattern, limit, offset, orderBy }), queryFn: () => ImportErrorService.getImportErrors({ filenamePattern, filenamePrefixPattern, limit, offset, orderBy }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }), queryFn: () => ImportErrorService.getImportErrors({ bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }) });
 /**
 * Get Jobs
 * Get all jobs.
@@ -1487,36 +1491,36 @@ export const prefetchUseProviderServiceGetProviders = (queryClient: QueryClient,
   offset?: number;
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }), queryFn: () => ProviderService.getProviders({ limit, offset }) });
 /**
-* List Asset Store
-* List all store entries for an asset.
+* List Asset State Store
+* List all state store entries for an asset.
 * @param data The data for the request.
 * @param data.assetId
 * @param data.limit
 * @param data.offset
-* @returns AssetStoreCollectionResponse Successful Response
+* @returns AssetStateStoreCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseAssetStoreServiceListAssetStore = (queryClient: QueryClient, { assetId, limit, offset }: {
+export const prefetchUseAssetStateStoreServiceListAssetStateStore = (queryClient: QueryClient, { assetId, limit, offset }: {
   assetId: number;
   limit?: number;
   offset?: number;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetStoreServiceListAssetStoreKeyFn({ assetId, limit, offset }), queryFn: () => AssetStoreService.listAssetStore({ assetId, limit, offset }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetStateStoreServiceListAssetStateStoreKeyFn({ assetId, limit, offset }), queryFn: () => AssetStateStoreService.listAssetStateStore({ assetId, limit, offset }) });
 /**
-* Get Asset Store
-* Get a single asset store entry.
+* Get Asset State Store
+* Get a single asset state store entry.
 * @param data The data for the request.
 * @param data.key
 * @param data.assetId
-* @returns AssetStoreResponse Successful Response
+* @returns AssetStateStoreResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseAssetStoreServiceGetAssetStore = (queryClient: QueryClient, { assetId, key }: {
+export const prefetchUseAssetStateStoreServiceGetAssetStateStore = (queryClient: QueryClient, { assetId, key }: {
   assetId: number;
   key: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetStoreServiceGetAssetStoreKeyFn({ assetId, key }), queryFn: () => AssetStoreService.getAssetStore({ assetId, key }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetStateStoreServiceGetAssetStateStoreKeyFn({ assetId, key }), queryFn: () => AssetStateStoreService.getAssetStateStore({ assetId, key }) });
 /**
-* List Task Store
-* List all task store entries for a task instance.
+* List Task State Store
+* List all task state store entries for a task instance.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -1524,36 +1528,36 @@ export const prefetchUseAssetStoreServiceGetAssetStore = (queryClient: QueryClie
 * @param data.mapIndex
 * @param data.limit
 * @param data.offset
-* @returns TaskStoreCollectionResponse Successful Response
+* @returns TaskStateStoreCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskStoreServiceListTaskStore = (queryClient: QueryClient, { dagId, dagRunId, limit, mapIndex, offset, taskId }: {
+export const prefetchUseTaskStateStoreServiceListTaskStateStore = (queryClient: QueryClient, { dagId, dagRunId, limit, mapIndex, offset, taskId }: {
   dagId: string;
   dagRunId: string;
   limit?: number;
   mapIndex?: number;
   offset?: number;
   taskId: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskStoreServiceListTaskStoreKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId }), queryFn: () => TaskStoreService.listTaskStore({ dagId, dagRunId, limit, mapIndex, offset, taskId }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskStateStoreServiceListTaskStateStoreKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId }), queryFn: () => TaskStateStoreService.listTaskStateStore({ dagId, dagRunId, limit, mapIndex, offset, taskId }) });
 /**
-* Get Task Store
-* Get a single task store entry.
+* Get Task State Store
+* Get a single task state store entry.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
 * @param data.key
 * @param data.mapIndex
-* @returns TaskStoreResponse Successful Response
+* @returns TaskStateStoreResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskStoreServiceGetTaskStore = (queryClient: QueryClient, { dagId, dagRunId, key, mapIndex, taskId }: {
+export const prefetchUseTaskStateStoreServiceGetTaskStateStore = (queryClient: QueryClient, { dagId, dagRunId, key, mapIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   key: string;
   mapIndex?: number;
   taskId: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskStoreServiceGetTaskStoreKeyFn({ dagId, dagRunId, key, mapIndex, taskId }), queryFn: () => TaskStoreService.getTaskStore({ dagId, dagRunId, key, mapIndex, taskId }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskStateStoreServiceGetTaskStateStoreKeyFn({ dagId, dagRunId, key, mapIndex, taskId }), queryFn: () => TaskStateStoreService.getTaskStateStore({ dagId, dagRunId, key, mapIndex, taskId }) });
 /**
 * Get Xcom Entry
 * Get an XCom entry.

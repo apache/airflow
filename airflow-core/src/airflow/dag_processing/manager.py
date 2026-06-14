@@ -1023,7 +1023,19 @@ class DagFileProcessorManager(LoggingMixin):
                 last_run = stat.last_finish_time
                 if last_run:
                     seconds_ago = (utcnow - last_run).total_seconds()
-                    stats.gauge(f"dag_processing.last_run.seconds_ago.{file_name}", seconds_ago)
+                    # file_path and bundle_name uniquely identify a file (the same file name can
+                    # exist in different folders or bundles). file_name is kept as a tag to ease
+                    # migration from the legacy interpolated metric, which is emitted automatically
+                    # from the registry (controlled by the export_legacy_names config).
+                    stats.gauge(
+                        "dag_processing.last_run.seconds_ago",
+                        seconds_ago,
+                        tags={
+                            "file_path": file.normalized_file_path_for_stats,
+                            "bundle_name": normalize_name_for_stats(file.bundle_name),
+                            "file_name": file_name,
+                        },
+                    )
 
                 rows.append(
                     (

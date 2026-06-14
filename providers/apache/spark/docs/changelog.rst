@@ -36,6 +36,14 @@ Features
 ~~~~~~~~
 
 * ``Add 'ResumableJobMixin' with 'SparkSubmitOperator' as a case study for surviving worker failures (standalone) (#67118)``
+* ``Track Spark job status for YARN cluster mode via RM REST API to free JVM (#65991)``
+* ``Use K8s API to track Spark on K8s instead of JVM based spark-submit (#67715)``
+* ``Enhance 'ResumableJobMixin.get_job_status' with context for better job status tracking (#68009)``
+
+Misc
+~~~~
+
+* ``Rename resumablemixin file to match class name (#68137)``
 
 Doc-only
 ~~~~~~~~
@@ -45,7 +53,7 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Rename task_state/asset_state to task_store/asset_store across the codebase (#67833)``
+   * ``Rename task_state/asset_state to task_state_store/asset_state_store across the codebase (#67833)``
 
 
 6.0.2

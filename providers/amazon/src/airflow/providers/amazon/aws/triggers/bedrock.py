@@ -236,6 +236,42 @@ class BedrockAgentRuntimeReadyTrigger(AwsBaseWaiterTrigger):
         return BedrockAgentCoreControlHook(aws_conn_id=self.aws_conn_id)
 
 
+class BedrockAgentRuntimeDeletedTrigger(AwsBaseWaiterTrigger):
+    """
+    Trigger when a Bedrock AgentCore Runtime is deleted.
+
+    :param agent_runtime_id: The unique identifier of the AgentCore Runtime.
+    :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 60)
+    :param waiter_max_attempts: The maximum number of attempts to be made. (default: 20)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    """
+
+    def __init__(
+        self,
+        *,
+        agent_runtime_id: str,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 20,
+        aws_conn_id: str | None = None,
+    ) -> None:
+        super().__init__(
+            serialized_fields={"agent_runtime_id": agent_runtime_id},
+            waiter_name="agent_runtime_deleted",
+            waiter_args={"agentRuntimeId": agent_runtime_id},
+            failure_message="Bedrock AgentCore Runtime deletion failed.",
+            status_message="Status of Bedrock AgentCore Runtime is",
+            status_queries=["status"],
+            return_key="agent_runtime_id",
+            return_value=agent_runtime_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return BedrockAgentCoreControlHook(aws_conn_id=self.aws_conn_id)
+
+
 class BedrockBaseBatchInferenceTrigger(AwsBaseWaiterTrigger):
     """
     Trigger when a batch inference job is complete.
