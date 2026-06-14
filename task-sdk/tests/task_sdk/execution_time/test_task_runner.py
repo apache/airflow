@@ -98,20 +98,20 @@ from airflow.sdk.execution_time.comms import (
     AssetResult,
     AssetsByAliasResult,
     BundleInfo,
-    ClearAssetStoreByName,
-    ClearTaskStore,
+    ClearAssetStateStoreByName,
+    ClearTaskStateStore,
     ConnectionResult,
     DagResult,
     DagRunStateResult,
     DeferTask,
-    DeleteAssetStoreByName,
-    DeleteTaskStore,
+    DeleteAssetStateStoreByName,
+    DeleteTaskStateStore,
     DRCount,
     ErrorResponse,
     GetAssetByUri,
     GetAssetsByAlias,
-    GetAssetStoreByName,
-    GetAssetStoreByUri,
+    GetAssetStateStoreByName,
+    GetAssetStateStoreByUri,
     GetConnection,
     GetDag,
     GetDagRunState,
@@ -119,7 +119,7 @@ from airflow.sdk.execution_time.comms import (
     GetPreviousDagRun,
     GetPreviousTI,
     GetTaskStates,
-    GetTaskStore,
+    GetTaskStateStore,
     GetTICount,
     GetVariable,
     GetXCom,
@@ -131,10 +131,10 @@ from airflow.sdk.execution_time.comms import (
     PreviousTIResult,
     PrevSuccessfulDagRunResult,
     RescheduleTask,
-    SetAssetStoreByName,
-    SetAssetStoreByUri,
+    SetAssetStateStoreByName,
+    SetAssetStateStoreByUri,
     SetRenderedFields,
-    SetTaskStore,
+    SetTaskStateStore,
     SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
@@ -154,7 +154,7 @@ from airflow.sdk.execution_time.context import (
     InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
-    TaskStoreAccessor,
+    TaskStateStoreAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     _wrap_external_ref,
@@ -1935,7 +1935,7 @@ class TestRuntimeTaskInstance:
             "run_id": "test_run",
             "task": task,
             "task_instance": runtime_ti,
-            "task_store": TaskStoreAccessor(
+            "task_state_store": TaskStateStoreAccessor(
                 ti_id=ti_id, scope=TaskScope(dag_id=dag_id, run_id="test_run", task_id="hello")
             ),
             "ti": runtime_ti,
@@ -1983,7 +1983,7 @@ class TestRuntimeTaskInstance:
             "run_id": "test_run",
             "task": task,
             "task_instance": runtime_ti,
-            "task_store": TaskStoreAccessor(
+            "task_state_store": TaskStateStoreAccessor(
                 ti_id=runtime_ti.id,
                 scope=TaskScope(dag_id=runtime_ti.dag_id, run_id="test_run", task_id="hello"),
             ),
@@ -3616,6 +3616,35 @@ class TestXComAfterTaskExecution:
             "from custom xcom deserialize:value3",
         ]
         assert result == expected
+
+    def test_xcom_pull_with_explicit_dag_id_and_run_id(self, create_runtime_ti, mock_supervisor_comms):
+        task = BaseOperator(task_id="parent_task")
+        runtime_ti = create_runtime_ti(task=task, dag_id="parent_dag", run_id="parent_run")
+        value = {"child_result": "hello world"}
+        ser_value = BaseXCom.serialize_value(value)
+
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=[ser_value])
+
+        assert (
+            runtime_ti.xcom_pull(
+                task_ids="child_task",
+                dag_id="child_dag",
+                run_id="child_run",
+            )
+            == value
+        )
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetXComSequenceSlice(
+                key="return_value",
+                dag_id="child_dag",
+                run_id="child_run",
+                task_id="child_task",
+                start=None,
+                stop=None,
+                step=None,
+                include_prior_dates=False,
+            ),
+        )
 
     @pytest.mark.parametrize(
         ("include_prior_dates", "expected_value"),
@@ -5512,7 +5541,7 @@ class TestTaskInstanceStateOperations:
     def test_task_can_set_and_get_state(self, create_runtime_ti, mock_supervisor_comms, time_machine):
         class MyOperator(BaseOperator):
             def execute(self, context):
-                ts = context["task_store"]
+                ts = context["task_state_store"]
                 ts.set("job_id", "spark_app_001")
                 return ts.get("job_id")
 
@@ -5525,21 +5554,21 @@ class TestTaskInstanceStateOperations:
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         mock_supervisor_comms.send.assert_any_call(
-            SetTaskStore(
+            SetTaskStateStore(
                 ti_id=runtime_ti.id,
                 key="job_id",
                 value="spark_app_001",
                 expires_at=frozen_dt + timedelta(days=30),
             )
         )
-        mock_supervisor_comms.send.assert_any_call(GetTaskStore(ti_id=runtime_ti.id, key="job_id"))
+        mock_supervisor_comms.send.assert_any_call(GetTaskStateStore(ti_id=runtime_ti.id, key="job_id"))
 
     def test_task_state_get_returns_default_when_key_missing(self, create_runtime_ti, mock_supervisor_comms):
         captured = {}
 
         class MyOperator(BaseOperator):
             def execute(self, context):
-                captured["result"] = context["task_store"].get(
+                captured["result"] = context["task_state_store"].get(
                     "watermark", default="2026-01-01T00:00:00+00:00"
                 )
 
@@ -5557,7 +5586,7 @@ class TestTaskInstanceStateOperations:
 
         class MyOperator(BaseOperator):
             def execute(self, context):
-                ts = context["task_store"]
+                ts = context["task_state_store"]
                 ts.set("retry_count", 3)
                 ts.set("poll_result", {"status": "succeeded", "rows": 1234})
                 ts.set("checkpoints", [1, 2, 3])
@@ -5572,10 +5601,10 @@ class TestTaskInstanceStateOperations:
 
         expires_at = frozen_dt + timedelta(days=30)
         mock_supervisor_comms.send.assert_any_call(
-            SetTaskStore(ti_id=runtime_ti.id, key="retry_count", value=3, expires_at=expires_at)
+            SetTaskStateStore(ti_id=runtime_ti.id, key="retry_count", value=3, expires_at=expires_at)
         )
         mock_supervisor_comms.send.assert_any_call(
-            SetTaskStore(
+            SetTaskStateStore(
                 ti_id=runtime_ti.id,
                 key="poll_result",
                 value={"status": "succeeded", "rows": 1234},
@@ -5583,13 +5612,13 @@ class TestTaskInstanceStateOperations:
             )
         )
         mock_supervisor_comms.send.assert_any_call(
-            SetTaskStore(ti_id=runtime_ti.id, key="checkpoints", value=[1, 2, 3], expires_at=expires_at)
+            SetTaskStateStore(ti_id=runtime_ti.id, key="checkpoints", value=[1, 2, 3], expires_at=expires_at)
         )
 
     def test_task_can_set_state_with_retention(self, create_runtime_ti, mock_supervisor_comms, time_machine):
         class MyOperator(BaseOperator):
             def execute(self, context):
-                context["task_store"].set("job_id", "spark_app_001", retention=timedelta(days=7))
+                context["task_state_store"].set("job_id", "spark_app_001", retention=timedelta(days=7))
 
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
@@ -5599,7 +5628,7 @@ class TestTaskInstanceStateOperations:
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         mock_supervisor_comms.send.assert_any_call(
-            SetTaskStore(
+            SetTaskStateStore(
                 ti_id=runtime_ti.id,
                 key="job_id",
                 value="spark_app_001",
@@ -5610,14 +5639,14 @@ class TestTaskInstanceStateOperations:
     def test_task_can_delete_state(self, create_runtime_ti, mock_supervisor_comms):
         class MyOperator(BaseOperator):
             def execute(self, context):
-                context["task_store"].delete("job_id")
+                context["task_state_store"].delete("job_id")
 
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        mock_supervisor_comms.send.assert_any_call(DeleteTaskStore(ti_id=runtime_ti.id, key="job_id"))
+        mock_supervisor_comms.send.assert_any_call(DeleteTaskStateStore(ti_id=runtime_ti.id, key="job_id"))
 
     @pytest.mark.parametrize(
         ("call_kwargs", "expected_flag"),
@@ -5629,13 +5658,13 @@ class TestTaskInstanceStateOperations:
     def test_task_can_clear_state(self, call_kwargs, expected_flag, create_runtime_ti, mock_supervisor_comms):
         class MyOperator(BaseOperator):
             def execute(self, context):
-                context["task_store"].clear(**call_kwargs)
+                context["task_state_store"].clear(**call_kwargs)
 
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
         mock_supervisor_comms.send.assert_any_call(
-            ClearTaskStore(ti_id=runtime_ti.id, all_map_indices=expected_flag)
+            ClearTaskStateStore(ti_id=runtime_ti.id, all_map_indices=expected_flag)
         )
 
     @staticmethod
@@ -5654,8 +5683,8 @@ class TestTaskInstanceStateOperations:
 
         class WatcherOperator(BaseOperator):
             def execute(self, context):
-                context["asset_store"].set("watermark", "2026-04-30")
-                context["asset_store"].get("watermark")
+                context["asset_state_store"].set("watermark", "2026-04-30")
+                context["asset_state_store"].get("watermark")
 
         task = WatcherOperator(task_id="t", inlets=[watched])
         runtime_ti = create_runtime_ti(task=task)
@@ -5664,9 +5693,9 @@ class TestTaskInstanceStateOperations:
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         mock_supervisor_comms.send.assert_any_call(
-            SetAssetStoreByName(name="my_asset", key="watermark", value="2026-04-30")
+            SetAssetStateStoreByName(name="my_asset", key="watermark", value="2026-04-30")
         )
-        mock_supervisor_comms.send.assert_any_call(GetAssetStoreByName(name="my_asset", key="watermark"))
+        mock_supervisor_comms.send.assert_any_call(GetAssetStateStoreByName(name="my_asset", key="watermark"))
 
     def test_asset_state_get_returns_default_when_key_missing(self, create_runtime_ti, mock_supervisor_comms):
         watched = Asset(name="my_asset", uri="s3://bucket/data")
@@ -5674,7 +5703,7 @@ class TestTaskInstanceStateOperations:
 
         class WatcherOperator(BaseOperator):
             def execute(self, context):
-                captured["result"] = context["asset_store"].get(
+                captured["result"] = context["asset_state_store"].get(
                     "watermark", default="2026-01-01T00:00:00+00:00"
                 )
 
@@ -5682,7 +5711,7 @@ class TestTaskInstanceStateOperations:
         runtime_ti = create_runtime_ti(task=task)
         mock_supervisor_comms.send.side_effect = lambda msg: (
             ErrorResponse(error=ErrorType.ASSET_STORE_NOT_FOUND, detail={"key": "watermark"})
-            if isinstance(msg, GetAssetStoreByName)
+            if isinstance(msg, GetAssetStateStoreByName)
             else TestTaskInstanceStateOperations._watcher_side_effect(msg)
         )
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
@@ -5694,7 +5723,7 @@ class TestTaskInstanceStateOperations:
 
         class WatcherOperator(BaseOperator):
             def execute(self, context):
-                context["asset_store"].delete("watermark")
+                context["asset_state_store"].delete("watermark")
 
         task = WatcherOperator(task_id="t", inlets=[watched])
         runtime_ti = create_runtime_ti(task=task)
@@ -5702,14 +5731,16 @@ class TestTaskInstanceStateOperations:
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        mock_supervisor_comms.send.assert_any_call(DeleteAssetStoreByName(name="my_asset", key="watermark"))
+        mock_supervisor_comms.send.assert_any_call(
+            DeleteAssetStateStoreByName(name="my_asset", key="watermark")
+        )
 
     def test_asset_state_clear(self, create_runtime_ti, mock_supervisor_comms):
         watched = Asset(name="my_asset", uri="s3://bucket/data")
 
         class WatcherOperator(BaseOperator):
             def execute(self, context):
-                context["asset_store"].clear()
+                context["asset_state_store"].clear()
 
         task = WatcherOperator(task_id="t", inlets=[watched])
         runtime_ti = create_runtime_ti(task=task)
@@ -5717,15 +5748,15 @@ class TestTaskInstanceStateOperations:
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        mock_supervisor_comms.send.assert_any_call(ClearAssetStoreByName(name="my_asset"))
+        mock_supervisor_comms.send.assert_any_call(ClearAssetStateStoreByName(name="my_asset"))
 
     def test_asset_state_uri_ref_inlet(self, create_runtime_ti, mock_supervisor_comms):
         watched = AssetUriRef(uri="s3://bucket/data")
 
         class WatcherOperator(BaseOperator):
             def execute(self, context):
-                context["asset_store"].set("watermark", "2026-04-30")
-                context["asset_store"].get("watermark")
+                context["asset_state_store"].set("watermark", "2026-04-30")
+                context["asset_state_store"].get("watermark")
 
         task = WatcherOperator(task_id="t", inlets=[watched])
         runtime_ti = create_runtime_ti(task=task)
@@ -5734,10 +5765,10 @@ class TestTaskInstanceStateOperations:
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         mock_supervisor_comms.send.assert_any_call(
-            SetAssetStoreByUri(uri="s3://bucket/data", key="watermark", value="2026-04-30")
+            SetAssetStateStoreByUri(uri="s3://bucket/data", key="watermark", value="2026-04-30")
         )
         mock_supervisor_comms.send.assert_any_call(
-            GetAssetStoreByUri(uri="s3://bucket/data", key="watermark")
+            GetAssetStateStoreByUri(uri="s3://bucket/data", key="watermark")
         )
 
     def test_asset_state_alias_as_inlet(self, create_runtime_ti, mock_supervisor_comms):
@@ -5746,7 +5777,7 @@ class TestTaskInstanceStateOperations:
 
         class WatcherOperator(BaseOperator):
             def execute(self, context):
-                context["asset_store"][resolved].set("watermark", "2026-05-01")
+                context["asset_state_store"][resolved].set("watermark", "2026-05-01")
 
         def side_effect(msg):
             if isinstance(msg, GetAssetsByAlias):
@@ -5762,7 +5793,7 @@ class TestTaskInstanceStateOperations:
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         mock_supervisor_comms.send.assert_any_call(
-            SetAssetStoreByName(name="resolved_asset", key="watermark", value="2026-05-01")
+            SetAssetStateStoreByName(name="resolved_asset", key="watermark", value="2026-05-01")
         )
 
     def test_asset_state_alias_inlet_no_resolved_assets(self, create_runtime_ti, mock_supervisor_comms):
@@ -5771,7 +5802,7 @@ class TestTaskInstanceStateOperations:
         class WatcherOperator(BaseOperator):
             def execute(self, context):
                 # asset_state is in context but it is empty because alias resolved to nothing
-                assert "asset_store" in context
+                assert "asset_state_store" in context
 
         def side_effect(msg):
             if isinstance(msg, GetAssetsByAlias):
@@ -5790,7 +5821,7 @@ class TestTaskInstanceStateOperations:
         class WatcherOperator(BaseOperator):
             def execute(self, context):
                 # accessing via asset name key
-                context["asset_store"][watched].set("watermark", "2026-05-01")
+                context["asset_state_store"][watched].set("watermark", "2026-05-01")
 
         task = WatcherOperator(task_id="t", inlets=[watched])
         runtime_ti = create_runtime_ti(task=task)
@@ -5799,7 +5830,7 @@ class TestTaskInstanceStateOperations:
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         mock_supervisor_comms.send.assert_any_call(
-            SetAssetStoreByName(name="my_asset", key="watermark", value="2026-05-01")
+            SetAssetStateStoreByName(name="my_asset", key="watermark", value="2026-05-01")
         )
 
     def test_asset_state_multi_inlet(self, create_runtime_ti, mock_supervisor_comms):
@@ -5808,8 +5839,8 @@ class TestTaskInstanceStateOperations:
 
         class MultiInletOperator(BaseOperator):
             def execute(self, context):
-                context["asset_store"][asset_a].set("watermark_a", "2026-05-01")
-                context["asset_store"][asset_b].set("watermark_b", "2026-05-02")
+                context["asset_state_store"][asset_a].set("watermark_a", "2026-05-01")
+                context["asset_state_store"][asset_b].set("watermark_b", "2026-05-02")
 
         task = MultiInletOperator(task_id="t", inlets=[asset_a, asset_b])
         runtime_ti = create_runtime_ti(task=task)
@@ -5818,10 +5849,10 @@ class TestTaskInstanceStateOperations:
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         mock_supervisor_comms.send.assert_any_call(
-            SetAssetStoreByName(name="asset_a", key="watermark_a", value="2026-05-01")
+            SetAssetStateStoreByName(name="asset_a", key="watermark_a", value="2026-05-01")
         )
         mock_supervisor_comms.send.assert_any_call(
-            SetAssetStoreByName(name="asset_b", key="watermark_b", value="2026-05-02")
+            SetAssetStateStoreByName(name="asset_b", key="watermark_b", value="2026-05-02")
         )
 
     def test_asset_state_set_sends_reference_via_custom_backend(
@@ -5832,25 +5863,25 @@ class TestTaskInstanceStateOperations:
 
         class WatcherOperator(BaseOperator):
             def execute(self, context):
-                context["asset_store"].set("watermark", "2026-05-01")
+                context["asset_state_store"].set("watermark", "2026-05-01")
 
         task = WatcherOperator(task_id="t", inlets=[watched])
         runtime_ti = create_runtime_ti(task=task)
         mock_supervisor_comms.send.side_effect = TestTaskInstanceStateOperations._watcher_side_effect
 
         mock_backend = mock.MagicMock()
-        mock_backend.serialize_asset_store_to_ref.return_value = "mem://my_asset/watermark"
+        mock_backend.serialize_asset_state_store_to_ref.return_value = "mem://my_asset/watermark"
 
         with mock.patch(
             "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=mock_backend
         ):
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        mock_backend.serialize_asset_store_to_ref.assert_called_once_with(
+        mock_backend.serialize_asset_state_store_to_ref.assert_called_once_with(
             value="2026-05-01", key="watermark", scope=AssetScope(name="my_asset", uri=None)
         )
         mock_supervisor_comms.send.assert_any_call(
-            SetAssetStoreByName(
+            SetAssetStateStoreByName(
                 name="my_asset",
                 key="watermark",
                 value=_wrap_external_ref("mem://my_asset/watermark"),
@@ -5864,7 +5895,7 @@ class TestTaskInstanceStateOperations:
 
         class MyOperator(BaseOperator):
             def execute(self, context):
-                context["task_store"].set("job_id", "app_001")
+                context["task_state_store"].set("job_id", "app_001")
 
         frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
         time_machine.move_to(frozen_dt, tick=False)
@@ -5880,18 +5911,18 @@ class TestTaskInstanceStateOperations:
             map_index=runtime_ti.map_index,
         )
         ref = f"mem://{scope.dag_id}/{scope.run_id}/{scope.task_id}/{scope.map_index}/job_id"
-        mock_backend.serialize_task_store_to_ref.return_value = ref
+        mock_backend.serialize_task_state_store_to_ref.return_value = ref
 
         with mock.patch(
             "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=mock_backend
         ):
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        mock_backend.serialize_task_store_to_ref.assert_called_once_with(
+        mock_backend.serialize_task_state_store_to_ref.assert_called_once_with(
             value="app_001", key="job_id", scope=scope
         )
         mock_supervisor_comms.send.assert_any_call(
-            SetTaskStore(
+            SetTaskStateStore(
                 ti_id=runtime_ti.id,
                 key="job_id",
                 value=_wrap_external_ref(ref),
@@ -5903,7 +5934,7 @@ class TestTaskInstanceStateOperations:
     def test_clear_on_success_clears_backend_without_comms_roundtrip(
         self, create_runtime_ti, mock_supervisor_comms
     ):
-        """clear_on_success calls backend.clear() directly without sending ClearTaskStore comms."""
+        """clear_on_success calls backend.clear() directly without sending ClearTaskStateStore comms."""
         mock_backend = mock.MagicMock()
 
         class MyOperator(BaseOperator):
@@ -5923,7 +5954,7 @@ class TestTaskInstanceStateOperations:
             type(call.kwargs.get("msg") or (call.args[0] if call.args else None))
             for call in mock_supervisor_comms.send.call_args_list
         ]
-        assert ClearTaskStore not in sent_types
+        assert ClearTaskStateStore not in sent_types
 
 
 class _WalkerModelA(BaseModel):

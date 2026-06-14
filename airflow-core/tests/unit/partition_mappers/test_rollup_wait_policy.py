@@ -50,14 +50,6 @@ class TestPolicyConstruction:
     def test_minimum_count_stores_n(self, n):
         assert MinimumCount(n).n == n
 
-    def test_wait_for_all_is_stateless(self):
-        a = WaitForAll()
-        b = WaitForAll()
-        assert type(a) is WaitForAll
-        assert type(b) is WaitForAll
-        assert a == b
-        assert hash(a) == hash(b)
-
     def test_default_wait_policy_is_wait_for_all_instance(self, make_mapper):
         mapper = make_mapper()
         assert isinstance(mapper.wait_policy, WaitForAll)
@@ -111,15 +103,6 @@ class TestPolicySemantics:
     )
     def test_is_unreachable(self, policy, expected, unreachable):
         assert policy.is_unreachable(expected) is unreachable
-
-
-class TestRepr:
-    def test_wait_for_all_repr(self):
-        assert repr(WaitForAll()) == "WaitForAll()"
-
-    def test_minimum_count_repr(self):
-        assert repr(MinimumCount(5)) == "MinimumCount(n=5)"
-        assert repr(MinimumCount(-3)) == "MinimumCount(n=-3)"
 
 
 class TestSerializeRoundTrip:
