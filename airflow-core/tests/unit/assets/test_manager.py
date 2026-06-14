@@ -275,6 +275,88 @@ class TestAssetManager:
         assert len(set(ids)) == 1
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 1
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_get_or_create_apdr_allow_reuse_true_reuses_pending(self, session):
+        """``allow_reuse=True`` (default) reuses a pending APDR for the same ``(target_dag, partition_key)``.
+
+        When two events arrive for the same key and ``allow_reuse=True``, the
+        second call returns the same APDR — they accumulate on one row.
+        """
+        asm = AssetModel(uri="test://reuse-true/", name="reuse_asset_true", group="asset")
+        testing_dag = DagModel(
+            dag_id="reuse_test_dag_true", is_stale=False, bundle_name="testing"
+        )
+        session.add_all([asm, testing_dag])
+        session.commit()
+        session.flush()
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 0
+
+        rollup_fingerprint = {}
+
+        apdr_1 = AssetManager._get_or_create_apdr(
+            target_key="key-1",
+            target_dag=testing_dag,
+            rollup_fingerprint=rollup_fingerprint,
+            asset_id=asm.id,
+            session=session,
+            allow_reuse=True,
+        )
+        apdr_2 = AssetManager._get_or_create_apdr(
+            target_key="key-1",
+            target_dag=testing_dag,
+            rollup_fingerprint=rollup_fingerprint,
+            asset_id=asm.id,
+            session=session,
+            allow_reuse=True,
+        )
+
+        assert apdr_1.id == apdr_2.id
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 1
+        assert apdr_1.created_dag_run_id is None  # still pending
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_get_or_create_apdr_allow_reuse_false_creates_new(self, session):
+        """``allow_reuse=False`` creates a new APDR each call even if a pending one exists for the same key.
+
+        When two events arrive for the same key and ``allow_reuse=False``, each
+        event gets its own APDR — the scheduler later produces one DagRun per
+        event.
+        """
+        asm = AssetModel(
+            uri="test://reuse-false/", name="reuse_asset_false", group="asset"
+        )
+        testing_dag = DagModel(
+            dag_id="reuse_test_dag_false", is_stale=False, bundle_name="testing"
+        )
+        session.add_all([asm, testing_dag])
+        session.commit()
+        session.flush()
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 0
+
+        rollup_fingerprint = {}
+
+        apdr_1 = AssetManager._get_or_create_apdr(
+            target_key="key-1",
+            target_dag=testing_dag,
+            rollup_fingerprint=rollup_fingerprint,
+            asset_id=asm.id,
+            session=session,
+            allow_reuse=False,
+        )
+        apdr_2 = AssetManager._get_or_create_apdr(
+            target_key="key-1",
+            target_dag=testing_dag,
+            rollup_fingerprint=rollup_fingerprint,
+            asset_id=asm.id,
+            session=session,
+            allow_reuse=False,
+        )
+
+        assert apdr_1.id != apdr_2.id
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 2
+        assert apdr_1.created_dag_run_id is None
+        assert apdr_2.created_dag_run_id is None
+
     @pytest.mark.need_serialized_dag
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_queue_partitioned_dags_stamps_rollup_fingerprint(self, session, dag_maker):
