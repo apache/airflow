@@ -2660,7 +2660,8 @@ class TestDagInfoAirflow3:
                     "name": "uri1",
                     "group": "asset",
                     "extra": {"a": 1},
-                }
+                },
+                "batch_asset_events": True,
             },
             "timetable_summary": "Asset",
         }
@@ -2693,7 +2694,8 @@ class TestDagInfoAirflow3:
                             "extra": {"a": 1},
                         }
                     ],
-                }
+                },
+                "batch_asset_events": True,
             },
             "timetable_summary": "Asset",
         }
@@ -2727,7 +2729,8 @@ class TestDagInfoAirflow3:
                         },
                         {"__type": "asset", "uri": "uri2", "name": "uri2", "group": "asset", "extra": {}},
                     ],
-                }
+                },
+                "batch_asset_events": True,
             },
             "timetable_summary": "Asset",
         }
@@ -2791,7 +2794,8 @@ class TestDagInfoAirflow3:
                             ],
                         },
                     ],
-                }
+                },
+                "batch_asset_events": True,
             },
             "timetable_summary": "Asset",
         }
