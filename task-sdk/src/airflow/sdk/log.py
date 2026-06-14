@@ -263,22 +263,26 @@ def mask_secret(secret: JsonValue, name: str | None = None) -> None:
 
     comms = getattr(task_runner, "SUPERVISOR_COMMS", None)
     if comms is None:
-        # Not in a task-execution context — there is no supervisor to notify.
+        # No supervisor to notify (not running under a supervisor process).
         return
 
     from airflow.sdk.execution_time.comms import MaskSecret
 
     try:
         comms.send(MaskSecret(value=secret, name=name))
-    except Exception:
-        # Dedicated logger so operators can grep for this signal — without a
-        # warning they'd have no way to find out the supervisor never received
-        # the registration.
+    except Exception as e:
+        # Emit a grep-able signal so operators can find out the supervisor never
+        # received the registration. Record ONLY the exception *type* -- never
+        # ``exc_info``, the exception message, or the value -- because a failure
+        # to build ``MaskSecret`` can raise an error whose text contains the very
+        # secret we are trying to mask. On this path the local ``mask_logs``
+        # processor is already disabled, so including it would guarantee the leak
+        # this function exists to prevent.
         structlog.get_logger("airflow.logging.mask_secret").warning(
             "supervisor_mask_secret_failed",
             secret_name=name,
+            error_type=type(e).__name__,
             note="Could not register secret with supervisor; secret may not be masked in supervisor-level logs.",
-            exc_info=True,
         )
 
 
