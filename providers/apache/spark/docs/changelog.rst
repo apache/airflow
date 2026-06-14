@@ -53,7 +53,7 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Rename task_state/asset_state to task_store/asset_store across the codebase (#67833)``
+   * ``Rename task_state/asset_state to task_state_store/asset_state_store across the codebase (#67833)``
 
 
 6.0.2

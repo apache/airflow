@@ -180,6 +180,7 @@
     "placeholder": "Add a note...",
     "taskInstance": "Task Instance Note"
   },
+  "overallStatus": "Overall Status",
   "partitionedDagRun_one": "Partitioned Dag Run",
   "partitionedDagRun_other": "Partitioned Dag Runs",
   "partitionedDagRunDetail": {
@@ -267,10 +268,13 @@
     "updatedAt": "Updated at"
   },
   "task": {
+    "dependsOnPast": "Depends on Past",
     "documentation": "Task Documentation",
     "lastInstance": "Last Instance",
     "operator": "Operator",
-    "triggerRule": "Trigger Rule"
+    "retries": "Retries",
+    "triggerRule": "Trigger Rule",
+    "waitForDownstream": "Wait for Downstream"
   },
   "task_one": "Task",
   "task_other": "Tasks",

@@ -20,28 +20,71 @@ package sdk
 import (
 	"context"
 	"time"
-
-	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 )
 
-// RuntimeContext carries the identifiers and scheduling timestamps of the task
-// instance that is currently executing, along with the Dag run it belongs to.
-// It is the Go equivalent of the execution context the Python and Java SDKs
-// expose to task authors.
+// TIRunContext is the execution context handed to a task. It behaves as the
+// standard context.Context (cancellation, deadline, request-scoped values) and
+// additionally exposes the identifiers and scheduling timestamps of the task
+// instance that is executing, along with the Dag run it belongs to. It is the
+// Go equivalent of the execution context the Python and Java SDKs expose to
+// task authors.
 //
-// Retrieve it inside a task function with CurrentContext:
+// The runtime injects it into a task function by parameter type, so declare it
+// as the task's context argument:
 //
-//	func myTask(ctx context.Context, log *slog.Logger) error {
-//		rc := sdk.CurrentContext(ctx)
-//		log.Info("running", "task_id", rc.TI.TaskID, "run_id", rc.DagRun.RunID)
+//	func myTask(ctx sdk.TIRunContext, log *slog.Logger) error {
+//		log.Info("running",
+//			"task_id", ctx.TaskInstance().TaskID,
+//			"run_id", ctx.DagRun().RunID,
+//		)
 //		return nil
 //	}
-type RuntimeContext struct {
-	// TI identifies the task instance that is executing.
-	TI TaskInstance
+//
+// Because it embeds context.Context it is usable wherever one is expected:
+// pass it straight to client calls, select on ctx.Done(), or hand it to
+// downstream helpers that take a context.Context.
+//
+// It is an interface rather than a struct holding a context.Context, which
+// the context package advises against (https://pkg.go.dev/context#hdr-Contexts_and_structs):
+// the runtime constructs a fresh value around the live task context for each
+// invocation, and task code cannot end up with a half-initialised value. Build
+// one in tests with NewTIRunContext.
+type TIRunContext interface {
+	context.Context
+
+	// TaskInstance identifies the task instance that is executing.
+	TaskInstance() TaskInstance
 	// DagRun identifies the Dag run the task instance belongs to.
-	DagRun DagRun
+	DagRun() DagRun
 }
+
+// NewTIRunContext returns a TIRunContext that delegates context behaviour to
+// ctx and exposes ti and dagRun. It panics on a nil ctx, mirroring the context
+// package's own constructors. The runtime calls it when binding a task's
+// TIRunContext parameter; in unit tests, use it to hand-build the argument:
+//
+//	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{TaskID: "t1"}, sdk.DagRun{})
+func NewTIRunContext(ctx context.Context, ti TaskInstance, dagRun DagRun) TIRunContext {
+	if ctx == nil {
+		// This cannot happen from the runtime: taskFunction.Execute always
+		// binds the live task context. A nil ctx is a programming error in
+		// the caller, so fail loudly instead of masking it.
+		panic("sdk.NewTIRunContext: cannot create TIRunContext from nil context.Context")
+	}
+	return tiRunContext{Context: ctx, ti: ti, dagRun: dagRun}
+}
+
+// tiRunContext is the runtime implementation of TIRunContext.
+type tiRunContext struct {
+	context.Context
+
+	ti     TaskInstance
+	dagRun DagRun
+}
+
+func (c tiRunContext) TaskInstance() TaskInstance { return c.ti }
+
+func (c tiRunContext) DagRun() DagRun { return c.dagRun }
 
 // TaskInstance identifies the currently executing task instance.
 type TaskInstance struct {
@@ -64,16 +107,4 @@ type DagRun struct {
 	LogicalDate       *time.Time
 	DataIntervalStart *time.Time
 	DataIntervalEnd   *time.Time
-}
-
-// CurrentContext returns the RuntimeContext the runtime stored on ctx for the
-// executing task. When ctx carries no RuntimeContext (for example when called
-// outside of a running task) it returns the zero value.
-//
-// It takes ctx explicitly rather than reading task-local state like Python's
-// get_current_context, because Go has no goroutine-local storage and the
-// worker path runs multiple tasks concurrently in one process.
-func CurrentContext(ctx context.Context) RuntimeContext {
-	rc, _ := ctx.Value(sdkcontext.RuntimeContextKey).(RuntimeContext)
-	return rc
 }
