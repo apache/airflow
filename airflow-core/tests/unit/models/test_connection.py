@@ -424,6 +424,47 @@ class TestConnection:
             "headers": {"Content-Type": "application/json", "X-Requested-By": "Airflow"},
         }
 
+    @pytest.mark.parametrize("port", [1, 22, 5432, 65535])
+    def test_port_within_valid_range_is_accepted(self, port):
+        """Ports in the valid TCP/UDP range (1-65535) should be accepted."""
+        conn = Connection(conn_id="test_conn", conn_type="http", host="example.com", port=port)
+        assert conn.port == port
+
+    def test_port_none_is_accepted(self):
+        """``port`` is optional, ``None`` must remain a valid value."""
+        conn = Connection(conn_id="test_conn", conn_type="http", host="example.com", port=None)
+        assert conn.port is None
+
+    @pytest.mark.parametrize("port", [0, -1, 65536, 99999])
+    def test_port_out_of_range_is_rejected(self, port):
+        """Ports outside 1-65535 should raise ValueError on Connection() (closes #68382)."""
+        with pytest.raises(ValueError, match="must be between 1 and 65535"):
+            Connection(conn_id="test_conn", conn_type="http", host="example.com", port=port)
+
+    @pytest.mark.parametrize("port", [0, -1, 99999])
+    def test_from_json_rejects_out_of_range_port(self, port):
+        """``Connection.from_json`` should also enforce the port range."""
+        import json as _json
+
+        payload = _json.dumps({"conn_type": "http", "host": "example.com", "port": port})
+        with pytest.raises(ValueError, match="must be between 1 and 65535"):
+            Connection.from_json(payload, conn_id="test_conn")
+
+    def test_orm_load_tolerates_legacy_invalid_port(self):
+        """Existing rows with invalid port values must still load via SQLAlchemy.
+
+        SQLAlchemy uses ``@reconstructor`` (``on_db_load``) when loading rows,
+        which bypasses ``__init__`` — so legacy persisted invalid data should
+        continue to load without raising. This guards against breaking
+        existing installations (issue #68382 review comment).
+        """
+        conn = Connection.__new__(Connection)
+        conn.conn_id = "legacy_conn"
+        conn.conn_type = "http"
+        conn.port = 99999
+        conn.on_db_load()
+        assert conn.port == 99999
+
     @mock.patch("airflow.sdk.Connection.get")
     def test_get_connection_from_secrets_task_sdk_success(self, mock_get):
         """Test the get_connection_from_secrets method with Task SDK success path."""
