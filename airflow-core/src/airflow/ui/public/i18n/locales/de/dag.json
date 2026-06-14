@@ -232,7 +232,7 @@
     "runs": "Läufe",
     "storage": "Speicher",
     "taskInstances": "Task Instanzen",
-    "taskStore": "Task Zwischenspeicher",
+    "taskStateStore": "Task Status Zwischenspeicher",
     "tasks": "Tasks",
     "xcom": "Task Kommunikation (XComs)"
   },
@@ -240,17 +240,17 @@
     "collapseAll": "Alle Task-Gruppen einklappen",
     "expandAll": "Alle Task-Gruppen aufklappen"
   },
-  "taskStore": {
-    "add": "Task Zwischenspeicher hinzufügen",
+  "taskStateStore": {
+    "add": "Task Status Zwischenspeicher hinzufügen",
     "clearAll": {
-      "resource": "alle Task Zwischenspeicher",
-      "title": "Alle Task Zwischenspeicher löschen",
-      "warning": "Alle Task Zwischenspeicher werden gelöscht. Tasks, die diesen Zwischenspeicher verwenden, um externe Referenzen oder einen Zwischenstand zu verfolgen, starten bei der nächsten Ausführung potentiell von vorne."
+      "resource": "alle Task Status Zwischenspeicher",
+      "title": "Alle Task Status Zwischenspeicher löschen",
+      "warning": "Alle Task Status Zwischenspeicher werden gelöscht. Tasks, die diesen Zwischenspeicher verwenden, um externe Referenzen oder einen Zwischenstand zu verfolgen, starten bei der nächsten Ausführung potentiell von vorne."
     },
-    "delete": "Task Zwischenspeicher löschen",
+    "delete": "Task Status Zwischenspeicher löschen",
     "deleteWarning": "Der Task verliert diesen gespeicherten Zustand. Wenn der Task diesen Schlüssel verwendet, um externe Arbeiten zu verfolgen (z.B. eine externe Job-ID), kann er diese nicht wieder aufnehmen und startet Arbeiten potentiell wieder von vorne.",
-    "edit": "Task Zwischenspeicher bearbeiten",
-    "emptyStore": "Der Task Zwischenspeicher speichert Werte, die über Wiederholungen hinweg bestehen bleiben. Worker können den Task Zwischenspeicher über das Task SDK schreiben.",
+    "edit": "Task Status Zwischenspeicher bearbeiten",
+    "emptyStore": "Der Task Status Zwischenspeicher speichert Werte, die über Wiederholungen hinweg bestehen bleiben. Worker können den Task Status Zwischenspeicher über das Task SDK schreiben.",
     "expiresAt": {
       "column": "Ablaufdatum",
       "custom": "Benutzerdefiniert",
@@ -258,6 +258,6 @@
       "label": "Ablauf",
       "never": "Nie"
     },
-    "title": "Task Zwischenspeicher"
+    "title": "Task Status Zwischenspeicher"
   }
 }

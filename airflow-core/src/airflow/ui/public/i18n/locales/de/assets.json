@@ -2,7 +2,7 @@
   "additional_data": "Zusätzliche Daten",
   "asset_many": "Datensets (Assets)",
   "asset_one": "Datenset (Asset)",
-  "assetStore": {
+  "assetStateStore": {
     "add": "Datenset (Asset) Zwischenspeicher hinzufügen",
     "clearAll": {
       "resource": "alle Datenset (Asset) Zwischenspeicher",
