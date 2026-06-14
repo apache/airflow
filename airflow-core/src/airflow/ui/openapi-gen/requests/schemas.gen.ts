@@ -7651,7 +7651,8 @@ export const $TriggerResponse = {
         },
         kwargs: {
             type: 'string',
-            title: 'Kwargs'
+            title: 'Kwargs',
+            deprecated: true
         },
         created_date: {
             type: 'string',
