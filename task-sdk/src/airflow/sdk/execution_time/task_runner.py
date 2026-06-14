@@ -2342,16 +2342,19 @@ def finalize(
             # Promote the state to FAILED, replace any pending RetryTask with TaskState(FAILED),
             # and run the failure-path finalizers. See #60172.
             log.info("AirflowFailException raised in on_retry_callback; failing task without retry")
+
             state = TaskInstanceState.FAILED
             ti.state = state
             error = fail_exc
             context["exception"] = fail_exc
             ti.end_date = datetime.now(tz=timezone.utc)
+
             msg = TaskState(
                 state=TaskInstanceState.FAILED,
                 end_date=ti.end_date,
                 rendered_map_index=ti.rendered_map_index,
             )
+
             _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
             _handle_failure_notifications(
                 task=task,
