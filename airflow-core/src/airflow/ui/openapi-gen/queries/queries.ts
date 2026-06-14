@@ -1,8 +1,8 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
-import { AssetService, AssetStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { AssetStoreBody, BackfillPostBody, BulkBody_BulkDAGRunBody_, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, BulkDAGRunClearBody, ClearTaskInstancesBody, ConnectionBody, ConnectionTestRequestBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, GenerateTokenBody, MaterializeAssetBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TaskStoreBody, TaskStorePatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetStateStoreBody, BackfillPostBody, BulkBody_BulkDAGRunBody_, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, BulkDAGRunClearBody, ClearTaskInstancesBody, ConnectionBody, ConnectionTestRequestBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, GenerateTokenBody, MaterializeAssetBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TaskStateStoreBody, TaskStateStorePatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -1491,36 +1491,36 @@ export const useProviderServiceGetProviders = <TData = Common.ProviderServiceGet
   offset?: number;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }, queryKey), queryFn: () => ProviderService.getProviders({ limit, offset }) as TData, ...options });
 /**
-* List Asset Store
-* List all store entries for an asset.
+* List Asset State Store
+* List all state store entries for an asset.
 * @param data The data for the request.
 * @param data.assetId
 * @param data.limit
 * @param data.offset
-* @returns AssetStoreCollectionResponse Successful Response
+* @returns AssetStateStoreCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useAssetStoreServiceListAssetStore = <TData = Common.AssetStoreServiceListAssetStoreDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, limit, offset }: {
+export const useAssetStateStoreServiceListAssetStateStore = <TData = Common.AssetStateStoreServiceListAssetStateStoreDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, limit, offset }: {
   assetId: number;
   limit?: number;
   offset?: number;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetStoreServiceListAssetStoreKeyFn({ assetId, limit, offset }, queryKey), queryFn: () => AssetStoreService.listAssetStore({ assetId, limit, offset }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetStateStoreServiceListAssetStateStoreKeyFn({ assetId, limit, offset }, queryKey), queryFn: () => AssetStateStoreService.listAssetStateStore({ assetId, limit, offset }) as TData, ...options });
 /**
-* Get Asset Store
-* Get a single asset store entry.
+* Get Asset State Store
+* Get a single asset state store entry.
 * @param data The data for the request.
 * @param data.key
 * @param data.assetId
-* @returns AssetStoreResponse Successful Response
+* @returns AssetStateStoreResponse Successful Response
 * @throws ApiError
 */
-export const useAssetStoreServiceGetAssetStore = <TData = Common.AssetStoreServiceGetAssetStoreDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, key }: {
+export const useAssetStateStoreServiceGetAssetStateStore = <TData = Common.AssetStateStoreServiceGetAssetStateStoreDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, key }: {
   assetId: number;
   key: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetStoreServiceGetAssetStoreKeyFn({ assetId, key }, queryKey), queryFn: () => AssetStoreService.getAssetStore({ assetId, key }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetStateStoreServiceGetAssetStateStoreKeyFn({ assetId, key }, queryKey), queryFn: () => AssetStateStoreService.getAssetStateStore({ assetId, key }) as TData, ...options });
 /**
-* List Task Store
-* List all task store entries for a task instance.
+* List Task State Store
+* List all task state store entries for a task instance.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -1528,36 +1528,36 @@ export const useAssetStoreServiceGetAssetStore = <TData = Common.AssetStoreServi
 * @param data.mapIndex
 * @param data.limit
 * @param data.offset
-* @returns TaskStoreCollectionResponse Successful Response
+* @returns TaskStateStoreCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useTaskStoreServiceListTaskStore = <TData = Common.TaskStoreServiceListTaskStoreDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, limit, mapIndex, offset, taskId }: {
+export const useTaskStateStoreServiceListTaskStateStore = <TData = Common.TaskStateStoreServiceListTaskStateStoreDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, limit, mapIndex, offset, taskId }: {
   dagId: string;
   dagRunId: string;
   limit?: number;
   mapIndex?: number;
   offset?: number;
   taskId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskStoreServiceListTaskStoreKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId }, queryKey), queryFn: () => TaskStoreService.listTaskStore({ dagId, dagRunId, limit, mapIndex, offset, taskId }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskStateStoreServiceListTaskStateStoreKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId }, queryKey), queryFn: () => TaskStateStoreService.listTaskStateStore({ dagId, dagRunId, limit, mapIndex, offset, taskId }) as TData, ...options });
 /**
-* Get Task Store
-* Get a single task store entry.
+* Get Task State Store
+* Get a single task state store entry.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
 * @param data.key
 * @param data.mapIndex
-* @returns TaskStoreResponse Successful Response
+* @returns TaskStateStoreResponse Successful Response
 * @throws ApiError
 */
-export const useTaskStoreServiceGetTaskStore = <TData = Common.TaskStoreServiceGetTaskStoreDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, key, mapIndex, taskId }: {
+export const useTaskStateStoreServiceGetTaskStateStore = <TData = Common.TaskStateStoreServiceGetTaskStateStoreDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, key, mapIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   key: string;
   mapIndex?: number;
   taskId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskStoreServiceGetTaskStoreKeyFn({ dagId, dagRunId, key, mapIndex, taskId }, queryKey), queryFn: () => TaskStoreService.getTaskStore({ dagId, dagRunId, key, mapIndex, taskId }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskStateStoreServiceGetTaskStateStoreKeyFn({ dagId, dagRunId, key, mapIndex, taskId }, queryKey), queryFn: () => TaskStateStoreService.getTaskStateStore({ dagId, dagRunId, key, mapIndex, taskId }) as TData, ...options });
 /**
 * Get Xcom Entry
 * Get an XCom entry.
@@ -2433,8 +2433,8 @@ export const useBackfillServiceCancelBackfill = <TData = Common.BackfillServiceC
   backfillId: number;
 }, TContext>({ mutationFn: ({ backfillId }) => BackfillService.cancelBackfill({ backfillId }) as unknown as Promise<TData>, ...options });
 /**
-* Set Asset Store
-* Set an asset store value. Creates or overwrites the key.
+* Set Asset State Store
+* Set an asset state store value. Creates or overwrites the key.
 * @param data The data for the request.
 * @param data.key
 * @param data.assetId
@@ -2442,18 +2442,18 @@ export const useBackfillServiceCancelBackfill = <TData = Common.BackfillServiceC
 * @returns void Successful Response
 * @throws ApiError
 */
-export const useAssetStoreServiceSetAssetStore = <TData = Common.AssetStoreServiceSetAssetStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+export const useAssetStateStoreServiceSetAssetStateStore = <TData = Common.AssetStateStoreServiceSetAssetStateStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   assetId: number;
   key: string;
-  requestBody: AssetStoreBody;
+  requestBody: AssetStateStoreBody;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   assetId: number;
   key: string;
-  requestBody: AssetStoreBody;
-}, TContext>({ mutationFn: ({ assetId, key, requestBody }) => AssetStoreService.setAssetStore({ assetId, key, requestBody }) as unknown as Promise<TData>, ...options });
+  requestBody: AssetStateStoreBody;
+}, TContext>({ mutationFn: ({ assetId, key, requestBody }) => AssetStateStoreService.setAssetStateStore({ assetId, key, requestBody }) as unknown as Promise<TData>, ...options });
 /**
-* Set Task Store
-* Set a task store value. Creates or overwrites the key.
+* Set Task State Store
+* Set a task state store value. Creates or overwrites the key.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -2464,21 +2464,21 @@ export const useAssetStoreServiceSetAssetStore = <TData = Common.AssetStoreServi
 * @returns void Successful Response
 * @throws ApiError
 */
-export const useTaskStoreServiceSetTaskStore = <TData = Common.TaskStoreServiceSetTaskStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+export const useTaskStateStoreServiceSetTaskStateStore = <TData = Common.TaskStateStoreServiceSetTaskStateStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   dagId: string;
   dagRunId: string;
   key: string;
   mapIndex?: number;
-  requestBody: TaskStoreBody;
+  requestBody: TaskStateStoreBody;
   taskId: string;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   dagId: string;
   dagRunId: string;
   key: string;
   mapIndex?: number;
-  requestBody: TaskStoreBody;
+  requestBody: TaskStateStoreBody;
   taskId: string;
-}, TContext>({ mutationFn: ({ dagId, dagRunId, key, mapIndex, requestBody, taskId }) => TaskStoreService.setTaskStore({ dagId, dagRunId, key, mapIndex, requestBody, taskId }) as unknown as Promise<TData>, ...options });
+}, TContext>({ mutationFn: ({ dagId, dagRunId, key, mapIndex, requestBody, taskId }) => TaskStateStoreService.setTaskStateStore({ dagId, dagRunId, key, mapIndex, requestBody, taskId }) as unknown as Promise<TData>, ...options });
 /**
 * Reparse Dag File
 * Request re-parsing a Dag file.
@@ -2866,8 +2866,8 @@ export const usePoolServiceBulkPools = <TData = Common.PoolServiceBulkPoolsMutat
   requestBody: BulkBody_PoolBody_;
 }, TContext>({ mutationFn: ({ requestBody }) => PoolService.bulkPools({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
-* Patch Task Store
-* Update the value of an existing task store key.
+* Patch Task State Store
+* Update the value of an existing task state store key.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -2878,21 +2878,21 @@ export const usePoolServiceBulkPools = <TData = Common.PoolServiceBulkPoolsMutat
 * @returns unknown Successful Response
 * @throws ApiError
 */
-export const useTaskStoreServicePatchTaskStore = <TData = Common.TaskStoreServicePatchTaskStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+export const useTaskStateStoreServicePatchTaskStateStore = <TData = Common.TaskStateStoreServicePatchTaskStateStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   dagId: string;
   dagRunId: string;
   key: string;
   mapIndex?: number;
-  requestBody: TaskStorePatchBody;
+  requestBody: TaskStateStorePatchBody;
   taskId: string;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   dagId: string;
   dagRunId: string;
   key: string;
   mapIndex?: number;
-  requestBody: TaskStorePatchBody;
+  requestBody: TaskStateStorePatchBody;
   taskId: string;
-}, TContext>({ mutationFn: ({ dagId, dagRunId, key, mapIndex, requestBody, taskId }) => TaskStoreService.patchTaskStore({ dagId, dagRunId, key, mapIndex, requestBody, taskId }) as unknown as Promise<TData>, ...options });
+}, TContext>({ mutationFn: ({ dagId, dagRunId, key, mapIndex, requestBody, taskId }) => TaskStateStoreService.patchTaskStateStore({ dagId, dagRunId, key, mapIndex, requestBody, taskId }) as unknown as Promise<TData>, ...options });
 /**
 * Update Xcom Entry
 * Update an existing XCom entry.
@@ -3078,39 +3078,39 @@ export const usePoolServiceDeletePool = <TData = Common.PoolServiceDeletePoolMut
   poolName: string;
 }, TContext>({ mutationFn: ({ poolName }) => PoolService.deletePool({ poolName }) as unknown as Promise<TData>, ...options });
 /**
-* Clear Asset Store
-* Delete all store keys for an asset.
+* Clear Asset State Store
+* Delete all state store keys for an asset.
 * @param data The data for the request.
 * @param data.assetId
 * @returns void Successful Response
 * @throws ApiError
 */
-export const useAssetStoreServiceClearAssetStore = <TData = Common.AssetStoreServiceClearAssetStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+export const useAssetStateStoreServiceClearAssetStateStore = <TData = Common.AssetStateStoreServiceClearAssetStateStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   assetId: number;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   assetId: number;
-}, TContext>({ mutationFn: ({ assetId }) => AssetStoreService.clearAssetStore({ assetId }) as unknown as Promise<TData>, ...options });
+}, TContext>({ mutationFn: ({ assetId }) => AssetStateStoreService.clearAssetStateStore({ assetId }) as unknown as Promise<TData>, ...options });
 /**
-* Delete Asset Store
-* Delete a single asset store key. No-op if the key does not exist.
+* Delete Asset State Store
+* Delete a single asset state store key. No-op if the key does not exist.
 * @param data The data for the request.
 * @param data.key
 * @param data.assetId
 * @returns void Successful Response
 * @throws ApiError
 */
-export const useAssetStoreServiceDeleteAssetStore = <TData = Common.AssetStoreServiceDeleteAssetStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+export const useAssetStateStoreServiceDeleteAssetStateStore = <TData = Common.AssetStateStoreServiceDeleteAssetStateStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   assetId: number;
   key: string;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   assetId: number;
   key: string;
-}, TContext>({ mutationFn: ({ assetId, key }) => AssetStoreService.deleteAssetStore({ assetId, key }) as unknown as Promise<TData>, ...options });
+}, TContext>({ mutationFn: ({ assetId, key }) => AssetStateStoreService.deleteAssetStateStore({ assetId, key }) as unknown as Promise<TData>, ...options });
 /**
-* Clear Task Store
-* Delete all task store keys for a task instance.
+* Clear Task State Store
+* Delete all task state store keys for a task instance.
 *
-* When ``all_map_indices=true``, store is cleared for every map index of the task and
+* When ``all_map_indices=true``, state store is cleared for every map index of the task and
 * the ``map_index`` parameter is ignored.
 * @param data The data for the request.
 * @param data.dagId
@@ -3121,7 +3121,7 @@ export const useAssetStoreServiceDeleteAssetStore = <TData = Common.AssetStoreSe
 * @returns void Successful Response
 * @throws ApiError
 */
-export const useTaskStoreServiceClearTaskStore = <TData = Common.TaskStoreServiceClearTaskStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+export const useTaskStateStoreServiceClearTaskStateStore = <TData = Common.TaskStateStoreServiceClearTaskStateStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   allMapIndices?: boolean;
   dagId: string;
   dagRunId: string;
@@ -3133,10 +3133,10 @@ export const useTaskStoreServiceClearTaskStore = <TData = Common.TaskStoreServic
   dagRunId: string;
   mapIndex?: number;
   taskId: string;
-}, TContext>({ mutationFn: ({ allMapIndices, dagId, dagRunId, mapIndex, taskId }) => TaskStoreService.clearTaskStore({ allMapIndices, dagId, dagRunId, mapIndex, taskId }) as unknown as Promise<TData>, ...options });
+}, TContext>({ mutationFn: ({ allMapIndices, dagId, dagRunId, mapIndex, taskId }) => TaskStateStoreService.clearTaskStateStore({ allMapIndices, dagId, dagRunId, mapIndex, taskId }) as unknown as Promise<TData>, ...options });
 /**
-* Delete Task Store
-* Delete a single task store key. No-op if the key does not exist.
+* Delete Task State Store
+* Delete a single task state store key. No-op if the key does not exist.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -3146,7 +3146,7 @@ export const useTaskStoreServiceClearTaskStore = <TData = Common.TaskStoreServic
 * @returns void Successful Response
 * @throws ApiError
 */
-export const useTaskStoreServiceDeleteTaskStore = <TData = Common.TaskStoreServiceDeleteTaskStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+export const useTaskStateStoreServiceDeleteTaskStateStore = <TData = Common.TaskStateStoreServiceDeleteTaskStateStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   dagId: string;
   dagRunId: string;
   key: string;
@@ -3158,7 +3158,7 @@ export const useTaskStoreServiceDeleteTaskStore = <TData = Common.TaskStoreServi
   key: string;
   mapIndex?: number;
   taskId: string;
-}, TContext>({ mutationFn: ({ dagId, dagRunId, key, mapIndex, taskId }) => TaskStoreService.deleteTaskStore({ dagId, dagRunId, key, mapIndex, taskId }) as unknown as Promise<TData>, ...options });
+}, TContext>({ mutationFn: ({ dagId, dagRunId, key, mapIndex, taskId }) => TaskStateStoreService.deleteTaskStateStore({ dagId, dagRunId, key, mapIndex, taskId }) as unknown as Promise<TData>, ...options });
 /**
 * Delete Xcom Entry
 * Delete an XCom entry.
