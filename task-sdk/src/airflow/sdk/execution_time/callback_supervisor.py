@@ -47,12 +47,14 @@ from airflow.sdk.execution_time.comms import (
     GetDagRun,
     GetVariable,
     GetVariableKeys,
+    GetXCom,
     MaskSecret,
 )
 from airflow.sdk.execution_time.request_handlers import (
     handle_get_connection,
     handle_get_variable,
     handle_get_variable_keys,
+    handle_get_xcom,
     handle_mask_secret,
 )
 from airflow.sdk.execution_time.supervisor import (
@@ -102,11 +104,11 @@ class CallbackContextFetchError(RuntimeError):
 
 
 # The set of messages that a callback subprocess can send to the supervisor.
-# This is a minimal subset of ToSupervisor: read-only access to Connections
-# and Variables, plus MaskSecret for the secrets masker, plus GetDagRun for
-# building context from DagRun identifiers.
+# This is a minimal subset of ToSupervisor: read-only access to Connections,
+# Variables, and XCom values, plus MaskSecret for the secrets masker, plus
+# GetDagRun for building context from DagRun identifiers.
 CallbackToSupervisor = Annotated[
-    GetConnection | GetDagRun | GetVariable | GetVariableKeys | MaskSecret,
+    GetConnection | GetDagRun | GetVariable | GetVariableKeys | GetXCom | MaskSecret,
     Field(discriminator="type"),
 ]
 
@@ -220,9 +222,10 @@ class CallbackSubprocess(WatchedSubprocess):
     Uses the WatchedSubprocess infrastructure for fork/monitor/signal handling
     while keeping a simple lifecycle: start, run callback, exit.
 
-    Provides a limited set of comms channels (Connections and Variables) so
-    that callback code can access runtime services like
-    ``Connection.get()`` and ``Variable.get()`` via the supervisor's API client.
+    Provides a limited set of comms channels (Connections, Variables, and XCom)
+    so that callback code can access runtime services like
+    ``Connection.get()``, ``Variable.get()``, and ``XCom.get()`` via the
+    supervisor's API client.
     """
 
     client: Client  # The HTTP client to use for communication with the API server.
@@ -435,6 +438,8 @@ class CallbackSubprocess(WatchedSubprocess):
             resp, dump_opts = handle_get_variable(self.client, msg)
         elif isinstance(msg, GetVariableKeys):
             resp, dump_opts = handle_get_variable_keys(self.client, msg)
+        elif isinstance(msg, GetXCom):
+            resp, dump_opts = handle_get_xcom(self.client, msg)
         elif isinstance(msg, MaskSecret):
             handle_mask_secret(msg)
         else:

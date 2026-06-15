@@ -33,7 +33,7 @@ import structlog
 
 from airflow.sdk._shared.template_rendering import render_callback_kwargs
 from airflow.sdk._shared.timezones import timezone
-from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, DagRunType
+from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, DagRunType, XComResponse
 from airflow.sdk.execution_time.callback_supervisor import (
     CALLBACK_CONTEXT_FETCH_EXIT_CODE,
     CallbackContextFetchError,
@@ -43,8 +43,17 @@ from airflow.sdk.execution_time.callback_supervisor import (
     supervise_callback,
 )
 from airflow.sdk.execution_time.comms import (
+    BundleInfo,
+    ConnectionResult,
     ErrorResponse,
+    GetConnection,
     GetDagRun,
+    GetVariable,
+    GetVariableKeys,
+    GetXCom,
+    MaskSecret,
+    VariableKeysResult,
+    VariableResult,
     _RequestFrame,
 )
 
@@ -171,6 +180,70 @@ class TestCallbackHandleRequest:
                 args=("test_dag", "test_run"),
                 response=_MOCK_DAG_RUN,
             ),
+        ),
+        RequestCase(
+            message=GetConnection(conn_id="test_conn"),
+            test_id="get_connection_with_password",
+            client_mock=ClientMock(
+                method_path="connections.get",
+                args=("test_conn",),
+                response=ConnectionResult(conn_id="test_conn", conn_type="mysql", password="secret"),
+            ),
+            mask_secret_args=("secret",),
+        ),
+        RequestCase(
+            message=GetVariable(key="test_key"),
+            test_id="get_variable",
+            client_mock=ClientMock(
+                method_path="variables.get",
+                args=("test_key",),
+                response=VariableResult(key="test_key", value="test_value"),
+            ),
+        ),
+        RequestCase(
+            message=GetVariableKeys(prefix="test_"),
+            test_id="get_variable_keys",
+            client_mock=ClientMock(
+                method_path="variables.keys",
+                kwargs={"prefix": "test_", "limit": 1000, "offset": 0},
+                response=VariableKeysResult(keys=["test_key"], total_entries=1),
+            ),
+        ),
+        RequestCase(
+            message=GetXCom(
+                key="return_value",
+                dag_id="test_dag",
+                run_id="test_run_1",
+                task_id="upstream_task",
+                map_index=None,
+            ),
+            test_id="get_xcom",
+            client_mock=ClientMock(
+                method_path="xcoms.get",
+                args=("test_dag", "test_run_1", "upstream_task", "return_value", None, False),
+                response=XComResponse(key="return_value", value="xcom_payload"),
+            ),
+        ),
+        RequestCase(
+            message=GetXCom(
+                key="custom_key",
+                dag_id="dag_a",
+                run_id="run_42",
+                task_id="task_b",
+                map_index=3,
+                include_prior_dates=True,
+            ),
+            test_id="get_xcom_with_map_index",
+            client_mock=ClientMock(
+                method_path="xcoms.get",
+                args=("dag_a", "run_42", "task_b", "custom_key", 3, True),
+                response=XComResponse(key="custom_key", value={"nested": "data"}),
+            ),
+        ),
+        RequestCase(
+            message=MaskSecret(value="super_secret", name="api_key"),
+            test_id="mask_secret",
+            mask_secret_args=("super_secret", "api_key"),
         ),
     ]
 
