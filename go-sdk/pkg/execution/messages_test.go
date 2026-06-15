@@ -427,7 +427,7 @@ func TestRetryTaskMsgToMap(t *testing.T) {
 	msg := RetryTaskMsg{EndDate: endDate, Reason: "test error"}
 	m := msg.toMap()
 	assert.Equal(t, "RetryTask", m["type"])
-	assert.Equal(t, "test error", m["reason"])
+	assert.Equal(t, "test error", m["retry_reason"])
 	assert.Equal(t, "2024-01-15T10:30:00Z", m["end_date"])
 }
 

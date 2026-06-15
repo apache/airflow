@@ -131,7 +131,7 @@ func TestTaskRunnerRetry(t *testing.T) {
 
 	result := RunTask(context.Background(), bundle, details, comm, logger)
 	assert.Equal(t, "RetryTask", result["type"])
-	assert.Equal(t, "task failed intentionally", result["reason"])
+	assert.Equal(t, "task failed intentionally", result["retry_reason"])
 }
 
 func TestTaskRunnerTaskNotFound(t *testing.T) {
@@ -206,7 +206,7 @@ func TestTaskRunnerPanicRetry(t *testing.T) {
 
 	result := RunTask(context.Background(), bundle, details, comm, logger)
 	assert.Equal(t, "RetryTask", result["type"])
-	assert.Contains(t, result["reason"], "panic: something went wrong")
+	assert.Contains(t, result["retry_reason"], "panic: something went wrong")
 }
 
 func TestRunTaskHonorsContextCancellation(t *testing.T) {

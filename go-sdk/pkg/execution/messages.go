@@ -404,9 +404,9 @@ type RetryTaskMsg struct {
 
 func (m RetryTaskMsg) toMap() map[string]any {
 	return map[string]any{
-		"type":     "RetryTask",
-		"end_date": m.EndDate.UTC().Format(time.RFC3339Nano),
-		"reason":   m.Reason,
+		"type":         "RetryTask",
+		"end_date":     m.EndDate.UTC().Format(time.RFC3339Nano),
+		"retry_reason": m.Reason,
 	}
 }
 
