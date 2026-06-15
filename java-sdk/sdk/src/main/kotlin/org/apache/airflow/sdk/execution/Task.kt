@@ -36,6 +36,7 @@ internal object TaskResult {
     outletEvents: List<Map<String, Any?>> = emptyList(),
     renderedMapIndex: String? = null,
   ) = SucceedTask().also {
+    it.state = "success"
     it.endDate = endDate
     it.taskOutlets = taskOutlets
     it.outletEvents = outletEvents
