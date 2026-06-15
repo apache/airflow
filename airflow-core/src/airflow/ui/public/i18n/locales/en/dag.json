@@ -91,10 +91,6 @@
     "critical": "CRITICAL",
     "debug": "DEBUG",
     "error": "ERROR",
-    "fullscreen": {
-      "button": "Full screen",
-      "tooltip": "Press {{hotkey}} for fullscreen"
-    },
     "info": "INFO",
     "noTryNumber": "No try number",
     "search": {
