@@ -551,7 +551,7 @@ def _get_info_list(
         now = timezone.utcnow()
         dagrun_info_list = [x for x in infos if x.data_interval and x.data_interval.end < now]
     else:
-        dagrun_info_list = infos
+        dagrun_info_list = list(infos)
     if reverse:
         dagrun_info_list = list(reversed(dagrun_info_list))
     return dagrun_info_list
