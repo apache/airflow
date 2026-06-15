@@ -242,6 +242,28 @@ you might want to attach ``SqlJobFacet`` if your Operator is executing SQL.
 
 To learn more about facets in OpenLineage see :ref:`configuration_custom_facets:openlineage`.
 
+Dag source code location
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+The OpenLineage provider emits the OpenLineage ``sourceCodeLocation`` job facet when a Dag defines ``source_code_location``.
+The facet is included on Dag-run events and on task events emitted for tasks in that Dag.
+
+.. code-block:: python
+
+    from airflow.sdk import DAG, SourceCodeLocation
+
+    with DAG(
+        dag_id="example_operator",
+        schedule="@once",
+        source_code_location=SourceCodeLocation(
+            repo_url="https://github.com/apache/airflow.git",
+            path="dags/example_operator.py",
+            version="abc123",
+            branch="main",
+        ),
+    ):
+        ...
+
 Registering Custom Extractor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

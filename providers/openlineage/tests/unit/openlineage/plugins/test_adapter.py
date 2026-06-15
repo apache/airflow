@@ -36,6 +36,7 @@ from openlineage.client.facet_v2 import (
     ownership_job,
     parent_run,
     processing_engine_run,
+    source_code_location_job,
     sql_job,
     tags_job,
 )
@@ -1258,6 +1259,11 @@ def test_emit_dag_complete_event(
 
     mocked_fetch_tis.return_value = [ti0, ti1, ti2]
     build_ol_id.return_value = random_uuid
+    job_facets = {
+        "sourceCodeLocation": source_code_location_job.SourceCodeLocationJobFacet(
+            type="git", url="https://github.com/apache/airflow.git"
+        )
+    }
 
     adapter.dag_success(
         dag_id=dag_id,
@@ -1274,6 +1280,7 @@ def test_emit_dag_complete_event(
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
         is_asset_triggered=False,
+        job_facets=job_facets,
         run_facets={
             "parent": parent_run.ParentRunFacet(
                 run=parent_run.Run(runId=random_uuid),
@@ -1348,6 +1355,7 @@ def test_emit_dag_complete_event(
                     "jobType": job_type_job.JobTypeJobFacet(
                         processingType="BATCH", integration="AIRFLOW", jobType="DAG"
                     ),
+                    **job_facets,
                 },
             ),
             producer=_PRODUCER,
@@ -1425,6 +1433,11 @@ def test_emit_dag_failed_event(
     mocked_fetch_tis.return_value = [ti0, ti1, ti2]
 
     build_ol_id.return_value = random_uuid
+    job_facets = {
+        "sourceCodeLocation": source_code_location_job.SourceCodeLocationJobFacet(
+            type="git", url="https://github.com/apache/airflow.git"
+        )
+    }
 
     adapter.dag_failed(
         dag_id=dag_id,
@@ -1441,6 +1454,7 @@ def test_emit_dag_failed_event(
         job_description_type="text/plain",
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
+        job_facets=job_facets,
         run_facets={
             "parent": parent_run.ParentRunFacet(
                 run=parent_run.Run(runId=random_uuid),
@@ -1519,6 +1533,7 @@ def test_emit_dag_failed_event(
                     "jobType": job_type_job.JobTypeJobFacet(
                         processingType="BATCH", integration="AIRFLOW", jobType="DAG"
                     ),
+                    **job_facets,
                 },
             ),
             producer=_PRODUCER,

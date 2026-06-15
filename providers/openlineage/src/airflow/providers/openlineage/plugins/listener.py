@@ -51,6 +51,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_dag_parent_run_facet,
     get_dag_run_dag_and_task_from_ti,
     get_job_name,
+    get_source_code_location_job_facet,
     get_task_documentation,
     get_task_parent_run_facet,
     get_user_provided_run_facets,
@@ -1089,7 +1090,10 @@ class OpenLineageListener:
                 tags=dag_run.dag.tags if dag_run.dag else [],
                 # AirflowJobFacet should be created outside ProcessPoolExecutor that pickles objects,
                 # as it causes lack of some TaskGroup attributes and crashes event emission.
-                job_facets=get_airflow_job_facet(dag_run=dag_run),
+                job_facets={
+                    **get_airflow_job_facet(dag_run=dag_run),
+                    **get_source_code_location_job_facet(dag_run.dag),
+                },
                 run_facets={
                     **get_airflow_dag_run_facet(dag_run),
                     **get_dag_parent_run_facet(getattr(dag_run, "conf", {})),
@@ -1146,6 +1150,7 @@ class OpenLineageListener:
                     **get_airflow_dag_run_facet(dag_run),
                     **get_dag_parent_run_facet(getattr(dag_run, "conf", {})),
                 },
+                job_facets=get_source_code_location_job_facet(dag_run.dag),
                 is_asset_triggered=is_dag_run_asset_triggered(dag_run),
             )
         except BaseException as e:
@@ -1195,6 +1200,7 @@ class OpenLineageListener:
                 dag_run_state=dag_run.get_state(),
                 task_ids=task_ids,
                 msg=msg,
+                job_facets=get_source_code_location_job_facet(dag_run.dag),
                 run_facets={
                     **get_airflow_dag_run_facet(dag_run),
                     **get_dag_parent_run_facet(getattr(dag_run, "conf", {})),

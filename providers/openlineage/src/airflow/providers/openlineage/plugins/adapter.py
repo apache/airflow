@@ -475,6 +475,7 @@ class OpenLineageAdapter(LoggingMixin):
         job_description: str | None,
         is_asset_triggered: bool,
         job_description_type: str | None = None,
+        job_facets: dict[str, JobFacet] | None = None,  # Custom job facets
     ):
         try:
             job_dependency_facet = {}
@@ -488,6 +489,7 @@ class OpenLineageAdapter(LoggingMixin):
                     job_type=_JOB_TYPE_DAG,
                     job_owners=owners,
                     job_tags=tags,
+                    job_facets=job_facets,
                     job_description=job_description,
                     job_description_type=job_description_type,
                 ),
@@ -533,6 +535,7 @@ class OpenLineageAdapter(LoggingMixin):
         job_description: str | None,
         is_asset_triggered: bool,
         job_description_type: str | None = None,
+        job_facets: dict[str, JobFacet] | None = None,  # Custom job facets
     ):
         try:
             job_dependency_facet = {}
@@ -546,6 +549,7 @@ class OpenLineageAdapter(LoggingMixin):
                     job_type=_JOB_TYPE_DAG,
                     job_owners=owners,
                     job_tags=tags,
+                    job_facets=job_facets,
                     job_description=job_description,
                     job_description_type=job_description_type,
                 ),
