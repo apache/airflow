@@ -128,7 +128,7 @@ string that identifies the schema revision.
 The schema evolves over time, so the SDK must tell the supervisor what API
 version it was built against for this bridging to work. How the target-language
 SDK uses ``schema.json`` to generate or validate its message types is covered in
-`Language SDK`_ below.
+`Language SDK (target language)`_ below.
 
 Adding a new coordinator class
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
