@@ -954,7 +954,7 @@ class TestSparkSubmitOperatorK8sTracking:
     def test_k8s_get_job_status_returns_k8s_driver_status(self):
         operator = self._make_operator(track_driver_via_k8s_api=True)
         operator._hook = self._make_k8s_hook()
-        task_store = FakeTaskState({"k8s_driver_status": "Succeeded"})
+        task_store = FakeTaskStateStore({"k8s_driver_status": "Succeeded"})
 
         with mock.patch("airflow.providers.apache.spark.operators.spark_submit.kube_client") as mock_kube:
             result = operator.get_job_status("mynamespace:spark-abc-driver", {"task_state_store": task_store})
@@ -965,7 +965,7 @@ class TestSparkSubmitOperatorK8sTracking:
     def test_k8s_get_job_status_queries_k8s_api_when_no_k8s_driver_status(self):
         operator = self._make_operator(track_driver_via_k8s_api=True)
         operator._hook = self._make_k8s_hook()
-        task_store = FakeTaskState()
+        task_store = FakeTaskStateStore()
 
         mock_pod = MagicMock()
         mock_pod.status.phase = "Running"
@@ -1033,7 +1033,7 @@ class TestSparkSubmitOperatorK8sTracking:
         hook = self._make_k8s_hook()
         hook._poll_k8s_driver_via_api.return_value = "Succeeded"
         operator._hook = hook
-        task_store = FakeTaskState()
+        task_store = FakeTaskStateStore()
 
         operator.poll_until_complete("mynamespace:spark-abc-driver", {"task_state_store": task_store})
 
@@ -1044,7 +1044,7 @@ class TestSparkSubmitOperatorK8sTracking:
         hook = self._make_k8s_hook()
         hook._poll_k8s_driver_via_api.return_value = "Succeeded"
         operator._hook = hook
-        task_store = FakeTaskState()
+        task_store = FakeTaskStateStore()
 
         operator.poll_until_complete("mynamespace:spark-abc-driver", {"task_state_store": task_store})
 
@@ -1055,7 +1055,7 @@ class TestSparkSubmitOperatorK8sTracking:
         hook = self._make_k8s_hook()
         hook._poll_k8s_driver_via_api.side_effect = RuntimeError("Spark application failed (phase=Failed)")
         operator._hook = hook
-        task_store = FakeTaskState()
+        task_store = FakeTaskStateStore()
 
         with pytest.raises(RuntimeError, match="phase=Failed"):
             operator.poll_until_complete("mynamespace:spark-abc-driver", {"task_state_store": task_store})
@@ -1079,7 +1079,7 @@ class TestSparkSubmitOperatorK8sTracking:
         hook._kubernetes_driver_pod = "spark-abc-driver"
         hook._connection = {"namespace": "mynamespace"}
         operator._hook = hook
-        task_store = FakeTaskState()
+        task_store = FakeTaskStateStore()
         persisted_before_poll: list[str | None] = []
 
         def track_poll(external_id, context):
@@ -1102,7 +1102,7 @@ class TestSparkSubmitOperatorK8sTracking:
         hook._kubernetes_driver_pod = "spark-abc-driver"
         hook._connection = {"namespace": "mynamespace"}
         operator._hook = hook
-        task_store = FakeTaskState()
+        task_store = FakeTaskStateStore()
 
         operator.poll_until_complete = lambda external_id, context: None
 
