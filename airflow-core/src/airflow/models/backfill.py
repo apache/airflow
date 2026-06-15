@@ -546,7 +546,7 @@ def _get_info_list(
     reverse: bool,
     dag: SerializedDAG,
 ) -> list[DagRunInfo]:
-    infos = list(dag.iter_dagrun_infos_between(from_date, to_date))
+    infos = dag.iter_dagrun_infos_between(from_date, to_date)
     if not dag.timetable.partitioned:
         now = timezone.utcnow()
         dagrun_info_list = [x for x in infos if x.data_interval and x.data_interval.end < now]
