@@ -236,23 +236,23 @@ async def test_subclass_filter_shared_stream_applies_per_instance_match():
     assert [p["region"] for p in payloads] == ["us", "us"]
 
 
-def test_base_event_trigger_asset_store_initialized_to_none():
-    """asset_store is None before it is set."""
+def test_base_event_trigger_asset_state_store_initialized_to_none():
+    """asset_state_store is None before it is set."""
     trigger = _PlainEventTrigger()
-    assert trigger.asset_store is None
+    assert trigger.asset_state_store is None
 
 
-def test_base_event_trigger_asset_store_can_be_set():
-    """asset_store can be set once the Trigger is initialized."""
+def test_base_event_trigger_asset_state_store_can_be_set():
+    """asset_state_store can be set once the Trigger is initialized."""
     trigger = _PlainEventTrigger()
     mock_store = MagicMock()
-    trigger.asset_store = mock_store
-    assert trigger.asset_store is mock_store
+    trigger.asset_state_store = mock_store
+    assert trigger.asset_state_store is mock_store
 
 
-def test_base_event_trigger_asset_store_independent_across_instances():
-    """a.asset_store does not impact b.asset_store."""
+def test_base_event_trigger_asset_state_store_independent_across_instances():
+    """a.asset_state_store does not impact b.asset_state_store."""
     a = _PlainEventTrigger(name="a")
     b = _PlainEventTrigger(name="b")
-    a.asset_store = MagicMock()
-    assert b.asset_store is None
+    a.asset_state_store = MagicMock()
+    assert b.asset_state_store is None

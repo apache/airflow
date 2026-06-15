@@ -90,7 +90,7 @@ from airflow.sdk.execution_time.comms import (
     _new_encoder,
     _RequestFrame,
 )
-from airflow.sdk.execution_time.context import AssetStoreAccessors
+from airflow.sdk.execution_time.context import AssetStateStoreAccessors
 from airflow.sdk.execution_time.request_handlers import (
     handle_delete_variable,
     handle_delete_xcom,
@@ -1296,7 +1296,7 @@ class TriggerRunner:
             trigger_instance.timeout_after = workload.timeout_after
 
             if isinstance(trigger_instance, BaseEventTrigger) and workload.watched_assets:
-                trigger_instance.asset_store = AssetStoreAccessors(
+                trigger_instance.asset_state_store = AssetStateStoreAccessors(
                     inlets=[Asset(name=name, uri=uri) for name, uri in workload.watched_assets.items()]
                 )
 

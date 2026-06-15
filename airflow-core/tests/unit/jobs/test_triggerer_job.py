@@ -75,15 +75,15 @@ from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import DAG, Asset, BaseHook, BaseOperator
 from airflow.sdk.execution_time.comms import (
-    AssetStoreResult,
-    GetAssetStoreByName,
-    SetAssetStoreByName,
+    AssetStateStoreResult,
+    GetAssetStateStoreByName,
+    SetAssetStateStoreByName,
     ToSupervisor,
     ToTask,
     _RequestFrame,
     _ResponseFrame,
 )
-from airflow.sdk.execution_time.context import AssetStoreAccessors
+from airflow.sdk.execution_time.context import AssetStateStoreAccessors
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
@@ -660,10 +660,10 @@ def make_watcher_trigger():
 
 @pytest.mark.asyncio
 @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
-async def test_create_triggers_injects_asset_store_for_base_event_trigger(
+async def test_create_triggers_injects_asset_state_store_for_base_event_trigger(
     mock_get_classpath, session, make_watcher_trigger
 ):
-    """asset_store is populated on BaseEventTrigger instances when watched_assets is set."""
+    """asset_state_store is populated on BaseEventTrigger instances when watched_assets is set."""
     injected_instances = []
     mock_get_classpath.return_value = make_watcher_trigger(injected_instances)
 
@@ -684,8 +684,8 @@ async def test_create_triggers_injects_asset_store_for_base_event_trigger(
     assert 10 in runner.triggers
 
     assert len(injected_instances) == 1
-    assert injected_instances[0].asset_store is not None
-    assert isinstance(injected_instances[0].asset_store, AssetStoreAccessors)
+    assert injected_instances[0].asset_state_store is not None
+    assert isinstance(injected_instances[0].asset_state_store, AssetStateStoreAccessors)
 
     runner.triggers[10]["task"].cancel()
     await runner.cleanup_finished_triggers()
@@ -693,10 +693,10 @@ async def test_create_triggers_injects_asset_store_for_base_event_trigger(
 
 @pytest.mark.asyncio
 @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
-async def test_create_triggers_asset_store_none_when_no_watched_assets(
+async def test_create_triggers_asset_state_store_none_when_no_watched_assets(
     mock_get_classpath, session, make_watcher_trigger
 ):
-    """asset_store stays None when watched_assets is not set on the workload."""
+    """asset_state_store stays None when watched_assets is not set on the workload."""
     injected_instances = []
     mock_get_classpath.return_value = make_watcher_trigger(injected_instances)
 
@@ -714,7 +714,7 @@ async def test_create_triggers_asset_store_none_when_no_watched_assets(
     await runner.create_triggers()
 
     assert len(injected_instances) == 1
-    assert injected_instances[0].asset_store is None
+    assert injected_instances[0].asset_state_store is None
 
     runner.triggers[11]["task"].cancel()
     await runner.cleanup_finished_triggers()
@@ -722,8 +722,8 @@ async def test_create_triggers_asset_store_none_when_no_watched_assets(
 
 @pytest.mark.asyncio
 @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
-async def test_create_triggers_skips_asset_store_for_non_event_trigger(mock_get_classpath, session):
-    """asset_store injection is skipped for plain BaseTrigger (non-BaseEventTrigger) instances."""
+async def test_create_triggers_skips_asset_state_store_for_non_event_trigger(mock_get_classpath, session):
+    """asset_state_store injection is skipped for plain BaseTrigger (non-BaseEventTrigger) instances."""
     mock_get_classpath.return_value = SuccessTrigger
 
     runner = TriggerRunner()
@@ -736,7 +736,7 @@ async def test_create_triggers_skips_asset_store_for_non_event_trigger(mock_get_
     await runner.create_triggers()
 
     assert 12 in runner.triggers
-    assert not hasattr(runner.triggers[12]["task"], "asset_store")
+    assert not hasattr(runner.triggers[12]["task"], "asset_state_store")
 
     runner.triggers[12]["task"].cancel()
     await runner.cleanup_finished_triggers()
@@ -744,10 +744,10 @@ async def test_create_triggers_skips_asset_store_for_non_event_trigger(mock_get_
 
 @pytest.mark.asyncio
 @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
-async def test_create_triggers_asset_store_contains_correct_assets(
+async def test_create_triggers_asset_state_store_contains_correct_assets(
     mock_get_classpath, session, make_watcher_trigger
 ):
-    """AssetStoreAccessors built from watched_assets has entries for all provided name/URI pairs."""
+    """AssetStateStoreAccessors built from watched_assets has entries for all provided name/URI pairs."""
     injected_instances = []
     mock_get_classpath.return_value = make_watcher_trigger(injected_instances)
 
@@ -765,12 +765,12 @@ async def test_create_triggers_asset_store_contains_correct_assets(
     await runner.create_triggers()
 
     assert len(injected_instances) == 1
-    store = injected_instances[0].asset_store
+    state_store = injected_instances[0].asset_state_store
 
-    assert store is not None
-    assert isinstance(store, AssetStoreAccessors)
-    assert store[Asset(name="asset_a", uri="s3://bucket/a")] is not None
-    assert store[Asset(name="asset_b", uri="gs://bucket/b")] is not None
+    assert state_store is not None
+    assert isinstance(state_store, AssetStateStoreAccessors)
+    assert state_store[Asset(name="asset_a", uri="s3://bucket/a")] is not None
+    assert state_store[Asset(name="asset_b", uri="gs://bucket/b")] is not None
 
     runner.triggers[13]["task"].cancel()
     await runner.cleanup_finished_triggers()
@@ -778,10 +778,10 @@ async def test_create_triggers_asset_store_contains_correct_assets(
 
 @pytest.mark.asyncio
 @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
-async def test_create_triggers_asset_store_accessor_reads_and_writes(
+async def test_create_triggers_asset_state_store_accessor_reads_and_writes(
     mock_get_classpath, session, mock_supervisor_comms, make_watcher_trigger
 ):
-    """asset_store accessor sends correct SUPERVISOR_COMMS messages on get() and set()."""
+    """asset_state_store accessor sends correct SUPERVISOR_COMMS messages on get() and set()."""
     injected_instances = []
     mock_get_classpath.return_value = make_watcher_trigger(injected_instances)
 
@@ -799,18 +799,18 @@ async def test_create_triggers_asset_store_accessor_reads_and_writes(
     await runner.create_triggers()
 
     assert len(injected_instances) == 1
-    store = injected_instances[0].asset_store
-    accessor = store[Asset(name="asset_a", uri="s3://bucket/a")]
+    state_store = injected_instances[0].asset_state_store
+    accessor = state_store[Asset(name="asset_a", uri="s3://bucket/a")]
 
-    mock_supervisor_comms.send.return_value = AssetStoreResult(value="2026-01-01")
+    mock_supervisor_comms.send.return_value = AssetStateStoreResult(value="2026-01-01")
     result = accessor.get("watermark")
     assert result == "2026-01-01"
 
-    mock_supervisor_comms.send.assert_called_with(GetAssetStoreByName(name="asset_a", key="watermark"))
+    mock_supervisor_comms.send.assert_called_with(GetAssetStateStoreByName(name="asset_a", key="watermark"))
 
     accessor.set("watermark", "2026-06-11")
     mock_supervisor_comms.send.assert_called_with(
-        SetAssetStoreByName(name="asset_a", key="watermark", value="2026-06-11")
+        SetAssetStateStoreByName(name="asset_a", key="watermark", value="2026-06-11")
     )
 
     runner.triggers[14]["task"].cancel()
