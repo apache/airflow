@@ -95,7 +95,8 @@ class AzureBatchTrigger(BaseTrigger):
         failed_tasks = [
             task.id
             for task in tasks
-            if task.execution_info and task.execution_info.result == batch_models.BatchTaskExecutionResult.FAILURE
+            if task.execution_info
+            and task.execution_info.result == batch_models.BatchTaskExecutionResult.FAILURE
         ]
 
         if failed_tasks:
@@ -124,7 +125,7 @@ class AzureBatchTrigger(BaseTrigger):
 
         try:
             while time.time() <= self.end_time:
-                tasks = await asyncio.to_thread(lambda: list(hook.connection.task.list(self.job_id)))
+                tasks = await asyncio.to_thread(lambda: list(hook.connection.list_tasks(self.job_id)))
 
                 event = self._build_trigger_event(tasks)
 
@@ -145,7 +146,7 @@ class AzureBatchTrigger(BaseTrigger):
 
             # Final check before timeout event in case job completed
             # during the last sleep interval.
-            tasks = await asyncio.to_thread(lambda: list(hook.connection.task.list(self.job_id)))
+            tasks = await asyncio.to_thread(lambda: list(hook.connection.list_tasks(self.job_id)))
 
             event = self._build_trigger_event(tasks)
 

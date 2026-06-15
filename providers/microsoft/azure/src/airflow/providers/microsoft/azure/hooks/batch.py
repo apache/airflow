@@ -116,7 +116,10 @@ class AzureBatchHook(BaseHook):
                 workload_identity_tenant_id=workload_identity_tenant_id,
             )
 
-        batch_client = BatchClient(endpoint=batch_account_url, credential=credential)
+        batch_client = BatchClient(
+            endpoint=batch_account_url,
+            credential=credential,  # type: ignore[arg-type]
+        )
         return batch_client
 
     def configure_pool(
