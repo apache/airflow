@@ -202,6 +202,8 @@ Assets
 
 Timetables
 ----------
+.. autoapiclass:: airflow.sdk.AssetAndTimeSchedule
+
 .. autoapiclass:: airflow.sdk.AssetOrTimeSchedule
 
 .. autoapiclass:: airflow.sdk.CronDataIntervalTimetable
