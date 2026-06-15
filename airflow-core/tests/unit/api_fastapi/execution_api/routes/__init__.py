@@ -14,34 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from fastapi import APIRouter
-from fastapi.responses import JSONResponse
-
-from airflow.api_fastapi.execution_api.deps import DepContainer
-
-router = APIRouter()
-
-
-@router.get("/health")
-def health() -> dict:
-    return {"status": "healthy"}
-
-
-@router.get("/health/ping")
-async def ping(services=DepContainer):
-    ok: list[str] = []
-    failing: dict[str, str] = {}
-    code = 200
-
-    for svc in services.get_pings():
-        try:
-            await svc.aping()
-            ok.append(svc.name)
-        except Exception as e:
-            failing[svc.name] = repr(e)
-            code = 500
-
-    return JSONResponse(content={"ok": ok, "failing": failing}, status_code=code)
