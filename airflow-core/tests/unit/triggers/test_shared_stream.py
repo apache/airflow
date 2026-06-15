@@ -1525,15 +1525,12 @@ async def test_empty_snapshot_advances_in_fanout_order(lane_for, events, expecte
 
 
 @pytest.mark.asyncio
-async def test_producer_advance_exception_is_logged():
-    """When producer.advance raises, the error is logged and the poll group stays alive."""
-    proceed_flag = asyncio.Event()
+async def test_producer_advance_exception_terminates_group():
+    """When producer.advance raises, the error is logged and the whole poll group terminates."""
 
     class _RaisingAdvanceProducer(SharedStreamProducer):
         async def open_stream(self):
             yield ({"msg": "event-1"}, "payload-1")
-            await proceed_flag.wait()
-            yield ({"msg": "event-2"}, "payload-2")
             await asyncio.Event().wait()
 
         async def advance(self, batch):
@@ -1557,9 +1554,7 @@ async def test_producer_advance_exception_is_logged():
 
         # Intercept log.error on the group so we can assert it was called.
         group = manager._groups[key]
-        mock_log_error = MagicMock()
         group.log = MagicMock()
-        group.log.error = mock_log_error
 
         async with _consume_in_background(t1.filter_shared_stream(s1)) as collector:
             # Consume the first event — the filter loop resolves it and schedules advance.
@@ -1569,21 +1564,16 @@ async def test_producer_advance_exception_is_logged():
             # Give the advance pump a tick to run and raise.
             await asyncio.sleep(0.05)
 
-            # log.error must have been called with a message about the failed advance.
-            assert mock_log_error.called, "log.error must be called when producer.advance raises"
-            call_args = mock_log_error.call_args
-            assert "broker advance failed" in call_args[0][0], (
-                f"log.error message must mention 'broker advance failed', got: {call_args[0][0]}"
+            # log.error must have been called with a message about the terminated group.
+            assert group.log.error.called, "log.error must be called when producer.advance raises"
+            call_args = group.log.error.call_args
+            assert "terminating shared-stream group" in call_args[0][0], (
+                f"log.error message must mention 'terminating shared-stream group', got: {call_args[0][0]}"
             )
 
-            # The poll group is still alive — the exception must not have killed it.
-            assert key in manager._groups, "group must survive a producer.advance exception"
-
-            # A second event can still be produced and consumed (the collector
-            # count is cumulative across both events).
-            proceed_flag.set()
-            events2 = await collector.wait_for(2)
-            assert len(events2) == 2
+            # The poll group must be evicted — the advance exception terminates the group.
+            await asyncio.sleep(0.05)
+            assert key not in manager._groups, "group must be evicted after producer.advance exception"
     finally:
         await manager.stop_all()
 
@@ -2516,18 +2506,23 @@ async def test_aclose_called_once_on_terminal_path():
 
 
 @pytest.mark.asyncio
-async def test_pump_continues_after_advance_raises():
-    """An advance that raises is logged; the pump still advances the next event."""
+async def test_pump_terminates_group_after_advance_raises():
+    """An advance that raises terminates the group; no subsequent advance is attempted."""
     attempted: list = []
+    # Gate p2 so it only enters the stream after p1 has been advanced; this
+    # ensures p1 resolves alone (batch = ["p1"]) and p2 never reaches advance.
+    p2_gate = asyncio.Event()
 
     class _FirstRaiseProducer(SharedStreamProducer):
         async def open_stream(self):
             yield {"n": 1}, "p1"
+            await p2_gate.wait()
             yield {"n": 2}, "p2"
             await asyncio.Event().wait()
 
         async def advance(self, batch):
             attempted.extend(item.broker_payload for item in batch)
+            p2_gate.set()  # signal: p1 has been advanced (or batched)
             if any(item.broker_payload == "p1" for item in batch):
                 raise RuntimeError("p1 boom")
 
@@ -2543,33 +2538,33 @@ async def test_pump_continues_after_advance_raises():
     t1 = _FirstRaiseTrigger()
     key = t1.shared_stream_key()
     manager = SharedStreamManager()
-    next_task = None
-    try:
-        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
-        group = manager._groups[key]
-        group.log = MagicMock()
 
-        # Move past event 1; its advance dispatches alone and raises.
-        it = s1.__aiter__()
-        await _pull_raw(it)
-        pull2 = await _resume_past_yield(it)
-        for _ in range(5):
-            await asyncio.sleep(0)
-        assert attempted == ["p1"]
+    s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+    group = manager._groups[key]
+    group.log = MagicMock()
 
-        # Move past event 2; the pump must still dispatch it.
-        await asyncio.wait_for(pull2, timeout=1.0)
-        next_task = await _resume_past_yield(it)
-        for _ in range(5):
-            await asyncio.sleep(0)
+    async with _consume_in_background(t1.filter_shared_stream(s1)) as c1:
+        try:
+            # Drive event 1 through the filter; the loop-back closes its binding
+            # window, triggering the pump to dispatch the advance that raises.
+            await c1.wait_for(1)
 
-        assert attempted == ["p1", "p2"], "the pump must move on to event 2 after event 1's advance raised"
-        error_calls = group.log.error.mock_calls
-        assert len(error_calls) == 1
-        assert "broker advance failed" in error_calls[0].args[0]
-    finally:
-        await _cancel_quietly(next_task)
-        await manager.unsubscribe(1, key)
+            # Give the pump time to run advance() (which sets p2_gate) and
+            # call _fail_group; also gives the producer time to yield p2 (which
+            # should be ignored since the group is already terminated).
+            await asyncio.sleep(0.05)
+
+            # The group must now be terminated — event 2 must never be advanced.
+            assert attempted == ["p1"], "the pump must not advance event 2 after event 1's advance raised"
+            assert key not in manager._groups, "group must be evicted after advance raises"
+            error_calls = group.log.error.mock_calls
+            assert len(error_calls) == 1
+            assert "terminating shared-stream group" in error_calls[0].args[0]
+            # The subscriber must have received the advance exception via _PollFailure.
+            assert isinstance(c1.error, RuntimeError), f"subscriber must fail; got: {c1.error!r}"
+            assert str(c1.error) == "p1 boom"
+        finally:
+            await manager.stop_all()
 
 
 @pytest.mark.asyncio
@@ -3132,17 +3127,14 @@ async def test_partial_prefix_waits_for_lane_head():
 
 
 @pytest.mark.asyncio
-async def test_advance_raise_abandons_whole_batch():
-    """A batch whose advance raises is logged and abandoned; later events form fresh batches."""
+async def test_advance_raise_terminates_group_and_no_later_batch():
+    """A batch whose advance raises terminates the whole group; no later event is advanced."""
     calls: list[list] = []
-    proceed = asyncio.Event()
 
     class _RaiseOnFirstBatchProducer(SharedStreamProducer):
         async def open_stream(self):
             yield {"n": 1}, "p1"
             yield {"n": 2}, "p2"
-            await proceed.wait()
-            yield {"n": 3}, "p3"
             await asyncio.Event().wait()
 
         async def advance(self, batch):
@@ -3177,22 +3169,118 @@ async def test_advance_raise_abandons_whole_batch():
         for _ in range(5):
             await asyncio.sleep(0)
 
-        # The batch raised: it is logged, already off the books, and never
-        # dispatched again — the broker is left to redeliver.
+        # The batch raised — the group is terminated.
         assert calls == [["p1", "p2"]]
-        assert group._outstanding == {}
         assert len(group.log.error.mock_calls) == 1
-
-        # The pump keeps running; a later event forms a fresh batch.
-        proceed.set()
-        await asyncio.wait_for(next_task, timeout=1.0)
-        next_task = await _resume_past_yield(it)
-        for _ in range(5):
-            await asyncio.sleep(0)
-        assert calls == [["p1", "p2"], ["p3"]]
+        await asyncio.sleep(0.05)
+        assert key not in manager._groups, "group must be evicted after advance batch raise"
+        # The subscriber must have received the failure.
+        with pytest.raises(RuntimeError, match="batch boom"):
+            await asyncio.wait_for(next_task, timeout=1.0)
+        next_task = None
     finally:
         await _cancel_quietly(next_task)
-        await manager.unsubscribe(1, key)
+        await manager.stop_all()
+
+
+@pytest.mark.asyncio
+async def test_advance_failure_fans_out_to_all_subscribers():
+    """advance() raise → every subscriber gets a _PollFailure; group is evicted from _groups."""
+
+    class _RaisingProducer(SharedStreamProducer):
+        async def open_stream(self):
+            yield {"n": 1}, "p1"
+            await asyncio.Event().wait()
+
+        async def advance(self, batch):
+            raise RuntimeError("all-subscribers boom")
+
+    class _RaisingTrigger(_ProgrammableSharedStreamTrigger):
+        @classmethod
+        def create_shared_stream_producer(cls, kwargs):
+            return _RaisingProducer()
+
+        async def filter_shared_stream(self, shared_stream):
+            async for raw in shared_stream:
+                yield TriggerEvent(raw)
+
+    t1, t2 = _RaisingTrigger(), _RaisingTrigger()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+
+    s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+    s2 = manager.subscribe(trigger_id=2, trigger=t2, key=key)
+
+    async with (
+        _consume_in_background(t1.filter_shared_stream(s1)) as c1,
+        _consume_in_background(t2.filter_shared_stream(s2)) as c2,
+    ):
+        try:
+            # Both subscribers consume the first event (resolving it, triggering advance).
+            await c1.wait_for(1)
+            await c2.wait_for(1)
+
+            # Give the pump time to run and raise.
+            await asyncio.sleep(0.05)
+
+            # Group must be evicted.
+            assert key not in manager._groups, "group must be evicted after advance failure"
+            # Both collectors must have captured the same RuntimeError.
+            assert isinstance(c1.error, RuntimeError), f"subscriber 1 must fail; got: {c1.error!r}"
+            assert isinstance(c2.error, RuntimeError), f"subscriber 2 must fail; got: {c2.error!r}"
+            assert str(c1.error) == "all-subscribers boom"
+            assert str(c2.error) == "all-subscribers boom"
+        finally:
+            await manager.stop_all()
+
+
+@pytest.mark.asyncio
+async def test_advance_failure_idempotent_with_stop():
+    """advance failure followed by stop() does not double-broadcast _PollFailure."""
+    advance_started = asyncio.Event()
+
+    class _SlowRaisingProducer(SharedStreamProducer):
+        async def open_stream(self):
+            yield {"n": 1}, "p1"
+            await asyncio.Event().wait()
+
+        async def advance(self, batch):
+            advance_started.set()
+            await asyncio.sleep(0.05)  # slow enough for stop() to race
+            raise RuntimeError("idempotent boom")
+
+    class _SlowRaisingTrigger(_ProgrammableSharedStreamTrigger):
+        @classmethod
+        def create_shared_stream_producer(cls, kwargs):
+            return _SlowRaisingProducer()
+
+        async def filter_shared_stream(self, shared_stream):
+            async for raw in shared_stream:
+                yield TriggerEvent(raw)
+
+    t1 = _SlowRaisingTrigger()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+
+    s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+    group = manager._groups[key]
+
+    async with _consume_in_background(t1.filter_shared_stream(s1)) as c1:
+        await c1.wait_for(1)
+        # Wait until advance is in-flight.
+        await asyncio.wait_for(advance_started.wait(), timeout=1.0)
+        # Now stop the manager concurrently with the in-flight advance raise.
+        await manager.stop_all()
+
+    # _terminated must be True (fail_group fired exactly once).
+    assert group._terminated is True
+    # The group must be gone (evicted by fail_group, not left behind by stop).
+    assert key not in manager._groups
+    # The failure must have reached the subscriber exactly once: one real event
+    # was consumed before advance raised, and the error is the expected one.
+    assert len(c1.items) == 1
+    assert isinstance(c1.error, RuntimeError)
+    assert str(c1.error) == "idempotent boom"
 
 
 @pytest.mark.asyncio

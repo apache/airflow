@@ -250,8 +250,13 @@ Example — reject inside a filter:
 **Ordering guarantee**: by default every event belongs to the same lane.
 The items of a batch are in event order and form their lane's contiguous
 resolved prefix; within a lane, batches arrive strictly in order — the
-next ``advance`` is awaited only after the previous call returned (or
-failed and was logged). A producer can override ``get_advance_lane`` to
+next ``advance`` is awaited only after the previous call returned. If
+``advance`` raises, the error is logged and the **whole shared-stream
+group is terminated**: every subscriber receives a failure sentinel and
+the broker redelivers from the never-committed offset (a loud, safe
+failure rather than a silent data skip). Recovering more gracefully from
+transient failures would require the producer to track which offsets are
+safe to recommit. A producer can override ``get_advance_lane`` to
 narrow that ordering to within a lane: events whose lane values compare
 equal are batched and advanced in event order relative to each other,
 while events in different lanes do not wait for one another. Either way,
@@ -356,6 +361,10 @@ the other partitions:
             # resolved prefix, in event order, so committing the offset of
             # its last item covers the whole batch and can never skip past
             # an event that is still pending.
+            #
+            # If this method raises, the whole shared-stream group is
+            # terminated and the broker redelivers from the last committed
+            # offset — no silent data skip.
             #
             # Inspect each item's outcome before committing: non-clean events
             # (rejects, failures, or a zero-subscriber broadcast) should go to

@@ -61,8 +61,9 @@ counts of how the subscribers resolved. Advances are dispatched by a
 single pump task: the producer's
 :meth:`~SharedStreamProducer.get_advance_lane` assigns each event to a
 lane; within a lane, batch items arrive in fan-out order and the next
-batch is awaited only after the call for the previous one returned (or
-raised and was logged); lanes do not wait for one another, but at any
+batch is awaited only after the call for the previous one returned; if it
+raises, the whole group is terminated and the broker redelivers from the
+never-committed offset; lanes do not wait for one another, but at any
 moment at most one ``advance`` call is awaited globally. The default lane
 assignment (every event in the same lane) preserves the original single
 global order. When the poll ends, the manager awaits ``producer.aclose()``
@@ -400,18 +401,20 @@ class SharedStreamProducer(ABC):
         contiguous resolved prefix of one lane — events for which
         :meth:`get_advance_lane` returned equal values. Within a lane,
         batches arrive strictly in order: the next batch is awaited only
-        after the call for the previous one returned (or raised and was
-        logged). Across lanes the relative order is not guaranteed, but at
-        any moment at most one ``advance`` call is awaited globally. This
-        makes cumulative schemes such as a Kafka offset commit safe within
-        a lane — committing the offset of the batch's last item covers the
-        whole batch. Each item's :class:`AdvanceOutcome` carries the
-        per-event resolution counts; use them to decide whether to commit,
-        skip, or trigger a broker-side redeliver.
+        after the call for the previous one returned. Across lanes the
+        relative order is not guaranteed, but at any moment at most one
+        ``advance`` call is awaited globally. This makes cumulative schemes
+        such as a Kafka offset commit safe within a lane — committing the
+        offset of the batch's last item covers the whole batch. Each item's
+        :class:`AdvanceOutcome` carries the per-event resolution counts; use
+        them to decide whether to commit, skip, or trigger a broker-side
+        redeliver.
 
-        If this method raises, the error is logged and the whole batch is
-        abandoned — the events are not dispatched again; the broker is
-        expected to redeliver whatever was not committed.
+        If this method raises, the error is logged and the whole
+        shared-stream group is terminated: every subscriber receives a
+        failure sentinel and the broker redelivers from the never-committed
+        offset. Terminating is the safe default; finer-grained per-lane
+        retry would require tracking which offsets are safe to recommit.
         """
 
     def get_advance_lane(self, broker_payload: Any) -> Hashable:
@@ -543,6 +546,9 @@ class _SharedStreamGroup:
         self._advance_wakeup: asyncio.Event = asyncio.Event()
         self._pump_stopping: bool = False
         self._pump_task: asyncio.Task | None = None
+        # Set to True by _fail_group; guards against double-broadcast when both
+        # the pump's advance failure and _poll's finally reach the terminal path.
+        self._terminated: bool = False
 
     def start(self) -> None:
         """Start the underlying poll loop. Call exactly once per group."""
@@ -563,17 +569,42 @@ class _SharedStreamGroup:
         self._pump_stopping = True
         self._advance_wakeup.set()
 
+    def _fail_group(self, exc: BaseException) -> None:
+        """
+        Idempotent, synchronous terminal broadcast.
+
+        Evict the group and deliver
+        ``_PollFailure(exc)`` to every subscriber.
+
+        Must be called from a synchronous section (no ``await`` inside) so the
+        broadcast completes before any coroutine can observe the group in a
+        half-torn-down state (see "Lifecycle invariants" in the module docstring).
+        Guarded by ``_terminated`` so calling it twice is a no-op — both
+        ``_poll``'s finally and the advance pump can reach this path without
+        double-broadcasting.
+        """
+        if self._terminated:
+            return
+        self._terminated = True
+        self._on_poll_terminate(self)
+        failure = _PollFailure(exc)
+        for queue in self._subscribers.values():
+            self._drain_and_offer_failure(queue, failure)
+
     async def _run_advance_pump(self, producer: SharedStreamProducer) -> None:
         """
         Dispatch broker advances in per-lane fan-out order, one batch at a time.
 
         A single task scans the lanes round-robin: each pass dispatches at
         most one batch per lane — the lane's contiguous resolved prefix —
-        and passes repeat until one makes no progress. An advance that
-        raises is logged, its batch is abandoned to broker redelivery, and
-        the pump moves on. On stop the pump keeps passing until every
-        already-resolved dispatchable event is drained, abandons unresolved
-        entries to broker redelivery, and exits.
+        and passes repeat until one makes no progress. If ``advance`` raises,
+        the error is logged and the whole shared-stream group is terminated:
+        the manager evicts the key, every subscriber receives a
+        ``_PollFailure``, and the broker redelivers from the never-committed
+        offset. Terminating on any advance failure is the safe default; see
+        the neutral note in the ``except`` block below. On stop
+        the pump keeps passing until every already-resolved dispatchable event
+        is drained, abandons unresolved entries to broker redelivery, and exits.
         """
         while True:
             if not self._pump_stopping:
@@ -618,12 +649,22 @@ class _SharedStreamGroup:
                         await producer.advance(batch)
                     except Exception as exc:
                         self.log.error(
-                            "Producer advance raised; broker advance failed",
+                            "Producer advance raised; terminating shared-stream group",
                             key=self.key,
                             lane=lane,
                             batch_size=len(batch),
                             exc_info=exc,
                         )
+                        # Broadcast the failure synchronously before cancelling
+                        # _poll so no late subscriber can attach to a dead group.
+                        # Any advance failure terminates the whole group: the safe
+                        # default is to stop and let the broker redeliver from the
+                        # last committed offset. Per-lane retry would need extra
+                        # state to track which offsets are safe to recommit.
+                        self._fail_group(exc)
+                        if self._poll_task is not None and not self._poll_task.done():
+                            self._poll_task.cancel()
+                        return
                     progress = True
             if self._pump_stopping:
                 return
@@ -737,12 +778,9 @@ class _SharedStreamGroup:
                 # Synchronous: evict from the manager and broadcast the
                 # sentinel before returning to the loop, so no coroutine can
                 # observe ``_groups[key]`` pointing at a dead poll.
-                self._on_poll_terminate(self)
-                failure = _PollFailure(terminal_exc)
-                for queue in self._subscribers.values():
-                    # Drain stale events then put the failure sentinel so every
-                    # subscriber wakes up even if its queue was at capacity.
-                    self._drain_and_offer_failure(queue, failure)
+                # _fail_group is idempotent — if the advance pump already
+                # broadcast (advance failure path), this is a no-op.
+                self._fail_group(terminal_exc)
             # End of synchronous section; yields are safe from here on.
             if cancelled_ack_task is not None:
                 with suppress(asyncio.CancelledError):
