@@ -72,6 +72,7 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk import DAG
+    from airflow.sdk.definitions.dag import SourceCodeLocation
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
     from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedOperator
     from airflow.timetables.base import Timetable
@@ -128,6 +129,7 @@ class SerializedDAG:
     params: SerializedParamsDict = attrs.field(factory=SerializedParamsDict)
     partial: bool = False
     render_template_as_native_obj: bool = False
+    source_code_location: SourceCodeLocation | None = None
     start_date: datetime.datetime | None = None
     tags: set[str] = attrs.field(factory=set)
     template_searchpath: tuple[str, ...] | None = None
@@ -176,6 +178,7 @@ class SerializedDAG:
                 "owner_links",
                 "relative_fileloc",
                 "render_template_as_native_obj",
+                "source_code_location",
                 "start_date",
                 "tags",
                 "task_group",

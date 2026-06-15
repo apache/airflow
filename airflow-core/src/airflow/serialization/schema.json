@@ -217,6 +217,20 @@
         "has_on_success_callback":  { "type": "boolean", "default": false },
         "has_on_failure_callback":  { "type": "boolean", "default": false },
         "render_template_as_native_obj":  { "type": "boolean", "default": false },
+        "source_code_location": {
+          "type": "object",
+          "properties": {
+            "type": { "enum": ["git", "svn"] },
+            "url": { "type": "string" },
+            "repo_url": { "type": "string" },
+            "path": { "type": "string" },
+            "version": { "type": "string" },
+            "tag": { "type": "string" },
+            "branch": { "type": "string" }
+          },
+          "required": ["type"],
+          "additionalProperties": false
+        },
         "tags": { "type": "array" },
         "task_group": {"anyOf": [
           { "type": "null" },

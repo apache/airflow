@@ -57,6 +57,7 @@ from airflow.sdk.definitions.asset import (
     AssetUniqueKey,
     BaseAsset,
 )
+from airflow.sdk.definitions.dag import SourceCodeLocation
 from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.operator_resources import Resources
@@ -1714,6 +1715,12 @@ class DagSerialization(BaseSerialization):
             else:
                 serialized_dag["allowed_run_types"] = None
 
+            if dag.source_code_location:
+                serialized_dag["source_code_location"] = attrs.asdict(
+                    dag.source_code_location,
+                    filter=lambda _attribute, value: value is not None,
+                )
+
             # Edge info in the JSON exactly matches our internal structure
             serialized_dag["edge_info"] = dag.edge_info
             serialized_dag["params"] = cls._serialize_params_dict(dag.params)
@@ -1816,6 +1823,8 @@ class DagSerialization(BaseSerialization):
                     v = frozenset(DagRunType(x) for x in v)
                 else:
                     v = None
+            elif k == "source_code_location" and v is not None:
+                v = SourceCodeLocation(**v)
             # else use v as it is
 
             object.__setattr__(dag, k, v)

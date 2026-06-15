@@ -27,7 +27,7 @@ import pytest
 from airflow.sdk import Context, Label, PartitionAtRuntime, TaskGroup
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
-from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
+from airflow.sdk.definitions.dag import DAG, SourceCodeLocation, dag as dag_decorator
 from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
 from airflow.sdk.definitions.timetables import assets, events, interval, simple, trigger  # noqa: F401
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
@@ -191,6 +191,54 @@ class TestDag:
 
         assert isinstance(dag.params, ParamsDict)
         assert len(dag.params) == 0
+
+    def test_source_code_location(self):
+        source_code_location = SourceCodeLocation(
+            repo_url="https://github.com/apache/airflow.git",
+            path="dags/example.py",
+            version="abc123",
+            branch="main",
+        )
+
+        dag = DAG("test-dag", schedule=None, source_code_location=source_code_location)
+
+        assert dag.source_code_location == source_code_location
+
+    def test_source_code_location_from_dict(self):
+        dag = DAG(
+            "test-dag",
+            schedule=None,
+            source_code_location={
+                "repo_url": "https://github.com/apache/airflow.git",
+                "path": "dags/example.py",
+                "version": "abc123",
+            },
+        )
+
+        assert dag.source_code_location == SourceCodeLocation(
+            repo_url="https://github.com/apache/airflow.git",
+            path="dags/example.py",
+            version="abc123",
+        )
+
+    def test_source_code_location_requires_url_or_repo_url(self):
+        with pytest.raises(ValueError, match="At least one of url or repo_url must be provided"):
+            SourceCodeLocation(path="dags/example.py")
+
+    def test_source_code_location_rejects_unknown_type(self):
+        with pytest.raises(ValueError, match="'hg'"):
+            SourceCodeLocation(type="hg", repo_url="https://example.invalid/repo")
+
+    def test_dag_decorator_accepts_source_code_location(self):
+        source_code_location = SourceCodeLocation(repo_url="https://github.com/apache/airflow.git")
+
+        @dag_decorator(schedule=None, source_code_location=source_code_location)
+        def test_dag():
+            pass
+
+        dag = test_dag()
+
+        assert dag.source_code_location == source_code_location
 
     def test_params_passed_and_params_in_default_args_no_override(self):
         """
