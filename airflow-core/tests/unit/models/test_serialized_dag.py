@@ -348,6 +348,49 @@ class TestSerializedDagModel:
         latest_versions = SDM.get_latest_serialized_dags(dag_ids=["dag1", "dag2"], session=session)
         assert len(latest_versions) == 2
 
+    def _seed_two_versions(self, dag_maker, session, dag_id):
+        """Create two serialized versions of ``dag_id`` (version 1 has task instances)."""
+        with dag_maker(dag_id) as dag:
+            EmptyOperator(task_id="task1")
+        sync_dag_to_db(dag, session=session)
+        dag_maker.create_dagrun()
+        with dag_maker(dag_id) as dag:
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+        sync_dag_to_db(dag, session=session)
+
+    def test_get_latest_serialized_dags_returns_one_row_per_dag_under_created_at_tie(
+        self, dag_maker, session
+    ):
+        """A created_at tie must not yield duplicate rows; the max version_number wins."""
+        self._seed_two_versions(dag_maker, session, "tie_dag")
+        # Force both serialized_dag rows to share a created_at (e.g. frozen clock / same second).
+        session.execute(
+            update(SDM).where(SDM.dag_id == "tie_dag").values(created_at=pendulum.datetime(2025, 1, 1))
+        )
+        session.commit()
+
+        latest = SDM.get_latest_serialized_dags(dag_ids=["tie_dag"], session=session)
+
+        assert len(latest) == 1
+        assert latest[0].dag_version.version_number == 2
+
+    def test_get_returns_latest_version_when_created_at_ordering_disagrees(self, dag_maker, session):
+        """SDM.get (latest_item_select_object) must pick the max version_number, not max created_at."""
+        self._seed_two_versions(dag_maker, session, "tie_dag2")
+        v1 = DagVersion.get_version("tie_dag2", 1, session=session)
+        v2 = DagVersion.get_version("tie_dag2", 2, session=session)
+        # Invert created_at: version 1's serdag looks "newer" than version 2's.
+        session.execute(
+            update(SDM).where(SDM.dag_version_id == v1.id).values(created_at=pendulum.datetime(2025, 1, 2))
+        )
+        session.execute(
+            update(SDM).where(SDM.dag_version_id == v2.id).values(created_at=pendulum.datetime(2025, 1, 1))
+        )
+        session.commit()
+
+        assert SDM.get("tie_dag2", session=session).dag_version.version_number == 2
+
     def test_new_dag_versions_are_not_created_if_no_dagruns(self, dag_maker, session):
         with dag_maker("dag1") as dag:
             PythonOperator(task_id="task1", python_callable=lambda: None)
