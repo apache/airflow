@@ -36,10 +36,17 @@ internal object TaskResult {
     outletEvents: List<Map<String, Any?>> = emptyList(),
     renderedMapIndex: String? = null,
   ) = SucceedTask().also {
-    it.state = "success"
     it.endDate = endDate
     it.taskOutlets = taskOutlets
     it.outletEvents = outletEvents
+    it.renderedMapIndex = renderedMapIndex
+  }
+
+  fun retry(
+    endDate: OffsetDateTime = OffsetDateTime.now(),
+    renderedMapIndex: String? = null,
+  ) = RetryTask().also {
+    it.endDate = endDate
     it.renderedMapIndex = renderedMapIndex
   }
 
@@ -49,14 +56,6 @@ internal object TaskResult {
     renderedMapIndex: String? = null,
   ) = TaskState().also {
     it.state = state
-    it.endDate = endDate
-    it.renderedMapIndex = renderedMapIndex
-  }
-
-  fun retry(
-    endDate: OffsetDateTime = OffsetDateTime.now(),
-    renderedMapIndex: String? = null,
-  ) = RetryTask().also {
     it.endDate = endDate
     it.renderedMapIndex = renderedMapIndex
   }
@@ -77,10 +76,11 @@ internal object TaskRunner {
     } catch (e: Exception) {
       logger.error("Error executing task", mapOf("ti" to request.ti, "error" to e, "trace" to e.stackTraceToString()))
       e.printStackTrace()
-      if (request.tiContext?.shouldRetry == true) {
-        return TaskResult.retry()
+      if (request.tiContext.shouldRetry) {
+        TaskResult.retry()
+      } else {
+        TaskResult.of(TaskState.State.FAILED)
       }
-      TaskResult.of(TaskState.State.FAILED)
     }
   }
 }
