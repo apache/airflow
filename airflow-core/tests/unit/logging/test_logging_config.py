@@ -57,14 +57,6 @@ class TestGetLoggingConfig:
             config = _get_logging_config()
         assert config is custom
 
-    def test_empty_string_falls_back_to_default(self):
-        from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-
-        with mock.patch("airflow.logging_config.conf") as mocked_conf:
-            mocked_conf.get.return_value = ""
-            config = _get_logging_config()
-        assert config == DEFAULT_LOGGING_CONFIG
-
     @pytest.mark.parametrize(
         "logging_class_path",
         [pytest.param("", id="empty-string"), pytest.param(None, id="none")],

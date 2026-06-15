@@ -53,6 +53,61 @@ Filenames follow OS conventions for executables: no extension on Linux/macOS,
 ``.exe`` on Windows. The scanner identifies bundles by the trailer's magic,
 not by the filename.
 
+The complete bundle file regions are:
+
+.. code-block:: text
+
+    [0,            source_start)    native binary (must be non-empty)
+    [source_start, metadata_start)  embedded source (may be zero length)
+    [metadata_start, file_size-64)  build-time manifest
+    [file_size-64, file_size)       64-byte trailer
+
+where ``metadata_start = file_size - 64 - metadata_len`` and
+``source_start = metadata_start - source_len``.
+
+Reference Implementation
+------------------------
+
+Below is a simple implementation to append the trailer with Python as a
+reference when building your own packer. A language SDK is encouraged to
+integrate trailer-packing into the build process to streamline the experience
+for SDK users. Go SDK's ``airflow-go-pack`` is a good example.
+
+.. code-block:: python
+
+    #!/usr/bin/env python3
+
+    import hashlib
+    import shutil
+    import struct
+
+    BINARY = pathlib.Path(...)  # Path to the compiled executable.
+    OUTPUT = pathlib.Path(...)  # Where to put the processed executable.
+    SOURCE = b"..."  # Source code to embed.
+    METADATA = b"..."  # UTF-8-encoded YAML metadata.
+
+    # SHA-256 covers the binary region only: bytes [0, source_start).
+    binary_sha256 = hashlib.sha256(BINARY.read_bytes()).digest()
+
+    trailer = struct.pack(
+        "<III 32s 12s 8s",
+        len(SOURCE),  # source_len
+        len(METADATA),  # metadata_len
+        1,  # footer_ver
+        binary_sha256,
+        bytes(12),  # reserved
+        b"AFBNDL01",  # magic
+    )
+    assert len(trailer) == 64
+
+    shutil.copy(BINARY, OUTPUT)
+    with OUTPUT.open("ab") as fh:
+        fh.write(SOURCE)  # Embedded source region.
+        fh.write(METADATA)  # Metadata region.
+        fh.write(trailer)
+    OUTPUT.chmod(0o755)
+
+
 .. _bundle-trailer-layout:
 
 Trailer Layout
@@ -61,12 +116,12 @@ Trailer Layout
 The last 64 bytes of a conforming bundle are the trailer. All multi-byte
 integers are little-endian.
 
-::
+.. code-block:: text
 
     bytes  0..3    source_len     uint32     length of the source region in bytes
     bytes  4..7    metadata_len   uint32     length of the metadata region in bytes
     bytes  8..11   footer_ver     uint32     currently 1
-    bytes 12..43   binary_sha256  32 bytes   SHA-256 of the binary region
+    bytes 12..43   binary_sha256  32 bytes   SHA-256 of the binary region [0, source_start)
     bytes 44..55   reserved       12 bytes   MUST be zero
     bytes 56..63   magic          8 bytes    ASCII "AFBNDL01"
 

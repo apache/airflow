@@ -20,6 +20,7 @@ from __future__ import annotations
 import base64
 import uuid
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import msgspec
@@ -29,6 +30,7 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.common.cursors import apply_cursor_filter, decode_cursor, encode_cursor
 from airflow.api_fastapi.common.parameters import SortParam
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 
 
@@ -84,6 +86,40 @@ class TestCursorPagination:
         token = encode_cursor(row, sp)
         decoded = decode_cursor(token)
         assert decoded == ["019462ab-1234-5678-9abc-def012345678"]
+
+    def test_encode_cursor_with_column_form_to_replace_falls_back_to_row_attr(self):
+        """Column-form ``to_replace`` should still allow cursor encoding via row attribute access."""
+        sp = SortParam(["id", "run_after"], TaskInstance, {"run_after": DagRun.run_after})
+        sp.set_value(["run_after"])
+
+        row = SimpleNamespace(
+            run_after="2026-06-04T10:00:00+00:00",
+            id="019462ab-1234-5678-9abc-def012345678",
+        )
+
+        token = encode_cursor(row, sp)
+        decoded = decode_cursor(token)
+        assert decoded == [
+            "2026-06-04T10:00:00+00:00",
+            "019462ab-1234-5678-9abc-def012345678",
+        ]
+
+    def test_encode_cursor_column_form_to_replace_raises_when_attribute_absent(self):
+        """
+        ``encode_cursor`` must raise ``NotImplementedError`` (not silently encode ``None``)
+        when a column-form ``to_replace`` key has no corresponding attribute on the row object.
+        A ``None`` token would cause the next-page WHERE to compare against NULL and drop rows.
+        """
+        sp = SortParam(
+            ["id", "data_interval_start"], TaskInstance, {"data_interval_start": DagRun.data_interval_start}
+        )
+        sp.set_value(["data_interval_start"])
+
+        # Row without data_interval_start — TaskInstance does not expose this as an attribute.
+        row = SimpleNamespace(id="019462ab-1234-5678-9abc-def012345678")
+
+        with pytest.raises(NotImplementedError, match="data_interval_start"):
+            encode_cursor(row, sp)
 
     def test_apply_cursor_filter_wrong_value_count(self):
         sp = self._make_sort_param_with_resolved_columns(["start_date"])
