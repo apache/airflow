@@ -59,8 +59,8 @@ class AddAssetsByAliasEndpoint(VersionChange):
     instructions_to_migrate_to_previous_version = (endpoint("/assets/by-alias", ["GET"]).didnt_exist,)
 
 
-class AddTaskAndAssetStoreEndpoints(VersionChange):
-    """Add task store and asset store API endpoints."""
+class AddTaskAndAssetStateStoreEndpoints(VersionChange):
+    """Add task state store and asset state store API endpoints."""
 
     description = __doc__
 

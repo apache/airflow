@@ -159,6 +159,9 @@ Check that the entries from
   [issue #197](https://github.com/apache/airflow-steward/issues/197);
   must never be committed since the content is machine-specific
   absolute paths)
+- `__pycache__/` and `*.pyc` (byte-compiled artefacts emitted when
+  framework skill scripts run from the adopter checkout; non-anchored
+  so they match at any depth)
 
 Recommended (a **uniform** `magpie-*` glob block per **active
 target dir** — [`agents.md`](agents.md) — with no per-layout
@@ -184,6 +187,8 @@ variation):
   target as defense in depth, but `verify` surfaces the
   underlying `.gitignore` gap so the operator fixes the root
   cause.
+- ⚠ if `__pycache__/` or `*.pyc` is not gitignored — byte-compiled
+  artefacts from skill scripts could be accidentally committed.
 - ⚠ if symlink patterns are not gitignored.
 
 ### 5. Symlinks point at live framework skills
@@ -302,6 +307,32 @@ Two sub-checks on `<repo-root>/.git/hooks/post-checkout`:
      stale (older framework version's recipe) — same
      remediation, no operator prompt needed; the sync
      pass overwrites silently.
+
+### 8a. agent-guard PreToolUse hook installed and wired
+
+Three sub-checks for the deterministic guard
+([`tools/agent-guard`](../../tools/agent-guard/README.md)):
+
+1. **Script present + matches the snapshot.** `<repo-root>/.claude/hooks/agent-guard.py`
+   exists and its content matches the snapshot's
+   `tools/agent-guard/src/agent_guard/__init__.py`.
+   - ⚠ / ✗ on missing / stale — remediation is `/magpie-setup`
+     (adopt or upgrade), whose sync pass re-installs it.
+2. **`guards.d` populated.** `<repo-root>/.claude/hooks/guards.d/`
+   exists and contains every guard the snapshot ships — the
+   engine's bundled `guards.d/*.py` **and** each skill-owned
+   `skills/*/guards/*.py` (e.g. `mention`, `mark_ready`,
+   `security_language`). Flag a *missing* expected guard or a stale
+   copy; extra locally-added `*.py` are fine. A missing skill guard
+   means that skill's deterministic protection is silently inactive
+   — remediation is `/magpie-setup` (adopt/upgrade), which re-collects.
+3. **Hook wired in settings.json.** `<repo-root>/.claude/settings.json`
+   has a `hooks.PreToolUse` entry (matcher `Bash`) whose command
+   runs `agent-guard.py`.
+   - ⚠ if missing — the script is present but not active; print
+     the one-time wiring snippet (see
+     [`adopt.md` Step 12](adopt.md#step-12--post-install-sync--worktree-propagation--sandbox-allowlist--sanity-check))
+     for the maintainer to apply (settings.json is agent-edit-denied).
 
 ### 8b. Sandbox-allowlist coverage of the current worktree
 

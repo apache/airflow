@@ -7791,7 +7791,7 @@ class TestSchedulerJob:
         with create_session() as session:
             tis = session.scalars(select(TaskInstance)).all()
 
-        dags = self.job_runner.scheduler_dag_bag._dags.values()
+        dags = [entry.dag for entry in self.job_runner.scheduler_dag_bag._dags.values()]
         assert [dag.dag_id for dag in dags] == ["test_only_empty_tasks"]
         assert len(tis) == 6
         assert {
