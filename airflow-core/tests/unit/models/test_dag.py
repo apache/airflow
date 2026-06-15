@@ -220,8 +220,8 @@ class TestDag:
         assert dr is not None
 
         # Serialized DAG should now exist and DagRun would be created
-        ser = DBDagBag().get_latest_version_of_dag(dag_id, session=session)
-        assert ser is not None
+        set = DBDagBag().get_latest_version_of_dag(dag_id, session=session)
+        assert set is not None
         assert session.scalar(select(DagRun).where(DagRun.dag_id == dag_id)) is not None
 
     @conf_vars({("core", "load_examples"): "false"})
@@ -3399,6 +3399,49 @@ def test_iter_dagrun_infos_between(start_date, expected_infos):
         latest=pendulum.instance(DEFAULT_DATE),
     )
     assert expected_infos == list(iterator)
+
+
+def test_iter_dagrun_infos_between_partitioned_timetable():
+    """iter_dagrun_infos_between dispatches to iter_partition_dagrun_infos for partitioned timetables.
+
+    Verifies:
+    - Full-sequence equality: result matches direct iter_partition_dagrun_infos call.
+    - to_date's calendar date is inclusive (half-open +1day upper bound makes it so).
+    - to_date+1 is exclusive (partition tick for the day after to_date is absent).
+    """
+    dag = DAG(
+        dag_id="test_iter_dagrun_infos_between_partitioned",
+        start_date=DEFAULT_DATE,
+        schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+    )
+    EmptyOperator(task_id="dummy", dag=dag)
+    scheduler_dag = create_scheduler_dag(dag)
+
+    # Window: 3-day span so we get a non-trivial sequence to compare.
+    from_dt = pendulum.datetime(2026, 3, 10, tz="UTC")
+    to_dt = pendulum.datetime(2026, 3, 12, 23, 59, 59, tz="UTC")
+
+    result = list(scheduler_dag.iter_dagrun_infos_between(earliest=from_dt, latest=to_dt))
+
+    # Build expected sequence by calling iter_partition_dagrun_infos directly with the same day-bounds.
+    core_timetable = scheduler_dag.timetable
+    expected = list(
+        core_timetable.iter_partition_dagrun_infos(
+            earliest_date=from_dt.date(),
+            latest_date=to_dt.date(),
+        )
+    )
+
+    # Full-sequence equality — not head/tail/length.
+    assert result == expected
+
+    # to_date's partition (2026-03-12) must be present (inclusive).
+    to_date_partition = pendulum.datetime(2026, 3, 12, tz="UTC")
+    assert any(info.run_after == to_date_partition for info in result)
+
+    # The partition for the day after to_date (2026-03-13) must be absent (half-open upper bound).
+    after_to_date_partition = pendulum.datetime(2026, 3, 13, tz="UTC")
+    assert not any(info.run_after == after_to_date_partition for info in result)
 
 
 def test_iter_dagrun_infos_between_error(caplog):
