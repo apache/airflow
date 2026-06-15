@@ -661,6 +661,16 @@ class TaskStateStoreAccessor:
         if backend is not None:
             backend.delete(self._scope, key)
 
+    async def adelete(self, key: str) -> None:
+        """Async version of :meth:`delete` that awaits instead of blocking the event loop."""
+        from airflow.sdk.execution_time.comms import DeleteTaskStateStore
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        await SUPERVISOR_COMMS.asend(DeleteTaskStateStore(ti_id=self._ti_id, key=key))
+        backend = _get_worker_state_store_backend()
+        if backend is not None:
+            backend.delete(self._scope, key)
+
     def clear(self) -> None:
         """Delete all keys for this task instance."""
         from airflow.sdk.execution_time.comms import ClearTaskStateStore
@@ -669,6 +679,16 @@ class TaskStateStoreAccessor:
         # cleanup the DB ref first, if backend cleanup fails after this, the ref is gone and
         # deterministic keys are recoverable on next set().
         SUPERVISOR_COMMS.send(ClearTaskStateStore(ti_id=self._ti_id))
+        backend = _get_worker_state_store_backend()
+        if backend is not None:
+            backend.clear(self._scope)
+
+    async def aclear(self) -> None:
+        """Async version of :meth:`clear` that awaits instead of blocking the event loop."""
+        from airflow.sdk.execution_time.comms import ClearTaskStateStore
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        await SUPERVISOR_COMMS.asend(ClearTaskStateStore(ti_id=self._ti_id))
         backend = _get_worker_state_store_backend()
         if backend is not None:
             backend.clear(self._scope)

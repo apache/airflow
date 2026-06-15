@@ -1508,6 +1508,28 @@ class TestTaskStateStoreAccessor:
             )
         )
 
+    @pytest.mark.asyncio
+    async def test_adelete_awaits_asend(self, mock_supervisor_comms):
+        """adelete awaits asend without touching sync send."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+
+        await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).adelete("job_id")
+
+        mock_supervisor_comms.asend.assert_called_once_with(
+            DeleteTaskStateStore(ti_id=self.TI_ID, key="job_id")
+        )
+        mock_supervisor_comms.send.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aclear_awaits_asend(self, mock_supervisor_comms):
+        """aclear awaits asend without touching sync send."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+
+        await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aclear()
+
+        mock_supervisor_comms.asend.assert_called_once_with(ClearTaskStateStore(ti_id=self.TI_ID))
+        mock_supervisor_comms.send.assert_not_called()
+
 
 class TestAssetStateStoreAccessor:
     ASSET_NAME = "debug_watcher_asset"

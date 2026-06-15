@@ -32,7 +32,7 @@ Task State Store
 
 Task store is a persistent key/value store scoped to a single task instance (``dag_id`` + ``run_id`` + ``task_id`` + ``map_index``). It survives worker crashes and task retries within the same Dag run, making it suitable for storing external job IDs, intra-task checkpoints, and progress metadata.
 
-Data persisted via task state store is accessed through the task context via ``context["task_state_store"]`` and exposes the synchronous methods ``get``, ``set``, ``delete``, and ``clear``, plus the async counterparts ``aget`` and ``aset`` for use inside ``async`` tasks.
+Data persisted via task state store is accessed through the task context via ``context["task_state_store"]`` and exposes the synchronous methods ``get``, ``set``, ``delete``, and ``clear``, plus the async counterparts ``aget``, ``aset``, ``adelete``, and ``aclear`` for use inside ``async`` tasks.
 
 
 Accessing task state store
@@ -135,17 +135,19 @@ Deletes *all* task state store keys for this task instance.
 
     task_state_store.clear()
 
-``aget(key, default)`` and ``aset(key, value, *, retention=None)``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``aget``, ``aset``, ``adelete``, ``aclear``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Async counterparts of ``get`` and ``set`` for use inside ``async`` tasks. They behave identically to their synchronous siblings, but ``await`` the round-trip to the API server instead of blocking the event loop, so a coroutine can checkpoint its progress without stalling other concurrent work.
+Async counterparts of ``get``, ``set``, ``delete``, and ``clear`` for use inside ``async`` tasks. They take the same arguments and behave identically to their synchronous siblings, but ``await`` the round-trip to the API server instead of blocking the event loop, so a coroutine can checkpoint its progress without stalling other concurrent work.
 
 .. code-block:: python
 
     value = await task_state_store.aget("job_id", default="123456789")
     await task_state_store.aset("job_id", job_id, retention=NEVER_EXPIRE)
+    await task_state_store.adelete("job_id")
+    await task_state_store.aclear()
 
-Calling the synchronous ``get``/``set`` from inside an ``async`` task blocks the event loop and defeats the concurrency the coroutine was written for. Use ``aget``/``aset`` there instead.
+Calling the synchronous ``get``/``set``/``delete``/``clear`` from inside an ``async`` task blocks the event loop and defeats the concurrency the coroutine was written for. Use the ``a``-prefixed methods there instead.
 
 Some Example Use Cases
 ----------------------
