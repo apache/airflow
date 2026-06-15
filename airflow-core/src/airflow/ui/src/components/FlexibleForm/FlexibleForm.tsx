@@ -175,8 +175,13 @@ export const FlexibleForm = ({
           );
         })}
       </>
-    ) : isHITL && Boolean(flexFormDescription) ? (
-      <ReactMarkdown>{flexFormDescription}</ReactMarkdown>
+    ) : isHITL ? (
+      <FlatSection
+        hasError={Boolean(sectionError.get(flexibleFormDefaultSection))}
+        title={flexibleFormDefaultSection}
+      >
+        {Boolean(flexFormDescription) ? <ReactMarkdown>{flexFormDescription}</ReactMarkdown> : undefined}
+      </FlatSection>
     ) : undefined;
   }
 
