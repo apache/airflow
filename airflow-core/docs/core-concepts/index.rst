@@ -56,14 +56,14 @@ Here you can find detailed documentation about each one of the core concepts of 
     variables
     params
 
-**Task and Asset Store**
+**Task and Asset State Store**
 
 .. toctree::
     :maxdepth: 2
 
-    task-and-asset-store
-    task-store
-    asset-store
+    task-and-asset-state-store
+    task-state-store
+    asset-state-store
 
 **Debugging**
 

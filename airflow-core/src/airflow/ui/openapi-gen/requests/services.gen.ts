@@ -3,7 +3,7 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, NextRunAssetsData, NextRunAssetsResponse2, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionTestData, GetConnectionTestResponse, EnqueueConnectionTestData, EnqueueConnectionTestResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, BulkDagRunsData, BulkDagRunsResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, ClearDagRunsData, ClearDagRunsResponse, GetDagRunStatsData, GetDagRunStatsResponse, GetDagSourceData, GetDagSourceResponse, GetDagStatsData, GetDagStatsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetLatestRunInfoData, GetLatestRunInfoResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskGroupInstancesData, PatchTaskGroupInstancesResponse, PatchTaskGroupInstancesDryRunData, PatchTaskGroupInstancesDryRunResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, GetHitlDetailTryDetailData, GetHitlDetailTryDetailResponse, GetHitlDetailsData, GetHitlDetailsResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, ListAssetStoreData, ListAssetStoreResponse, ClearAssetStoreData, ClearAssetStoreResponse, GetAssetStoreData, GetAssetStoreResponse, SetAssetStoreData, SetAssetStoreResponse, DeleteAssetStoreData, DeleteAssetStoreResponse, ListTaskStoreData, ListTaskStoreResponse, ClearTaskStoreData, ClearTaskStoreResponse, GetTaskStoreData, GetTaskStoreResponse, SetTaskStoreData, SetTaskStoreResponse, PatchTaskStoreData, PatchTaskStoreResponse, DeleteTaskStoreData, DeleteTaskStoreResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, DeleteXcomEntryData, DeleteXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutResponse, GetAuthMenusResponse, GetCurrentUserInfoResponse, GenerateTokenData, GenerateTokenResponse2, GetPartitionedDagRunsData, GetPartitionedDagRunsResponse, GetPendingPartitionedDagRunData, GetPendingPartitionedDagRunResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, GetDeadlinesData, GetDeadlinesResponse, GetDagDeadlineAlertsData, GetDagDeadlineAlertsResponse, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesStreamData, GetGridTiSummariesStreamResponse, GetGanttDataData, GetGanttDataResponse, GetCalendarData, GetCalendarResponse, ListTeamsData, ListTeamsResponse } from './types.gen';
+import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, NextRunAssetsData, NextRunAssetsResponse2, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionTestData, GetConnectionTestResponse, EnqueueConnectionTestData, EnqueueConnectionTestResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, BulkDagRunsData, BulkDagRunsResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, ClearDagRunsData, ClearDagRunsResponse, GetDagRunStatsData, GetDagRunStatsResponse, GetDagSourceData, GetDagSourceResponse, GetDagStatsData, GetDagStatsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetLatestRunInfoData, GetLatestRunInfoResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskGroupInstancesData, PatchTaskGroupInstancesResponse, PatchTaskGroupInstancesDryRunData, PatchTaskGroupInstancesDryRunResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, GetHitlDetailTryDetailData, GetHitlDetailTryDetailResponse, GetHitlDetailsData, GetHitlDetailsResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, ListAssetStateStoreData, ListAssetStateStoreResponse, ClearAssetStateStoreData, ClearAssetStateStoreResponse, GetAssetStateStoreData, GetAssetStateStoreResponse, SetAssetStateStoreData, SetAssetStateStoreResponse, DeleteAssetStateStoreData, DeleteAssetStateStoreResponse, ListTaskStateStoreData, ListTaskStateStoreResponse, ClearTaskStateStoreData, ClearTaskStateStoreResponse, GetTaskStateStoreData, GetTaskStateStoreResponse, SetTaskStateStoreData, SetTaskStateStoreResponse, PatchTaskStateStoreData, PatchTaskStateStoreResponse, DeleteTaskStateStoreData, DeleteTaskStateStoreResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, DeleteXcomEntryData, DeleteXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutResponse, GetAuthMenusResponse, GetCurrentUserInfoResponse, GenerateTokenData, GenerateTokenResponse2, GetPartitionedDagRunsData, GetPartitionedDagRunsResponse, GetPendingPartitionedDagRunData, GetPendingPartitionedDagRunResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, GetDeadlinesData, GetDeadlinesResponse, GetDagDeadlineAlertsData, GetDagDeadlineAlertsResponse, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesStreamData, GetGridTiSummariesStreamResponse, GetGanttDataData, GetGanttDataResponse, GetCalendarData, GetCalendarResponse, ListTeamsData, ListTeamsResponse } from './types.gen';
 
 export class AssetService {
     /**
@@ -1228,7 +1228,7 @@ export class DagRunService {
      * @param data.dagId
      * @param data.dagRunId
      * @param data.interval Seconds to wait between dag run state checks
-     * @param data.result Collect result XCom from task. Can be set multiple times.
+     * @param data.result Collect result XCom from task. Can be set multiple times. If unset, return value of the return task as specified in the dag (in present) is returned by default.
      * @returns unknown Successful Response
      * @throws ApiError
      */
@@ -1342,7 +1342,7 @@ export class ExperimentalService {
      * @param data.dagId
      * @param data.dagRunId
      * @param data.interval Seconds to wait between dag run state checks
-     * @param data.result Collect result XCom from task. Can be set multiple times.
+     * @param data.result Collect result XCom from task. Can be set multiple times. If unset, return value of the return task as specified in the dag (in present) is returned by default.
      * @returns unknown Successful Response
      * @throws ApiError
      */
@@ -3609,21 +3609,21 @@ export class ProviderService {
     
 }
 
-export class AssetStoreService {
+export class AssetStateStoreService {
     /**
-     * List Asset Store
-     * List all store entries for an asset.
+     * List Asset State Store
+     * List all state store entries for an asset.
      * @param data The data for the request.
      * @param data.assetId
      * @param data.limit
      * @param data.offset
-     * @returns AssetStoreCollectionResponse Successful Response
+     * @returns AssetStateStoreCollectionResponse Successful Response
      * @throws ApiError
      */
-    public static listAssetStore(data: ListAssetStoreData): CancelablePromise<ListAssetStoreResponse> {
+    public static listAssetStateStore(data: ListAssetStateStoreData): CancelablePromise<ListAssetStateStoreResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/api/v2/assets/{asset_id}/store',
+            url: '/api/v2/assets/{asset_id}/state-store',
             path: {
                 asset_id: data.assetId
             },
@@ -3641,17 +3641,17 @@ export class AssetStoreService {
     }
     
     /**
-     * Clear Asset Store
-     * Delete all store keys for an asset.
+     * Clear Asset State Store
+     * Delete all state store keys for an asset.
      * @param data The data for the request.
      * @param data.assetId
      * @returns void Successful Response
      * @throws ApiError
      */
-    public static clearAssetStore(data: ClearAssetStoreData): CancelablePromise<ClearAssetStoreResponse> {
+    public static clearAssetStateStore(data: ClearAssetStateStoreData): CancelablePromise<ClearAssetStateStoreResponse> {
         return __request(OpenAPI, {
             method: 'DELETE',
-            url: '/api/v2/assets/{asset_id}/store',
+            url: '/api/v2/assets/{asset_id}/state-store',
             path: {
                 asset_id: data.assetId
             },
@@ -3665,18 +3665,18 @@ export class AssetStoreService {
     }
     
     /**
-     * Get Asset Store
-     * Get a single asset store entry.
+     * Get Asset State Store
+     * Get a single asset state store entry.
      * @param data The data for the request.
      * @param data.key
      * @param data.assetId
-     * @returns AssetStoreResponse Successful Response
+     * @returns AssetStateStoreResponse Successful Response
      * @throws ApiError
      */
-    public static getAssetStore(data: GetAssetStoreData): CancelablePromise<GetAssetStoreResponse> {
+    public static getAssetStateStore(data: GetAssetStateStoreData): CancelablePromise<GetAssetStateStoreResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/api/v2/assets/{asset_id}/store/{key}',
+            url: '/api/v2/assets/{asset_id}/state-store/{key}',
             path: {
                 key: data.key,
                 asset_id: data.assetId
@@ -3691,8 +3691,8 @@ export class AssetStoreService {
     }
     
     /**
-     * Set Asset Store
-     * Set an asset store value. Creates or overwrites the key.
+     * Set Asset State Store
+     * Set an asset state store value. Creates or overwrites the key.
      * @param data The data for the request.
      * @param data.key
      * @param data.assetId
@@ -3700,10 +3700,10 @@ export class AssetStoreService {
      * @returns void Successful Response
      * @throws ApiError
      */
-    public static setAssetStore(data: SetAssetStoreData): CancelablePromise<SetAssetStoreResponse> {
+    public static setAssetStateStore(data: SetAssetStateStoreData): CancelablePromise<SetAssetStateStoreResponse> {
         return __request(OpenAPI, {
             method: 'PUT',
-            url: '/api/v2/assets/{asset_id}/store/{key}',
+            url: '/api/v2/assets/{asset_id}/state-store/{key}',
             path: {
                 key: data.key,
                 asset_id: data.assetId
@@ -3720,18 +3720,18 @@ export class AssetStoreService {
     }
     
     /**
-     * Delete Asset Store
-     * Delete a single asset store key. No-op if the key does not exist.
+     * Delete Asset State Store
+     * Delete a single asset state store key. No-op if the key does not exist.
      * @param data The data for the request.
      * @param data.key
      * @param data.assetId
      * @returns void Successful Response
      * @throws ApiError
      */
-    public static deleteAssetStore(data: DeleteAssetStoreData): CancelablePromise<DeleteAssetStoreResponse> {
+    public static deleteAssetStateStore(data: DeleteAssetStateStoreData): CancelablePromise<DeleteAssetStateStoreResponse> {
         return __request(OpenAPI, {
             method: 'DELETE',
-            url: '/api/v2/assets/{asset_id}/store/{key}',
+            url: '/api/v2/assets/{asset_id}/state-store/{key}',
             path: {
                 key: data.key,
                 asset_id: data.assetId
@@ -3747,10 +3747,10 @@ export class AssetStoreService {
     
 }
 
-export class TaskStoreService {
+export class TaskStateStoreService {
     /**
-     * List Task Store
-     * List all task store entries for a task instance.
+     * List Task State Store
+     * List all task state store entries for a task instance.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -3758,13 +3758,13 @@ export class TaskStoreService {
      * @param data.mapIndex
      * @param data.limit
      * @param data.offset
-     * @returns TaskStoreCollectionResponse Successful Response
+     * @returns TaskStateStoreCollectionResponse Successful Response
      * @throws ApiError
      */
-    public static listTaskStore(data: ListTaskStoreData): CancelablePromise<ListTaskStoreResponse> {
+    public static listTaskStateStore(data: ListTaskStateStoreData): CancelablePromise<ListTaskStateStoreResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/store',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store',
             path: {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
@@ -3785,10 +3785,10 @@ export class TaskStoreService {
     }
     
     /**
-     * Clear Task Store
-     * Delete all task store keys for a task instance.
+     * Clear Task State Store
+     * Delete all task state store keys for a task instance.
      *
-     * When ``all_map_indices=true``, store is cleared for every map index of the task and
+     * When ``all_map_indices=true``, state store is cleared for every map index of the task and
      * the ``map_index`` parameter is ignored.
      * @param data The data for the request.
      * @param data.dagId
@@ -3799,10 +3799,10 @@ export class TaskStoreService {
      * @returns void Successful Response
      * @throws ApiError
      */
-    public static clearTaskStore(data: ClearTaskStoreData): CancelablePromise<ClearTaskStoreResponse> {
+    public static clearTaskStateStore(data: ClearTaskStateStoreData): CancelablePromise<ClearTaskStateStoreResponse> {
         return __request(OpenAPI, {
             method: 'DELETE',
-            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/store',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store',
             path: {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
@@ -3822,21 +3822,21 @@ export class TaskStoreService {
     }
     
     /**
-     * Get Task Store
-     * Get a single task store entry.
+     * Get Task State Store
+     * Get a single task state store entry.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
      * @param data.key
      * @param data.mapIndex
-     * @returns TaskStoreResponse Successful Response
+     * @returns TaskStateStoreResponse Successful Response
      * @throws ApiError
      */
-    public static getTaskStore(data: GetTaskStoreData): CancelablePromise<GetTaskStoreResponse> {
+    public static getTaskStateStore(data: GetTaskStateStoreData): CancelablePromise<GetTaskStateStoreResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/store/{key}',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}',
             path: {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
@@ -3856,8 +3856,8 @@ export class TaskStoreService {
     }
     
     /**
-     * Set Task Store
-     * Set a task store value. Creates or overwrites the key.
+     * Set Task State Store
+     * Set a task state store value. Creates or overwrites the key.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -3868,10 +3868,10 @@ export class TaskStoreService {
      * @returns void Successful Response
      * @throws ApiError
      */
-    public static setTaskStore(data: SetTaskStoreData): CancelablePromise<SetTaskStoreResponse> {
+    public static setTaskStateStore(data: SetTaskStateStoreData): CancelablePromise<SetTaskStateStoreResponse> {
         return __request(OpenAPI, {
             method: 'PUT',
-            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/store/{key}',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}',
             path: {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
@@ -3893,8 +3893,8 @@ export class TaskStoreService {
     }
     
     /**
-     * Patch Task Store
-     * Update the value of an existing task store key.
+     * Patch Task State Store
+     * Update the value of an existing task state store key.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -3905,10 +3905,10 @@ export class TaskStoreService {
      * @returns unknown Successful Response
      * @throws ApiError
      */
-    public static patchTaskStore(data: PatchTaskStoreData): CancelablePromise<PatchTaskStoreResponse> {
+    public static patchTaskStateStore(data: PatchTaskStateStoreData): CancelablePromise<PatchTaskStateStoreResponse> {
         return __request(OpenAPI, {
             method: 'PATCH',
-            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/store/{key}',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}',
             path: {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
@@ -3930,8 +3930,8 @@ export class TaskStoreService {
     }
     
     /**
-     * Delete Task Store
-     * Delete a single task store key. No-op if the key does not exist.
+     * Delete Task State Store
+     * Delete a single task state store key. No-op if the key does not exist.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -3941,10 +3941,10 @@ export class TaskStoreService {
      * @returns void Successful Response
      * @throws ApiError
      */
-    public static deleteTaskStore(data: DeleteTaskStoreData): CancelablePromise<DeleteTaskStoreResponse> {
+    public static deleteTaskStateStore(data: DeleteTaskStateStoreData): CancelablePromise<DeleteTaskStateStoreResponse> {
         return __request(OpenAPI, {
             method: 'DELETE',
-            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/store/{key}',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}',
             path: {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
