@@ -145,6 +145,9 @@
     "selectDateRange": "Select Date Range",
     "startTime": "Start Time"
   },
+  "fullscreen": {
+    "tooltip": "Press {{hotkey}} for fullscreen"
+  },
   "generateToken": "Generate Token",
   "key": "Key",
   "logicalDate": "Logical Date",
@@ -285,10 +288,12 @@
   "taskGroup_other": "$t(task_one) Groups",
   "taskId": "$t(task_one) ID",
   "taskInstance": {
+    "additionalAttributes": "Additional Task Instance Attributes",
     "dagVersion": "Dag Version",
     "executor": "Executor",
     "executorConfig": "Executor Config",
     "hostname": "Hostname",
+    "id": "ID",
     "maxTries": "Max Tries",
     "pid": "PID",
     "pool": "Pool",
@@ -298,11 +303,13 @@
     "queuedWhen": "Queued At",
     "renderedMapIndex": "Rendered Map Index",
     "scheduledWhen": "Scheduled At",
+    "trigger": "Trigger",
     "triggerer": {
       "assigned": "Assigned triggerer",
       "class": "Trigger class",
       "createdAt": "Trigger creation time",
       "id": "Trigger ID",
+      "job": "Triggerer Job",
       "latestHeartbeat": "Latest triggerer heartbeat",
       "title": "Triggerer Info"
     },
