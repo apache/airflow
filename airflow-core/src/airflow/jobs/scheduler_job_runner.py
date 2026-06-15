@@ -2384,20 +2384,34 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
         partition_dag_ids: set[str] = self._create_dagruns_for_partitioned_asset_dags(session)
 
-        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+        query, triggered_date_by_dag, asset_gated_ready_dag_ids = DagModel.dags_needing_dagruns(session)
         all_dags_needing_dag_runs = set(query.all())
-        asset_triggered_dags = [d for d in all_dags_needing_dag_runs if d.dag_id in triggered_date_by_dag]
+        asset_triggered_dags = [
+            d
+            for d in all_dags_needing_dag_runs
+            if d.dag_id in triggered_date_by_dag and d.dag_id not in partition_dag_ids
+        ]
+        asset_gated_ready_dags = [
+            d
+            for d in all_dags_needing_dag_runs
+            if d.dag_id in asset_gated_ready_dag_ids and d.dag_id not in partition_dag_ids
+        ]
         non_asset_dags = {
             d
-            # filter asset-triggered Dags
-            for d in all_dags_needing_dag_runs.difference(asset_triggered_dags)
-            # filter asset partition triggered Dags
-            if d.dag_id not in partition_dag_ids
+            for d in all_dags_needing_dag_runs
+            if d.dag_id not in triggered_date_by_dag
+            and d.dag_id not in asset_gated_ready_dag_ids
+            and d.dag_id not in partition_dag_ids
         }
         self._create_dag_runs(non_asset_dags, session)
         if asset_triggered_dags:
             self._create_dag_runs_asset_triggered(
-                dag_models=[d for d in asset_triggered_dags if d.dag_id not in partition_dag_ids],
+                dag_models=asset_triggered_dags,
+                session=session,
+            )
+        if asset_gated_ready_dags:
+            self._create_dag_runs_asset_gated(
+                dag_models=asset_gated_ready_dags,
                 session=session,
             )
 
@@ -2571,6 +2585,142 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
             #  memory for larger dags? or expunge_all()
+
+    def _create_dag_runs_asset_gated(
+        self,
+        *,
+        dag_models: Collection[DagModel],
+        session: Session,
+    ) -> None:
+        """
+        Create SCHEDULED Dag runs for time-based timetables gated by an asset condition.
+
+        Caller (``_create_dagruns_for_dags``) hands in DAGs whose asset condition was
+        already verified in ``DagModel.dags_needing_dagruns``. We re-lock and re-evaluate
+        here because another scheduler in the HA pool may have consumed the ADRQ rows
+        between the candidate query and DagRun creation.
+        """
+        evaluator = AssetEvaluator(session)
+        # Mirror _create_dag_runs: track active runs so we can update
+        # exceeds_max_non_backfill after each creation. Without this, the SQL filter
+        # in dags_needing_dagruns cannot prevent a follow-up asset event from
+        # creating a second run while the first one is still queued/running.
+        active_runs_of_dags = Counter(
+            DagRun.active_runs_of_dags(
+                dag_ids=(dm.dag_id for dm in dag_models),
+                exclude_backfill=True,
+                session=session,
+            )
+        )
+
+        for dag_model in dag_models:
+            if dag_model.next_dagrun_create_after is None:
+                continue
+            if dag_model.next_dagrun_create_after > timezone.utcnow():
+                continue
+
+            serdag = self._get_current_dag(dag_id=dag_model.dag_id, session=session)
+            if not serdag:
+                self.log.error("Dag not found in serialized_dag table", dag_id=dag_model.dag_id)
+                continue
+
+            queued_adrqs = session.scalars(
+                with_row_locks(
+                    select(AssetDagRunQueue)
+                    .where(AssetDagRunQueue.target_dag_id == dag_model.dag_id)
+                    .options(joinedload(AssetDagRunQueue.asset)),
+                    of=AssetDagRunQueue,
+                    skip_locked=True,
+                    key_share=False,
+                    session=session,
+                )
+            ).all()
+            if not queued_adrqs:
+                continue
+
+            statuses = {SerializedAssetUniqueKey.from_asset(r.asset): True for r in queued_adrqs}
+            try:
+                ready = evaluator.run(serdag.timetable.asset_condition, statuses=statuses)
+            except Exception:
+                self.log.exception("Dag '%s' failed to be evaluated; assuming not ready", dag_model.dag_id)
+                continue
+            if not ready:
+                continue
+
+            # Fetch AssetEvents that satisfied the gate so we can link them to the run
+            # for provenance (triggering_asset_events template, inlet_events callbacks,
+            # UI asset events section). Mirrors _create_dag_runs_asset_triggered but
+            # scoped to SCHEDULED run_type since asset-gated runs are SCHEDULED.
+            triggered_date = timezone.coerce_datetime(max(r.created_at for r in queued_adrqs))
+            previous_run_cte = (
+                select(func.max(DagRun.run_after).label("previous_run_after"))
+                .where(
+                    DagRun.dag_id == dag_model.dag_id,
+                    DagRun.run_type == DagRunType.SCHEDULED,
+                    DagRun.run_after < triggered_date,
+                )
+                .cte()
+            )
+            asset_events = list(
+                session.scalars(
+                    select(AssetEvent)
+                    .where(
+                        or_(
+                            AssetEvent.asset_id.in_(
+                                select(DagScheduleAssetReference.asset_id).where(
+                                    DagScheduleAssetReference.dag_id == dag_model.dag_id
+                                )
+                            ),
+                            AssetEvent.source_aliases.any(
+                                AssetAliasModel.scheduled_dags.any(
+                                    DagScheduleAssetAliasReference.dag_id == dag_model.dag_id
+                                )
+                            ),
+                        ),
+                        AssetEvent.timestamp <= triggered_date,
+                        AssetEvent.timestamp > func.coalesce(previous_run_cte.c.previous_run_after, date.min),
+                    )
+                    .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
+                )
+            )
+
+            try:
+                next_info = serdag.timetable.next_run_info_from_dag_model(dag_model=dag_model)
+                if TYPE_CHECKING:
+                    assert next_info is not None
+                dag_run = serdag.create_dagrun(
+                    run_id=serdag.timetable.generate_run_id(
+                        run_type=DagRunType.SCHEDULED,
+                        run_after=next_info.run_after,
+                        data_interval=next_info.data_interval,
+                    ),
+                    logical_date=next_info.logical_date,
+                    data_interval=next_info.data_interval,
+                    run_after=next_info.run_after,
+                    run_type=DagRunType.SCHEDULED,
+                    triggered_by=DagRunTriggeredByType.TIMETABLE,
+                    state=DagRunState.QUEUED,
+                    creating_job_id=self.job.id,
+                    session=session,
+                )
+                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dag_run)
+                dag_run.consumed_asset_events.extend(asset_events)
+                active_runs_of_dags[dag_model.dag_id] += 1
+                self._set_exceeds_max_active_runs(
+                    dag_model=dag_model,
+                    session=session,
+                    active_non_backfill_runs=active_runs_of_dags[dag_model.dag_id],
+                )
+            except Exception:
+                self.log.exception("Failed creating asset-gated DagRun", dag_id=dag_model.dag_id)
+                continue
+
+            adrq_pks = [(r.asset_id, r.target_dag_id) for r in queued_adrqs]
+            session.execute(
+                delete(AssetDagRunQueue).where(
+                    tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
+                )
+            )
 
     def _create_dag_runs_asset_triggered(
         self,
@@ -2821,6 +2971,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         dag_run.run_id,
                     )
                     continue
+
             active_runs_of_dags[(dag_run.dag_id, backfill_id)] += 1
             _update_state(dag, dag_run)
             dag_run.notify_dagrun_state_changed(msg="started")
