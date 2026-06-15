@@ -37,7 +37,7 @@ except ImportError:
     # ResumableJobMixin does not exist in Airflow 2, so we need to add a stub to make it
     # behave as before
     class ResumableJobMixin:  # type: ignore[no-redef]
-        """Airflow 2 stub — no task_state, always submits fresh."""
+        """Airflow 2 stub — no task_state_store, always submits fresh."""
 
         external_id_key: str = "remote_job_id"
 
@@ -264,7 +264,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if hook._should_track_driver_status:
             if self.reconnect_on_retry:
                 return self.execute_resumable(context)
-            # reconnect_on_retry=False: still submit-and-poll, just skip task_state persistence.
+            # reconnect_on_retry=False: still submit-and-poll, just skip task_state_store persistence.
             driver_id = self.submit_job(context)
             self.poll_until_complete(driver_id, context)
             return self.get_job_result(driver_id, context)
@@ -284,7 +284,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
                 hook._validate_yarn_track_via_rm_api_config()
                 if self.reconnect_on_retry:
                     return self.execute_resumable(context)
-                # reconnect_on_retry=False: still submit-and-poll, just skip task_state persistence.
+                # reconnect_on_retry=False: still submit-and-poll, just skip task_state_store persistence.
                 driver_id = self.submit_job(context)
                 self.poll_until_complete(driver_id, context)
                 return self.get_job_result(driver_id, context)
