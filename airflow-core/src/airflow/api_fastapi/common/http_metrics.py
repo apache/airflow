@@ -19,50 +19,23 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import structlog
 
 from airflow._shared.observability.metrics.stats import Stats
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException
 
 if TYPE_CHECKING:
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 logger = structlog.get_logger(logger_name="http.metrics")
 
-_DEFAULT_API_PATH_PREFIX_TO_SURFACE = {
-    "/api/v2": "public",
-    "/ui": "ui",
-}
 _ROUTE_PATHS_BY_ROUTER_ID: dict[int, dict[object, str]] = {}
 
 
 def _get_api_path_prefix_to_surface() -> tuple[tuple[str, str], ...]:
-    path_prefix_to_surface = conf.getjson(
-        "metrics",
-        "api_path_prefix_to_surface",
-        fallback=_DEFAULT_API_PATH_PREFIX_TO_SURFACE,
-    )
-    if not isinstance(path_prefix_to_surface, dict):
-        raise AirflowConfigException("[metrics] api_path_prefix_to_surface must be a JSON object")
-
-    for prefix, surface in path_prefix_to_surface.items():
-        if (
-            not isinstance(prefix, str)
-            or not prefix.startswith("/")
-            or (prefix != "/" and prefix.endswith("/"))
-        ):
-            raise AirflowConfigException(
-                "[metrics] api_path_prefix_to_surface keys must be path prefixes that start with '/' "
-                "and do not end with '/'"
-            )
-        if not isinstance(surface, str) or not surface:
-            raise AirflowConfigException(
-                "[metrics] api_path_prefix_to_surface values must be non-empty surface names"
-            )
-
+    path_prefix_to_surface = cast("dict[str, str]", conf.getjson("metrics", "api_path_prefix_to_surface"))
     return tuple(sorted(path_prefix_to_surface.items(), key=lambda item: len(item[0]), reverse=True))
 
 

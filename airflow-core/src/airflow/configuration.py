@@ -228,6 +228,7 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         return [
             self._validate_sqlite3_version,
             self._validate_enums,
+            self._validate_api_path_prefix_to_surface,
             self._validate_deprecated_values,
             self._upgrade_postgres_metastore_conn,
         ]
@@ -406,6 +407,28 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
                         f"`[{section_key}] {option_key}` should not be "
                         f"{value!r}. Possible values: {', '.join(enum_options)}."
                     )
+
+    def _validate_api_path_prefix_to_surface(self):
+        """Validate the mapping used to assign API metrics to surfaces."""
+        section, key = "metrics", "api_path_prefix_to_surface"
+        if not self.has_option(section, key):
+            return
+
+        path_prefix_to_surface = self.getjson(section, key)
+        if not isinstance(path_prefix_to_surface, dict):
+            raise AirflowConfigException(f"[{section}] {key} must be a JSON object")
+
+        for prefix, surface in path_prefix_to_surface.items():
+            if (
+                not isinstance(prefix, str)
+                or not prefix.startswith("/")
+                or (prefix != "/" and prefix.endswith("/"))
+            ):
+                raise AirflowConfigException(
+                    f"[{section}] {key} keys must be path prefixes that start with '/' and do not end with '/'"
+                )
+            if not isinstance(surface, str) or not surface:
+                raise AirflowConfigException(f"[{section}] {key} values must be non-empty surface names")
 
     def _validate_sqlite3_version(self):
         """
