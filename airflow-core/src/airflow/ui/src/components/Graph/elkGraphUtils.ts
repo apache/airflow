@@ -48,6 +48,7 @@ export type FormattedNode = {
   isMapped?: boolean;
   isOpen?: boolean;
   setupTeardownType?: NodeResponse["setup_teardown_type"];
+  team?: string | null;
 } & ElkShape &
   NodeResponse;
 
@@ -388,6 +389,7 @@ export const generateElkGraph = ({
       layoutOptions: direction === "RIGHT" ? { "elk.portConstraints": "FIXED_SIDE" } : undefined,
       operator: node.operator,
       setupTeardownType: node.setup_teardown_type,
+      team: node.team,
       tooltip: node.tooltip,
       type: node.type,
       width,

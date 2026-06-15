@@ -3207,7 +3207,7 @@ state_store:
       version_added: 3.3.0
       type: string
       example: "mypackage.state.CustomStateBackend"
-      default: "airflow.state.metastore.MetastoreStoreBackend"
+      default: "airflow.state.metastore.MetastoreBackend"
     clear_on_success:
       description: |
         If set to True, all task state keys for a task instance are automatically cleared
@@ -3226,7 +3226,7 @@ state_store:
       description: |
         Number of days to retain task state after their last update.
         Rows older than this are removed when cleanup is triggered.
-        This config does not affect asset_state rows.
+        This config does not affect asset_state_store rows.
         Set to 0 to disable time-based cleanup entirely.
       version_added: 3.3.0
       type: integer
@@ -3235,7 +3235,7 @@ state_store:
     state_cleanup_batch_size:
       description: |
         Number of rows deleted per batch during cleanup. Defaults to 0 (no batching).
-        Tune this on deployments with large task_state tables to improve performance per transaction.
+        Tune this on deployments with large task_state_store tables to improve performance per transaction.
       version_added: 3.3.0
       type: integer
       example: "10000"
