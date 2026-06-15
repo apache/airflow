@@ -175,7 +175,14 @@ def execute_callback(
         log.info("Callback executed successfully", callback_path=callback_path)
         return True, None
 
-    except Exception as e:
+    except BaseException as e:
+        # Catch BaseException, not just Exception: a callback that raises SystemExit or
+        # KeyboardInterrupt (directly, or indirectly via a library that calls sys.exit())
+        # would otherwise propagate out of the forked _target and terminate the child with
+        # SystemExit's own code. A SystemExit(0) in particular makes the child exit 0, which
+        # supervise_callback reads as SUCCESS — silently recording an aborted callback as
+        # completed. Treating any BaseException as a failure keeps the success state honest.
+        # (Mirrors the BaseException handling on the triggerer/async path.)
         error_msg = f"Callback execution failed: {type(e).__name__}: {str(e)}"
         log.exception(
             "Callback execution failed",
@@ -254,7 +261,7 @@ class CallbackSubprocess(WatchedSubprocess):
                     # (unusual_prefix_{hash}_{stem}) to avoid collisions. The callback path
                     # was serialized using that mangled name. Register the module under that
                     # name so import_string can find it in the subprocess.
-                    if callback_path and callback_path.startswith("unusual_prefix_"):
+                    if callback_path and callback_path.startswith(UNUSUAL_MODULE_PREFIX):
                         _register_unusual_prefix_module(callback_path, bundle.path, _log)
                 except Exception:
                     _log.warning(

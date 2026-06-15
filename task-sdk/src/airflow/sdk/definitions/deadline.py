@@ -120,6 +120,16 @@ class AverageRuntimeDeadline(BaseDeadlineReference):
             self.min_runs = self.max_runs
         if self.min_runs < 1:
             raise ValueError("min_runs must be at least 1")
+        if self.min_runs > self.max_runs:
+            # The evaluation query is ``LIMIT max_runs``, so it samples at most ``max_runs``
+            # completed runs and then requires ``len(durations) >= min_runs`` before computing
+            # an average. With ``min_runs > max_runs`` that condition can never be met, so the
+            # deadline would silently never be created no matter how many runs exist. Fail fast
+            # at authoring time instead of producing a permanently inert deadline.
+            raise ValueError(
+                f"min_runs ({self.min_runs}) cannot exceed max_runs ({self.max_runs}); "
+                "the deadline would require more completed runs than it ever samples."
+            )
 
     def serialize_reference(self) -> dict[str, Any]:
         return {
@@ -152,6 +162,13 @@ class DeadlineAlert:
         name: str | None = None,
     ):
         self.reference = reference
+
+        if not isinstance(interval, (timedelta, VariableInterval)):
+            raise ValueError(
+                f"interval must be a timedelta or VariableInterval, got {type(interval).__name__}. "
+                "A non-timedelta interval is accepted silently at authoring time but fails later when "
+                "the scheduler evaluates the deadline (reference datetime + interval)."
+            )
         self.interval = interval
         self.name = name
 
@@ -162,8 +179,15 @@ class DeadlineAlert:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, DeadlineAlert):
             return NotImplemented
+        # Compare reference by EXACT type, not ``isinstance``. ``isinstance(self.reference,
+        # type(other.reference))`` is asymmetric for subclasses — a custom reference subclassing a
+        # builtin (``register_custom_reference`` permits any ``BaseDeadlineReference`` subclass) made
+        # ``alert(SubRef) == alert(BaseRef)`` True but the reverse False (violating equality
+        # symmetry), AND disagreed with ``__hash__`` (which keys on ``type(...).__name__``), so two
+        # "equal" alerts could hash differently — breaking the eq/hash invariant and set/dict use.
+        # Exact-type matches ``__hash__`` and is symmetric.
         return (
-            isinstance(self.reference, type(other.reference))
+            type(self.reference) is type(other.reference)
             and self.interval == other.interval
             and self.callback == other.callback
         )
@@ -400,4 +424,15 @@ class VariableInterval:
         if seconds <= 0:
             raise ValueError(f"VariableInterval '{self.key}' must be > 0, got: {seconds}")
 
-        return timedelta(seconds=seconds)
+        try:
+            return timedelta(seconds=seconds)
+        except OverflowError as e:
+            # ``timedelta`` caps at ~999999999 days; a wildly out-of-range value (e.g. a
+            # fat-fingered ``deadline_seconds`` meant as ms) raises OverflowError, which is NOT
+            # a ValueError subclass and would otherwise escape this method's documented
+            # "raises ValueError on bad input" contract with a cryptic C-int message. Translate
+            # it to the same clean ValueError so callers (and the deadline-creation isolation)
+            # get a consistent, actionable error.
+            raise ValueError(
+                f"VariableInterval '{self.key}' is too large to be a valid interval: {seconds} seconds"
+            ) from e

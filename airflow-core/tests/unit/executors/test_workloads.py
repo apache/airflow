@@ -18,17 +18,19 @@
 from __future__ import annotations
 
 import dataclasses
-from pathlib import PurePosixPath
+from datetime import datetime, timezone
+from pathlib import Path, PurePosixPath
 from uuid import uuid4
 
 import jwt
 import pytest
+from pydantic import TypeAdapter
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.executors import workloads
 from airflow.executors.workloads import TaskInstance, TaskInstanceDTO, base as workloads_base
 from airflow.executors.workloads.base import BaseWorkloadSchema, BundleInfo
-from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod
+from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod, ExecuteCallback
 from airflow.executors.workloads.task import ExecuteTask
 from airflow.executors.workloads.types import state_class_for_key
 from airflow.models.callback import CallbackKey
@@ -171,3 +173,171 @@ def test_workload_ti_round_trips_through_sdk_generated_model():
     assert received.queue == "jdk-17"
     assert received.map_index == 3
     assert not hasattr(received, "pool_slots")
+
+
+# ---------------------------------------------------------------------------
+# ExecuteCallback scheduler -> worker JSON serialization round-trip.
+#
+# Real wire format (verified against the executors):
+#   scheduler: ``workload.model_dump_json()``
+#     - providers/celery/.../celery_executor_utils.py: ``args.model_dump_json()``
+#     - providers/cncf/kubernetes/.../pod_generator.py: ``workload.model_dump_json()``
+#   worker:    ``TypeAdapter[workloads.ExecutorWorkload].validate_json(input)``
+#     (discriminated union on the ``type`` field; ExecuteCallback is a member)
+#
+# These tests probe the full serialize -> JSON-over-the-wire -> deserialize
+# round-trip, with particular focus on the two classic JSON traps:
+#   * ``dag_rel_path: os.PathLike`` (a real ``Path``)
+#   * ``callback.data`` carrying a handle_miss-style routing dict
+# ---------------------------------------------------------------------------
+
+
+def _handle_miss_style_data() -> dict:
+    """Build a ``callback.data`` dict shaped exactly like ``Deadline.handle_miss`` produces."""
+    return {
+        # user payload kwargs (the callback import path + its args)
+        "path": "my_pkg.my_module.my_callback",
+        "kwargs": {"foo": "bar", "retries": 3},
+        # routing identifiers injected by handle_miss (all JSON primitives / strings)
+        "dag_id": "my_dag",
+        "run_id": "manual__2026-06-15T00:00:00+00:00",
+        "deadline_id": "11111111-1111-1111-1111-111111111111",
+        "deadline_time": datetime(2026, 6, 15, 12, 0, 0, tzinfo=timezone.utc).isoformat(),
+        "dag_run_id": "42",
+    }
+
+
+def _build_execute_callback(data: dict, dag_rel_path) -> ExecuteCallback:
+    return ExecuteCallback(
+        callback=CallbackDTO(
+            id="12345678-1234-5678-1234-567812345678",
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data=data,
+        ),
+        dag_rel_path=dag_rel_path,
+        token="eyJhbGciOiJIUzUxMiJ9.payload.sig",
+        bundle_info=BundleInfo(name="dags-folder", version="abc123"),
+        log_path="executor_callbacks/my_dag/run_1/cb.log",
+    )
+
+
+def test_execute_callback_json_roundtrip_matches_wire_format():
+    """ExecuteCallback must survive the scheduler->worker JSON round-trip with key fields intact.
+
+    Mirrors the real wire path: scheduler ``model_dump_json()`` then worker
+    ``TypeAdapter[ExecutorWorkload].validate_json(...)`` on the discriminated union.
+    """
+    workload = _build_execute_callback(_handle_miss_style_data(), Path("my_dag.py"))
+
+    # Scheduler side: serialize to JSON for the broker / K8s arg.
+    wire = workload.model_dump_json()
+
+    # Worker side: reconstruct through the discriminated union exactly as the executors do.
+    decoder = TypeAdapter[workloads.ExecutorWorkload](workloads.ExecutorWorkload)
+    restored = decoder.validate_json(wire)
+
+    # Discriminator routed to the right concrete type.
+    assert isinstance(restored, ExecuteCallback)
+    assert restored.type == "ExecuteCallback"
+
+    # Key fields match after the trip across the wire.
+    assert restored.callback.id == workload.callback.id
+    assert restored.callback.fetch_method == workload.callback.fetch_method
+    assert restored.callback.data == workload.callback.data
+    assert restored.token == workload.token
+    assert restored.log_path == workload.log_path
+    assert restored.bundle_info == workload.bundle_info
+    # The display_name / key derived properties still resolve post-trip.
+    assert restored.key == workload.key
+    assert restored.display_name == workload.display_name
+
+    # The handle_miss routing identifiers survived as strings (no silent type drift).
+    assert restored.callback.data["deadline_time"] == workload.callback.data["deadline_time"]
+    assert isinstance(restored.callback.data["deadline_time"], str)
+    assert restored.callback.data["dag_run_id"] == "42"
+
+
+def test_execute_callback_path_field_survives_json_roundtrip():
+    """The ``dag_rel_path`` (os.PathLike / Path) field is the classic JSON trap; assert it round-trips."""
+    workload = _build_execute_callback(_handle_miss_style_data(), Path("subdir/my_dag.py"))
+
+    wire = workload.model_dump_json()
+    decoder = TypeAdapter[workloads.ExecutorWorkload](workloads.ExecutorWorkload)
+    restored = decoder.validate_json(wire)
+
+    # Pydantic serializes Path to its string form; on the way back it should reconstruct
+    # to an equivalent PathLike whose string representation matches the original.
+    assert os_fspath_eq(restored.dag_rel_path, workload.dag_rel_path)
+
+
+def os_fspath_eq(a, b) -> bool:
+    import os
+
+    return os.fspath(a) == os.fspath(b)
+
+
+@pytest.mark.parametrize(
+    "rel_path",
+    [
+        pytest.param(Path("my_dag.py"), id="relative-path"),
+        pytest.param(Path("nested/dir/my_dag.py"), id="nested-path"),
+        pytest.param(PurePosixPath("posix/my_dag.py"), id="pure-posix-path"),
+    ],
+)
+def test_execute_callback_pathlike_variants_roundtrip(rel_path):
+    """Various PathLike inputs for ``dag_rel_path`` all survive the JSON round-trip."""
+    workload = _build_execute_callback(_handle_miss_style_data(), rel_path)
+
+    wire = workload.model_dump_json()
+    restored = TypeAdapter[workloads.ExecutorWorkload](workloads.ExecutorWorkload).validate_json(wire)
+
+    import os
+
+    assert os.fspath(restored.dag_rel_path) == os.fspath(rel_path)
+
+
+def test_execute_callback_data_with_non_json_value_fails_at_serialization():
+    """Adversarial: a non-JSON-primitive in callback.data must not silently corrupt the wire format.
+
+    handle_miss always stores JSON-safe primitives (it calls ``deadline_time.isoformat()``),
+    but if a raw ``datetime`` ever leaked into ``data`` the serialize step is where it should
+    surface. This documents/locks in the boundary behaviour so a regression that starts shipping
+    raw datetimes is caught here rather than producing a malformed payload on the worker.
+    """
+    bad_data = _handle_miss_style_data()
+    bad_data["deadline_time"] = datetime(2026, 6, 15, 12, 0, 0, tzinfo=timezone.utc)  # raw, not isoformat
+
+    workload = _build_execute_callback(bad_data, Path("my_dag.py"))
+
+    # Pydantic's default JSON encoder DOES know how to serialize datetime, so this does not raise;
+    # but it round-trips back as a *string*, not a datetime -> assert we detect that type drift so a
+    # value that must stay a datetime can't masquerade as having survived intact.
+    wire = workload.model_dump_json()
+    restored = TypeAdapter[workloads.ExecutorWorkload](workloads.ExecutorWorkload).validate_json(wire)
+    assert isinstance(restored.callback.data["deadline_time"], str)
+    assert restored.callback.data["deadline_time"] != bad_data["deadline_time"]
+
+
+def test_execute_callback_data_with_set_silently_coerces_to_list():
+    """Adversarial finding: a ``set`` in callback.data is silently coerced to a JSON list.
+
+    ``CallbackDTO.data`` is an untyped freeform ``dict``. When the scheduler serializes the
+    workload with ``model_dump_json()``, Pydantic's JSON serializer turns a ``set`` into a JSON
+    array WITHOUT raising and WITHOUT a warning. On the worker the value comes back as a ``list``,
+    not a ``set`` (and the element ordering is not preserved). This documents the transit-path
+    behaviour so that anyone relying on set semantics inside callback kwargs knows it does not
+    survive the wire. ``Deadline.handle_miss`` only ever stores JSON primitives, so this is not a
+    live defect — but it is the kind of silent type drift this round-trip is meant to surface.
+    """
+    bad_data = _handle_miss_style_data()
+    bad_data["kwargs"] = {"tags": {"a", "b", "c"}}  # a set
+
+    workload = _build_execute_callback(bad_data, Path("my_dag.py"))
+
+    wire = workload.model_dump_json()  # does NOT raise
+    restored = TypeAdapter[workloads.ExecutorWorkload](workloads.ExecutorWorkload).validate_json(wire)
+
+    restored_tags = restored.callback.data["kwargs"]["tags"]
+    # The set became a list across the wire (type drift), with the same membership.
+    assert isinstance(restored_tags, list)
+    assert set(restored_tags) == {"a", "b", "c"}

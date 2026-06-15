@@ -1333,6 +1333,80 @@ class TestTriggerRunner:
         assert isinstance(err, TypeError)
         assert "got an unexpected keyword argument 'not_exists_arg'" in str(err)
 
+    @patch(
+        "airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath",
+        return_value=SuccessTrigger,  # no required kwargs, so inflation reaches the context-build step
+    )
+    @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs", return_value={})
+    @patch(
+        "airflow.jobs.triggerer_job_runner.TriggerRunner._build_context_from_dag_run_data",
+        side_effect=ValueError("simulated DRDataModel ValidationError (extra=forbid / version skew)"),
+    )
+    @pytest.mark.asyncio
+    async def test_callback_context_build_failure_fails_only_that_trigger(
+        self, mock_build_ctx, mock_decrypt, mock_get_class, session
+    ):
+        """A non-TypeError raised while inflating a callback trigger (e.g. a ``pydantic.ValidationError``
+        — a ``ValueError`` — from the strict ``DRDataModel(**dag_run_data)`` on a version-skewed /
+        malformed ``dag_run_data``) must fail ONLY that trigger, not escape ``create_triggers`` and
+        shut down the whole triggerer via ``arun()``'s ``except Exception: self.stop = True``."""
+        trigger_runner = TriggerRunner()
+        # A callback workload (ti=None) with dag_run_data routes through _build_context_from_dag_run_data.
+        trigger_runner.to_create.append(
+            workloads.RunTrigger.model_construct(
+                id=7,
+                ti=None,
+                classpath="airflow.triggers.callback.CallbackTrigger",
+                encrypted_kwargs="fake",
+                dag_run_data={"dag_id": "d", "run_id": "r", "_unexpected_extra_field": "x"},
+            )
+        )
+
+        # Must NOT raise (the bug: ValueError escaped except TypeError -> arun -> triggerer shutdown).
+        await trigger_runner.create_triggers()
+
+        # The bad trigger is failed in isolation, not silently inflated.
+        assert (7, ANY) in trigger_runner.failed_triggers
+        assert 7 not in trigger_runner.triggers
+        mock_build_ctx.assert_called_once()
+
+    @patch(
+        "airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath",
+        return_value=SuccessTrigger,
+    )
+    @patch(
+        "airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs",
+        side_effect=ValueError("simulated Fernet InvalidToken / corrupt encrypted_kwargs blob"),
+    )
+    @pytest.mark.asyncio
+    async def test_decrypt_kwargs_failure_fails_only_that_trigger(
+        self, mock_decrypt, mock_get_class, session
+    ):
+        """A corrupt / un-decryptable ``encrypted_kwargs`` blob (Fernet ``InvalidToken`` after key
+        rotation, a truncated blob → ``json.JSONDecodeError``, or a bad ``deserialize``) makes
+        ``Trigger._decrypt_kwargs`` RAISE at create_triggers (triggerer_job_runner.py:1355). These are
+        NOT ``TypeError``s, so the Bug #21 fix (``except Exception``, not ``except TypeError``) is what
+        keeps the raise from escaping to ``arun()``'s ``except Exception: self.stop = True`` and shutting
+        down the WHOLE triggerer. This pins that the decrypt-raise path is isolated to the one trigger —
+        the failure-path counterpart to the clean DB-persistence round-trip; the Bug #21 comment names
+        ``_decrypt_kwargs`` as a covered raise source but no test made it actually raise."""
+        trigger_runner = TriggerRunner()
+        trigger_runner.to_create.append(
+            workloads.RunTrigger.model_construct(
+                id=11,
+                ti=None,
+                classpath="airflow.triggers.callback.CallbackTrigger",
+                encrypted_kwargs="corrupt-not-decryptable",
+            )
+        )
+
+        # Must NOT raise — a decrypt failure escaping would crash the whole triggerer.
+        await trigger_runner.create_triggers()
+
+        assert (11, ANY) in trigger_runner.failed_triggers
+        assert 11 not in trigger_runner.triggers
+        mock_decrypt.assert_called_once()
+
     @pytest.mark.asyncio
     @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
     async def test_invalid_trigger(self, supervisor_builder):
@@ -2091,7 +2165,7 @@ def test_update_triggers_prevents_duplicate_creation_queue_entries(session, supe
 
     # Verify that the trigger is not in any other tracking sets
     assert trigger_orm.id not in supervisor.cancelling_triggers
-    assert not any(trigger_id == trigger_orm.id for trigger_id, _ in supervisor.events)
+    assert not any(entry.trigger_id == trigger_orm.id for entry in supervisor.events)
     assert not any(trigger_id == trigger_orm.id for trigger_id, _ in supervisor.failed_triggers)
 
 
@@ -2904,6 +2978,88 @@ class TestBuildContextFromDagRunData:
 
         assert "deadline" not in context
         # Standard context fields should still be present
+
+
+class TestFetchCallbackDagRunData:
+    """Tests for TriggerRunnerSupervisor._fetch_callback_dag_run_data (the PRODUCER of the
+    ``_deadline`` passthrough that ``_build_context_from_dag_run_data`` consumes). Without this,
+    the deadline-metadata flow on the async path was only half-covered: a producer that failed to
+    pack ``_deadline`` (or read the wrong callback.data keys) would silently drop the metadata and
+    the consumer test would still pass.
+    """
+
+    def _supervisor(self, mocker):
+        import psutil
+
+        job = Job()
+        process = mocker.Mock(spec=psutil.Process, pid=99)
+        return TriggerRunnerSupervisor(
+            process_log=mocker.Mock(spec=FilteringBoundLogger),
+            id=job.id,
+            job=job,
+            pid=process.pid,
+            stdin=mocker.Mock(spec=socket),
+            process=process,
+            capacity=10,
+        )
+
+    def test_packs_deadline_metadata_from_callback_data(self, session, dag_maker, mocker):
+        """deadline_id/deadline_time stored on callback.data (by Deadline.handle_miss) must be
+        packed into the returned dag_run_data as ``_deadline`` for the consumer to surface."""
+        from airflow.models.callback import TriggererCallback
+        from airflow.models.deadline import Deadline
+        from airflow.sdk.definitions.callback import AsyncCallback
+
+        with dag_maker(dag_id="fetch_cb_dag", session=session):
+            EmptyOperator(task_id="t")
+        dr = dag_maker.create_dagrun()
+
+        # Build a deadline -> TriggererCallback and run handle_miss so callback.data carries the
+        # routing + deadline metadata exactly as it would in production.
+        deadline = Deadline(
+            deadline_time=dr.logical_date,
+            callback=AsyncCallback("airflow.models.deadline.Deadline.prune_deadlines"),
+            dagrun_id=dr.id,
+            deadline_alert_id=None,
+        )
+        session.add(deadline)
+        session.flush()
+        deadline.handle_miss(session)
+        session.flush()
+
+        callback = deadline.callback
+        assert isinstance(callback, TriggererCallback)
+        trigger = callback.trigger
+        assert trigger is not None
+
+        supervisor = self._supervisor(mocker)
+        data = supervisor._fetch_callback_dag_run_data(trigger, session=session)
+
+        assert data is not None
+        assert "_deadline" in data
+        assert data["_deadline"]["id"] == str(deadline.id)
+        assert data["_deadline"]["deadline_time"] == deadline.deadline_time.isoformat()
+
+    def test_returns_none_when_routing_keys_absent(self, session, mocker):
+        """A trigger whose callback has no dag_id/run_id (e.g. 3.2.x format) returns None."""
+        from unittest.mock import MagicMock as _MM
+
+        from airflow.models.callback import TriggererCallback
+
+        callback_def = _MM()
+        callback_def.path = "builtins.print"
+        callback_def.kwargs = {}
+        callback_def.serialize.return_value = {"path": "builtins.print", "kwargs": {}}
+        callback = TriggererCallback(callback_def=callback_def)
+        assert "dag_id" not in callback.data
+        trigger = Trigger.from_object(TimeDeltaTrigger(datetime.timedelta(days=1)))
+        session.add_all([callback, trigger])
+        session.flush()
+        trigger.callback = callback
+        session.flush()
+
+        supervisor = self._supervisor(mocker)
+        assert supervisor._fetch_callback_dag_run_data(trigger, session=session) is None
 
 
 class TestBuildTriggerWorkloads32xCompat:

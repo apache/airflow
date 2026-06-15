@@ -714,51 +714,72 @@ class SerializedDAG:
             if not deadline_alert:
                 continue
 
-            deserialized_deadline_alert = decode_deadline_alert(
-                {
-                    Encoding.TYPE: DAT.DEADLINE_ALERT,
-                    Encoding.VAR: {
-                        DeadlineAlertFields.REFERENCE: deadline_alert.reference,
-                        DeadlineAlertFields.INTERVAL: deadline_alert.interval,
-                        DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
-                    },
-                }
-            )
+            # Isolate each deadline alert: creating a deadline is auxiliary to creating the
+            # DagRun itself, and must never prevent the DagRun from being created. A single bad
+            # alert — e.g. a ``VariableInterval`` whose backing Variable is missing / non-integer
+            # / <= 0 (``resolve()`` raises ``ValueError``), or a reference whose ``evaluate_with``
+            # fails — would otherwise propagate out of ``create_dagrun`` and abort the whole run,
+            # silently stopping the DAG from scheduling. The SAVEPOINT rolls back only this
+            # alert's partial work and keeps the DagRun + any already-created sibling deadlines
+            # intact. Mirrors the per-deadline isolation in the scheduler's handle_miss loop.
+            try:
+                with session.begin_nested():
+                    deserialized_deadline_alert = decode_deadline_alert(
+                        {
+                            Encoding.TYPE: DAT.DEADLINE_ALERT,
+                            Encoding.VAR: {
+                                DeadlineAlertFields.REFERENCE: deadline_alert.reference,
+                                DeadlineAlertFields.INTERVAL: deadline_alert.interval,
+                                DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
+                            },
+                        }
+                    )
 
-            interval = deserialized_deadline_alert.interval
+                    interval = deserialized_deadline_alert.interval
 
-            if isinstance(interval, VariableInterval):
-                interval = interval.resolve()
+                    if isinstance(interval, VariableInterval):
+                        interval = interval.resolve()
 
-            if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
-                deadline_time = deserialized_deadline_alert.reference.evaluate_with(
-                    session=session,
-                    interval=interval,
-                    # TODO : Pretty sure we can drop these last two; verify after testing is complete
-                    dag_id=self.dag_id,
-                    run_id=orm_dagrun.run_id,
-                )
-
-                if deadline_time is not None:
-                    session.add(
-                        Deadline(
-                            deadline_time=deadline_time,
-                            callback=deserialized_deadline_alert.callback,
-                            dagrun_id=orm_dagrun.id,
-                            deadline_alert_id=deadline_alert.id,
-                            dag_id=orm_dagrun.dag_id,
-                            bundle_name=orm_dagrun.dag_model.bundle_name,
+                    if isinstance(
+                        deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN
+                    ):
+                        deadline_time = deserialized_deadline_alert.reference.evaluate_with(
+                            session=session,
+                            interval=interval,
+                            # TODO : Pretty sure we can drop these last two; verify after testing is complete
+                            dag_id=self.dag_id,
+                            run_id=orm_dagrun.run_id,
                         )
-                    )
-                    team_name = (
-                        DagModel.get_team_name(self.dag_id, session=session)
-                        if airflow_conf.getboolean("core", "multi_team")
-                        else None
-                    )
-                    stats.incr(
-                        "deadline_alerts.deadline_created",
-                        tags=prune_dict({"dag_id": self.dag_id, "team_name": team_name}),
-                    )
+
+                        if deadline_time is not None:
+                            session.add(
+                                Deadline(
+                                    deadline_time=deadline_time,
+                                    callback=deserialized_deadline_alert.callback,
+                                    dagrun_id=orm_dagrun.id,
+                                    deadline_alert_id=deadline_alert.id,
+                                    dag_id=orm_dagrun.dag_id,
+                                    bundle_name=orm_dagrun.dag_model.bundle_name,
+                                )
+                            )
+                            team_name = (
+                                DagModel.get_team_name(self.dag_id, session=session)
+                                if airflow_conf.getboolean("core", "multi_team")
+                                else None
+                            )
+                            stats.incr(
+                                "deadline_alerts.deadline_created",
+                                tags=prune_dict({"dag_id": self.dag_id, "team_name": team_name}),
+                            )
+            except Exception:
+                log.exception(
+                    "Failed to create deadline for alert %s on DagRun %s (dag_id=%s); "
+                    "skipping this deadline, the DagRun is unaffected",
+                    getattr(deadline_alert, "id", "<unknown>"),
+                    orm_dagrun.run_id,
+                    self.dag_id,
+                )
+                stats.incr("deadline_alerts.deadline_creation_failed", tags={"dag_id": self.dag_id})
 
     @provide_session
     def set_task_instance_state(

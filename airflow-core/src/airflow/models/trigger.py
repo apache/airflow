@@ -335,6 +335,32 @@ class Trigger(Base):
             task_instance.state = TaskInstanceState.SCHEDULED
             task_instance.scheduled_dttm = timezone.utcnow()
 
+        # A deadline callback trigger has a ``callback`` row instead of a deferred TaskInstance.
+        # ``submit_event`` terminalises that row (``trigger.callback.handle_event``) on the success
+        # path, but the failure path historically only handled TaskInstances — so a CallbackTrigger
+        # that failed to inflate/run (landing in ``failed_triggers`` → here) left its Callback stuck
+        # in QUEUED/RUNNING forever (a zombie: never SUCCESS/FAILED, re-warned, never reaped, since
+        # callback rows terminalise ONLY via an event, never via submit_failure's TI path). Emit a
+        # terminal FAILED event so the callback is marked FAILED — mirroring ``submit_event`` and the
+        # FAILED-event the triggerer's BaseException handler emits. ``handle_event`` is terminal-
+        # absorbing, so this is a no-op if the callback already reached a terminal state.
+        trigger = session.scalars(select(cls).where(cls.id == trigger_id)).one_or_none()
+        if trigger is not None and trigger.callback is not None:
+            from airflow.triggers.base import TriggerEvent
+            from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY
+            from airflow.utils.state import CallbackState
+
+            if isinstance(exc, BaseException):
+                body = "".join(format_exception(type(exc), exc, exc.__traceback__))
+            elif exc:
+                body = "".join(exc) if isinstance(exc, list) else str(exc)
+            else:
+                body = "Trigger failed before sending any event"
+            trigger.callback.handle_event(
+                TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.FAILED, PAYLOAD_BODY_KEY: body}),
+                session,
+            )
+
     @classmethod
     @provide_session
     def ids_for_triggerer(

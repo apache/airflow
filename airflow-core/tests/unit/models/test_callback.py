@@ -312,6 +312,133 @@ class TestTriggererCallback:
             mock_get_team_name.assert_not_called()
             assert "team_name" not in kwargs["tags"]
 
+    @pytest.mark.parametrize(
+        ("body", "expected_output"),
+        [
+            pytest.param({"rows": 5, "ok": True}, '{"ok": true, "rows": 5}', id="dict_body"),
+            pytest.param([1, 2, 3], "[1, 2, 3]", id="list_body"),
+            pytest.param(42, "42", id="int_body"),
+            pytest.param("already_a_string", "already_a_string", id="str_body_passthrough"),
+            pytest.param(None, None, id="none_body"),
+        ],
+    )
+    def test_handle_event_coerces_non_string_output(self, session, body, expected_output):
+        """A SUCCESS body is the callback's raw return value and can be any JSON-serializable
+        object. ``output`` is a Text column, so a non-string body must be JSON-coerced before
+        persisting — otherwise the DB driver raises on commit and crashes the TriggererJobRunner."""
+        callback = TriggererCallback(TEST_ASYNC_CALLBACK)
+        callback.queue(session=session)
+        event = TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.SUCCESS, PAYLOAD_BODY_KEY: body})
+
+        callback.handle_event(event, session)
+
+        assert callback.state == CallbackState.SUCCESS
+        assert callback.output == expected_output
+        # Must be a string (or None) so it persists to the Text column without adapter errors.
+        assert callback.output is None or isinstance(callback.output, str)
+        # The row must actually commit — this is what would crash before the coercion fix.
+        session.commit()
+
+    def test_handle_event_body_that_breaks_json_dumps_falls_back_to_repr(self, session):
+        """A SUCCESS body that ``json.dumps(..., default=str)`` cannot encode must still be
+        coerced to a string (via the ``repr()`` fallback) rather than crashing the triggerer's
+        synchronous run loop. ``handle_event`` runs with no surrounding guard, so an uncaught
+        exception here would tear down the TriggererJobRunner."""
+
+        class _NotJSONSerializable:
+            """default=str is called for unknown types; raising from __str__ makes even
+            ``json.dumps(..., default=str)`` fail, forcing the repr() fallback branch."""
+
+            def __str__(self):
+                raise RuntimeError("str() blows up")
+
+            def __repr__(self):
+                return "<NotJSONSerializable repr>"
+
+        callback = TriggererCallback(TEST_ASYNC_CALLBACK)
+        callback.queue(session=session)
+        body = _NotJSONSerializable()
+        event = TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.SUCCESS, PAYLOAD_BODY_KEY: body})
+
+        # Must not raise — the json.dumps failure is caught and repr() is used instead.
+        callback.handle_event(event, session)
+
+        assert callback.state == CallbackState.SUCCESS
+        assert callback.output == "<NotJSONSerializable repr>"
+        assert isinstance(callback.output, str)
+        # The row must actually persist without an adapter error on the Text column.
+        session.commit()
+
+    def test_handle_event_body_that_breaks_both_json_and_repr_uses_uncoercible_placeholder(self, session):
+        """The last-resort branch: if both ``json.dumps`` and ``repr()`` raise, ``output`` falls
+        back to a static ``<uncoercible ...>`` placeholder so the run loop never crashes on a
+        pathological callback return value."""
+
+        class _Pathological:
+            def __str__(self):
+                raise RuntimeError("str() blows up")
+
+            def __repr__(self):
+                raise RuntimeError("repr() blows up too")
+
+        callback = TriggererCallback(TEST_ASYNC_CALLBACK)
+        callback.queue(session=session)
+        body = _Pathological()
+        event = TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.SUCCESS, PAYLOAD_BODY_KEY: body})
+
+        # Must not raise even though json.dumps AND repr() both fail.
+        callback.handle_event(event, session)
+
+        assert callback.state == CallbackState.SUCCESS
+        assert callback.output == "<uncoercible callback result of type _Pathological>"
+        assert isinstance(callback.output, str)
+        session.commit()
+
+    @pytest.mark.parametrize(
+        ("terminal_state", "late_event"),
+        [
+            pytest.param(
+                CallbackState.SUCCESS,
+                TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.RUNNING}),
+                id="success_then_late_running",
+            ),
+            pytest.param(
+                CallbackState.SUCCESS,
+                TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.FAILED, PAYLOAD_BODY_KEY: "err"}),
+                id="success_then_late_failed",
+            ),
+            pytest.param(
+                CallbackState.FAILED,
+                TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.SUCCESS, PAYLOAD_BODY_KEY: "late"}),
+                id="failed_then_late_success",
+            ),
+        ],
+    )
+    def test_terminal_state_is_absorbing(self, session, terminal_state, late_event):
+        """Once a callback is terminal (SUCCESS/FAILED), a late/duplicate event must NOT move it.
+
+        Normal flow delivers RUNNING then a single terminal event in order, but at-least-once /
+        duplicate delivery (re-run trigger, HA replica reprocessing a stale event) could otherwise
+        resurrect a completed callback to an active state or flip its terminal outcome. Terminal
+        states are absorbing: handle_event ignores further events once terminal.
+        """
+        callback = TriggererCallback(TEST_ASYNC_CALLBACK)
+        callback.queue(session=session)
+        # Drive it to the terminal state first.
+        first_body = "original"
+        callback.handle_event(
+            TriggerEvent({PAYLOAD_STATUS_KEY: terminal_state, PAYLOAD_BODY_KEY: first_body}), session
+        )
+        assert callback.state == terminal_state
+        original_output = callback.output
+
+        # A late event must be ignored — state and output unchanged.
+        callback.handle_event(late_event, session)
+        assert callback.state == terminal_state, "terminal callback was resurrected/flipped by a late event"
+        assert callback.output == original_output, (
+            "terminal callback's output was overwritten by a late event"
+        )
+
 
 class TestExecutorCallback:
     def test_polymorphic_serde(self, session):
@@ -336,6 +463,36 @@ class TestExecutorCallback:
 
         callback.queue(session=session)
         assert callback.state == CallbackState.QUEUED
+
+    def test_mixed_table_polymorphic_discrimination(self, session):
+        """With BOTH a TriggererCallback and an ExecutorCallback in the callback table,
+        polymorphic deserialization must type each row correctly, and a subclass-scoped query
+        must return only its own rows. This is the real scheduler/triggerer scenario:
+        ``_enqueue_executor_callbacks`` does ``select(ExecutorCallback)`` against a table that
+        also holds TriggererCallbacks — a mis-typed row would route a callback to the wrong
+        execution path (e.g. an async callback queued to an executor, or vice versa).
+        """
+        tc = TriggererCallback(TEST_ASYNC_CALLBACK)
+        ec = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.IMPORT_PATH)
+        session.add_all([tc, ec])
+        session.commit()
+        tc_id, ec_id = tc.id, ec.id
+        session.expunge_all()  # force fresh polymorphic deserialization from the DB
+
+        # select(Callback) types each row to its correct subclass.
+        by_id = {c.id: c for c in session.scalars(select(Callback)).all()}
+        assert isinstance(by_id[tc_id], TriggererCallback)
+        assert isinstance(by_id[ec_id], ExecutorCallback)
+
+        # The scheduler's query: select(ExecutorCallback) returns ONLY the executor row.
+        exec_ids = {c.id for c in session.scalars(select(ExecutorCallback)).all()}
+        assert ec_id in exec_ids
+        assert tc_id not in exec_ids, "TriggererCallback leaked into select(ExecutorCallback)"
+
+        # The triggerer's query: select(TriggererCallback) returns ONLY the triggerer row.
+        trig_ids = {c.id for c in session.scalars(select(TriggererCallback)).all()}
+        assert tc_id in trig_ids
+        assert ec_id not in trig_ids, "ExecutorCallback leaked into select(TriggererCallback)"
 
     def test_session_get_requires_uuid_not_str(self, session):
         """Filtering the UUID id column with a plain str breaks on SQLite, so

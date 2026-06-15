@@ -1018,3 +1018,151 @@ class TestSerializedDagModel:
 
         # The name must have been updated in the DB.
         assert updated_alert.name == "updated name"
+
+    def test_multiple_deadline_alerts_reuse_uuids_on_name_only_change(self, testing_dag_bundle, session):
+        """Multi-alert reparse: a DAG with TWO deadline alerts where only names change must reuse
+        BOTH UUIDs (no new serdag, hash unchanged) and update both names — exercising the greedy
+        ``_try_reuse_deadline_uuids`` matcher across >1 alert (all existing tests use a single
+        alert). NOTE: written mirroring ``test_deadline_name_change_updates_db_and_returns_true``
+        but NOT YET EXECUTED under the disk floor — run before relying on it."""
+        dag_id = "test_multi_deadline_reuse"
+
+        dag = DAG(
+            dag_id=dag_id,
+            deadline=[
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                    interval=timedelta(minutes=5),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                    name="alert one",
+                ),
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                    interval=timedelta(minutes=10),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                    name="alert two",
+                ),
+            ],
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+        scheduler_dag.create_dagrun(
+            run_id="test1",
+            run_after=DEFAULT_DATE,
+            state=DagRunState.QUEUED,
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            triggered_by=DagRunTriggeredByType.TEST,
+            run_type=DagRunType.MANUAL,
+        )
+        session.commit()
+
+        orig_serdag = session.scalar(select(SDM).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc()))
+        orig_hash = orig_serdag.dag_hash
+        orig_uuids = {
+            a.name: a.id for a in session.scalars(select(DAM).where(DAM.serialized_dag_id == orig_serdag.id))
+        }
+        assert set(orig_uuids) == {"alert one", "alert two"}
+
+        # Change ONLY the names of both alerts (references/intervals/callbacks unchanged).
+        dag.deadline = [
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+                name="alert one renamed",
+            ),
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                interval=timedelta(minutes=10),
+                callback=AsyncCallback(empty_callback_for_deadline),
+                name="alert two renamed",
+            ),
+        ]
+
+        SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session)
+        session.commit()
+
+        serdag_count = session.scalar(select(func.count()).select_from(SDM).where(SDM.dag_id == dag_id))
+        latest_serdag = session.scalar(
+            select(SDM).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc())
+        )
+        new_alerts = list(session.scalars(select(DAM).where(DAM.serialized_dag_id == latest_serdag.id)))
+
+        # Name-only change across BOTH alerts → UUIDs reused, no new serdag, hash unchanged.
+        assert serdag_count == 1
+        assert latest_serdag.dag_hash == orig_hash
+        # Both original UUIDs are still present (reused, not regenerated).
+        assert {a.id for a in new_alerts} == set(orig_uuids.values())
+        # Both names updated.
+        assert {a.name for a in new_alerts} == {"alert one renamed", "alert two renamed"}
+
+    def test_multiple_deadline_alerts_one_def_change_regenerates_all(self, testing_dag_bundle, session):
+        """Multi-alert reparse where ONE alert's definition (interval) changes must trigger FULL
+        regeneration of ALL UUIDs (a new serdag + new hash), not partial reuse — because
+        ``_try_reuse_deadline_uuids`` returns None on any mismatch (deadlines may be
+        interdependent, so partial reuse is unsafe). Complements the name-only-change test."""
+        dag_id = "test_multi_deadline_def_change"
+
+        dag = DAG(
+            dag_id=dag_id,
+            deadline=[
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                    interval=timedelta(minutes=5),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                    name="alpha",
+                ),
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                    interval=timedelta(minutes=10),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                    name="beta",
+                ),
+            ],
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+        scheduler_dag.create_dagrun(
+            run_id="test1",
+            run_after=DEFAULT_DATE,
+            state=DagRunState.QUEUED,
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            triggered_by=DagRunTriggeredByType.TEST,
+            run_type=DagRunType.MANUAL,
+        )
+        session.commit()
+
+        orig_serdag = session.scalar(select(SDM).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc()))
+        orig_uuids = {
+            a.id for a in session.scalars(select(DAM).where(DAM.serialized_dag_id == orig_serdag.id))
+        }
+
+        # Change ONE alert's interval (5m -> 7m); the other is unchanged.
+        dag.deadline = [
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=7),  # changed
+                callback=AsyncCallback(empty_callback_for_deadline),
+                name="alpha",
+            ),
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                interval=timedelta(minutes=10),
+                callback=AsyncCallback(empty_callback_for_deadline),
+                name="beta",
+            ),
+        ]
+
+        SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session)
+        session.commit()
+
+        serdag_count = session.scalar(select(func.count()).select_from(SDM).where(SDM.dag_id == dag_id))
+        new_serdag = session.scalar(select(SDM).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc()))
+        new_uuids = {a.id for a in session.scalars(select(DAM).where(DAM.serialized_dag_id == new_serdag.id))}
+
+        # A definition change → a new serdag with a new hash and freshly-generated UUIDs (no reuse).
+        assert serdag_count == 2
+        assert new_serdag.dag_hash != orig_serdag.dag_hash
+        assert new_uuids.isdisjoint(orig_uuids), "any def change must regenerate ALL deadline UUIDs"

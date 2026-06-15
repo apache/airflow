@@ -942,13 +942,29 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     )
                     continue
 
-                if workload := self._create_workload(
-                    trigger=new_trigger_orm,
-                    dag_bag=dag_bag,
-                    render_log_fname=render_log_fname,
-                    session=session,
-                ):
-                    to_create.append(workload)
+                # Isolate per-trigger failures: a single bad trigger (e.g. one whose
+                # serialized Dag fails to load, whose deadline-callback context fetch
+                # raises, or whose log-path rendering throws) must not abort the whole
+                # batch and crash the triggerer process. This mirrors the per-item
+                # isolation already applied to the scheduler's handle_miss and
+                # _enqueue_executor_callbacks loops.
+                try:
+                    if workload := self._create_workload(
+                        trigger=new_trigger_orm,
+                        dag_bag=dag_bag,
+                        render_log_fname=render_log_fname,
+                        session=session,
+                    ):
+                        to_create.append(workload)
+                except Exception:
+                    log.exception(
+                        "Failed to build workload for trigger; skipping it so the rest of "
+                        "the batch can still launch",
+                        id=new_trigger_id,
+                    )
+                    # _create_workload may have already registered a logger factory before
+                    # failing; drop it so the failed trigger leaves no leaked state behind.
+                    self.logger_cache.pop(new_trigger_id, None)
 
         return to_create
 
@@ -1393,8 +1409,18 @@ class TriggerRunner:
                     if workload.dag_run_data:
                         context = self._build_context_from_dag_run_data(workload.dag_run_data)
                         trigger_instance._callback_context = context
-            except TypeError as err:
-                self.log.error("Trigger failed to inflate", error=err)
+            except Exception as err:
+                # Inflating the trigger / building its callback context can fail in more ways than
+                # a TypeError: ``DRDataModel(**dag_run_data)`` in ``_build_context_from_dag_run_data``
+                # is a strict (``extra=forbid``) Pydantic model, so a version-skewed or malformed
+                # ``dag_run_data`` raises ``pydantic.ValidationError`` (a ``ValueError``, NOT a
+                # ``TypeError``); ``smart_decode_trigger_kwargs`` / ``_decrypt_kwargs`` can likewise
+                # raise non-TypeError errors. Catching only ``TypeError`` let those escape to
+                # ``arun()``'s ``except Exception``, which sets ``self.stop = True`` and shuts down
+                # the WHOLE triggerer — killing every running trigger because of one bad workload.
+                # Fail just this trigger (mirrors the ``except BaseException`` on the class-load step
+                # above) so the others keep running.
+                self.log.error("Trigger failed to inflate", error=err, trigger_id=trigger_id)
                 self.failed_triggers.append((trigger_id, err))
                 continue
             trigger_instance.trigger_id = trigger_id
@@ -1688,6 +1714,71 @@ class TriggerRunner:
                         await self.log.awarning("on_kill() raised an exception", name=name, exc_info=True)
                 span.set_status(Status(StatusCode.OK), description=str(e))
                 raise
+            except BaseException as e:
+                # A BaseException (other than CancelledError) raised by user code
+                # inside the trigger — e.g. an async deadline callback that calls
+                # sys.exit(), raises KeyboardInterrupt, raises GeneratorExit, or
+                # raises a custom BaseException subclass. For SystemExit /
+                # KeyboardInterrupt asyncio re-raises these out of the event-loop
+                # step; other BaseException subclasses get stored on the task and
+                # are reaped by cleanup_finished_triggers(), but that path calls
+                # submit_failure() which only fails dependent task instances and
+                # never marks a Callback row terminal — so a callback trigger would
+                # be stuck in RUNNING forever. Handle every BaseException uniformly
+                # here: record the failure so dependent task instances are failed,
+                # and emit a terminal FAILED event so callback rows (which are only
+                # marked terminal via an event, not via submit_failure) don't get
+                # stuck in RUNNING forever. Do NOT re-raise — that is what keeps
+                # the event loop alive. asyncio.CancelledError is handled by the
+                # dedicated ``except asyncio.CancelledError`` clause above (which
+                # is evaluated first and re-raises), so cancellation is unaffected
+                # and is never swallowed here.
+                if isinstance(e, Exception):
+                    # Ordinary exceptions keep their existing behaviour: re-raise so
+                    # the generic ``except Exception`` path below records the failure
+                    # via cleanup_finished_triggers(). Only true BaseException
+                    # subclasses (SystemExit, KeyboardInterrupt, GeneratorExit, and
+                    # custom BaseException classes) are handled inline here.
+                    raise
+                from airflow.triggers.callback import CallbackTrigger
+
+                span.set_status(Status(StatusCode.ERROR), description=str(e))
+                await self.log.aexception(
+                    "Trigger raised %s; failing it instead of crashing the triggerer",
+                    type(e).__name__,
+                    name=name,
+                    trigger_id=trigger_id,
+                )
+                if isinstance(trigger, CallbackTrigger):
+                    # Callback rows are only marked terminal via an event
+                    # (handle_event), never via submit_failure, so a FAILED event
+                    # is what moves the Callback out of RUNNING. Mirror the FAILED
+                    # event CallbackTrigger.run() emits for ordinary exceptions —
+                    # which it cannot emit here because a BaseException tears the
+                    # async generator down before its own except-handler runs.
+                    from airflow.models.callback import CallbackState
+                    from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY
+
+                    self.triggers[trigger_id]["events"] += 1
+                    self.events.append(
+                        TriggerEventEntry(
+                            trigger_id=trigger_id,
+                            event=TriggerEvent(
+                                {
+                                    PAYLOAD_STATUS_KEY: CallbackState.FAILED,
+                                    PAYLOAD_BODY_KEY: f"Trigger failed with {type(e).__name__}: "
+                                    f"{''.join(format_exception(type(e), e, e.__traceback__))}",
+                                }
+                            ),
+                            persist_seq=None,
+                        )
+                    )
+                else:
+                    # Task-bound (and asset) triggers fail their dependents through
+                    # the failure queue, exactly as the generic ``except Exception``
+                    # path does via cleanup_finished_triggers().
+                    self.failed_triggers.append((trigger_id, e))
+                return
             except Exception as e:
                 span.set_status(Status(StatusCode.ERROR), description=str(e))
                 raise

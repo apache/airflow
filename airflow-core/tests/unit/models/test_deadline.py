@@ -211,6 +211,23 @@ class TestDeadline:
             assert f"needed by {DEFAULT_DATE}" in repr_str
             assert TEST_CALLBACK_PATH in repr_str
 
+    def test_repr_with_dagrun_id_but_no_dagrun_relationship(self, deadline_orm):
+        """__repr__ must NOT raise when dagrun_id is set but the dagrun relationship is None.
+
+        The FK (dagrun_id) can be set while the relationship resolves to None — e.g. the DagRun
+        was deleted (ondelete=CASCADE) and this is a stale/expired in-memory Deadline. A __repr__
+        that raised AttributeError here would break log lines, tracebacks, and debugger displays
+        exactly when something is already going wrong. The repr falls back to an id-only form.
+        """
+        # Sever the relationship while keeping the FK id (simulates deleted/detached DagRun).
+        deadline_orm.dagrun = None
+        assert deadline_orm.dagrun_id is not None
+
+        repr_str = repr(deadline_orm)  # must not raise
+        assert "[DagRun Deadline]" in repr_str
+        assert f"Run: {deadline_orm.dagrun_id}" in repr_str
+        assert "Dag: <unknown>" in repr_str
+
     @pytest.mark.db_test
     def test_bundle_name_propagated_to_callback(self, dagrun, session):
         """The bundle name is forwarded to the callback so the triggerer can resolve its team."""
@@ -469,6 +486,109 @@ class TestCalculatedDeadlineDatabaseCalls:
             # Should return None since insufficient runs
             assert result is None
 
+    def test_average_runtime_with_only_unfinished_runs_returns_none(self, session, dag_maker):
+        """Historical runs that started but never finished (``end_date IS NULL`` — still-running or
+        hung) must be EXCLUDED from the average (the query filters ``end_date.isnot(None)``). With
+        only unfinished runs, ``durations`` is empty → ``len < min_runs`` → ``evaluate_with``
+        returns None (deadline not created) without raising on the empty result.
+        """
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        base_time = DEFAULT_DATE
+        # 5 runs that STARTED but never finished (end_date stays None).
+        for i in range(5):
+            logical_date = base_time + timedelta(days=i)
+            dagrun = dag_maker.create_dagrun(
+                logical_date=logical_date, run_id=f"unfinished_run_{i}", state=DagRunState.RUNNING
+            )
+            dagrun.start_date = logical_date + timedelta(minutes=5)
+            dagrun.end_date = None
+        session.commit()
+
+        # min_runs=1 so it would create a deadline IF any finished run existed — proving the
+        # None result is due to end_date filtering, not the min_runs threshold.
+        reference = SerializedReferenceModels.AverageRuntimeDeadline(max_runs=10, min_runs=1)
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(session=session, interval=timedelta(hours=1), dag_id=DAG_ID)
+
+        # No finished runs → empty durations → None (no crash on the empty average).
+        assert result is None
+
+    def test_average_runtime_mixed_finished_and_unfinished_averages_only_finished(self, session, dag_maker):
+        """With a mix of finished and still-running runs, the average must use ONLY the finished
+        ones. The ``end_date IS NOT NULL`` filter is applied (in SQL) BEFORE ``LIMIT max_runs``, so
+        recent unfinished runs do NOT consume limit slots or starve older finished runs.
+        """
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        base_time = DEFAULT_DATE
+        # Older finished runs (200s, 400s) then NEWER unfinished runs (end_date=None).
+        # If the filter ran AFTER limit, the recent unfinished would crowd out the finished.
+        plan = [
+            (0, 200, DagRunState.SUCCESS),
+            (1, 400, DagRunState.SUCCESS),
+            (2, None, DagRunState.RUNNING),
+            (3, None, DagRunState.RUNNING),
+        ]
+        for i, duration, state in plan:
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            dagrun = dag_maker.create_dagrun(logical_date=logical_date, run_id=f"mixed_run_{i}", state=state)
+            dagrun.start_date = start_time
+            dagrun.end_date = (start_time + timedelta(seconds=duration)) if duration is not None else None
+        session.commit()
+
+        reference = SerializedReferenceModels.AverageRuntimeDeadline(max_runs=10, min_runs=1)
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(session=session, interval=timedelta(0), dag_id=DAG_ID)
+
+        # Average of ONLY the two finished runs: (200 + 400) / 2 = 300s. The unfinished runs are
+        # excluded by the end_date filter (before LIMIT), so they neither skew nor starve.
+        assert result is not None
+        assert abs((result - DEFAULT_DATE).total_seconds() - 300) < 1
+
+    def test_average_runtime_with_clock_skewed_negative_durations(self, session, dag_maker):
+        """Documents current behavior (QA finding, not a fix): historical runs with
+        end_date < start_date (clock skew) yield negative durations, so the computed
+        average is negative and ``evaluate_with`` returns a PAST-DATED deadline_time
+        (``now + negative``). Such a deadline is immediately "missed" by the scheduler,
+        firing a spurious callback. Not crashing, and clock skew is an operational anomaly,
+        so this is recorded for reviewer judgment rather than auto-clamped. A safe future
+        improvement would clamp ``avg_seconds`` to >= 0 (and log) in
+        ``AverageRuntimeDeadline._evaluate_with``.
+        """
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        base_time = DEFAULT_DATE
+        # Negative + zero durations simulate clock skew / instantaneous runs.
+        durations = [-3600, -1800, 0]
+        for i, duration in enumerate(durations):
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            end_time = start_time + timedelta(seconds=duration)  # may be < start_time
+            dagrun = dag_maker.create_dagrun(
+                logical_date=logical_date, run_id=f"skew_run_{i}", state=DagRunState.SUCCESS
+            )
+            dagrun.start_date = start_time
+            dagrun.end_date = end_time
+        session.commit()
+
+        reference = SerializedReferenceModels.AverageRuntimeDeadline(max_runs=3, min_runs=1)
+        interval = timedelta(0)
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+
+        # avg of [-3600, -1800, 0] = -1800s -> deadline_time = now - 1800s (past-dated).
+        # The evaluation does not crash and returns a datetime; document that it is in the past.
+        assert result is not None
+        assert result < DEFAULT_DATE, "negative avg duration should yield a past-dated deadline_time"
+
     def test_average_runtime_with_min_runs(self, session, dag_maker):
         """Test AverageRuntimeDeadline with min_runs parameter allowing calculation with fewer runs."""
         with dag_maker(DAG_ID):
@@ -521,6 +641,72 @@ class TestCalculatedDeadlineDatabaseCalls:
 
         with pytest.raises(ValueError, match="min_runs must be at least 1"):
             DeadlineReference.AVERAGE_RUNTIME(max_runs=10, min_runs=-1)
+
+    def test_average_runtime_min_runs_cannot_exceed_max_runs(self):
+        """``min_runs > max_runs`` is unsatisfiable: the query is ``LIMIT max_runs`` and then
+        requires ``len(durations) >= min_runs``, so the deadline would silently never be
+        created. It must be rejected at authoring/deserialize time, not produce an inert deadline.
+        """
+        match = "cannot exceed max_runs"
+
+        # Public factory (authoring time).
+        with pytest.raises(ValueError, match=match):
+            DeadlineReference.AVERAGE_RUNTIME(max_runs=5, min_runs=10)
+
+        # Direct construction of the Core serialized model (covers __post_init__).
+        with pytest.raises(ValueError, match=match):
+            SerializedReferenceModels.AverageRuntimeDeadline(max_runs=5, min_runs=10)
+
+        # Deserialize path (e.g. a hand-edited / legacy serialized blob) must also reject it.
+        with pytest.raises(ValueError, match=match):
+            SerializedReferenceModels.AverageRuntimeDeadline.deserialize_reference(
+                {"max_runs": 5, "min_runs": 10}
+            )
+
+        # Boundary: min_runs == max_runs is allowed (the common default).
+        ref = DeadlineReference.AVERAGE_RUNTIME(max_runs=5, min_runs=5)
+        assert ref.min_runs == 5
+        assert ref.max_runs == 5
+
+    def test_average_runtime_CHARACTERIZES_failed_runs_skew_the_average(self, session, dag_maker):
+        """CHARACTERIZATION test (documents CURRENT behavior, NOT an endorsement): the
+        AverageRuntimeDeadline query filters only on dag_id + start/end-date present — it does NOT
+        filter ``DagRun.state == SUCCESS``. So a FAILED run with an anomalous duration is folded
+        into the "average runtime", skewing the deadline. See the MEDIUM finding in
+        OVERNIGHT-QA-SUMMARY.md. If the SUCCESS-only semantics are adopted, this test should be
+        FLIPPED to assert the FAILED run is excluded.
+        """
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        base_time = DEFAULT_DATE
+        # Two SUCCESS runs of 100s each, then a FAILED run of 9999s (wildly anomalous).
+        rows = [(100, DagRunState.SUCCESS), (100, DagRunState.SUCCESS), (9999, DagRunState.FAILED)]
+        for i, (duration, state) in enumerate(rows):
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            dagrun = dag_maker.create_dagrun(logical_date=logical_date, run_id=f"skew_run_{i}", state=state)
+            dagrun.start_date = start_time
+            dagrun.end_date = start_time + timedelta(seconds=duration)
+        session.commit()
+
+        reference = SerializedReferenceModels.AverageRuntimeDeadline(max_runs=10, min_runs=1)
+        interval = timedelta(0)
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+
+        # CURRENT behavior: the FAILED 9999s run IS included → avg = (100+100+9999)/3 ≈ 3399.67s,
+        # NOT the 100s a SUCCESS-only average would give. This is the documented skew.
+        skewed_avg = (100 + 100 + 9999) / 3
+        success_only_avg = 100
+        result_seconds = (result - DEFAULT_DATE).total_seconds()
+        assert abs(result_seconds - skewed_avg) < 1, (
+            "CHARACTERIZATION: FAILED run is currently included, skewing the average"
+        )
+        assert abs(result_seconds - success_only_avg) > 1, (
+            "if this now holds, the SUCCESS-only filter was added — flip this test"
+        )
 
 
 class TestDeadlineReference:

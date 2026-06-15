@@ -337,6 +337,74 @@ def test_validate_executor_field_executor_not_configured():
         _validate_executor_fields(dag)
 
 
+def _deadline_dag(callback):
+    from datetime import timedelta
+
+    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+
+    return DAG(
+        "deadline-dag",
+        schedule=None,
+        deadline=DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(seconds=1),
+            callback=callback,
+        ),
+    )
+
+
+def _deadline_sync_callback(executor=None):
+    from airflow.sdk.definitions.callback import SyncCallback
+
+    def _cb(**kwargs):
+        pass
+
+    return SyncCallback(_cb, executor=executor)
+
+
+def test_validate_executor_field_deadline_callback_invalid_executor():
+    """A deadline SyncCallback pinned to an unknown executor is rejected at parse time.
+
+    Without this validation the queued ExecutorCallback would sit PENDING forever (the
+    scheduler can't route it to a non-existent executor), re-warning every loop. This
+    mirrors the task-executor validation so the author gets immediate feedback instead.
+    """
+    dag = _deadline_dag(_deadline_sync_callback(executor="bogus.deadline.executor"))
+    with pytest.raises(
+        UnknownExecutorException,
+        match=re.escape("specifies executor 'bogus.deadline.executor', which is not available"),
+    ):
+        _validate_executor_fields(dag)
+
+
+def test_validate_executor_field_deadline_callback_valid_executor():
+    """A deadline callback whose executor resolves passes validation."""
+    dag = _deadline_dag(_deadline_sync_callback(executor="valid.executor"))
+    with patch.object(ExecutorLoader, "lookup_executor_name_by_str"):
+        _validate_executor_fields(dag)
+
+
+def test_validate_executor_field_deadline_callback_no_executor():
+    """A deadline callback with no pinned executor (uses default) is skipped — no validation."""
+    with patch.object(ExecutorLoader, "lookup_executor_name_by_str") as mock_lookup:
+        dag = _deadline_dag(_deadline_sync_callback(executor=None))
+        _validate_executor_fields(dag)
+        mock_lookup.assert_not_called()
+
+
+def test_validate_executor_field_deadline_async_callback_has_no_executor():
+    """An AsyncCallback (triggerer path) has no executor field and must not be validated."""
+    from airflow.sdk.definitions.callback import AsyncCallback
+
+    async def _acb(**kwargs):
+        pass
+
+    with patch.object(ExecutorLoader, "lookup_executor_name_by_str") as mock_lookup:
+        dag = _deadline_dag(AsyncCallback(_acb))
+        _validate_executor_fields(dag)
+        mock_lookup.assert_not_called()
+
+
 def test_validate_executor_field():
     with DAG("test-dag", schedule=None) as dag:
         BaseOperator(task_id="t1", executor="test.custom.executor")

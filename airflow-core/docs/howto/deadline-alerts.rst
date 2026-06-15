@@ -58,7 +58,7 @@ Below is an example Dag implementation. If the Dag has not finished 15 minutes a
 
 .. code-block:: python
 
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     from airflow.sdk import AsyncCallback, DAG, DeadlineAlert, DeadlineReference
     from airflow.providers.slack.notifications.slack_webhook import SlackWebhookNotifier
     from airflow.providers.standard.operators.empty import EmptyOperator
@@ -165,7 +165,9 @@ Here's an example using a fixed datetime:
 
 .. code-block:: python
 
-    tomorrow_at_ten = datetime.combine(datetime.now().date() + timedelta(days=1), time(10, 0))
+    tomorrow_at_ten = datetime.combine(
+        datetime.now().date() + timedelta(days=1), time(10, 0), tzinfo=timezone.utc
+    )
 
     with DAG(
         dag_id="fixed_deadline_alert",
@@ -383,7 +385,7 @@ In the following examples, ``notify_team`` is either a SyncCallback or AsyncCall
 
 .. code-block:: python
 
-    next_meeting = datetime(2025, 6, 26, 9, 30)
+    next_meeting = datetime(2025, 6, 26, 9, 30, tzinfo=timezone.utc)
 
     DeadlineAlert(
         reference=DeadlineReference.FIXED_DATETIME(next_meeting),
