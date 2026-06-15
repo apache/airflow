@@ -20,6 +20,7 @@ import collections
 import contextlib
 import functools
 import inspect
+import json
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
@@ -608,9 +609,20 @@ class TaskStateStoreAccessor:
             # wrap the value with a marker to indicate that it's stored externally, and include the ref to the external storage
             stored = _wrap_external_ref(ref)
 
-        SUPERVISOR_COMMS.send(
-            SetTaskStateStore(ti_id=self._ti_id, key=key, value=stored, expires_at=expires_at)
-        )
+        msg = SetTaskStateStore(ti_id=self._ti_id, key=key, value=stored, expires_at=expires_at)
+
+        if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
+            serialized_size = len(json.dumps(stored))
+            if serialized_size > limit:
+                log.warning(
+                    "Task store value for key %r is %d bytes, which exceeds configured max_value_storage_bytes=%d. "
+                    "Consider configuring [workers] state_store_backend to offload large payloads.",
+                    key,
+                    serialized_size,
+                    limit,
+                )
+
+        SUPERVISOR_COMMS.send(msg)
 
     def delete(self, key: str) -> None:
         """Delete a single key. No-op if the key does not exist."""
@@ -737,6 +749,17 @@ class AssetStateStoreAccessor:
             scope = AssetScope(name=self._name, uri=self._uri)
             ref = backend.serialize_asset_state_store_to_ref(value=value, key=key, scope=scope)
             stored = _wrap_external_ref(ref)
+
+        if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
+            serialized_size = len(json.dumps(stored))
+            if serialized_size > limit:
+                log.warning(
+                    "Asset store value for key %r is %d bytes, which exceeds configured max_value_storage_bytes=%d. "
+                    "Consider configuring [workers] state_store_backend to offload large payloads.",
+                    key,
+                    serialized_size,
+                    limit,
+                )
 
         msg: ToSupervisor
         if self._name:
@@ -950,10 +973,27 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
     asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
     partition_keys: set[str] = attrs.field(factory=set)
 
+    # Maximum length mirrors the StringID column width used in the metadata database
+    # (airflow.models.base.ID_LEN = 250).
+    _PARTITION_KEY_MAX_LENGTH: int = 250
+
     def add_partitions(self, keys: str | list[str]) -> None:
-        """Add one or more partition keys to :attr:`partition_keys`."""
+        """
+        Add one or more partition keys to :attr:`partition_keys`.
+
+        :raises ValueError: If any key is empty/whitespace-only or longer than
+            ``_PARTITION_KEY_MAX_LENGTH`` characters.
+        """
         if isinstance(keys, str):
             keys = [keys]
+        for key in keys:
+            if not key.strip():
+                raise ValueError(f"partition_key must not be empty or whitespace-only; got {key!r}.")
+            if len(key) > self._PARTITION_KEY_MAX_LENGTH:
+                raise ValueError(
+                    f"partition_key must be at most {self._PARTITION_KEY_MAX_LENGTH} characters; "
+                    f"got {len(key)}."
+                )
         self.partition_keys.update(keys)
 
     def add(self, asset: Asset | AssetRef, extra: dict[str, JsonValue] | None = None) -> None:

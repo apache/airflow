@@ -1266,6 +1266,105 @@ class TestFastApiSecurity:
             user=user,
         )
 
+    @patch.object(Pool, "get_name_to_team_name_mapping")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_requires_access_pool_bulk_checks_destination_team(
+        self, mock_get_auth_manager, mock_get_name_to_team_name_mapping
+    ):
+        """Bulk UPDATE that changes team_name must authorize the destination team."""
+        auth_manager = Mock()
+        auth_manager.batch_is_authorized_pool.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_name_to_team_name_mapping.return_value = {"pool1": "team_b"}
+
+        request = BulkBody[PoolBody].model_validate(
+            {
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [{"pool": "pool1", "slots": 5, "team_name": "team_a"}],
+                    },
+                ]
+            }
+        )
+        user = Mock()
+        requires_access_pool_bulk()(request, user)
+
+        auth_manager.batch_is_authorized_pool.assert_called_once_with(
+            requests=[
+                {"method": "PUT", "details": PoolDetails(name="pool1", team_name="team_b")},
+                {"method": "PUT", "details": PoolDetails(name="pool1", team_name="team_a")},
+            ],
+            user=user,
+        )
+
+    @patch.object(Connection, "get_conn_id_to_team_name_mapping")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_requires_access_connection_bulk_checks_destination_team(
+        self, mock_get_auth_manager, mock_get_conn_id_to_team_name_mapping
+    ):
+        """Bulk UPDATE that changes team_name must authorize the destination team."""
+        auth_manager = Mock()
+        auth_manager.batch_is_authorized_connection.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_conn_id_to_team_name_mapping.return_value = {"conn1": "team_b"}
+
+        request = BulkBody[ConnectionBody].model_validate(
+            {
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [{"connection_id": "conn1", "conn_type": "http", "team_name": "team_a"}],
+                    },
+                ]
+            }
+        )
+        user = Mock()
+        requires_access_connection_bulk()(request, user)
+
+        auth_manager.batch_is_authorized_connection.assert_called_once_with(
+            requests=[
+                {"method": "PUT", "details": ConnectionDetails(conn_id="conn1", team_name="team_b")},
+                {"method": "PUT", "details": ConnectionDetails(conn_id="conn1", team_name="team_a")},
+            ],
+            user=user,
+        )
+
+    @patch.object(Variable, "get_key_to_team_name_mapping")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_requires_access_variable_bulk_checks_destination_team(
+        self, mock_get_auth_manager, mock_get_key_to_team_name_mapping
+    ):
+        """Bulk UPDATE that changes team_name must authorize the destination team."""
+        auth_manager = Mock()
+        auth_manager.batch_is_authorized_variable.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_key_to_team_name_mapping.return_value = {"var1": "team_b"}
+
+        request = BulkBody[VariableBody].model_validate(
+            {
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [{"key": "var1", "value": "val", "team_name": "team_a"}],
+                    },
+                ]
+            }
+        )
+        user = Mock()
+        requires_access_variable_bulk()(request, user)
+
+        auth_manager.batch_is_authorized_variable.assert_called_once_with(
+            requests=[
+                {"method": "PUT", "details": VariableDetails(key="var1", team_name="team_b")},
+                {"method": "PUT", "details": VariableDetails(key="var1", team_name="team_a")},
+            ],
+            user=user,
+        )
+
 
 class TestAuthManagerDependency:
     """Test the auth_manager_from_app dependency function."""

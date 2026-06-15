@@ -501,6 +501,41 @@ class TestOutletEventAccessorPartitionKeys:
         accessor.add_partitions(["us", "eu"])
         assert accessor.partition_keys == {"us", "eu"}
 
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "",
+            "   ",
+            "\t",
+        ],
+        ids=["empty", "spaces", "tab"],
+    )
+    def test_add_partitions_rejects_empty_key(self, accessor, key):
+        with pytest.raises(ValueError, match="must not be empty or whitespace-only"):
+            accessor.add_partitions(key)
+
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "a" * 250,
+            "a" * 251,
+        ],
+        ids=["at_limit_accepted", "over_limit_rejected"],
+    )
+    def test_add_partitions_length_boundary(self, accessor, key):
+        if len(key) <= accessor._PARTITION_KEY_MAX_LENGTH:
+            accessor.add_partitions(key)
+            assert key in accessor.partition_keys
+        else:
+            with pytest.raises(ValueError, match="at most 250 characters"):
+                accessor.add_partitions(key)
+
+    def test_add_partitions_rejects_any_invalid_in_list(self, accessor):
+        """A list with a mix of valid and invalid keys fails before any are added."""
+        with pytest.raises(ValueError, match="must not be empty or whitespace-only"):
+            accessor.add_partitions(["us", ""])
+        assert accessor.partition_keys == set()
+
 
 class TestTriggeringAssetEventsAccessor:
     @pytest.fixture(autouse=True)
@@ -1223,6 +1258,17 @@ class TestTaskStateStoreAccessor:
             with pytest.raises(ValueError, match="default_retention_days must be >= 0"):
                 TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001")
 
+    def test_set_warns_when_value_exceeds_limit(self, mock_supervisor_comms):
+        """set() logs a warning when the serialized value exceeds max_value_storage_bytes."""
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+        big = "x" * 110
+        with conf_vars({("state_store", "max_value_storage_bytes"): "100"}):
+            with patch("airflow.sdk.execution_time.context.log") as mock_log:
+                TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", big)
+                mock_log.warning.assert_called_once()
+                assert "max_value_storage_bytes" in mock_log.warning.call_args[0][0]
+        mock_supervisor_comms.send.assert_called_once()
+
     def test_delete_operation(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
@@ -1453,6 +1499,17 @@ class TestAssetStateStoreAccessor:
         backend.deserialize_asset_state_store_from_ref.assert_called_once_with(
             "s3://bucket/assets/orders/watermark"
         )
+
+    def test_set_warns_when_value_exceeds_limit(self, mock_supervisor_comms):
+        """set() logs a warning when the serialized value exceeds max_value_storage_bytes."""
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+        big = "x" * 110
+        with conf_vars({("state_store", "max_value_storage_bytes"): "100"}):
+            with patch("airflow.sdk.execution_time.context.log") as mock_log:
+                AssetStateStoreAccessor(name=self.ASSET_NAME).set("watermark", big)
+                mock_log.warning.assert_called_once()
+                assert "max_value_storage_bytes" in mock_log.warning.call_args[0][0]
+        mock_supervisor_comms.send.assert_called_once()
 
 
 class TestAssetStateStoreAccessors:

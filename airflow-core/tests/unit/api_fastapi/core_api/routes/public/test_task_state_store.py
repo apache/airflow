@@ -55,7 +55,7 @@ def _create_dag_run(dag_maker, session):
     session.commit()
 
 
-def _create_task_state(session, key: str, value: str, dag_run: DagRun) -> None:
+def _create_task_state_store_row(session, key: str, value: str, dag_run: DagRun) -> None:
     row = TaskStateStoreModel(
         dag_run_id=dag_run.id,
         dag_id=DAG_ID,
@@ -94,8 +94,8 @@ class TestListTaskState(TestTaskStateEndpoint):
         assert response.json() == {"task_state_store": [], "total_entries": 0}
 
     def test_returns_all_keys(self, test_client):
-        _create_task_state(self._session, "job_id", "spark_001", self.dag_run)
-        _create_task_state(self._session, "checkpoint", "step_3", self.dag_run)
+        _create_task_state_store_row(self._session, "job_id", "spark_001", self.dag_run)
+        _create_task_state_store_row(self._session, "checkpoint", "step_3", self.dag_run)
         self._session.commit()
 
         response = test_client.get(BASE_URL)
@@ -106,7 +106,7 @@ class TestListTaskState(TestTaskStateEndpoint):
         assert keys == {"job_id": "spark_001", "checkpoint": "step_3"}
 
     def test_returns_state_metadata_fields(self, test_client):
-        _create_task_state(self._session, "job_id", "spark_001", self.dag_run)
+        _create_task_state_store_row(self._session, "job_id", "spark_001", self.dag_run)
         self._session.commit()
 
         response = test_client.get(BASE_URL)
@@ -133,7 +133,7 @@ class TestListTaskState(TestTaskStateEndpoint):
 
     def test_pagination_limit(self, test_client):
         for k in ("a", "b", "c"):
-            _create_task_state(self._session, k, "v", self.dag_run)
+            _create_task_state_store_row(self._session, k, "v", self.dag_run)
         self._session.commit()
 
         response = test_client.get(f"{BASE_URL}?limit=2")
@@ -143,7 +143,7 @@ class TestListTaskState(TestTaskStateEndpoint):
 
     def test_pagination_offset(self, test_client):
         for k in ("a", "b", "c"):
-            _create_task_state(self._session, k, "v", self.dag_run)
+            _create_task_state_store_row(self._session, k, "v", self.dag_run)
         self._session.commit()
 
         response = test_client.get(f"{BASE_URL}?limit=2&offset=2")
@@ -157,7 +157,7 @@ class TestListTaskState(TestTaskStateEndpoint):
 
 class TestGetTaskState(TestTaskStateEndpoint):
     def test_returns_value(self, test_client):
-        _create_task_state(self._session, "job_id", "spark_001", self.dag_run)
+        _create_task_state_store_row(self._session, "job_id", "spark_001", self.dag_run)
         self._session.commit()
 
         response = test_client.get(f"{BASE_URL}/job_id")
@@ -172,7 +172,7 @@ class TestGetTaskState(TestTaskStateEndpoint):
 
     def test_key_with_slash_is_supported(self, test_client):
         """Keys containing slashes must work — route uses {key:path}."""
-        _create_task_state(self._session, "workflow/step_1", "v", self.dag_run)
+        _create_task_state_store_row(self._session, "workflow/step_1", "v", self.dag_run)
         self._session.commit()
 
         response = test_client.get(f"{BASE_URL}/workflow/step_1")
@@ -254,7 +254,7 @@ class TestSetTaskState(TestTaskStateEndpoint):
     @pytest.mark.parametrize("value", [42, True, {"rows": 100}, [1, "two"], "hello"])
     def test_worker_write_core_api_read_roundtrip(self, test_client, value):
         """Worker write (json.dumps in DB) then Core API read returns native value."""
-        _create_task_state(self._session, "k", value, self.dag_run)
+        _create_task_state_store_row(self._session, "k", value, self.dag_run)
         self._session.commit()
         assert test_client.get(f"{BASE_URL}/k").json()["value"] == value
 
@@ -308,13 +308,25 @@ class TestSetTaskState(TestTaskStateEndpoint):
         assert resp["value"] == "v2"
         assert resp["expires_at"] is None
 
+    def test_put_value_over_limit_returns_422(self, test_client):
+        # default is 65535 bytes
+        big = "x" * 70000
+        resp = test_client.put(f"{BASE_URL}/job_id", json={"value": big})
+        assert resp.status_code == 422
+
+    @conf_vars({("state_store", "max_value_storage_bytes"): "0"})
+    def test_put_value_over_limit_accepted_when_limit_disabled(self, test_client):
+        big = "x" * 70000
+        resp = test_client.put(f"{BASE_URL}/job_id", json={"value": big})
+        assert resp.status_code == 204
+
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.put(f"{BASE_URL}/job_id", json={"value": "v"}).status_code == 401
 
 
 class TestPatchTaskState(TestTaskStateEndpoint):
     def test_patch_updates_value(self, test_client):
-        _create_task_state(self._session, "job_id", "v1", self.dag_run)
+        _create_task_state_store_row(self._session, "job_id", "v1", self.dag_run)
         self._session.commit()
 
         assert test_client.patch(f"{BASE_URL}/job_id", json={"value": "v2"}).status_code == 200
@@ -332,14 +344,27 @@ class TestPatchTaskState(TestTaskStateEndpoint):
         assert test_client.patch(f"{BASE_URL}/nonexistent", json={"value": "v"}).status_code == 404
 
     def test_patch_empty_body_returns_422(self, test_client):
-        _create_task_state(self._session, "job_id", "v", self.dag_run)
+        _create_task_state_store_row(self._session, "job_id", "v", self.dag_run)
         self._session.commit()
         assert test_client.patch(f"{BASE_URL}/job_id", json={}).status_code == 422
 
     def test_patch_null_value_returns_422(self, test_client):
-        _create_task_state(self._session, "job_id", "v", self.dag_run)
+        _create_task_state_store_row(self._session, "job_id", "v", self.dag_run)
         self._session.commit()
         assert test_client.patch(f"{BASE_URL}/job_id", json={"value": None}).status_code == 422
+
+    def test_patch_value_over_limit_returns_422(self, test_client):
+        _create_task_state_store_row(self._session, "job_id", "v", self.dag_run)
+        self._session.commit()
+        big = "x" * 70000
+        assert test_client.patch(f"{BASE_URL}/job_id", json={"value": big}).status_code == 422
+
+    @conf_vars({("state_store", "max_value_storage_bytes"): "0"})
+    def test_patch_value_over_limit_accepted_when_limit_disabled(self, test_client):
+        _create_task_state_store_row(self._session, "job_id", "v", self.dag_run)
+        self._session.commit()
+        big = "x" * 70000
+        assert test_client.patch(f"{BASE_URL}/job_id", json={"value": big}).status_code == 200
 
     @pytest.mark.parametrize("bad_value", [float("nan"), float("inf"), {"a": float("nan")}, [float("inf")]])
     def test_patch_non_finite_float_rejected_by_validator(self, bad_value):
@@ -356,7 +381,7 @@ class TestPatchTaskState(TestTaskStateEndpoint):
         ],
     )
     def test_patch_stores_json_encoded_value(self, test_client, value, expected_db):
-        _create_task_state(self._session, "job_id", "initial", self.dag_run)
+        _create_task_state_store_row(self._session, "job_id", "initial", self.dag_run)
         self._session.commit()
         test_client.patch(f"{BASE_URL}/job_id", json={"value": value})
         row = self._session.scalar(
@@ -376,7 +401,7 @@ class TestPatchTaskState(TestTaskStateEndpoint):
 
 class TestDeleteTaskState(TestTaskStateEndpoint):
     def test_deletes_key(self, test_client):
-        _create_task_state(self._session, "job_id", "spark_001", self.dag_run)
+        _create_task_state_store_row(self._session, "job_id", "spark_001", self.dag_run)
         self._session.commit()
 
         assert test_client.delete(f"{BASE_URL}/job_id").status_code == 204
@@ -386,8 +411,8 @@ class TestDeleteTaskState(TestTaskStateEndpoint):
         assert test_client.delete(f"{BASE_URL}/nonexistent").status_code == 204
 
     def test_only_deletes_target_key(self, test_client):
-        _create_task_state(self._session, "job_id", "a", self.dag_run)
-        _create_task_state(self._session, "checkpoint", "b", self.dag_run)
+        _create_task_state_store_row(self._session, "job_id", "a", self.dag_run)
+        _create_task_state_store_row(self._session, "checkpoint", "b", self.dag_run)
         self._session.commit()
 
         test_client.delete(f"{BASE_URL}/job_id")
@@ -396,7 +421,7 @@ class TestDeleteTaskState(TestTaskStateEndpoint):
         assert test_client.get(f"{BASE_URL}/checkpoint").json()["value"] == "b"
 
     def test_key_with_slash_is_supported(self, test_client):
-        _create_task_state(self._session, "workflow/step_1", "v", self.dag_run)
+        _create_task_state_store_row(self._session, "workflow/step_1", "v", self.dag_run)
         self._session.commit()
 
         assert test_client.delete(f"{BASE_URL}/workflow/step_1").status_code == 204
@@ -409,7 +434,7 @@ class TestDeleteTaskState(TestTaskStateEndpoint):
 class TestClearTaskState(TestTaskStateEndpoint):
     def test_clears_all_keys(self, test_client):
         for k, v in [("job_id", "a"), ("checkpoint", "b"), ("retry_count", "c")]:
-            _create_task_state(self._session, k, v, self.dag_run)
+            _create_task_state_store_row(self._session, k, v, self.dag_run)
         self._session.commit()
 
         assert test_client.delete(BASE_URL).status_code == 204
@@ -442,7 +467,7 @@ class TestClearTaskState(TestTaskStateEndpoint):
         assert test_client.get(f"{BASE_URL}?map_index=1").json()["total_entries"] == 0
 
     def test_key_with_slash_is_supported(self, test_client):
-        _create_task_state(self._session, "workflow/step_1", "v", self.dag_run)
+        _create_task_state_store_row(self._session, "workflow/step_1", "v", self.dag_run)
         self._session.commit()
 
         assert test_client.delete(BASE_URL).status_code == 204
@@ -467,7 +492,7 @@ class TestRoutesNeverCallCustomBackend(TestTaskStateEndpoint):
         ],
     )
     def test_route_never_calls_get_state_backend(self, test_client, method, path, kwargs):
-        _create_task_state(self._session, "job_id", "v1", self.dag_run)
+        _create_task_state_store_row(self._session, "job_id", "v1", self.dag_run)
         self._session.commit()
 
         with patch("airflow.state.get_state_backend") as mock_get_backend:

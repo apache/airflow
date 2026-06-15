@@ -163,6 +163,10 @@ def setup(request, dag_maker, *, session=None):
     )
     # Set triggering_user_name for testing
     dag_run1.triggering_user_name = "alice_admin"
+    # Set partition_key for testing partition_key_pattern / partition_key_prefix_pattern filters.
+    # The value uses the ProductMapper default delimiter (|) to form a composite key so we can
+    # verify that the filter treats | as a literal character, not an OR separator.
+    dag_run1.partition_key = "2026-01-01|us"
     dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
     # Set end_date for testing duration filter
     dag_run1.end_date = dag_run1.start_date + timedelta(seconds=101)
@@ -219,6 +223,8 @@ def setup(request, dag_maker, *, session=None):
     )
     # Set triggering_user_name for testing
     dag_run3.triggering_user_name = "service_account"
+    # Set partition_key for testing: plain single-dimension key to pair with dag_run1's composite key.
+    dag_run3.partition_key = "us"
     # Set end_date for testing duration filter
     dag_run3.end_date = dag_run3.start_date + timedelta(seconds=51)
     # Set conf for testing conf_contains filter
@@ -310,7 +316,7 @@ def get_dag_run_dict(run: DagRun):
         "conf": run.conf,
         "note": run.note,
         "dag_versions": get_dag_versions_dict(run.dag_versions),
-        "partition_key": None,
+        "partition_key": run.partition_key,
     }
 
 
@@ -928,6 +934,29 @@ class TestGetDagRuns:
                 [DAG1_RUN1_ID, DAG1_RUN2_ID],
             ),  # Partial URI match
             ("~", {"consuming_asset_pattern": "nonexistent_asset"}, []),  # Non-existent asset returns empty
+            # Test partition_key_pattern filter.
+            # dag_run1 has partition_key="2026-01-01|us" (composite key with | as ProductMapper delimiter).
+            # dag_run3 has partition_key="us" (plain single-dimension key).
+            # dag_run2 and dag_run4 have partition_key=None.
+            #
+            # Composite-key literal match: the full "2026-01-01|us" matches only dag_run1 and NOT dag_run3.
+            # This verifies that | is NOT treated as an OR separator.
+            ("~", {"partition_key_pattern": "2026-01-01|us"}, [DAG1_RUN1_ID]),
+            # Substring "us" matches both dag_run1 (contains "|us") and dag_run3 (equals "us").
+            ("~", {"partition_key_pattern": "us"}, [DAG1_RUN1_ID, DAG2_RUN1_ID]),
+            # Substring "2026-01-01" matches only dag_run1 — NOT split on | to also match dag_run3.
+            ("~", {"partition_key_pattern": "2026-01-01"}, [DAG1_RUN1_ID]),
+            # No match → empty result.
+            ("~", {"partition_key_pattern": "nonexistent"}, []),
+            # dag_id_pattern still uses | as OR (other search params unaffected by this fix).
+            ("~", {"dag_id_pattern": f"{DAG1_ID}|{DAG2_ID}"}, DAG_RUNS_LIST),
+            # Test partition_key_prefix_pattern filter.
+            # Exact prefix "2026-01-01|us" matches dag_run1.
+            ("~", {"partition_key_prefix_pattern": "2026-01-01|us"}, [DAG1_RUN1_ID]),
+            # Prefix "us" matches only dag_run3 (dag_run1 starts with "2026", not "us").
+            ("~", {"partition_key_prefix_pattern": "us"}, [DAG2_RUN1_ID]),
+            # Prefix "2026" matches dag_run1 (starts with "2026-01-01|us").
+            ("~", {"partition_key_prefix_pattern": "2026"}, [DAG1_RUN1_ID]),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -2801,6 +2830,62 @@ class TestTriggerDagRun:
         response = test_client.post(
             f"/dags/{runtime_dag_id}/dagRuns",
             json={"logical_date": None, "partition_key": "runtime-key"},
+        )
+        assert response.status_code == 200
+
+    def test_should_respond_400_when_empty_partition_key(self, test_client):
+        """An empty partition_key must return 400, not 500."""
+        now = timezone.utcnow().isoformat()
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={"logical_date": now, "partition_key": ""},
+        )
+        assert response.status_code == 400
+        assert (
+            response.json()["detail"]
+            == "Dag 'test_dag1' is not a partitioned Dag and does not accept a partition_key."
+        )
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_400_when_over_length_partition_key(self, dag_maker, test_client, session):
+        """A partition_key exceeding 250 characters must return 400, not 500."""
+        partitioned_dag_id = "test_over_length_partition_key"
+        with dag_maker(
+            dag_id=partitioned_dag_id,
+            schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{partitioned_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "a" * 251},
+        )
+        assert response.status_code == 400
+        assert "at most 250 characters" in response.json()["detail"]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_200_when_exactly_max_length_partition_key(self, dag_maker, test_client, session):
+        """A partition_key of exactly 250 characters must be accepted."""
+        partitioned_dag_id = "test_max_length_partition_key"
+        with dag_maker(
+            dag_id=partitioned_dag_id,
+            schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{partitioned_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "a" * 250},
         )
         assert response.status_code == 200
 
