@@ -1280,6 +1280,128 @@ async def test_subscriber_unsubscribe_during_outstanding_event():
 
 
 @pytest.mark.asyncio
+async def test_subscriber_unsubscribe_without_pulling_redelivers():
+    """When a subscriber leaves without ever pulling an event, the event resolves as failed (redeliverable).
+
+    This is the cap-boundary pair for ``test_subscriber_unsubscribe_during_outstanding_event``:
+    - pulled-then-left  → the event counts as acked for that subscriber (existing test).
+    - never-pulled-left → the event counts as failed so the broker redelivers (this test).
+    """
+    cls = _make_ack_required_trigger_class(
+        [
+            ({"msg": "never-pulled"}, "receipt-never-pulled"),
+        ]
+    )
+    cls.advanced.clear()
+    cls.outcomes.clear()
+
+    t1, t2 = cls(), cls()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+    try:
+        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+        manager.subscribe(trigger_id=2, trigger=t2, key=key)
+
+        # t1 consumes and resolves; t2 never calls _pull_raw — event stays queued.
+        async with _consume_in_background(s1) as c1:
+            await c1.wait_for(1)
+            await asyncio.sleep(0)
+            assert cls.advanced == [], "the event still waits on subscriber 2"
+
+            # t2 leaves without ever pulling the event.
+            await manager.unsubscribe(2, key)
+            await asyncio.sleep(0)
+
+            assert cls.advanced == ["receipt-never-pulled"], (
+                "unsubscribe must resolve the departing subscriber so the producer can advance"
+            )
+    finally:
+        await manager.unsubscribe(1, key)
+
+    assert len(cls.outcomes) == 1, "exactly one event must have been advanced"
+    outcome = cls.outcomes[0]
+    assert outcome.failed >= 1, "a subscriber that left without pulling must be counted as failed, not acked"
+    assert not outcome.is_clean, "an outcome with failed > 0 must not be clean"
+
+
+@pytest.mark.asyncio
+async def test_subscriber_unsubscribe_after_pulling_event_a_then_moving_to_event_b():
+    """Guard: a subscriber that pulled event A (emitting a TriggerEvent) and then moved to event B
+    must resolve event A as *acked* on unsubscribe — not failed.
+
+    Regression for the ``event_id == open_event_id``-only discriminant in ``unsubscribe``:
+    when the subscriber moves to event B, ``open_event_id`` becomes B and A's binding has
+    ``window_closed=True``. The old code fell into the ``else`` (failed) branch for A because
+    ``event_id_A != open_event_id_B``. The fix checks ``binding.window_closed`` first.
+    """
+    cls = _make_ack_required_trigger_class(
+        [
+            ({"msg": "event-a"}, "receipt-a"),
+            ({"msg": "event-b"}, "receipt-b"),
+        ]
+    )
+    cls.advanced.clear()
+    cls.outcomes.clear()
+
+    t1, t2 = cls(), cls()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager()
+    next_task = None
+    try:
+        s1 = manager.subscribe(trigger_id=1, trigger=t1, key=key)
+        s2 = manager.subscribe(trigger_id=2, trigger=t2, key=key)
+
+        # Subscriber 2 consumes both events and stays resident so the group
+        # remains alive while we exercise subscriber 1.
+        async with _consume_in_background(s2) as c2:
+            await c2.wait_for(2)
+
+            # Subscriber 1: pull event A, bind a persist seq (simulating an emitted
+            # TriggerEvent that has not yet been confirmed persisted), then move past
+            # event A onto event B.  At this point:
+            #   - event A: window_closed=True, unconfirmed_seqs={seq_a}
+            #   - event B: open window (open_event_id == event_b_id)
+            it1 = s1.__aiter__()
+            await _pull_raw(it1)  # pulls event A; open window = A
+            seq_a = manager.bind_pending_event(trigger_id=1, key=key)
+            assert seq_a is not None, "seq must bind while event A's window is open"
+
+            # Resume past event A → closes A's window, opens event B's.
+            pull_b = await _resume_past_yield(it1)
+            await asyncio.wait_for(pull_b, timeout=1.0)  # now on event B
+
+            # Subscriber 1 unsubscribes while sitting on event B with event A's
+            # confirmation still outstanding.
+            await manager.unsubscribe(1, key)
+            await asyncio.sleep(0)
+
+            # Neither event may have advanced yet — event A is still waiting on
+            # the persist confirmation for seq_a.
+            assert cls.advanced == [], "event A must not advance before its persist confirmation arrives"
+
+            # Confirm event A's seq.  Both events should now advance.
+            manager.confirm_persisted([seq_a])
+            await asyncio.sleep(0)
+
+            assert "receipt-a" in cls.advanced, (
+                "event A must resolve as acked (not failed) — subscriber pulled it "
+                "and emitted a TriggerEvent before moving to event B"
+            )
+            assert len(cls.outcomes) >= 1
+            # Locate event A's outcome: the one with receipt-a.
+            idx_a = cls.advanced.index("receipt-a")
+            outcome_a = cls.outcomes[idx_a]
+            assert outcome_a.acked >= 1, "subscriber 1 must be counted as acked for event A, not failed"
+            assert outcome_a.failed == 0, (
+                "event A outcome must have failed=0; subscriber pulled it before leaving"
+            )
+    finally:
+        await _cancel_quietly(next_task)
+        # s2 is consumed in the background context above; group may already be gone.
+        await manager.unsubscribe(2, key)
+
+
+@pytest.mark.asyncio
 async def test_ack_mode_queue_full_during_fanout_does_not_break_iteration():
     """A full queue at fan-out time must not break the iteration of remaining subscribers."""
     cls = _make_ack_required_trigger_class([({"msg": "burst"}, "receipt-burst")])
@@ -1394,7 +1516,9 @@ async def test_empty_snapshot_advances_in_fanout_order(lane_for, events, expecte
         )
     assert len(cls.advanced) == len(events)
     assert cls.outcomes == [AdvanceOutcome(0, 0)] * len(events)
-    assert all(outcome.is_clean for outcome in cls.outcomes)
+    assert not any(outcome.is_clean for outcome in cls.outcomes), (
+        "a zero-subscriber broadcast still advances in fan-out order but is no longer clean"
+    )
 
     del s1  # silence unused-variable warning
     await manager.stop_all()
@@ -2271,10 +2395,11 @@ async def test_reject_outside_any_window_is_no_op():
         pytest.param(AdvanceOutcome(acked=2, failed=0, rejected=0), True, id="no-reject-no-fail"),
         pytest.param(AdvanceOutcome(acked=2, failed=0, rejected=1), False, id="reject-makes-unclean"),
         pytest.param(AdvanceOutcome(acked=2, failed=1, rejected=0), False, id="fail-makes-unclean"),
+        pytest.param(AdvanceOutcome(acked=0, failed=0, rejected=0), False, id="zero-subscribers-not-clean"),
     ],
 )
 def test_is_clean_requires_no_reject_and_no_fail(outcome, expected_clean):
-    """``is_clean`` is True only when both ``failed`` and ``rejected`` are zero."""
+    """``is_clean`` is True only when both ``failed`` and ``rejected`` are zero and at least one subscriber acked."""
     assert outcome.is_clean is expected_clean
 
 

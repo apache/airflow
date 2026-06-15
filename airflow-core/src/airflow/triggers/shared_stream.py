@@ -333,7 +333,8 @@ class AdvanceOutcome:
     event; a Pub/Sub producer ``nack`` s on a reject and ``ack`` s otherwise.
 
     An event broadcast while no subscribers were online carries all-zero
-    counts and is clean.
+    counts and is **not** clean — nothing was accepted, so there is nothing
+    the producer should commit on.
     """
 
     acked: int
@@ -342,8 +343,13 @@ class AdvanceOutcome:
 
     @property
     def is_clean(self) -> bool:
-        """Whether every subscriber accepted the event — no active reject and no involuntary failure."""
-        return self.failed == 0 and self.rejected == 0
+        """
+        Whether every subscriber accepted the event.
+
+        No active reject, no involuntary failure, and at least one subscriber
+        acked. A zero-subscriber broadcast (all-zero counts) is not clean.
+        """
+        return self.failed == 0 and self.rejected == 0 and self.acked > 0
 
 
 class AdvanceItem(NamedTuple):
@@ -990,13 +996,27 @@ class _SharedStreamGroup:
         # (Airflow's standard idiom); dropping the queue is enough here.
         self._subscribers.pop(trigger_id, None)
         self._failed_subscribers.discard(trigger_id)
+        # Capture the event the subscriber is currently sitting on (if any)
+        # before clearing it from the open-windows map.
+        open_event_id = self._open_windows.get(trigger_id)
         self._open_windows.pop(trigger_id, None)
         # Implicit resolution: leaving closes the subscriber's window on
         # every outstanding event, so the producer never waits forever for a
-        # subscriber that has left. The broker advance still waits for
-        # persist confirmation of any trigger events this subscriber derived
-        # from the event; with nothing unconfirmed the subscriber resolves
-        # immediately.
+        # subscriber that has left.
+        #
+        # Three cases for live bindings:
+        # - window_closed=True: the subscriber pulled this event and moved past
+        #   it (closed the binding window) before unsubscribing. Persist
+        #   confirmations may still be draining. Route to the acked path so
+        #   any remaining unconfirmed seqs can drain before the entry resolves.
+        # - window_closed=False and event_id == open_event_id: the subscriber
+        #   pulled this event and is currently sitting on it (the open window).
+        #   Close the window now and let any unconfirmed seqs drain via the
+        #   acked path.
+        # - window_closed=False and event_id != open_event_id: the event was
+        #   fan-out-enqueued but the subscriber left before ever pulling it.
+        #   Resolving as failed tells the broker to redeliver rather than
+        #   committing an event no one persisted.
         for event_id, entry in list(self._outstanding.items()):
             binding = entry.bindings.get(trigger_id)
             if binding is None:
@@ -1004,8 +1024,15 @@ class _SharedStreamGroup:
                 # _resolve_subscriber no-ops unless still pending.
                 self._resolve_subscriber(event_id=event_id, trigger_id=trigger_id, resolution="acked")
                 continue
-            binding.window_closed = True
-            self._maybe_complete(event_id=event_id, trigger_id=trigger_id)
+            if binding.window_closed or event_id == open_event_id:
+                # Subscriber pulled this event — either already moved past it
+                # (window_closed=True, persist confirmations may still be draining) or
+                # is currently sitting on it (open window). Resolve via the acked path.
+                binding.window_closed = True
+                self._maybe_complete(event_id=event_id, trigger_id=trigger_id)
+            else:
+                # Subscriber never pulled this event; redeliver via failed.
+                self._resolve_subscriber(event_id=event_id, trigger_id=trigger_id, resolution="failed")
 
     def _fail_overflowed_subscriber(self, trigger_id: int, queue: asyncio.Queue) -> None:
         """
