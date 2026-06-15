@@ -799,7 +799,9 @@ class TestDeadlineMetricsTeamName:
     @pytest.mark.parametrize(
         ("multi_team", "expected_tags"),
         [
-            pytest.param("true", {"dag_id": "dl_dag", "dagrun_id": mock.ANY, "team_name": "dl_team"}, id="with_team"),
+            pytest.param(
+                "true", {"dag_id": "dl_dag", "dagrun_id": mock.ANY, "team_name": "dl_team"}, id="with_team"
+            ),
             pytest.param("false", {"dag_id": "dl_dag", "dagrun_id": mock.ANY}, id="without_team"),
         ],
     )
@@ -855,7 +857,9 @@ class TestDeadlineMetricsTeamName:
     @pytest.mark.parametrize(
         ("multi_team", "expected_tags"),
         [
-            pytest.param("true", {"dag_id": "dl_dag", "dagrun_id": mock.ANY, "team_name": "dl_team"}, id="with_team"),
+            pytest.param(
+                "true", {"dag_id": "dl_dag", "dagrun_id": mock.ANY, "team_name": "dl_team"}, id="with_team"
+            ),
             pytest.param("false", {"dag_id": "dl_dag", "dagrun_id": mock.ANY}, id="without_team"),
         ],
     )
@@ -906,4 +910,3 @@ class TestDeadlineMetricsTeamName:
                 deadline.handle_miss(session)
 
         mock_stats.incr.assert_any_call("deadline_alerts.deadline_missed", tags=expected_tags)
-
