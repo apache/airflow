@@ -2790,6 +2790,64 @@ class TestStringifiedDAGs:
         dr = dag_maker.create_dagrun(partition_key="runtime-key")
         assert dr.partition_key == "runtime-key"
 
+    def test_airflow_exc_deserialization_rejects_unknown_class(self):
+        """An AIRFLOW_EXC_SER name that is not a loaded AirflowException subclass is rejected.
+
+        The name is resolved against the in-memory subclass tree, so an attacker-controlled
+        ``subprocess.check_output`` is never imported.
+        """
+        from airflow.exceptions import DeserializationError
+        from airflow.serialization.enums import DagAttributeTypes
+
+        encoded = BaseSerialization._encode(
+            BaseSerialization.serialize(
+                {"exc_cls_name": "subprocess.check_output", "args": [], "kwargs": {}}
+            ),
+            type_=DagAttributeTypes.AIRFLOW_EXC_SER,
+        )
+        with pytest.raises(DeserializationError, match="Refusing to deserialize unknown exception class"):
+            BaseSerialization.deserialize(encoded)
+
+    def test_airflow_exc_deserialization_roundtrips_airflow_exception(self):
+        """A genuine AirflowException subclass round-trips via the registry, without importing."""
+        from airflow.exceptions import AirflowException
+
+        result = BaseSerialization.deserialize(BaseSerialization.serialize(AirflowException("boom")))
+        assert isinstance(result, AirflowException)
+        assert result.args == ("boom",)
+
+    def test_base_exc_deserialization_rejects_non_allowlisted_builtin(self):
+        """A BASE_EXC_SER name outside the {KeyError, AttributeError} the encoder emits is rejected."""
+        from airflow.exceptions import DeserializationError
+        from airflow.serialization.enums import DagAttributeTypes
+
+        # ``eval`` is the weaponisable case; ``ValueError`` is a harmless builtin the encoder
+        # never emits as BASE_EXC_SER -- both must be rejected.
+        for name in ("eval", "ValueError"):
+            encoded = BaseSerialization._encode(
+                BaseSerialization.serialize({"exc_cls_name": name, "args": ["1"], "kwargs": {}}),
+                type_=DagAttributeTypes.BASE_EXC_SER,
+            )
+            with pytest.raises(
+                DeserializationError, match="Refusing to deserialize disallowed builtin exception"
+            ):
+                BaseSerialization.deserialize(encoded)
+
+    def test_base_exc_deserialization_roundtrips_builtin_exception(self):
+        """The builtin exceptions the encoder emits (KeyError / AttributeError) still deserialize."""
+        from airflow.serialization.enums import DagAttributeTypes
+
+        for exc_type in (KeyError, AttributeError):
+            encoded = BaseSerialization._encode(
+                BaseSerialization.serialize(
+                    {"exc_cls_name": exc_type.__name__, "args": ["boom"], "kwargs": {}}
+                ),
+                type_=DagAttributeTypes.BASE_EXC_SER,
+            )
+            result = BaseSerialization.deserialize(encoded)
+            assert isinstance(result, exc_type)
+            assert result.args == ("boom",)
+
 
 def test_kubernetes_optional():
     """Test that serialization module loads without kubernetes, but deserialization of PODs requires it"""
