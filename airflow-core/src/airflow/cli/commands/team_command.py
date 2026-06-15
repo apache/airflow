@@ -25,6 +25,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from airflow.cli.simple_table import AirflowConsole
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.connection import Connection
 from airflow.models.pool import Pool
 from airflow.models.team import Team, dag_bundle_team_association_table
@@ -60,7 +61,7 @@ def _extract_team_name(args):
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
-def team_create(args, session=NEW_SESSION):
+def team_create(args, *, session=NEW_SESSION):
     """Create a new team. Team names must be 3-50 characters long and contain only alphanumeric characters, hyphens, and underscores."""
     team_name = _extract_team_name(args)
 
@@ -83,7 +84,7 @@ def team_create(args, session=NEW_SESSION):
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
-def team_delete(args, session=NEW_SESSION):
+def team_delete(args, *, session=NEW_SESSION):
     """Delete a team after checking for associations."""
     team_name = _extract_team_name(args)
 
@@ -148,10 +149,37 @@ def team_delete(args, session=NEW_SESSION):
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
-def team_list(args, session=NEW_SESSION):
+def team_list(args, *, session=NEW_SESSION):
     """List all teams."""
     teams = session.scalars(select(Team).order_by(Team.name)).all()
     if not teams:
         print(NO_TEAMS_LIST_MSG)
     else:
         _show_teams(teams=teams, output=args.output)
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+@provide_session
+def team_sync(args, *, session=NEW_SESSION):
+    """Sync missing teams from the dag bundle config."""
+    dag_bundle_teams = {
+        bundle.team_name
+        for bundle in DagBundlesManager()._bundle_config.values()
+        if bundle.team_name is not None
+    }
+
+    teams_added = 0
+
+    try:
+        for team_name in dag_bundle_teams - Team.get_all_team_names(session=session):
+            team = Team(name=team_name)
+            session.add(team)
+            teams_added += 1
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        raise SystemExit(f"Failed to sync teams: {e}")
+
+    if teams_added > 0:
+        print(f"{teams_added} teams added.")

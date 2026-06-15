@@ -25,7 +25,10 @@ from airflow.api_fastapi.app import get_auth_manager, get_cookie_path
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.auth.managers.exceptions import AuthManagerRefreshTokenExpiredException
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
-from airflow.api_fastapi.core_api.security import resolve_user_from_token
+from airflow.api_fastapi.core_api.security import (
+    USER_INJECTED_BY_TRUSTED_MIDDLEWARE,
+    resolve_user_from_token,
+)
 from airflow.configuration import conf
 
 
@@ -48,7 +51,11 @@ class JWTRefreshMiddleware(BaseHTTPMiddleware):
                 try:
                     new_user, current_user = await self._refresh_user(current_token)
                     if user := (new_user or current_user):
+                        # Stamp the trust sentinel alongside the user so `get_user()`
+                        # can distinguish this trusted assignment from a stray write
+                        # by unrelated middleware.
                         request.state.user = user
+                        request.state.user_authenticated_via = USER_INJECTED_BY_TRUSTED_MIDDLEWARE
                     if new_user:
                         # If we created a new user, serialize it and set it as a cookie
                         new_token = get_auth_manager().generate_jwt(new_user)

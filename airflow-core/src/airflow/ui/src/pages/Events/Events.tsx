@@ -251,6 +251,7 @@ export const Events = () => {
         <ExpandCollapseButtons
           collapseLabel={translate("common:collapseAllExtra")}
           expandLabel={translate("common:expandAllExtra")}
+          isExpanded={open}
           onCollapse={onClose}
           onExpand={onOpen}
         />

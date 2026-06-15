@@ -44,50 +44,54 @@ airflow_version = "3.2.0"
 
 def upgrade():
     """Apply Fix migration file inconsistencies with ORM."""
-    dialect_name = context.get_context().dialect.name
+    with disable_sqlite_fkeys(op):
+        dialect_name = context.get_context().dialect.name
 
-    # Use raw SQL so this migration remains usable in offline mode (--show-sql-only).
-    op.execute("UPDATE connection SET is_encrypted = FALSE WHERE is_encrypted IS NULL")
-    op.execute("UPDATE connection SET is_extra_encrypted = FALSE WHERE is_extra_encrypted IS NULL")
+        # Use raw SQL so this migration remains usable in offline mode (--show-sql-only).
+        op.execute("UPDATE connection SET is_encrypted = FALSE WHERE is_encrypted IS NULL")
+        op.execute("UPDATE connection SET is_extra_encrypted = FALSE WHERE is_extra_encrypted IS NULL")
 
-    op.execute("UPDATE dag SET is_paused = FALSE WHERE is_paused IS NULL")
+        op.execute("UPDATE dag SET is_paused = FALSE WHERE is_paused IS NULL")
 
-    op.execute("UPDATE slot_pool SET slots = 0 WHERE slots IS NULL")
+        op.execute("UPDATE slot_pool SET slots = 0 WHERE slots IS NULL")
 
-    op.execute("UPDATE task_instance SET try_number = 0 WHERE try_number IS NULL")
-    op.execute("UPDATE task_instance SET max_tries = -1 WHERE max_tries IS NULL")
+        op.execute("UPDATE task_instance SET try_number = 0 WHERE try_number IS NULL")
+        op.execute("UPDATE task_instance SET max_tries = -1 WHERE max_tries IS NULL")
 
-    op.execute("UPDATE variable SET val = '' WHERE val IS NULL")
-    op.execute("UPDATE variable SET is_encrypted = FALSE WHERE is_encrypted IS NULL")
-    if dialect_name == "mysql":
-        op.execute(
-            "UPDATE variable SET `key` = CONCAT('__airflow_var_fix_888b59e02a5b_', id) WHERE `key` IS NULL"
-        )
-    else:
-        op.execute("UPDATE variable SET key = '__airflow_var_fix_888b59e02a5b_' || id WHERE key IS NULL")
+        op.execute("UPDATE variable SET val = '' WHERE val IS NULL")
+        op.execute("UPDATE variable SET is_encrypted = FALSE WHERE is_encrypted IS NULL")
+        if dialect_name == "mysql":
+            op.execute(
+                "UPDATE variable SET `key` = CONCAT('__airflow_var_fix_888b59e02a5b_', id) WHERE `key` IS NULL"
+            )
+        else:
+            op.execute("UPDATE variable SET key = '__airflow_var_fix_888b59e02a5b_' || id WHERE key IS NULL")
 
-    with op.batch_alter_table("connection", schema=None) as batch_op:
-        batch_op.alter_column("is_encrypted", existing_type=sa.BOOLEAN(), nullable=False)
-        batch_op.alter_column("is_extra_encrypted", existing_type=sa.BOOLEAN(), nullable=False)
+        with op.batch_alter_table("connection", schema=None) as batch_op:
+            batch_op.alter_column("is_encrypted", existing_type=sa.BOOLEAN(), nullable=False)
+            batch_op.alter_column("is_extra_encrypted", existing_type=sa.BOOLEAN(), nullable=False)
 
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.alter_column("is_paused", existing_type=sa.BOOLEAN(), nullable=False)
+        with op.batch_alter_table("dag", schema=None) as batch_op:
+            batch_op.alter_column("is_paused", existing_type=sa.BOOLEAN(), nullable=False)
 
-    with op.batch_alter_table("slot_pool", schema=None) as batch_op:
-        batch_op.alter_column("slots", existing_type=sa.INTEGER(), nullable=False)
+        with op.batch_alter_table("slot_pool", schema=None) as batch_op:
+            batch_op.alter_column("slots", existing_type=sa.INTEGER(), nullable=False)
 
-    with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.alter_column("try_number", existing_type=sa.INTEGER(), nullable=False)
-        batch_op.alter_column(
-            "max_tries", existing_type=sa.INTEGER(), nullable=False, existing_server_default=sa.text("'-1'")
-        )
+        with op.batch_alter_table("task_instance", schema=None) as batch_op:
+            batch_op.alter_column("try_number", existing_type=sa.INTEGER(), nullable=False)
+            batch_op.alter_column(
+                "max_tries",
+                existing_type=sa.INTEGER(),
+                nullable=False,
+                existing_server_default=sa.text("'-1'"),
+            )
 
-    with op.batch_alter_table("variable", schema=None) as batch_op:
-        batch_op.alter_column("key", existing_type=StringID(length=250), nullable=False)
-        batch_op.alter_column(
-            "val", existing_type=sa.TEXT().with_variant(MEDIUMTEXT, "mysql"), nullable=False
-        )
-        batch_op.alter_column("is_encrypted", existing_type=sa.BOOLEAN(), nullable=False)
+        with op.batch_alter_table("variable", schema=None) as batch_op:
+            batch_op.alter_column("key", existing_type=StringID(length=250), nullable=False)
+            batch_op.alter_column(
+                "val", existing_type=sa.TEXT().with_variant(MEDIUMTEXT, "mysql"), nullable=False
+            )
+            batch_op.alter_column("is_encrypted", existing_type=sa.BOOLEAN(), nullable=False)
 
 
 def downgrade():

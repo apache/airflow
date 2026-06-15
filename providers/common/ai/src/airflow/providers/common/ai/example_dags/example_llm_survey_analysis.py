@@ -145,7 +145,7 @@ reference_datasource = DataSourceConfig(
 
 
 # [START example_llm_survey_interactive]
-@dag
+@dag(tags=["example"])
 def example_llm_survey_interactive():
     """
     Ask a natural language question about the survey with human review at each end.
@@ -237,7 +237,7 @@ example_llm_survey_interactive()
 
 
 # [START example_llm_survey_scheduled]
-@dag(schedule="@monthly", start_date=datetime.datetime(2025, 1, 1), catchup=False)
+@dag(schedule="@monthly", start_date=datetime.datetime(2025, 1, 1), catchup=False, tags=["example"])
 def example_llm_survey_scheduled():
     """
     Download, validate, query, and report on the survey CSV on a schedule.

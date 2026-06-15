@@ -48,6 +48,9 @@ IGNORE = {
     "data_interval_start",
     "prev_data_interval_start_success",
     "prev_data_interval_end_success",
+    # AIP-103: task_state_store/asset_state_store aren't documented in templates-ref yet. Will be done in a later PR.
+    "task_state_store",
+    "asset_state_store",
 }
 
 

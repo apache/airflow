@@ -85,10 +85,12 @@ class TestKubernetesCliDefinition:
             "my-namespace",
             "--min-pending-minutes",
             "60",
+            "--verbose",
         ]
         args = self.arg_parser.parse_args(params)
         assert args.namespace == "my-namespace"
         assert args.min_pending_minutes == 60
+        assert args.verbose is True
 
     def test_cleanup_pods_command_default_args(self):
         """Test cleanup-pods command with default arguments."""
@@ -97,6 +99,7 @@ class TestKubernetesCliDefinition:
         # Should use default values from configuration
         assert hasattr(args, "namespace")
         assert args.min_pending_minutes == 30
+        assert args.verbose is False
 
     def test_generate_dag_yaml_command_args(self):
         """Test generate-dag-yaml command with various arguments."""

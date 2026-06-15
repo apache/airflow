@@ -314,16 +314,15 @@ class XComModel(TaskInstanceDependencies):
             query = query.where(cls.map_index == map_indexes)
 
         if include_prior_dates:
-            dr = (
-                select(
-                    func.coalesce(DagRun.logical_date, DagRun.run_after).label("logical_date_or_run_after")
-                )
-                .where(DagRun.run_id == run_id)
-                .subquery()
+            dag_run_date_for_run_id = (
+                select(func.coalesce(DagRun.logical_date, DagRun.run_after))
+                .where(DagRun.run_id == run_id, DagRun.dag_id == cls.dag_id)
+                .correlate(cls)
+                .scalar_subquery()
             )
 
             query = query.where(
-                func.coalesce(DagRun.logical_date, DagRun.run_after) <= dr.c.logical_date_or_run_after
+                func.coalesce(DagRun.logical_date, DagRun.run_after) <= dag_run_date_for_run_id
             )
         else:
             query = query.where(cls.run_id == run_id)

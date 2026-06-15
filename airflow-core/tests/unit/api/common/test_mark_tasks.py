@@ -21,7 +21,11 @@ from typing import TYPE_CHECKING
 import pytest
 from sqlalchemy import select
 
-from airflow.api.common.mark_tasks import set_dag_run_state_to_failed, set_dag_run_state_to_success
+from airflow.api.common.mark_tasks import (
+    find_task_relatives,
+    set_dag_run_state_to_failed,
+    set_dag_run_state_to_success,
+)
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -119,3 +123,33 @@ def test_set_dag_run_state_to_success_finished_teardown(dag_maker: DagMaker[Seri
     assert task_dict["failed"].state == TaskInstanceState.SUCCESS
     if finished_state != TaskInstanceState.SUCCESS:
         assert task_dict["teardown"].state == TaskInstanceState.SUCCESS
+
+
+def test_find_task_relatives_downstream_skips_teardowns(dag_maker: DagMaker[SerializedDAG]):
+    with dag_maker("test_find_task_relatives_downstream_skips_teardowns") as dag:
+        setup_t = EmptyOperator(task_id="setup_t").as_setup()
+        normal_t = EmptyOperator(task_id="normal_t")
+        teardown_t = EmptyOperator(task_id="teardown_t").as_teardown(setups=setup_t)
+        setup_t >> normal_t >> teardown_t
+    dag_maker.create_dagrun()
+    normal_task = dag.get_task("normal_t")
+
+    relatives = list(find_task_relatives([normal_task], downstream=True, upstream=False))
+
+    assert "normal_t" in relatives
+    assert "teardown_t" not in relatives
+
+
+def test_find_task_relatives_upstream_still_includes_setups(dag_maker: DagMaker[SerializedDAG]):
+    with dag_maker("test_find_task_relatives_upstream_still_includes_setups") as dag:
+        setup_t = EmptyOperator(task_id="setup_t").as_setup()
+        normal_t = EmptyOperator(task_id="normal_t")
+        teardown_t = EmptyOperator(task_id="teardown_t").as_teardown(setups=setup_t)
+        setup_t >> normal_t >> teardown_t
+    dag_maker.create_dagrun()
+    normal_task = dag.get_task("normal_t")
+
+    relatives = list(find_task_relatives([normal_task], downstream=False, upstream=True))
+
+    assert "normal_t" in relatives
+    assert "setup_t" in relatives

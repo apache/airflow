@@ -71,9 +71,27 @@ class TestDataFusionStartPipelineTrigger:
             "pipeline_name": PIPELINE_NAME,
             "pipeline_id": PIPELINE_ID,
             "pipeline_type": PIPELINE_TYPE,
+            "poll_interval": TEST_POLL_INTERVAL,
             "gcp_conn_id": TEST_GCP_PROJECT_ID,
+            "impersonation_chain": None,
             "success_states": None,
         }
+
+    def test_start_pipeline_trigger_serialize_round_trip_poll_and_impersonation(self):
+        trigger = DataFusionStartPipelineTrigger(
+            instance_url=INSTANCE_URL,
+            namespace=NAMESPACE,
+            pipeline_name=PIPELINE_NAME,
+            pipeline_id=PIPELINE_ID,
+            pipeline_type=PIPELINE_TYPE,
+            poll_interval=7.5,
+            gcp_conn_id=TEST_GCP_PROJECT_ID,
+            impersonation_chain="sa@project.iam.gserviceaccount.com",
+        )
+        _, kwargs = trigger.serialize()
+        restored = DataFusionStartPipelineTrigger(**kwargs)
+        assert restored.poll_interval == 7.5
+        assert restored.impersonation_chain == "sa@project.iam.gserviceaccount.com"
 
     @pytest.mark.asyncio
     @mock.patch(HOOK_STATUS_STR)

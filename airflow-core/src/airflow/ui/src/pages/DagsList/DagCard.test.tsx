@@ -209,6 +209,14 @@ describe("DagCard", () => {
     expect(nextRunElement).toHaveTextContent("2024-08-22 19:00:00");
   });
 
+  it("DagCard should not render next run timestamp for a paused Dag", () => {
+    render(<DagCard dag={{ ...mockDag, is_paused: true }} />, { wrapper: GMTWrapper });
+    const nextRunElement = screen.getByTestId("next-run");
+
+    expect(nextRunElement).toBeInTheDocument();
+    expect(nextRunElement).not.toHaveTextContent("2024-08-22 19:00:00");
+  });
+
   it("DagCard should render StateBadge as success", () => {
     render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
     const stateBadge = screen.getByTestId("state-badge");

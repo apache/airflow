@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-sendgrid``
 
-Release: ``4.2.3``
+Release: ``4.2.4``
 
 
 `Sendgrid <https://sendgrid.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``sendgrid`` provider. All classes for this provi
 are in ``airflow.providers.sendgrid`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.2.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.2.4/>`_.
 
 Installation
 ------------
@@ -78,4 +78,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.2.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.2.4/changelog.html>`_.

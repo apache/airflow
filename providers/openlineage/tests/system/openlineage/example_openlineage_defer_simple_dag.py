@@ -27,19 +27,10 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.models import Variable
-from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor
 
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
-
-
-def check_events_number_func():
-    events = Variable.get(key="openlineage_defer_simple_dag.wait.event.start", deserialize_json=True)
-    if len(events) < 2:
-        raise ValueError(f"Expected at least 2 START events for task `wait`, got {len(events)}")
-
 
 DAG_ID = "openlineage_defer_simple_dag"
 
@@ -51,20 +42,16 @@ with DAG(
     default_args={"retries": 0},
 ) as dag:
     # Timedelta is compared to the DAGRun start timestamp, which can occur long before a worker picks up the
-    # task. We need to ensure the sensor gets deferred at least once, so setting 180s.
-    wait = TimeDeltaSensor(task_id="wait", delta=timedelta(seconds=180), deferrable=True)
-
-    check_events_number = PythonOperator(
-        task_id="check_events_number", python_callable=check_events_number_func
-    )
+    # task. We need to ensure the sensor gets deferred at least once, so setting 120s.
+    wait = TimeDeltaSensor(task_id="wait", delta=timedelta(seconds=120), poke_interval=10, deferrable=True)
 
     check_events = OpenLineageTestOperator(
         task_id="check_events",
         file_path=get_expected_event_file_path(DAG_ID),
-        allow_duplicate_events_regex="openlineage_defer_simple_dag.wait.event.start",
+        event_count_assertions={"openlineage_defer_simple_dag.wait.event.start": ">=2"},
     )
 
-    wait >> check_events_number >> check_events
+    wait >> check_events
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

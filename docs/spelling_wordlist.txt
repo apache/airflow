@@ -23,10 +23,12 @@ adobjects
 AdsInsights
 adsinsights
 afterall
+agentcore
 agentic
 ai
 aio
 aiobotocore
+AIP
 aiplatform
 Airbnb
 airbnb
@@ -184,6 +186,7 @@ bigquery
 BigQueryHook
 Bigtable
 bigtable
+bitmask
 Bitnami
 bitshift
 bitwise
@@ -243,6 +246,10 @@ classpath
 classpaths
 cleartext
 cli
+ClickHouse
+clickhouse
+clickhousedb
+clickstream
 ClientSecretCredential
 cloudant
 CloudantV
@@ -273,6 +280,7 @@ ColumnLineageDatasetFacet
 CommandType
 comparator
 compat
+composable
 Compute
 compute
 ComputeManagementClient
@@ -499,6 +507,7 @@ doesn
 doesnt
 dom
 Dont
+dotfiles
 DownloadReportV
 downscaling
 downstreams
@@ -542,6 +551,7 @@ eksctl
 eladkal
 elasticsearch
 emailer
+embedder
 embeddings
 emr
 EmrAddSteps
@@ -550,6 +560,7 @@ enableAutoScale
 enablement
 encodable
 encryptor
+endian
 enqueue
 enqueued
 Entra
@@ -636,6 +647,7 @@ Filesystem
 filesystem
 filesystems
 filetype
+finalStatus
 fips
 firebase
 Firehose
@@ -685,6 +697,7 @@ gdbm
 gdrive
 gelf
 gemini
+GenAI
 generateUploadUrl
 geq
 getattr
@@ -720,6 +733,7 @@ googleapis
 GoogleDisplayVideo
 gpu
 gpus
+Gradle
 Grafana
 graphviz
 Groq
@@ -783,7 +797,11 @@ hyperparameter
 hyperparameters
 IaC
 iam
+IBM
+ibm
 ibmcloudant
+ibmmq
+IdC
 ideation
 idempotence
 idempotency
@@ -814,7 +832,9 @@ ini
 init
 initdb
 initialisation
+initialiser
 initialising
+initializer
 inout
 InsecureClient
 InspectTemplate
@@ -825,7 +845,9 @@ InstanceGroupConfig
 InstanceSelection
 instanceTemplates
 InstanceType
+instanceType
 instantiation
+InstructionPart
 integrations
 ints
 intvl
@@ -854,7 +876,9 @@ iteratively
 iTerm
 iterm
 itertools
+Jaeger
 Jarek
+JavaCoordinator
 javascript
 jaydebeapi
 Jdbc
@@ -889,9 +913,11 @@ js
 Json
 json
 jsonl
+JsonValue
 juli
 Jupyter
 jupyter
+jvm
 jwks
 JWT
 jwt
@@ -925,6 +951,7 @@ krb
 Kube
 kube
 kubeconfig
+kubelet
 Kubernetes
 kubernetes
 KubernetesPodOperator
@@ -940,6 +967,8 @@ Kylin
 kylin
 Kyverno
 Lakehouse
+langchain
+Langfuse
 LanguageServiceClient
 lastname
 latencies
@@ -1028,6 +1057,7 @@ milli
 millis
 milton
 minikube
+misconfiguration
 misconfigured
 Mixin
 mixin
@@ -1040,10 +1070,13 @@ mongo
 mongodb
 monospace
 moto
+MQ
+mq
 msfabric
 msg
 msgraph
 mssql
+mtime
 mTLS
 multi-cloud
 multimodal
@@ -1076,6 +1109,7 @@ neo4j
 neptune
 neq
 NetworkPolicy
+newsfragments
 NFS
 nginx
 nobr
@@ -1109,6 +1143,7 @@ observability
 od
 odbc
 odps
+OIDC
 ok
 oklch
 Okta
@@ -1118,13 +1153,16 @@ onboarded
 onboarding
 OnFailure
 Oozie
+OpenAI
 openai
 openapi
 openfaas
 OpenID
+openjdk
 openlineage
 OpenSearch
 opensearch
+OpenTelemetry
 oper
 OperatorLineage
 Opsgenie
@@ -1132,6 +1170,7 @@ opsgenie
 Optimise
 optimise
 optimizationObjective
+OptIn
 optionality
 ora
 oracledb
@@ -1143,6 +1182,7 @@ oss
 ot
 OTel
 otel
+OTLP
 PaaS
 Pagerduty
 pagerduty
@@ -1231,6 +1271,7 @@ Preload
 preload
 prepend
 prepended
+prepends
 preprocess
 Preprocessed
 preprocessing
@@ -1292,6 +1333,7 @@ PythonOperator
 pythonpath
 pyvespa
 pywinrm
+pyyaml
 Qdrant
 qdrant
 Qingping
@@ -1302,6 +1344,7 @@ Qubole
 qubole
 querybook
 Querybooks
+querybooks
 queryParameters
 queueing
 quicksight
@@ -1370,6 +1413,7 @@ Roadmap
 roadmap
 roc
 RoleBinding
+rollup
 rom
 romeoandjuliet
 rootcss
@@ -1388,6 +1432,7 @@ RunQuerySensor
 runspace
 RunSubmitTaskSettings
 runtime
+runTimeoutInMinutes
 runtimes
 SaaS
 sade
@@ -1547,7 +1592,9 @@ Streamable
 strftime
 Stringified
 stringified
+stringify
 Struct
+StructuredTool
 STS
 subchart
 subclassed
@@ -1595,8 +1642,10 @@ summarization
 superclass
 sur
 svg
+swappable
 symlink
 symlinks
+synthesises
 sys
 sysinfo
 syspath
@@ -1632,6 +1681,7 @@ tbuild
 TCP
 tcp
 tdload
+teamless
 teardown
 teardowns
 templatable
@@ -1742,6 +1792,7 @@ unpaused
 unpausing
 unpredicted
 unsanitized
+unscoped
 untestable
 untransformed
 untrusted
@@ -1847,6 +1898,7 @@ XComs
 Xiaodong
 xlarge
 xml
+Xmx
 xpath
 XSS
 xyz

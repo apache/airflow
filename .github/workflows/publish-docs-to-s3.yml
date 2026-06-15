@@ -116,7 +116,7 @@ jobs:
       ]'), github.event.sender.login)
     steps:
       - name: "Checkout for wave provider derivation"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           persist-credentials: false
           ref: ${{ inputs.ref }}
@@ -127,7 +127,39 @@ jobs:
         env:
           INCLUDE_DOCS: ${{ inputs.include-docs }}
           REF: ${{ inputs.ref }}
-        run: python3 dev/registry/derive_wave_providers.py
+        shell: bash
+        # The registry rebuild is provider-targeted. For non-provider
+        # distributions (apache-airflow, airflow-ctl, helm-chart, etc.) the
+        # update-registry job below is a no-op anyway, so skip the derive
+        # step — that lets release tags cut before
+        # `dev/registry/derive_wave_providers.py` was added (#66100) still
+        # publish docs without the workflow tripping on the missing file.
+        # Tracked at #66436.
+        run: |
+          # Keep the non-provider list in sync with NON_PROVIDER_TOKENS in
+          # dev/registry/derive_wave_providers.py.
+          NON_PROVIDER_TOKENS=("apache-airflow" "apache-airflow-ctl" "task-sdk" "helm-chart" "docker-stack")
+          has_provider=false
+          for token in $INCLUDE_DOCS; do
+            is_non_provider=false
+            for np in "${NON_PROVIDER_TOKENS[@]}"; do
+              if [[ "$token" == "$np" ]]; then
+                is_non_provider=true
+                break
+              fi
+            done
+            if ! $is_non_provider; then
+              has_provider=true
+              break
+            fi
+          done
+          if ! $has_provider; then
+            echo "Non-provider distribution(s) only ('${INCLUDE_DOCS}') — skipping registry-derive."
+            echo "registry-providers=" >> "${GITHUB_OUTPUT}"
+            echo "registry-full-build=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          python3 dev/registry/derive_wave_providers.py
       - name: "Input parameters summary"
         shell: bash
         id: parameters
@@ -201,9 +233,9 @@ jobs:
     steps:
       - name: "Cleanup repo"
         shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout current version first to clean-up stuff"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           persist-credentials: false
           path: current-version
@@ -221,7 +253,7 @@ jobs:
       # registry buildx cache pushed by the last "main" Test workflow so that layer rebuilds
       # are avoided whenever the ref is close enough to main for the cache to apply.
       - name: "Checkout ${{ inputs.ref }} "
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           persist-credentials: false
           ref: ${{ inputs.ref }}
@@ -313,8 +345,66 @@ jobs:
           if-no-files-found: 'error'
           overwrite: 'true'
 
+  build-java-sdk-docs:
+    needs: [build-info]
+    timeout-minutes: 30
+    name: "Build Java SDK Javadoc"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    env:
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
+    outputs:
+      built: ${{ steps.sdk-present.outputs.exists }}
+    steps:
+      - name: "Checkout ${{ inputs.ref }}"
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref }}
+      - name: "Decide whether to build the Java SDK Javadoc"
+        id: sdk-present
+        env:
+          REF: ${{ inputs.ref }}
+          INCLUDE_DOCS: ${{ inputs.include-docs }}
+        run: |
+          # The Java SDK Javadoc is only built (and later published) for full doc
+          # builds (include-docs == 'all') or when 'java-sdk' is explicitly listed.
+          # When a specific list of packages is passed (e.g. a provider release
+          # wave like "amazon cncf.kubernetes ..."), the Java SDK must NOT be added
+          # automatically — otherwise the publish step drags java-sdk into a
+          # providers-only publish and the S3 publish fails.
+          if [[ "${INCLUDE_DOCS}" != "all" && " ${INCLUDE_DOCS} " != *" java-sdk "* ]]; then
+            echo "exists=false" >> "${GITHUB_OUTPUT}"
+            echo "include-docs='${INCLUDE_DOCS}' is a specific package list without 'java-sdk' — skipping Javadoc build."
+          elif [[ -f "java-sdk/gradlew" ]]; then
+            echo "exists=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "exists=false" >> "${GITHUB_OUTPUT}"
+            echo "java-sdk/ not found at ref ${REF} — skipping Javadoc build."
+          fi
+      - name: "Install Breeze"
+        if: steps.sdk-present.outputs.exists == 'true'
+        uses: ./.github/actions/breeze
+      - name: "Build Java SDK Javadoc"
+        if: steps.sdk-present.outputs.exists == 'true'
+        run: breeze build-docs --sdk-docs-only --sdk=java
+      - name: "Upload Java SDK docs"
+        if: steps.sdk-present.outputs.exists == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: java-sdk-docs
+          path: generated/_build/docs/java-sdk/
+          retention-days: '7'
+          if-no-files-found: 'error'
+          overwrite: 'true'
+
   publish-docs-to-s3:
-    needs: [build-docs, build-info]
+    needs: [build-docs, build-java-sdk-docs, build-info]
     name: "Publish documentation to S3"
     permissions:
       id-token: write
@@ -331,13 +421,13 @@ jobs:
     steps:
       - name: "Cleanup repo"
         shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
         # We are checking repo for both - breeze and docs from the "workflow' branch
         # This will take longer as we need to rebuild CI image and it will not use cache
         # but it will build the CI image from the version of Airflow that is used to check out things
         # We also fetch the whole history to be able to prepare SBOM files
       - name: "Checkout current version with all history for SBOM"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -353,6 +443,12 @@ jobs:
           path: /mnt/_build
       - name: "Move docs to generated folder"
         run: mv /mnt/_build generated/_build
+      - name: "Download Java SDK docs artifact"
+        if: needs.build-java-sdk-docs.outputs.built == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: java-sdk-docs
+          path: generated/_build/docs/java-sdk
       - name: "Make sure SBOM dir exists and has the right permissions"
         run: |
           sudo mkdir -vp ./files/sbom
@@ -384,8 +480,10 @@ jobs:
       - name: "Publish docs to /mnt/airflow-site directory using ${{ inputs.ref }} reference breeze"
         env:
           INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
+          JAVA_SDK_DOCS: ${{ needs.build-java-sdk-docs.outputs.built == 'true' && 'java-sdk' || '' }}
         run: >
-          breeze release-management publish-docs --override-versioned --run-in-parallel ${INCLUDE_DOCS}
+          breeze release-management publish-docs --override-versioned --run-in-parallel
+          ${INCLUDE_DOCS} ${JAVA_SDK_DOCS}
       - name: Check disk space available
         run: df -H
       - name: "Update watermarks"
@@ -409,7 +507,7 @@ jobs:
           sudo /tmp/aws/install --update
           rm -rf /tmp/aws/
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6.1.0
+        uses: aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b  # v6.2.0
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}

@@ -20,6 +20,7 @@ import logging
 import os
 import sys
 from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures.process import BrokenProcessPool
 from datetime import datetime
 from functools import cache
 from typing import TYPE_CHECKING
@@ -29,12 +30,13 @@ from openlineage.client.serde import Serde
 
 from airflow import settings
 from airflow.models import DagRun, TaskInstance
-from airflow.providers.common.compat.sdk import Stats, hookimpl, timeout, timezone
+from airflow.providers.common.compat.sdk import Stats, conf as airflow_conf, hookimpl, timeout, timezone
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager, OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.utils import (
     AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_PLUS,
     get_airflow_dag_run_facet,
     get_airflow_debug_facet,
     get_airflow_job_facet,
@@ -81,21 +83,32 @@ def _executor_initializer():
     parent's ``Stats.initialize(...)`` call from scheduler startup does not propagate across the
     spawn boundary.
     """
+    log = logging.getLogger(__name__)
     # This initializer is used only on the scheduler
     # We can configure_orm regardless of the Airflow version, as DB access is always allowed from scheduler.
     settings.configure_orm()
+
+    if not AIRFLOW_V_3_2_PLUS:  # Initialize stats only for AF 3.2+
+        return
+
+    # Stats-related errors must not block initialization of executor (this will block DAG event emission).
     try:
         from airflow.observability.metrics import stats_utils
 
-        Stats.initialize(
-            factory=stats_utils.get_stats_factory(),
-            export_legacy_names=conf.getboolean("metrics", "legacy_names_on", fallback=True),
-        )
-    except ImportError:
-        # ``stats_utils`` lives under ``airflow.observability.metrics`` in current Airflow; if the
-        # import path changes or is unavailable, fall through silently — gauge calls will simply
-        # land on ``NoStatsLogger`` as before, which is no worse than current behavior.
-        pass
+        try:
+            Stats.initialize(
+                factory=stats_utils.get_stats_factory(),
+                export_legacy_names=airflow_conf.getboolean("metrics", "legacy_names_on", fallback=True),
+            )
+        except TypeError:
+            # args were changed in #63932, for compat we try to fall back to old way if first one fails
+            Stats.initialize(factory=stats_utils.get_stats_factory(Stats))
+
+    except Exception as err:
+        # Intentional catch-all: stats-related errors must not block DAG event emission.
+        # If any errors are raised it will fall back to NoStatsLogger, which is no worse than before.
+        log.warning("OpenLineage failed to initialize Stats in executor initializer: `%s`", err)
+        log.debug("Exception details:", exc_info=True)
 
 
 def _emit_manual_state_change_event(adapter_method, stats_key, **kwargs):
@@ -843,8 +856,21 @@ class OpenLineageListener:
             if not AIRFLOW_V_3_0_PLUS:
                 configure_orm(disable_connection_pool=True)
             self.log.debug("Executing OpenLineage process - %s - pid %s", callable_name, os.getpid())
-            callable()
-            self.log.debug("Process with current pid finishes after %s", callable_name)
+            try:
+                callable()
+                self.log.debug("Process with current pid finishes after %s", callable_name)
+            except Exception:
+                self.log.warning(
+                    "OpenLineage %s process failed. This has no impact on actual task execution status.",
+                    callable_name,
+                    exc_info=True,
+                )
+            finally:
+                # os._exit(0) bypasses Python's atexit/stdio flush. Explicitly shut down
+                # logging so buffered records (including any warnings above) are flushed
+                # before the process exits. Without this, the final log lines are silently
+                # dropped, making failures invisible.
+                logging.shutdown()
             os._exit(0)
 
     @property
@@ -1024,7 +1050,13 @@ class OpenLineageListener:
             self.log.warning("OpenLineage received exception in method on_dag_run_failed", exc_info=e)
 
     def submit_callable(self, callable, *args, **kwargs):
-        fut = self.executor.submit(callable, *args, **kwargs)
+        try:
+            fut = self.executor.submit(callable, *args, **kwargs)
+        except BrokenProcessPool:
+            self.log.warning("ProcessPoolExecutor is broken; recreating and retrying submission.")
+            self._executor.shutdown(wait=False)
+            self._executor = None
+            fut = self.executor.submit(callable, *args, **kwargs)
         fut.add_done_callback(self.log_submit_error)
         return fut
 

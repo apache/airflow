@@ -142,11 +142,7 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
             </Button>
           ) : undefined}
           <Spacer />
-          <Button
-            colorPalette="brand"
-            disabled={!isValid || isPending}
-            onClick={() => void handleSubmit(onSubmit)()}
-          >
+          <Button disabled={!isValid || isPending} onClick={() => void handleSubmit(onSubmit)()}>
             <FiSave /> {translate("formActions.save")}
           </Button>
         </HStack>

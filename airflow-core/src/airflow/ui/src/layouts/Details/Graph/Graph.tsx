@@ -24,10 +24,11 @@ import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useDagRunServiceGetDagRun, useStructureServiceStructureData } from "openapi/queries";
+import type { Direction } from "src/components/Graph/DirectionDropdown";
 import { DownloadButton } from "src/components/Graph/DownloadButton";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
-import { type Direction, useGraphLayout } from "src/components/Graph/useGraphLayout";
+import { useGraphLayout } from "src/components/Graph/useGraphLayout";
 import { dependenciesKey, directionKey } from "src/constants/localStorage";
 import { useColorMode } from "src/context/colorMode";
 import { useGroups } from "src/context/groups";

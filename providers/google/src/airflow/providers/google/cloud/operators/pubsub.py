@@ -30,6 +30,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud import pubsub_v1
 from google.cloud.pubsub_v1.types import (
     DeadLetterPolicy,
     Duration,
@@ -54,6 +55,10 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.compat.sdk import Context
     from airflow.providers.openlineage.extractors import OperatorLineage
+
+
+class PubSubMessageTransformException(Exception):
+    """Raise when messages failed to convert pubsub received format."""
 
 
 class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
@@ -871,11 +876,21 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         if event["status"] == "success":
             self.log.info("Sensor pulls messages: %s", event["message"])
             messages_callback = self.messages_callback or self._default_message_callback
-            _return_value = messages_callback(event["message"], context)
+            received_messages = self._convert_to_received_messages(event["message"])
+            _return_value = messages_callback(received_messages, context)
             return _return_value
 
         self.log.info("Sensor failed: %s", event["message"])
         raise AirflowException(event["message"])
+
+    def _convert_to_received_messages(self, messages: Any) -> list[ReceivedMessage]:
+        try:
+            received_messages = [pubsub_v1.types.ReceivedMessage(msg) for msg in messages]
+            return received_messages
+        except Exception as e:
+            raise PubSubMessageTransformException(
+                f"Error converting triggerer event message back to received message format: {e}"
+            ) from e
 
     def _default_message_callback(
         self,

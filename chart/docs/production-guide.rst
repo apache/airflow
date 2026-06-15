@@ -280,14 +280,19 @@ This setting can be configured in the Airflow chart at different levels:
    :caption: values.yaml
 
    workers:
-     safeToEvict: true
+     celery:
+       safeToEvict: true
+     kubernetes:
+       safeToEvict: true
    scheduler:
      safeToEvict: true
    apiServer:
      safeToEvict: true
 
-``workers.safeToEvict`` defaults to ``false``, and when using ``KubernetesExecutor``
-``workers.safeToEvict`` shouldn't be set to ``true`` as the workers may be removed before finishing.
+.. note::
+
+   ``workers.kubernetes.safeToEvict`` defaults to ``false`` as it shouldn't be set to ``true``,
+   because the tasks may be removed before finishing.
 
 Extending and customizing Airflow Image
 ---------------------------------------
@@ -384,6 +389,30 @@ Ingress
 You can create and configure ``Ingress`` objects. See the :ref:`Ingress chart parameters <parameters:ingress>`.
 For more information on ``Ingress``, see the
 `Kubernetes Ingress documentation <https://kubernetes.io/docs/concepts/services-networking/ingress/>`_.
+
+Gateway API (HTTPRoute)
+^^^^^^^^^^^^^^^^^^^^^^^
+
+As an alternative to ``Ingress``, the chart can create a
+`Kubernetes Gateway API <https://gateway-api.sigs.k8s.io/>`_ ``HTTPRoute`` for the API server.
+This requires the Gateway API CRDs to be installed in the cluster and a ``Gateway`` to already exist —
+the chart only creates the ``HTTPRoute`` and attaches it to the Gateway via ``parentRefs``.
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   httpRoute:
+     apiServer:
+       enabled: true
+       parentRefs:
+         - name: main-gateway
+           namespace: gateway-system
+           sectionName: https
+       hostnames:
+         - airflow.example.com
+
+For fine-grained routing, supply ``httpRoute.apiServer.rules`` directly — the entry mirrors the
+upstream ``HTTPRouteRule`` schema and overrides the default rule generated from ``path`` + ``pathType``.
 
 LoadBalancer Service
 ^^^^^^^^^^^^^^^^^^^^
@@ -783,12 +812,12 @@ This container-specific approach ensures that:
 Configuration Options
 ^^^^^^^^^^^^^^^^^^^^^
 
-The service account token volume configuration is available for the scheduler component and includes the following options:
+The service account token volume configuration is available for the scheduler and cleanup component and includes the following options:
 
 .. code-block:: yaml
    :caption: values.yaml
 
-   scheduler:
+   (scheduler|cleanup):
      serviceAccount:
        automountServiceAccountToken: false
        serviceAccountTokenVolume:

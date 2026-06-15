@@ -21,12 +21,13 @@ import fcntl
 import json
 import logging
 import os
-import random
+import secrets
 from collections import namedtuple
 from enum import Enum
 from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TextIO
+from urllib.parse import urlencode
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -119,11 +120,68 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         with open(password_file, "r+") as file:
             return SimpleAuthManager._get_passwords(file)
 
+    @staticmethod
+    def _looks_like_production(
+        *,
+        sql_conn: str | None = None,
+        api_host: str | None = None,
+        executor: str | None = None,
+    ) -> bool:
+        """
+        Best-effort heuristic for whether the Airflow deployment looks production-shaped.
+
+        Returns True if any of the following hold:
+
+        - The SQL backend is not sqlite (i.e. Postgres or MySQL is configured).
+        - The API host is bound to a non-local address.
+        - The configured executor is not Local-/Sequential-/Debug-/InProcessExecutor.
+
+        None of these are *definitive* — a developer can pick any combination locally
+        — but the cumulative signal is strong enough to justify a loud warning that
+        SimpleAuthManager (which is dev-only by design) is being used in a setup
+        that resembles production.
+
+        Each axis can be passed in directly (kwargs) so unit tests can probe the
+        decision logic without touching the global ``conf`` state. ``None`` (the
+        default) reads the value from ``conf``.
+        """
+        if sql_conn is None:
+            sql_conn = conf.get("database", "sql_alchemy_conn", fallback="")
+        if api_host is None:
+            api_host = conf.get("api", "host", fallback="localhost")
+        if executor is None:
+            executor = conf.get("core", "executor", fallback="LocalExecutor")
+
+        if sql_conn and not sql_conn.startswith("sqlite:"):
+            return True
+        if api_host.strip() not in {"localhost", "127.0.0.1", "::1", "[::1]"}:
+            return True
+        # Split on '.' to get the class name only (handles fully-qualified executor paths).
+        local_executors = {"LocalExecutor", "SequentialExecutor", "DebugExecutor", "InProcessExecutor"}
+        if executor.split(".")[-1] not in local_executors:
+            return True
+        return False
+
     def init(self) -> None:
         super().init()
         is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
         if is_simple_auth_manager_all_admins:
             return
+
+        # SimpleAuthManager is dev-only by design — it stores passwords in plaintext,
+        # prints generated passwords to stdout/logs on first init, and provides no
+        # rotation mechanism. Emit a loud warning when the deployment shape suggests
+        # production so it shows up in startup logs of misconfigured deployments.
+        if self._looks_like_production():
+            log.warning(
+                "SimpleAuthManager is active but the deployment shape looks like production "
+                "(non-sqlite backend, non-local API host, or a distributed executor). "
+                "SimpleAuthManager stores passwords in plaintext at %s and prints generated "
+                "passwords to stdout/logs on first init. Use a real auth manager "
+                "(e.g. FAB or Keycloak) for production deployments.",
+                self.get_generated_password_file(),
+            )
+
         users = self.get_users()
         password_file = self.get_generated_password_file()
 
@@ -158,11 +216,17 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
+        next_url = kwargs.get("next_url")
         is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
         if is_simple_auth_manager_all_admins:
-            return AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token/login"
+            login_url = AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token/login"
+        else:
+            login_url = AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login"
 
-        return AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login"
+        if next_url:
+            return f"{login_url}?{urlencode({'next': next_url})}"
+
+        return login_url
 
     def deserialize_user(self, token: dict[str, Any]) -> SimpleAuthManagerUser:
         return SimpleAuthManagerUser(
@@ -173,6 +237,9 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     def serialize_user(self, user: SimpleAuthManagerUser) -> dict[str, Any]:
         return {"sub": user.username, "role": user.role, "teams": user.teams}
+
+    def get_cli_user(self) -> SimpleAuthManagerUser:
+        return SimpleAuthManagerUser(username="cli", role=SimpleAuthManagerRole.ADMIN.name)
 
     def is_authorized_configuration(
         self,
@@ -440,7 +507,8 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     @staticmethod
     def _generate_password() -> str:
-        return "".join(random.choices("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789", k=16))
+        alphabet = "abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789"
+        return "".join(secrets.choice(alphabet) for _ in range(16))
 
     @staticmethod
     def _print_output(output: str):

@@ -58,6 +58,8 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
     :param poll_interval: Polling period in seconds to check for the status.
     :param trigger_start_time: time in Datetime format when the trigger was started
     :param in_cluster: run kubernetes client with in_cluster configuration.
+    :param use_dns_endpoint: Use the DNS address as the endpoint. This needs to set to True for the Sovereign
+        Cloud from Google.
     :param get_logs: get the stdout of the container as logs of the tasks.
     :param startup_timeout: timeout in seconds to start up the pod.
     :param base_container_name: The name of the base container in the pod. This container's logs
@@ -84,6 +86,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         cluster_context: str | None = None,
         poll_interval: float = 2,
         in_cluster: bool | None = None,
+        use_dns_endpoint: bool = False,
         get_logs: bool = True,
         startup_timeout: int = 120,
         on_finish_action: str = "delete_pod",
@@ -108,6 +111,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         self.poll_interval = poll_interval
         self.cluster_context = cluster_context
         self.in_cluster = in_cluster
+        self.use_dns_endpoint = use_dns_endpoint
         self.get_logs = get_logs
         self.startup_timeout = startup_timeout
         self.gcp_conn_id = gcp_conn_id
@@ -141,8 +145,10 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
                 "poll_interval": self.poll_interval,
                 "cluster_context": self.cluster_context,
                 "in_cluster": self.in_cluster,
+                "use_dns_endpoint": self.use_dns_endpoint,
                 "get_logs": self.get_logs,
                 "startup_timeout": self.startup_timeout,
+                "schedule_timeout": self.schedule_timeout,
                 "trigger_start_time": self.trigger_start_time,
                 "base_container_name": self.base_container_name,
                 "should_delete_pod": self.should_delete_pod,
@@ -159,6 +165,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         return GKEKubernetesAsyncHook(
             cluster_url=self._cluster_url,
             ssl_ca_cert=self._ssl_ca_cert,
+            use_dns_endpoint=self.use_dns_endpoint,
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
             enable_tcp_keepalive=True,
@@ -173,6 +180,7 @@ class GKEOperationTrigger(BaseTrigger):
         operation_name: str,
         project_id: str | None,
         location: str,
+        use_dns_endpoint: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         poll_interval: int = 10,
@@ -182,6 +190,7 @@ class GKEOperationTrigger(BaseTrigger):
         self.operation_name = operation_name
         self.project_id = project_id
         self.location = location
+        self.use_dns_endpoint = use_dns_endpoint
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.poll_interval = poll_interval
@@ -199,6 +208,7 @@ class GKEOperationTrigger(BaseTrigger):
                 "gcp_conn_id": self.gcp_conn_id,
                 "impersonation_chain": self.impersonation_chain,
                 "poll_interval": self.poll_interval,
+                "use_dns_endpoint": self.use_dns_endpoint,
             },
         )
 
@@ -266,6 +276,7 @@ class GKEJobTrigger(BaseTrigger):
         pod_namespace: str,
         base_container_name: str,
         pod_name: str | None = None,
+        use_dns_endpoint: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         poll_interval: float = 2,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -277,6 +288,7 @@ class GKEJobTrigger(BaseTrigger):
         self.ssl_ca_cert = ssl_ca_cert
         self.job_name = job_name
         self.job_namespace = job_namespace
+        self.use_dns_endpoint = use_dns_endpoint
         if pod_name is not None:
             self._pod_name = pod_name
             self.pod_names = [
@@ -312,6 +324,7 @@ class GKEJobTrigger(BaseTrigger):
                 "job_namespace": self.job_namespace,
                 "pod_names": self.pod_names,
                 "pod_namespace": self.pod_namespace,
+                "use_dns_endpoint": self.use_dns_endpoint,
                 "base_container_name": self.base_container_name,
                 "gcp_conn_id": self.gcp_conn_id,
                 "poll_interval": self.poll_interval,
@@ -406,6 +419,7 @@ class GKEJobTrigger(BaseTrigger):
         return GKEKubernetesAsyncHook(
             cluster_url=self.cluster_url,
             ssl_ca_cert=self.ssl_ca_cert,
+            use_dns_endpoint=self.use_dns_endpoint,
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
@@ -415,6 +429,7 @@ class GKEJobTrigger(BaseTrigger):
         sync_hook = GKEKubernetesHook(
             gcp_conn_id=self.gcp_conn_id,
             cluster_url=self.cluster_url,
+            use_dns_endpoint=self.use_dns_endpoint,
             ssl_ca_cert=self.ssl_ca_cert,
             impersonation_chain=self.impersonation_chain,
         )

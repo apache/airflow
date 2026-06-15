@@ -16,9 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Icon } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiStar } from "react-icons/fi";
+import { MdStar, MdStarOutline } from "react-icons/md";
 
 import { ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 
@@ -29,21 +28,6 @@ type Props = {
   readonly value: FavoriteValue;
 };
 
-const StarIcon = ({ filled, isSelected }: { readonly filled: boolean; readonly isSelected: boolean }) => (
-  <Icon asChild color={isSelected ? "brand.contrast" : "brand.solid"}>
-    <FiStar style={filled ? { fill: "currentColor" } : undefined} />
-  </Icon>
-);
-
-const renderFavoriteLabel =
-  (text: string, filled: boolean) =>
-  (isSelected: boolean): React.ReactNode => (
-    <>
-      <StarIcon filled={filled} isSelected={isSelected} />
-      {text}
-    </>
-  );
-
 export const FavoriteFilter = ({ onChange, value }: Props) => {
   const { t: translate } = useTranslation("dags");
 
@@ -53,11 +37,21 @@ export const FavoriteFilter = ({ onChange, value }: Props) => {
       options={[
         { label: translate("filters.favorite.all"), value: "all" },
         {
-          label: renderFavoriteLabel(translate("filters.favorite.favorite"), true),
+          label: (
+            <>
+              <MdStar />
+              {translate("filters.favorite.favorite")}
+            </>
+          ),
           value: "true",
         },
         {
-          label: renderFavoriteLabel(translate("filters.favorite.unfavorite"), false),
+          label: (
+            <>
+              <MdStarOutline />
+              {translate("filters.favorite.unfavorite")}
+            </>
+          ),
           value: "false",
         },
       ]}

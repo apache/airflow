@@ -20,8 +20,7 @@
       "all": "Tous",
       "paused": "En pause"
     },
-    "runIdPatternFilter": "Rechercher des exécutions de Dag",
-    "triggeringUserNameFilter": "Rechercher par utilisateur déclencheur"
+    "runIdPatternFilter": "Rechercher des exécutions de Dag"
   },
   "ownerLink": "Lien du propriétaire pour {{owner}}",
   "runAndTaskActions": {
@@ -34,6 +33,15 @@
       "buttonTooltip": "Appuyez sur Maj+c pour réinitialiser",
       "error": "Échec de la réinitialisation de {{type}}",
       "title": "Réinitialiser {{type}}"
+    },
+    "clearAllMapped": {
+      "button": "Réinitialiser toutes les tâches mappées",
+      "buttonTooltip": "Appuyez sur Maj+c pour réinitialiser toutes les instances de tâches mappées",
+      "title": "Réinitialiser toutes les instances de tâches mappées"
+    },
+    "confirmationDialog": {
+      "description": "La tâche est actuellement dans l'état {{state}}, démarrée par l'utilisateur {{user}} à {{time}}. \nL'utilisateur ne peut pas réinitialiser cette tâche tant qu'elle n'a pas fini de s'exécuter ou tant que l'option « Empêcher la réexécution si la tâche est en cours » n'est pas décochée dans la boîte de dialogue de réinitialisation.",
+      "title": "Impossible de réinitialiser l'instance de tâche"
     },
     "delete": {
       "button": "Supprimer {{type}}",
@@ -62,6 +70,7 @@
       "future": "Futur",
       "onlyFailed": "Réinitialiser uniquement les tâches échouées",
       "past": "Passé",
+      "preventRunningTasks": "Empêcher la réexécution si la tâche est en cours",
       "queueNew": "Ajouter de nouvelles tâches en file d'attente",
       "runOnLatestVersion": "Exécuter avec la dernière version du bundle",
       "upstream": "En amont"

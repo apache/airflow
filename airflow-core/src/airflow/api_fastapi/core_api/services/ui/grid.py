@@ -94,8 +94,8 @@ class GridNodeAgg:
 
 
 def _merge_node_dicts(current: list[dict[str, Any]], new: list[dict[str, Any]] | None) -> None:
-    """Merge node dictionaries from different DAG versions, handling structure changes."""
-    # Handle None case - can occur when merging old DAG versions
+    """Merge node dictionaries from different Dag versions, handling structure changes."""
+    # Handle None case - can occur when merging old Dag versions
     # where a TaskGroup was converted to a task or vice versa
     if new is None:
         return
@@ -106,7 +106,7 @@ def _merge_node_dicts(current: list[dict[str, Any]], new: list[dict[str, Any]] |
         current_node = current_nodes_by_id.get(node_id)
         if current_node is not None:
             # Only merge children if current node already has children
-            # This preserves the structure of the latest DAG version
+            # This preserves the structure of the latest Dag version
             if current_node.get("children") is not None:
                 _merge_node_dicts(current_node["children"], node.get("children"))
         else:
@@ -122,12 +122,16 @@ def agg_state(states):
     return None
 
 
+def _serialize_child_states(child_states: Counter[Any]) -> dict[str, int]:
+    return {state if state is not None else "none": count for state, count in child_states.items()}
+
+
 def _get_aggs_for_node(summary: GridNodeAgg) -> dict[str, Any]:
     return {
         "state": agg_state(summary.child_states),
         "min_start_date": summary.min_start_date,
         "max_end_date": summary.max_end_date,
-        "child_states": dict(summary.child_states),
+        "child_states": _serialize_child_states(summary.child_states),
         "dag_version_number": summary.dag_version_number,
     }
 

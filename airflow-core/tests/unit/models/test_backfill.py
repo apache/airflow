@@ -34,6 +34,7 @@ from airflow.models.backfill import (
     BackfillDagRunExceptionReason,
     DagNonPeriodicScheduleException,
     InvalidBackfillConf,
+    InvalidBackfillDateRange,
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
     ReprocessBehavior,
@@ -285,6 +286,17 @@ def test_create_backfill_partitioned(reverse, existing, start_date, dag_maker, s
     assert partition_keys == expected_dates
     assert all(x.state == DagRunState.QUEUED for x in dag_runs)
     assert all(x.conf == expected_run_conf for x in dag_runs)
+    # Calendar view filters partitioned Dags by partition_date, so the backfill
+    # path must populate it alongside partition_key. Verify that backfill copies
+    # info.partition_date faithfully — i.e. the stored value matches what the
+    # timetable computed for each partition_key.
+    expected_partition_date_by_key = {
+        info.partition_key: info.partition_date
+        for info in dag.iter_dagrun_infos_between(pendulum.parse("2026-02-15"), pendulum.parse("2026-02-24"))
+    }
+    assert [x.partition_date for x in dag_runs] == [
+        expected_partition_date_by_key[x.partition_key] for x in dag_runs
+    ]
 
 
 @pytest.mark.parametrize(
@@ -537,6 +549,30 @@ def test_backfill_rejects_invalid_conf(dag_maker, session):
 
     # No runs should have been created
     assert session.scalar(select(DagRun).where(DagRun.dag_id == dag.dag_id)) is None
+
+
+def test_do_dry_run_rejects_invalid_conf(dag_maker, session):
+    """Dry run with invalid conf should fail validation."""
+    from airflow.sdk import Param
+
+    with dag_maker(
+        schedule="@daily",
+        params={"validated_number": Param(1, type="integer", minimum=1, maximum=10)},
+    ) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    with pytest.raises(InvalidBackfillConf, match="Invalid input for param validated_number"):
+        list(
+            _do_dry_run(
+                dag_id=dag.dag_id,
+                from_date=pendulum.parse("2021-01-01"),
+                to_date=pendulum.parse("2021-01-05"),
+                reverse=False,
+                reprocess_behavior=ReprocessBehavior.NONE,
+                dag_run_conf={"validated_number": 99},
+                session=session,
+            )
+        )
 
 
 def test_params_stored_correctly(dag_maker, session):
@@ -802,4 +838,21 @@ def test_do_dry_run_non_periodic_schedule_rejected(schedule, dag_kwargs, dag_mak
                 reprocess_behavior=ReprocessBehavior.NONE,
                 session=session,
             )
+        )
+
+
+def test_create_backfill_from_date_after_to_date_raises(dag_maker, session):
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    with pytest.raises(InvalidBackfillDateRange, match="must not be after to_date"):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2026-05-13"),
+            to_date=pendulum.parse("2026-05-12"),
+            max_active_runs=2,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf={},
         )

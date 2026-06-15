@@ -1,8 +1,8 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { BackfillPostBody, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, ClearTaskInstancesBody, ConnectionBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, GenerateTokenBody, MaterializeAssetBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetStateStoreBody, BackfillPostBody, BulkBody_BulkDAGRunBody_, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, BulkDAGRunClearBody, ClearTaskInstancesBody, ConnectionBody, ConnectionTestRequestBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, GenerateTokenBody, MaterializeAssetBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TaskStateStoreBody, TaskStateStorePatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -132,7 +132,7 @@ export const useAssetServiceGetAsset = <TData = Common.AssetServiceGetAssetDefau
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetKeyFn({ assetId }, queryKey), queryFn: () => AssetService.getAsset({ assetId }) as TData, ...options });
 /**
 * Get Dag Asset Queued Events
-* Get queued asset events for a DAG.
+* Get queued asset events for a Dag.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.before
@@ -145,7 +145,7 @@ export const useAssetServiceGetDagAssetQueuedEvents = <TData = Common.AssetServi
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetDagAssetQueuedEventsKeyFn({ before, dagId }, queryKey), queryFn: () => AssetService.getDagAssetQueuedEvents({ before, dagId }) as TData, ...options });
 /**
 * Get Dag Asset Queued Event
-* Get a queued asset event for a DAG.
+* Get a queued asset event for a Dag.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.assetId
@@ -162,7 +162,7 @@ export const useAssetServiceGetDagAssetQueuedEvent = <TData = Common.AssetServic
 * Next Run Assets
 * @param data The data for the request.
 * @param data.dagId
-* @returns unknown Successful Response
+* @returns NextRunAssetsResponse Successful Response
 * @throws ApiError
 */
 export const useAssetServiceNextRunAssets = <TData = Common.AssetServiceNextRunAssetsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId }: {
@@ -224,6 +224,17 @@ export const useConnectionServiceGetConnection = <TData = Common.ConnectionServi
   connectionId: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }, queryKey), queryFn: () => ConnectionService.getConnection({ connectionId }) as TData, ...options });
 /**
+* Get Connection Test
+* Poll for the status of an enqueued connection test by its token (passed as a header).
+* @param data The data for the request.
+* @param data.airflowConnectionTestToken
+* @returns AsyncConnectionTestResponse Successful Response
+* @throws ApiError
+*/
+export const useConnectionServiceGetConnectionTest = <TData = Common.ConnectionServiceGetConnectionTestDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ airflowConnectionTestToken }: {
+  airflowConnectionTestToken: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionTestKeyFn({ airflowConnectionTestToken }, queryKey), queryFn: () => ConnectionService.getConnectionTest({ airflowConnectionTestToken }) as TData, ...options });
+/**
 * Get Connections
 * Get all connection entries.
 * @param data The data for the request.
@@ -264,23 +275,10 @@ export const useDagRunServiceGetDagRun = <TData = Common.DagRunServiceGetDagRunD
   dagRunId: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }, queryKey), queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }) as TData, ...options });
 /**
-* Get Upstream Asset Events
-* If dag run is asset-triggered, return the asset events that triggered it.
-* @param data The data for the request.
-* @param data.dagId
-* @param data.dagRunId
-* @returns AssetEventCollectionResponse Successful Response
-* @throws ApiError
-*/
-export const useDagRunServiceGetUpstreamAssetEvents = <TData = Common.DagRunServiceGetUpstreamAssetEventsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId }: {
-  dagId: string;
-  dagRunId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId }, queryKey), queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }) as TData, ...options });
-/**
 * Get Dag Runs
-* Get all DAG Runs.
+* Get all Dag Runs.
 *
-* This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
+* This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all Dags.
 *
 * Supports two pagination modes:
 *
@@ -391,13 +389,26 @@ export const useDagRunServiceGetDagRuns = <TData = Common.DagRunServiceGetDagRun
   updatedAtLte?: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagRunServiceGetDagRunsKeyFn({ bundleVersion, confContains, consumingAssetPattern, cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, partitionKeyPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, triggeringUserNamePrefixPattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }, queryKey), queryFn: () => DagRunService.getDagRuns({ bundleVersion, confContains, consumingAssetPattern, cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, partitionKeyPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, triggeringUserNamePrefixPattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }) as TData, ...options });
 /**
+* Get Upstream Asset Events
+* If dag run is asset-triggered, return the asset events that triggered it.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @returns AssetEventCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useDagRunServiceGetUpstreamAssetEvents = <TData = Common.DagRunServiceGetUpstreamAssetEventsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId }: {
+  dagId: string;
+  dagRunId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId }, queryKey), queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }) as TData, ...options });
+/**
 * Experimental: Wait for a dag run to complete, and return task results if requested.
-* 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the Dag run state.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
 * @param data.interval Seconds to wait between dag run state checks
-* @param data.result Collect result XCom from task. Can be set multiple times.
+* @param data.result Collect result XCom from task. Can be set multiple times. If unset, return value of the return task as specified in the dag (in present) is returned by default.
 * @returns unknown Successful Response
 * @throws ApiError
 */
@@ -408,13 +419,26 @@ export const useDagRunServiceWaitDagRunUntilFinished = <TData = Common.DagRunSer
   result?: string[];
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagRunServiceWaitDagRunUntilFinishedKeyFn({ dagId, dagRunId, interval, result }, queryKey), queryFn: () => DagRunService.waitDagRunUntilFinished({ dagId, dagRunId, interval, result }) as TData, ...options });
 /**
+* Get Dag Run Stats
+* Get duration statistics for a DAG based on its historical completed runs.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @returns DagRunStatsResponse Successful Response
+* @throws ApiError
+*/
+export const useDagRunServiceGetDagRunStats = <TData = Common.DagRunServiceGetDagRunStatsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId }: {
+  dagId: string;
+  dagRunId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagRunServiceGetDagRunStatsKeyFn({ dagId, dagRunId }, queryKey), queryFn: () => DagRunService.getDagRunStats({ dagId, dagRunId }) as TData, ...options });
+/**
 * Experimental: Wait for a dag run to complete, and return task results if requested.
-* 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the Dag run state.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
 * @param data.interval Seconds to wait between dag run state checks
-* @param data.result Collect result XCom from task. Can be set multiple times.
+* @param data.result Collect result XCom from task. Can be set multiple times. If unset, return value of the return task as specified in the dag (in present) is returned by default.
 * @returns unknown Successful Response
 * @throws ApiError
 */
@@ -504,7 +528,7 @@ export const useDagWarningServiceListDagWarnings = <TData = Common.DagWarningSer
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn({ dagId, limit, offset, orderBy, warningType }, queryKey), queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }) as TData, ...options });
 /**
 * Get Dags
-* Get all DAGs.
+* Get all Dags.
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
@@ -575,7 +599,7 @@ export const useDagServiceGetDags = <TData = Common.DagServiceGetDagsDefaultResp
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagsKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, timetableType }, queryKey), queryFn: () => DagService.getDags({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, timetableType }) as TData, ...options });
 /**
 * Get Dag
-* Get basic information about a DAG.
+* Get basic information about a Dag.
 * @param data The data for the request.
 * @param data.dagId
 * @returns DAGResponse Successful Response
@@ -586,7 +610,7 @@ export const useDagServiceGetDag = <TData = Common.DagServiceGetDagDefaultRespon
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagKeyFn({ dagId }, queryKey), queryFn: () => DagService.getDag({ dagId }) as TData, ...options });
 /**
 * Get Dag Details
-* Get details of DAG.
+* Get details of Dag.
 * @param data The data for the request.
 * @param data.dagId
 * @returns DAGDetailsResponse Successful Response
@@ -597,7 +621,7 @@ export const useDagServiceGetDagDetails = <TData = Common.DagServiceGetDagDetail
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagDetailsKeyFn({ dagId }, queryKey), queryFn: () => DagService.getDagDetails({ dagId }) as TData, ...options });
 /**
 * Get Dag Tags
-* Get all DAG tags.
+* Get all Dag tags.
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
@@ -618,7 +642,7 @@ export const useDagServiceGetDagTags = <TData = Common.DagServiceGetDagTagsDefau
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagTagsKeyFn({ limit, offset, orderBy, tagNamePattern, tagNamePrefixPattern }, queryKey), queryFn: () => DagService.getDagTags({ limit, offset, orderBy, tagNamePattern, tagNamePrefixPattern }) as TData, ...options });
 /**
 * Get Dags
-* Get DAGs with recent DagRun.
+* Get Dags with recent DagRun.
 * @param data The data for the request.
 * @param data.dagRunsLimit
 * @param data.limit
@@ -865,13 +889,17 @@ export const useTaskInstanceServiceGetTaskInstance = <TData = Common.TaskInstanc
 * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``operator_name_prefix_pattern`` parameter when possible.
 * @param data.operatorNamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
 * @param data.mapIndex
+* @param data.renderedMapIndexPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+*
+* **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``rendered_map_index_prefix_pattern`` parameter when possible.
+* @param data.renderedMapIndexPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
 * @param data.limit
 * @param data.offset
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, run_after, logical_date, data_interval_start, data_interval_end`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
 * @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetMappedTaskInstances = <TData = Common.TaskInstanceServiceGetMappedTaskInstancesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
+export const useTaskInstanceServiceGetMappedTaskInstances = <TData = Common.TaskInstanceServiceGetMappedTaskInstancesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
   dagId: string;
   dagRunId: string;
   durationGt?: number;
@@ -900,6 +928,8 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <TData = Common.Task
   queue?: string[];
   queueNamePattern?: string;
   queueNamePrefixPattern?: string;
+  renderedMapIndexPattern?: string;
+  renderedMapIndexPrefixPattern?: string;
   runAfterGt?: string;
   runAfterGte?: string;
   runAfterLt?: string;
@@ -916,7 +946,7 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <TData = Common.Task
   updatedAtLt?: string;
   updatedAtLte?: string;
   versionNumber?: number[];
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstancesKeyFn({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }, queryKey), queryFn: () => TaskInstanceService.getMappedTaskInstances({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstancesKeyFn({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }, queryKey), queryFn: () => TaskInstanceService.getMappedTaskInstances({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }) as TData, ...options });
 /**
 * Get Task Instance Dependencies
 * Get dependencies blocking task from getting scheduled.
@@ -1006,7 +1036,7 @@ export const useTaskInstanceServiceGetMappedTaskInstance = <TData = Common.TaskI
 * Get list of task instances.
 *
 * This endpoint allows specifying `~` as the dag_id, dag_run_id
-* to retrieve task instances for all DAGs and DAG runs.
+* to retrieve task instances for all Dags and Dag runs.
 *
 * Supports two pagination modes:
 *
@@ -1078,13 +1108,17 @@ export const useTaskInstanceServiceGetMappedTaskInstance = <TData = Common.TaskI
 * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``operator_name_prefix_pattern`` parameter when possible.
 * @param data.operatorNamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
 * @param data.mapIndex
+* @param data.renderedMapIndexPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+*
+* **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``rendered_map_index_prefix_pattern`` parameter when possible.
+* @param data.renderedMapIndexPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
 * @param data.limit
 * @param data.offset
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, logical_date, run_after, data_interval_start, data_interval_end`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
 * @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetTaskInstances = <TData = Common.TaskInstanceServiceGetTaskInstancesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
+export const useTaskInstanceServiceGetTaskInstances = <TData = Common.TaskInstanceServiceGetTaskInstancesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
   cursor?: string;
   dagId: string;
   dagIdPattern?: string;
@@ -1116,6 +1150,8 @@ export const useTaskInstanceServiceGetTaskInstances = <TData = Common.TaskInstan
   queue?: string[];
   queueNamePattern?: string;
   queueNamePrefixPattern?: string;
+  renderedMapIndexPattern?: string;
+  renderedMapIndexPrefixPattern?: string;
   runAfterGt?: string;
   runAfterGte?: string;
   runAfterLt?: string;
@@ -1137,7 +1173,7 @@ export const useTaskInstanceServiceGetTaskInstances = <TData = Common.TaskInstan
   updatedAtLt?: string;
   updatedAtLte?: string;
   versionNumber?: number[];
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetTaskInstancesKeyFn({ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }, queryKey), queryFn: () => TaskInstanceService.getTaskInstances({ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetTaskInstancesKeyFn({ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }, queryKey), queryFn: () => TaskInstanceService.getTaskInstances({ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }) as TData, ...options });
 /**
 * Get Task Instance Try Details
 * Get task instance details by try number.
@@ -1336,16 +1372,20 @@ export const useImportErrorServiceGetImportError = <TData = Common.ImportErrorSe
 *
 * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``filename_prefix_pattern`` parameter when possible.
 * @param data.filenamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+* @param data.filename Exact filename match. Returns only the import error for this specific file path.
+* @param data.bundleName Exact bundle name match. Returns only import errors from this specific bundle.
 * @returns ImportErrorCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useImportErrorServiceGetImportErrors = <TData = Common.ImportErrorServiceGetImportErrorsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ filenamePattern, filenamePrefixPattern, limit, offset, orderBy }: {
+export const useImportErrorServiceGetImportErrors = <TData = Common.ImportErrorServiceGetImportErrorsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }: {
+  bundleName?: string;
+  filename?: string;
   filenamePattern?: string;
   filenamePrefixPattern?: string;
   limit?: number;
   offset?: number;
   orderBy?: string[];
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ filenamePattern, filenamePrefixPattern, limit, offset, orderBy }, queryKey), queryFn: () => ImportErrorService.getImportErrors({ filenamePattern, filenamePrefixPattern, limit, offset, orderBy }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }, queryKey), queryFn: () => ImportErrorService.getImportErrors({ bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }) as TData, ...options });
 /**
 * Get Jobs
 * Get all jobs.
@@ -1451,6 +1491,74 @@ export const useProviderServiceGetProviders = <TData = Common.ProviderServiceGet
   offset?: number;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }, queryKey), queryFn: () => ProviderService.getProviders({ limit, offset }) as TData, ...options });
 /**
+* List Asset State Store
+* List all state store entries for an asset.
+* @param data The data for the request.
+* @param data.assetId
+* @param data.limit
+* @param data.offset
+* @returns AssetStateStoreCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useAssetStateStoreServiceListAssetStateStore = <TData = Common.AssetStateStoreServiceListAssetStateStoreDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, limit, offset }: {
+  assetId: number;
+  limit?: number;
+  offset?: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetStateStoreServiceListAssetStateStoreKeyFn({ assetId, limit, offset }, queryKey), queryFn: () => AssetStateStoreService.listAssetStateStore({ assetId, limit, offset }) as TData, ...options });
+/**
+* Get Asset State Store
+* Get a single asset state store entry.
+* @param data The data for the request.
+* @param data.key
+* @param data.assetId
+* @returns AssetStateStoreResponse Successful Response
+* @throws ApiError
+*/
+export const useAssetStateStoreServiceGetAssetStateStore = <TData = Common.AssetStateStoreServiceGetAssetStateStoreDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, key }: {
+  assetId: number;
+  key: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetStateStoreServiceGetAssetStateStoreKeyFn({ assetId, key }, queryKey), queryFn: () => AssetStateStoreService.getAssetStateStore({ assetId, key }) as TData, ...options });
+/**
+* List Task State Store
+* List all task state store entries for a task instance.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @param data.limit
+* @param data.offset
+* @returns TaskStateStoreCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useTaskStateStoreServiceListTaskStateStore = <TData = Common.TaskStateStoreServiceListTaskStateStoreDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, limit, mapIndex, offset, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  limit?: number;
+  mapIndex?: number;
+  offset?: number;
+  taskId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskStateStoreServiceListTaskStateStoreKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId }, queryKey), queryFn: () => TaskStateStoreService.listTaskStateStore({ dagId, dagRunId, limit, mapIndex, offset, taskId }) as TData, ...options });
+/**
+* Get Task State Store
+* Get a single task state store entry.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.key
+* @param data.mapIndex
+* @returns TaskStateStoreResponse Successful Response
+* @throws ApiError
+*/
+export const useTaskStateStoreServiceGetTaskStateStore = <TData = Common.TaskStateStoreServiceGetTaskStateStoreDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, key, mapIndex, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  key: string;
+  mapIndex?: number;
+  taskId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskStateStoreServiceGetTaskStateStoreKeyFn({ dagId, dagRunId, key, mapIndex, taskId }, queryKey), queryFn: () => TaskStateStoreService.getTaskStateStore({ dagId, dagRunId, key, mapIndex, taskId }) as TData, ...options });
+/**
 * Get Xcom Entry
 * Get an XCom entry.
 * @param data The data for the request.
@@ -1477,7 +1585,7 @@ export const useXcomServiceGetXcomEntry = <TData = Common.XcomServiceGetXcomEntr
 * Get Xcom Entries
 * Get all XCom entries.
 *
-* This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all DAGs.
+* This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all Dags.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -1544,7 +1652,7 @@ export const useXcomServiceGetXcomEntries = <TData = Common.XcomServiceGetXcomEn
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }, queryKey), queryFn: () => XcomService.getXcomEntries({ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }) as TData, ...options });
 /**
 * Get Tasks
-* Get tasks for DAG.
+* Get tasks for Dag.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.orderBy
@@ -1991,7 +2099,7 @@ export const useAssetServiceCreateAssetEvent = <TData = Common.AssetServiceCreat
 }, TContext>({ mutationFn: ({ requestBody }) => AssetService.createAssetEvent({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Materialize Asset
-* Materialize an asset by triggering a DAG run that produces it.
+* Materialize an asset by triggering a Dag run that produces it.
 * @param data The data for the request.
 * @param data.assetId
 * @param data.requestBody
@@ -2030,6 +2138,19 @@ export const useBackfillServiceCreateBackfillDryRun = <TData = Common.BackfillSe
   requestBody: BackfillPostBody;
 }, TContext>({ mutationFn: ({ requestBody }) => BackfillService.createBackfillDryRun({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
+* Enqueue Connection Test
+* Enqueue a connection test for deferred execution on a worker; returns a polling token.
+* @param data The data for the request.
+* @param data.requestBody
+* @returns ConnectionTestQueuedResponse Successful Response
+* @throws ApiError
+*/
+export const useConnectionServiceEnqueueConnectionTest = <TData = Common.ConnectionServiceEnqueueConnectionTestMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  requestBody: ConnectionTestRequestBody;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  requestBody: ConnectionTestRequestBody;
+}, TContext>({ mutationFn: ({ requestBody }) => ConnectionService.enqueueConnectionTest({ requestBody }) as unknown as Promise<TData>, ...options });
+/**
 * Post Connection
 * Create connection entry.
 * @param data The data for the request.
@@ -2067,6 +2188,22 @@ export const useConnectionServiceTestConnection = <TData = Common.ConnectionServ
 */
 export const useConnectionServiceCreateDefaultConnections = <TData = Common.ConnectionServiceCreateDefaultConnectionsMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, void, TContext>, "mutationFn">) => useMutation<TData, TError, void, TContext>({ mutationFn: () => ConnectionService.createDefaultConnections() as unknown as Promise<TData>, ...options });
 /**
+* Trigger Dag Run
+* Trigger a Dag.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.requestBody
+* @returns DAGRunResponse Successful Response
+* @throws ApiError
+*/
+export const useDagRunServiceTriggerDagRun = <TData = Common.DagRunServiceTriggerDagRunMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: unknown;
+  requestBody: TriggerDAGRunPostBody;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: unknown;
+  requestBody: TriggerDAGRunPostBody;
+}, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.triggerDagRun({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
+/**
 * Clear Dag Run
 * @param data The data for the request.
 * @param data.dagId
@@ -2085,24 +2222,8 @@ export const useDagRunServiceClearDagRun = <TData = Common.DagRunServiceClearDag
   requestBody: DAGRunClearBody;
 }, TContext>({ mutationFn: ({ dagId, dagRunId, requestBody }) => DagRunService.clearDagRun({ dagId, dagRunId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
-* Trigger Dag Run
-* Trigger a DAG.
-* @param data The data for the request.
-* @param data.dagId
-* @param data.requestBody
-* @returns DAGRunResponse Successful Response
-* @throws ApiError
-*/
-export const useDagRunServiceTriggerDagRun = <TData = Common.DagRunServiceTriggerDagRunMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  dagId: unknown;
-  requestBody: TriggerDAGRunPostBody;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  dagId: unknown;
-  requestBody: TriggerDAGRunPostBody;
-}, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.triggerDagRun({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
-/**
 * Get List Dag Runs Batch
-* Get a list of DAG Runs.
+* Get a list of Dag Runs.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.requestBody
@@ -2117,8 +2238,24 @@ export const useDagRunServiceGetListDagRunsBatch = <TData = Common.DagRunService
   requestBody: DAGRunsBatchBody;
 }, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.getListDagRunsBatch({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
+* Clear Dag Runs
+* Clear multiple Dag Runs in a single request.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.requestBody
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const useDagRunServiceClearDagRuns = <TData = Common.DagRunServiceClearDagRunsMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  requestBody: BulkDAGRunClearBody;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  requestBody: BulkDAGRunClearBody;
+}, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.clearDagRuns({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
+/**
 * Favorite Dag
-* Mark the DAG as favorite.
+* Mark the Dag as favorite.
 * @param data The data for the request.
 * @param data.dagId
 * @returns void Successful Response
@@ -2131,7 +2268,7 @@ export const useDagServiceFavoriteDag = <TData = Common.DagServiceFavoriteDagMut
 }, TContext>({ mutationFn: ({ dagId }) => DagService.favoriteDag({ dagId }) as unknown as Promise<TData>, ...options });
 /**
 * Unfavorite Dag
-* Unmark the DAG as favorite.
+* Unmark the Dag as favorite.
 * @param data The data for the request.
 * @param data.dagId
 * @returns void Successful Response
@@ -2275,8 +2412,55 @@ export const useBackfillServiceCancelBackfill = <TData = Common.BackfillServiceC
   backfillId: number;
 }, TContext>({ mutationFn: ({ backfillId }) => BackfillService.cancelBackfill({ backfillId }) as unknown as Promise<TData>, ...options });
 /**
+* Set Asset State Store
+* Set an asset state store value. Creates or overwrites the key.
+* @param data The data for the request.
+* @param data.key
+* @param data.assetId
+* @param data.requestBody
+* @returns void Successful Response
+* @throws ApiError
+*/
+export const useAssetStateStoreServiceSetAssetStateStore = <TData = Common.AssetStateStoreServiceSetAssetStateStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  assetId: number;
+  key: string;
+  requestBody: AssetStateStoreBody;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  assetId: number;
+  key: string;
+  requestBody: AssetStateStoreBody;
+}, TContext>({ mutationFn: ({ assetId, key, requestBody }) => AssetStateStoreService.setAssetStateStore({ assetId, key, requestBody }) as unknown as Promise<TData>, ...options });
+/**
+* Set Task State Store
+* Set a task state store value. Creates or overwrites the key.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.key
+* @param data.requestBody
+* @param data.mapIndex
+* @returns void Successful Response
+* @throws ApiError
+*/
+export const useTaskStateStoreServiceSetTaskStateStore = <TData = Common.TaskStateStoreServiceSetTaskStateStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  key: string;
+  mapIndex?: number;
+  requestBody: TaskStateStoreBody;
+  taskId: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  key: string;
+  mapIndex?: number;
+  requestBody: TaskStateStoreBody;
+  taskId: string;
+}, TContext>({ mutationFn: ({ dagId, dagRunId, key, mapIndex, requestBody, taskId }) => TaskStateStoreService.setTaskStateStore({ dagId, dagRunId, key, mapIndex, requestBody, taskId }) as unknown as Promise<TData>, ...options });
+/**
 * Reparse Dag File
-* Request re-parsing a DAG file.
+* Request re-parsing a Dag file.
 * @param data The data for the request.
 * @param data.fileToken
 * @returns unknown Successful Response
@@ -2321,7 +2505,7 @@ export const useConnectionServiceBulkConnections = <TData = Common.ConnectionSer
 }, TContext>({ mutationFn: ({ requestBody }) => ConnectionService.bulkConnections({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Patch Dag Run
-* Modify a DAG Run.
+* Modify a Dag Run.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -2342,11 +2526,27 @@ export const useDagRunServicePatchDagRun = <TData = Common.DagRunServicePatchDag
   updateMask?: string[];
 }, TContext>({ mutationFn: ({ dagId, dagRunId, requestBody, updateMask }) => DagRunService.patchDagRun({ dagId, dagRunId, requestBody, updateMask }) as unknown as Promise<TData>, ...options });
 /**
+* Bulk Dag Runs
+* Bulk update or delete Dag Runs.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.requestBody
+* @returns BulkResponse Successful Response
+* @throws ApiError
+*/
+export const useDagRunServiceBulkDagRuns = <TData = Common.DagRunServiceBulkDagRunsMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  requestBody: BulkBody_BulkDAGRunBody_;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  requestBody: BulkBody_BulkDAGRunBody_;
+}, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.bulkDagRuns({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
+/**
 * Patch Dags
-* Patch multiple DAGs.
+* Patch multiple Dags.
 *
-* If neither `dag_id_pattern` nor `dag_id_prefix_pattern` is provided, no DAGs will be
-* matched regardless of other filters. To match all DAGs, pass a wildcard value such as
+* If neither `dag_id_pattern` nor `dag_id_prefix_pattern` is provided, no Dags will be
+* matched regardless of other filters. To match all Dags, pass a wildcard value such as
 * `~` or `%` for `dag_id_pattern`.
 * @param data The data for the request.
 * @param data.requestBody
@@ -2392,7 +2592,7 @@ export const useDagServicePatchDags = <TData = Common.DagServicePatchDagsMutatio
 }, TContext>({ mutationFn: ({ dagIdPattern, dagIdPrefixPattern, excludeStale, limit, offset, owners, paused, requestBody, tags, tagsMatchMode, updateMask }) => DagService.patchDags({ dagIdPattern, dagIdPrefixPattern, excludeStale, limit, offset, owners, paused, requestBody, tags, tagsMatchMode, updateMask }) as unknown as Promise<TData>, ...options });
 /**
 * Patch Dag
-* Patch the specific DAG.
+* Patch the specific Dag.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.requestBody
@@ -2645,6 +2845,34 @@ export const usePoolServiceBulkPools = <TData = Common.PoolServiceBulkPoolsMutat
   requestBody: BulkBody_PoolBody_;
 }, TContext>({ mutationFn: ({ requestBody }) => PoolService.bulkPools({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
+* Patch Task State Store
+* Update the value of an existing task state store key.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.key
+* @param data.requestBody
+* @param data.mapIndex
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const useTaskStateStoreServicePatchTaskStateStore = <TData = Common.TaskStateStoreServicePatchTaskStateStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  key: string;
+  mapIndex?: number;
+  requestBody: TaskStateStorePatchBody;
+  taskId: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  key: string;
+  mapIndex?: number;
+  requestBody: TaskStateStorePatchBody;
+  taskId: string;
+}, TContext>({ mutationFn: ({ dagId, dagRunId, key, mapIndex, requestBody, taskId }) => TaskStateStoreService.patchTaskStateStore({ dagId, dagRunId, key, mapIndex, requestBody, taskId }) as unknown as Promise<TData>, ...options });
+/**
 * Update Xcom Entry
 * Update an existing XCom entry.
 * @param data The data for the request.
@@ -2734,7 +2962,7 @@ export const useAssetServiceDeleteDagAssetQueuedEvents = <TData = Common.AssetSe
 }, TContext>({ mutationFn: ({ before, dagId }) => AssetService.deleteDagAssetQueuedEvents({ before, dagId }) as unknown as Promise<TData>, ...options });
 /**
 * Delete Dag Asset Queued Event
-* Delete a queued asset event for a DAG.
+* Delete a queued asset event for a Dag.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.assetId
@@ -2766,7 +2994,7 @@ export const useConnectionServiceDeleteConnection = <TData = Common.ConnectionSe
 }, TContext>({ mutationFn: ({ connectionId }) => ConnectionService.deleteConnection({ connectionId }) as unknown as Promise<TData>, ...options });
 /**
 * Delete Dag Run
-* Delete a DAG Run entry.
+* Delete a Dag Run entry.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -2782,7 +3010,7 @@ export const useDagRunServiceDeleteDagRun = <TData = Common.DagRunServiceDeleteD
 }, TContext>({ mutationFn: ({ dagId, dagRunId }) => DagRunService.deleteDagRun({ dagId, dagRunId }) as unknown as Promise<TData>, ...options });
 /**
 * Delete Dag
-* Delete the specific DAG.
+* Delete the specific Dag.
 * @param data The data for the request.
 * @param data.dagId
 * @returns unknown Successful Response
@@ -2828,6 +3056,88 @@ export const usePoolServiceDeletePool = <TData = Common.PoolServiceDeletePoolMut
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   poolName: string;
 }, TContext>({ mutationFn: ({ poolName }) => PoolService.deletePool({ poolName }) as unknown as Promise<TData>, ...options });
+/**
+* Clear Asset State Store
+* Delete all state store keys for an asset.
+* @param data The data for the request.
+* @param data.assetId
+* @returns void Successful Response
+* @throws ApiError
+*/
+export const useAssetStateStoreServiceClearAssetStateStore = <TData = Common.AssetStateStoreServiceClearAssetStateStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  assetId: number;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  assetId: number;
+}, TContext>({ mutationFn: ({ assetId }) => AssetStateStoreService.clearAssetStateStore({ assetId }) as unknown as Promise<TData>, ...options });
+/**
+* Delete Asset State Store
+* Delete a single asset state store key. No-op if the key does not exist.
+* @param data The data for the request.
+* @param data.key
+* @param data.assetId
+* @returns void Successful Response
+* @throws ApiError
+*/
+export const useAssetStateStoreServiceDeleteAssetStateStore = <TData = Common.AssetStateStoreServiceDeleteAssetStateStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  assetId: number;
+  key: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  assetId: number;
+  key: string;
+}, TContext>({ mutationFn: ({ assetId, key }) => AssetStateStoreService.deleteAssetStateStore({ assetId, key }) as unknown as Promise<TData>, ...options });
+/**
+* Clear Task State Store
+* Delete all task state store keys for a task instance.
+*
+* When ``all_map_indices=true``, state store is cleared for every map index of the task and
+* the ``map_index`` parameter is ignored.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @param data.allMapIndices
+* @returns void Successful Response
+* @throws ApiError
+*/
+export const useTaskStateStoreServiceClearTaskStateStore = <TData = Common.TaskStateStoreServiceClearTaskStateStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  allMapIndices?: boolean;
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  taskId: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  allMapIndices?: boolean;
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  taskId: string;
+}, TContext>({ mutationFn: ({ allMapIndices, dagId, dagRunId, mapIndex, taskId }) => TaskStateStoreService.clearTaskStateStore({ allMapIndices, dagId, dagRunId, mapIndex, taskId }) as unknown as Promise<TData>, ...options });
+/**
+* Delete Task State Store
+* Delete a single task state store key. No-op if the key does not exist.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.key
+* @param data.mapIndex
+* @returns void Successful Response
+* @throws ApiError
+*/
+export const useTaskStateStoreServiceDeleteTaskStateStore = <TData = Common.TaskStateStoreServiceDeleteTaskStateStoreMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  key: string;
+  mapIndex?: number;
+  taskId: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  key: string;
+  mapIndex?: number;
+  taskId: string;
+}, TContext>({ mutationFn: ({ dagId, dagRunId, key, mapIndex, taskId }) => TaskStateStoreService.deleteTaskStateStore({ dagId, dagRunId, key, mapIndex, taskId }) as unknown as Promise<TData>, ...options });
 /**
 * Delete Xcom Entry
 * Delete an XCom entry.

@@ -16,11 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import dayjs from "dayjs";
+import dayjsDuration from "dayjs/plugin/duration";
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 
 import { getDuration, renderDuration, getRelativeTime } from "./datetimeUtils";
 
-describe("getDuration", () => {
+dayjs.extend(dayjsDuration);
+
+describe("getDuration & formatDuration", () => {
   it("handles durations less than 60 seconds", () => {
     const start = "2024-03-14T10:00:00.000Z";
     const end = "2024-03-14T10:00:05.5111111Z";
@@ -69,10 +73,24 @@ describe("getDuration", () => {
 
     const start = "2024-03-14T10:00:00.000Z";
 
-    expect(getDuration(start, null)).toBe("00:00:10.000");
-    expect(getDuration(start, undefined)).toBe("00:00:10.000");
+    expect(getDuration(start, null)).toBe("00:00:10");
+    expect(getDuration(start, undefined)).toBe("00:00:10");
 
     vi.useRealTimers();
+  });
+
+  it("handles both numbers and duration objects", () => {
+    expect(renderDuration(dayjs.duration(10, "seconds"))).toBe("00:00:10");
+    expect(renderDuration(10)).toBe("00:00:10");
+  });
+
+  it("handles floating point milliseconds", () => {
+    expect(renderDuration(dayjs.duration(10.000_499_738, "seconds"))).toBe("00:00:10");
+    expect(renderDuration(10.000_499_738)).toBe("00:00:10");
+    expect(renderDuration(dayjs.duration(10.000_500, "seconds"))).toBe("00:00:10.001");
+    expect(renderDuration(10.000_500)).toBe("00:00:10.001");
+    expect(renderDuration(dayjs.duration(10.838_999_738, "seconds"))).toBe("00:00:10.839");
+    expect(renderDuration(10.838_999_738)).toBe("00:00:10.839");
   });
 });
 

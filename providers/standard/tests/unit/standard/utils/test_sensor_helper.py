@@ -114,7 +114,7 @@ class TestSensorHelper:
                 ti = dag_run.get_task_instance(task_id)
                 if TYPE_CHECKING:
                     assert ti
-                ti.set_state(task_state, session)
+                ti.set_state(task_state, session=session)
             session.flush()
 
     @pytest.mark.parametrize(
@@ -452,6 +452,39 @@ class TestSensorHelper:
             ["failed"],
             0,
             id="single_runid_with_no_success",
+        ),
+        pytest.param(
+            {
+                "run_id_1": {"task_id_1": "success", "task_id_2": None},
+            },
+            ["success"],
+            0,
+            id="single_runid_with_single_none",
+        ),
+        pytest.param(
+            {
+                "run_id_1": {},
+            },
+            ["success"],
+            0,
+            id="single_runid_with_empty",
+        ),
+        pytest.param(
+            {
+                "run_id_1": {"task_id_1": None, "task_id_2": None},
+            },
+            ["success"],
+            0,
+            id="single_runid_with_all_none",
+        ),
+        pytest.param(
+            {
+                "run_id_1": {"task_id_1": "success", "task_id_2": "success"},
+                "run_id_2": {"task_id_1": None, "task_id_2": None},
+            },
+            ["success"],
+            1,
+            id="single_runid_with_all_none_success",
         ),
     ],
 )

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG for Dataproc workflow operators.
+Example Airflow DAG for Managed Spark workflow operators.
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataproc", "workflow"],
+    tags=["example", "managed-spark", "workflow"],
 ) as dag:
     # [START how_to_cloud_dataproc_create_workflow_template]
     create_workflow_template = DataprocCreateWorkflowTemplateOperator(

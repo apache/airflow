@@ -137,6 +137,8 @@ def find_task_relatives(
             yield task.task_id
         if downstream:
             for relative in task.get_flat_relatives(upstream=False):
+                if relative.is_teardown:
+                    continue
                 yield relative.task_id
         if upstream:
             for relative in task.get_flat_relatives(upstream=True):
@@ -144,7 +146,9 @@ def find_task_relatives(
 
 
 @provide_session
-def get_run_ids(dag: SerializedDAG, run_id: str, future: bool, past: bool, session: SASession = NEW_SESSION):
+def get_run_ids(
+    dag: SerializedDAG, run_id: str, future: bool, past: bool, *, session: SASession = NEW_SESSION
+):
     """Return Dag executions' run_ids."""
     current_logical_date = session.scalar(
         select(DagRun.logical_date).where(DagRun.dag_id == dag.dag_id, DagRun.run_id == run_id)
@@ -299,6 +303,7 @@ def set_dag_run_state_to_failed(
         TaskInstanceState.RUNNING,
         TaskInstanceState.DEFERRED,
         TaskInstanceState.UP_FOR_RESCHEDULE,
+        TaskInstanceState.AWAITING_INPUT,
     )
 
     # Mark only RUNNING task instances.

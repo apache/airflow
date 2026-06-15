@@ -1,0 +1,1 @@
+Fix slow and incomplete trigger cleanup in scheduler. Unreferenced triggers are now reliably deleted instead of accumulating without bound, and the periodic cleanup no longer scans the full ``task_instance`` table on every cycle.

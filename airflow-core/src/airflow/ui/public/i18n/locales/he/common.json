@@ -20,16 +20,22 @@
   "assetEvent_one": "אירוע נכס",
   "assetEvent_other": "אירועי נכסים",
   "assetEvent_two": "אירועי נכסים",
+  "assetInactive": {
+    "tooltip": "הנכס שבמעלה הזרם הושבת; המתזמן מעכב את הערכת החלוקות עד להפעלה מחדש שלו."
+  },
   "backfill_one": "השלמה למפרע",
   "backfill_other": "השלמות למפרע",
   "backfill_two": "השלמות למפרע",
   "browse": {
     "auditLog": "יומן מערכת",
+    "deadlines": "מועדים",
+    "jobs": "עבודות",
     "requiredActions": "פעולות נדרשות",
     "xcoms": "XComs"
   },
   "collapseAllExtra": "כווץ תוכן JSON",
   "collapseDetailsPanel": "כווץ לוח פרטים",
+  "consumingAsset": "נכס משתמש",
   "createdAssetEvent_one": "אירוע נכס שנוצר",
   "createdAssetEvent_other": "אירועי נכס שנוצרו",
   "createdAssetEvent_two": "אירועי נכס שנוצרו",
@@ -64,7 +70,13 @@
     "dagVersions": "גרסאות Dag",
     "dataIntervalEnd": "סיום מקטע נתונים",
     "dataIntervalStart": "תחילת מקטע נתונים",
+    "durationStats": {
+      "mean": "ממוצע",
+      "mode": "שכיח"
+    },
+    "expectedDuration": "משך זמן צפוי",
     "lastSchedulingDecision": "החלטת תזמון אחרונה",
+    "mappedPartitionKey": "מפתח חלוקה ממופה",
     "partitionKey": "מפתח חלוקה",
     "queuedAt": "זמן כניסה לתור",
     "runAfter": "ריצה לאחר",
@@ -107,6 +119,12 @@
     "notFound": "הדף לא נמצא",
     "title": "שגיאה"
   },
+  "errors": {
+    "forbidden": {
+      "description": "אין לך הרשאה לבצע פעולה זו.",
+      "title": "גישה נדחתה"
+    }
+  },
   "expand": {
     "collapse": "כווץ",
     "expand": "הרחב",
@@ -129,9 +147,11 @@
     "logicalDateTo": "תאריך לוגי עד",
     "runAfterFrom": "ריצה לאחר (מתאריך)",
     "runAfterTo": "ריצה לאחר (עד תאריך)",
+    "searchAsset": "חפש נכס",
     "selectDateRange": "בחר טווח תאריכים",
     "startTime": "זמן התחלה"
   },
+  "generateToken": "צור אסימון",
   "logicalDate": "תאריך לוגי",
   "logout": "התנתק",
   "logoutConfirmation": "האם אתה בטוח שברצונך להתנתק?",
@@ -165,9 +185,19 @@
     "placeholder": "הוסף הערה...",
     "taskInstance": "הערת משימה"
   },
+  "partitionedDagRun_one": "הרצת Dag מחולקת",
+  "partitionedDagRun_other": "הרצות Dag מחולקות",
+  "partitionedDagRun_two": "הרצות Dag מחולקות",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "אירועי נכס שהתקבלו"
+  },
+  "pendingDagRun_one": "{{count}} הרצת Dag ממתינה",
+  "pendingDagRun_other": "{{count}} הרצות Dag ממתינות",
+  "pendingDagRun_two": "{{count}} הרצות Dag ממתינות",
   "reset": "אתחל",
   "runId": "מזהה ריצה",
   "runTypes": {
+    "asset_materialization": "מימוש נכס",
     "asset_triggered": "מופעל על-ידי נכס",
     "backfill": "השלמה למפרע",
     "manual": "הפעלה ידנית",
@@ -180,6 +210,12 @@
     },
     "tooltip": "לחץ {{hotkey}} לגלילה ל{{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "חיפוש בכל מקום (תת-מחרוזת). איטי יותר בפריסות גדולות כי לא ניתן להשתמש באינדקס B-tree הרגיל. למידע נוסף, ראה תיעוד בנושא אינדקסי מטא-נתונים מותאמים אישית.",
+      "title": "חיפוש בכל מקום"
+    }
+  },
   "security": {
     "actions": "פעולות",
     "permissions": "הרשאות",
@@ -188,6 +224,7 @@
     "users": "משתמשים"
   },
   "selectLanguage": "בחר שפה",
+  "selected": "נבחר",
   "showDetailsPanel": "הצג לוח פרטים",
   "signedInAs": "מחובר כ",
   "source": {
@@ -201,6 +238,7 @@
   "startDate": "תאריך התחלה",
   "state": "מצב",
   "states": {
+    "awaiting_input": "ממתין לקלט",
     "deferred": "בהשהייה",
     "failed": "נכשלו",
     "no_status": "ללא סטטוס",
@@ -245,12 +283,17 @@
   "task_one": "משימה",
   "task_other": "משימות",
   "task_two": "משימות",
-  "taskGroup": "קבוצת משימות",
+  "taskGroup": {
+    "documentation": "תיעוד קבוצת משימות"
+  },
+  "taskGroup_one": "קבוצת משימות",
+  "taskGroup_other": "קבוצות משימות",
+  "taskGroup_two": "קבוצות משימות",
   "taskId": "מזהה משימה",
   "taskInstance": {
     "dagVersion": "גרסת Dag",
-    "executor": "מבצע",
-    "executorConfig": "הגדרות מבצע",
+    "executor": "Executor",
+    "executorConfig": "הגדרות Executor",
     "hostname": "שם מארח",
     "maxTries": "מספר נסיונות מרבי",
     "pid": "מזהה תהליך",
@@ -259,13 +302,14 @@
     "priorityWeight": "משקל עדיפות",
     "queue": "תור",
     "queuedWhen": "זמן כניסה לתור",
+    "renderedMapIndex": "אינדקס מיפוי מעובד",
     "scheduledWhen": "מועד תזמון",
     "triggerer": {
       "assigned": "מפעיל מוקצה",
       "class": "סוג מפעיל",
       "createdAt": "זמן יצירת מפעיל",
       "id": "מזהה מפעיל",
-      "latestHeartbeat": "עדכון חיים אחרון",
+      "latestHeartbeat": "אות חיים אחרון",
       "title": "פרטי מפעיל"
     },
     "unixname": "שם משתמש Unix"
@@ -292,11 +336,25 @@
     "utc": "UTC"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "שגיאה בניקוי מרובה של {{resourceName}}",
+      "success": {
+        "description": "נוקו בהצלחה {{count}} {{resourceName}}. מזהים: {{keys}}",
+        "title": "בקשת ניקוי מרובה של {{resourceName}} נשלחה"
+      }
+    },
     "bulkDelete": {
       "error": "שגיאה במחיקה מרובה של {{resourceName}}",
       "success": {
         "description": "נמחקו בהצלחה {{count}} {{resourceName}}. מזהים: {{keys}}",
         "title": "בקשת מחיקה מרובה של {{resourceName}} נשלחה"
+      }
+    },
+    "bulkUpdate": {
+      "error": "שגיאה בעדכון מרובה של {{resourceName}}",
+      "success": {
+        "description": "עודכנו בהצלחה {{count}} {{resourceName}}. מזהים: {{keys}}",
+        "title": "בקשת עדכון מרובה של {{resourceName}} נשלחה"
       }
     },
     "create": {
@@ -328,10 +386,26 @@
       }
     }
   },
+  "tokenGeneration": {
+    "apiToken": "אסימון API",
+    "cliToken": "אסימון CLI",
+    "errorDescription": "אירעה שגיאה בעת יצירת האסימון. אנא נסה שוב.",
+    "errorTitle": "יצירת האסימון נכשלה",
+    "generate": "צור",
+    "selectType": "בחר את סוג האסימון ליצירה.",
+    "title": "צור אסימון",
+    "tokenExpiresIn": "אסימון זה יפוג בעוד {{duration}}.",
+    "tokenGenerated": "האסימון שלך נוצר.",
+    "tokenShownOnce": "אסימון זה יוצג פעם אחת בלבד. העתק אותו עכשיו."
+  },
   "total": "סה״כ {{state}}",
   "triggered": "הופעל",
   "tryNumber": "מספר ניסיון",
   "user": "משתמש",
+  "validation": {
+    "mustBeAtLeast": "חייב להיות {{min}} לפחות.",
+    "mustBeValidNumber": "חייב להיות מספר תקין."
+  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "לחץ {{hotkey}} להפעלת/כיבוי גלישת טקסט",

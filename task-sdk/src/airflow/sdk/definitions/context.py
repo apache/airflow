@@ -30,7 +30,11 @@ if TYPE_CHECKING:
 
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
-    from airflow.sdk.execution_time.context import InletEventsAccessors
+    from airflow.sdk.execution_time.context import (
+        AssetStateStoreAccessors,
+        InletEventsAccessors,
+        TaskStateStoreAccessor,
+    )
     from airflow.sdk.types import (
         DagRunProtocol,
         Operator,
@@ -72,6 +76,8 @@ class Context(TypedDict, total=False):
     task_reschedule_count: int
     task_instance: RuntimeTaskInstanceProtocol
     task_instance_key_str: str
+    task_state_store: TaskStateStoreAccessor
+    asset_state_store: AssetStateStoreAccessors
     # `templates_dict` is only set in PythonOperator
     templates_dict: NotRequired[dict[str, Any] | None]
     test_mode: bool

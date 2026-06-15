@@ -202,7 +202,7 @@ EOF
 When it is time to cut the RC, you should:
 
 1. Generate an additional completeness output:
-  a. If there are incomplete locales that were also incomplete in the previous major/minor release, please contact the code owner and ask them to act according to the [removing or replacing ownership procedure](../airflow-core/src/airflow/ui/public/i18n/README.md#removing-or-replacing-ownership) in the i18n policy.
+  a. If there are incomplete locales that were also incomplete in the previous major/minor release, please contact the code owner and ask them to act according to the [Relinquishing translation/code ownership procedure](../airflow-core/src/airflow/ui/public/i18n/README.md#relinquishing-translationcode-ownership) in the i18n policy.
   b. If there are other incomplete locales, please write it as a reminder for the next major/minor release.
 2. Post the final completeness output on the same thread.
 
@@ -535,7 +535,7 @@ still works but is no longer recommended.
 > likely need additional changes before GA. However, when using this shortcut, the release manager **must**
 > verify that the `v3-X-test` push CI action ("Tests" workflow) has succeeded before cutting the RC. You can
 > check this at:
-> https://github.com/apache/airflow/actions/workflows/ci-amd-arm.yml?query=event%3Apush+branch%3Av3-2-test
+> https://github.com/apache/airflow/actions/workflows/ci-amd.yml?query=event%3Apush+branch%3Av3-2-test
 > (adjust the branch filter for the relevant `v3-X-test` branch).
 
 - When the PR is approved (or when using the shortcut above), install `dev/breeze` in a virtualenv:

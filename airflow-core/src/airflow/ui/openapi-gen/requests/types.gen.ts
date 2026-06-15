@@ -47,6 +47,14 @@ export type AssetCollectionResponse = {
 };
 
 /**
+ * Access control settings for asset event consumer team filtering.
+ */
+export type AssetEventAccessControl = {
+    consumer_teams?: Array<(string)> | null;
+    allow_global?: boolean;
+};
+
+/**
  * Asset event collection response.
  */
 export type AssetEventCollectionResponse = {
@@ -97,12 +105,68 @@ export type AssetResponse = {
 };
 
 /**
+ * Request body for setting an asset state store value.
+ */
+export type AssetStateStoreBody = {
+    value: JsonValue;
+};
+
+/**
+ * All asset state store entries for an asset.
+ */
+export type AssetStateStoreCollectionResponse = {
+    asset_state_store: Array<AssetStateStoreResponse>;
+    total_entries: number;
+};
+
+/**
+ * Writer info for the last write to an asset state store entry.
+ */
+export type AssetStateStoreLastUpdatedBy = {
+    kind: AssetStateStoreWriterKind;
+    dag_id?: string | null;
+    run_id?: string | null;
+    task_id?: string | null;
+    map_index?: number | null;
+};
+
+/**
+ * A single asset state store key/value pair with metadata.
+ */
+export type AssetStateStoreResponse = {
+    key: string;
+    value: JsonValue;
+    updated_at: string;
+    last_updated_by?: AssetStateStoreLastUpdatedBy | null;
+};
+
+/**
+ * Identifies what kind of writer last updated an asset state store entry.
+ *
+ * ``TASK`` — written by a task via the execution API.
+ * ``WATCHER`` — written by a ``BaseEventTrigger`` (no task instance).
+ * ``API`` — written directly through the Core API (e.g. manual admin write).
+ */
+export type AssetStateStoreWriterKind = 'task' | 'watcher' | 'api';
+
+/**
  * Asset watcher serializer for responses.
  */
 export type AssetWatcherResponse = {
     name: string;
     trigger_id: number;
     created_date: string;
+};
+
+/**
+ * Response returned when polling for the status of an enqueued connection test.
+ */
+export type AsyncConnectionTestResponse = {
+    token: string;
+    connection_id: string;
+    state: string;
+    result_message?: string | null;
+    created_at: string;
 };
 
 /**
@@ -126,7 +190,10 @@ export type BackfillPostBody = {
 } | null;
     reprocess_behavior?: ReprocessBehavior;
     max_active_runs?: number;
-    run_on_latest_version?: boolean;
+    /**
+     * Run on the latest bundle version of the Dag for each backfilled run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``True`` (the historical default for backfills).
+     */
+    run_on_latest_version?: boolean | null;
 };
 
 /**
@@ -186,6 +253,10 @@ export type BulkActionResponse = {
     }>;
 };
 
+export type BulkBody_BulkDAGRunBody_ = {
+    actions: Array<(BulkCreateAction_BulkDAGRunBody_ | BulkUpdateAction_BulkDAGRunBody_ | BulkDeleteAction_BulkDAGRunBody_)>;
+};
+
 export type BulkBody_BulkTaskInstanceBody_ = {
     actions: Array<(BulkCreateAction_BulkTaskInstanceBody_ | BulkUpdateAction_BulkTaskInstanceBody_ | BulkDeleteAction_BulkTaskInstanceBody_)>;
 };
@@ -200,6 +271,18 @@ export type BulkBody_PoolBody_ = {
 
 export type BulkBody_VariableBody_ = {
     actions: Array<(BulkCreateAction_VariableBody_ | BulkUpdateAction_VariableBody_ | BulkDeleteAction_VariableBody_)>;
+};
+
+export type BulkCreateAction_BulkDAGRunBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "create";
+    /**
+     * A list of entities to be created.
+     */
+    entities: Array<BulkDAGRunBody>;
+    action_on_existence?: BulkActionOnExistence;
 };
 
 export type BulkCreateAction_BulkTaskInstanceBody_ = {
@@ -248,6 +331,46 @@ export type BulkCreateAction_VariableBody_ = {
      */
     entities: Array<VariableBody>;
     action_on_existence?: BulkActionOnExistence;
+};
+
+/**
+ * Request body for bulk operations on Dag Runs.
+ */
+export type BulkDAGRunBody = {
+    dag_run_id: string;
+    dag_id?: string | null;
+    state?: DagRunMutableStates | null;
+    note?: string | null;
+};
+
+/**
+ * Request body for the bulk clear Dag Runs endpoint.
+ */
+export type BulkDAGRunClearBody = {
+    dry_run?: boolean;
+    only_failed?: boolean;
+    /**
+     * Only queue newly added tasks in the latest Dag version without clearing existing tasks.
+     */
+    only_new?: boolean;
+    /**
+     * (Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.
+     */
+    run_on_latest_version?: boolean | null;
+    note?: string | null;
+    dag_runs: Array<BulkDAGRunBody>;
+};
+
+export type BulkDeleteAction_BulkDAGRunBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "delete";
+    /**
+     * A list of entity id/key or entity objects to be deleted.
+     */
+    entities: Array<(string | BulkDAGRunBody)>;
+    action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 export type BulkDeleteAction_BulkTaskInstanceBody_ = {
@@ -334,6 +457,22 @@ export type BulkTaskInstanceBody = {
     map_index?: number | null;
     dag_id?: string | null;
     dag_run_id?: string | null;
+};
+
+export type BulkUpdateAction_BulkDAGRunBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "update";
+    /**
+     * A list of entities to be updated.
+     */
+    entities: Array<BulkDAGRunBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
+    action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 export type BulkUpdateAction_BulkTaskInstanceBody_ = {
@@ -431,9 +570,9 @@ export type ClearTaskInstancesBody = {
     include_future?: boolean;
     include_past?: boolean;
     /**
-     * (Experimental) Run on the latest bundle version of the dag after clearing the task instances.
+     * (Experimental) Run on the latest bundle version of the dag after clearing the task instances. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False`` (the historical default for clear/rerun).
      */
-    run_on_latest_version?: boolean;
+    run_on_latest_version?: boolean | null;
     prevent_running_task?: boolean;
     note?: string | null;
 };
@@ -505,7 +644,48 @@ export type ConnectionResponse = {
 };
 
 /**
- * Connection Test serializer for responses.
+ * Response returned when a connection test has been enqueued for worker execution.
+ */
+export type ConnectionTestQueuedResponse = {
+    token: string;
+    connection_id: string;
+    state: string;
+};
+
+/**
+ * Request body for enqueueing a connection test on a worker.
+ *
+ * Inherits ``connection_id`` pattern, ``extra`` JSON validation, and
+ * ``team_name`` handling from ``ConnectionBody`` so tested connections share
+ * the same input contract as persisted ones.
+ */
+export type ConnectionTestRequestBody = {
+    connection_id: string;
+    conn_type: string;
+    description?: string | null;
+    host?: string | null;
+    login?: string | null;
+    schema?: string | null;
+    port?: number | null;
+    password?: string | null;
+    extra?: string | null;
+    team_name?: string | null;
+    /**
+     * If True, save or update the connection in the connection table when the test succeeds.
+     */
+    commit_on_success?: boolean;
+    /**
+     * Executor name to dispatch the connection test to.
+     */
+    executor?: string | null;
+    /**
+     * Worker queue to route the connection test to (executor-dependent).
+     */
+    queue?: string | null;
+};
+
+/**
+ * Connection Test serializer for synchronous test responses.
  */
 export type ConnectionTestResponse = {
     status: boolean;
@@ -521,6 +701,7 @@ export type CreateAssetEventsBody = {
     extra?: {
         [key: string]: unknown;
     };
+    access_control?: AssetEventAccessControl | null;
 };
 
 /**
@@ -582,6 +763,7 @@ export type DAGDetailsResponse = {
     default_args: {
     [key: string]: unknown;
 } | null;
+    rerun_with_latest_version?: boolean | null;
     owner_links?: {
     [key: string]: (string);
 } | null;
@@ -668,9 +850,10 @@ export type DAGRunClearBody = {
      */
     only_new?: boolean;
     /**
-     * (Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.
+     * (Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.
      */
-    run_on_latest_version?: boolean;
+    run_on_latest_version?: boolean | null;
+    note?: string | null;
 };
 
 /**
@@ -703,14 +886,9 @@ export type DAGRunCollectionResponse = {
  * Dag Run Serializer for PATCH requests.
  */
 export type DAGRunPatchBody = {
-    state?: DAGRunPatchStates | null;
+    state?: DagRunMutableStates | null;
     note?: string | null;
 };
-
-/**
- * Enum for Dag Run states when updating a Dag Run.
- */
-export type DAGRunPatchStates = 'queued' | 'success' | 'failed';
 
 /**
  * Dag Run serializer for responses.
@@ -840,6 +1018,11 @@ export type DagRunAssetReference = {
     data_interval_end: string | null;
     partition_key: string | null;
 };
+
+/**
+ * Dag Run states from which the run may be mutated (patched, deleted).
+ */
+export type DagRunMutableStates = 'queued' | 'success' | 'failed';
 
 /**
  * All possible states that a DagRun can be in.
@@ -985,6 +1168,7 @@ export type ExternalViewResponse = {
     icon_dark_mode?: string | null;
     url_route?: string | null;
     category?: string | null;
+    nav_top_level?: boolean | null;
     href: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base';
     [key: string]: unknown | string;
@@ -1358,6 +1542,7 @@ export type ReactAppResponse = {
     icon_dark_mode?: string | null;
     url_route?: string | null;
     category?: string | null;
+    nav_top_level?: boolean | null;
     bundle_url: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base' | 'dashboard';
     [key: string]: unknown | string;
@@ -1535,7 +1720,7 @@ export type TaskInstanceResponse = {
  *
  * Note that None is also allowed, so always use this in a type hint with Optional.
  */
-export type TaskInstanceState = 'removed' | 'scheduled' | 'queued' | 'running' | 'success' | 'restarting' | 'failed' | 'up_for_retry' | 'up_for_reschedule' | 'upstream_failed' | 'skipped' | 'deferred';
+export type TaskInstanceState = 'removed' | 'scheduled' | 'queued' | 'running' | 'success' | 'restarting' | 'failed' | 'up_for_retry' | 'up_for_reschedule' | 'upstream_failed' | 'skipped' | 'deferred' | 'awaiting_input';
 
 /**
  * Task Instance body for get batch.
@@ -1632,6 +1817,45 @@ export type TaskResponse = {
 };
 
 /**
+ * Request body for setting a task state store value.
+ *
+ * ``expires_at`` controls expiry:
+ *
+ * - ``"default"``: apply the configured ``[state_store] default_retention_days``.
+ * - ``null``: never expire.
+ * - aware datetime: expire at that time.
+ */
+export type TaskStateStoreBody = {
+    value: JsonValue;
+    expires_at?: string | "default" | null;
+};
+
+/**
+ * All task state store entries for a task instance.
+ */
+export type TaskStateStoreCollectionResponse = {
+    task_state_store: Array<TaskStateStoreResponse>;
+    total_entries: number;
+};
+
+/**
+ * Request body for patching only the value of an existing task state store key.
+ */
+export type TaskStateStorePatchBody = {
+    value: JsonValue;
+};
+
+/**
+ * A single task state store key/value pair with metadata.
+ */
+export type TaskStateStoreResponse = {
+    key: string;
+    value: JsonValue;
+    updated_at: string;
+    expires_at: string | null;
+};
+
+/**
  * TimeDelta can be used to interact with datetime.timedelta objects.
  */
 export type TimeDelta = {
@@ -1663,6 +1887,9 @@ export type TriggerDAGRunPostBody = {
 export type TriggerResponse = {
     id: number;
     classpath: string;
+    /**
+     * @deprecated
+     */
     kwargs: string;
     created_date: string;
     queue: string | null;
@@ -1720,7 +1947,7 @@ export type VariableCollectionResponse = {
  */
 export type VariableResponse = {
     key: string;
-    value: string;
+    value?: string | null;
     description: string | null;
     is_encrypted: boolean;
     team_name: string | null;
@@ -1840,6 +2067,7 @@ export type BaseNodeResponse = {
     id: string;
     label: string;
     type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+    team?: string | null;
 };
 
 export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
@@ -1880,6 +2108,7 @@ export type ConfigResponse = {
     external_log_name?: string | null;
     theme: Theme | null;
     multi_team: boolean;
+    rerun_with_latest_version?: boolean | null;
 };
 
 /**
@@ -1999,6 +2228,13 @@ export type DAGWithLatestDagRunsResponse = {
 };
 
 /**
+ * DAG Run statistics serializer for responses.
+ */
+export type DagRunStatsResponse = {
+    duration: DurationStats | null;
+};
+
+/**
  * Dashboard DAG Stats serializer for responses.
  */
 export type DashboardDagStatsResponse = {
@@ -2050,6 +2286,18 @@ export type DeadlineResponse = {
     dag_run_id: string;
     alert_id?: string | null;
     alert_name?: string | null;
+};
+
+/**
+ * Duration statistics for a DAG across historical runs.
+ */
+export type DurationStats = {
+    mean: number;
+    mode: number | null;
+    p50: number;
+    p90: number;
+    p95: number;
+    p99: number;
 };
 
 /**
@@ -2121,6 +2369,7 @@ export type GridNodeResponse = {
     children?: Array<GridNodeResponse> | null;
     is_mapped: boolean | null;
     setup_teardown_type?: 'setup' | 'teardown' | null;
+    doc_md?: string | null;
 };
 
 /**
@@ -2176,7 +2425,7 @@ export type LightGridTaskInstanceSummary = {
 /**
  * Define all menu items defined in the menu.
  */
-export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Docs' | 'Jobs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
+export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Deadlines' | 'Docs' | 'Jobs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
 
 /**
  * Menu Item Collection serializer for responses.
@@ -2187,12 +2436,41 @@ export type MenuItemCollectionResponse = {
 };
 
 /**
+ * One asset event in the ``next_run_assets`` payload.
+ */
+export type NextRunAssetEventResponse = {
+    id: number;
+    name: string | null;
+    uri: string;
+    last_update?: string | null;
+    received_count?: number;
+    required_count?: number;
+    received_keys?: Array<(string)>;
+    required_keys?: Array<(string)>;
+    is_rollup?: boolean;
+    mapper_error?: boolean;
+    asset_inactive?: boolean;
+};
+
+/**
+ * Response for the ``next_run_assets`` endpoint.
+ */
+export type NextRunAssetsResponse = {
+    asset_expression?: {
+    [key: string]: unknown;
+} | null;
+    events: Array<NextRunAssetEventResponse>;
+    pending_partition_count?: number | null;
+};
+
+/**
  * Node serializer for responses.
  */
 export type NodeResponse = {
     id: string;
     label: string;
     type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+    team?: string | null;
     children?: Array<NodeResponse> | null;
     is_mapped?: boolean | null;
     tooltip?: string | null;
@@ -2211,6 +2489,13 @@ export type PartitionedDagRunAssetResponse = {
     asset_name: string;
     asset_uri: string;
     received: boolean;
+    received_count: number;
+    required_count: number;
+    received_keys: Array<(string)>;
+    required_keys: Array<(string)>;
+    is_rollup?: boolean;
+    mapper_error?: boolean;
+    asset_inactive?: boolean;
 };
 
 /**
@@ -2295,6 +2580,7 @@ export type TaskInstanceStateCount = {
     upstream_failed: number;
     skipped: number;
     deferred: number;
+    awaiting_input: number;
 };
 
 /**
@@ -2522,9 +2808,7 @@ export type NextRunAssetsData = {
     dagId: string;
 };
 
-export type NextRunAssetsResponse = {
-    [key: string]: unknown;
-};
+export type NextRunAssetsResponse2 = NextRunAssetsResponse;
 
 export type ListBackfillsData = {
     dagId: string;
@@ -2607,6 +2891,18 @@ export type PatchConnectionData = {
 
 export type PatchConnectionResponse = ConnectionResponse;
 
+export type GetConnectionTestData = {
+    airflowConnectionTestToken: string;
+};
+
+export type GetConnectionTestResponse = AsyncConnectionTestResponse;
+
+export type EnqueueConnectionTestData = {
+    requestBody: ConnectionTestRequestBody;
+};
+
+export type EnqueueConnectionTestResponse = ConnectionTestQueuedResponse;
+
 export type GetConnectionsData = {
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
@@ -2673,20 +2969,12 @@ export type PatchDagRunData = {
 
 export type PatchDagRunResponse = DAGRunResponse;
 
-export type GetUpstreamAssetEventsData = {
+export type BulkDagRunsData = {
     dagId: string;
-    dagRunId: string;
+    requestBody: BulkBody_BulkDAGRunBody_;
 };
 
-export type GetUpstreamAssetEventsResponse = AssetEventCollectionResponse;
-
-export type ClearDagRunData = {
-    dagId: string;
-    dagRunId: string;
-    requestBody: DAGRunClearBody;
-};
-
-export type ClearDagRunResponse = ClearTaskInstanceCollectionResponse | DAGRunResponse;
+export type BulkDagRunsResponse = BulkResponse;
 
 export type GetDagRunsData = {
     bundleVersion?: string | null;
@@ -2784,6 +3072,21 @@ export type TriggerDagRunData = {
 
 export type TriggerDagRunResponse = DAGRunResponse;
 
+export type GetUpstreamAssetEventsData = {
+    dagId: string;
+    dagRunId: string;
+};
+
+export type GetUpstreamAssetEventsResponse = AssetEventCollectionResponse;
+
+export type ClearDagRunData = {
+    dagId: string;
+    dagRunId: string;
+    requestBody: DAGRunClearBody;
+};
+
+export type ClearDagRunResponse = ClearTaskInstanceCollectionResponse | DAGRunResponse;
+
 export type WaitDagRunUntilFinishedData = {
     dagId: string;
     dagRunId: string;
@@ -2792,7 +3095,7 @@ export type WaitDagRunUntilFinishedData = {
      */
     interval: number;
     /**
-     * Collect result XCom from task. Can be set multiple times.
+     * Collect result XCom from task. Can be set multiple times. If unset, return value of the return task as specified in the dag (in present) is returned by default.
      */
     result?: Array<(string)> | null;
 };
@@ -2805,6 +3108,20 @@ export type GetListDagRunsBatchData = {
 };
 
 export type GetListDagRunsBatchResponse = DAGRunCollectionResponse;
+
+export type ClearDagRunsData = {
+    dagId: string;
+    requestBody: BulkDAGRunClearBody;
+};
+
+export type ClearDagRunsResponse = ClearTaskInstanceCollectionResponse | DAGRunCollectionResponse;
+
+export type GetDagRunStatsData = {
+    dagId: string;
+    dagRunId: string;
+};
+
+export type GetDagRunStatsResponse = DagRunStatsResponse;
 
 export type GetDagSourceData = {
     accept?: 'application/json' | 'text/plain' | '*/*';
@@ -3203,7 +3520,7 @@ export type GetMappedTaskInstancesData = {
      */
     operatorNamePrefixPattern?: string | null;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, run_after, logical_date, data_interval_start, data_interval_end`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
      */
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
@@ -3228,6 +3545,16 @@ export type GetMappedTaskInstancesData = {
      * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      */
     queueNamePrefixPattern?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``rendered_map_index_prefix_pattern`` parameter when possible.
+     */
+    renderedMapIndexPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    renderedMapIndexPrefixPattern?: string | null;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;
@@ -3349,7 +3676,7 @@ export type GetTaskInstancesData = {
      */
     operatorNamePrefixPattern?: string | null;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, logical_date, run_after, data_interval_start, data_interval_end`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator`
      */
     orderBy?: Array<(string)>;
     pool?: Array<(string)>;
@@ -3374,6 +3701,16 @@ export type GetTaskInstancesData = {
      * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      */
     queueNamePrefixPattern?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``rendered_map_index_prefix_pattern`` parameter when possible.
+     */
+    renderedMapIndexPattern?: string | null;
+    /**
+     * Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     */
+    renderedMapIndexPrefixPattern?: string | null;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;
@@ -3617,6 +3954,14 @@ export type GetImportErrorResponse = ImportErrorResponse;
 
 export type GetImportErrorsData = {
     /**
+     * Exact bundle name match. Returns only import errors from this specific bundle.
+     */
+    bundleName?: string | null;
+    /**
+     * Exact filename match. Returns only the import error for this specific file path.
+     */
+    filename?: string | null;
+    /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      *
      * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``filename_prefix_pattern`` parameter when possible.
@@ -3728,6 +4073,105 @@ export type GetProvidersData = {
 };
 
 export type GetProvidersResponse = ProviderCollectionResponse;
+
+export type ListAssetStateStoreData = {
+    assetId: number;
+    limit?: number;
+    offset?: number;
+};
+
+export type ListAssetStateStoreResponse = AssetStateStoreCollectionResponse;
+
+export type ClearAssetStateStoreData = {
+    assetId: number;
+};
+
+export type ClearAssetStateStoreResponse = void;
+
+export type GetAssetStateStoreData = {
+    assetId: number;
+    key: string;
+};
+
+export type GetAssetStateStoreResponse = AssetStateStoreResponse;
+
+export type SetAssetStateStoreData = {
+    assetId: number;
+    key: string;
+    requestBody: AssetStateStoreBody;
+};
+
+export type SetAssetStateStoreResponse = void;
+
+export type DeleteAssetStateStoreData = {
+    assetId: number;
+    key: string;
+};
+
+export type DeleteAssetStateStoreResponse = void;
+
+export type ListTaskStateStoreData = {
+    dagId: string;
+    dagRunId: string;
+    limit?: number;
+    mapIndex?: number;
+    offset?: number;
+    taskId: string;
+};
+
+export type ListTaskStateStoreResponse = TaskStateStoreCollectionResponse;
+
+export type ClearTaskStateStoreData = {
+    allMapIndices?: boolean;
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+};
+
+export type ClearTaskStateStoreResponse = void;
+
+export type GetTaskStateStoreData = {
+    dagId: string;
+    dagRunId: string;
+    key: string;
+    mapIndex?: number;
+    taskId: string;
+};
+
+export type GetTaskStateStoreResponse = TaskStateStoreResponse;
+
+export type SetTaskStateStoreData = {
+    dagId: string;
+    dagRunId: string;
+    key: string;
+    mapIndex?: number;
+    requestBody: TaskStateStoreBody;
+    taskId: string;
+};
+
+export type SetTaskStateStoreResponse = void;
+
+export type PatchTaskStateStoreData = {
+    dagId: string;
+    dagRunId: string;
+    key: string;
+    mapIndex?: number;
+    requestBody: TaskStateStorePatchBody;
+    taskId: string;
+};
+
+export type PatchTaskStateStoreResponse = unknown;
+
+export type DeleteTaskStateStoreData = {
+    dagId: string;
+    dagRunId: string;
+    key: string;
+    mapIndex?: number;
+    taskId: string;
+};
+
+export type DeleteTaskStateStoreResponse = void;
 
 export type GetXcomEntryData = {
     dagId: string;
@@ -4487,9 +4931,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: {
-                    [key: string]: unknown;
-                };
+                200: NextRunAssetsResponse;
                 /**
                  * Validation Error
                  */
@@ -4804,6 +5246,58 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/connections/enqueue-test': {
+        get: {
+            req: GetConnectionTestData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AsyncConnectionTestResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        post: {
+            req: EnqueueConnectionTestData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                202: ConnectionTestQueuedResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
+                 * Unprocessable Entity
+                 */
+                422: HTTPExceptionResponse;
+            };
+        };
+    };
     '/api/v2/connections': {
         get: {
             req: GetConnectionsData;
@@ -5013,61 +5507,28 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents': {
-        get: {
-            req: GetUpstreamAssetEventsData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: AssetEventCollectionResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear': {
-        post: {
-            req: ClearDagRunData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: ClearTaskInstanceCollectionResponse | DAGRunResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
     '/api/v2/dags/{dag_id}/dagRuns': {
+        patch: {
+            req: BulkDagRunsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: BulkResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
         get: {
             req: GetDagRunsData;
             res: {
@@ -5127,6 +5588,60 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents': {
+        get: {
+            req: GetUpstreamAssetEventsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AssetEventCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear': {
+        post: {
+            req: ClearDagRunData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ClearTaskInstanceCollectionResponse | DAGRunResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/wait': {
         get: {
             req: WaitDagRunUntilFinishedData;
@@ -5170,6 +5685,56 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/clearDagRuns': {
+        post: {
+            req: ClearDagRunsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ClearTaskInstanceCollectionResponse | DAGRunCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/stats': {
+        get: {
+            req: GetDagRunStatsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagRunStatsResponse;
                 /**
                  * Not Found
                  */
@@ -6666,10 +7231,6 @@ export type $OpenApiTs = {
                  */
                 403: HTTPExceptionResponse;
                 /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -6738,6 +7299,289 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/assets/{asset_id}/state-store': {
+        get: {
+            req: ListAssetStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AssetStateStoreCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        delete: {
+            req: ClearAssetStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                204: void;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/assets/{asset_id}/state-store/{key}': {
+        get: {
+            req: GetAssetStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AssetStateStoreResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        put: {
+            req: SetAssetStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                204: void;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        delete: {
+            req: DeleteAssetStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                204: void;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store': {
+        get: {
+            req: ListTaskStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskStateStoreCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        delete: {
+            req: ClearTaskStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                204: void;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}': {
+        get: {
+            req: GetTaskStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskStateStoreResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        put: {
+            req: SetTaskStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                204: void;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        patch: {
+            req: PatchTaskStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: unknown;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+        delete: {
+            req: DeleteTaskStateStoreData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                204: void;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7220,6 +8064,10 @@ export type $OpenApiTs = {
                  */
                 307: HTTPExceptionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -7403,6 +8251,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: StructureDataResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */

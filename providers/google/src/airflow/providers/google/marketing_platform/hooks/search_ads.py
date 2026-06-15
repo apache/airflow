@@ -76,6 +76,7 @@ class GoogleSearchAdsReportingHook(GoogleBaseHook):
                 self.api_version,
                 credentials=creds,
                 cache_discovery=False,
+                client_options=self.get_client_options(),
             )
         return self._conn
 
@@ -226,5 +227,6 @@ class GoogleSearchAdsHook(GoogleBaseHook):
                 self.api_version,
                 http=http_authorized,
                 cache_discovery=False,
+                client_options=self.get_client_options(),
             )
         return self._conn

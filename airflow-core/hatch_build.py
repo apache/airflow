@@ -71,6 +71,40 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
         dist_path = Path(self.root) / "src" / "airflow" / "ui" / "dist"
         return dist_path.resolve().as_posix()
 
+    @staticmethod
+    def _dockerignore_allowed_paths(work_dir: Path) -> list[str] | None:
+        # The repo's ``.dockerignore`` follows a deny-by-default pattern (``**``)
+        # plus an explicit allowlist of ``!path`` entries. When the package is
+        # built inside the docker image (``COPY . /opt/airflow``), only the
+        # allowlisted files reach the container, so paths outside the allowlist
+        # are guaranteed to be absent and would otherwise be reported as
+        # ``deleted`` by ``git diff`` — stamping every release as ``.dirty``.
+        # Parse the allowlist at build time so this stays in sync with the file.
+        dockerignore = work_dir / ".dockerignore"
+        if not dockerignore.exists():
+            return None
+        allowed: list[str] = []
+        for raw_line in dockerignore.read_text().splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or not line.startswith("!"):
+                continue
+            path = line[1:].strip().rstrip("/")
+            if path:
+                allowed.append(path)
+        return allowed or None
+
+    @classmethod
+    def _is_dirty_within_build_context(cls, repo: Any, work_dir: Path) -> bool:
+        allowed_paths = cls._dockerignore_allowed_paths(work_dir)
+        if not allowed_paths:
+            return repo.is_dirty()
+        try:
+            diff = repo.git.diff("HEAD", "--name-only", "--", *allowed_paths)
+        except Exception as exc:
+            log.warning("Restricted dirty check failed (%s); falling back to is_dirty().", exc)
+            return repo.is_dirty()
+        return bool(diff.strip())
+
     def get_git_version(self) -> str:
         """
         Return a version to identify the state of the underlying git repo.
@@ -80,6 +114,10 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
         prefix and the latter with a '.dev0' suffix. Following the prefix will be a sha of the
         current branch head. Finally, a "dirty" suffix is appended to indicate that uncommitted
         changes are present.
+
+        The "dirty" check is restricted to paths that are part of the docker build context (per
+        ``.dockerignore``). This avoids spurious ``.dirty`` markers on official builds, where the
+        deny-by-default ``.dockerignore`` excludes tracked top-level files from ``COPY``.
 
         Example pre-release version: ".dev0+2f635dc265e78db6708f59f68e8009abb92c1e65".
         Example release version: ".release+2f635dc265e78db6708f59f68e8009abb92c1e65".
@@ -106,7 +144,8 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
             return ""
         if repo:
             sha = repo.head.commit.hexsha
-            if repo.is_dirty():
+            work_dir = Path(self.root).parent.resolve()
+            if self._is_dirty_within_build_context(repo, work_dir):
                 return f".dev0+{sha}.dirty"
             # commit is clean
             return f".release:{sha}"
