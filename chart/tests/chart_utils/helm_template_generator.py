@@ -138,9 +138,14 @@ def render_chart(
     chart_dir=None,
     kubernetes_version=DEFAULT_KUBERNETES_VERSION,
     namespace=None,
+    api_versions=None,
 ):
     """
     Function that renders a helm chart into dictionaries. For helm chart testing only
+
+    ``api_versions`` is passed to ``helm template --api-versions`` so that templates
+    gated on ``.Capabilities.APIVersions.Has`` (e.g. Gateway API CRDs) can be rendered
+    offline, where Helm cannot query a live cluster for installed API groups.
     """
     values = values or {}
     chart_dir = chart_dir or str(CHART_DIR)
@@ -161,6 +166,8 @@ def render_chart(
             "--namespace",
             namespace,
         ]
+        for api_version in api_versions or []:
+            command.extend(["--api-versions", api_version])
         if show_only:
             for i in show_only:
                 command.extend(["--show-only", i])

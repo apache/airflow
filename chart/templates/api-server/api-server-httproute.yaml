@@ -20,7 +20,13 @@
 ##################################
 ## Airflow API Server HTTPRoute
 ##################################
-{{- if and .Values.apiServer.enabled .Values.httpRoute.apiServer.enabled }}
+{{- if and .Values.apiServer.enabled .Values.apiServer.httpRoute.enabled }}
+{{- if .Values.ingress.apiServer.enabled }}
+{{- fail "`apiServer.httpRoute.enabled` and `ingress.apiServer.enabled` are both set to `true`. HTTPRoute (Gateway API) is an alternative to the API server Ingress; enable only one of them." }}
+{{- end }}
+{{- if not (.Capabilities.APIVersions.Has "gateway.networking.k8s.io/v1") }}
+{{- fail "`apiServer.httpRoute.enabled` is `true` but the Gateway API HTTPRoute CRD (`gateway.networking.k8s.io/v1`) is not installed in the cluster. Install the Gateway API CRDs (https://gateway-api.sigs.k8s.io/guides/#installing-gateway-api) before enabling `apiServer.httpRoute`." }}
+{{- end }}
 {{- $fullname := include "airflow.fullname" . }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -32,28 +38,28 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- if or .Values.labels .Values.apiServer.labels .Values.httpRoute.apiServer.labels }}
-      {{- mustMerge .Values.httpRoute.apiServer.labels .Values.apiServer.labels .Values.labels | toYaml | nindent 4 }}
+    {{- if or .Values.labels .Values.apiServer.labels .Values.apiServer.httpRoute.labels }}
+      {{- mustMerge .Values.apiServer.httpRoute.labels .Values.apiServer.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
-  {{- with .Values.httpRoute.apiServer.annotations }}
+  {{- with .Values.apiServer.httpRoute.annotations }}
   annotations: {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  parentRefs: {{- toYaml .Values.httpRoute.apiServer.parentRefs | nindent 4 }}
-  {{- with .Values.httpRoute.apiServer.hostnames }}
+  parentRefs: {{- toYaml .Values.apiServer.httpRoute.parentRefs | nindent 4 }}
+  {{- with .Values.apiServer.httpRoute.hostnames }}
   hostnames:
     {{- range . }}
     - {{ tpl . $ | quote }}
     {{- end }}
   {{- end }}
   rules:
-    {{- if .Values.httpRoute.apiServer.rules }}
-    {{- toYaml .Values.httpRoute.apiServer.rules | nindent 4 }}
+    {{- if .Values.apiServer.httpRoute.rules }}
+    {{- toYaml .Values.apiServer.httpRoute.rules | nindent 4 }}
     {{- else }}
     - matches:
         - path:
-            type: {{ .Values.httpRoute.apiServer.pathType }}
-            value: {{ .Values.httpRoute.apiServer.path | quote }}
+            type: {{ .Values.apiServer.httpRoute.pathType }}
+            value: {{ .Values.apiServer.httpRoute.path | quote }}
       backendRefs:
         - name: {{ $fullname }}-api-server
           port: {{ .Values.ports.apiServer }}

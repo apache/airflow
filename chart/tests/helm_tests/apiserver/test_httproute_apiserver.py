@@ -18,24 +18,34 @@ from __future__ import annotations
 
 import jmespath
 import pytest
-from chart_utils.helm_template_generator import render_chart
+from chart_utils.helm_template_generator import HelmFailedError, render_chart
 
 SHOW_ONLY = ["templates/api-server/api-server-httproute.yaml"]
+
+# The template is gated on the Gateway API CRD being installed
+# (`.Capabilities.APIVersions.Has`). Pass it explicitly so `helm template`
+# can render the resource offline.
+GATEWAY_API_VERSIONS = ["gateway.networking.k8s.io/v1"]
 
 
 class TestHTTPRouteAPIServer:
     """Tests HTTPRoute API Server (Kubernetes Gateway API)."""
 
     def test_should_pass_validation_with_just_httproute_enabled(self):
-        render_chart(
-            values={"httpRoute": {"apiServer": {"enabled": True}}},
+        docs = render_chart(
+            values={"apiServer": {"httpRoute": {"enabled": True}}},
             show_only=SHOW_ONLY,
+            api_versions=GATEWAY_API_VERSIONS,
         )
+        assert len(docs) == 1
+        assert jmespath.search("kind", docs[0]) == "HTTPRoute"
+        assert jmespath.search("metadata.name", docs[0]) == "release-name-api-server-httproute"
 
     def test_should_set_api_version_and_kind(self):
         docs = render_chart(
-            values={"httpRoute": {"apiServer": {"enabled": True}}},
+            values={"apiServer": {"httpRoute": {"enabled": True}}},
             show_only=SHOW_ONLY,
+            api_versions=GATEWAY_API_VERSIONS,
         )
         assert jmespath.search("apiVersion", docs[0]) == "gateway.networking.k8s.io/v1"
         assert jmespath.search("kind", docs[0]) == "HTTPRoute"
@@ -43,28 +53,30 @@ class TestHTTPRouteAPIServer:
     def test_should_allow_more_than_one_annotation(self):
         docs = render_chart(
             values={
-                "httpRoute": {
-                    "apiServer": {"enabled": True, "annotations": {"aa": "bb", "cc": "dd"}},
+                "apiServer": {
+                    "httpRoute": {"enabled": True, "annotations": {"aa": "bb", "cc": "dd"}},
                 },
             },
             show_only=SHOW_ONLY,
+            api_versions=GATEWAY_API_VERSIONS,
         )
         assert jmespath.search("metadata.annotations", docs[0]) == {"aa": "bb", "cc": "dd"}
 
     def test_should_add_extra_labels(self):
         docs = render_chart(
             values={
-                "httpRoute": {"apiServer": {"enabled": True, "labels": {"custom": "value"}}},
+                "apiServer": {"httpRoute": {"enabled": True, "labels": {"custom": "value"}}},
             },
             show_only=SHOW_ONLY,
+            api_versions=GATEWAY_API_VERSIONS,
         )
         assert jmespath.search('metadata.labels."custom"', docs[0]) == "value"
 
     def test_should_pass_parent_refs_through(self):
         docs = render_chart(
             values={
-                "httpRoute": {
-                    "apiServer": {
+                "apiServer": {
+                    "httpRoute": {
                         "enabled": True,
                         "parentRefs": [
                             {"name": "main-gateway", "namespace": "gateway-system"},
@@ -74,21 +86,25 @@ class TestHTTPRouteAPIServer:
                 },
             },
             show_only=SHOW_ONLY,
+            api_versions=GATEWAY_API_VERSIONS,
         )
-        assert jmespath.search("spec.parentRefs[*].name", docs[0]) == ["main-gateway", "main-gateway"]
-        assert jmespath.search("spec.parentRefs[1].sectionName", docs[0]) == "https"
+        assert jmespath.search("spec.parentRefs", docs[0]) == [
+            {"name": "main-gateway", "namespace": "gateway-system"},
+            {"name": "main-gateway", "namespace": "gateway-system", "sectionName": "https"},
+        ]
 
     def test_should_set_hostnames(self):
         docs = render_chart(
             values={
-                "httpRoute": {
-                    "apiServer": {
+                "apiServer": {
+                    "httpRoute": {
                         "enabled": True,
                         "hostnames": ["airflow.example.com", "airflow2.example.com"],
                     },
                 },
             },
             show_only=SHOW_ONLY,
+            api_versions=GATEWAY_API_VERSIONS,
         )
         assert jmespath.search("spec.hostnames", docs[0]) == [
             "airflow.example.com",
@@ -99,92 +115,134 @@ class TestHTTPRouteAPIServer:
         docs = render_chart(
             name="airflow",
             values={
-                "httpRoute": {
-                    "apiServer": {
+                "apiServer": {
+                    "httpRoute": {
                         "enabled": True,
                         "hostnames": ["{{ .Release.Name }}.example.com"],
                     },
                 },
             },
             show_only=SHOW_ONLY,
+            api_versions=GATEWAY_API_VERSIONS,
         )
         assert jmespath.search("spec.hostnames", docs[0]) == ["airflow.example.com"]
 
     def test_should_default_to_path_prefix_and_api_server_backend(self):
         docs = render_chart(
             name="my-release",
-            values={"httpRoute": {"apiServer": {"enabled": True}}},
+            values={"apiServer": {"httpRoute": {"enabled": True}}},
             show_only=SHOW_ONLY,
+            api_versions=GATEWAY_API_VERSIONS,
         )
-        assert jmespath.search("spec.rules[0].matches[0].path.type", docs[0]) == "PathPrefix"
-        assert jmespath.search("spec.rules[0].matches[0].path.value", docs[0]) == "/"
-        assert jmespath.search("spec.rules[0].backendRefs[0].name", docs[0]) == "my-release-api-server"
-        assert jmespath.search("spec.rules[0].backendRefs[0].port", docs[0]) == 8080
+        assert jmespath.search("spec.rules", docs[0]) == [
+            {
+                "matches": [{"path": {"type": "PathPrefix", "value": "/"}}],
+                "backendRefs": [{"name": "my-release-api-server", "port": 8080}],
+            },
+        ]
 
     def test_custom_path_and_path_type_should_apply(self):
         docs = render_chart(
             values={
-                "httpRoute": {
-                    "apiServer": {"enabled": True, "path": "/api", "pathType": "Exact"},
+                "apiServer": {
+                    "httpRoute": {"enabled": True, "path": "/api", "pathType": "Exact"},
                 },
             },
             show_only=SHOW_ONLY,
+            api_versions=GATEWAY_API_VERSIONS,
         )
         assert jmespath.search("spec.rules[0].matches[0].path.type", docs[0]) == "Exact"
         assert jmespath.search("spec.rules[0].matches[0].path.value", docs[0]) == "/api"
 
     def test_custom_rules_override_default_rule(self):
-        custom_rules = [
+        docs = render_chart(
+            values={
+                "apiServer": {
+                    "httpRoute": {
+                        "enabled": True,
+                        "rules": [
+                            {
+                                "matches": [{"path": {"type": "PathPrefix", "value": "/admin"}}],
+                                "backendRefs": [{"name": "external-admin", "port": 8443}],
+                            },
+                        ],
+                    },
+                },
+            },
+            show_only=SHOW_ONLY,
+            api_versions=GATEWAY_API_VERSIONS,
+        )
+        assert jmespath.search("spec.rules", docs[0]) == [
             {
                 "matches": [{"path": {"type": "PathPrefix", "value": "/admin"}}],
                 "backendRefs": [{"name": "external-admin", "port": 8443}],
             },
         ]
-        docs = render_chart(
-            values={
-                "httpRoute": {
-                    "apiServer": {"enabled": True, "rules": custom_rules},
-                },
-            },
-            show_only=SHOW_ONLY,
-        )
-        assert jmespath.search("spec.rules[0].matches[0].path.value", docs[0]) == "/admin"
-        assert jmespath.search("spec.rules[0].backendRefs[0].name", docs[0]) == "external-admin"
-        assert jmespath.search("spec.rules[0].backendRefs[0].port", docs[0]) == 8443
 
-    @pytest.mark.parametrize(
-        ("api_server_value", "expected"),
-        [
-            (None, False),
-            (False, False),
-            (True, True),
-        ],
-    )
-    def test_httproute_created(self, api_server_value, expected):
-        values = {"httpRoute": {}}
-        if api_server_value is not None:
-            values["httpRoute"]["apiServer"] = {"enabled": api_server_value}
-        docs = render_chart(values=values, show_only=SHOW_ONLY)
-        assert bool(docs) is expected
+    def test_httproute_not_created_when_unset(self):
+        docs = render_chart(
+            values={"apiServer": {"httpRoute": {}}},
+            show_only=SHOW_ONLY,
+            api_versions=GATEWAY_API_VERSIONS,
+        )
+        assert docs == []
+
+    def test_httproute_not_created_when_disabled(self):
+        docs = render_chart(
+            values={"apiServer": {"httpRoute": {"enabled": False}}},
+            show_only=SHOW_ONLY,
+            api_versions=GATEWAY_API_VERSIONS,
+        )
+        assert docs == []
+
+    def test_httproute_created_when_enabled(self):
+        docs = render_chart(
+            values={"apiServer": {"httpRoute": {"enabled": True}}},
+            show_only=SHOW_ONLY,
+            api_versions=GATEWAY_API_VERSIONS,
+        )
+        assert len(docs) == 1
 
     def test_should_not_render_when_api_server_disabled(self):
         docs = render_chart(
             values={
-                "apiServer": {"enabled": False},
-                "httpRoute": {"apiServer": {"enabled": True}},
+                "apiServer": {"enabled": False, "httpRoute": {"enabled": True}},
             },
             show_only=SHOW_ONLY,
+            api_versions=GATEWAY_API_VERSIONS,
         )
         assert docs == []
+
+    def test_should_fail_when_gateway_api_crd_missing(self):
+        # No api_versions -> the Gateway API CRD is treated as not installed.
+        with pytest.raises(HelmFailedError) as exc_info:
+            render_chart(
+                values={"apiServer": {"httpRoute": {"enabled": True}}},
+                show_only=SHOW_ONLY,
+            )
+        assert "Gateway API HTTPRoute CRD" in exc_info.value.stderr.decode()
+
+    def test_should_fail_when_ingress_and_httproute_both_enabled(self):
+        with pytest.raises(HelmFailedError) as exc_info:
+            render_chart(
+                values={
+                    "ingress": {"apiServer": {"enabled": True}},
+                    "apiServer": {"httpRoute": {"enabled": True}},
+                },
+                show_only=SHOW_ONLY,
+                api_versions=GATEWAY_API_VERSIONS,
+            )
+        assert "alternative to the API server Ingress" in exc_info.value.stderr.decode()
 
     def test_backend_service_name_with_fullname_override(self):
         docs = render_chart(
             values={
                 "fullnameOverride": "airflow-fullname-override",
                 "useStandardNaming": True,
-                "httpRoute": {"apiServer": {"enabled": True}},
+                "apiServer": {"httpRoute": {"enabled": True}},
             },
             show_only=SHOW_ONLY,
+            api_versions=GATEWAY_API_VERSIONS,
         )
         assert (
             jmespath.search("spec.rules[0].backendRefs[0].name", docs[0])
@@ -195,10 +253,13 @@ class TestHTTPRouteAPIServer:
         docs = render_chart(
             values={
                 "labels": {"label1": "value1", "label2": "value2"},
-                "apiServer": {"labels": {"test_label": "test_label_value"}},
-                "httpRoute": {"apiServer": {"enabled": True, "labels": {"route_label": "route_value"}}},
+                "apiServer": {
+                    "labels": {"test_label": "test_label_value"},
+                    "httpRoute": {"enabled": True, "labels": {"route_label": "route_value"}},
+                },
             },
             show_only=SHOW_ONLY,
+            api_versions=GATEWAY_API_VERSIONS,
         )
         assert "tier" in jmespath.search("metadata.labels", docs[0])
         assert "release" in jmespath.search("metadata.labels", docs[0])
