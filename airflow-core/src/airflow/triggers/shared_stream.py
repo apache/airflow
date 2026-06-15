@@ -239,6 +239,11 @@ def reject_shared_stream_event() -> None:
     if ctx is None:
         log.warning("reject_shared_stream_event called outside an ack-mode binding window; ignored")
         return
+    log.info(
+        "Rejecting shared-stream event",
+        trigger_id=ctx.trigger_id,
+        event_id=ctx.event_id,
+    )
     ctx.group._reject_pending_event(trigger_id=ctx.trigger_id, event_id=ctx.event_id)
 
 
@@ -347,7 +352,7 @@ class AdvanceOutcome:
         Whether every subscriber accepted the event.
 
         No active reject, no involuntary failure, and at least one subscriber
-        acked. A zero-subscriber broadcast (all-zero counts) is not clean.
+        acknowledged. A zero-subscriber broadcast (all-zero counts) is not clean.
         """
         return self.failed == 0 and self.rejected == 0 and self.acked > 0
 
@@ -812,7 +817,7 @@ class _SharedStreamGroup:
         self._resolve_subscriber(event_id=event_id, trigger_id=trigger_id, resolution="rejected")
 
     def _maybe_complete(self, *, event_id: int, trigger_id: int) -> None:
-        """Resolve the subscriber as acked once the window is closed and all persist confirmations are in."""
+        """Resolve the subscriber as acknowledged once the window is closed and all persist confirmations are in."""
         entry = self._outstanding.get(event_id)
         if entry is None:
             return
@@ -1007,12 +1012,12 @@ class _SharedStreamGroup:
         # Three cases for live bindings:
         # - window_closed=True: the subscriber pulled this event and moved past
         #   it (closed the binding window) before unsubscribing. Persist
-        #   confirmations may still be draining. Route to the acked path so
+        #   confirmations may still be draining. Route to the acknowledged path so
         #   any remaining unconfirmed seqs can drain before the entry resolves.
         # - window_closed=False and event_id == open_event_id: the subscriber
         #   pulled this event and is currently sitting on it (the open window).
         #   Close the window now and let any unconfirmed seqs drain via the
-        #   acked path.
+        #   acknowledged path.
         # - window_closed=False and event_id != open_event_id: the event was
         #   fan-out-enqueued but the subscriber left before ever pulling it.
         #   Resolving as failed tells the broker to redeliver rather than
@@ -1027,7 +1032,7 @@ class _SharedStreamGroup:
             if binding.window_closed or event_id == open_event_id:
                 # Subscriber pulled this event — either already moved past it
                 # (window_closed=True, persist confirmations may still be draining) or
-                # is currently sitting on it (open window). Resolve via the acked path.
+                # is currently sitting on it (open window). Resolve via the acknowledged path.
                 binding.window_closed = True
                 self._maybe_complete(event_id=event_id, trigger_id=trigger_id)
             else:

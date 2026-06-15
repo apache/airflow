@@ -227,7 +227,7 @@ nothing to persist and the reject does not wait on the persistence gate.
 
 ``is_clean`` is ``True`` only when every subscriber that was online at
 broadcast accepted the event: no rejects, no failures, and at least one
-subscriber acked. A single reject or failure makes it ``False``, and so
+subscriber acknowledged it. A single reject or failure makes it ``False``, and so
 does a zero-subscriber broadcast (all-zero counts) — nothing was accepted,
 so there is nothing the producer should commit on.
 
