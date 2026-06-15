@@ -65,6 +65,7 @@ from airflow.sdk import DAG, Asset, AssetAlias, BaseHook, TaskGroup, WeightRule,
 from airflow.sdk.bases.decorator import DecoratedOperator
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS, BaseOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
+from airflow.sdk.definitions.dag import SourceCodeLocation
 from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.security import permissions
@@ -780,6 +781,31 @@ class TestStringifiedDAGs:
         dag = get_timetable_based_simple_dag(timetable)
         roundtripped = DagSerialization.from_json(DagSerialization.to_json(dag))
         self.validate_deserialized_dag(roundtripped, dag)
+
+    def test_dag_roundtrip_with_source_code_location(self):
+        """Verify Dag source code location metadata survives serialization."""
+        dag = DAG(
+            "source-code-location-dag",
+            schedule=None,
+            source_code_location=SourceCodeLocation(
+                repo_url="https://github.com/apache/airflow.git",
+                path="dags/example.py",
+                version="abc123",
+                branch="main",
+            ),
+        )
+
+        serialized = DagSerialization.to_dict(dag)
+        roundtripped = DagSerialization.from_dict(serialized)
+
+        assert serialized["dag"]["source_code_location"] == {
+            "type": "git",
+            "repo_url": "https://github.com/apache/airflow.git",
+            "path": "dags/example.py",
+            "version": "abc123",
+            "branch": "main",
+        }
+        assert roundtripped.source_code_location == dag.source_code_location
 
     def validate_deserialized_dag(self, serialized_dag: SerializedDAG, dag: DAG):
         """
