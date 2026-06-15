@@ -191,10 +191,10 @@ class AgentEngineDeleteTrigger(BaseTrigger):
                     )
                     return
 
-                if self.timeout is not None and time.monotonic() - start_time > self.timeout:
+                if self.timeout is not None and time.monotonic() - start_time >= self.timeout:
                     yield TriggerEvent(
                         {
-                            "status": "error",
+                            "status": "timeout",
                             "message": f"Timed out waiting for Agent Engine {self.name} to be deleted",
                             "name": self.name,
                         }

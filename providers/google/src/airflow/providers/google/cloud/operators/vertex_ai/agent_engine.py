@@ -32,12 +32,6 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 
-def validate_execute_complete_event(event: dict[str, Any] | None) -> dict[str, Any]:
-    if event is None:
-        raise RuntimeError("No event received in trigger callback")
-    return event
-
-
 def _serialize_value(value: Any) -> Any:
     if hasattr(value, "model_dump"):
         return value.model_dump(mode="json")
@@ -116,9 +110,7 @@ class CreateAgentEngineOperator(GoogleCloudBaseOperator):
             agent_engine=self.agent_engine,
             config=self.config,
         )
-        result = _serialize_agent_engine(agent_engine)
-        context["ti"].xcom_push(key="agent_engine_name", value=result.get("name"))
-        return result
+        return _serialize_agent_engine(agent_engine)
 
 
 class GetAgentEngineOperator(GoogleCloudBaseOperator):
@@ -175,6 +167,7 @@ class QueryAgentEngineOperator(GoogleCloudBaseOperator):
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
     :param name: Required. The Agent Engine resource name.
     :param config: Optional. Configuration for the query request (``class_method``, ``input``).
+    :param request_timeout: Optional. Timeout in seconds for the HTTP request. Defaults to no timeout.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term credentials.
     """
@@ -188,6 +181,7 @@ class QueryAgentEngineOperator(GoogleCloudBaseOperator):
         location: str,
         name: str,
         config: Any | None = None,
+        request_timeout: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -197,6 +191,7 @@ class QueryAgentEngineOperator(GoogleCloudBaseOperator):
         self.location = location
         self.name = name
         self.config = config
+        self.request_timeout = request_timeout
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
@@ -213,6 +208,7 @@ class QueryAgentEngineOperator(GoogleCloudBaseOperator):
             location=self.location,
             name=self.name,
             config=self.config,
+            request_timeout=self.request_timeout,
         )
 
 
@@ -385,8 +381,11 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
     def execute_complete(
         self, context: Context, event: dict[str, Any] | None = None, operation: dict[str, Any] | None = None
     ) -> dict[str, Any]:
-        validated_event = validate_execute_complete_event(event)
-        if validated_event["status"] != "success":
-            raise RuntimeError(validated_event["message"])
-        self.log.info("Agent Engine %s deleted.", validated_event["name"])
-        return operation or {}
+        if event is None:
+            raise RuntimeError("No event received in trigger callback")
+        if event["status"] == "success":
+            self.log.info("Agent Engine %s deleted.", event["name"])
+            return operation or {}
+        if event["status"] == "timeout":
+            raise TimeoutError(event["message"])
+        raise RuntimeError(event["message"])
