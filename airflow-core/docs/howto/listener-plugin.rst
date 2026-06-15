@@ -44,6 +44,7 @@ Using this plugin, following events can be listened:
     * Dag run is in running state.
     * Dag run is in success state.
     * Dag run is in failure state.
+    * scheduler skips scheduled intervals for a Dag with ``catchup=False``
     * on start before event like Airflow job, scheduler
     * before stop for event like Airflow job, scheduler
 
@@ -90,6 +91,13 @@ This example listens when the Dag run is change to failed state
     :end-before: [END howto_listen_dagrun_failure_task]
 
 Similarly, code to listen after dag_run success and during running state can be implemented.
+
+This example listens when the scheduler skips scheduled intervals for a Dag with ``catchup=False``
+
+.. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
+    :language: python
+    :start-after: [START howto_listen_intervals_skipped]
+    :end-before: [END howto_listen_intervals_skipped]
 
 The listener plugin files required to add the listener implementation is added as part of the
 Airflow plugin into ``$AIRFLOW_HOME/plugins/`` folder and loaded during Airflow startup.

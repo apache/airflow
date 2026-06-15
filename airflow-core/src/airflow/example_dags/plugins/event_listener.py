@@ -222,3 +222,20 @@ def on_dag_run_running(dag_run: DagRun, msg: str):
 
 
 # [END howto_listen_dagrun_running_task]
+
+
+# [START howto_listen_intervals_skipped]
+@hookimpl
+def on_intervals_skipped(dag_id: str, skipped_intervals: list):
+    """
+    Called when a Dag with catchup=False skips one or more scheduled intervals.
+
+    skipped_intervals is a list of DataInterval objects for the intervals the scheduler
+    advanced past without creating Dag runs.
+    """
+    print(f"Dag {dag_id} skipped {len(skipped_intervals)} interval(s)")
+    for interval in skipped_intervals:
+        print(f"  Skipped: {interval.start} -> {interval.end}")
+
+
+# [END howto_listen_intervals_skipped]
