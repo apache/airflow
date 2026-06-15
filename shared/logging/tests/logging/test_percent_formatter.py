@@ -43,7 +43,7 @@ class TestPercentFormatRender:
 
     @mock.patch("airflow_shared.logging.percent_formatter.os.getpid")
     @mock.patch("airflow_shared.logging.percent_formatter.threading.get_ident")
-    def test_process_thread_missing_returns_live_values(self, mock_get_ident, mock_getpid):
+    def test_missing_returns_live_values(self, mock_get_ident, mock_getpid):
         mock_getpid.return_value = 123
         mock_get_ident.return_value = 456
         fmt = "%(process)d %(thread)d %(lineno)d %(message)s"
@@ -55,7 +55,7 @@ class TestPercentFormatRender:
 
     @mock.patch("airflow_shared.logging.percent_formatter.os.getpid")
     @mock.patch("airflow_shared.logging.percent_formatter.threading.get_ident")
-    def test_process_thread_unknown_string_returns_live_values(self, mock_get_ident, mock_getpid):
+    def test_unknown_string_returns_live_values(self, mock_get_ident, mock_getpid):
         mock_getpid.return_value = 123
         mock_get_ident.return_value = 456
         fmt = "%(process)d %(thread)d %(lineno)d %(message)s"
