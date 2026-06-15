@@ -19,12 +19,11 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import structlog
 
 from airflow._shared.observability.metrics.stats import Stats
-from airflow.configuration import conf
 
 if TYPE_CHECKING:
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -32,25 +31,18 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(logger_name="http.metrics")
 
 _ROUTE_PATHS_BY_ROUTER_ID: dict[int, dict[object, str]] = {}
+_API_METRICS_PATH_PREFIXES = ("/api/v2", "/ui")
 
 
-def _get_api_path_prefix_to_surface() -> tuple[tuple[str, str], ...]:
-    path_prefix_to_surface = cast("dict[str, str]", conf.getjson("metrics", "api_path_prefix_to_surface"))
-    return tuple(sorted(path_prefix_to_surface.items(), key=lambda item: len(item[0]), reverse=True))
-
-
-def _get_api_surface(path: str, path_prefix_to_surface: tuple[tuple[str, str], ...]) -> str | None:
-    for prefix, surface in path_prefix_to_surface:
-        if path.startswith(prefix):
-            return surface
-    return None
+def _is_api_metrics_path(path: str) -> bool:
+    return any(path == prefix or path.startswith(f"{prefix}/") for prefix in _API_METRICS_PATH_PREFIXES)
 
 
 def _get_status_family(status_code: int) -> str:
     return f"{status_code // 100}xx"
 
 
-def _get_route_tag(scope: Scope) -> str:
+def _get_route_template(scope: Scope) -> str:
     route = scope.get("route")
     route_path = getattr(route, "path", None)
     if isinstance(route_path, str) and route_path:
@@ -90,29 +82,20 @@ def _emit_api_metrics(
     method: str,
     status_code: int,
     duration_us: int,
-    path_prefix_to_surface: tuple[tuple[str, str], ...],
 ) -> None:
-    api_surface = _get_api_surface(path, path_prefix_to_surface)
-    if api_surface is None:
+    if not _is_api_metrics_path(path):
         return
 
     # Keep tags bounded so API metrics remain usable across supported backends.
-    base_tags = {
-        "api_surface": api_surface,
+    tags = {
         "method": method,
-        "route": _get_route_tag(scope),
-    }
-    status_family = _get_status_family(status_code)
-    request_tags = {
-        **base_tags,
-        "status_family": status_family,
+        "route": _get_route_template(scope),
+        "status_family": _get_status_family(status_code),
     }
     duration_ms = duration_us / 1000.0
 
-    Stats.incr("api.requests", tags=request_tags)
-    Stats.timing("api.request.duration", duration_ms, tags=request_tags)
-    if status_code >= 500:
-        Stats.incr("api.request.errors", tags=base_tags)
+    Stats.incr("http_requests_total", tags=tags)
+    Stats.timing("http_request_duration_seconds", duration_ms, tags=tags)
 
 
 class HttpMetricsMiddleware:
@@ -120,7 +103,6 @@ class HttpMetricsMiddleware:
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
-        self.path_prefix_to_surface = _get_api_path_prefix_to_surface()
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -157,7 +139,6 @@ class HttpMetricsMiddleware:
                     method=method,
                     status_code=status,
                     duration_us=duration_us,
-                    path_prefix_to_surface=self.path_prefix_to_surface,
                 )
             except Exception:
                 logger.exception(
