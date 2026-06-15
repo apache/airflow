@@ -232,7 +232,7 @@
     "runs": "執行紀錄",
     "storage": "儲存空間",
     "taskInstances": "任務實例",
-    "taskStore": "任務儲存區",
+    "taskStateStore": "任務儲存區",
     "tasks": "任務",
     "xcom": "XCom"
   },
@@ -240,7 +240,7 @@
     "collapseAll": "收合所有任務群組",
     "expandAll": "展開所有任務群組"
   },
-  "taskStore": {
+  "taskStateStore": {
     "add": "新增任務儲存區",
     "clearAll": {
       "resource": "所有任務儲存區",

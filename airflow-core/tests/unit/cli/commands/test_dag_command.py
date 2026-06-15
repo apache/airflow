@@ -42,7 +42,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun
 from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import DAG, Asset, BaseOperator, CronPartitionTimetable, PartitionedAssetTimetable, task
@@ -1066,6 +1066,13 @@ class TestCliDagsClear:
                 for row in session.scalars(select(DagRun).where(DagRun.dag_id == self.DAG_ID)).all()
             }
 
+    def _get_run_clear_numbers(self):
+        with create_session() as session:
+            return {
+                row.run_id: row.clear_number
+                for row in session.scalars(select(DagRun).where(DagRun.dag_id == self.DAG_ID)).all()
+            }
+
     def test_requires_a_selector(self, parser):
         args = parser.parse_args(["dags", "clear", self.DAG_ID, "--yes"])
         with pytest.raises(SystemExit, match="One of --run-id, --partition-key"):
@@ -1757,6 +1764,119 @@ class TestCliDagsClear:
         assert states["asset_2026_04_14"] == DagRunState.SUCCESS
         assert states["asset_2026_04_15"] == DagRunState.SUCCESS
         assert states["asset_non_part"] == DagRunState.SUCCESS
+
+    @pytest.mark.usefixtures("seeded_partitioned_runs")
+    @pytest.mark.parametrize(
+        ("chunk_size", "expected_calls"),
+        [
+            pytest.param(500, 1, id="single-chunk"),
+            pytest.param(2, 2, id="multiple-chunks"),
+        ],
+    )
+    def test_clears_each_matching_run_once_across_chunks(self, parser, chunk_size, expected_calls):
+        """Every matching run is cleared exactly once, however run_ids split into chunks.
+
+        clear_task_instances is called once per chunk (not once per run), every matching
+        run is re-queued, and each run's clear_number advances by exactly 1 — proving a
+        run's TIs are never split across chunks.
+        """
+        call_count = 0
+
+        def counting_clear(tis, session, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            return clear_task_instances(tis, session, **kwargs)
+
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-start",
+                "2026-03-08T00:00:00",
+                "--partition-date-end",
+                "2026-03-14T00:00:00",
+                "--yes",
+            ]
+        )
+        with (
+            mock.patch.object(dag_command, "_RUN_CHUNK_SIZE", chunk_size),
+            mock.patch(
+                "airflow.cli.commands.dag_command.clear_task_instances",
+                side_effect=counting_clear,
+            ),
+        ):
+            dag_command.dag_clear(args)
+
+        assert call_count == expected_calls
+
+        states = self._get_run_states()
+        assert states["part_2026_03_08"] == DagRunState.QUEUED
+        assert states["part_2026_03_10"] == DagRunState.QUEUED
+        assert states["part_2026_03_14"] == DagRunState.QUEUED
+        assert states["non_partitioned"] == DagRunState.SUCCESS
+
+        clear_numbers = self._get_run_clear_numbers()
+        assert clear_numbers["part_2026_03_08"] == 1
+        assert clear_numbers["part_2026_03_10"] == 1
+        assert clear_numbers["part_2026_03_14"] == 1
+        assert clear_numbers["non_partitioned"] == 0
+
+    @pytest.mark.usefixtures("seeded_partitioned_runs")
+    def test_does_not_clear_runs_of_other_dags(self, parser, dag_maker):
+        """A run_id collision across DAGs must not clear the other DAG's task instances."""
+        other_dag_id = "test_dags_clear_other_dag"
+        with dag_maker(
+            other_dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime(2026, 3, 1, tzinfo=pendulum.UTC),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        # Same run_id and partition_date as a run cleared below, but a different DAG.
+        dag_maker.create_dagrun(
+            run_id="part_2026_03_08",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 3, 8, tzinfo=pendulum.UTC),
+            partition_key="2026-03-08T00:00:00",
+        )
+        dag_maker.sync_dagbag_to_db()
+        # If dag_id is not filtered, clearing the other DAG would reset this TI to None.
+        with create_session() as session:
+            session.execute(
+                TaskInstance.__table__.update()
+                .where(TaskInstance.dag_id == other_dag_id)
+                .values(state=TaskInstanceState.SUCCESS)
+            )
+
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-start",
+                "2026-03-08T00:00:00",
+                "--partition-date-end",
+                "2026-03-14T00:00:00",
+                "--yes",
+            ]
+        )
+        dag_command.dag_clear(args)
+
+        # The target DAG's same-named run must be cleared.
+        assert self._get_run_states()["part_2026_03_08"] == DagRunState.QUEUED
+
+        # The other DAG's same-named run must be left untouched.
+        with create_session() as session:
+            other_run = session.scalars(
+                select(DagRun).where(DagRun.dag_id == other_dag_id, DagRun.run_id == "part_2026_03_08")
+            ).one()
+            assert other_run.state == DagRunState.SUCCESS
+            assert other_run.clear_number == 0
+            other_ti = session.scalars(select(TaskInstance).where(TaskInstance.dag_id == other_dag_id)).one()
+            assert other_ti.state == TaskInstanceState.SUCCESS
 
 
 class TestDagDetailsIsBackfillable:
