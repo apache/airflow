@@ -39,6 +39,7 @@ from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
+from airflow.sdk.definitions.dag import SourceCodeLocation
 from airflow.utils import types
 from airflow.utils.state import DagRunState, State
 
@@ -1056,6 +1057,49 @@ class TestOpenLineageListenerAirflow2:
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 tests")
 class TestOpenLineageListenerAirflow3:
+    @pytest.mark.parametrize(
+        "method",
+        ["on_dag_run_running", "on_dag_run_success", "on_dag_run_failed"],
+    )
+    @mock.patch.object(DagRun, "_get_partial_task_ids", return_value=[])
+    def test_dag_run_events_include_source_code_location_job_facet(self, mock_get_task_ids, method):
+        date = timezone.datetime(2022, 1, 1)
+        dag = DAG(
+            "dag",
+            schedule=None,
+            start_date=date,
+            source_code_location=SourceCodeLocation(
+                repo_url="https://github.com/apache/airflow.git",
+                path="dags/example.py",
+                version="abc123",
+            ),
+        )
+        dag_run = DagRun(
+            dag_id=dag.dag_id,
+            run_id="run",
+            logical_date=date,
+            run_after=date,
+            start_date=date,
+        )
+        dag_run.end_date = date
+        dag_run.dag = dag
+
+        listener = OpenLineageListener()
+        listener._executor = mock.Mock(spec=["submit"])
+
+        getattr(listener, method)(dag_run, msg="test")
+
+        submitted_kwargs = listener._executor.submit.call_args.kwargs
+        source_code_location_facet = submitted_kwargs["job_facets"]["sourceCodeLocation"]
+        assert source_code_location_facet.url == "https://github.com/apache/airflow.git"
+        assert source_code_location_facet.path == "dags/example.py"
+        assert source_code_location_facet.version == "abc123"
+        if method == "on_dag_run_running":
+            assert "airflow" in submitted_kwargs["job_facets"]
+            mock_get_task_ids.assert_not_called()
+        else:
+            mock_get_task_ids.assert_called()
+
     @pytest.mark.skip("Rendering fields is not migrated yet in Airflow 3")
     @patch("airflow.models.BaseOperator.render_template")
     def test_listener_does_not_change_task_instance(self, render_mock, mock_supervisor_comms, spy_agency):

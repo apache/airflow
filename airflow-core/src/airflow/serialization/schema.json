@@ -229,6 +229,10 @@
             "branch": { "type": "string" }
           },
           "required": ["type"],
+          "anyOf": [
+            { "required": ["url"] },
+            { "required": ["repo_url"] }
+          ],
           "additionalProperties": false
         },
         "tags": { "type": "array" },

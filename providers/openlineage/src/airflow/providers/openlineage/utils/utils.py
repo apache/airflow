@@ -34,6 +34,7 @@ from openlineage.client.facet_v2 import (
     nominal_time_run,
     ownership_job,
     parent_run,
+    source_code_location_job,
     tags_job,
 )
 from openlineage.client.utils import RedactMixin
@@ -349,6 +350,7 @@ def build_task_event_job_facets(
         **documentation_facet,
         **ownership_facet,
         **tags_facet,
+        **get_source_code_location_job_facet(dag),
     }
 
 
@@ -1357,6 +1359,29 @@ def get_airflow_job_facet(dag_run: DagRun) -> dict[str, AirflowJobFacet]:
         log.warning("Failed to build AirflowJobFacet for DagRun %s/%s: %s.", dag_run.dag, dag_run.run_id, e)
         log.debug("Exception details:", exc_info=True)
         return {}
+
+
+def get_source_code_location_job_facet(dag: DAG | SerializedDAG | None) -> dict[str, JobFacet]:
+    source_code_location = getattr(dag, "source_code_location", None)
+    if not source_code_location:
+        return {}
+
+    url = source_code_location.url or source_code_location.repo_url
+    if not url:
+        return {}
+
+    return {
+        "sourceCodeLocation": source_code_location_job.SourceCodeLocationJobFacet(
+            type=source_code_location.type,
+            url=url,
+            repoUrl=source_code_location.repo_url,
+            path=source_code_location.path,
+            version=source_code_location.version,
+            tag=source_code_location.tag,
+            branch=source_code_location.branch,
+            producer=_PRODUCER,
+        )
+    }
 
 
 def get_airflow_state_run_facet(

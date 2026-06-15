@@ -706,6 +706,32 @@ This is especially useful if your tasks are built dynamically from configuration
             EmptyOperator(task_id="extract_orders")
 
 
+Dag Source Code Location
+------------------------
+
+You can annotate a Dag with information about the source repository and revision that define it.
+This metadata is stored with the serialized Dag and can be used by integrations that need to link a Dag run back to source code.
+
+.. code-block:: python
+
+    from airflow.sdk import DAG, SourceCodeLocation
+
+    with DAG(
+        "my_dag",
+        schedule="@daily",
+        source_code_location=SourceCodeLocation(
+            repo_url="https://github.com/apache/airflow.git",
+            path="dags/my_dag.py",
+            version="abc123",
+            branch="main",
+        ),
+    ):
+        ...
+
+``SourceCodeLocation`` accepts ``type`` (``"git"`` or ``"svn"``), ``url``, ``repo_url``, ``path``, ``version``, ``tag``, and ``branch``.
+At least one of ``url`` or ``repo_url`` must be provided.
+
+
 Packaging Dags
 --------------
 
