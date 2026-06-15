@@ -26,6 +26,7 @@ import {
   UseGanttServiceGetGanttDataKeyFn,
   useTaskInstanceServiceGetHitlDetailsKey,
   useTaskInstanceServiceGetHitlDetailKey,
+  useTaskInstanceServiceGetHitlDetailTryDetailKey,
   useTaskInstanceServiceUpdateHitlDetail,
   useTaskInstanceServiceGetTaskInstanceKey,
   useTaskInstanceServiceGetTaskInstancesKey,
@@ -58,6 +59,7 @@ export const useUpdateHITLDetail = ({
       [useTaskInstanceServiceGetTaskInstanceKey, { dagId, dagRunId, mapIndex, taskId }],
       [useTaskInstanceServiceGetHitlDetailsKey, { dagIdPrefixPattern: dagId, dagRunId }],
       [useTaskInstanceServiceGetHitlDetailKey, { dagId, dagRunId }],
+      [useTaskInstanceServiceGetHitlDetailTryDetailKey, { dagId, dagRunId }],
       UseGanttServiceGetGanttDataKeyFn({ dagId, runId: dagRunId }),
       ...tiPerAttemptQueryKeys,
     ];
