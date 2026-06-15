@@ -24,17 +24,45 @@ from io import StringIO
 
 import pytest
 import yaml
+from airflowctl.api.datamodels.generated import (
+    BulkActionOnExistence,
+    BulkActionResponse,
+    BulkResponse,
+)
 from sqlalchemy import select
 
 from airflow import models
 from airflow.cli import cli_parser
 from airflow.cli.commands import variable_command
 from airflow.models import Variable
+from airflow.secrets.local_filesystem import load_variables
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.db import clear_db_variables
 
 pytestmark = pytest.mark.db_test
+
+
+def _apply_import_via_model(file_path, action_on_existing: str = "overwrite") -> None:
+    """Apply a variables file via the model, mirroring the pre-migration import.
+
+    ``variables import`` is migrated to the airflowctl client, so round-trip tests that
+    need to actually persist an imported file use this helper instead of the API-backed command.
+    """
+    var_json = load_variables(file_path)
+    existing_keys: set[str] = set()
+    if action_on_existing != "overwrite":
+        with create_session() as session:
+            existing_keys = set(session.scalars(select(Variable.key).where(Variable.key.in_(var_json))))
+    if action_on_existing == "fail" and existing_keys:
+        raise SystemExit(f"Failed. These keys: {sorted(existing_keys)} already exists.")
+    for k, v in var_json.items():
+        if action_on_existing == "skip" and k in existing_keys:
+            continue
+        value, description = v, None
+        if isinstance(v, dict) and "value" in v:
+            value, description = v["value"], v.get("description")
+        Variable.set(k, value, description, serialize_json=not isinstance(value, str))
 
 
 # Test data fixtures
@@ -170,7 +198,7 @@ class TestCliVariables:
         with pytest.raises(SystemExit):
             variable_command.variables_get(self.parser.parse_args(["variables", "get", "no-existing-VAR"]))
 
-    def test_variables_set_different_types(self):
+    def test_variables_export_preserves_types(self, tmp_path):
         """Test storage of various data types"""
         # Set a dict
         variable_command.variables_set(
@@ -191,43 +219,21 @@ class TestCliVariables:
         # Set none
         variable_command.variables_set(self.parser.parse_args(["variables", "set", "null", "null"]))
 
-        # Export and then import
+        export_file = tmp_path / "variables_types.json"
         variable_command.variables_export(
-            self.parser.parse_args(["variables", "export", "variables_types.json"])
+            self.parser.parse_args(["variables", "export", os.fspath(export_file)])
         )
-        with create_session() as session:
-            variable_command.variables_import(
-                self.parser.parse_args(["variables", "import", "variables_types.json"]), session=session
-            )
 
-        # Assert value
-        assert Variable.get("dict", deserialize_json=True) == {"foo": "oops"}
-        assert Variable.get("str") == "hello string"  # cannot json.loads(str)
-        assert Variable.get("int", deserialize_json=True) == 42
-        assert Variable.get("float", deserialize_json=True) == 42.0
-        assert Variable.get("true", deserialize_json=True) is True
-        assert Variable.get("false", deserialize_json=True) is False
-        assert Variable.get("null", deserialize_json=True) is None
-
-        # test variable import skip existing
-        # set varliable list to ["airflow"] and have it skip during import
-        variable_command.variables_set(self.parser.parse_args(["variables", "set", "list", '["airflow"]']))
-        variable_command.variables_import(
-            self.parser.parse_args(
-                ["variables", "import", "variables_types.json", "--action-on-existing-key", "skip"]
-            )
-        )
-        assert Variable.get("list", deserialize_json=True) == ["airflow"]  # should not be overwritten
-
-        # test variable import fails on existing when action is set to fail
-        with pytest.raises(SystemExit):
-            variable_command.variables_import(
-                self.parser.parse_args(
-                    ["variables", "import", "variables_types.json", "--action-on-existing-key", "fail"]
-                )
-            )
-
-        os.remove("variables_types.json")
+        assert json.loads(export_file.read_text()) == {
+            "dict": {"foo": "oops"},
+            "list": ["oops"],
+            "str": "hello string",
+            "int": 42,
+            "float": 42.0,
+            "true": True,
+            "false": False,
+            "null": None,
+        }
 
     def test_variables_list(self):
         """Test variable_list command"""
@@ -340,7 +346,7 @@ class TestCliVariables:
             "variables.xml",  # Unsupported .xml extension
         ],
     )
-    def test_variables_import_unsupported_format(self, tmp_path, filename):
+    def test_variables_import_unsupported_format(self, mock_cli_api_client, tmp_path, filename):
         """Test variables_import command with unsupported file formats"""
         # Use devnull directly or create a file with unsupported extension
         if filename == os.devnull:
@@ -351,16 +357,14 @@ class TestCliVariables:
             file_path = os.fspath(file_path)
 
         with pytest.raises(SystemExit, match=r"Unsupported file format"):
-            with create_session() as session:
-                variable_command.variables_import(
-                    self.parser.parse_args(["variables", "import", file_path]), session=session
-                )
+            variable_command.variables_import(self.parser.parse_args(["variables", "import", file_path]))
+        mock_cli_api_client.variables.bulk.assert_not_called()
 
     def test_variables_export(self):
         """Test variables_export command"""
         variable_command.variables_export(self.parser.parse_args(["variables", "export", os.devnull]))
 
-    def test_variables_isolation(self, tmp_path):
+    def test_variables_export_round_trip(self, tmp_path):
         """Test isolation of variables"""
         path1 = tmp_path / "testfile1.json"
         path2 = tmp_path / "testfile2.json"
@@ -370,13 +374,11 @@ class TestCliVariables:
         variable_command.variables_set(self.parser.parse_args(["variables", "set", "bar", "original"]))
         variable_command.variables_export(self.parser.parse_args(["variables", "export", os.fspath(path1)]))
 
+        # Mutate the state, then restore it from the first export and export again
         variable_command.variables_set(self.parser.parse_args(["variables", "set", "bar", "updated"]))
         variable_command.variables_set(self.parser.parse_args(["variables", "set", "foo", '{"foo":"oops"}']))
         variable_command.variables_delete(self.parser.parse_args(["variables", "delete", "foo"]))
-        with create_session() as session:
-            variable_command.variables_import(
-                self.parser.parse_args(["variables", "import", os.fspath(path1)]), session=session
-            )
+        _apply_import_via_model(os.fspath(path1))
 
         assert Variable.get("bar") == "original"
         assert Variable.get("foo") == '{\n  "foo": "bar"\n}'
@@ -386,8 +388,8 @@ class TestCliVariables:
 
         assert path1.read_text() == path2.read_text()
 
-    def test_variables_import_and_export_with_description(self, tmp_path):
-        """Test variables_import with file-description parameter"""
+    def test_variables_export_with_description(self, tmp_path):
+        """Test variables_export with file-description parameter"""
         variables_types_file = tmp_path / "variables_types.json"
         variable_command.variables_set(
             self.parser.parse_args(["variables", "set", "foo", "bar", "--description", "Foo var description"])
@@ -414,192 +416,171 @@ class TestCliVariables:
                 "foo2": "bar2",
             }
 
-        with create_session() as session:
-            variable_command.variables_import(
-                self.parser.parse_args(["variables", "import", os.fspath(variables_types_file)]),
-                session=session,
-            )
-
-        assert Variable.get("foo") == "bar"
-        assert Variable.get("foo1") == "bar1"
-        assert Variable.get("foo2") == "bar2"
-
-        with create_session() as session:
-            assert (
-                session.scalar(select(Variable.description).where(Variable.key == "foo"))
-                == "Foo var description"
-            )
-            assert session.scalar(select(Variable.description).where(Variable.key == "foo1")) == "12"
-
     @pytest.mark.parametrize("format", ["json", "yaml", "yml"])
-    def test_variables_import_formats(self, create_variable_file, simple_variable_data, format):
+    def test_variables_import_formats(
+        self, mock_cli_api_client, create_variable_file, simple_variable_data, format
+    ):
         """Test variables_import with different formats (JSON, YAML, YML)"""
         file = create_variable_file(simple_variable_data, format=format)
+        mock_cli_api_client.variables.bulk.return_value = BulkResponse(
+            create=BulkActionResponse(success=list(simple_variable_data))
+        )
 
-        with create_session() as session:
-            variable_command.variables_import(
-                self.parser.parse_args(["variables", "import", os.fspath(file)]), session=session
-            )
+        variable_command.variables_import(self.parser.parse_args(["variables", "import", os.fspath(file)]))
 
-        assert Variable.get("key1") == "value1"
-        assert Variable.get("key2", deserialize_json=True) == {"nested": "dict", "with": ["list", "values"]}
-        assert Variable.get("key3", deserialize_json=True) == 123
-        assert Variable.get("key4", deserialize_json=True) is True
-        assert Variable.get("key5", deserialize_json=True) is None
+        action = mock_cli_api_client.variables.bulk.call_args.kwargs["variables"].actions[0]
+        entities = {e.key: e.value.root for e in action.entities}
+        assert entities["key1"] == "value1"
+        assert entities["key2"] == {"nested": "dict", "with": ["list", "values"]}
+        assert entities["key3"] == 123
+        assert entities["key4"] is True
+        assert entities["key5"] is None
+        assert action.action_on_existence == BulkActionOnExistence.OVERWRITE
 
     @pytest.mark.parametrize("format", ["json", "yaml"])
     def test_variables_import_with_descriptions(
-        self, create_variable_file, variable_data_with_descriptions, format
+        self, mock_cli_api_client, create_variable_file, variable_data_with_descriptions, format
     ):
         """Test variables_import with descriptions in different formats (JSON, YAML)"""
         file = create_variable_file(variable_data_with_descriptions, format=format)
+        mock_cli_api_client.variables.bulk.return_value = BulkResponse(
+            create=BulkActionResponse(success=list(variable_data_with_descriptions))
+        )
 
-        with create_session() as session:
-            variable_command.variables_import(
-                self.parser.parse_args(["variables", "import", os.fspath(file)]), session=session
-            )
+        variable_command.variables_import(self.parser.parse_args(["variables", "import", os.fspath(file)]))
 
-        assert Variable.get("var1") == "test_value"
-        assert Variable.get("var2", deserialize_json=True) == {"complex": "object"}
-        assert Variable.get("var3") == "simple_value"
-
-        with create_session() as session:
-            assert (
-                session.scalar(select(Variable.description).where(Variable.key == "var1"))
-                == "Test description for var1"
-            )
-            assert (
-                session.scalar(select(Variable.description).where(Variable.key == "var2"))
-                == "Complex variable"
-            )
-            assert session.scalar(select(Variable.description).where(Variable.key == "var3")) is None
+        entities = {
+            e.key: e
+            for e in mock_cli_api_client.variables.bulk.call_args.kwargs["variables"].actions[0].entities
+        }
+        assert entities["var1"].value.root == "test_value"
+        assert entities["var1"].description == "Test description for var1"
+        assert entities["var2"].value.root == {"complex": "object"}
+        assert entities["var2"].description == "Complex variable"
+        assert entities["var3"].value.root == "simple_value"
+        assert entities["var3"].description is None
 
     @pytest.mark.parametrize(
-        ("value", "deserialize_json"),
-        [
-            ("", False),
-            (0, True),
-            (False, True),
-            (None, True),
-        ],
+        "value",
+        ["", 0, False, None],
         ids=["empty_string", "zero", "false", "null"],
     )
     def test_variables_import_with_structured_falsy_values(
-        self, create_variable_file, value, deserialize_json
+        self, mock_cli_api_client, create_variable_file, value
     ):
         """Test variables_import preserves structured falsy values and descriptions."""
         file = create_variable_file(
             {"falsy_key": {"value": value, "description": "Falsy value description"}},
             format="json",
         )
+        mock_cli_api_client.variables.bulk.return_value = BulkResponse(
+            create=BulkActionResponse(success=["falsy_key"])
+        )
 
-        with create_session() as session:
-            variable_command.variables_import(
-                self.parser.parse_args(["variables", "import", os.fspath(file)]), session=session
-            )
+        variable_command.variables_import(self.parser.parse_args(["variables", "import", os.fspath(file)]))
 
-        assert Variable.get("falsy_key", deserialize_json=deserialize_json) == value
-        with create_session() as session:
-            assert (
-                session.scalar(select(Variable.description).where(Variable.key == "falsy_key"))
-                == "Falsy value description"
-            )
+        entity = mock_cli_api_client.variables.bulk.call_args.kwargs["variables"].actions[0].entities[0]
+        assert entity.key == "falsy_key"
+        assert entity.value.root == value
+        assert entity.description == "Falsy value description"
 
-    def test_variables_import_env(self, create_variable_file, env_variable_data):
+    def test_variables_import_env(self, mock_cli_api_client, create_variable_file, env_variable_data):
         """Test variables_import with ENV format"""
         env_file = create_variable_file(env_variable_data, format="env")
+        mock_cli_api_client.variables.bulk.return_value = BulkResponse(
+            create=BulkActionResponse(success=list(env_variable_data))
+        )
 
-        with create_session() as session:
-            variable_command.variables_import(
-                self.parser.parse_args(["variables", "import", os.fspath(env_file)]), session=session
-            )
+        variable_command.variables_import(
+            self.parser.parse_args(["variables", "import", os.fspath(env_file)])
+        )
 
-        assert Variable.get("KEY_A") == "value_a"
-        assert Variable.get("KEY_B") == "value with spaces"
-        assert Variable.get("KEY_C") == '{"json": "value", "number": 42}'
-        assert Variable.get("KEY_D") == "true"
-        assert Variable.get("KEY_E") == "123"
+        entities = {
+            e.key: e.value.root
+            for e in mock_cli_api_client.variables.bulk.call_args.kwargs["variables"].actions[0].entities
+        }
+        assert entities["KEY_A"] == "value_a"
+        assert entities["KEY_B"] == "value with spaces"
+        assert entities["KEY_C"] == '{"json": "value", "number": 42}'
+        assert entities["KEY_D"] == "true"
+        assert entities["KEY_E"] == "123"
 
     @pytest.mark.parametrize("format", ["json", "yaml", "yml"])
-    def test_variables_import_action_on_existing(self, create_variable_file, simple_variable_data, format):
+    def test_variables_import_action_on_existing(
+        self, mock_cli_api_client, create_variable_file, simple_variable_data, format
+    ):
         """Test variables_import with action_on_existing_key parameter for different formats"""
         file = create_variable_file(simple_variable_data, format=format)
+        mock_cli_api_client.variables.bulk.return_value = BulkResponse(
+            create=BulkActionResponse(success=list(simple_variable_data))
+        )
 
-        # Set up one existing variable with different value
-        Variable.set("key1", "original_value")
+        variable_command.variables_import(
+            self.parser.parse_args(
+                ["variables", "import", os.fspath(file), "--action-on-existing-key", "skip"]
+            )
+        )
+        assert (
+            mock_cli_api_client.variables.bulk.call_args.kwargs["variables"].actions[0].action_on_existence
+            == BulkActionOnExistence.SKIP
+        )
 
-        # Test skip action - existing key1 should keep original value, others should be imported
-        with create_session() as session:
+        variable_command.variables_import(
+            self.parser.parse_args(
+                ["variables", "import", os.fspath(file), "--action-on-existing-key", "overwrite"]
+            )
+        )
+        assert (
+            mock_cli_api_client.variables.bulk.call_args.kwargs["variables"].actions[0].action_on_existence
+            == BulkActionOnExistence.OVERWRITE
+        )
+
+        # fail: the server reports the conflict via the bulk response errors, so the command exits
+        mock_cli_api_client.variables.bulk.return_value = BulkResponse(
+            create=BulkActionResponse(
+                errors=[
+                    {"error": "The variables with these keys: {'key1'} already exist.", "status_code": 409}
+                ]
+            )
+        )
+        with pytest.raises(SystemExit, match="Failed to import variables"):
             variable_command.variables_import(
                 self.parser.parse_args(
-                    ["variables", "import", os.fspath(file), "--action-on-existing-key", "skip"]
-                ),
-                session=session,
-            )
-        assert Variable.get("key1") == "original_value"  # Should NOT be overwritten
-        assert Variable.get("key2", deserialize_json=True) == {"nested": "dict", "with": ["list", "values"]}
-        assert Variable.get("key3", deserialize_json=True) == 123
-
-        # Clean up non-existing keys for next test
-        for key in ["key2", "key3", "key4", "key5"]:
-            Variable.delete(key)
-
-        # Test overwrite action (default) - existing key1 should be overwritten
-        with create_session() as session:
-            variable_command.variables_import(
-                self.parser.parse_args(
-                    ["variables", "import", os.fspath(file), "--action-on-existing-key", "overwrite"]
-                ),
-                session=session,
-            )
-        assert Variable.get("key1") == "value1"  # Should be overwritten with new value
-        assert Variable.get("key2", deserialize_json=True) == {"nested": "dict", "with": ["list", "values"]}
-
-        # Test fail action - should fail when key1 already exists
-        Variable.set("key1", "original_value")
-        with pytest.raises(SystemExit, match="already exists"):
-            with create_session() as session:
-                variable_command.variables_import(
-                    self.parser.parse_args(
-                        ["variables", "import", os.fspath(file), "--action-on-existing-key", "fail"]
-                    ),
-                    session=session,
+                    ["variables", "import", os.fspath(file), "--action-on-existing-key", "fail"]
                 )
+            )
 
-    def test_variables_import_env_action_on_existing(self, tmp_path):
+    def test_variables_import_env_action_on_existing(self, mock_cli_api_client, tmp_path):
         """Test variables_import ENV with action_on_existing_key parameter"""
         env_file = tmp_path / "variables_update.env"
         env_content = """EXISTING_VAR=updated_value
 NEW_VAR=fresh_value"""
         env_file.write_text(env_content)
+        mock_cli_api_client.variables.bulk.return_value = BulkResponse(
+            create=BulkActionResponse(success=["EXISTING_VAR", "NEW_VAR"])
+        )
 
-        # Set up existing variable
-        Variable.set("EXISTING_VAR", "initial_value")
-
-        # Test skip action
-        with create_session() as session:
-            variable_command.variables_import(
-                self.parser.parse_args(
-                    ["variables", "import", os.fspath(env_file), "--action-on-existing-key", "skip"]
-                ),
-                session=session,
+        variable_command.variables_import(
+            self.parser.parse_args(
+                ["variables", "import", os.fspath(env_file), "--action-on-existing-key", "skip"]
             )
-        assert Variable.get("EXISTING_VAR") == "initial_value"
-        assert Variable.get("NEW_VAR") == "fresh_value"
+        )
+        action = mock_cli_api_client.variables.bulk.call_args.kwargs["variables"].actions[0]
+        assert action.action_on_existence == BulkActionOnExistence.SKIP
+        assert {e.key: e.value.root for e in action.entities} == {
+            "EXISTING_VAR": "updated_value",
+            "NEW_VAR": "fresh_value",
+        }
 
-        # Clean up for next test
-        Variable.delete("NEW_VAR")
-
-        # Test overwrite action
-        with create_session() as session:
-            variable_command.variables_import(
-                self.parser.parse_args(
-                    ["variables", "import", os.fspath(env_file), "--action-on-existing-key", "overwrite"]
-                ),
-                session=session,
+        variable_command.variables_import(
+            self.parser.parse_args(
+                ["variables", "import", os.fspath(env_file), "--action-on-existing-key", "overwrite"]
             )
-        assert Variable.get("EXISTING_VAR") == "updated_value"
-        assert Variable.get("NEW_VAR") == "fresh_value"
+        )
+        assert (
+            mock_cli_api_client.variables.bulk.call_args.kwargs["variables"].actions[0].action_on_existence
+            == BulkActionOnExistence.OVERWRITE
+        )
 
     @pytest.mark.parametrize(
         ("format", "invalid_content", "error_pattern"),
@@ -610,55 +591,46 @@ NEW_VAR=fresh_value"""
             ("env", "INVALID_LINE_NO_EQUALS", "Invalid line format"),
         ],
     )
-    def test_variables_import_invalid_format(self, tmp_path, format, invalid_content, error_pattern):
+    def test_variables_import_invalid_format(
+        self, mock_cli_api_client, tmp_path, format, invalid_content, error_pattern
+    ):
         """Test variables_import with invalid format files"""
         invalid_file = tmp_path / f"invalid.{format}"
         invalid_file.write_text(invalid_content)
 
         with pytest.raises(SystemExit, match=error_pattern):
-            with create_session() as session:
-                variable_command.variables_import(
-                    self.parser.parse_args(["variables", "import", os.fspath(invalid_file)]),
-                    session=session,
-                )
+            variable_command.variables_import(
+                self.parser.parse_args(["variables", "import", os.fspath(invalid_file)])
+            )
+        mock_cli_api_client.variables.bulk.assert_not_called()
 
-    def test_variables_import_cross_format_compatibility(self, create_variable_file, simple_variable_data):
+    def test_variables_import_cross_format_compatibility(
+        self, mock_cli_api_client, create_variable_file, simple_variable_data
+    ):
         """Test that the same variables can be imported from different formats consistently"""
         # Create files in both formats using the same test data
         json_file = create_variable_file(simple_variable_data, format="json")
         yaml_file = create_variable_file(simple_variable_data, format="yaml")
+        mock_cli_api_client.variables.bulk.return_value = BulkResponse(
+            create=BulkActionResponse(success=list(simple_variable_data))
+        )
 
-        # Test JSON import
-        with create_session() as session:
-            variable_command.variables_import(
-                self.parser.parse_args(["variables", "import", os.fspath(json_file)]), session=session
-            )
+        variable_command.variables_import(
+            self.parser.parse_args(["variables", "import", os.fspath(json_file)])
+        )
+        json_results = {
+            e.key: e.value.root
+            for e in mock_cli_api_client.variables.bulk.call_args.kwargs["variables"].actions[0].entities
+        }
 
-        json_results = {}
-        for key in simple_variable_data:
-            if key in ["key1"]:  # String values don't need JSON deserialization
-                json_results[key] = Variable.get(key)
-            else:
-                json_results[key] = Variable.get(key, deserialize_json=True)
+        variable_command.variables_import(
+            self.parser.parse_args(["variables", "import", os.fspath(yaml_file)])
+        )
+        yaml_results = {
+            e.key: e.value.root
+            for e in mock_cli_api_client.variables.bulk.call_args.kwargs["variables"].actions[0].entities
+        }
 
-        # Clear variables
-        for key in simple_variable_data:
-            Variable.delete(key)
-
-        # Test YAML import
-        with create_session() as session:
-            variable_command.variables_import(
-                self.parser.parse_args(["variables", "import", os.fspath(yaml_file)]), session=session
-            )
-
-        yaml_results = {}
-        for key in simple_variable_data:
-            if key in ["key1"]:  # String values don't need JSON deserialization
-                yaml_results[key] = Variable.get(key)
-            else:
-                yaml_results[key] = Variable.get(key, deserialize_json=True)
-
-        # Compare results - both formats should produce identical results
         assert json_results == yaml_results
         assert json_results["key1"] == "value1"
         assert json_results["key2"] == {"nested": "dict", "with": ["list", "values"]}
