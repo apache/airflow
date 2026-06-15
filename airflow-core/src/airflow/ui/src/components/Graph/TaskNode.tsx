@@ -45,6 +45,7 @@ export const TaskNode = ({
     operator,
     setupTeardownType,
     taskInstance,
+    team,
     tooltip,
     width = 0,
   },
@@ -133,6 +134,18 @@ export const TaskNode = ({
             >
               {isGroup ? translate("graph.taskGroup") : displayOperator}
             </Text>
+            {team !== undefined && team !== null ? (
+              <Text
+                color="fg.muted"
+                fontSize="xs"
+                fontStyle="italic"
+                overflow="hidden"
+                textOverflow="ellipsis"
+                whiteSpace="nowrap"
+              >
+                {team}
+              </Text>
+            ) : undefined}
             {taskInstance === undefined ? undefined : (
               <HStack>
                 <StateBadge fontSize="xs" state={taskInstance.state}>

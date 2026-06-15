@@ -46,7 +46,7 @@ class Summary(BaseModel):
 def _make_mock_run_result(output):
     mock_result = MagicMock(spec=["output", "usage", "response", "all_messages"])
     mock_result.output = output
-    mock_result.usage.return_value = MagicMock(
+    mock_result.usage = MagicMock(
         spec=["requests", "tool_calls", "input_tokens", "output_tokens", "total_tokens"],
         requests=1,
         tool_calls=0,

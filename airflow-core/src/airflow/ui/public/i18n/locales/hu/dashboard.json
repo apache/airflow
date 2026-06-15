@@ -1,4 +1,6 @@
 {
+  "deferredSlotsNotCounted": "Elhalasztott, slotokba nem számító feladatok : {{count}}",
+  "deferredSlotsNotCountedTooltip": "A sávban megjelenő elhalasztott feladatok beleszámítanak a pool slotokba. A sáv alatt megjelenő elhalasztott feladatok olyan poolokból származnak, amelyeknél az elhalasztott feladatok nem számítanak bele a slotokba.",
   "favorite": {
     "favoriteDags_one": "Első {{count}} kedvenc Dag",
     "favoriteDags_other": "Első {{count}} kedvenc Dag-ek",

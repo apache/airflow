@@ -454,11 +454,28 @@ class SerializedDAG:
         latest: datetime.datetime,
     ) -> Iterable[DagRunInfo]:
         """
-        Yield DagRunInfo using this DAG's timetable between given interval.
+        Yield DagRunInfo using this Dag's timetable between given interval.
 
-        DagRunInfo instances yielded if their ``logical_date`` is not earlier
-        than ``earliest``, nor later than ``latest``. The instances are ordered
-        by their ``logical_date`` from earliest to latest.
+        For non-partitioned timetables, DagRunInfo instances are yielded if
+        their ``logical_date`` is not earlier than ``earliest``, nor later than
+        ``latest``. The instances are ordered by their ``logical_date`` from
+        earliest to latest.
+
+        For partitioned timetables, the iteration axis is ``partition_date``
+        rather than ``logical_date``. ``earliest`` and ``latest`` are resolved
+        to their respective day-bounds (timetable-timezone local midnight
+        converted to UTC) and the iteration walks the half-open interval
+        ``[resolve_day_bound(earliest.date()), resolve_day_bound(latest.date() + 1 day))``,
+        making ``latest``'s calendar date inclusive regardless of its time
+        component. Each yielded :class:`~airflow.timetables.base.DagRunInfo`
+        has ``logical_date=None``, ``data_interval=None``, and
+        ``run_after == partition_date``; see
+        :meth:`~airflow.timetables.base.Timetable.iter_partition_dagrun_infos`
+        for details.
+
+        Day-bound dispatch is centralised here rather than at every call site
+        (e.g. backfill) so partitioned vs. non-partitioned routing is handled
+        once. See https://github.com/apache/airflow/pull/67537#discussion_r3386682447
         """
         if earliest is None:
             earliest = self._time_restriction.earliest
@@ -466,6 +483,13 @@ class SerializedDAG:
             raise ValueError("earliest was None and we had no value in time_restriction to fallback on")
         earliest = coerce_datetime(earliest)
         latest = coerce_datetime(latest)
+
+        if self.timetable.partitioned:
+            yield from self.timetable.iter_partition_dagrun_infos(
+                earliest_date=earliest.date(),
+                latest_date=latest.date(),
+            )
+            return
 
         restriction = TimeRestriction(earliest, latest, catchup=True)
 
