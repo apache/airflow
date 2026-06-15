@@ -50,7 +50,7 @@ class _StubOperator(DecoratedOperator):
         # execute on a remote/native worker via the Task Execution Interface and never run the
         # Python task runner, so the policy would silently never fire. Reject it up front.
         # (retries is fine -- the server computes retry eligibility regardless of runtime.)
-        if self.retry_policy is not None:
+        if getattr(self, "retry_policy", None) is not None:
             raise ValueError(
                 "@task.stub does not support `retry_policy`: it runs Python in-process, but stub "
                 "tasks execute on a lang-sdk runtime and never evaluate the policy. Use `retries` "
