@@ -225,9 +225,11 @@ raw events, it logs a warning and does nothing, because there is no broker
 advance to influence. Because it resolves the event immediately, there is
 nothing to persist and the reject does not wait on the persistence gate.
 
-``is_clean`` is ``True`` only when an event has no rejects and no failures —
-every subscriber that was online at broadcast accepted it. A single reject
-or a single failure makes ``is_clean`` ``False``.
+``is_clean`` is ``True`` only when every subscriber that was online at
+broadcast accepted the event: no rejects, no failures, and at least one
+subscriber acked. A single reject or failure makes it ``False``, and so
+does a zero-subscriber broadcast (all-zero counts) — nothing was accepted,
+so there is nothing the producer should commit on.
 
 Example — reject inside a filter:
 
@@ -354,6 +356,16 @@ the other partitions:
             # resolved prefix, in event order, so committing the offset of
             # its last item covers the whole batch and can never skip past
             # an event that is still pending.
+            #
+            # Inspect each item's outcome before committing: non-clean events
+            # (rejects, failures, or a zero-subscriber broadcast) should go to
+            # a dead-letter queue rather than be committed as delivered.
+            to_dlq = []
+            for broker_payload, outcome in batch:
+                if not outcome.is_clean:
+                    to_dlq.append(broker_payload)
+            if to_dlq:
+                handle_dlq(to_dlq)
             topic, partition, offset = batch[-1].broker_payload
             await self.consumer.commit(topic, partition, offset + 1)
 
