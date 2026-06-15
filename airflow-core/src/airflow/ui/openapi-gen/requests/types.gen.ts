@@ -105,25 +105,25 @@ export type AssetResponse = {
 };
 
 /**
- * Request body for setting an asset store value.
+ * Request body for setting an asset state store value.
  */
-export type AssetStoreBody = {
+export type AssetStateStoreBody = {
     value: JsonValue;
 };
 
 /**
- * All asset store entries for an asset.
+ * All asset state store entries for an asset.
  */
-export type AssetStoreCollectionResponse = {
-    asset_store: Array<AssetStoreResponse>;
+export type AssetStateStoreCollectionResponse = {
+    asset_state_store: Array<AssetStateStoreResponse>;
     total_entries: number;
 };
 
 /**
- * Writer info for the last write to an asset store entry.
+ * Writer info for the last write to an asset state store entry.
  */
-export type AssetStoreLastUpdatedBy = {
-    kind: AssetStoreWriterKind;
+export type AssetStateStoreLastUpdatedBy = {
+    kind: AssetStateStoreWriterKind;
     dag_id?: string | null;
     run_id?: string | null;
     task_id?: string | null;
@@ -131,23 +131,23 @@ export type AssetStoreLastUpdatedBy = {
 };
 
 /**
- * A single asset store key/value pair with metadata.
+ * A single asset state store key/value pair with metadata.
  */
-export type AssetStoreResponse = {
+export type AssetStateStoreResponse = {
     key: string;
     value: JsonValue;
     updated_at: string;
-    last_updated_by?: AssetStoreLastUpdatedBy | null;
+    last_updated_by?: AssetStateStoreLastUpdatedBy | null;
 };
 
 /**
- * Identifies what kind of writer last updated an asset store entry.
+ * Identifies what kind of writer last updated an asset state store entry.
  *
  * ``TASK`` — written by a task via the execution API.
  * ``WATCHER`` — written by a ``BaseEventTrigger`` (no task instance).
  * ``API`` — written directly through the Core API (e.g. manual admin write).
  */
-export type AssetStoreWriterKind = 'task' | 'watcher' | 'api';
+export type AssetStateStoreWriterKind = 'task' | 'watcher' | 'api';
 
 /**
  * Asset watcher serializer for responses.
@@ -1817,7 +1817,7 @@ export type TaskResponse = {
 };
 
 /**
- * Request body for setting a task store value.
+ * Request body for setting a task state store value.
  *
  * ``expires_at`` controls expiry:
  *
@@ -1825,30 +1825,30 @@ export type TaskResponse = {
  * - ``null``: never expire.
  * - aware datetime: expire at that time.
  */
-export type TaskStoreBody = {
+export type TaskStateStoreBody = {
     value: JsonValue;
     expires_at?: string | "default" | null;
 };
 
 /**
- * All task store entries for a task instance.
+ * All task state store entries for a task instance.
  */
-export type TaskStoreCollectionResponse = {
-    task_store: Array<TaskStoreResponse>;
+export type TaskStateStoreCollectionResponse = {
+    task_state_store: Array<TaskStateStoreResponse>;
     total_entries: number;
 };
 
 /**
- * Request body for patching only the value of an existing task store key.
+ * Request body for patching only the value of an existing task state store key.
  */
-export type TaskStorePatchBody = {
+export type TaskStateStorePatchBody = {
     value: JsonValue;
 };
 
 /**
- * A single task store key/value pair with metadata.
+ * A single task state store key/value pair with metadata.
  */
-export type TaskStoreResponse = {
+export type TaskStateStoreResponse = {
     key: string;
     value: JsonValue;
     updated_at: string;
@@ -1887,6 +1887,9 @@ export type TriggerDAGRunPostBody = {
 export type TriggerResponse = {
     id: number;
     classpath: string;
+    /**
+     * @deprecated
+     */
     kwargs: string;
     created_date: string;
     queue: string | null;
@@ -3092,7 +3095,7 @@ export type WaitDagRunUntilFinishedData = {
      */
     interval: number;
     /**
-     * Collect result XCom from task. Can be set multiple times.
+     * Collect result XCom from task. Can be set multiple times. If unset, return value of the return task as specified in the dag (in present) is returned by default.
      */
     result?: Array<(string)> | null;
 };
@@ -4071,43 +4074,43 @@ export type GetProvidersData = {
 
 export type GetProvidersResponse = ProviderCollectionResponse;
 
-export type ListAssetStoreData = {
+export type ListAssetStateStoreData = {
     assetId: number;
     limit?: number;
     offset?: number;
 };
 
-export type ListAssetStoreResponse = AssetStoreCollectionResponse;
+export type ListAssetStateStoreResponse = AssetStateStoreCollectionResponse;
 
-export type ClearAssetStoreData = {
+export type ClearAssetStateStoreData = {
     assetId: number;
 };
 
-export type ClearAssetStoreResponse = void;
+export type ClearAssetStateStoreResponse = void;
 
-export type GetAssetStoreData = {
-    assetId: number;
-    key: string;
-};
-
-export type GetAssetStoreResponse = AssetStoreResponse;
-
-export type SetAssetStoreData = {
-    assetId: number;
-    key: string;
-    requestBody: AssetStoreBody;
-};
-
-export type SetAssetStoreResponse = void;
-
-export type DeleteAssetStoreData = {
+export type GetAssetStateStoreData = {
     assetId: number;
     key: string;
 };
 
-export type DeleteAssetStoreResponse = void;
+export type GetAssetStateStoreResponse = AssetStateStoreResponse;
 
-export type ListTaskStoreData = {
+export type SetAssetStateStoreData = {
+    assetId: number;
+    key: string;
+    requestBody: AssetStateStoreBody;
+};
+
+export type SetAssetStateStoreResponse = void;
+
+export type DeleteAssetStateStoreData = {
+    assetId: number;
+    key: string;
+};
+
+export type DeleteAssetStateStoreResponse = void;
+
+export type ListTaskStateStoreData = {
     dagId: string;
     dagRunId: string;
     limit?: number;
@@ -4116,9 +4119,9 @@ export type ListTaskStoreData = {
     taskId: string;
 };
 
-export type ListTaskStoreResponse = TaskStoreCollectionResponse;
+export type ListTaskStateStoreResponse = TaskStateStoreCollectionResponse;
 
-export type ClearTaskStoreData = {
+export type ClearTaskStateStoreData = {
     allMapIndices?: boolean;
     dagId: string;
     dagRunId: string;
@@ -4126,9 +4129,9 @@ export type ClearTaskStoreData = {
     taskId: string;
 };
 
-export type ClearTaskStoreResponse = void;
+export type ClearTaskStateStoreResponse = void;
 
-export type GetTaskStoreData = {
+export type GetTaskStateStoreData = {
     dagId: string;
     dagRunId: string;
     key: string;
@@ -4136,31 +4139,31 @@ export type GetTaskStoreData = {
     taskId: string;
 };
 
-export type GetTaskStoreResponse = TaskStoreResponse;
+export type GetTaskStateStoreResponse = TaskStateStoreResponse;
 
-export type SetTaskStoreData = {
+export type SetTaskStateStoreData = {
     dagId: string;
     dagRunId: string;
     key: string;
     mapIndex?: number;
-    requestBody: TaskStoreBody;
+    requestBody: TaskStateStoreBody;
     taskId: string;
 };
 
-export type SetTaskStoreResponse = void;
+export type SetTaskStateStoreResponse = void;
 
-export type PatchTaskStoreData = {
+export type PatchTaskStateStoreData = {
     dagId: string;
     dagRunId: string;
     key: string;
     mapIndex?: number;
-    requestBody: TaskStorePatchBody;
+    requestBody: TaskStateStorePatchBody;
     taskId: string;
 };
 
-export type PatchTaskStoreResponse = unknown;
+export type PatchTaskStateStoreResponse = unknown;
 
-export type DeleteTaskStoreData = {
+export type DeleteTaskStateStoreData = {
     dagId: string;
     dagRunId: string;
     key: string;
@@ -4168,7 +4171,7 @@ export type DeleteTaskStoreData = {
     taskId: string;
 };
 
-export type DeleteTaskStoreResponse = void;
+export type DeleteTaskStateStoreResponse = void;
 
 export type GetXcomEntryData = {
     dagId: string;
@@ -7303,14 +7306,14 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/assets/{asset_id}/store': {
+    '/api/v2/assets/{asset_id}/state-store': {
         get: {
-            req: ListAssetStoreData;
+            req: ListAssetStateStoreData;
             res: {
                 /**
                  * Successful Response
                  */
-                200: AssetStoreCollectionResponse;
+                200: AssetStateStoreCollectionResponse;
                 /**
                  * Unauthorized
                  */
@@ -7330,7 +7333,7 @@ export type $OpenApiTs = {
             };
         };
         delete: {
-            req: ClearAssetStoreData;
+            req: ClearAssetStateStoreData;
             res: {
                 /**
                  * Successful Response
@@ -7355,14 +7358,14 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/assets/{asset_id}/store/{key}': {
+    '/api/v2/assets/{asset_id}/state-store/{key}': {
         get: {
-            req: GetAssetStoreData;
+            req: GetAssetStateStoreData;
             res: {
                 /**
                  * Successful Response
                  */
-                200: AssetStoreResponse;
+                200: AssetStateStoreResponse;
                 /**
                  * Unauthorized
                  */
@@ -7382,7 +7385,7 @@ export type $OpenApiTs = {
             };
         };
         put: {
-            req: SetAssetStoreData;
+            req: SetAssetStateStoreData;
             res: {
                 /**
                  * Successful Response
@@ -7407,7 +7410,7 @@ export type $OpenApiTs = {
             };
         };
         delete: {
-            req: DeleteAssetStoreData;
+            req: DeleteAssetStateStoreData;
             res: {
                 /**
                  * Successful Response
@@ -7432,14 +7435,14 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/store': {
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store': {
         get: {
-            req: ListTaskStoreData;
+            req: ListTaskStateStoreData;
             res: {
                 /**
                  * Successful Response
                  */
-                200: TaskStoreCollectionResponse;
+                200: TaskStateStoreCollectionResponse;
                 /**
                  * Unauthorized
                  */
@@ -7459,7 +7462,7 @@ export type $OpenApiTs = {
             };
         };
         delete: {
-            req: ClearTaskStoreData;
+            req: ClearTaskStateStoreData;
             res: {
                 /**
                  * Successful Response
@@ -7484,14 +7487,14 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/store/{key}': {
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}': {
         get: {
-            req: GetTaskStoreData;
+            req: GetTaskStateStoreData;
             res: {
                 /**
                  * Successful Response
                  */
-                200: TaskStoreResponse;
+                200: TaskStateStoreResponse;
                 /**
                  * Unauthorized
                  */
@@ -7511,7 +7514,7 @@ export type $OpenApiTs = {
             };
         };
         put: {
-            req: SetTaskStoreData;
+            req: SetTaskStateStoreData;
             res: {
                 /**
                  * Successful Response
@@ -7536,7 +7539,7 @@ export type $OpenApiTs = {
             };
         };
         patch: {
-            req: PatchTaskStoreData;
+            req: PatchTaskStateStoreData;
             res: {
                 /**
                  * Successful Response
@@ -7561,7 +7564,7 @@ export type $OpenApiTs = {
             };
         };
         delete: {
-            req: DeleteTaskStoreData;
+            req: DeleteTaskStateStoreData;
             res: {
                 /**
                  * Successful Response

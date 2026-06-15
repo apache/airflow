@@ -61,9 +61,9 @@ class AssetEventAccessControl(BaseModel):
     allow_global: Annotated[bool | None, Field(title="Allow Global")] = True
 
 
-class AssetStoreWriterKind(str, Enum):
+class AssetStateStoreWriterKind(str, Enum):
     """
-    Identifies what kind of writer last updated an asset store entry.
+    Identifies what kind of writer last updated an asset state store entry.
 
     ``TASK`` — written by a task via the execution API.
     ``WATCHER`` — written by a ``BaseEventTrigger`` (no task instance).
@@ -999,9 +999,9 @@ class TaskOutletAssetReference(BaseModel):
     updated_at: Annotated[datetime, Field(title="Updated At")]
 
 
-class TaskStoreBody(BaseModel):
+class TaskStateStoreBody(BaseModel):
     """
-    Request body for setting a task store value.
+    Request body for setting a task state store value.
 
     ``expires_at`` controls expiry:
 
@@ -1017,9 +1017,9 @@ class TaskStoreBody(BaseModel):
     expires_at: Annotated[datetime | str | None, Field(title="Expires At")] = "default"
 
 
-class TaskStorePatchBody(BaseModel):
+class TaskStateStorePatchBody(BaseModel):
     """
-    Request body for patching only the value of an existing task store key.
+    Request body for patching only the value of an existing task state store key.
     """
 
     model_config = ConfigDict(
@@ -1028,9 +1028,9 @@ class TaskStorePatchBody(BaseModel):
     value: JsonValue
 
 
-class TaskStoreResponse(BaseModel):
+class TaskStateStoreResponse(BaseModel):
     """
-    A single task store key/value pair with metadata.
+    A single task state store key/value pair with metadata.
     """
 
     key: Annotated[str, Field(title="Key")]
@@ -1269,9 +1269,9 @@ class AssetResponse(BaseModel):
     last_asset_event: LastAssetEventResponse | None = None
 
 
-class AssetStoreBody(BaseModel):
+class AssetStateStoreBody(BaseModel):
     """
-    Request body for setting an asset store value.
+    Request body for setting an asset state store value.
     """
 
     model_config = ConfigDict(
@@ -1280,27 +1280,27 @@ class AssetStoreBody(BaseModel):
     value: JsonValue
 
 
-class AssetStoreLastUpdatedBy(BaseModel):
+class AssetStateStoreLastUpdatedBy(BaseModel):
     """
-    Writer info for the last write to an asset store entry.
+    Writer info for the last write to an asset state store entry.
     """
 
-    kind: AssetStoreWriterKind
+    kind: AssetStateStoreWriterKind
     dag_id: Annotated[str | None, Field(title="Dag Id")] = None
     run_id: Annotated[str | None, Field(title="Run Id")] = None
     task_id: Annotated[str | None, Field(title="Task Id")] = None
     map_index: Annotated[int | None, Field(title="Map Index")] = None
 
 
-class AssetStoreResponse(BaseModel):
+class AssetStateStoreResponse(BaseModel):
     """
-    A single asset store key/value pair with metadata.
+    A single asset state store key/value pair with metadata.
     """
 
     key: Annotated[str, Field(title="Key")]
     value: JsonValue
     updated_at: Annotated[datetime, Field(title="Updated At")]
-    last_updated_by: AssetStoreLastUpdatedBy | None = None
+    last_updated_by: AssetStateStoreLastUpdatedBy | None = None
 
 
 class BackfillPostBody(BaseModel):
@@ -2104,12 +2104,12 @@ class TaskResponse(BaseModel):
     ]
 
 
-class TaskStoreCollectionResponse(BaseModel):
+class TaskStateStoreCollectionResponse(BaseModel):
     """
-    All task store entries for a task instance.
+    All task state store entries for a task instance.
     """
 
-    task_store: Annotated[list[TaskStoreResponse], Field(title="Task Store")]
+    task_state_store: Annotated[list[TaskStateStoreResponse], Field(title="Task State Store")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
@@ -2149,12 +2149,12 @@ class AssetEventCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
-class AssetStoreCollectionResponse(BaseModel):
+class AssetStateStoreCollectionResponse(BaseModel):
     """
-    All asset store entries for an asset.
+    All asset state store entries for an asset.
     """
 
-    asset_store: Annotated[list[AssetStoreResponse], Field(title="Asset Store")]
+    asset_state_store: Annotated[list[AssetStateStoreResponse], Field(title="Asset State Store")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 

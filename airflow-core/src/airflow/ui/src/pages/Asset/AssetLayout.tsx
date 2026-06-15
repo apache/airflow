@@ -61,7 +61,11 @@ export const AssetLayout = () => {
 
   const tabs = [
     { icon: <MdTimeline />, label: translate("assets:events"), value: "" },
-    { icon: <MdOutlineStorage />, label: translate("assets:assetStore.title"), value: "asset-store" },
+    {
+      icon: <MdOutlineStorage />,
+      label: translate("assets:assetStateStore.title"),
+      value: "asset-state-store",
+    },
   ];
 
   return (

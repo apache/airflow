@@ -499,7 +499,7 @@ class FakeTaskState:
 
 @pytest.mark.skipif(
     not AIRFLOW_V_3_3_PLUS,
-    reason="ResumableJobMixin reconnect requires task_store, available in Airflow 3.3+",
+    reason="ResumableJobMixin reconnect requires task_state_store, available in Airflow 3.3+",
 )
 class TestSparkSubmitOperatorResumable:
     def setup_method(self):
@@ -540,7 +540,7 @@ class TestSparkSubmitOperatorResumable:
 
         operator.poll_until_complete = track_poll
 
-        operator.execute(context={"task_store": task_store})
+        operator.execute(context={"task_state_store": task_store})
 
         operator._hook.submit.assert_called_once_with("test.jar")
         assert persisted_before_poll == ["driver-001"]
@@ -565,7 +565,7 @@ class TestSparkSubmitOperatorResumable:
         polled = []
         operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
 
-        operator.execute(context={"task_store": task_store})
+        operator.execute(context={"task_state_store": task_store})
 
         if expect_submit:
             operator._hook.submit.assert_called_once_with("test.jar")
@@ -577,14 +577,14 @@ class TestSparkSubmitOperatorResumable:
         else:
             assert polled == []
 
-    def test_submits_fresh_when_task_store_unavailable(self):
+    def test_submits_fresh_when_task_state_store_unavailable(self):
         operator = self._make_operator()
         operator._hook = self._make_hook(should_track=True)
         operator._hook.submit.return_value = "driver-001"
         polled = []
         operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
 
-        # no task_store key in context
+        # no task_state_store key in context
         operator.execute(context={})
 
         operator._hook.submit.assert_called_once_with("test.jar")
@@ -598,7 +598,7 @@ class TestSparkSubmitOperatorResumable:
         polled = []
         operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
 
-        operator.execute(context={"task_store": task_store})
+        operator.execute(context={"task_state_store": task_store})
         # reconnect_on_retry=False: ignores prior driver ID, submits fresh, but still polls
         operator._hook.submit.assert_called_once_with("test.jar")
         assert polled == ["driver-new"]
@@ -744,7 +744,7 @@ class TestSparkSubmitOperatorResumable:
             persisted_before_poll.append(task_store.get("spark_job_id"))
 
         operator.poll_until_complete = track_poll
-        operator.execute(context={"task_store": task_store})
+        operator.execute(context={"task_state_store": task_store})
 
         assert persisted_before_poll == ["application_1234_0001"]
 
@@ -757,7 +757,7 @@ class TestSparkSubmitOperatorResumable:
         polled = []
         operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
 
-        operator.execute(context={"task_store": task_store})
+        operator.execute(context={"task_state_store": task_store})
 
         operator._hook.submit.assert_not_called()
         assert polled == ["application_1234_0001"]
@@ -769,7 +769,7 @@ class TestSparkSubmitOperatorResumable:
 
         operator.get_job_status = lambda external_id, context: "SUCCEEDED"
 
-        operator.execute(context={"task_store": task_store})
+        operator.execute(context={"task_state_store": task_store})
 
         operator._hook.submit.assert_not_called()
 
@@ -785,7 +785,7 @@ class TestSparkSubmitOperatorResumable:
         polled = []
         operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
 
-        operator.execute(context={"task_store": task_store})
+        operator.execute(context={"task_state_store": task_store})
 
         operator._hook.submit.assert_called_once_with("test.jar")
         assert polled == ["application_1234_0002"]

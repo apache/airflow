@@ -2,7 +2,7 @@
   "additional_data": "Dades addicionals",
   "asset_many": "Assets",
   "asset_one": "Asset",
-  "assetStore": {
+  "assetStateStore": {
     "add": "Afegir magatzem d'Asset",
     "clearAll": {
       "resource": "tot el magatzem d'Asset",
@@ -13,6 +13,9 @@
     "deleteWarning": "L'Asset perdrà aquesta entrada de magatzem persistent.",
     "edit": "Editar magatzem d'Asset",
     "emptyState": "El magatzem d'Asset emmagatzema valors limitats a una identitat d'Asset, compartits entre totes les execucions de Dag. Els workers poden escriure al magatzem d'Asset mitjançant el Task SDK.",
+    "lastUpdatedBy": "Last Updated By",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Watcher",
     "title": "Magatzem d'Asset"
   },
   "consumingDags": "Dags consumidors",
