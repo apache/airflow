@@ -1,0 +1,1 @@
+Add deferrable mode to ``SFTPOperator`` via ``deferrable=True`` parameter, freeing Airflow worker slots during file transfers by delegating execution to the async Triggerer.
