@@ -42,6 +42,7 @@ from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     OnFinishAction,
+    PodLaunchTimeoutException,
     PodLoggingStatus,
     PodNotFoundException,
     PodPhase,
@@ -1166,6 +1167,25 @@ class TestKubernetesPodOperator:
             delete_pod_mock.assert_called_with(find_pod_mock.return_value)
         else:
             delete_pod_mock.assert_not_called()
+
+    @patch(f"{POD_MANAGER_CLASS}.delete_pod")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.await_init_containers_completion")
+    def test_execute_sync_checks_pod_start_before_following_init_container_logs(
+        self, await_init_mock, find_pod_mock, delete_pod_mock
+    ):
+        """Pod start is awaited before following init-container logs, so a Pending pod hits the
+        startup timeout instead of blocking forever in the init-log wait loop."""
+        find_pod_mock.return_value.status.phase = PodPhase.SUCCEEDED
+        self.await_start_mock.side_effect = PodLaunchTimeoutException("Pod took too long to start")
+        k = KubernetesPodOperator(task_id="task", init_container_logs=["init-container"])
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        with pytest.raises(PodLaunchTimeoutException, match="too long to start"):
+            k.execute(context=context)
+
+        await_init_mock.assert_not_called()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("should_fail", [True, False])

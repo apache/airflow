@@ -29,9 +29,10 @@ exercises XCom across the language boundary, the same way
   routed to the ``ExecutableCoordinator``, which locates the bundle by dag_id and
   runs the binary in coordinator mode. ``extract`` returns a map (pushed as its
   ``return_value`` XCom); ``transform`` reads the ``my_variable`` variable.
-* ``load`` returns an error on purpose. It is a leaf (not upstream of
-  ``python_task_2``) so its failure is observable while leaving the Go -> Python
-  XCom hop intact.
+* ``load`` (``retries=1``) returns an error on its first attempt and succeeds
+  on the retry, exercising the UP_FOR_RETRY path through the Go coordinator. It
+  is a leaf (not upstream of ``python_task_2``) so its retry is observable
+  while leaving the Go -> Python XCom hop intact.
 * ``python_task_2`` (Python) pulls the Go ``extract`` task's XCom and re-emits
   it, demonstrating the Go -> Python direction end-to-end.
 
@@ -42,6 +43,8 @@ default Python executor and are independent of the bundle.
 """
 
 from __future__ import annotations
+
+from datetime import timedelta
 
 from airflow.sdk import dag, task
 
@@ -61,7 +64,10 @@ def extract(): ...
 def transform(): ...
 
 
-@task.stub(queue="golang")
+# ``load`` fails on its first attempt and succeeds on the retry, exercising the
+# UP_FOR_RETRY path through the Go coordinator. The short ``retry_delay`` keeps
+# the end-to-end run fast.
+@task.stub(queue="golang", retries=1, retry_delay=timedelta(seconds=5))
 def load(): ...
 
 
@@ -78,9 +84,9 @@ def simple_dag():
     extracted = extract()
     transformed = transform()
     python_task_1() >> extracted >> transformed
-    # ``load`` fails on purpose; keep it a leaf (not upstream of python_task_2)
-    # so the failure is observable without skipping the Python task that pulls
-    # the Go XCom.
+    # ``load`` fails once then succeeds on retry; keep it a leaf (not upstream
+    # of python_task_2) so its retry is observable without affecting the Python
+    # task that pulls the Go XCom.
     transformed >> [load(), python_task_2(extracted)]
 
 

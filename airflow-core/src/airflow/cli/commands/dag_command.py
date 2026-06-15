@@ -46,6 +46,7 @@ from airflow.jobs.job import Job
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import clear_task_instances
 from airflow.timetables.base import TimeRestriction
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
@@ -55,10 +56,10 @@ from airflow.utils.cli import (
     validate_dag_bundle_arg,
 )
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
-from airflow.utils.helpers import ask_yesno
+from airflow.utils.helpers import ask_yesno, chunks
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -74,6 +75,9 @@ if TYPE_CHECKING:
 DAG_DETAIL_FIELDS = {*DAGResponse.model_fields, *DAGResponse.model_computed_fields}
 
 log = logging.getLogger(__name__)
+
+# Chunk size for bulk delete.
+_RUN_CHUNK_SIZE = 500
 
 
 @cli_utils.action_cli
@@ -189,15 +193,46 @@ def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
             print("Cancelled, nothing was cleared.")
             return
 
-    cleared = 0
-    for run_id in run_ids:
-        cleared += dag.clear(
-            run_id=run_id,
-            only_failed=args.only_failed,
-            only_running=args.only_running,
-            session=session,
-        )
+    cleared = _bulk_clear_runs(
+        args.dag_id,
+        run_ids,
+        only_failed=args.only_failed,
+        only_running=args.only_running,
+        session=session,
+    )
     print(f"Cleared {cleared} task instance(s) across {len(run_ids)} Dag run(s).")
+
+
+def _bulk_clear_runs(
+    dag_id: str,
+    run_ids: list[str],
+    only_failed: bool,
+    only_running: bool,
+    session: Session,
+) -> int:
+    """Clear task instances for the given run_ids in chunks instead of one transaction per run."""
+    state_filter: list[TaskInstanceState] = []
+    if only_failed:
+        state_filter += [TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED]
+    if only_running:
+        state_filter += [TaskInstanceState.RUNNING]
+
+    cleared = 0
+    for chunk_run_ids in chunks(run_ids, _RUN_CHUNK_SIZE):
+        ti_query = select(TaskInstance).where(
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.run_id.in_(chunk_run_ids),
+        )
+        if state_filter:
+            ti_query = ti_query.where(TaskInstance.state.in_(state_filter))
+        tis = session.scalars(ti_query).all()
+        if not tis:
+            continue
+        clear_task_instances(list(tis), session=session)
+        session.flush()
+        cleared += len(tis)
+
+    return cleared
 
 
 @cli_utils.action_cli
