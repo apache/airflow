@@ -269,7 +269,10 @@ AssetOrTimeSchedule
 
 Combining conditional asset expressions with time-based schedules enhances scheduling flexibility.
 
-The ``AssetOrTimeSchedule`` is a specialized timetable that allows for the scheduling of Dags based on both time-based schedules and asset events. It also facilitates the creation of both scheduled runs, as per traditional timetables, and asset-triggered runs, which operate independently.
+Asset-aware timetables let you combine a time-based schedule with an asset expression:
+
+* ``AssetOrTimeSchedule`` schedules Dag runs both on the timetable and whenever the assets update. It creates traditional scheduled runs and asset-triggered runs independently.
+* ``AssetAndTimeSchedule`` keeps the Dag on a time-based timetable but only creates a scheduled run after all referenced assets are ready. When the run is created, the asset events are consumed so the next scheduled run waits for the next set of updates. No asset-triggered runs are created.
 
 This feature is particularly useful in scenarios where a Dag needs to run on asset updates and also at periodic intervals. It ensures that the workflow remains responsive to data changes and consistently runs regular checks or updates.
 
@@ -277,8 +280,7 @@ Here's an example of a Dag using ``AssetOrTimeSchedule``:
 
 .. code-block:: python
 
-    from airflow.timetables.assets import AssetOrTimeSchedule
-    from airflow.timetables.trigger import CronTriggerTimetable
+    from airflow.sdk import AssetOrTimeSchedule, CronTriggerTimetable
 
 
     @dag(
@@ -288,6 +290,23 @@ Here's an example of a Dag using ``AssetOrTimeSchedule``:
         ...,
     )
     def example_dag():
+        pass
+
+Here's an example of a Dag using ``AssetAndTimeSchedule`` to require both the time-based schedule and fresh assets before a run is created:
+
+.. code-block:: python
+
+    from airflow.sdk import AssetAndTimeSchedule, CronTriggerTimetable
+
+
+    @dag(
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"),
+            assets=(dag1_asset & dag2_asset),
+        ),
+    )
+    def example_gated_dag():
+        # Dag tasks go here
         pass
 
 
