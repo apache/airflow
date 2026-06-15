@@ -3550,7 +3550,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
             executor.change_state(ti.key, TaskInstanceState.FAILED, remove_running=True)
             stats.incr(
-                "task_instances_without_heartbeats_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id}
+                "task_instances_without_heartbeats_killed",
+                tags=prune_dict(
+                    {
+                        "dag_id": ti.dag_id,
+                        "task_id": ti.task_id,
+                        "team_name": dag_id_to_team_name.get(ti.dag_id),
+                    }
+                ),
             )
 
     # [END find_and_purge_task_instances_without_heartbeats]
