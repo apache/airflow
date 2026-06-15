@@ -742,8 +742,7 @@ class AssetStateStoreAccessor:
             ref = backend.serialize_asset_state_store_to_ref(value=value, key=key, scope=scope)
             stored = _wrap_external_ref(ref)
 
-        limit = conf.getint("state_store", "max_value_storage_bytes")
-        if limit > 0:
+        if ((limit := conf.getint("state_store", "max_value_storage_bytes")) > 0):
             serialized_size = len(json.dumps(stored))
             if serialized_size > limit:
                 log.warning(
