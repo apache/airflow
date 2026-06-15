@@ -146,8 +146,10 @@ def test_api_requests_emit_metrics(request_path, route_tag, api_surface):
         "route": route_tag,
         "status_family": "2xx",
     }
-    mock_incr.assert_called_once_with("api.requests", tags=expected_request_tags)
-    mock_timing.assert_called_once_with("api.request.duration", mock.ANY, tags=expected_duration_tags)
+    mock_incr.assert_called_once_with("http_requests_total", tags=expected_request_tags)
+    mock_timing.assert_called_once_with(
+        "http_request_duration_seconds", mock.ANY, tags=expected_duration_tags
+    )
 
 
 def test_unconfigured_plugin_path_does_not_emit_metrics():
@@ -181,8 +183,8 @@ def test_configured_api_path_prefix_emits_metrics_for_most_specific_surface():
         "route": "/plugin/items/{item_id}",
         "status_family": "2xx",
     }
-    mock_incr.assert_called_once_with("api.requests", tags=expected_tags)
-    mock_timing.assert_called_once_with("api.request.duration", mock.ANY, tags=expected_tags)
+    mock_incr.assert_called_once_with("http_requests_total", tags=expected_tags)
+    mock_timing.assert_called_once_with("http_request_duration_seconds", mock.ANY, tags=expected_tags)
 
 
 def test_health_path_emits_metrics():
@@ -200,11 +202,11 @@ def test_health_path_emits_metrics():
         "route": "/api/v2/monitor/health",
         "status_family": "2xx",
     }
-    mock_incr.assert_called_once_with("api.requests", tags=expected_tags)
-    mock_timing.assert_called_once_with("api.request.duration", mock.ANY, tags=expected_tags)
+    mock_incr.assert_called_once_with("http_requests_total", tags=expected_tags)
+    mock_timing.assert_called_once_with("http_request_duration_seconds", mock.ANY, tags=expected_tags)
 
 
-def test_failed_api_requests_emit_error_metric():
+def test_failed_api_requests_emit_metrics_with_server_error_status():
     with (
         mock.patch("airflow.api_fastapi.common.http_metrics.Stats.incr") as mock_incr,
         mock.patch("airflow.api_fastapi.common.http_metrics.Stats.timing") as mock_timing,
@@ -219,16 +221,8 @@ def test_failed_api_requests_emit_error_metric():
         "route": "/api/v2/fail",
         "status_family": "5xx",
     }
-    expected_error_tags = {
-        "api_surface": "public",
-        "method": "GET",
-        "route": "/api/v2/fail",
-    }
-    assert mock_incr.call_args_list == [
-        mock.call("api.requests", tags=expected_request_tags),
-        mock.call("api.request.errors", tags=expected_error_tags),
-    ]
-    mock_timing.assert_called_once_with("api.request.duration", mock.ANY, tags=expected_request_tags)
+    mock_incr.assert_called_once_with("http_requests_total", tags=expected_request_tags)
+    mock_timing.assert_called_once_with("http_request_duration_seconds", mock.ANY, tags=expected_request_tags)
 
 
 def test_unmatched_api_requests_use_unmatched_route_tag():
@@ -252,5 +246,7 @@ def test_unmatched_api_requests_use_unmatched_route_tag():
         "route": "unmatched",
         "status_family": "4xx",
     }
-    mock_incr.assert_called_once_with("api.requests", tags=expected_request_tags)
-    mock_timing.assert_called_once_with("api.request.duration", mock.ANY, tags=expected_duration_tags)
+    mock_incr.assert_called_once_with("http_requests_total", tags=expected_request_tags)
+    mock_timing.assert_called_once_with(
+        "http_request_duration_seconds", mock.ANY, tags=expected_duration_tags
+    )

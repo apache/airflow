@@ -1017,7 +1017,6 @@ class TestConf:
         "path_prefix_to_surface",
         [
             pytest.param("not-json", id="invalid-json"),
-            pytest.param("[]", id="not-an-object"),
             pytest.param('{"plugin": "plugin"}', id="prefix-without-leading-slash"),
             pytest.param('{"/plugin/": "plugin"}', id="prefix-with-trailing-slash"),
             pytest.param('{"/plugin": ""}', id="empty-surface"),
@@ -1029,6 +1028,13 @@ class TestConf:
         test_conf.read_dict({"metrics": {"api_path_prefix_to_surface": path_prefix_to_surface}})
 
         with pytest.raises(AirflowConfigException, match="api_path_prefix_to_surface"):
+            test_conf.validate()
+
+    def test_validate_api_path_prefix_to_surface_reports_actual_type(self):
+        test_conf = AirflowConfigParser(default_config="")
+        test_conf.read_dict({"metrics": {"api_path_prefix_to_surface": "[]"}})
+
+        with pytest.raises(AirflowConfigException, match=r"must be a JSON object \(got list\)"):
             test_conf.validate()
 
     def test_validate_api_path_prefix_to_surface_valid_mapping(self):

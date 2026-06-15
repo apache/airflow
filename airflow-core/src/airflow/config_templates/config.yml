@@ -1155,8 +1155,7 @@ metrics:
     api_path_prefix_to_surface:
       description: |
         JSON mapping of HTTP path prefixes to API surface names used for the ``api_surface`` tag
-        on API metrics. Requests that do not match a configured prefix emit metrics without the
-        ``api_surface`` tag.
+        on API metrics. Requests that do not match a configured prefix do not emit API metrics.
 
         Add prefixes to identify additional routes, such as the Execution API or routes registered
         by plugins. When prefixes overlap, the most specific prefix is used.

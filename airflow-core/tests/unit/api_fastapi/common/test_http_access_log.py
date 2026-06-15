@@ -25,7 +25,11 @@ from starlette.routing import Route
 from starlette.testclient import TestClient
 
 from airflow._shared.secrets_masker import _secrets_masker
-from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware, _redact_query_string
+from airflow.api_fastapi.common.http_access_log import (
+    _HEALTH_PATHS,
+    HttpAccessLogMiddleware,
+    _redact_query_string,
+)
 
 
 @pytest.fixture
@@ -145,6 +149,10 @@ def test_non_http_scope_not_logged():
         asyncio.run(middleware({"type": "lifespan"}, None, None))
 
     assert logs == []
+
+
+def test_health_paths_constant():
+    assert "/api/v2/monitor/health" in _HEALTH_PATHS
 
 
 @pytest.mark.enable_redact

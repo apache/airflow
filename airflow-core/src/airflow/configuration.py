@@ -416,7 +416,9 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
 
         path_prefix_to_surface = self.getjson(section, key)
         if not isinstance(path_prefix_to_surface, dict):
-            raise AirflowConfigException(f"[{section}] {key} must be a JSON object")
+            raise AirflowConfigException(
+                f"[{section}] {key} must be a JSON object (got {type(path_prefix_to_surface).__name__})"
+            )
 
         for prefix, surface in path_prefix_to_surface.items():
             if (

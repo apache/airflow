@@ -97,22 +97,16 @@ def _emit_api_metrics(
         return
 
     # Keep tags bounded so API metrics remain usable across supported backends.
-    base_tags = {
+    tags = {
         "api_surface": api_surface,
         "method": method,
         "route": _get_route_tag(scope),
-    }
-    status_family = _get_status_family(status_code)
-    request_tags = {
-        **base_tags,
-        "status_family": status_family,
+        "status_family": _get_status_family(status_code),
     }
     duration_ms = duration_us / 1000.0
 
-    Stats.incr("api.requests", tags=request_tags)
-    Stats.timing("api.request.duration", duration_ms, tags=request_tags)
-    if status_code >= 500:
-        Stats.incr("api.request.errors", tags=base_tags)
+    Stats.incr("http_requests_total", tags=tags)
+    Stats.timing("http_request_duration_seconds", duration_ms, tags=tags)
 
 
 class HttpMetricsMiddleware:

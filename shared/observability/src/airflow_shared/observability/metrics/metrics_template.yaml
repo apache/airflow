@@ -589,16 +589,9 @@ metrics:
     legacy_name: "-"
     name_variables: ["status"]
 
-  - name: "api.requests"
+  - name: "http_requests_total"
     description: "Number of completed REST API requests. Metric with method, route, status_family,
-    and optional api_surface tagging."
-    type: "counter"
-    legacy_name: "-"
-    name_variables: []
-
-  - name: "api.request.errors"
-    description: "Number of REST API requests that resulted in server-side failures (5xx). Metric
-    with method, route, and optional api_surface tagging."
+    and api_surface tagging."
     type: "counter"
     legacy_name: "-"
     name_variables: []
@@ -606,9 +599,9 @@ metrics:
   # ==========
   # Timers
   # ==========
-  - name: "api.request.duration"
+  - name: "http_request_duration_seconds"
     description: "Milliseconds taken to complete a REST API request. Metric with method, route,
-    status_family, and optional api_surface tagging."
+    status_family, and api_surface tagging."
     type: "timer"
     legacy_name: "-"
     name_variables: []
