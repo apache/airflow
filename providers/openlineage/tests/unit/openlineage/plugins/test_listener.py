@@ -2319,3 +2319,88 @@ class TestOpenLineageSelectiveEnableAirflow2:
 
         assert expected_call_count == listener._executor.submit.call_count
         assert expected_task_call_count == listener.extractor_manager.extract_metadata.call_count
+
+
+class TestExecuteRouting:
+    """Tests for `_execute` fork/thread routing and the `_thread_execute` bound (#65714 follow-up)."""
+
+    @conf_vars({("openlineage", "execute_in_thread"): "False"})
+    @patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._thread_execute")
+    @patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._fork_execute")
+    def test_execute_uses_fork_by_default(self, mock_fork, mock_thread):
+        listener = OpenLineageListener()
+        callable_ = MagicMock()
+
+        listener._execute(callable_, "on_running", use_fork=True)
+
+        mock_fork.assert_called_once_with(callable_, "on_running")
+        mock_thread.assert_not_called()
+        callable_.assert_not_called()
+
+    @conf_vars({("openlineage", "execute_in_thread"): "True"})
+    @patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._thread_execute")
+    @patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._fork_execute")
+    def test_execute_uses_thread_when_enabled(self, mock_fork, mock_thread):
+        listener = OpenLineageListener()
+        callable_ = MagicMock()
+
+        listener._execute(callable_, "on_running", use_fork=True)
+
+        mock_thread.assert_called_once_with(callable_, "on_running")
+        mock_fork.assert_not_called()
+        callable_.assert_not_called()
+
+    @conf_vars({("openlineage", "execute_in_thread"): "True"})
+    @patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._thread_execute")
+    @patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._fork_execute")
+    def test_execute_runs_inline_without_fork_flag(self, mock_fork, mock_thread):
+        # use_fork=False always runs the callable directly, regardless of execute_in_thread.
+        listener = OpenLineageListener()
+        callable_ = MagicMock()
+
+        listener._execute(callable_, "on_state_change", use_fork=False)
+
+        callable_.assert_called_once_with()
+        mock_fork.assert_not_called()
+        mock_thread.assert_not_called()
+
+    @conf_vars({("openlineage", "execute_in_thread"): "True", ("openlineage", "execution_timeout"): "5"})
+    def test_thread_execute_runs_callable_to_completion(self):
+        listener = OpenLineageListener()
+        result = {"ran": False}
+
+        def _emit():
+            result["ran"] = True
+
+        listener._thread_execute(_emit, "on_running")
+
+        assert result["ran"] is True
+
+    @conf_vars({("openlineage", "execute_in_thread"): "True", ("openlineage", "execution_timeout"): "1"})
+    def test_thread_execute_is_bounded_and_abandons_overrunning_emission(self):
+        import threading
+        import time
+
+        listener = OpenLineageListener()
+        started = threading.Event()
+        release = threading.Event()
+        finished = {"v": False}
+
+        def _slow_emit():
+            started.set()
+            # Block far longer than execution_timeout; released by the test for cleanup.
+            release.wait(timeout=30)
+            finished["v"] = True
+
+        try:
+            t0 = time.monotonic()
+            listener._thread_execute(_slow_emit, "on_running")
+            elapsed = time.monotonic() - t0
+
+            # The emission started, but `_thread_execute` returned without waiting for it:
+            # bounded by execution_timeout (1s), never blocking for the full 30s emission.
+            assert started.is_set()
+            assert finished["v"] is False
+            assert elapsed < 10
+        finally:
+            release.set()
