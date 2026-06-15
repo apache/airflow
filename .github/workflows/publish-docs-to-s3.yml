@@ -366,12 +366,22 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.ref }}
-      - name: "Check whether the Java SDK exists at this ref"
+      - name: "Decide whether to build the Java SDK Javadoc"
         id: sdk-present
         env:
           REF: ${{ inputs.ref }}
+          INCLUDE_DOCS: ${{ inputs.include-docs }}
         run: |
-          if [[ -f "java-sdk/gradlew" ]]; then
+          # The Java SDK Javadoc is only built (and later published) for full doc
+          # builds (include-docs == 'all') or when 'java-sdk' is explicitly listed.
+          # When a specific list of packages is passed (e.g. a provider release
+          # wave like "amazon cncf.kubernetes ..."), the Java SDK must NOT be added
+          # automatically — otherwise the publish step drags java-sdk into a
+          # providers-only publish and the S3 publish fails.
+          if [[ "${INCLUDE_DOCS}" != "all" && " ${INCLUDE_DOCS} " != *" java-sdk "* ]]; then
+            echo "exists=false" >> "${GITHUB_OUTPUT}"
+            echo "include-docs='${INCLUDE_DOCS}' is a specific package list without 'java-sdk' — skipping Javadoc build."
+          elif [[ -f "java-sdk/gradlew" ]]; then
             echo "exists=true" >> "${GITHUB_OUTPUT}"
           else
             echo "exists=false" >> "${GITHUB_OUTPUT}"

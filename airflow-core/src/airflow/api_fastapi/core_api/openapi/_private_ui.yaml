@@ -4117,6 +4117,7 @@ components:
         kwargs:
           type: string
           title: Kwargs
+          deprecated: true
         created_date:
           type: string
           format: date-time

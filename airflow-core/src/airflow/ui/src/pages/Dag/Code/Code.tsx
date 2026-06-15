@@ -20,7 +20,7 @@ import { Box, Button, Heading, HStack, Link, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
-import { MdOutlineOpenInFull } from "react-icons/md";
+import { MdOutlineDifference, MdOutlineOpenInFull, MdWrapText } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
 import {
@@ -35,7 +35,8 @@ import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Editor, { type EditorProps } from "src/components/MonacoEditor";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardButton, Dialog, IconButton, Tooltip, ProgressBar } from "src/components/ui";
+import { Dialog, IconButton, ProgressBar } from "src/components/ui";
+import { LazyClipboard } from "src/components/ui/LazyClipboard";
 import { useMonacoTheme } from "src/context/colorMode";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useConfig } from "src/queries/useConfig";
@@ -46,7 +47,7 @@ import { FileLocation } from "./FileLocation";
 import { VersionCompareSelect } from "./VersionCompareSelect";
 
 export const Code = () => {
-  const { t: translate } = useTranslation(["dag", "common"]);
+  const { t: translate } = useTranslation(["dag", "common", "components"]);
   const { dagId } = useParams();
 
   const selectedVersion = useSelectedVersion();
@@ -202,6 +203,43 @@ export const Code = () => {
     </Box>
   );
 
+  const actionButtons = (
+    <HStack gap={1}>
+      <IconButton
+        aria-label={translate(`common:wrap.${wrap ? "un" : ""}wrap`)}
+        label={translate("common:wrap.tooltip", { hotkey: "w" })}
+        onClick={toggleWrap}
+        variant={wrap ? "solid" : "ghost"}
+      >
+        <MdWrapText />
+      </IconButton>
+      {hasMultipleVersions ? (
+        <IconButton
+          aria-label={translate("common:diff")}
+          label={translate("common:diff")}
+          onClick={toggleCompareDropdown}
+          variant={isCompareDropdownOpen || isDiffMode ? "solid" : "ghost"}
+        >
+          <MdOutlineDifference />
+        </IconButton>
+      ) : undefined}
+      {isFullscreen ? undefined : (
+        <IconButton
+          label={translate("common:fullscreen.tooltip", { hotkey: "f" })}
+          onClick={toggleFullscreen}
+        >
+          <MdOutlineOpenInFull />
+        </IconButton>
+      )}
+      <LazyClipboard
+        getValue={() => code?.content ?? ""}
+        label={translate("components:clipboard.copy")}
+        size="md"
+        variant="ghost"
+      />
+    </HStack>
+  );
+
   const codeHeader = (
     <HStack justifyContent="space-between" mt={2}>
       <HStack gap={5}>
@@ -239,40 +277,7 @@ export const Code = () => {
       <VStack gap={2} position="relative">
         <HStack flexWrap="wrap" gap={2}>
           <DagVersionSelect showLabel={false} />
-          <ClipboardRoot value={code?.content ?? ""}>
-            <ClipboardButton />
-          </ClipboardRoot>
-          <Tooltip
-            closeDelay={100}
-            content={translate("common:wrap.tooltip", { hotkey: "w" })}
-            openDelay={100}
-          >
-            <Button
-              aria-label={translate(`common:wrap.${wrap ? "un" : ""}wrap`)}
-              onClick={toggleWrap}
-              variant="outline"
-            >
-              {translate(`common:wrap.${wrap ? "un" : ""}wrap`)}
-            </Button>
-          </Tooltip>
-          {isFullscreen ? undefined : (
-            <IconButton
-              label={translate("logs.fullscreen.tooltip", { hotkey: "f" })}
-              onClick={toggleFullscreen}
-              variant="outline"
-            >
-              <MdOutlineOpenInFull />
-            </IconButton>
-          )}
-          {hasMultipleVersions ? (
-            <Button
-              aria-label={translate("common:diff")}
-              onClick={toggleCompareDropdown}
-              variant={isCompareDropdownOpen ? "solid" : "outline"}
-            >
-              {translate("common:diff")}
-            </Button>
-          ) : undefined}
+          {actionButtons}
           {isDiffMode ? (
             <Button aria-label={translate("common:diffExit")} onClick={exitDiffMode} variant="solid">
               {translate("common:diffExit")}
