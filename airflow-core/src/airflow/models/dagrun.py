@@ -1073,13 +1073,12 @@ class DagRun(Base, LoggingMixin):
         span = trace.get_current_span(context=ctx)
         span_context = span.get_span_context()
 
-        # Honor the head-sampling decision recorded in the carrier. This is
-        # required because the span below is forced to be a root span
-        # (context=context.Context()), so otherwise, the configured sampler would never see
-        # the carrier's flag.
-        # A valid-but-unsampled carrier means the run was head-sampled out; skip emission.
-        # An invalid/empty carrier (legacy DagRun created before tracing) falls through
-        # and still emits a root span, which is the prior behavior but we should possibly reconsider.
+        # Skip if the run was head-sampled out. Unlike the task spans, this guard is
+        # required (not just an optimization): the span below is forced to be a root span
+        # (context=context.Context()), so the configured sampler never sees the carrier's
+        # flag. A valid-but-unsampled carrier means head-sampled out; an invalid/empty
+        # carrier (legacy DagRun) recorded no decision, so it falls through and still
+        # emits — prior behavior we may want to reconsider.
         if span_context.is_valid and not span_context.trace_flags.sampled:
             return
 
