@@ -916,7 +916,7 @@ class TestTriggerRunner:
         # Group is torn down on unsubscribe.
         assert trigger_runner._shared_streams._groups == {}
 
-    def test_shared_stream_ack_mode_integration(self, session) -> None:
+    def test_shared_stream_ack_mode_integration(self) -> None:
         """A BaseEventTrigger whose producer factory is overridden advances only after the event's derived trigger event is confirmed persisted."""
         advanced: list[Any] = []
         # Container lets _drive() write trigger_runner back for post-run assertions.
