@@ -1314,9 +1314,9 @@ class TestPytestSnowflakeHook:
 
         if expected is ValueError:
             with pytest.raises(ValueError, match=match):
-                hook._validate_grant_type(grant_type)
+                hook._oauth.validate_grant_type(grant_type)
         else:
-            assert hook._validate_grant_type(grant_type) == expected
+            assert hook._oauth.validate_grant_type(grant_type) == expected
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
     @mock.patch("requests.post")
