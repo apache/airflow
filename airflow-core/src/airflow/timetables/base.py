@@ -271,7 +271,10 @@ class Timetable(Protocol):
         implementation raises :exc:`NotImplementedError`; timetables that set
         ``partitioned = True`` must override this.
         """
-        msg = f"{type(self).__name__} is partitioned but does not implement iter_partition_dagrun_infos."
+        if self.partitioned:
+            msg = f"{type(self).__name__} is partitioned but does not implement iter_partition_dagrun_infos."
+        else:
+            msg = f"{type(self).__name__} is not partitioned"
         raise NotImplementedError(msg)
 
     def resolve_day_bound(self, day: datetime.date) -> DateTime:
