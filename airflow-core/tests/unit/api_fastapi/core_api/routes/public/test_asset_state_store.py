@@ -42,7 +42,7 @@ def _create_asset(session) -> AssetModel:
     return asset
 
 
-def _create_asset_state(session, asset_id: int, key: str, value: str) -> None:
+def _create_asset_state_store_row(session, asset_id: int, key: str, value: str) -> None:
     row = AssetStateStoreModel(asset_id=asset_id, key=key, value=json.dumps(value))
     session.add(row)
     session.flush()
@@ -91,8 +91,8 @@ class TestListAssetState(TestAssetStateEndpoint):
         assert response.json() == {"asset_state_store": [], "total_entries": 0}
 
     def test_returns_all_keys(self, test_client):
-        _create_asset_state(self._session, self.asset.id, "watermark", "2026-05-01")
-        _create_asset_state(self._session, self.asset.id, "file_count", "42")
+        _create_asset_state_store_row(self._session, self.asset.id, "watermark", "2026-05-01")
+        _create_asset_state_store_row(self._session, self.asset.id, "file_count", "42")
         self._session.commit()
 
         response = test_client.get(self._base_url)
@@ -103,7 +103,7 @@ class TestListAssetState(TestAssetStateEndpoint):
         assert keys == {"watermark": "2026-05-01", "file_count": "42"}
 
     def test_returns_metadata_fields(self, test_client):
-        _create_asset_state(self._session, self.asset.id, "watermark", "2026-05-01")
+        _create_asset_state_store_row(self._session, self.asset.id, "watermark", "2026-05-01")
         self._session.commit()
 
         item = test_client.get(self._base_url).json()["asset_state_store"][0]
@@ -134,7 +134,7 @@ class TestListAssetState(TestAssetStateEndpoint):
 
     def test_pagination_limit(self, test_client):
         for k in ("watermark", "file_count", "last_run"):
-            _create_asset_state(self._session, self.asset.id, k, "v")
+            _create_asset_state_store_row(self._session, self.asset.id, k, "v")
         self._session.commit()
 
         response = test_client.get(f"{self._base_url}?limit=2")
@@ -144,7 +144,7 @@ class TestListAssetState(TestAssetStateEndpoint):
 
     def test_pagination_offset(self, test_client):
         for k in ("watermark", "file_count", "last_run"):
-            _create_asset_state(self._session, self.asset.id, k, "v")
+            _create_asset_state_store_row(self._session, self.asset.id, k, "v")
         self._session.commit()
 
         response = test_client.get(f"{self._base_url}?limit=2&offset=2")
@@ -158,7 +158,7 @@ class TestListAssetState(TestAssetStateEndpoint):
 
 class TestGetAssetState(TestAssetStateEndpoint):
     def test_returns_value(self, test_client):
-        _create_asset_state(self._session, self.asset.id, "watermark", "2026-05-01")
+        _create_asset_state_store_row(self._session, self.asset.id, "watermark", "2026-05-01")
         self._session.commit()
 
         response = test_client.get(f"{self._base_url}/watermark")
@@ -196,7 +196,7 @@ class TestGetAssetState(TestAssetStateEndpoint):
 
     def test_key_with_slash_is_supported(self, test_client):
         """Keys containing slashes must work — route uses {key:path}."""
-        _create_asset_state(self._session, self.asset.id, "partition/date", "2026-05-01")
+        _create_asset_state_store_row(self._session, self.asset.id, "partition/date", "2026-05-01")
         self._session.commit()
 
         response = test_client.get(f"{self._base_url}/partition/date")
@@ -274,7 +274,7 @@ class TestSetAssetState(TestAssetStateEndpoint):
     @pytest.mark.parametrize("value", [42, True, {"rows": 100}, [1, "two"], "hello"])
     def test_worker_write_core_api_read_roundtrip(self, test_client, value):
         """Worker write (json.dumps in DB) then Core API read returns native value."""
-        _create_asset_state(self._session, self.asset.id, "k", value)
+        _create_asset_state_store_row(self._session, self.asset.id, "k", value)
         self._session.commit()
         assert test_client.get(f"{self._base_url}/k").json()["value"] == value
 
@@ -292,7 +292,7 @@ class TestSetAssetState(TestAssetStateEndpoint):
 
 class TestDeleteAssetState(TestAssetStateEndpoint):
     def test_deletes_key(self, test_client):
-        _create_asset_state(self._session, self.asset.id, "watermark", "2026-05-01")
+        _create_asset_state_store_row(self._session, self.asset.id, "watermark", "2026-05-01")
         self._session.commit()
 
         assert test_client.delete(f"{self._base_url}/watermark").status_code == 204
@@ -302,8 +302,8 @@ class TestDeleteAssetState(TestAssetStateEndpoint):
         assert test_client.delete(f"{self._base_url}/nonexistent").status_code == 204
 
     def test_only_deletes_target_key(self, test_client):
-        _create_asset_state(self._session, self.asset.id, "watermark", "a")
-        _create_asset_state(self._session, self.asset.id, "file_count", "b")
+        _create_asset_state_store_row(self._session, self.asset.id, "watermark", "a")
+        _create_asset_state_store_row(self._session, self.asset.id, "file_count", "b")
         self._session.commit()
 
         test_client.delete(f"{self._base_url}/watermark")
@@ -312,7 +312,7 @@ class TestDeleteAssetState(TestAssetStateEndpoint):
         assert test_client.get(f"{self._base_url}/file_count").json()["value"] == "b"
 
     def test_key_with_slash_is_supported(self, test_client):
-        _create_asset_state(self._session, self.asset.id, "partition/date", "v")
+        _create_asset_state_store_row(self._session, self.asset.id, "partition/date", "v")
         self._session.commit()
 
         assert test_client.delete(f"{self._base_url}/partition/date").status_code == 204
@@ -325,7 +325,7 @@ class TestDeleteAssetState(TestAssetStateEndpoint):
 class TestClearAssetState(TestAssetStateEndpoint):
     def test_clears_all_keys(self, test_client):
         for k, v in [("watermark", "a"), ("file_count", "b"), ("last_run", "c")]:
-            _create_asset_state(self._session, self.asset.id, k, v)
+            _create_asset_state_store_row(self._session, self.asset.id, k, v)
         self._session.commit()
 
         assert test_client.delete(self._base_url).status_code == 204
@@ -338,8 +338,8 @@ class TestClearAssetState(TestAssetStateEndpoint):
         other_asset = AssetModel(uri="s3://other/asset", name="other_asset", group="test")
         self._session.add(other_asset)
         self._session.flush()
-        _create_asset_state(self._session, self.asset.id, "watermark", "mine")
-        _create_asset_state(self._session, other_asset.id, "watermark", "theirs")
+        _create_asset_state_store_row(self._session, self.asset.id, "watermark", "mine")
+        _create_asset_state_store_row(self._session, other_asset.id, "watermark", "theirs")
         self._session.commit()
 
         test_client.delete(self._base_url)
@@ -348,7 +348,7 @@ class TestClearAssetState(TestAssetStateEndpoint):
         assert test_client.get(f"{other_url}/watermark").json()["value"] == "theirs"
 
     def test_clears_slash_keyed_entries(self, test_client):
-        _create_asset_state(self._session, self.asset.id, "partition/date", "v")
+        _create_asset_state_store_row(self._session, self.asset.id, "partition/date", "v")
         self._session.commit()
 
         assert test_client.delete(self._base_url).status_code == 204
@@ -372,7 +372,7 @@ class TestRoutesNeverCallCustomBackend(TestAssetStateEndpoint):
         ],
     )
     def test_route_never_calls_get_state_backend(self, test_client, method, path_suffix, kwargs):
-        _create_asset_state(self._session, self.asset.id, "watermark", "v1")
+        _create_asset_state_store_row(self._session, self.asset.id, "watermark", "v1")
         self._session.commit()
 
         with patch("airflow.state.get_state_backend") as mock_get_backend:
