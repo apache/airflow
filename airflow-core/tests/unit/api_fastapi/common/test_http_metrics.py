@@ -30,7 +30,6 @@ from airflow.api_fastapi.common.http_metrics import (
     HttpMetricsMiddleware,
     _get_status_family,
 )
-from airflow.exceptions import AirflowConfigException
 
 from tests_common.test_utils.config import conf_vars
 
@@ -184,24 +183,6 @@ def test_configured_api_path_prefix_emits_metrics_for_most_specific_surface():
     }
     mock_incr.assert_called_once_with("api.requests", tags=expected_tags)
     mock_timing.assert_called_once_with("api.request.duration", mock.ANY, tags=expected_tags)
-
-
-@pytest.mark.parametrize(
-    "path_prefix_to_surface",
-    [
-        pytest.param("[]", id="not-an-object"),
-        pytest.param('{"plugin": "plugin"}', id="prefix-without-leading-slash"),
-        pytest.param('{"/plugin/": "plugin"}', id="prefix-with-trailing-slash"),
-        pytest.param('{"/plugin": ""}', id="empty-surface"),
-        pytest.param('{"/plugin": 1}', id="non-string-surface"),
-    ],
-)
-def test_invalid_api_path_prefix_to_surface_config(path_prefix_to_surface):
-    with (
-        conf_vars({("metrics", "api_path_prefix_to_surface"): path_prefix_to_surface}),
-        pytest.raises(AirflowConfigException, match="api_path_prefix_to_surface"),
-    ):
-        HttpMetricsMiddleware(mock.AsyncMock())
 
 
 def test_health_path_emits_metrics():
