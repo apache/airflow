@@ -957,7 +957,7 @@ class TestSparkSubmitOperatorK8sTracking:
         task_store = FakeTaskState({"k8s_driver_status": "Succeeded"})
 
         with mock.patch("airflow.providers.apache.spark.operators.spark_submit.kube_client") as mock_kube:
-            result = operator.get_job_status("mynamespace:spark-abc-driver", {"task_store": task_store})
+            result = operator.get_job_status("mynamespace:spark-abc-driver", {"task_state_store": task_store})
 
         assert result == "Succeeded"
         mock_kube.get_kube_client.assert_not_called()
@@ -972,7 +972,7 @@ class TestSparkSubmitOperatorK8sTracking:
 
         with mock.patch("airflow.providers.apache.spark.operators.spark_submit.kube_client") as mock_kube:
             mock_kube.get_kube_client.return_value.read_namespaced_pod.return_value = mock_pod
-            result = operator.get_job_status("mynamespace:spark-abc-driver", {"task_store": task_store})
+            result = operator.get_job_status("mynamespace:spark-abc-driver", {"task_state_store": task_store})
 
         assert result == "Running"
 
@@ -1035,7 +1035,7 @@ class TestSparkSubmitOperatorK8sTracking:
         operator._hook = hook
         task_store = FakeTaskState()
 
-        operator.poll_until_complete("mynamespace:spark-abc-driver", {"task_store": task_store})
+        operator.poll_until_complete("mynamespace:spark-abc-driver", {"task_state_store": task_store})
 
         assert task_store.get("k8s_driver_status") == "Succeeded"
 
@@ -1046,7 +1046,7 @@ class TestSparkSubmitOperatorK8sTracking:
         operator._hook = hook
         task_store = FakeTaskState()
 
-        operator.poll_until_complete("mynamespace:spark-abc-driver", {"task_store": task_store})
+        operator.poll_until_complete("mynamespace:spark-abc-driver", {"task_state_store": task_store})
 
         assert task_store.get("k8s_driver_status") is None
 
@@ -1058,7 +1058,7 @@ class TestSparkSubmitOperatorK8sTracking:
         task_store = FakeTaskState()
 
         with pytest.raises(RuntimeError, match="phase=Failed"):
-            operator.poll_until_complete("mynamespace:spark-abc-driver", {"task_store": task_store})
+            operator.poll_until_complete("mynamespace:spark-abc-driver", {"task_state_store": task_store})
 
         assert task_store.get("k8s_driver_status") is None
 
@@ -1072,7 +1072,7 @@ class TestSparkSubmitOperatorK8sTracking:
         not AIRFLOW_V_3_3_PLUS,
         reason="ResumableJobMixin reconnect requires task_state, available in Airflow 3.3+",
     )
-    def test_k8s_execute_persists_pod_id_to_task_store_when_reconnect_on_retry(self):
+    def test_k8s_execute_persists_pod_id_when_reconnect_on_retry(self):
         """execute() with reconnect_on_retry=True stores the pod ID in task_store before polling."""
         operator = self._make_operator(track_driver_via_k8s_api=True, reconnect_on_retry=True)
         hook = self._make_k8s_hook()
@@ -1087,7 +1087,7 @@ class TestSparkSubmitOperatorK8sTracking:
 
         operator.poll_until_complete = track_poll
 
-        operator.execute(context={"task_store": task_store})
+        operator.execute(context={"task_state_store": task_store})
 
         assert persisted_before_poll == ["mynamespace:spark-abc-driver"]
 
@@ -1106,6 +1106,6 @@ class TestSparkSubmitOperatorK8sTracking:
 
         operator.poll_until_complete = lambda external_id, context: None
 
-        operator.execute(context={"task_store": task_store})
+        operator.execute(context={"task_state_store": task_store})
 
         assert task_store.get("spark_job_id") is None

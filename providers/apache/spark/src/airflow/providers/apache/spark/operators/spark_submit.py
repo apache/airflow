@@ -342,8 +342,8 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if self._hook._is_yarn_cluster_mode:
             return self._hook.query_yarn_application_status(external_id)
         if self._hook._is_kubernetes:
-            if (task_store := context.get("task_store")) is not None:
-                if (cached := task_store.get(self._K8S_DRIVER_STATUS_KEY)) is not None:
+            if (task_state_store := context.get("task_state_store")) is not None:
+                if (cached := task_state_store.get(self._K8S_DRIVER_STATUS_KEY)) is not None:
                     if not isinstance(cached, str):
                         raise ValueError(f"Cached K8s driver status is not a string: {cached!r}")
                     return cached
@@ -446,8 +446,8 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             # returns None for cases like: pod deleted by on_kill or garbage collected after failure)
             # and must not be cached, otherwise a retry would see "Succeeded" and skip resubmission.
             if terminal_phase == "Succeeded" and self.reconnect_on_retry:
-                if (task_store := context.get("task_store")) is not None:
-                    task_store.set(self._K8S_DRIVER_STATUS_KEY, "Succeeded")
+                if (task_state_store := context.get("task_state_store")) is not None:
+                    task_state_store.set(self._K8S_DRIVER_STATUS_KEY, "Succeeded")
             return
 
         self.log.info("Polling driver %s until completion", external_id)
