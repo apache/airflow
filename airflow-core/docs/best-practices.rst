@@ -361,48 +361,10 @@ By integrating ``ruff`` into your development workflow, you can proactively addr
 Static Type Checking for Dags
 -----------------------------
 
-Airflow publishes a set of `mypy <https://mypy-lang.org/>`_ plugins as a standalone, independently
-versioned distribution: `apache-airflow-mypy <https://pypi.org/project/apache-airflow-mypy/>`_.
-
-You may want to install it if you run ``mypy`` over your Dags, custom operators, or hooks and want
-accurate results for Airflow-specific patterns. Without the plugins, ``mypy`` cannot reason about a couple
-of Airflow constructs and reports false positives. The plugins teach ``mypy`` about:
-
-* **Typed decorators** -- decorators that inject keyword arguments at runtime (for example
-  ``GoogleBaseHook.fallback_to_default_project_id``), so ``mypy`` does not flag those arguments as missing.
-* **Operator outputs** -- the ``.output`` attribute of operators and the return value of ``@task``-decorated
-  functions (an ``XComArg``) are resolved to the underlying runtime type. This lets you wire a task's output
-  into a downstream task without spurious type errors:
-
-  .. code-block:: python
-
-     @task
-     def f(a: str) -> int:
-         return len(a)
-
-
-     @task
-     def g(b: int) -> None: ...
-
-
-     g(f("hello"))  # mypy understands the output of f() is an int
-
-Install it alongside ``mypy``:
-
-.. code-block:: bash
-
-   pip install apache-airflow-mypy
-
-Then enable the plugins in your ``mypy`` configuration (``mypy.ini``, ``setup.cfg`` or ``pyproject.toml``):
-
-.. code-block:: ini
-
-   [mypy]
-   plugins = airflow_mypy.plugins.decorators, airflow_mypy.plugins.outputs
-
-The package follows `SemVer <https://semver.org/>`_ and is released on its own cadence, so you can adopt it
-independently of your Airflow version. It is entirely optional -- Airflow does not require it at runtime, and it
-only improves the accuracy of static type checking for Dag authors.
+If you type-check your Dags with ``mypy``, the optional
+`apache-airflow-mypy <https://pypi.org/project/apache-airflow-mypy/>`_ plugins give accurate results for
+Airflow-specific patterns such as typed decorators and operator outputs. See
+:doc:`/howto/static-type-checking` for installation and configuration.
 
 .. _best_practices/dynamic_dag_generation:
 
