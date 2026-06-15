@@ -51,24 +51,12 @@ def _make_app(raise_exc: bool = False) -> Starlette:
             raise RuntimeError("boom")
         return PlainTextResponse("ok")
 
-    async def api_item(request):
-        return PlainTextResponse("ok")
-
-    async def ui_item(request):
-        return PlainTextResponse("ok")
-
-    async def api_fail(request):
-        raise RuntimeError("boom")
-
     async def health(request):
         return PlainTextResponse("healthy")
 
     app = Starlette(
         routes=[
             Route("/", homepage),
-            Route("/api/v2/items/{item_id}", api_item),
-            Route("/ui/items/{item_id}", ui_item),
-            Route("/api/v2/fail", api_fail),
             Route("/api/v2/monitor/health", health),
         ]
     )
