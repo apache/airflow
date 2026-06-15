@@ -2424,7 +2424,7 @@ class TestTIUpdateState:
         )
         session.commit()
 
-        backend = MetastoreStoreBackend()
+        backend = MetastoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.commit()
@@ -2468,7 +2468,9 @@ class TestTIUpdateState:
         ti_db = session.get(TaskInstance, ti.id)
         assert ti_db is not None
         assert ti_db.state == TaskInstanceState.SUCCESS
-        assert not session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == ti.task_id)).all()
+        assert not session.scalars(
+            select(TaskStateStoreModel).where(TaskStateStoreModel.task_id == ti.task_id)
+        ).all()
         assert session.scalars(select(AssetEvent).where(AssetEvent.asset_id == asset.id)).all() == []
 
     @pytest.mark.db_test
