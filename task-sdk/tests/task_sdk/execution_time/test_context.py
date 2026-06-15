@@ -501,6 +501,41 @@ class TestOutletEventAccessorPartitionKeys:
         accessor.add_partitions(["us", "eu"])
         assert accessor.partition_keys == {"us", "eu"}
 
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "",
+            "   ",
+            "\t",
+        ],
+        ids=["empty", "spaces", "tab"],
+    )
+    def test_add_partitions_rejects_empty_key(self, accessor, key):
+        with pytest.raises(ValueError, match="must not be empty or whitespace-only"):
+            accessor.add_partitions(key)
+
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "a" * 250,
+            "a" * 251,
+        ],
+        ids=["at_limit_accepted", "over_limit_rejected"],
+    )
+    def test_add_partitions_length_boundary(self, accessor, key):
+        if len(key) <= accessor._PARTITION_KEY_MAX_LENGTH:
+            accessor.add_partitions(key)
+            assert key in accessor.partition_keys
+        else:
+            with pytest.raises(ValueError, match="at most 250 characters"):
+                accessor.add_partitions(key)
+
+    def test_add_partitions_rejects_any_invalid_in_list(self, accessor):
+        """A list with a mix of valid and invalid keys fails before any are added."""
+        with pytest.raises(ValueError, match="must not be empty or whitespace-only"):
+            accessor.add_partitions(["us", ""])
+        assert accessor.partition_keys == set()
+
 
 class TestTriggeringAssetEventsAccessor:
     @pytest.fixture(autouse=True)
