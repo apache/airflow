@@ -480,8 +480,8 @@ class TestSparkSubmitOperator:
         }
 
 
-class FakeTaskStore:
-    """In-memory task state for tests."""
+class FakeTaskStateStore:
+    """In-memory task state store for tests."""
 
     def __init__(self, stored: dict[str, str] | None = None):
         self._store: dict[str, str] = dict(stored or {})
@@ -528,7 +528,7 @@ class TestSparkSubmitOperatorResumable:
         operator._hook = self._make_hook(should_track=True)
         operator._hook.submit.return_value = "driver-001"
 
-        task_store = FakeTaskStore()
+        task_store = FakeTaskStateStore()
         persisted_before_poll = []
 
         def track_poll(external_id, context):
@@ -555,7 +555,7 @@ class TestSparkSubmitOperatorResumable:
         operator = self._make_operator()
         operator._hook = self._make_hook(should_track=True)
         operator._hook.submit.return_value = "driver-new"
-        task_store = FakeTaskStore({"spark_job_id": "driver-001"})
+        task_store = FakeTaskStateStore({"spark_job_id": "driver-001"})
 
         operator.get_job_status = lambda external_id, context: prior_status
         polled = []
@@ -590,7 +590,7 @@ class TestSparkSubmitOperatorResumable:
         operator = self._make_operator(reconnect_on_retry=False)
         operator._hook = self._make_hook(should_track=True)
         operator._hook.submit.return_value = "driver-new"
-        task_store = FakeTaskStore({"spark_job_id": "driver-old"})
+        task_store = FakeTaskStateStore({"spark_job_id": "driver-old"})
         polled = []
         operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
 
@@ -733,7 +733,7 @@ class TestSparkSubmitOperatorResumable:
         operator._hook._yarn_application_id = "application_1234_0001"
         operator._hook.submit.return_value = None
 
-        task_store = FakeTaskStore()
+        task_store = FakeTaskStateStore()
         persisted_before_poll = []
 
         def track_poll(external_id, context):
@@ -747,7 +747,7 @@ class TestSparkSubmitOperatorResumable:
     def test_yarn_retry_reconnects_to_running_app(self):
         operator = self._make_operator()
         operator._hook = self._make_hook(is_yarn_cluster=True)
-        task_store = FakeTaskStore({"spark_job_id": "application_1234_0001"})
+        task_store = FakeTaskStateStore({"spark_job_id": "application_1234_0001"})
 
         operator.get_job_status = lambda external_id, context: "RUNNING"
         polled = []
@@ -761,7 +761,7 @@ class TestSparkSubmitOperatorResumable:
     def test_yarn_retry_skips_already_succeeded_app(self):
         operator = self._make_operator()
         operator._hook = self._make_hook(is_yarn_cluster=True)
-        task_store = FakeTaskStore({"spark_job_id": "application_1234_0001"})
+        task_store = FakeTaskStateStore({"spark_job_id": "application_1234_0001"})
 
         operator.get_job_status = lambda external_id, context: "SUCCEEDED"
 
@@ -775,7 +775,7 @@ class TestSparkSubmitOperatorResumable:
         operator._hook._conf = {}
         operator._hook._yarn_application_id = "application_1234_0002"
         operator._hook.submit.return_value = None
-        task_store = FakeTaskStore({"spark_job_id": "application_1234_0001"})
+        task_store = FakeTaskStateStore({"spark_job_id": "application_1234_0001"})
 
         operator.get_job_status = lambda external_id, context: "FAILED"
         polled = []
