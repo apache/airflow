@@ -77,10 +77,12 @@ func TestFetchJobDoesNotLogToken(t *testing.T) {
 	require.NoError(t, err)
 
 	w := &worker{
-		hostname:       "test-worker",
-		client:         client,
-		queues:         []string{"default"},
-		logger:         slog.New(slog.NewJSONHandler(&logBuffer, nil)),
+		hostname: "test-worker",
+		client:   client,
+		queues:   []string{"default"},
+		logger: slog.New(slog.NewJSONHandler(&logBuffer, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		})),
 		maxConcurrency: 16,
 	}
 	w.freeConcurrency.Store(4)
@@ -90,9 +92,14 @@ func TestFetchJobDoesNotLogToken(t *testing.T) {
 	require.NotNil(t, workload)
 	require.Equal(t, int32(3), slots)
 	require.Equal(t, secretToken, workload.Token)
+	w.logger.Debug("Got allocation", "workload", jobInfo{
+		ExecuteTaskWorkload: *workload,
+		ConcurrencySlots:    slots,
+	})
 
 	logOutput := logBuffer.String()
 	require.Contains(t, logOutput, "Fetched job")
+	require.Contains(t, logOutput, "Got allocation")
 	require.Contains(t, logOutput, "example_dag")
 	require.Contains(t, logOutput, "example_task")
 	require.NotContains(t, logOutput, secretToken)

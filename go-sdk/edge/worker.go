@@ -64,7 +64,9 @@ type worker struct {
 	sysInfo map[string]edgeapi.WorkerStateBody_Sysinfo_AdditionalProperties
 }
 
-func buildFetchedJobLogAttrs(job edgeapi.EdgeJobFetched) []slog.Attr {
+type fetchedJobForLog edgeapi.EdgeJobFetched
+
+func buildFetchedJobLogAttrs(job fetchedJobForLog) []slog.Attr {
 	attrs := []slog.Attr{
 		slog.String("dag_id", job.DagId),
 		slog.String("task_id", job.TaskId),
@@ -83,6 +85,10 @@ func buildFetchedJobLogAttrs(job edgeapi.EdgeJobFetched) []slog.Attr {
 	}
 
 	return attrs
+}
+
+func (job fetchedJobForLog) LogValue() slog.Value {
+	return slog.GroupValue(buildFetchedJobLogAttrs(job)...)
 }
 
 var (
@@ -329,6 +335,29 @@ type jobInfo struct {
 	ConcurrencySlots int32
 }
 
+func (job jobInfo) LogValue() slog.Value {
+	mapIndex := -1
+	if job.TI.MapIndex != nil {
+		mapIndex = *job.TI.MapIndex
+	}
+
+	attrs := []slog.Attr{
+		slog.String("dag_id", job.TI.DagId),
+		slog.String("task_id", job.TI.TaskId),
+		slog.String("run_id", job.TI.RunId),
+		slog.Int("try_number", job.TI.TryNumber),
+		slog.Int("map_index", mapIndex),
+		slog.Int("concurrency_slots", int(job.ConcurrencySlots)),
+		slog.String("bundle_name", job.BundleInfo.Name),
+	}
+
+	if job.BundleInfo.Version != nil {
+		attrs = append(attrs, slog.String("bundle_version", *job.BundleInfo.Version))
+	}
+
+	return slog.GroupValue(attrs...)
+}
+
 // fetchJobsForever will fetch jobs from the API server every second (if there is capacity), sending the
 // resulting workloads out on the channel.
 func (w *worker) fetchJobsForever(ctx context.Context) <-chan jobInfo {
@@ -382,7 +411,7 @@ func (w *worker) fetchJob(ctx context.Context) (*bundlev1.ExecuteTaskWorkload, i
 		return nil, 0, nil
 	}
 
-	w.logger.LogAttrs(ctx, slog.LevelInfo, "Fetched job", buildFetchedJobLogAttrs(edgeapi.EdgeJobFetched{
+	w.logger.Info("Fetched job", "job", fetchedJobForLog(edgeapi.EdgeJobFetched{
 		Command:          resp.Command,
 		ConcurrencySlots: resp.ConcurrencySlots,
 		DagId:            resp.DagId,
@@ -390,7 +419,7 @@ func (w *worker) fetchJob(ctx context.Context) (*bundlev1.ExecuteTaskWorkload, i
 		RunId:            resp.RunId,
 		TaskId:           resp.TaskId,
 		TryNumber:        resp.TryNumber,
-	})...)
+	}))
 
 	// Round trip via json. Inefficient, but easy to code
 	asJSON, err := json.Marshal(resp.Command)
