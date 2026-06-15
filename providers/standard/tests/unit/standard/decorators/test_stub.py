@@ -55,3 +55,14 @@ def fn_code():
 def test_stub_signature(fn, error):
     with error:
         stub(fn)()
+
+
+def test_stub_rejects_retry_policy():
+    from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy
+
+    with pytest.raises(ValueError, match="does not support retry_policy"):
+        stub(fn_pass, retry_policy=ExceptionRetryPolicy(rules=[]))()
+
+
+def test_stub_allows_retries():
+    stub(fn_pass, retries=5)()
