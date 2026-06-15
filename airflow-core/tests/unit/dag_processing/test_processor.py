@@ -46,6 +46,7 @@ from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
     DagRunContext,
+    DagSkippedIntervalsCallbackRequest,
     EmailRequest,
     TaskCallbackRequest,
 )
@@ -59,6 +60,7 @@ from airflow.dag_processing.processor import (
     ToManager,
     _execute_callbacks,
     _execute_dag_callbacks,
+    _execute_dag_skipped_intervals_callback,
     _execute_email_callbacks,
     _execute_task_callbacks,
     _parse_file,
@@ -770,6 +772,28 @@ class TestExecuteCallbacks:
         mock_lock.return_value.__exit__.assert_called_once()
         mock_execute.assert_called_once_with(dagbag, callbacks[0], log)
 
+    def test_execute_callbacks_routes_skipped_intervals_request(self):
+        callbacks = [
+            DagSkippedIntervalsCallbackRequest(
+                filepath="test.py",
+                dag_id="test_dag",
+                bundle_name="testing",
+                bundle_version="some_commit_hash",
+                skipped_intervals=[(timezone.utcnow(), timezone.utcnow())],
+            )
+        ]
+        log = MagicMock(spec=FilteringBoundLogger)
+        dagbag = MagicMock(spec=DagBag)
+
+        with (
+            patch("airflow.dag_processing.processor.BundleVersionLock") as mock_lock,
+            patch("airflow.dag_processing.processor._execute_dag_skipped_intervals_callback") as mock_execute,
+        ):
+            _execute_callbacks(dagbag, callbacks, log)
+
+        mock_lock.assert_called_once_with(bundle_name="testing", bundle_version="some_commit_hash")
+        mock_execute.assert_called_once_with(dagbag, callbacks[0], log)
+
 
 class TestExecuteDagCallbacks:
     """Test the _execute_dag_callbacks function with context_from_server"""
@@ -1262,6 +1286,124 @@ class TestExecuteDagCallbacks:
 
         mock_supervisor_comms.send.assert_called_once_with(msg=operation_type)
         assert operation_response in caplog.text
+
+
+class TestExecuteDagSkippedIntervalsCallback:
+    def test_execute_skipped_intervals_callback(self, spy_agency):
+        context_received = None
+
+        def on_skipped_intervals(context):
+            nonlocal context_received
+            context_received = context
+
+        with DAG(dag_id="test_dag", on_skipped_intervals_callback=on_skipped_intervals) as dag:
+            BaseOperator(task_id="test_task")
+
+        def fake_collect_dags(self, *args, **kwargs):
+            self.dags[dag.dag_id] = dag
+
+        spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+        dagbag = DagBag()
+        dagbag.collect_dags()
+
+        interval_start = timezone.datetime(2024, 1, 1)
+        interval_end = timezone.datetime(2024, 1, 2)
+        request = DagSkippedIntervalsCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            bundle_name="testing",
+            bundle_version=None,
+            skipped_intervals=[(interval_start, interval_end)],
+        )
+
+        log = structlog.get_logger()
+        _execute_dag_skipped_intervals_callback(dagbag, request, log)
+
+        assert context_received is not None
+        assert context_received["dag"] is dag
+        assert context_received["reason"] == "skipped_intervals"
+        assert len(context_received["skipped_intervals"]) == 1
+        skipped = context_received["skipped_intervals"][0]
+        assert skipped.start == interval_start
+        assert skipped.end == interval_end
+
+    def test_execute_skipped_intervals_callback_multiple_callbacks(self, spy_agency):
+        call_count = 0
+
+        def on_skipped_1(context):
+            nonlocal call_count
+            call_count += 1
+
+        def on_skipped_2(context):
+            nonlocal call_count
+            call_count += 1
+
+        with DAG(
+            dag_id="test_dag",
+            on_skipped_intervals_callback=[on_skipped_1, on_skipped_2],
+        ) as dag:
+            BaseOperator(task_id="test_task")
+
+        def fake_collect_dags(self, *args, **kwargs):
+            self.dags[dag.dag_id] = dag
+
+        spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+        dagbag = DagBag()
+        dagbag.collect_dags()
+
+        request = DagSkippedIntervalsCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            bundle_name="testing",
+            bundle_version=None,
+            skipped_intervals=[(timezone.utcnow(), timezone.utcnow())],
+        )
+
+        _execute_dag_skipped_intervals_callback(dagbag, request, structlog.get_logger())
+        assert call_count == 2
+
+    def test_execute_skipped_intervals_callback_no_callback_defined(self, spy_agency):
+        with DAG(dag_id="test_dag") as dag:
+            BaseOperator(task_id="test_task")
+
+        def fake_collect_dags(self, *args, **kwargs):
+            self.dags[dag.dag_id] = dag
+
+        spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+        dagbag = DagBag()
+        dagbag.collect_dags()
+
+        request = DagSkippedIntervalsCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            bundle_name="testing",
+            bundle_version=None,
+            skipped_intervals=[(timezone.utcnow(), timezone.utcnow())],
+        )
+
+        log = MagicMock(spec=FilteringBoundLogger)
+        _execute_dag_skipped_intervals_callback(dagbag, request, log)
+
+        log.warning.assert_called_once_with(
+            "Skipped intervals callback requested, but dag didn't have any",
+            dag_id="test_dag",
+        )
+
+    def test_execute_skipped_intervals_callback_missing_dag(self):
+        dagbag = DagBag()
+        request = DagSkippedIntervalsCallbackRequest(
+            filepath="test.py",
+            dag_id="missing_dag",
+            bundle_name="testing",
+            bundle_version=None,
+            skipped_intervals=[(timezone.utcnow(), timezone.utcnow())],
+        )
+
+        with pytest.raises(ValueError, match="DAG 'missing_dag' not found in DagBag"):
+            _execute_dag_skipped_intervals_callback(dagbag, request, structlog.get_logger())
 
 
 class TestExecuteTaskCallbacks:
