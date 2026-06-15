@@ -16,25 +16,22 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.cli.api_client import NEW_API_CLIENT, Client, provide_api_client
-from airflow.cli.utils import deprecated_for_airflowctl
-from airflow.utils.cli import suppress_logs_and_warning
-from airflow.utils.net import get_hostname
-from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+import socket
+
+import rich
+
+from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
 
 
-@deprecated_for_airflowctl("airflowctl jobs check")
-@suppress_logs_and_warning
-@providers_configuration_loaded
-@provide_api_client
-def check(args, api_client: Client = NEW_API_CLIENT) -> None:
+@provide_api_client(kind=ClientKind.CLI)
+def check(args, api_client=NEW_API_CLIENT) -> None:
     """Check if job(s) are still alive."""
     if args.allow_multiple and args.limit <= 1:
         raise SystemExit("To use option --allow-multiple, you must set the limit to a value greater than 1.")
     if args.hostname and args.local:
         raise SystemExit("You can't use --hostname and --local at the same time")
 
-    hostname = get_hostname() if args.local else args.hostname
+    hostname = socket.getfqdn() if args.local else args.hostname
     alive_jobs = api_client.jobs.list(job_type=args.job_type, hostname=hostname, is_alive=True).jobs
     if args.limit > 0:
         alive_jobs = alive_jobs[: args.limit]
@@ -45,6 +42,6 @@ def check(args, api_client: Client = NEW_API_CLIENT) -> None:
     if count_alive_jobs > 1 and not args.allow_multiple:
         raise SystemExit(f"Found {count_alive_jobs} alive jobs. Expected only one.")
     if count_alive_jobs == 1:
-        print("Found one alive job.")
+        rich.print("Found one alive job.")
     else:
-        print(f"Found {count_alive_jobs} alive jobs.")
+        rich.print(f"Found {count_alive_jobs} alive jobs.")

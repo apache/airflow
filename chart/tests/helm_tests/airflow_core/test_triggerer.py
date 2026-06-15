@@ -485,10 +485,10 @@ class TestTriggerer:
         docs = render_chart(
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
-        assert (
-            "airflow jobs check --job-type TriggererJob --local"
-            in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
-        )
+        command = jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
+        assert "airflow jobs check --job-type TriggererJob --local" in command
+        # ``airflow jobs check`` talks to the API server, so the probe must point the CLI at it.
+        assert "AIRFLOW__API__BASE_URL=http://release-name-api-server:8080" in command
 
     @pytest.mark.parametrize(
         ("log_values", "expected_volume"),

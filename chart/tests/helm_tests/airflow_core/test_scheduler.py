@@ -519,19 +519,18 @@ class TestScheduler:
         docs = render_chart(
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        assert (
-            "airflow jobs check --job-type SchedulerJob --local"
-            in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
-        )
+        command = jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
+        assert "airflow jobs check --job-type SchedulerJob --local" in command
+        # ``airflow jobs check`` talks to the API server, so the probe must point the CLI at it.
+        assert "AIRFLOW__API__BASE_URL=http://release-name-api-server:8080" in command
 
     def test_startupprobe_command_depends_on_airflow_version(self):
         docs = render_chart(
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        assert (
-            "airflow jobs check --job-type SchedulerJob --local"
-            in jmespath.search("spec.template.spec.containers[0].startupProbe.exec.command", docs[0])[-1]
-        )
+        command = jmespath.search("spec.template.spec.containers[0].startupProbe.exec.command", docs[0])[-1]
+        assert "airflow jobs check --job-type SchedulerJob --local" in command
+        assert "AIRFLOW__API__BASE_URL=http://release-name-api-server:8080" in command
 
     @pytest.mark.parametrize(
         ("log_values", "expected_volume"),

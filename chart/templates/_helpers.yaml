@@ -770,11 +770,25 @@ server_tls_key_file = /etc/pgbouncer/server.key
   - --migration-wait-timeout={{ .Values.images.migrationsWaitTimeout }}
 {{- end }}
 
+{{/*
+Internal URL of the api-server. ``airflow jobs check`` now talks to the API server, so the
+health/liveness probes point the CLI at it explicitly (the CLI otherwise defaults to
+localhost, where no api-server runs inside the scheduler/triggerer/dag-processor pods).
+Mirrors the api-server URL the chart computes for ``core.execution_api_server_url``.
+*/}}
+{{- define "airflow.apiServerInternalUrl" -}}
+{{- $basePath := "" -}}
+{{- if and .Values.config.api .Values.config.api.base_url -}}
+{{- with urlParse .Values.config.api.base_url }}{{ $basePath = (trimSuffix "/" .path) }}{{ end -}}
+{{- end -}}
+{{- printf "http://%s-api-server:%d%s" (include "airflow.fullname" .) (int .Values.ports.apiServer) $basePath -}}
+{{- end -}}
+
 {{- define "scheduler_liveness_check_command" }}
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR AIRFLOW__API__BASE_URL={{ include "airflow.apiServerInternalUrl" . }} exec /entrypoint \
     airflow jobs check --job-type SchedulerJob --local
 {{- end }}
 
@@ -783,7 +797,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR AIRFLOW__API__BASE_URL={{ include "airflow.apiServerInternalUrl" . }} exec /entrypoint \
     airflow jobs check --job-type SchedulerJob --local
 {{- end }}
 
@@ -791,7 +805,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR AIRFLOW__API__BASE_URL={{ include "airflow.apiServerInternalUrl" . }} exec /entrypoint \
     airflow jobs check --job-type TriggererJob --local
 {{- end }}
 
@@ -799,7 +813,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   - sh
   - -c
   - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR AIRFLOW__API__BASE_URL={{ include "airflow.apiServerInternalUrl" . }} exec /entrypoint \
     airflow jobs check --local --job-type DagProcessorJob
 {{- end }}
 

@@ -276,6 +276,35 @@ ARG_ACTION_ON_EXISTING_KEY = Arg(
     choices=("overwrite", "fail", "skip"),
 )
 
+# Jobs command args
+ARG_JOB_TYPE_FILTER = Arg(
+    flags=("--job-type",),
+    choices=("SchedulerJob", "TriggererJob", "DagProcessorJob"),
+    help="The type of job(s) that will be checked.",
+)
+ARG_JOB_HOSTNAME_FILTER = Arg(
+    flags=("--hostname",),
+    type=str,
+    default=None,
+    help="The hostname of job(s) that will be checked.",
+)
+ARG_JOB_LOCAL_FILTER = Arg(
+    flags=("--local",),
+    action="store_true",
+    help="If passed, this command will only show jobs from the local host.",
+)
+ARG_JOB_LIMIT = Arg(
+    flags=("--limit",),
+    type=positive_int(allow_zero=True),
+    default=1,
+    help="The number of recent jobs that will be checked. To disable limit, set 0.",
+)
+ARG_JOB_ALLOW_MULTIPLE = Arg(
+    flags=("--allow-multiple",),
+    action="store_true",
+    help="If passed, this command will be successful even if multiple matching alive jobs are found.",
+)
+
 # Config arguments
 ARG_CONFIG_SECTION = Arg(
     flags=("--section",),
@@ -1015,6 +1044,21 @@ VARIABLE_COMMANDS = (
     ),
 )
 
+JOB_COMMANDS = (
+    ActionCommand(
+        name="check",
+        help="Check if job(s) are still alive.",
+        func=lazy_load_command("airflowctl.ctl.commands.jobs_command.check"),
+        args=(
+            ARG_JOB_TYPE_FILTER,
+            ARG_JOB_HOSTNAME_FILTER,
+            ARG_JOB_LOCAL_FILTER,
+            ARG_JOB_LIMIT,
+            ARG_JOB_ALLOW_MULTIPLE,
+        ),
+    ),
+)
+
 core_commands: list[CLICommand] = [
     GroupCommand(
         name="auth",
@@ -1036,6 +1080,11 @@ core_commands: list[CLICommand] = [
         name="dags",
         help="Manage Airflow Dags",
         subcommands=DAG_COMMANDS,
+    ),
+    GroupCommand(
+        name="jobs",
+        help="Manage Airflow jobs",
+        subcommands=JOB_COMMANDS,
     ),
     GroupCommand(
         name="pools",
