@@ -91,7 +91,7 @@ class TestAgentEngineDeleteTrigger:
         mock_sleep.assert_not_called()
         assert event == TriggerEvent(
             {
-                "status": "error",
+                "status": "timeout",
                 "message": f"Timed out waiting for Agent Engine {AGENT_ENGINE_NAME} to be deleted",
                 "name": AGENT_ENGINE_NAME,
             }
