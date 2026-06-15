@@ -393,7 +393,7 @@ The types of messages that the async Trigger Runner can send back up to the supe
 class TriggerLoggingFactory:
     log_path: str
 
-    ti: RuntimeTI = attrs.field(repr=False)
+    ti: RuntimeTI | None = attrs.field(default=None, repr=False)
 
     bound_logger: WrappedLogger = attrs.field(init=False, repr=False)
 
@@ -430,7 +430,34 @@ class TriggerLoggingFactory:
             # Never actually called, nothing to do
             return
 
+        if self.ti is None:
+            # Callback triggers have no task instance — upload using the path directly.
+            self._upload_callback_log_to_remote()
+            return
+
         upload_to_remote(self.bound_logger, self.ti)
+
+    def _upload_callback_log_to_remote(self):
+        """Upload callback trigger logs to remote storage without a task instance."""
+        from airflow.sdk.log import load_remote_log_handler, relative_path_from_logger
+
+        handler = load_remote_log_handler()
+        if not handler:
+            return
+
+        raw_logger = getattr(self.bound_logger, "_logger")
+        try:
+            relative_path = relative_path_from_logger(raw_logger)
+        except Exception:
+            return
+        if not relative_path:
+            return
+
+        log_relative_path = relative_path.as_posix()
+        try:
+            handler.upload(log_relative_path, None)  # type: ignore[arg-type]
+        except Exception:
+            log.warning("Failed to upload callback trigger logs to remote", log_path=log_relative_path)
 
 
 def in_process_api_server() -> InProcessExecutionAPI:
@@ -802,6 +829,18 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                         trigger_id=trigger.id,
                     )
                     return None
+            # Set up dedicated logging for callback triggers so their output is
+            # captured to a file that the UI log endpoint can later read.
+            if callback:
+                callback_data = callback.data or {}
+                dag_id = callback_data.get("dag_id", "unknown")
+                run_id = callback_data.get("run_id", "unknown")
+                callback_id = str(callback.id)
+                log_path = f"triggerer_callbacks/{dag_id}/{run_id}/{callback_id}"
+                self.logger_cache[trigger.id] = TriggerLoggingFactory(
+                    log_path=log_path,
+                    ti=None,
+                )
             return workloads.RunTrigger(
                 id=trigger.id,
                 classpath=trigger.classpath,

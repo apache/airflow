@@ -978,6 +978,100 @@ def test_trigger_logger_fd_closed_when_upload_to_remote_raises(jobless_superviso
     assert 42 not in jobless_supervisor.running_triggers
 
 
+def test_trigger_logging_factory_accepts_none_ti():
+    """TriggerLoggingFactory can be created with ti=None for callback triggers."""
+    factory = TriggerLoggingFactory(log_path="/tmp/test_callback.log", ti=None)
+    assert factory.ti is None
+    assert factory.log_path == "/tmp/test_callback.log"
+
+
+def test_trigger_logging_factory_upload_skips_when_no_bound_logger():
+    """upload_to_remote is a no-op when bound_logger was never created (ti=None case)."""
+    factory = TriggerLoggingFactory(log_path="/tmp/test_callback.log", ti=None)
+    # Should not raise — early return because bound_logger is not set
+    factory.upload_to_remote()
+
+
+def test_trigger_logging_factory_upload_callback_log_to_remote():
+    """When ti=None and bound_logger exists, _upload_callback_log_to_remote is called."""
+    factory = TriggerLoggingFactory(log_path="/tmp/test_callback.log", ti=None)
+    # Simulate that bound_logger has been created
+    mock_logger = MagicMock()
+    factory.bound_logger = mock_logger
+
+    with patch(
+        "airflow.jobs.triggerer_job_runner.TriggerLoggingFactory._upload_callback_log_to_remote"
+    ) as mock_upload:
+        factory.upload_to_remote()
+        mock_upload.assert_called_once()
+
+
+def test_create_workload_sets_up_logger_cache_for_callback_triggers(session):
+    """_create_workload populates logger_cache when trigger has a callback but no task_instance."""
+    from airflow.jobs.job import Job
+
+    trigger_orm = MagicMock()
+    trigger_orm.task_instance = None
+    trigger_orm.id = 99
+    trigger_orm.classpath = "airflow.triggers.callback.CallbackTrigger"
+    trigger_orm.encrypted_kwargs = "{}"
+
+    # Simulate a callback with data containing dag_id and run_id
+    mock_callback = MagicMock()
+    mock_callback.data = {"dag_id": "test_dag", "run_id": "manual__2024-01-01"}
+    mock_callback.id = uuid.UUID("12345678-1234-5678-1234-567812345678")
+    trigger_orm.callback = mock_callback
+
+    supervisor = TriggerRunnerSupervisor.start(job=Job(id=123), capacity=10)
+    try:
+        workload = supervisor._create_workload(
+            trigger=trigger_orm,
+            dag_bag=MagicMock(),
+            render_log_fname=MagicMock(),
+            session=session,
+        )
+
+        # Workload should be returned
+        assert workload is not None
+        assert workload.id == 99
+
+        # Logger cache should be populated for the trigger
+        assert 99 in supervisor.logger_cache
+        factory = supervisor.logger_cache[99]
+        expected_path = "triggerer_callbacks/test_dag/manual__2024-01-01/12345678-1234-5678-1234-567812345678"
+        assert factory.log_path == expected_path
+        assert factory.ti is None
+    finally:
+        supervisor.kill(force=False)
+
+
+def test_create_workload_no_logger_cache_for_non_callback_triggers(session):
+    """_create_workload does NOT populate logger_cache when trigger has no callback and no task_instance."""
+    from airflow.jobs.job import Job
+
+    trigger_orm = MagicMock()
+    trigger_orm.task_instance = None
+    trigger_orm.id = 100
+    trigger_orm.classpath = "airflow.triggers.temporal.DateTimeTrigger"
+    trigger_orm.encrypted_kwargs = "{}"
+    trigger_orm.callback = None
+
+    supervisor = TriggerRunnerSupervisor.start(job=Job(id=123), capacity=10)
+    try:
+        workload = supervisor._create_workload(
+            trigger=trigger_orm,
+            dag_bag=MagicMock(),
+            render_log_fname=MagicMock(),
+            session=session,
+        )
+
+        assert workload is not None
+        # No logger_cache entry for non-callback triggers without task_instance
+        assert 100 not in supervisor.logger_cache
+    finally:
+        supervisor.kill(force=False)
+
+
 class TestTriggerRunner:
     def test_blocked_main_thread_warning_threshold_decode(self) -> None:
         with conf_vars({("triggerer", "blocked_main_thread_warning_threshold"): "0.5"}):

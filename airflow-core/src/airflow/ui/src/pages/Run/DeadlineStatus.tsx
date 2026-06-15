@@ -25,10 +25,9 @@ import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiCheck, FiClock } from "react-icons/fi";
 
 import { useDeadlinesServiceGetDagDeadlineAlerts, useDeadlinesServiceGetDeadlines } from "openapi/queries";
-import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui/Tooltip";
-import { renderDuration } from "src/utils/datetimeUtils";
+import { CallbackLogViewer } from "src/pages/Run/CallbackLogViewer";
 
 import { DeadlineStatusModal } from "./DeadlineStatusModal";
 
@@ -74,12 +73,6 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
     dagId,
     limit: 100,
   });
-
-  const alertMap = new Map<string, DeadlineAlertResponse>();
-
-  for (const deadlineAlert of alertData?.deadline_alerts ?? []) {
-    alertMap.set(deadlineAlert.id, deadlineAlert);
-  }
 
   if (isLoadingDeadlines || isLoadingAlerts) {
     return undefined;
@@ -149,7 +142,6 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
           </Badge>
         </Button>
         <DeadlineStatusModal
-          alertMap={alertMap}
           dagId={dagId}
           dagRunId={dagRunId}
           onClose={() => setIsModalOpen(false)}
@@ -160,42 +152,28 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
     );
   }
 
-  // Single deadline — show inline with Expected / Actual dates and precise duration.
+  // Single deadline — show inline with Expected / Actual times.
   const [dl] = deadlines;
 
   if (dl === undefined) {
     return undefined;
   }
 
-  const alert = dl.alert_id !== undefined && dl.alert_id !== null ? alertMap.get(dl.alert_id) : undefined;
-  const deadlineTime = dayjs(dl.deadline_time);
-
-  let actualDurationLabel: string | undefined;
-
-  if (dl.missed && runEndDate !== undefined) {
-    const diff = dayjs(runEndDate).diff(deadlineTime);
-    const dur = renderDuration(Math.abs(diff) / 1000, false);
-
-    if (dur !== undefined) {
-      actualDurationLabel =
-        diff >= 0
-          ? translate("deadlineStatus.finishedLate", { duration: dur })
-          : translate("deadlineStatus.finishedEarly", { duration: dur });
-    }
-  }
-
   return (
     <VStack alignItems="flex-start" gap={0.5}>
-      <HStack gap={1}>
+      <HStack alignItems="center" gap={2}>
         <Badge colorPalette={dl.missed ? "red" : "blue"} size="sm" variant="solid">
           {dl.missed ? <FiAlertTriangle /> : <FiClock />}
           {translate(dl.missed ? "deadlineStatus.missed" : "deadlineStatus.upcoming")}
         </Badge>
-        {Boolean(dl.alert_name) && (
-          <Text color="fg.muted" fontSize="xs">
-            ({dl.alert_name})
-          </Text>
-        )}
+        {dl.callback_id !== undefined && dl.callback_id !== null ? (
+          <CallbackLogViewer
+            callbackId={dl.callback_id}
+            callbackState={dl.callback_state}
+            dagId={dagId}
+            dagRunId={dagRunId}
+          />
+        ) : undefined}
       </HStack>
       {alert === undefined ? undefined : (
         <Text color="fg.muted" fontSize="xs">
@@ -220,11 +198,6 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
           <Time datetime={runEndDate} fontSize="xs" />
         )}
       </HStack>
-      {actualDurationLabel === undefined ? undefined : (
-        <Text color="fg.error" fontSize="xs" pl={1}>
-          {actualDurationLabel}
-        </Text>
-      )}
     </VStack>
   );
 };

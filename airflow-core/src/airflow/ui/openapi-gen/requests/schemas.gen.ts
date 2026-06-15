@@ -9220,6 +9220,29 @@ export const $DeadlineResponse = {
                 }
             ],
             title: 'Alert Name'
+        },
+        callback_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Callback Id'
+        },
+        callback_state: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Callback State'
         }
     },
     type: 'object',
