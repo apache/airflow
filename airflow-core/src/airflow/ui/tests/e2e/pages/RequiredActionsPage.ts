@@ -18,7 +18,7 @@
  */
 import { expect, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { testConfig } from "playwright.config";
-import { apiTriggerDagRun, waitForDagReady } from "tests/e2e/utils/test-helpers";
+import { apiTriggerDagRun, waitForDagReady } from "tests/e2e/utils/api/dag-runs";
 
 import { BasePage } from "./BasePage";
 

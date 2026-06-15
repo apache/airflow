@@ -24,7 +24,7 @@ import {
   apiCancelAllActiveBackfills,
   apiCancelBackfill,
   apiWaitForNoActiveBackfill,
-} from "tests/e2e/utils/test-helpers";
+} from "tests/e2e/utils/api/backfills";
 
 export const REPROCESS_API_TO_UI = {
   completed: "All Runs",
