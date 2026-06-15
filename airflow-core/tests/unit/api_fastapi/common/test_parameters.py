@@ -235,6 +235,26 @@ class TestSearchParam:
         assert _has_ilike(sql, "example_bash")
         assert " or " not in sql
 
+    def test_to_orm_pipe_as_or_false_treats_pipe_as_literal(self):
+        """With ``pipe_as_or=False``, the pipe character is passed through literally."""
+        param = _SearchParam(DagModel.dag_id, pipe_as_or=False).set_value("2026-01-01|us")
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = _compile(statement)
+        assert _has_ilike(sql, "2026-01-01|us")
+        assert " or " not in sql
+
+    def test_to_orm_pipe_as_or_false_tilde_alias_still_works(self):
+        """``pipe_as_or=False`` must not interfere with the ``~`` → ``%`` alias."""
+        param = _SearchParam(DagModel.dag_id, pipe_as_or=False)
+        param.set_value(param.transform_aliases("~"))
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = _compile(statement)
+        assert _has_ilike(sql, "%")
+
 
 class TestEscapeLikePattern:
     """The escape helper turns user input into a literal substring pattern.
@@ -393,6 +413,28 @@ class TestPrefixSearchParam:
         statement = select(DagModel)
         result = param.to_orm(statement)
         assert result is statement
+
+    def test_to_orm_pipe_as_or_false_treats_pipe_as_literal(self):
+        """With ``pipe_as_or=False``, the pipe character is part of the prefix and not an OR delimiter."""
+        param = _PrefixSearchParam(DagModel.dag_id, pipe_as_or=False).set_value("2026-01-01|us")
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = _compile(statement)
+        # Use " or " (with spaces) to avoid false positives from column-name substrings like "owners".
+        assert " or " not in sql
+        # Range scan uses the full composite-key value as the lower bound.
+        assert "2026-01-01|us" in sql
+
+    def test_to_orm_pipe_as_or_false_tilde_alias_still_works(self):
+        """``pipe_as_or=False`` must not interfere with the ``~`` → empty alias."""
+        param = _PrefixSearchParam(DagModel.dag_id, pipe_as_or=False)
+        param.set_value(param.transform_aliases("~"))
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = _compile(statement)
+        assert "is not null" in sql
 
 
 class TestTaskDisplayNamePrefixPatternParam:
