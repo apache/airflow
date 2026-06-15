@@ -1,0 +1,1 @@
+Add ``on_skipped_intervals_callback`` for Dags with ``catchup=False`` and the ``on_intervals_skipped`` listener hook, so operators are notified when the scheduler advances past missed scheduled intervals without creating Dag runs.

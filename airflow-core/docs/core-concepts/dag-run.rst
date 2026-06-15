@@ -112,6 +112,9 @@ If you set ``catchup=True`` in the Dag, the scheduler will kick off a Dag Run fo
 If your Dag is not written to handle its catchup (i.e., not limited to the interval, but instead to ``Now`` for instance.),
 then you will want to turn catchup off, which is the default setting or can be done explicitly by setting ``catchup=False`` in the Dag definition, if the default config has been changed for your Airflow environment.
 
+When intervals are skipped this way, Airflow does not create Dag runs for the missed periods.
+To observe those skips, set ``on_skipped_intervals_callback`` on the Dag (see :doc:`Callbacks </administration-and-deployment/logging-monitoring/callbacks>`) or implement the ``on_intervals_skipped`` listener hook (see :doc:`Listeners </administration-and-deployment/listeners>`).
+
 .. code-block:: python
 
     """
