@@ -24,8 +24,8 @@ import time
 from collections.abc import Sequence
 from typing import Any
 
-import google.auth.transport.requests
 from asgiref.sync import sync_to_async
+from google.genai._api_client import HttpOptions
 from google.genai.errors import ClientError
 from vertexai import Client
 
@@ -71,11 +71,12 @@ class AgentEngineHook(GoogleBaseHook):
         """
         Create an Agent Engine.
 
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param agent: Optional. The agent object to deploy.
         :param agent_engine: Optional. Deprecated alias for ``agent``.
         :param config: Optional. Configuration for the Agent Engine.
+        :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
+            configured in the connection.
         """
         client = self.get_agent_engine_client(project_id=project_id, location=location)
         return client.create(agent=agent, agent_engine=agent_engine, config=config)
@@ -90,9 +91,10 @@ class AgentEngineHook(GoogleBaseHook):
         """
         Get an Agent Engine.
 
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param name: Required. The Agent Engine resource name.
+        :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
+            configured in the connection.
         """
         client = self.get_agent_engine_client(project_id=project_id, location=location)
         return client.get(name=name)
@@ -103,19 +105,23 @@ class AgentEngineHook(GoogleBaseHook):
         location: str,
         name: str,
         config: Any | None = None,
+        request_timeout: float | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> Any:
         """
         Query an Agent Engine.
 
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param name: Required. The Agent Engine resource name.
         :param config: Optional. Configuration for the query request (``class_method``, ``input``).
+        :param request_timeout: Optional. Timeout in seconds for the HTTP request. Defaults to no timeout.
+        :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
+            configured in the connection.
         """
-        # Use the REST API directly rather than the SDK's run_query_job (requires GCS) or
-        # _query (private method; triggers a Pydantic parsing bug in google-genai 2.8.0 when
-        # the response output type is Any).
+        # Use the SDK's _api_client.request() directly rather than the SDK's run_query_job
+        # (requires GCS) or _query (private method; triggers a Pydantic parsing bug in
+        # google-genai 2.8.0 when the response output type is Any). Calling request() bypasses
+        # Pydantic parsing while still letting the SDK handle URL construction and auth.
         cfg = config if isinstance(config, dict) else {}
         body: dict[str, Any] = {"classMethod": cfg.get("class_method", "query")}
         if "input" in cfg:
@@ -124,16 +130,17 @@ class AgentEngineHook(GoogleBaseHook):
                 try:
                     input_val = json.loads(input_val)
                 except json.JSONDecodeError as err:
-                    raise ValueError("Agent Engine query input must be a JSON object.") from err
+                    raise ValueError("Agent Engine query input must be valid JSON.") from err
             if not isinstance(input_val, dict):
                 raise ValueError("Agent Engine query input must be a JSON object.")
             body["input"] = input_val
 
-        url = f"https://{location}-aiplatform.googleapis.com/v1beta1/{name}:query"
-        session = google.auth.transport.requests.AuthorizedSession(self.get_credentials())
-        response = session.post(url, json=body)
-        response.raise_for_status()
-        data = response.json()
+        sdk_client = self.get_agent_engine_client(project_id=project_id, location=location)
+        http_options = HttpOptions(
+            timeout=int(request_timeout * 1000) if request_timeout is not None else None
+        )
+        response = sdk_client._api_client.request("post", f"{name}:query", body, http_options)
+        data = {} if not response.body else json.loads(response.body)
         return data.get("output", data)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -149,12 +156,13 @@ class AgentEngineHook(GoogleBaseHook):
         """
         Update an Agent Engine.
 
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param name: Required. The Agent Engine resource name.
+        :param config: Required. Configuration for the Agent Engine update.
         :param agent: Optional. The updated agent object to deploy.
         :param agent_engine: Optional. Deprecated alias for ``agent``.
-        :param config: Required. Configuration for the Agent Engine update.
+        :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
+            configured in the connection.
         """
         client = self.get_agent_engine_client(project_id=project_id, location=location)
         return client.update(name=name, agent=agent, agent_engine=agent_engine, config=config)
@@ -171,11 +179,13 @@ class AgentEngineHook(GoogleBaseHook):
         """
         Delete an Agent Engine.
 
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param name: Required. The Agent Engine resource name.
-        :param force: Optional. Whether to delete child resources.
+        :param force: Optional. Whether to forcefully delete child resources. Defaults to ``False``
+            when not specified.
         :param config: Optional. Additional deletion configuration.
+        :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
+            configured in the connection.
         """
         client = self.get_agent_engine_client(project_id=project_id, location=location)
         return client.delete(name=name, force=force, config=config)
@@ -195,15 +205,15 @@ class AgentEngineHook(GoogleBaseHook):
         project_id: str,
         location: str,
         name: str,
-        poll_interval: float,
+        poll_interval: float = 30,
         timeout: float | None = None,
     ) -> None:
         """
         Wait until an Agent Engine no longer exists.
 
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :param location: Required. The ID of the Google Cloud location that the service belongs to.
-        :param name: Required. The Agent Engine resource name.
+        :param project_id: The ID of the Google Cloud project that the service belongs to.
+        :param location: The ID of the Google Cloud location that the service belongs to.
+        :param name: The Agent Engine resource name.
         :param poll_interval: Time, in seconds, to wait between checks.
         :param timeout: Optional timeout, in seconds.
         """

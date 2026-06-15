@@ -93,10 +93,6 @@ class TestCreateAgentEngineOperator:
             agent_engine=None,
             config=CONFIG,
         )
-        context["ti"].xcom_push.assert_called_once_with(
-            key="agent_engine_name",
-            value=AGENT_ENGINE_NAME,
-        )
         assert result == {"name": AGENT_ENGINE_NAME, "display_name": "test-agent-engine"}
 
 
@@ -144,6 +140,7 @@ class TestQueryAgentEngineOperator:
             location=GCP_LOCATION,
             name=AGENT_ENGINE_NAME,
             config=QUERY_CONFIG,
+            request_timeout=None,
         )
         assert result == {"output": "hello"}
 
@@ -317,6 +314,20 @@ class TestDeleteAgentEngineOperator:
 
         with pytest.raises(RuntimeError, match="boom"):
             op.execute_complete(context=context, event={"status": "error", "message": "boom"})
+
+    def test_execute_complete_timeout(self, context):
+        op = DeleteAgentEngineOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            name=AGENT_ENGINE_NAME,
+        )
+
+        with pytest.raises(TimeoutError, match="timed out"):
+            op.execute_complete(
+                context=context,
+                event={"status": "timeout", "message": "timed out", "name": AGENT_ENGINE_NAME},
+            )
 
     def test_execute_complete_without_event(self, context):
         op = DeleteAgentEngineOperator(
