@@ -471,14 +471,36 @@ def _get_backcompat_config(
 
 def _load_exporter_from_env() -> MetricExporter:
     """
-    Load a metric exporter using the ``OTEL_METRICS_EXPORTER`` env var.
+    Pick a metric exporter per the OTel SDK environment-variable spec.
 
-    Mirrors the entry-point mechanism used by the OTEL SDK auto-instrumentation
-    configurator. Supported values (from installed packages):
-      - ``otlp`` (default) -- OTLP/gRPC
-      - ``console`` -- stdout (useful for debugging)
+    ``OTEL_METRICS_EXPORTER`` selects the backend (``otlp`` default; ``console``
+    for debugging; ``prometheus`` or custom values are looked up via entry
+    points). For ``otlp``, ``OTEL_EXPORTER_OTLP_METRICS_PROTOCOL`` then
+    ``OTEL_EXPORTER_OTLP_PROTOCOL`` selects the transport: ``http/protobuf``
+    (default) or ``grpc``.
+
+    See:
+      https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#exporter-selection
+      https://opentelemetry.io/docs/specs/otel/protocol/exporter/#specify-protocol
     """
     exporter_name = os.environ.get("OTEL_METRICS_EXPORTER", "otlp")
+    if exporter_name == "otlp":
+        protocol = (
+            os.environ.get("OTEL_EXPORTER_OTLP_METRICS_PROTOCOL")
+            or os.environ.get("OTEL_EXPORTER_OTLP_PROTOCOL")
+            or "http/protobuf"
+        )
+        if protocol == "http/protobuf":
+            from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+
+            return OTLPMetricExporter()
+        if protocol == "grpc":
+            from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (  # type: ignore[assignment]
+                OTLPMetricExporter,
+            )
+
+            return OTLPMetricExporter()
+        raise ValueError(f"Unsupported OTLP protocol {protocol!r}; expected 'grpc' or 'http/protobuf'.")
     eps = entry_points(group="opentelemetry_metrics_exporter", name=exporter_name)
     ep = next(iter(eps), None)
     if ep is None:
