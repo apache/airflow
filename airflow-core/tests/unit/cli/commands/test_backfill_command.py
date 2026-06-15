@@ -214,6 +214,32 @@ class TestCliBackfill:
         with pytest.raises(ValueError, match="Invalid JSON in --dag-run-conf"):
             airflow.cli.commands.backfill_command.create_backfill(self.parser.parse_args(args))
 
+    def test_backfill_create_missing_from_date_raises(self):
+        """Test that omitting --from-date causes argparse to exit with an error."""
+        args = [
+            "backfill",
+            "create",
+            "--dag-id",
+            "example_bash_operator",
+            "--to-date",
+            DEFAULT_DATE.isoformat(),
+        ]
+        with pytest.raises(SystemExit):
+            self.parser.parse_args(args)
+
+    def test_backfill_create_missing_to_date_raises(self):
+        """Test that omitting --to-date causes argparse to exit with an error."""
+        args = [
+            "backfill",
+            "create",
+            "--dag-id",
+            "example_bash_operator",
+            "--from-date",
+            DEFAULT_DATE.isoformat(),
+        ]
+        with pytest.raises(SystemExit):
+            self.parser.parse_args(args)
+
     @mock.patch("airflow.cli.commands.backfill_command._create_backfill")
     def test_backfill_with_empty_dag_run_conf(self, mock_create):
         """Test that empty dag_run_conf is properly parsed."""
