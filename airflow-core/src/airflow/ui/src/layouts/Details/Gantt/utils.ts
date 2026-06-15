@@ -28,6 +28,8 @@ import { renderDuration } from "src/utils/datetimeUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 export type GanttDataItem = {
+  /** Effective task end (end_date, or "now" while running) — consistent across all segments of the same try. */
+  end_when?: string | null;
   isGroup?: boolean | null;
   isMapped?: boolean | null;
   /** Source try times for tooltips (matches TaskInstance `*_when` fields). */
@@ -135,13 +137,6 @@ export const transformGanttData = ({
             const queuedMs = queuedDttm === null ? undefined : dayjs(queuedDttm).valueOf();
             const scheduledMs = scheduledDttm === null ? undefined : dayjs(scheduledDttm).valueOf();
 
-            // Include scheduled/queued/start times in tooltip data whenever the timestamps exist.
-            const tryWhenForTooltip = {
-              ...(scheduledMs === undefined ? {} : { scheduled_when: scheduledDttm }),
-              ...(queuedMs === undefined ? {} : { queued_when: queuedDttm }),
-              ...(startDate === null ? {} : { start_when: startDate }),
-            };
-
             let endMs: number;
 
             if (hasTaskRunning) {
@@ -151,6 +146,17 @@ export const transformGanttData = ({
             } else {
               endMs = dayjs(endDate).valueOf();
             }
+
+            // Include scheduled/queued/start/end times in tooltip data whenever the timestamps exist.
+            // start_when/end_when are carried on every segment of a try so the tooltip reports the
+            // task's actual start and end on the scheduled and queued bars too, not just the
+            // execution bar's own bounds.
+            const tryWhenForTooltip = {
+              ...(scheduledMs === undefined ? {} : { scheduled_when: scheduledDttm }),
+              ...(queuedMs === undefined ? {} : { queued_when: queuedDttm }),
+              ...(startDate === null ? {} : { start_when: startDate }),
+              ...(startDate === null && !hasTaskRunning ? {} : { end_when: dayjs(endMs).toISOString() }),
+            };
 
             if (scheduledMs !== undefined) {
               const scheduledEndMs =

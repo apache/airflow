@@ -237,6 +237,65 @@ describe("transformGanttData", () => {
     expect(result[2]?.state).toBe("success");
   });
 
+  it("carries the task's actual start and end on every segment of the try", () => {
+    const result = transformGanttData({
+      allTries: [
+        {
+          end_date: "2024-03-14T10:05:00+00:00",
+          is_mapped: false,
+          queued_dttm: "2024-03-14T09:59:00+00:00",
+          scheduled_dttm: "2024-03-14T09:58:00+00:00",
+          start_date: "2024-03-14T10:00:00+00:00",
+          state: "success",
+          task_display_name: "task_1",
+          task_id: "task_1",
+          try_number: 1,
+        },
+      ],
+      flatNodes: [{ depth: 0, id: "task_1", is_mapped: false, label: "task_1" }],
+      gridSummaries: [],
+    });
+
+    expect(result).toHaveLength(3);
+    // The scheduled, queued, and execution bars all report the task's real start_date/end_date so
+    // the tooltip is consistent no matter which segment is hovered (regression from #68174).
+    const expectedEnd = new Date("2024-03-14T10:05:00+00:00").toISOString();
+
+    for (const segment of result) {
+      expect(segment.start_when).toBe("2024-03-14T10:00:00+00:00");
+      expect(segment.end_when).toBe(expectedEnd);
+    }
+  });
+
+  it("uses the current time as end_when on every segment while the task is still running", () => {
+    const result = transformGanttData({
+      allTries: [
+        {
+          end_date: null,
+          is_mapped: false,
+          queued_dttm: "2024-03-14T09:59:00+00:00",
+          scheduled_dttm: null,
+          start_date: "2024-03-14T10:00:00+00:00",
+          state: "running",
+          task_display_name: "task_1",
+          task_id: "task_1",
+          try_number: 1,
+        },
+      ],
+      flatNodes: [{ depth: 0, id: "task_1", is_mapped: false, label: "task_1" }],
+      gridSummaries: [],
+    });
+
+    // Queued + execution bars, both reporting the same (running) end so the tooltip is consistent.
+    expect(result.length).toBeGreaterThan(0);
+    const [firstEnd] = result.map((segment) => segment.end_when);
+
+    for (const segment of result) {
+      expect(segment.end_when).toBe(firstEnd);
+      expect(segment.end_when).not.toBeUndefined();
+    }
+  });
+
   it("produces 2 segments when only queued_dttm is present", () => {
     const result = transformGanttData({
       allTries: [
