@@ -46,6 +46,7 @@ configuring an Airflow environment.
     customize-ui
     custom-operator
     create-custom-decorator
+    static-type-checking
     export-more-env-vars
     connection
     variable
