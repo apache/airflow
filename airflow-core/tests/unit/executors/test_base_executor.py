@@ -199,9 +199,7 @@ def test_gauge_executor_metrics_single_executor(
         ("executor.queued_tasks", "queued"),
         ("executor.running_tasks", "running"),
     ]:
-        mock_stats_gauge.assert_any_call(
-            metric, value=mock.ANY, tags={**expected_tags, "status": status}
-        )
+        mock_stats_gauge.assert_any_call(metric, value=mock.ANY, tags={**expected_tags, "status": status})
 
 
 @pytest.mark.parametrize(

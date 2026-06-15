@@ -417,16 +417,12 @@ class BaseExecutor(LoggingMixin):
         stats.gauge(
             queued_tasks_metric_name,
             value=num_queued_tasks,
-            tags=prune_dict(
-                {"status": "queued", "executor_class_name": name, "team_name": self.team_name}
-            ),
+            tags=prune_dict({"status": "queued", "executor_class_name": name, "team_name": self.team_name}),
         )
         stats.gauge(
             running_tasks_metric_name,
             value=num_running_tasks,
-            tags=prune_dict(
-                {"status": "running", "executor_class_name": name, "team_name": self.team_name}
-            ),
+            tags=prune_dict({"status": "running", "executor_class_name": name, "team_name": self.team_name}),
         )
 
     def order_queued_tasks_by_priority(self) -> list[tuple[TaskInstanceKey, workloads.ExecuteTask]]:
