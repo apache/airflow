@@ -388,6 +388,13 @@ class DAG:
         A context dictionary is passed as a single parameter to this function.
     :param on_success_callback: Much like the ``on_failure_callback`` except
         that it is executed when the dag succeeds.
+    :param on_skipped_intervals_callback: A function or list of functions invoked by the
+        scheduler when a Dag with ``catchup=False`` advances past one or more scheduled
+        data intervals without creating Dag runs for them (for example after a scheduler
+        restart or when a paused Dag is re-enabled). The callback receives a context
+        dictionary with ``dag``, ``reason`` (``"skipped_intervals"``), and
+        ``skipped_intervals`` (a list of :class:`~airflow.timetables.base.DataInterval`
+        objects). It runs in the dag processor, not in the scheduler.
     :param access_control: Specify optional DAG-level actions, e.g.,
         "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit', 'can_delete'}}"
         or it can specify the resource name if there is a DAGs Run resource, e.g.,
