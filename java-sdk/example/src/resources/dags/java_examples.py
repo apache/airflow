@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from airflow.sdk import dag, task
 
 
@@ -33,6 +35,13 @@ def extract(): ...
 
 @task.stub(queue="java")
 def transform(): ...
+
+
+# ``load`` fails on its first attempt and succeeds on the retry, exercising the
+# UP_FOR_RETRY path through the Java coordinator. The short ``retry_delay`` keeps
+# the end-to-end run fast.
+@task.stub(queue="java", retries=1, retry_delay=timedelta(seconds=5))
+def load(): ...
 
 
 @task()
@@ -53,7 +62,9 @@ def java_interface_example():
 def java_annotation_example():
     transformed = transform()
     python_task_1() >> extract() >> transformed
-    python_task_2(transformed)
+    # ``load`` fails once then succeeds on retry; keep it a leaf so its retry is
+    # observable without affecting the Python task that pulls the Java XCom.
+    transformed >> [load(), python_task_2(transformed)]
 
 
 java_interface_example()
