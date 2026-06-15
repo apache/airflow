@@ -2244,6 +2244,10 @@ export type DagScheduleOverviewCollectionResponse = {
 
 /**
  * Aggregate, time-of-day statistics for a single Dag from its recent successful runs.
+ *
+ * ``start_*`` and ``end_*`` fields are expressed as integer seconds since
+ * midnight (0..86399) in UTC. ``duration_mean_seconds`` and
+ * ``duration_median_seconds`` are total wall-clock seconds for a run.
  */
 export type DagScheduleOverviewEntry = {
     dag_id: string;
@@ -2251,10 +2255,10 @@ export type DagScheduleOverviewEntry = {
     recent_runs_count: number;
     oldest_logical_date: string | null;
     newest_logical_date: string | null;
-    start_mean_seconds: number | null;
-    start_median_seconds: number | null;
-    end_mean_seconds: number | null;
-    end_median_seconds: number | null;
+    start_mean_seconds?: number | null;
+    start_median_seconds?: number | null;
+    end_mean_seconds?: number | null;
+    end_median_seconds?: number | null;
     duration_mean_seconds: number | null;
     duration_median_seconds: number | null;
 };
@@ -4586,15 +4590,6 @@ export type GetCalendarData = {
 
 export type GetCalendarResponse = CalendarTimeRangeCollectionResponse;
 
-export type GetDagScheduleOverviewData = {
-    dagDisplayNamePattern?: string | null;
-    dagIdPattern?: string | null;
-    runAfterGte?: string | null;
-    runAfterLte?: string | null;
-};
-
-export type GetDagScheduleOverviewResponse = DagScheduleOverviewCollectionResponse;
-
 export type ListTeamsData = {
     limit?: number;
     offset?: number;
@@ -4605,6 +4600,15 @@ export type ListTeamsData = {
 };
 
 export type ListTeamsResponse = TeamCollectionResponse;
+
+export type GetDagScheduleOverviewData = {
+    dagDisplayNamePattern?: string | null;
+    dagIdPattern?: string | null;
+    runAfterGte?: string | null;
+    runAfterLte?: string | null;
+};
+
+export type GetDagScheduleOverviewResponse = DagScheduleOverviewCollectionResponse;
 
 export type $OpenApiTs = {
     '/api/v2/assets': {
@@ -8403,21 +8407,6 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/ui/dag_schedule_overview': {
-        get: {
-            req: GetDagScheduleOverviewData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: DagScheduleOverviewCollectionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
     '/ui/teams': {
         get: {
             req: ListTeamsData;
@@ -8426,6 +8415,21 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: TeamCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dag_schedule_overview': {
+        get: {
+            req: GetDagScheduleOverviewData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagScheduleOverviewCollectionResponse;
                 /**
                  * Validation Error
                  */

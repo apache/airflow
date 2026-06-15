@@ -1027,6 +1027,14 @@ export const UseCalendarServiceGetCalendarKeyFn = ({ dagId, granularity, logical
   partitionDateLt?: string;
   partitionDateLte?: string;
 }, queryKey?: Array<unknown>) => [useCalendarServiceGetCalendarKey, ...(queryKey ?? [{ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }])];
+export type TeamsServiceListTeamsDefaultResponse = Awaited<ReturnType<typeof TeamsService.listTeams>>;
+export type TeamsServiceListTeamsQueryResult<TData = TeamsServiceListTeamsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useTeamsServiceListTeamsKey = "TeamsServiceListTeams";
+export const UseTeamsServiceListTeamsKeyFn = ({ limit, offset, orderBy }: {
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+} = {}, queryKey?: Array<unknown>) => [useTeamsServiceListTeamsKey, ...(queryKey ?? [{ limit, offset, orderBy }])];
 export type ScheduleOverviewServiceGetDagScheduleOverviewDefaultResponse = Awaited<ReturnType<typeof ScheduleOverviewService.getDagScheduleOverview>>;
 export type ScheduleOverviewServiceGetDagScheduleOverviewQueryResult<TData = ScheduleOverviewServiceGetDagScheduleOverviewDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useScheduleOverviewServiceGetDagScheduleOverviewKey = "ScheduleOverviewServiceGetDagScheduleOverview";
@@ -1036,14 +1044,6 @@ export const UseScheduleOverviewServiceGetDagScheduleOverviewKeyFn = ({ dagDispl
   runAfterGte?: string;
   runAfterLte?: string;
 } = {}, queryKey?: Array<unknown>) => [useScheduleOverviewServiceGetDagScheduleOverviewKey, ...(queryKey ?? [{ dagDisplayNamePattern, dagIdPattern, runAfterGte, runAfterLte }])];
-export type TeamsServiceListTeamsDefaultResponse = Awaited<ReturnType<typeof TeamsService.listTeams>>;
-export type TeamsServiceListTeamsQueryResult<TData = TeamsServiceListTeamsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useTeamsServiceListTeamsKey = "TeamsServiceListTeams";
-export const UseTeamsServiceListTeamsKeyFn = ({ limit, offset, orderBy }: {
-  limit?: number;
-  offset?: number;
-  orderBy?: string[];
-} = {}, queryKey?: Array<unknown>) => [useTeamsServiceListTeamsKey, ...(queryKey ?? [{ limit, offset, orderBy }])];
 export type AssetServiceCreateAssetEventMutationResult = Awaited<ReturnType<typeof AssetService.createAssetEvent>>;
 export type AssetServiceMaterializeAssetMutationResult = Awaited<ReturnType<typeof AssetService.materializeAsset>>;
 export type BackfillServiceCreateBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.createBackfill>>;

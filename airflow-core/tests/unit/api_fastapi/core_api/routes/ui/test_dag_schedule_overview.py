@@ -40,7 +40,7 @@ def _utc(year: int, month: int, day: int, hour: int, minute: int = 0) -> pendulu
 
 @pytest.fixture(autouse=True)
 @provide_session
-def setup(dag_maker, session=None) -> None:
+def setup(dag_maker, *, session=None) -> None:
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()

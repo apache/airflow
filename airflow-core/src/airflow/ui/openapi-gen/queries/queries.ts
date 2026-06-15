@@ -2071,8 +2071,27 @@ export const useCalendarServiceGetCalendar = <TData = Common.CalendarServiceGetC
   partitionDateLte?: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseCalendarServiceGetCalendarKeyFn({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }, queryKey), queryFn: () => CalendarService.getCalendar({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }) as TData, ...options });
 /**
+* List Teams
+* @param data The data for the request.
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
+* @returns TeamCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useTeamsServiceListTeams = <TData = Common.TeamsServiceListTeamsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ limit, offset, orderBy }: {
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTeamsServiceListTeamsKeyFn({ limit, offset, orderBy }, queryKey), queryFn: () => TeamsService.listTeams({ limit, offset, orderBy }) as TData, ...options });
+/**
 * Get Dag Schedule Overview
 * Aggregate per-Dag typical start / end times across the deployment.
+*
+* Returns mean and median time-of-day (in UTC, as seconds since midnight)
+* at which each Dag typically starts and ends, derived from the most
+* recent successful Dag runs. Renders the Gantt-style 24h overview
+* without forcing the UI to fetch and crunch data per-Dag.
 * @param data The data for the request.
 * @param data.runAfterGte
 * @param data.runAfterLte
@@ -2087,20 +2106,6 @@ export const useScheduleOverviewServiceGetDagScheduleOverview = <TData = Common.
   runAfterGte?: string;
   runAfterLte?: string;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseScheduleOverviewServiceGetDagScheduleOverviewKeyFn({ dagDisplayNamePattern, dagIdPattern, runAfterGte, runAfterLte }, queryKey), queryFn: () => ScheduleOverviewService.getDagScheduleOverview({ dagDisplayNamePattern, dagIdPattern, runAfterGte, runAfterLte }) as TData, ...options });
-/**
-* List Teams
-* @param data The data for the request.
-* @param data.limit
-* @param data.offset
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
-* @returns TeamCollectionResponse Successful Response
-* @throws ApiError
-*/
-export const useTeamsServiceListTeams = <TData = Common.TeamsServiceListTeamsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ limit, offset, orderBy }: {
-  limit?: number;
-  offset?: number;
-  orderBy?: string[];
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTeamsServiceListTeamsKeyFn({ limit, offset, orderBy }, queryKey), queryFn: () => TeamsService.listTeams({ limit, offset, orderBy }) as TData, ...options });
 /**
 * Create Asset Event
 * Create asset events.

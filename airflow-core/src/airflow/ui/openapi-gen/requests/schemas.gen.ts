@@ -9053,9 +9053,13 @@ export const $DagScheduleOverviewEntry = {
         }
     },
     type: 'object',
-    required: ['dag_id', 'dag_display_name', 'recent_runs_count', 'oldest_logical_date', 'newest_logical_date', 'start_mean_seconds', 'start_median_seconds', 'end_mean_seconds', 'end_median_seconds', 'duration_mean_seconds', 'duration_median_seconds'],
+    required: ['dag_id', 'dag_display_name', 'recent_runs_count', 'oldest_logical_date', 'newest_logical_date', 'duration_mean_seconds', 'duration_median_seconds'],
     title: 'DagScheduleOverviewEntry',
-    description: 'Aggregate, time-of-day statistics for a single Dag from its recent successful runs.'
+    description: `Aggregate, time-of-day statistics for a single Dag from its recent successful runs.
+
+\`\`start_*\`\` and \`\`end_*\`\` fields are expressed as integer seconds since
+midnight (0..86399) in UTC. \`\`duration_mean_seconds\`\` and
+\`\`duration_median_seconds\`\` are total wall-clock seconds for a run.`
 } as const;
 
 export const $DashboardDagStatsResponse = {

@@ -2071,8 +2071,27 @@ export const prefetchUseCalendarServiceGetCalendar = (queryClient: QueryClient, 
   partitionDateLte?: string;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseCalendarServiceGetCalendarKeyFn({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }), queryFn: () => CalendarService.getCalendar({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }) });
 /**
+* List Teams
+* @param data The data for the request.
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
+* @returns TeamCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseTeamsServiceListTeams = (queryClient: QueryClient, { limit, offset, orderBy }: {
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseTeamsServiceListTeamsKeyFn({ limit, offset, orderBy }), queryFn: () => TeamsService.listTeams({ limit, offset, orderBy }) });
+/**
 * Get Dag Schedule Overview
 * Aggregate per-Dag typical start / end times across the deployment.
+*
+* Returns mean and median time-of-day (in UTC, as seconds since midnight)
+* at which each Dag typically starts and ends, derived from the most
+* recent successful Dag runs. Renders the Gantt-style 24h overview
+* without forcing the UI to fetch and crunch data per-Dag.
 * @param data The data for the request.
 * @param data.runAfterGte
 * @param data.runAfterLte
@@ -2087,17 +2106,3 @@ export const prefetchUseScheduleOverviewServiceGetDagScheduleOverview = (queryCl
   runAfterGte?: string;
   runAfterLte?: string;
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseScheduleOverviewServiceGetDagScheduleOverviewKeyFn({ dagDisplayNamePattern, dagIdPattern, runAfterGte, runAfterLte }), queryFn: () => ScheduleOverviewService.getDagScheduleOverview({ dagDisplayNamePattern, dagIdPattern, runAfterGte, runAfterLte }) });
-/**
-* List Teams
-* @param data The data for the request.
-* @param data.limit
-* @param data.offset
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
-* @returns TeamCollectionResponse Successful Response
-* @throws ApiError
-*/
-export const prefetchUseTeamsServiceListTeams = (queryClient: QueryClient, { limit, offset, orderBy }: {
-  limit?: number;
-  offset?: number;
-  orderBy?: string[];
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseTeamsServiceListTeamsKeyFn({ limit, offset, orderBy }), queryFn: () => TeamsService.listTeams({ limit, offset, orderBy }) });
