@@ -94,15 +94,15 @@ export const formatScheduleBar = (
 
 export const formatTooltipBody = (entry: {
   readonly dag_display_name: string;
-  readonly duration_mean_seconds: number | null;
-  readonly duration_median_seconds: number | null;
-  readonly end_mean_seconds: number | null;
-  readonly end_median_seconds: number | null;
+  readonly duration_mean_seconds: number | null | undefined;
+  readonly duration_median_seconds: number | null | undefined;
+  readonly end_mean_seconds: number | null | undefined;
+  readonly end_median_seconds: number | null | undefined;
   readonly newest_logical_date: string | null;
   readonly oldest_logical_date: string | null;
   readonly recent_runs_count: number;
-  readonly start_mean_seconds: number | null;
-  readonly start_median_seconds: number | null;
+  readonly start_mean_seconds: number | null | undefined;
+  readonly start_median_seconds: number | null | undefined;
 }): string => {
   const start = `${formatSecondsAsClock(entry.start_mean_seconds)} ~ ${formatSecondsAsClock(entry.start_median_seconds)}`;
   const end = `${formatSecondsAsClock(entry.end_mean_seconds)} ~ ${formatSecondsAsClock(entry.end_median_seconds)}`;
