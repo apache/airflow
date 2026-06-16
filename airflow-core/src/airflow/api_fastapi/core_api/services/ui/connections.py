@@ -141,6 +141,7 @@ class HookMetaService:
         from importlib.util import find_spec
         from unittest.mock import MagicMock
 
+        use_mocked_form_dependencies = False
         for mod_name in [
             "wtforms",
             "wtforms.csrf",
@@ -156,13 +157,14 @@ class HookMetaService:
                     raise ModuleNotFoundError
             except ModuleNotFoundError:
                 sys.modules[mod_name] = MagicMock()
+                use_mocked_form_dependencies = True
 
         # We conditionally inject mock classes for missing dependencies
         # to ensure `ProvidersManager` can initialize hook connection widgets
         # without crashing when FAB/WTForms are not installed.
-        if "wtforms.StringField" not in sys.modules:
-            # Only apply mocks if the actual module wasn't loaded beforehand.
-            # This avoids thread-safety issues caused by `unittest.mock.patch` mutating global states.
+        if use_mocked_form_dependencies:
+            # Only patch symbols in synthetic modules. Real FAB/WTForms globals
+            # are used by the web UI and must not be mutated during requests.
             with (
                 mock.patch("wtforms.StringField", HookMetaService.MockStringField),
                 mock.patch("wtforms.fields.StringField", HookMetaService.MockStringField),

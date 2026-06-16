@@ -16,6 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import importlib.util
+from unittest import mock
+
 from airflow.api_fastapi.core_api.services.ui.connections import HookMetaService
 
 
@@ -30,3 +33,30 @@ class TestMockOptional:
         validator = HookMetaService.MockOptional()
         result = validator(None, None)
         assert result is None
+
+
+class TestGetHooksWithMockedFab:
+    def test_uses_real_form_dependencies_without_patching(self, monkeypatch):
+        """Installed FAB/WTForms classes must not be globally patched during UI requests."""
+
+        class FakeProvidersManager:
+            hooks = {}
+            connection_form_widgets = {}
+            field_behaviours = {}
+
+        monkeypatch.setattr(
+            "airflow.api_fastapi.core_api.services.ui.connections.ProvidersManager",
+            FakeProvidersManager,
+        )
+        monkeypatch.setattr(importlib.util, "find_spec", lambda mod_name: object())
+
+        patch_calls = []
+
+        def fail_patch(*args, **kwargs):
+            patch_calls.append((args, kwargs))
+            raise AssertionError("unexpected patch")
+
+        monkeypatch.setattr(mock, "patch", fail_patch)
+
+        assert HookMetaService._get_hooks_with_mocked_fab() == ({}, {}, {})
+        assert patch_calls == []
