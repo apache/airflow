@@ -4143,7 +4143,7 @@ class TestDagRunHandleDagCallback:
 
         with (
             conf_vars({("core", "multi_team"): multi_team}),
-            mock.patch("airflow.models.dagrun.DagModel.get_team_name", return_value=team_name),
+            mock.patch("airflow.models.dag.DagModel.get_team_name", return_value=team_name),
         ):
             dr.execute_dag_callbacks(dag, success=False)
 
