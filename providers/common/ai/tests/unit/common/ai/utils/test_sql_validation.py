@@ -452,6 +452,20 @@ class TestCollectTableReferences:
         scan = collect_table_references(parse_sql(sql, dialect="postgres"))
         assert scan.unverifiable_sources
 
+    def test_dml_target_is_real_but_cte_source_is_excluded(self):
+        """A CTE used as a DML source is not a base table; the target and CTE body are."""
+        sql = "WITH src AS (SELECT * FROM orders) INSERT INTO orders SELECT * FROM src"
+        scan = collect_table_references(parse_sql(sql, dialect="postgres"))
+        # Only the real table `orders` is reported (target + CTE body); `src` is the CTE.
+        assert {t for _, _, t in scan.tables} == {"orders"}
+        assert scan.unverifiable_sources == []
+
+    def test_dml_target_shadowed_by_cte_is_still_reported(self):
+        """A DML target is a real table even when a same-named CTE exists (can't write a CTE)."""
+        sql = "WITH secret AS (SELECT 1) DELETE FROM secret"
+        scan = collect_table_references(parse_sql(sql, dialect="postgres"))
+        assert ("", "", "secret") in scan.tables
+
     @pytest.mark.parametrize(
         ("sql", "dialect"),
         [

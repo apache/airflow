@@ -259,8 +259,9 @@ def collect_table_references(statements: list[exp.Expr]) -> TableScan:
     - **CTE references are excluded by lexical scope, not by name.** A table is treated
       as a CTE only when a ``WITH`` *enclosing that reference* defines the name (see
       :func:`_is_in_scope_cte`); a same-named CTE in a sibling/inner query no longer
-      hides a real top-level table. CTE handling is skipped entirely for DML statements,
-      where the target is always a real table.
+      hides a real top-level table. A DML *target* is always a real table (you cannot
+      write to a CTE, so a same-named CTE does not shadow it), but DML *sources* follow
+      normal CTE scoping -- a CTE used as an INSERT/UPDATE source is not flagged.
     - **Catalog-qualified references are reported with their catalog**, so the caller
       rejects ``otherdb.public.orders`` instead of matching it to ``public.orders``.
     - **Unverifiable constructs are listed, not silently dropped:** nameless
@@ -315,15 +316,20 @@ def collect_table_references(statements: list[exp.Expr]) -> TableScan:
             unverifiable.append("a TABLE <name> shorthand")
             continue
 
-        is_dml = isinstance(stmt, _DML_TYPES)
+        # A DML statement's *target* (the table written to) is always a real table --
+        # you cannot INSERT/UPDATE/DELETE/MERGE into a CTE, so even a same-named CTE does
+        # not shadow it. Its *sources* (the SELECT/USING/subqueries) follow normal CTE
+        # scoping, so a CTE used as a source is not mistaken for a base table.
+        target = stmt.args.get("this") if isinstance(stmt, _DML_TYPES) else None
+        target_ids = {id(t) for t in target.find_all(exp.Table)} if target is not None else set()
         for table in stmt.find_all(exp.Table):
             name = table.name
             if not name:
                 unverifiable.append(f"table-valued function ({table.sql()})")
                 continue
-            # Bare references may be CTEs; qualified ones never are. DML targets/sources
-            # are always real tables (you cannot read or write a CTE as a base table).
-            if not is_dml and not table.db and not table.catalog and _is_in_scope_cte(table):
+            # A bare, non-target reference may be a CTE; a qualified one or a DML target
+            # never is.
+            if id(table) not in target_ids and not table.db and not table.catalog and _is_in_scope_cte(table):
                 continue
             # A quoted identifier is case-sensitive on the engine, but the allow-list is
             # matched case-insensitively (and a plain ``schema.table`` string cannot

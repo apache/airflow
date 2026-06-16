@@ -699,6 +699,12 @@ class TestSQLToolsetAllowedTablesBypassRegressions:
             ("WITH secret_salaries AS (SELECT 1) DELETE FROM secret_salaries", "postgresql", True),
             # Quoted identifier is case-distinct on the engine but case-folds into the list.
             ('SELECT * FROM "Orders"', "postgresql", False),
+            # A DML source CTE whose body reads an off-list table is still caught.
+            (
+                "WITH src AS (SELECT * FROM secret_salaries) INSERT INTO orders SELECT * FROM src",
+                "postgresql",
+                True,
+            ),
         ],
         ids=[
             "cte_inner_shadow",
@@ -712,6 +718,7 @@ class TestSQLToolsetAllowedTablesBypassRegressions:
             "table_row_source",
             "write_cte_target",
             "quoted_case_distinct",
+            "dml_cte_body_reads_offlist",
         ],
     )
     def test_known_bypasses_are_rejected(self, sql, dialect, allow_writes):
@@ -732,3 +739,13 @@ class TestSQLToolsetAllowedTablesBypassRegressions:
 
         assert "rows" in json.loads(result)
         ts._hook.get_records.assert_called_once()
+
+    def test_dml_with_cte_source_over_allowed_table_runs(self):
+        """A CTE used as a DML source must not be mistaken for a disallowed base table."""
+        ts = SQLToolset("c", allowed_tables=["orders"], allow_writes=True)
+        ts._hook = _make_mock_db_hook(records=[], last_description=None)
+
+        sql = "WITH src AS (SELECT * FROM orders) INSERT INTO orders SELECT * FROM src"
+        _run_query(ts, sql)
+
+        ts._hook.get_records.assert_called_once_with(sql)
