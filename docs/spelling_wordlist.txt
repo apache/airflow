@@ -249,6 +249,7 @@ cli
 ClickHouse
 clickhouse
 clickhousedb
+clickstream
 ClientSecretCredential
 cloudant
 CloudantV
@@ -1385,6 +1386,7 @@ renderer
 renderers
 renewer
 reparse
+reparsed
 replicaSet
 repo
 repos

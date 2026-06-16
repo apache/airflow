@@ -1,4 +1,16 @@
 {
+  "deadlines": {
+    "pending": {
+      "empty": "No upcoming deadlines",
+      "title": "Upcoming"
+    },
+    "recentlyMissed": {
+      "empty": "No missed deadlines",
+      "title": "Missed Deadlines"
+    },
+    "showMore": "Show more",
+    "title": "Deadlines"
+  },
   "deferredSlotsNotCounted": "Deferred not counted in slots: {{count}}",
   "deferredSlotsNotCountedTooltip": "Deferred tasks shown in the bar are counted against pool slots. Deferred tasks shown below the bar are from pools that do not count deferred tasks against slots.",
   "favorite": {

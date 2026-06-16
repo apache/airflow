@@ -255,6 +255,20 @@ repos:
         files: ^\.github/workflows/ci-(arm|amd)\.yml$
         pass_filenames: false
         require_serial: true
+      - id: check-java-sdk-version-in-sync
+        name: Check Java SDK JDK version is consistent across build files
+        entry: ./scripts/ci/prek/check_java_sdk_version_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^\.github/workflows/ci-(arm|amd)\.yml$|
+          ^\.github/workflows/codeql-analysis\.yml$|
+          ^java-sdk/buildSrc/src/main/kotlin/airflow-jvm-conventions\.gradle\.kts$|
+          ^scripts/docker/install_os_dependencies\.sh$|
+          ^Dockerfile$|
+          ^Dockerfile\.ci$
+        pass_filenames: false
+        require_serial: true
       - id: check-partition-mapper-defaults-in-sync
         name: Check partition-mapper core/SDK sync (FanOutMapper table + SegmentWindow/FixedKeyMapper)
         entry: ./scripts/ci/prek/check_partition_mapper_defaults_in_sync.py
@@ -391,6 +405,7 @@ repos:
           ^.*init_git_sync\.template\.yaml$|
           ^chart/(?:templates|files)/.*\.yaml$|
           ^chart/tests/chart_utils/keda.sh_scaledobjects\.yaml$|
+          ^chart/tests/chart_utils/gateway.networking.k8s.io_httproutes\.yaml$|
           .*/v1.*\.yaml$|
           ^.*openapi.*\.yaml$|
           ^\.pre-commit-config\.yaml$|
@@ -539,12 +554,6 @@ repos:
         language: python
         pass_filenames: false
         files: ^dev/registry/registry_tools/types\.py$|^registry/src/_data/types\.json$
-      - id: check-task-instance-dto-sync
-        name: Check BaseTaskInstanceDTO duplicate is in sync between core and task-sdk
-        entry: ./scripts/ci/prek/check_task_instance_dto_sync.py
-        language: python
-        pass_filenames: false
-        files: ^airflow-core/src/airflow/executors/workloads/task\.py$|^task-sdk/src/airflow/sdk/execution_time/workloads/task\.py$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"

@@ -525,6 +525,29 @@ Security
 LLM agents call tools based on natural-language reasoning. This makes them
 powerful but introduces risks that don't exist with deterministic operators.
 
+What the agent can and cannot reach
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+An agent's reach is exactly the set of tools you register on it, and nothing
+more. The model never executes arbitrary code: it can only request one of the
+tools you provided, and pydantic-ai rejects any tool name outside that set
+before it runs. If no registered tool can read the environment, the
+filesystem, or other connections, the model cannot reach them, regardless of
+what the prompt instructs it to do.
+
+This is what "untrusted" means in this context. The DAG file itself is
+author-written and trusted, exactly like any other DAG. What is untrusted is
+the model's *output*: the tool-call requests and text it generates. That output
+is confined to your registered tools and bounded by the tool-call budget. An
+agent cannot create a new connection, read another connection's credentials, or
+run a shell command unless a tool you registered exposes that capability.
+
+The corollary is that every tool you add widens the blast radius, and a custom
+toolset is only as safe as you make it. A tool that returns ``os.environ`` or
+runs shell commands hands the model whatever that tool can reach. Audit any
+custom toolset, and any MCP server you connect through ``MCPToolset``, against
+the same standard the bundled toolsets below are built to.
+
 Defense Layers
 ^^^^^^^^^^^^^^
 
@@ -569,6 +592,12 @@ No single layer is sufficient — they work together.
      - Truncates query results to ``max_rows`` (default 50), preventing the
        agent from pulling entire tables into context.
      - Does not limit the number of queries the agent can make.
+   * - **MCPToolset: external server**
+     - Connects the agent to tools exposed by an MCP server, authenticated
+       through an Airflow connection.
+     - Does **not** constrain what those tools do. An MCP server can expose
+       shell, filesystem, or network access. Run only trusted servers and
+       audit the tools they expose.
    * - **pydantic-ai: tool call budget**
      - pydantic-ai's ``max_result_retries`` and ``model_settings`` control
        how many tool-call rounds the agent can make before stopping.

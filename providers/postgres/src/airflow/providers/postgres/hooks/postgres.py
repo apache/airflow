@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from contextlib import closing
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast, overload
@@ -741,3 +741,42 @@ class PostgresHook(DbApiHook):
 
         self.log.info("Done loading. Loaded a total of %s rows into %s", nb_rows, table)
         return None
+
+    def upsert_rows(
+        self,
+        table: str,
+        rows: Iterable[tuple[Any, ...]],
+        target_fields: list[str],
+        conflict_fields: list[str],
+        update_fields: list[str] | None = None,
+        commit_every: int = 1000,
+        *,
+        fast_executemany: bool = False,
+        autocommit: bool = False,
+    ) -> None:
+        """
+        Upsert rows into a PostgreSQL table using ``ON CONFLICT``.
+
+        :param table: Name of the target table.
+        :param rows: Rows to upsert.
+        :param target_fields: Non-empty column names used in the ``INSERT`` statement.
+        :param conflict_fields: Non-empty column names used in the ``ON CONFLICT`` clause.
+        :param update_fields: Columns updated on conflict. If omitted, all
+            non-conflict columns are updated. If an empty list is provided,
+            conflicting rows are ignored via ``DO NOTHING``.
+        :param commit_every: Maximum number of rows per transaction. Default value is 1000.
+        :param fast_executemany: Use ``psycopg2.extras.execute_batch`` for improved
+            batch performance.
+        :param autocommit: Connection autocommit setting.
+        """
+        return self.insert_rows(
+            table=table,
+            rows=rows,
+            target_fields=target_fields,
+            replace_index=conflict_fields,
+            replace_target=update_fields,
+            commit_every=commit_every,
+            replace=True,
+            fast_executemany=fast_executemany,
+            autocommit=autocommit,
+        )

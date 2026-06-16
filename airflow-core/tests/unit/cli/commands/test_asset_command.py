@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import os
 import typing
-from unittest import mock
+from types import SimpleNamespace
 
 import pytest
 
@@ -37,7 +37,9 @@ if typing.TYPE_CHECKING:
 pytestmark = [pytest.mark.db_test]
 
 
-@pytest.fixture(scope="module", autouse=True)
+# Not autouse: only the DB-backed tests below request it, so the mocked (non-DB)
+# ``assets materialize`` tests stay free of any database access.
+@pytest.fixture(scope="module")
 def prepare_examples():
     with conf_vars({("core", "load_examples"): "True"}):
         parse_and_sync_to_db(os.devnull)
@@ -46,17 +48,12 @@ def prepare_examples():
     clear_db_dags()
 
 
-@pytest.fixture(autouse=True)
-def clear_runs():
-    clear_db_runs()
-
-
 @pytest.fixture(scope="module")
 def parser() -> ArgumentParser:
     return cli_parser.get_parser()
 
 
-def test_cli_assets_list(parser: ArgumentParser, stdout_capture) -> None:
+def test_cli_assets_list(prepare_examples, parser: ArgumentParser, stdout_capture) -> None:
     args = parser.parse_args(["assets", "list", "--output=json"])
     with stdout_capture as capture:
         asset_command.asset_list(args)
@@ -67,7 +64,7 @@ def test_cli_assets_list(parser: ArgumentParser, stdout_capture) -> None:
     assert any(asset["uri"] == "s3://dag1/output_1.txt" for asset in asset_list), asset_list
 
 
-def test_cli_assets_alias_list(parser: ArgumentParser, stdout_capture) -> None:
+def test_cli_assets_alias_list(prepare_examples, parser: ArgumentParser, stdout_capture) -> None:
     args = parser.parse_args(["assets", "list", "--alias", "--output=json"])
     with stdout_capture as capture:
         asset_command.asset_list(args)
@@ -78,7 +75,7 @@ def test_cli_assets_alias_list(parser: ArgumentParser, stdout_capture) -> None:
     assert any(alias["name"] == "example-alias" for alias in alias_list), alias_list
 
 
-def test_cli_assets_details(parser: ArgumentParser, stdout_capture) -> None:
+def test_cli_assets_details(prepare_examples, parser: ArgumentParser, stdout_capture) -> None:
     args = parser.parse_args(["assets", "details", "--name=asset1_producer", "--output=json"])
     with stdout_capture as capture:
         asset_command.asset_details(args)
@@ -107,7 +104,7 @@ def test_cli_assets_details(parser: ArgumentParser, stdout_capture) -> None:
     }
 
 
-def test_cli_assets_alias_details(parser: ArgumentParser, stdout_capture) -> None:
+def test_cli_assets_alias_details(prepare_examples, parser: ArgumentParser, stdout_capture) -> None:
     args = parser.parse_args(["assets", "details", "--alias", "--name=example-alias", "--output=json"])
     with stdout_capture as capture:
         asset_command.asset_details(args)
@@ -124,85 +121,46 @@ def test_cli_assets_alias_details(parser: ArgumentParser, stdout_capture) -> Non
     }
 
 
-@mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
-def test_cli_assets_materialize(mock_hasattr, parser: ArgumentParser, stdout_capture) -> None:
-    mock_hasattr.return_value = False
-    args = parser.parse_args(["assets", "materialize", "--name=asset1_producer", "--output=json"])
-    with stdout_capture as capture:
-        asset_command.asset_materialize(args)
+@pytest.mark.non_db_test_override
+class TestCliAssetsMaterialize:
+    """`assets materialize` goes through the airflowctl client; mocked here (no DB/server)."""
 
-    output = capture.getvalue()
+    def test_materialize(self, parser: ArgumentParser, mock_cli_api_client, stdout_capture) -> None:
+        mock_cli_api_client.assets.list.return_value.assets = [
+            SimpleNamespace(id=7, name="asset1_producer", uri="s3://bucket/asset1_producer"),
+            SimpleNamespace(id=8, name="other", uri="s3://bucket/other"),
+        ]
+        mock_cli_api_client.assets.materialize.return_value.model_dump.return_value = {
+            "dag_id": "asset1_producer",
+            "run_type": "asset_materialization",
+            "state": "queued",
+        }
+        args = parser.parse_args(["assets", "materialize", "--name=asset1_producer", "--output=json"])
+        with stdout_capture as capture:
+            asset_command.asset_materialize(args)
 
-    # Check if output is empty first
-    assert output, "No output captured from asset_materialize command"
+        run_list = json.loads(capture.getvalue())
+        assert len(run_list) == 1
+        assert run_list[0]["dag_id"] == "asset1_producer"
+        # The asset is resolved to its id and materialization is delegated to the API server.
+        mock_cli_api_client.assets.materialize.assert_called_once_with(asset_id="7")
 
-    run_list = json.loads(output)
-    assert len(run_list) == 1
+    def test_materialize_requires_name_or_uri(self, parser: ArgumentParser, mock_cli_api_client) -> None:
+        with pytest.raises(SystemExit, match="Either --name or --uri is required"):
+            asset_command.asset_materialize(parser.parse_args(["assets", "materialize"]))
+        mock_cli_api_client.assets.materialize.assert_not_called()
 
-    # No good way to statically compare these.
-    undeterministic: dict = {
-        "dag_run_id": None,
-        "dag_versions": [],
-        "data_interval_end": None,
-        "data_interval_start": None,
-        "logical_date": None,
-        "queued_at": None,
-        "run_after": "2025-02-12T19:27:59.066046Z",
-    }
+    def test_materialize_missing(self, parser: ArgumentParser, mock_cli_api_client) -> None:
+        mock_cli_api_client.assets.list.return_value.assets = []
+        with pytest.raises(SystemExit, match="Asset with name nope does not exist"):
+            asset_command.asset_materialize(parser.parse_args(["assets", "materialize", "--name=nope"]))
+        mock_cli_api_client.assets.materialize.assert_not_called()
 
-    assert run_list[0] | undeterministic == undeterministic | {
-        "conf": {},
-        "bundle_version": None,
-        "dag_display_name": "asset1_producer",
-        "dag_id": "asset1_producer",
-        "end_date": None,
-        "duration": None,
-        "last_scheduling_decision": None,
-        "note": None,
-        "partition_key": None,
-        "run_type": "asset_materialization",
-        "start_date": None,
-        "state": "queued",
-        "triggered_by": "cli",
-        "triggering_user_name": "root",
-        "run_after": "2025-02-12T19:27:59.066046Z",
-    }
-
-
-def test_cli_assets_materialize_with_view_url_template(parser: ArgumentParser, stdout_capture) -> None:
-    args = parser.parse_args(["assets", "materialize", "--name=asset1_producer", "--output=json"])
-    with stdout_capture as capture:
-        asset_command.asset_materialize(args)
-
-    output = capture.getvalue()
-    run_list = json.loads(output)
-    assert len(run_list) == 1
-
-    # No good way to statically compare these.
-    undeterministic: dict = {
-        "dag_run_id": None,
-        "dag_versions": [],
-        "data_interval_end": None,
-        "data_interval_start": None,
-        "logical_date": None,
-        "queued_at": None,
-        "run_after": "2025-02-12T19:27:59.066046Z",
-    }
-
-    assert run_list[0] | undeterministic == undeterministic | {
-        "conf": {},
-        "bundle_version": None,
-        "dag_display_name": "asset1_producer",
-        "dag_id": "asset1_producer",
-        "end_date": None,
-        "duration": None,
-        "last_scheduling_decision": None,
-        "note": None,
-        "partition_key": None,
-        "run_type": "asset_materialization",
-        "start_date": None,
-        "state": "queued",
-        "triggered_by": "cli",
-        "triggering_user_name": "root",
-        "run_after": "2025-02-12T19:27:59.066046Z",
-    }
+    def test_materialize_ambiguous(self, parser: ArgumentParser, mock_cli_api_client) -> None:
+        mock_cli_api_client.assets.list.return_value.assets = [
+            SimpleNamespace(id=1, name="dup", uri="s3://a"),
+            SimpleNamespace(id=2, name="dup", uri="s3://b"),
+        ]
+        with pytest.raises(SystemExit, match="More than one asset exists with name dup"):
+            asset_command.asset_materialize(parser.parse_args(["assets", "materialize", "--name=dup"]))
+        mock_cli_api_client.assets.materialize.assert_not_called()

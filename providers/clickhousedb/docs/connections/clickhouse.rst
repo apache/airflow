@@ -74,7 +74,7 @@ Extra (optional)
       field adds a human-readable suffix, e.g. ``"my-pipeline"``.
     * ``session_settings`` *(dict)*: ClickHouse session-level settings applied to every
       query on this connection.  These are passed directly to the ``settings`` parameter of
-      ``clickhouse_connect.connect()``.  Common examples:
+      ``clickhouse_connect.get_client()``.  Common examples:
 
       .. code-block:: json
 

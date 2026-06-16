@@ -108,6 +108,7 @@ PIP package                                 Version required
 ``aiohttp``                                 ``>=3.14.0``
 ``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
 ``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
+``pydantic``                                ``>=2.11.0``
 ==========================================  ======================================
 
 Cross provider package dependencies
