@@ -1148,6 +1148,15 @@ class DagFileProcessorManager(LoggingMixin):
     def terminate_orphan_processes(self, present: set[DagFileInfo]):
         """Stop processors that are working on deleted files."""
         present_keys = {file.presence_key for file in present}
+
+        if conf.getboolean("core", "multi_team"):
+            bundle_names = {file.bundle_name for file in self._processors}
+            bundle_to_team = {
+                bundle_name: DagBundleModel.get_team_name(bundle_name) for bundle_name in bundle_names
+            }
+        else:
+            bundle_to_team = {}
+
         for file in list(self._processors.keys()):
             if file.presence_key not in present_keys:
                 processor = self._processors.pop(file, None)
@@ -1157,7 +1166,13 @@ class DagFileProcessorManager(LoggingMixin):
                 self.log.warning("Stopping processor for %s", file_name)
                 stats.decr(
                     "dag_processing.processes",
-                    tags={"file_path": file.normalized_file_path_for_stats, "action": "stop"},
+                    tags=prune_dict(
+                        {
+                            "file_path": file.normalized_file_path_for_stats,
+                            "action": "stop",
+                            "team_name": bundle_to_team.get(file.bundle_name),
+                        }
+                    ),
                 )
                 processor.kill(signal.SIGKILL)
                 processor.logger_filehandle.close()
@@ -1654,10 +1669,24 @@ class DagFileProcessorManager(LoggingMixin):
 
     def terminate(self):
         """Stop all running processors."""
+        if conf.getboolean("core", "multi_team"):
+            bundle_names = {file.bundle_name for file in self._processors}
+            bundle_to_team = {
+                bundle_name: DagBundleModel.get_team_name(bundle_name) for bundle_name in bundle_names
+            }
+        else:
+            bundle_to_team = {}
+
         for file, processor in self._processors.items():
             stats.decr(
                 "dag_processing.processes",
-                tags={"file_path": file.normalized_file_path_for_stats, "action": "terminate"},
+                tags=prune_dict(
+                    {
+                        "file_path": file.normalized_file_path_for_stats,
+                        "action": "terminate",
+                        "team_name": bundle_to_team.get(file.bundle_name),
+                    }
+                ),
             )
             # SIGTERM, wait 5s, SIGKILL if still alive
             processor.kill(signal.SIGTERM, escalation_delay=5.0)
