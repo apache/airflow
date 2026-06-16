@@ -202,7 +202,7 @@ class PodGenerator:
         if not k8s_object and k8s_legacy_object:
             raise AirflowConfigException(
                 "Using KubernetesExecutor dict inside an executor_config object"
-                "is now deprecated. Please switch to pod_override"
+                "is no longer supported. Please switch to pod_override"
                 "kubernetes.client.models.V1Pod object."
             )
 
