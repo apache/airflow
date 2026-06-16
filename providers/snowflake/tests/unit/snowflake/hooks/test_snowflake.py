@@ -1599,7 +1599,7 @@ class TestPytestSnowflakeHook:
 
         t0 = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
 
-        # _get_valid_oauth_token calls utcnow twice per refresh:
+        # get_valid_oauth_token from _SnowflakeOAuthManager calls utcnow twice per refresh:
         #   1) validity check
         #   2) issued_at
         mock_timezone_utcnow.side_effect = [
