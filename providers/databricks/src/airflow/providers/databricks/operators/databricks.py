@@ -340,8 +340,10 @@ class DatabricksCreateJobsOperator(BaseOperator):
         this run. By default the operator will poll every 30 seconds.
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
-    :param databricks_retry_delay: Number of seconds to wait between retries (it
-            might be a floating point number).
+    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
+        using the default retry strategy. The wait uses exponential backoff (doubling after
+        each failure, capped at ``2 ** databricks_retry_limit`` seconds). May be a floating
+        point number.
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
 
     .. note::
@@ -550,8 +552,10 @@ class DatabricksSubmitRunOperator(BaseOperator):
         this run. By default the operator will poll every 30 seconds.
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
-    :param databricks_retry_delay: Number of seconds to wait between retries (it
-            might be a floating point number).
+    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
+        using the default retry strategy. The wait uses exponential backoff (doubling after
+        each failure, capped at ``2 ** databricks_retry_limit`` seconds). May be a floating
+        point number.
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :param git_source: Optional specification of a remote git repository from which
@@ -879,8 +883,10 @@ class DatabricksRunNowOperator(BaseOperator):
         this run. By default, the operator will poll every 30 seconds.
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
-    :param databricks_retry_delay: Number of seconds to wait between retries (it
-            might be a floating point number).
+    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
+        using the default retry strategy. The wait uses exponential backoff (doubling after
+        each failure, capped at ``2 ** databricks_retry_limit`` seconds). May be a floating
+        point number.
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
@@ -1078,8 +1084,10 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
         this statement. By default the operator will poll every 30 seconds.
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
-    :param databricks_retry_delay: Number of seconds to wait between retries (it
-            might be a floating point number).
+    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
+        using the default retry strategy. The wait uses exponential backoff (doubling after
+        each failure, capped at ``2 ** databricks_retry_limit`` seconds). May be a floating
+        point number.
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param do_xcom_push: Whether we should push statement_id to xcom.:
     :param timeout: The timeout for the Airflow task executing the SQL statement. By default a value of 3600 seconds is used.
@@ -1236,7 +1244,8 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     :param databricks_task_key: An optional task_key used to refer to the task by Databricks API. By
         default this will be set to the hash of ``dag_id + task_id``.
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
-    :param databricks_retry_delay: Number of seconds to wait between retries.
+    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
+        using the default retry strategy (exponential backoff). May be a floating point number.
     :param databricks_retry_limit: Amount of times to retry if the Databricks backend is unreachable.
     :param deferrable: Whether to run the operator in the deferrable mode.
     :param existing_cluster_id: ID for existing cluster on which to run this task.
@@ -1570,7 +1579,8 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsCreate
     :param databricks_conn_id: The name of the Airflow connection to use.
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
-    :param databricks_retry_delay: Number of seconds to wait between retries.
+    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
+        using the default retry strategy (exponential backoff). May be a floating point number.
     :param databricks_retry_limit: Amount of times to retry if the Databricks backend is unreachable.
     :param deferrable: Whether to run the operator in the deferrable mode.
     :param existing_cluster_id: ID for existing cluster on which to run this task.
@@ -1717,7 +1727,8 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
     :param task_config: The configuration of the task to be run on Databricks.
     :param databricks_conn_id: The name of the Airflow connection to use.
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
-    :param databricks_retry_delay: Number of seconds to wait between retries.
+    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
+        using the default retry strategy (exponential backoff). May be a floating point number.
     :param databricks_retry_limit: Amount of times to retry if the Databricks backend is unreachable.
     :param deferrable: Whether to run the operator in the deferrable mode.
     :param existing_cluster_id: ID for existing cluster on which to run this task.
