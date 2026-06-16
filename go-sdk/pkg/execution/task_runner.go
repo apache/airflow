@@ -19,6 +19,7 @@ package execution
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"runtime/debug"
 	"time"
@@ -89,16 +90,49 @@ func RunTask(
 		},
 	}
 
+	// Carries the task runtime context for sdk.TIRunContext injection. The
+	// base context is a placeholder; bundlev1.Execute rebuilds the value
+	// around the live task context when binding the parameter.
+	runtimeContext := sdk.NewTIRunContext(
+		context.Background(),
+		sdk.TaskInstance{
+			DagID:     details.TI.DagID,
+			RunID:     details.TI.RunID,
+			TaskID:    details.TI.TaskID,
+			MapIndex:  mapIndexPtr(details.TI.MapIndex),
+			TryNumber: details.TI.TryNumber,
+		},
+		sdk.DagRun{
+			DagID:             details.TI.DagID,
+			RunID:             details.TI.RunID,
+			LogicalDate:       details.TIContext.LogicalDate,
+			DataIntervalStart: details.TIContext.DataIntervalStart,
+			DataIntervalEnd:   details.TIContext.DataIntervalEnd,
+		},
+	)
+
 	ctx = context.WithValue(ctx, sdkcontext.WorkloadContextKey, workload)
 	ctx = context.WithValue(ctx, sdkcontext.SdkClientContextKey, sdk.Client(client))
+	ctx = context.WithValue(ctx, sdkcontext.RuntimeContextKey, runtimeContext)
 
-	return executeTask(ctx, task, logger)
+	return executeTask(ctx, task, details.TIContext.ShouldRetry, logger)
+}
+
+// mapIndexPtr converts the supervisor's map_index (which uses -1 as the
+// sentinel for an unmapped task) into the optional form exposed on
+// sdk.TaskInstance: nil for an unmapped task, otherwise a pointer to the index.
+func mapIndexPtr(mapIndex int) *int {
+	if mapIndex < 0 {
+		return nil
+	}
+	return &mapIndex
 }
 
 // executeTask runs the task and handles success, failure, and panics.
 func executeTask(
 	ctx context.Context,
 	task bundlev1.Task,
+	shouldRetry bool,
 	logger *slog.Logger,
 ) (result map[string]any) {
 	defer func() {
@@ -107,19 +141,28 @@ func executeTask(
 				"error", r,
 				"stack", string(debug.Stack()),
 			)
-			result = TaskStateMsg{
-				State:   TaskStateFailed,
-				EndDate: time.Now().UTC(),
-			}.toMap()
+			if shouldRetry {
+				result = RetryTaskMsg{
+					EndDate: time.Now().UTC(),
+					Reason:  fmt.Sprintf("panic: %v", r),
+				}.toMap()
+			} else {
+				result = TaskStateMsg{
+					State:   TaskStateFailed,
+					EndDate: time.Now().UTC(),
+				}.toMap()
+			}
 		}
 	}()
 
 	if err := task.Execute(ctx, logger); err != nil {
 		logger.ErrorContext(ctx, "Task failed", "error", err)
-		// TODO(https://github.com/apache/airflow/issues/67797): emit RetryTask
-		// (UP_FOR_RETRY) when ti_context.should_retry is set. Today every
-		// failure maps to terminal FAILED because the supervisor honors this
-		// frame on exit 0 and we never send RetryTask, so retries are lost.
+		if shouldRetry {
+			return RetryTaskMsg{
+				EndDate: time.Now().UTC(),
+				Reason:  err.Error(),
+			}.toMap()
+		}
 		return TaskStateMsg{
 			State:   TaskStateFailed,
 			EndDate: time.Now().UTC(),

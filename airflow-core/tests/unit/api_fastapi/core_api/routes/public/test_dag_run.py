@@ -40,6 +40,7 @@ from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
+from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
@@ -151,6 +152,7 @@ def setup(request, dag_maker, *, session=None):
     with dag_maker(DAG1_ID, schedule=None, start_date=START_DATE1, serialized=True):
         task1 = EmptyOperator(task_id="task_1")
         task2 = EmptyOperator(task_id="task_2")
+        dag_maker.dag.add_result(task2.output)
 
     dag_run1 = dag_maker.create_dagrun(
         run_id=DAG1_RUN1_ID,
@@ -161,6 +163,10 @@ def setup(request, dag_maker, *, session=None):
     )
     # Set triggering_user_name for testing
     dag_run1.triggering_user_name = "alice_admin"
+    # Set partition_key for testing partition_key_pattern / partition_key_prefix_pattern filters.
+    # The value uses the ProductMapper default delimiter (|) to form a composite key so we can
+    # verify that the filter treats | as a literal character, not an OR separator.
+    dag_run1.partition_key = "2026-01-01|us"
     dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
     # Set end_date for testing duration filter
     dag_run1.end_date = dag_run1.start_date + timedelta(seconds=101)
@@ -172,7 +178,16 @@ def setup(request, dag_maker, *, session=None):
         ti.task = task
         ti.state = State.SUCCESS
         session.merge(ti)
-        ti.xcom_push("return_value", f"result_{i}")
+        XComModel.set(
+            key="return_value",
+            value=f"result_{i}",
+            task_id=ti.task_id,
+            dag_id=ti.dag_id,
+            run_id=ti.run_id,
+            map_index=ti.map_index,
+            dag_result=task.returns_dag_result,
+            session=session,
+        )
 
     dag_run2 = dag_maker.create_dagrun(
         run_id=DAG1_RUN2_ID,
@@ -208,6 +223,8 @@ def setup(request, dag_maker, *, session=None):
     )
     # Set triggering_user_name for testing
     dag_run3.triggering_user_name = "service_account"
+    # Set partition_key for testing: plain single-dimension key to pair with dag_run1's composite key.
+    dag_run3.partition_key = "us"
     # Set end_date for testing duration filter
     dag_run3.end_date = dag_run3.start_date + timedelta(seconds=51)
     # Set conf for testing conf_contains filter
@@ -299,7 +316,7 @@ def get_dag_run_dict(run: DagRun):
         "conf": run.conf,
         "note": run.note,
         "dag_versions": get_dag_versions_dict(run.dag_versions),
-        "partition_key": None,
+        "partition_key": run.partition_key,
     }
 
 
@@ -917,6 +934,29 @@ class TestGetDagRuns:
                 [DAG1_RUN1_ID, DAG1_RUN2_ID],
             ),  # Partial URI match
             ("~", {"consuming_asset_pattern": "nonexistent_asset"}, []),  # Non-existent asset returns empty
+            # Test partition_key_pattern filter.
+            # dag_run1 has partition_key="2026-01-01|us" (composite key with | as ProductMapper delimiter).
+            # dag_run3 has partition_key="us" (plain single-dimension key).
+            # dag_run2 and dag_run4 have partition_key=None.
+            #
+            # Composite-key literal match: the full "2026-01-01|us" matches only dag_run1 and NOT dag_run3.
+            # This verifies that | is NOT treated as an OR separator.
+            ("~", {"partition_key_pattern": "2026-01-01|us"}, [DAG1_RUN1_ID]),
+            # Substring "us" matches both dag_run1 (contains "|us") and dag_run3 (equals "us").
+            ("~", {"partition_key_pattern": "us"}, [DAG1_RUN1_ID, DAG2_RUN1_ID]),
+            # Substring "2026-01-01" matches only dag_run1 — NOT split on | to also match dag_run3.
+            ("~", {"partition_key_pattern": "2026-01-01"}, [DAG1_RUN1_ID]),
+            # No match → empty result.
+            ("~", {"partition_key_pattern": "nonexistent"}, []),
+            # dag_id_pattern still uses | as OR (other search params unaffected by this fix).
+            ("~", {"dag_id_pattern": f"{DAG1_ID}|{DAG2_ID}"}, DAG_RUNS_LIST),
+            # Test partition_key_prefix_pattern filter.
+            # Exact prefix "2026-01-01|us" matches dag_run1.
+            ("~", {"partition_key_prefix_pattern": "2026-01-01|us"}, [DAG1_RUN1_ID]),
+            # Prefix "us" matches only dag_run3 (dag_run1 starts with "2026", not "us").
+            ("~", {"partition_key_prefix_pattern": "us"}, [DAG2_RUN1_ID]),
+            # Prefix "2026" matches dag_run1 (starts with "2026-01-01|us").
+            ("~", {"partition_key_prefix_pattern": "2026"}, [DAG1_RUN1_ID]),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -2901,6 +2941,62 @@ class TestTriggerDagRun:
         )
         assert response.status_code == 200
 
+    def test_should_respond_400_when_empty_partition_key(self, test_client):
+        """An empty partition_key must return 400, not 500."""
+        now = timezone.utcnow().isoformat()
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={"logical_date": now, "partition_key": ""},
+        )
+        assert response.status_code == 400
+        assert (
+            response.json()["detail"]
+            == "Dag 'test_dag1' is not a partitioned Dag and does not accept a partition_key."
+        )
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_400_when_over_length_partition_key(self, dag_maker, test_client, session):
+        """A partition_key exceeding 250 characters must return 400, not 500."""
+        partitioned_dag_id = "test_over_length_partition_key"
+        with dag_maker(
+            dag_id=partitioned_dag_id,
+            schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{partitioned_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "a" * 251},
+        )
+        assert response.status_code == 400
+        assert "at most 250 characters" in response.json()["detail"]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_200_when_exactly_max_length_partition_key(self, dag_maker, test_client, session):
+        """A partition_key of exactly 250 characters must be accepted."""
+        partitioned_dag_id = "test_max_length_partition_key"
+        with dag_maker(
+            dag_id=partitioned_dag_id,
+            schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{partitioned_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "a" * 250},
+        )
+        assert response.status_code == 200
+
 
 class TestResolveRunOnLatestVersion:
     @pytest.mark.parametrize("explicit_value", [True, False])
@@ -3016,22 +3112,47 @@ class TestWaitDagRun:
         assert response.status_code == 422
 
     @pytest.mark.parametrize(
-        ("run_id", "state"),
-        [(DAG1_RUN1_ID, DAG1_RUN1_STATE), (DAG1_RUN2_ID, DAG1_RUN2_STATE)],
+        ("run_id", "expected"),
+        [
+            pytest.param(
+                DAG1_RUN1_ID,
+                {"state": DAG1_RUN1_STATE, "results": {"task_2": '"result_2"'}},
+                id="return-result-task",
+            ),
+            pytest.param(
+                DAG1_RUN2_ID,
+                {"state": DAG1_RUN2_STATE},
+                id="no-result-task",
+            ),
+        ],
     )
-    def test_should_respond_200_immediately_for_finished_run(self, test_client, run_id, state):
+    def test_should_respond_200_with_implicit_return_value(self, test_client, run_id, expected):
         response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{run_id}/wait", params={"interval": "100"})
         assert response.status_code == 200
         data = response.json()
-        assert data == {"state": state}
+        assert data == expected
 
-    def test_collect_task(self, test_client):
+    @pytest.mark.parametrize(
+        ("requested", "results"),
+        [
+            pytest.param("task_1", {"task_1": '"result_1"'}, id="only-non-result"),
+            pytest.param("task_2", {"task_2": '"result_2"'}, id="only-result"),
+        ],
+    )
+    def test_should_respond_200_with_explicit_return_value(self, test_client, requested, results):
         response = test_client.get(
-            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait", params={"interval": "1", "result": "task_1"}
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
+            params={"interval": "1", "result": requested},
         )
         assert response.status_code == 200
         data = response.json()
-        assert data == {"state": DagRunState.SUCCESS, "results": {"task_1": '"result_1"'}}
+        assert data == {"state": DagRunState.SUCCESS, "results": results}
+
+    def test_collect_authored_task_results(self, test_client):
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait", params={"interval": "1"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data == {"state": DagRunState.SUCCESS, "results": {"task_2": '"result_2"'}}
 
     def test_should_respond_403_when_user_lacks_xcom_permission(self, test_client):
         with mock.patch(
@@ -3055,10 +3176,17 @@ class TestWaitDagRun:
 
     def test_should_respond_200_without_result_when_user_lacks_xcom_permission(self, test_client):
         """Waiting without result parameter should not require XCom permissions."""
-        response = test_client.get(
-            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
-            params={"interval": "1"},
-        )
+        with mock.patch(
+            "airflow.api_fastapi.core_api.routes.public.dag_run.get_auth_manager",
+            autospec=True,
+        ) as mock_get_auth_manager:
+            mock_get_auth_manager.return_value.is_authorized_dag.return_value = False
+
+            response = test_client.get(
+                f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
+                params={"interval": "1"},
+            )
+
         assert response.status_code == 200
         data = response.json()
         assert data == {"state": DagRunState.SUCCESS}
@@ -3142,7 +3270,7 @@ class TestBulkDagRuns:
         assert session.scalar(select(DagRun).where(DagRun.run_id == "running_run")) is not None
 
     def test_bulk_delete_not_found_fails(self, test_client, session):
-        """When FAIL semantics, each missing run is reported individually and matched runs still get deleted."""
+        """FAIL semantics: a single missing run fails the whole action and nothing is deleted."""
         response = test_client.patch(
             self.ENDPOINT_URL,
             json={
@@ -3156,16 +3284,15 @@ class TestBulkDagRuns:
         )
         assert response.status_code == 200
         body = response.json()
-        assert body["delete"]["success"] == [f"{DAG1_ID}.{DAG1_RUN1_ID}"]
+        assert body["delete"]["success"] == []
         errors = body["delete"]["errors"]
-        assert len(errors) == 2
-        assert all(err["status_code"] == 404 for err in errors)
-        assert {err["error"] for err in errors} == {
-            f"The DagRun with dag_id: `{DAG1_ID}` and run_id: `another_missing_run` was not found",
-            f"The DagRun with dag_id: `{DAG1_ID}` and run_id: `non_existent_run` was not found",
-        }
+        assert len(errors) == 1
+        assert errors[0]["status_code"] == 404
+        assert "non_existent_run" in errors[0]["error"]
+        assert "another_missing_run" in errors[0]["error"]
         session.expire_all()
-        assert session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN1_ID)) is None
+        # The matched run must not be deleted when another entity is missing.
+        assert session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN1_ID)) is not None
 
     def test_bulk_delete_not_found_skip(self, test_client, session):
         response = test_client.patch(
@@ -3245,14 +3372,94 @@ class TestBulkDagRuns:
         assert len(body["create"]["errors"]) == 1
         assert body["create"]["errors"][0]["status_code"] == 405
 
-    def test_bulk_update_not_supported(self, test_client):
+    def test_bulk_update_marks_state(self, test_client, session):
+        """Bulk update marks the selected Dag Runs to the requested state in a single call."""
         response = test_client.patch(
             self.ENDPOINT_URL,
             json={
                 "actions": [
                     {
                         "action": "update",
-                        "entities": [{"dag_run_id": DAG1_RUN1_ID}],
+                        "entities": [
+                            {"dag_run_id": DAG1_RUN1_ID, "state": "failed"},
+                            {"dag_run_id": DAG1_RUN2_ID, "state": "failed"},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert sorted(body["update"]["success"]) == sorted(
+            [f"{DAG1_ID}.{DAG1_RUN1_ID}", f"{DAG1_ID}.{DAG1_RUN2_ID}"]
+        )
+        assert body["update"]["errors"] == []
+        session.expire_all()
+        for run_id in (DAG1_RUN1_ID, DAG1_RUN2_ID):
+            dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == run_id))
+            assert dag_run.state == DagRunState.FAILED
+
+    def test_bulk_update_across_dags_with_wildcard(self, test_client, session):
+        """``~`` URL with per-entity dag_id marks runs across Dags in one call."""
+        response = test_client.patch(
+            self.WILDCARD_ENDPOINT,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID, "state": "success"},
+                            {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID, "state": "success"},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert sorted(body["update"]["success"]) == sorted(
+            [f"{DAG1_ID}.{DAG1_RUN1_ID}", f"{DAG2_ID}.{DAG2_RUN1_ID}"]
+        )
+        session.expire_all()
+        for run_id in (DAG1_RUN1_ID, DAG2_RUN1_ID):
+            assert session.scalar(select(DagRun).where(DagRun.run_id == run_id)).state == DagRunState.SUCCESS
+
+    def test_bulk_update_note_only(self, test_client, session):
+        """A bulk update may set only the note, without a target state."""
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [{"dag_run_id": DAG1_RUN1_ID, "note": "bulk note"}],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["update"]["success"] == [f"{DAG1_ID}.{DAG1_RUN1_ID}"]
+        assert body["update"]["errors"] == []
+        session.expire_all()
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN1_ID)
+        )
+        assert dag_run.note == "bulk note"
+        assert dag_run.state == DAG1_RUN1_STATE
+
+    def test_bulk_update_not_found_fails(self, test_client, session):
+        """FAIL semantics: a single missing run fails the whole action and nothing is updated."""
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {"dag_run_id": DAG1_RUN1_ID, "state": "failed"},
+                            {"dag_run_id": "non_existent_run", "state": "failed"},
+                        ],
                     }
                 ]
             },
@@ -3261,7 +3468,37 @@ class TestBulkDagRuns:
         body = response.json()
         assert body["update"]["success"] == []
         assert len(body["update"]["errors"]) == 1
-        assert body["update"]["errors"][0]["status_code"] == 405
+        assert body["update"]["errors"][0]["status_code"] == 404
+        assert "non_existent_run" in body["update"]["errors"][0]["error"]
+        session.expire_all()
+        # The matched run must keep its original state when another entity is missing.
+        dag_run = session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN1_ID))
+        assert dag_run.state == DAG1_RUN1_STATE
+
+    def test_bulk_update_not_found_skip(self, test_client, session):
+        """SKIP semantics: missing runs are ignored and matched runs are still updated."""
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "action_on_non_existence": "skip",
+                        "entities": [
+                            {"dag_run_id": DAG1_RUN1_ID, "state": "failed"},
+                            {"dag_run_id": "non_existent_run", "state": "failed"},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["update"]["success"] == [f"{DAG1_ID}.{DAG1_RUN1_ID}"]
+        assert body["update"]["errors"] == []
+        session.expire_all()
+        dag_run = session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN1_ID))
+        assert dag_run.state == DagRunState.FAILED
 
     def test_bulk_delete_rejects_unauthorized_dag_ids_from_request_body(self, test_client, session):
         """A 403 at the route level if any entity references a Dag the user can't access."""

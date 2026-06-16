@@ -51,10 +51,12 @@ class DAGRunPatchBody(StrictBaseModel):
 
 
 class BulkDAGRunBody(StrictBaseModel):
-    """Request body for bulk delete operations on Dag Runs."""
+    """Request body for bulk operations on Dag Runs."""
 
     dag_run_id: str
     dag_id: str | None = None
+    state: DagRunMutableStates | None = None
+    note: str | None = Field(None, max_length=1000)
 
 
 class BaseDAGRunClear(StrictBaseModel):

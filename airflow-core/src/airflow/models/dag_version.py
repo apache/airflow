@@ -175,7 +175,12 @@ class DagVersion(Base):
         if load_serialized_dag:
             query = query.options(joinedload(cls.serialized_dag))
 
-        query = query.order_by(cls.created_at.desc()).limit(1)
+        # Order by version_number, not created_at: version_number is monotonic and unique per
+        # dag_id, so it is deterministic even when two versions share a created_at timestamp.
+        # write_dag relies on this select to compute the next version_number; ordering by
+        # created_at could pick a non-max row under a tie and collide with the
+        # (dag_id, version_number) unique constraint.
+        query = query.order_by(cls.version_number.desc()).limit(1)
         return query
 
     @classmethod
@@ -231,7 +236,7 @@ class DagVersion(Base):
         if version_number:
             version_select_obj = version_select_obj.where(cls.version_number == version_number)
 
-        return session.scalar(version_select_obj.order_by(cls.id.desc()).limit(1))
+        return session.scalar(version_select_obj.order_by(cls.version_number.desc()).limit(1))
 
     @property
     def version(self) -> str:

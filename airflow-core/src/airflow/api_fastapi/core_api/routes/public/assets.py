@@ -381,7 +381,7 @@ def create_asset_event(
     if conf.getboolean("core", "multi_team"):
         api_user_teams = get_auth_manager().get_authorized_teams(user=user)
         if body.access_control:
-            api_allow_consumer_teams = body.access_control.consumer_teams or None
+            api_allow_consumer_teams = body.access_control.consumer_teams
             api_allow_global_consumers = body.access_control.allow_global
 
     assets_event = asset_manager.register_asset_change(
