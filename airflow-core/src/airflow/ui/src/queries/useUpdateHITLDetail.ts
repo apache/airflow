@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 
 import {
   UseDagRunServiceGetDagRunKeyFn,
+  useDagServiceGetDagsUiKey,
   useDagRunServiceGetDagRunsKey,
   UseGanttServiceGetGanttDataKeyFn,
   useTaskInstanceServiceGetHitlDetailsKey,
@@ -41,23 +42,26 @@ export const useUpdateHITLDetail = ({
   dagId,
   dagRunId,
   mapIndex,
+  onSuccess,
   taskId,
 }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number | undefined;
+  onSuccess?: () => void;
   taskId: string;
 }) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
   const { t: translate } = useTranslation("hitl");
-  const onSuccess = async () => {
+  const handleSuccess = async () => {
     const queryKeys = [
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],
       [useTaskInstanceServiceGetTaskInstancesKey, { dagId, dagRunId }],
       [useTaskInstanceServiceGetTaskInstanceKey, { dagId, dagRunId, mapIndex, taskId }],
-      [useTaskInstanceServiceGetHitlDetailsKey, { dagIdPrefixPattern: dagId, dagRunId }],
+      [useDagServiceGetDagsUiKey],
+      [useTaskInstanceServiceGetHitlDetailsKey],
       [useTaskInstanceServiceGetHitlDetailKey, { dagId, dagRunId }],
       [useTaskInstanceServiceGetHitlDetailTryDetailKey, { dagId, dagRunId }],
       UseGanttServiceGetGanttDataKeyFn({ dagId, runId: dagRunId }),
@@ -73,6 +77,7 @@ export const useUpdateHITLDetail = ({
       title: translate("response.success", { taskId }),
       type: "success",
     });
+    onSuccess?.();
   };
 
   const onError = (apiError: unknown) => {
@@ -81,7 +86,7 @@ export const useUpdateHITLDetail = ({
 
   const { isPending, mutate } = useTaskInstanceServiceUpdateHitlDetail({
     onError,
-    onSuccess,
+    onSuccess: handleSuccess,
   });
 
   const updateHITLResponse = (updateHITLResponseRequestBody: HITLResponseParams) => {
