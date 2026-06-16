@@ -3982,6 +3982,7 @@ export type GetImportErrorsData = {
 export type GetImportErrorsResponse = ImportErrorCollectionResponse;
 
 export type GetJobsData = {
+    dagId?: string | null;
     endDateGt?: string | null;
     endDateGte?: string | null;
     endDateLt?: string | null;
