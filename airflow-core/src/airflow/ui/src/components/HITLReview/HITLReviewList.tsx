@@ -59,7 +59,7 @@ export const HITLReviewList = ({
   const { t: translate } = useTranslation(["hitl", "common"]);
 
   return (
-    <Table.Root>
+    <Table.Root minW="max-content">
       <Table.Header>
         <Table.Row>
           <TableColumnHeader width="30%">{translate("common:dagId")}</TableColumnHeader>

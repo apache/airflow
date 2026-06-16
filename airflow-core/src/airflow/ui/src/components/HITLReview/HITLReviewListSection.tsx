@@ -43,7 +43,7 @@ export const HITLReviewListSection = ({
   return (
     <VStack alignItems="stretch">
       <Heading size="md">{heading}</Heading>
-      <VStack alignItems="stretch" borderRadius="md" borderWidth={1} overflow="hidden">
+      <VStack alignItems="stretch" borderRadius="md" borderWidth={1} overflowX="auto">
         {isLoading ? (
           <Text color="fg.muted">{translate("review.list.loadingActions")}</Text>
         ) : isError ? (
