@@ -2386,15 +2386,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         query, triggered_date_by_dag, asset_gated_ready_dag_ids = DagModel.dags_needing_dagruns(session)
         all_dags_needing_dag_runs = set(query.all())
-        asset_triggered_dags = [
-            d
-            for d in all_dags_needing_dag_runs
-            if d.dag_id in triggered_date_by_dag and d.dag_id not in partition_dag_ids
-        ]
+        asset_triggered_dags = [d for d in all_dags_needing_dag_runs if d.dag_id in triggered_date_by_dag]
         asset_gated_ready_dags = [
-            d
-            for d in all_dags_needing_dag_runs
-            if d.dag_id in asset_gated_ready_dag_ids and d.dag_id not in partition_dag_ids
+            d for d in all_dags_needing_dag_runs if d.dag_id in asset_gated_ready_dag_ids
         ]
         non_asset_dags = {
             d
@@ -2406,12 +2400,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._create_dag_runs(non_asset_dags, session)
         if asset_triggered_dags:
             self._create_dag_runs_asset_triggered(
-                dag_models=asset_triggered_dags,
+                dag_models=[d for d in asset_triggered_dags if d.dag_id not in partition_dag_ids],
                 session=session,
             )
         if asset_gated_ready_dags:
             self._create_dag_runs_asset_gated(
-                dag_models=asset_gated_ready_dags,
+                dag_models=[d for d in asset_gated_ready_dags if d.dag_id not in partition_dag_ids],
                 session=session,
             )
 
@@ -2592,19 +2586,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         dag_models: Collection[DagModel],
         session: Session,
     ) -> None:
-        """
-        Create SCHEDULED Dag runs for time-based timetables gated by an asset condition.
-
-        Caller (``_create_dagruns_for_dags``) hands in DAGs whose asset condition was
-        already verified in ``DagModel.dags_needing_dagruns``. We re-lock and re-evaluate
-        here because another scheduler in the HA pool may have consumed the ADRQ rows
-        between the candidate query and DagRun creation.
-        """
+        """Create scheduled Dag runs for Dags whose time and asset conditions are ready."""
         evaluator = AssetEvaluator(session)
-        # Mirror _create_dag_runs: track active runs so we can update
-        # exceeds_max_non_backfill after each creation. Without this, the SQL filter
-        # in dags_needing_dagruns cannot prevent a follow-up asset event from
-        # creating a second run while the first one is still queued/running.
+        # Mirror _create_dag_runs so the next scheduler tick sees max_active_runs correctly.
         active_runs_of_dags = Counter(
             DagRun.active_runs_of_dags(
                 dag_ids=(dm.dag_id for dm in dag_models),
@@ -2624,6 +2608,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.error("Dag not found in serialized_dag table", dag_id=dag_model.dag_id)
                 continue
 
+            # Re-check under ADRQ row locks because another scheduler may have consumed
+            # or locked the rows after dags_needing_dagruns selected this Dag.
             queued_adrqs = session.scalars(
                 with_row_locks(
                     select(AssetDagRunQueue)
@@ -2638,7 +2624,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if not queued_adrqs:
                 continue
 
-            statuses = {SerializedAssetUniqueKey.from_asset(r.asset): True for r in queued_adrqs}
+            statuses = {SerializedAssetUniqueKey.from_asset(record.asset): True for record in queued_adrqs}
             try:
                 ready = evaluator.run(serdag.timetable.asset_condition, statuses=statuses)
             except Exception:
@@ -2647,11 +2633,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if not ready:
                 continue
 
-            # Fetch AssetEvents that satisfied the gate so we can link them to the run
-            # for provenance (triggering_asset_events template, inlet_events callbacks,
-            # UI asset events section). Mirrors _create_dag_runs_asset_triggered but
-            # scoped to SCHEDULED run_type since asset-gated runs are SCHEDULED.
-            triggered_date = timezone.coerce_datetime(max(r.created_at for r in queued_adrqs))
+            # Link the consumed AssetEvents to the scheduled run for asset provenance.
+            triggered_date = timezone.coerce_datetime(max(record.created_at for record in queued_adrqs))
             previous_run_cte = (
                 select(func.max(DagRun.run_after).label("previous_run_after"))
                 .where(
@@ -2715,11 +2698,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.exception("Failed creating asset-gated DagRun", dag_id=dag_model.dag_id)
                 continue
 
-            adrq_pks = [(r.asset_id, r.target_dag_id) for r in queued_adrqs]
-            session.execute(
-                delete(AssetDagRunQueue).where(
-                    tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
-                )
+            adrq_pks = [(record.asset_id, record.target_dag_id) for record in queued_adrqs]
+            result = cast(
+                "CursorResult",
+                session.execute(
+                    delete(AssetDagRunQueue).where(
+                        tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
+                    )
+                ),
+            )
+            self.log.info(
+                "Deleted %d ADRQ rows for asset-gated Dag '%s'",
+                result.rowcount,
+                dag_model.dag_id,
             )
 
     def _create_dag_runs_asset_triggered(
@@ -2971,7 +2962,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         dag_run.run_id,
                     )
                     continue
-
             active_runs_of_dags[(dag_run.dag_id, backfill_id)] += 1
             _update_state(dag, dag_run)
             dag_run.notify_dagrun_state_changed(msg="started")
