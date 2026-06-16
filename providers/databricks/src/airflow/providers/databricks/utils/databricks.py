@@ -114,17 +114,24 @@ def find_new_workflow_task_attempt(
     original_sub_run_id: int,
     original_start_time: int | None,
 ) -> dict[str, Any] | None:
-    """Return the newest task entry matching ``task_key`` that is not the original sub-run."""
+    """
+    Return the newest started attempt for ``task_key`` that is not the original sub-run.
+
+    Requires a populated ``start_time`` so a not-yet-started attempt yields ``None`` (keep polling);
+    ``run_id`` exclusion is the hard guard, ``start_time`` ranks attempts and time-filters when
+    ``original_start_time`` is known.
+    """
     candidates = [
         task
         for task in tasks
         if task.get("task_key") == task_key
         and task.get("run_id") != original_sub_run_id
-        and (original_start_time is None or task.get("start_time", 0) > original_start_time)
+        and task.get("start_time")
+        and (original_start_time is None or task["start_time"] > original_start_time)
     ]
     if not candidates:
         return None
-    return max(candidates, key=lambda task: task.get("start_time", 0))
+    return max(candidates, key=lambda task: task["start_time"])
 
 
 def compute_repair_deadline(run_info: dict[str, Any], workflow_repair_timeout: int) -> float:

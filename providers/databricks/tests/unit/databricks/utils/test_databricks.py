@@ -116,6 +116,25 @@ class TestDatabricksOperatorSharedFunctions:
 
         assert result == {"run_id": 202, "task_key": TASK_KEY_1, "start_time": 2500}
 
+    def test_find_new_workflow_task_attempt_skips_not_yet_started_attempt(self):
+        # A repaired attempt that has not started yet (missing/0/None start_time) is not selected;
+        # the caller keeps polling until it starts.
+        tasks = [
+            {"run_id": TASK_RUN_ID_1, "task_key": TASK_KEY_1, "start_time": 1000},
+            {"run_id": 201, "task_key": TASK_KEY_1, "start_time": 0},
+            {"run_id": 202, "task_key": TASK_KEY_1, "start_time": None},
+            {"run_id": 203, "task_key": TASK_KEY_1},
+        ]
+
+        result = find_new_workflow_task_attempt(
+            tasks=tasks,
+            task_key=TASK_KEY_1,
+            original_sub_run_id=TASK_RUN_ID_1,
+            original_start_time=None,
+        )
+
+        assert result is None
+
     def test_build_repair_run_json_includes_optional_fields_only_when_present(self):
         assert build_repair_run_json(run_id=RUN_ID, latest_repair_id=None) == {
             "run_id": RUN_ID,
