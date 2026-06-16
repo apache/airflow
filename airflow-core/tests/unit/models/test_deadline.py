@@ -82,6 +82,8 @@ def _clean_db():
     db.clear_db_dags()
     db.clear_db_runs()
     db.clear_db_deadline()
+    db.clear_db_dag_bundles()
+    db.clear_db_teams()
 
 
 def assert_correct_timing(reference, expected_timing):
@@ -796,6 +798,14 @@ class TestDeadlineReferenceDecorator:
 class TestDeadlineMetricsTeamName:
     """Verify team_name tag is included/excluded on deadline metrics based on multi_team config."""
 
+    @staticmethod
+    def setup_method():
+        _clean_db()
+
+    @staticmethod
+    def teardown_method():
+        _clean_db()
+
     @pytest.mark.parametrize(
         ("multi_team", "expected_tags"),
         [
@@ -814,14 +824,9 @@ class TestDeadlineMetricsTeamName:
         from airflow.models.team import Team
 
         from tests_common.test_utils.config import conf_vars
-        from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_teams
 
         mock_stats = mock.MagicMock(spec=StatsLogger)
         mock_get_backend.return_value = mock_stats
-
-        _clean_db()
-        clear_db_dag_bundles()
-        clear_db_teams()
 
         team = Team(name="dl_team")
         session.add(team)
@@ -872,14 +877,9 @@ class TestDeadlineMetricsTeamName:
         from airflow.models.team import Team
 
         from tests_common.test_utils.config import conf_vars
-        from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_teams
 
         mock_stats = mock.MagicMock(spec=StatsLogger)
         mock_get_backend.return_value = mock_stats
-
-        _clean_db()
-        clear_db_dag_bundles()
-        clear_db_teams()
 
         team = Team(name="dl_team")
         session.add(team)
