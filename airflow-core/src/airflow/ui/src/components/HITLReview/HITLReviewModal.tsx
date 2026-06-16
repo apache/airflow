@@ -89,8 +89,8 @@ export const HITLReviewModal = ({
     >
       <Dialog.Content maxW="1440px" p={4}>
         <Dialog.Header>
-          <HStack justifyContent="space-between" width="100%">
-            <Dialog.Title>{translate("requiredAction_other")}</Dialog.Title>
+          <HStack justifyContent="space-between" overflowX="auto" width="100%">
+            <Dialog.Title flexShrink={0}>{translate("requiredAction_other")}</Dialog.Title>
             <HStack gap={3}>
               {headerAction}
               {shouldShowCompletedHitl ? (
