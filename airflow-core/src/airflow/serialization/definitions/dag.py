@@ -180,6 +180,7 @@ class SerializedDAG:
                 "task_group",
                 "timetable",
                 "timezone",
+                "bundle_name",
             }
         )
 
