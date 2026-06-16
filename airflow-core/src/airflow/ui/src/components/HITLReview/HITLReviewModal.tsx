@@ -135,7 +135,7 @@ export const HITLReviewModal = ({
                 ) : null}
               </VStack>
             </Box>
-            <Box borderRadius="md" borderWidth={1} flex="1" p={3}>
+            <Box borderRadius="md" borderWidth={1} flex="1" mt={8} p={3}>
               <HITLReviewDetail detail={selectedDetail} onOpenTask={handleClose} onResponded={onNext} />
             </Box>
           </HStack>
