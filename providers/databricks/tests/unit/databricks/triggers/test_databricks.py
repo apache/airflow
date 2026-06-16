@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import time
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -671,7 +672,7 @@ class TestDatabricksWorkflowRepairWaitTrigger:
         tasks: list[dict] | None = None,
         end_time: int | None = None,
     ) -> dict:
-        payload = {
+        payload: dict[str, Any] = {
             "run_page_url": RUN_PAGE_URL,
             "state": {
                 "life_cycle_state": life_cycle_state,
