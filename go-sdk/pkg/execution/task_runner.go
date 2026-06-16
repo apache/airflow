@@ -28,6 +28,7 @@ import (
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/pkg/api"
+	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
@@ -47,17 +48,21 @@ import (
 func RunTask(
 	ctx context.Context,
 	bundle bundlev1.Bundle,
-	details *StartupDetails,
+	details *genmodels.StartupDetails,
 	comm *CoordinatorComm,
 	logger *slog.Logger,
-) map[string]any {
+) any {
 	task, exists := bundle.LookupTask(details.TI.DagID, details.TI.TaskID)
 	if !exists {
 		logger.Error("Task not registered",
 			"dag_id", details.TI.DagID,
 			"task_id", details.TI.TaskID,
 		)
-		return TaskStateMsg{State: TaskStateRemoved, EndDate: time.Now().UTC()}.toMap()
+		return genmodels.TaskState{
+			Type:    genmodels.TypeTaskState,
+			State:   genmodels.TaskStateStateRemoved,
+			EndDate: time.Now().UTC(),
+		}
 	}
 
 	client := NewCoordinatorClient(comm)
@@ -72,7 +77,11 @@ func RunTask(
 			"ti_id", details.TI.ID,
 			"error", err,
 		)
-		return TaskStateMsg{State: TaskStateFailed, EndDate: time.Now().UTC()}.toMap()
+		return genmodels.TaskState{
+			Type:    genmodels.TypeTaskState,
+			State:   genmodels.TaskStateStateFailed,
+			EndDate: time.Now().UTC(),
+		}
 	}
 	mapIndex := details.TI.MapIndex
 	workload := api.ExecuteTaskWorkload{
@@ -86,13 +95,16 @@ func RunTask(
 		},
 		BundleInfo: api.BundleInfo{
 			Name:    details.BundleInfo.Name,
-			Version: &details.BundleInfo.Version,
+			Version: ifaceStringPtr(details.BundleInfo.Version),
 		},
 	}
 
 	// Carries the task runtime context for sdk.TIRunContext injection. The
-	// base context is a placeholder; bundlev1.Execute rebuilds the value
-	// around the live task context when binding the parameter.
+	// scheduling timestamps live on the nested dag_run object in the
+	// supervisor's TIRunContext schema. The base context is a placeholder;
+	// bundlev1.Execute rebuilds the value around the live task context when
+	// binding the parameter.
+	dagRun := details.TIContext.DagRun
 	runtimeContext := sdk.NewTIRunContext(
 		context.Background(),
 		sdk.TaskInstance{
@@ -105,9 +117,9 @@ func RunTask(
 		sdk.DagRun{
 			DagID:             details.TI.DagID,
 			RunID:             details.TI.RunID,
-			LogicalDate:       details.TIContext.LogicalDate,
-			DataIntervalStart: details.TIContext.DataIntervalStart,
-			DataIntervalEnd:   details.TIContext.DataIntervalEnd,
+			LogicalDate:       ifaceTimePtr(dagRun.LogicalDate),
+			DataIntervalStart: ifaceTimePtr(dagRun.DataIntervalStart),
+			DataIntervalEnd:   ifaceTimePtr(dagRun.DataIntervalEnd),
 		},
 	)
 
@@ -128,13 +140,15 @@ func mapIndexPtr(mapIndex int) *int {
 	return &mapIndex
 }
 
-// executeTask runs the task and handles success, failure, and panics.
+// executeTask runs the task and handles success, failure, and panics. It
+// returns the terminal message body (genmodels.SucceedTask or
+// genmodels.TaskState) ready to ship as the final response frame.
 func executeTask(
 	ctx context.Context,
 	task bundlev1.Task,
 	shouldRetry bool,
 	logger *slog.Logger,
-) (result map[string]any) {
+) (result any) {
 	defer func() {
 		if r := recover(); r != nil {
 			logger.Error("Recovered panic in task",
@@ -142,34 +156,47 @@ func executeTask(
 				"stack", string(debug.Stack()),
 			)
 			if shouldRetry {
-				result = RetryTaskMsg{
-					EndDate: time.Now().UTC(),
-					Reason:  fmt.Sprintf("panic: %v", r),
-				}.toMap()
+				result = genmodels.RetryTask{
+					Type:        genmodels.TypeRetryTask,
+					EndDate:     time.Now().UTC(),
+					RetryReason: fmt.Sprintf("panic: %v", r),
+				}
 			} else {
-				result = TaskStateMsg{
-					State:   TaskStateFailed,
+				result = genmodels.TaskState{
+					Type:    genmodels.TypeTaskState,
+					State:   genmodels.TaskStateStateFailed,
 					EndDate: time.Now().UTC(),
-				}.toMap()
+				}
 			}
 		}
 	}()
 
 	if err := task.Execute(ctx, logger); err != nil {
 		logger.ErrorContext(ctx, "Task failed", "error", err)
+		// A task that fails when ti_context.should_retry is set is reported as
+		// UP_FOR_RETRY via RetryTask; otherwise it terminates as FAILED.
 		if shouldRetry {
-			return RetryTaskMsg{
-				EndDate: time.Now().UTC(),
-				Reason:  err.Error(),
-			}.toMap()
+			return genmodels.RetryTask{
+				Type:        genmodels.TypeRetryTask,
+				EndDate:     time.Now().UTC(),
+				RetryReason: err.Error(),
+			}
 		}
-		return TaskStateMsg{
-			State:   TaskStateFailed,
+		return genmodels.TaskState{
+			Type:    genmodels.TypeTaskState,
+			State:   genmodels.TaskStateStateFailed,
 			EndDate: time.Now().UTC(),
-		}.toMap()
+		}
 	}
 
-	return SucceedTaskMsg{
-		EndDate: time.Now().UTC(),
-	}.toMap()
+	// task_outlets / outlet_events must be sent as empty lists, not omitted:
+	// the supervisor's SucceedTask validation rejects a null/absent value
+	// ("Input should be a valid list"). A task that emits no asset events
+	// reports empty collections rather than None.
+	return genmodels.SucceedTask{
+		Type:         genmodels.TypeSucceedTask,
+		EndDate:      time.Now().UTC(),
+		TaskOutlets:  &genmodels.TaskOutlets{},
+		OutletEvents: &genmodels.OutletEvents{},
+	}
 }

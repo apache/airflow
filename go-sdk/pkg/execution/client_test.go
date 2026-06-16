@@ -119,7 +119,7 @@ func TestCoordinatorClientErrorTranslation(t *testing.T) {
 			responsePayload := encodeResponseFrame(t, 0, nil, map[string]any{
 				"type":   "ErrorResponse",
 				"error":  tc.errorCode,
-				"detail": "supervisor said no",
+				"detail": map[string]any{"msg": "supervisor said no"},
 			})
 			var responseBuf bytes.Buffer
 			require.NoError(t, writeFrame(&responseBuf, responsePayload))
@@ -145,7 +145,7 @@ func TestCoordinatorClientErrorPassThrough(t *testing.T) {
 	responsePayload := encodeResponseFrame(t, 0, nil, map[string]any{
 		"type":   "ErrorResponse",
 		"error":  "API_SERVER_ERROR",
-		"detail": "boom",
+		"detail": map[string]any{"msg": "boom"},
 	})
 	var responseBuf bytes.Buffer
 	require.NoError(t, writeFrame(&responseBuf, responsePayload))
@@ -256,13 +256,14 @@ func TestCoordinatorClientPushXComMapIndex(t *testing.T) {
 
 			sent, err := readFrame(&requestBuf)
 			require.NoError(t, err)
-			assert.Equal(t, "SetXCom", sent.Body["type"])
+			sentMap := rawToMap(t, sent.Body)
+			assert.Equal(t, "SetXCom", sentMap["type"])
 			if tc.wantHasMapIndex {
-				require.Contains(t, sent.Body, "map_index")
+				require.Contains(t, sentMap, "map_index")
 				// msgpack decodes small ints as int8.
-				assert.EqualValues(t, tc.wantMapIndexVal, sent.Body["map_index"])
+				assert.EqualValues(t, tc.wantMapIndexVal, sentMap["map_index"])
 			} else {
-				assert.NotContains(t, sent.Body, "map_index",
+				assert.NotContains(t, sentMap, "map_index",
 					"map_index must be omitted for unmapped task instances")
 			}
 		})

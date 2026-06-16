@@ -76,9 +76,10 @@ func TestWriteAndReadFrame(t *testing.T) {
 	frame, err := readFrame(&buf)
 	require.NoError(t, err)
 	assert.Equal(t, int64(7), frame.ID)
-	assert.Equal(t, "GetConnection", frame.Body["type"])
-	assert.Equal(t, "my_db", frame.Body["conn_id"])
-	assert.Nil(t, frame.Err)
+	bodyMap := rawToMap(t, frame.Body)
+	assert.Equal(t, "GetConnection", bodyMap["type"])
+	assert.Equal(t, "my_db", bodyMap["conn_id"])
+	assert.True(t, isNilRaw(frame.Err))
 }
 
 func TestDecodeResponseFrame(t *testing.T) {
@@ -99,9 +100,10 @@ func TestDecodeResponseFrame(t *testing.T) {
 	frame, err := decodeFrame(buf.Bytes())
 	require.NoError(t, err)
 	assert.Equal(t, int64(5), frame.ID)
-	assert.Equal(t, "ConnectionResult", frame.Body["type"])
-	assert.Equal(t, "localhost", frame.Body["host"])
-	assert.Nil(t, frame.Err)
+	bodyMap := rawToMap(t, frame.Body)
+	assert.Equal(t, "ConnectionResult", bodyMap["type"])
+	assert.Equal(t, "localhost", bodyMap["host"])
+	assert.True(t, isNilRaw(frame.Err))
 }
 
 func TestDecodeResponseFrameWithError(t *testing.T) {
@@ -121,41 +123,9 @@ func TestDecodeResponseFrameWithError(t *testing.T) {
 	frame, err := decodeFrame(buf.Bytes())
 	require.NoError(t, err)
 	assert.Equal(t, int64(3), frame.ID)
-	assert.Nil(t, frame.Body)
-	assert.NotNil(t, frame.Err)
-	assert.Equal(t, "not_found", frame.Err["error"])
-}
-
-func TestDecodeFrameRejectsNonMapBody(t *testing.T) {
-	// A non-nil, non-map body element is a protocol violation; the decoder
-	// must surface it instead of silently turning the body into nil.
-	var buf bytes.Buffer
-	enc := msgpack.NewEncoder(&buf)
-	enc.UseCompactInts(true)
-
-	require.NoError(t, enc.EncodeArrayLen(2))
-	require.NoError(t, enc.EncodeInt(1))
-	require.NoError(t, enc.EncodeString("not a map"))
-
-	_, err := decodeFrame(buf.Bytes())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "body element: expected map")
-}
-
-func TestDecodeFrameRejectsNonMapError(t *testing.T) {
-	// Same rule applies to the error element of a 3-tuple response frame.
-	var buf bytes.Buffer
-	enc := msgpack.NewEncoder(&buf)
-	enc.UseCompactInts(true)
-
-	require.NoError(t, enc.EncodeArrayLen(3))
-	require.NoError(t, enc.EncodeInt(2))
-	require.NoError(t, enc.Encode(nil))
-	require.NoError(t, enc.EncodeString("not a map"))
-
-	_, err := decodeFrame(buf.Bytes())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "error element: expected map")
+	assert.True(t, isNilRaw(frame.Body))
+	assert.False(t, isNilRaw(frame.Err))
+	assert.Equal(t, "not_found", rawToMap(t, frame.Err)["error"])
 }
 
 func TestRoundTripMultipleFrames(t *testing.T) {
@@ -177,56 +147,6 @@ func TestRoundTripMultipleFrames(t *testing.T) {
 		frame, err := readFrame(&buf)
 		require.NoError(t, err)
 		assert.Equal(t, int64(i), frame.ID)
-		assert.Equal(t, expected["key"], frame.Body["key"])
+		assert.Equal(t, expected["key"], rawToMap(t, frame.Body)["key"])
 	}
-}
-
-func TestToStringMap(t *testing.T) {
-	tests := []struct {
-		name  string
-		input any
-		want  map[string]any
-		ok    bool
-	}{
-		{"nil", nil, nil, false},
-		{"string map", map[string]any{"a": 1}, map[string]any{"a": 1}, true},
-		{"any key map", map[any]any{"b": 2}, map[string]any{"b": 2}, true},
-		{"not a map", "hello", nil, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, ok := toStringMap(tt.input)
-			assert.Equal(t, tt.ok, ok)
-			if tt.ok {
-				assert.Equal(t, tt.want, got)
-			}
-		})
-	}
-}
-
-func TestToInt(t *testing.T) {
-	tests := []struct {
-		input any
-		want  int
-	}{
-		{int8(42), 42},
-		{int16(42), 42},
-		{int32(42), 42},
-		{int64(42), 42},
-		{uint8(42), 42},
-		{uint16(42), 42},
-		{uint32(42), 42},
-		{uint64(42), 42},
-		{float32(42.0), 42},
-		{float64(42.0), 42},
-		{int(42), 42},
-	}
-	for _, tt := range tests {
-		got, err := toInt(tt.input)
-		require.NoError(t, err)
-		assert.Equal(t, tt.want, got)
-	}
-
-	_, err := toInt("not a number")
-	assert.Error(t, err)
 }

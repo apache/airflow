@@ -32,16 +32,26 @@ import (
 const MaxFrameSize = 1<<32 - 1
 
 // IncomingFrame represents a decoded frame received from the comm socket.
+//
+// Body and Err hold the raw msgpack bytes of the second and (optional) third
+// array elements rather than decoded maps: the concrete shape is determined by
+// the message's "type" discriminator, so callers decode the raw bytes into the
+// matching genmodels type once they know which one to expect. Err is non-nil
+// only for response frames (3-element arrays); it may still encode a msgpack
+// nil, which isNilRaw reports.
+//
 // ID is int64 to match the wire encoding and CoordinatorComm.nextID; narrowing
 // to int would reintroduce wraparound on 32-bit GOARCH.
 type IncomingFrame struct {
 	ID   int64
-	Body map[string]any
-	Err  map[string]any // non-nil only for response frames (3-element arrays)
+	Body msgpack.RawMessage
+	Err  msgpack.RawMessage
 }
 
 // encodeRequest encodes a request frame (2-element msgpack array: [id, body]).
-func encodeRequest(id int64, body map[string]any) ([]byte, error) {
+// body is any msgpack-encodable value; in practice a genmodels message struct
+// whose msgpack tags match the supervisor's wire-schema field names.
+func encodeRequest(id int64, body any) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := msgpack.NewEncoder(&buf)
 	enc.UseCompactInts(true)
@@ -117,7 +127,9 @@ func readFrame(r io.Reader) (IncomingFrame, error) {
 	return decodeFrame(payload)
 }
 
-// decodeFrame decodes a msgpack payload into an IncomingFrame.
+// decodeFrame decodes a msgpack payload into an IncomingFrame, capturing the
+// body (and optional error) elements as raw msgpack bytes for later typed
+// decoding.
 func decodeFrame(data []byte) (IncomingFrame, error) {
 	dec := msgpack.NewDecoder(bytes.NewReader(data))
 
@@ -134,185 +146,31 @@ func decodeFrame(data []byte) (IncomingFrame, error) {
 		return IncomingFrame{}, fmt.Errorf("decoding frame id: %w", err)
 	}
 
-	// Decode the body element.
-	bodyRaw, err := dec.DecodeInterface()
+	body, err := dec.DecodeRaw()
 	if err != nil {
 		return IncomingFrame{}, fmt.Errorf("decoding body: %w", err)
 	}
-	body, ok := toStringMap(bodyRaw)
-	if bodyRaw != nil && !ok {
-		return IncomingFrame{}, fmt.Errorf("body element: expected map, got %T", bodyRaw)
-	}
 
-	// For response frames (3-element), decode the error element.
-	var errMap map[string]any
+	// For response frames (3-element), capture the error element.
+	var errRaw msgpack.RawMessage
 	if arrLen >= 3 {
-		errRaw, err := dec.DecodeInterface()
+		errRaw, err = dec.DecodeRaw()
 		if err != nil {
 			return IncomingFrame{}, fmt.Errorf("decoding error element: %w", err)
-		}
-		errMap, ok = toStringMap(errRaw)
-		if errRaw != nil && !ok {
-			return IncomingFrame{}, fmt.Errorf("error element: expected map, got %T", errRaw)
 		}
 	}
 
 	return IncomingFrame{
 		ID:   id64,
 		Body: body,
-		Err:  errMap,
+		Err:  errRaw,
 	}, nil
 }
 
-// toStringMap converts a decoded interface{} to map[string]any.
-// Returns nil, false if the input is nil or not a map.
-func toStringMap(v any) (map[string]any, bool) {
-	if v == nil {
-		return nil, false
-	}
-	switch m := v.(type) {
-	case map[string]any:
-		return m, true
-	case map[any]any:
-		result := make(map[string]any, len(m))
-		for k, val := range m {
-			result[fmt.Sprint(k)] = val
-		}
-		return result, true
-	default:
-		return nil, false
-	}
-}
-
-// mapString extracts a string value from a map.
-func mapString(m map[string]any, key string) (string, error) {
-	v, ok := m[key]
-	if !ok {
-		return "", fmt.Errorf("missing key %q", key)
-	}
-	s, ok := v.(string)
-	if !ok {
-		return "", fmt.Errorf("key %q: expected string, got %T", key, v)
-	}
-	return s, nil
-}
-
-// mapInt extracts an int value from a map. Returns an error if the key is
-// missing or the value is not a numeric type. Use this for fields the
-// supervisor is contractually required to send (e.g. try_number); a silent
-// default would mask supervisor/runtime version-drift bugs.
-func mapInt(m map[string]any, key string) (int, error) {
-	v, ok := m[key]
-	if !ok {
-		return 0, fmt.Errorf("missing key %q", key)
-	}
-	n, err := toInt(v)
-	if err != nil {
-		return 0, fmt.Errorf("key %q: %w", key, err)
-	}
-	return n, nil
-}
-
-// mapIntOr extracts an int value from a map, returning the default when the
-// key is missing OR the value is not a numeric type. Use this only for
-// genuinely optional fields where any decoding hiccup should fall back to
-// the default; for required fields, use mapInt.
-func mapIntOr(m map[string]any, key string, def int) int {
-	v, ok := m[key]
-	if !ok {
-		return def
-	}
-	n, err := toInt(v)
-	if err != nil {
-		return def
-	}
-	return n
-}
-
-// mapStringOr extracts a string value from a map, returning the default if missing.
-func mapStringOr(m map[string]any, key string, def string) string {
-	v, ok := m[key]
-	if !ok {
-		return def
-	}
-	s, ok := v.(string)
-	if !ok {
-		return def
-	}
-	return s
-}
-
-// mapBoolOr extracts a bool value from a map, returning the default if missing.
-func mapBoolOr(m map[string]any, key string, def bool) bool {
-	v, ok := m[key]
-	if !ok {
-		return def
-	}
-	b, ok := v.(bool)
-	if !ok {
-		return def
-	}
-	return b
-}
-
-// mapStringPtr extracts a nullable string value from a map. It returns nil
-// when the key is missing or the value is nil (i.e. JSON null / Python None),
-// and a pointer to the string when a value is present. Use this for fields
-// where presence-with-empty must be distinguished from absence (e.g. a
-// connection password explicitly set to "").
-func mapStringPtr(m map[string]any, key string) *string {
-	v, ok := m[key]
-	if !ok || v == nil {
-		return nil
-	}
-	s, ok := v.(string)
-	if !ok {
-		return nil
-	}
-	return &s
-}
-
-// mapMap extracts a nested map from a map.
-func mapMap(m map[string]any, key string) map[string]any {
-	v, ok := m[key]
-	if !ok || v == nil {
-		return nil
-	}
-	sub, ok := toStringMap(v)
-	if !ok {
-		return nil
-	}
-	return sub
-}
-
-// toInt converts various numeric types from msgpack decoding to int.
-func toInt(v any) (int, error) {
-	switch n := v.(type) {
-	case int:
-		return n, nil
-	case int8:
-		return int(n), nil
-	case int16:
-		return int(n), nil
-	case int32:
-		return int(n), nil
-	case int64:
-		return int(n), nil
-	case uint:
-		return int(n), nil
-	case uint8:
-		return int(n), nil
-	case uint16:
-		return int(n), nil
-	case uint32:
-		return int(n), nil
-	case uint64:
-		return int(n), nil
-	case float32:
-		return int(n), nil
-	case float64:
-		return int(n), nil
-	default:
-		return 0, fmt.Errorf("expected numeric, got %T", v)
-	}
+// isNilRaw reports whether a raw msgpack element is absent or encodes a msgpack
+// nil (0xc0). A 3-element response frame whose error slot is null decodes to a
+// single-byte nil rather than an empty RawMessage, so both cases mean "no
+// value".
+func isNilRaw(raw msgpack.RawMessage) bool {
+	return len(raw) == 0 || (len(raw) == 1 && raw[0] == 0xc0)
 }
