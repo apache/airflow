@@ -63,10 +63,10 @@ export const HITLReviewList = ({
       <Table.Header>
         <Table.Row>
           <TableColumnHeader width="30%">{translate("common:dagId")}</TableColumnHeader>
-          <TableColumnHeader width="130px">{translate("common:dagRun_one")}</TableColumnHeader>
+          <TableColumnHeader width="170px">{translate("common:dagRun_one")}</TableColumnHeader>
           <TableColumnHeader width="90px">{translate("common:mapIndex")}</TableColumnHeader>
           <TableColumnHeader>{translate("common:taskId")}</TableColumnHeader>
-          <TableColumnHeader width="120px">{translate("common:table.createdAt")}</TableColumnHeader>
+          <TableColumnHeader width="170px">{translate("common:table.createdAt")}</TableColumnHeader>
         </Table.Row>
       </Table.Header>
       <Table.Body>
