@@ -2762,7 +2762,7 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
     expected_queue = queue_by_policy or default_queue
     if queue_by_policy:
         # Apply a dummy cluster policy to check if it is always applied
-        def mock_policy(task_instance: TaskInstance):
+        def mock_policy(task_instance: TaskInstance, dag_run=None):
             task_instance.queue = queue_by_policy
 
         monkeypatch.setattr("airflow.models.taskinstance.task_instance_mutation_hook", mock_policy)
@@ -4093,3 +4093,36 @@ def test_task_instance_repr_does_not_raise_for_deferred_columns(dag_maker, sessi
 
     assert "<deferred>" in result
     assert "[queued]" not in result
+
+
+class TestTaskInstanceStatsTagsTeamName:
+    def test_stats_tags_without_team_name(self, dag_maker, session):
+        """stats_tags should not include team_name when _team_name is not set."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="my_task")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("my_task", session=session)
+        tags = ti.stats_tags
+        assert "team_name" not in tags
+        assert tags == {"dag_id": "test_dag", "task_id": "my_task"}
+
+    def test_stats_tags_with_team_name(self, dag_maker, session):
+        """stats_tags should include team_name when _team_name is set."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="my_task")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("my_task", session=session)
+        ti._team_name = "my_team"
+        tags = ti.stats_tags
+        assert tags["team_name"] == "my_team"
+        assert tags == {"dag_id": "test_dag", "task_id": "my_task", "team_name": "my_team"}
+
+    def test_stats_tags_with_none_team_name(self, dag_maker, session):
+        """stats_tags should not include team_name when _team_name is None."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="my_task")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("my_task", session=session)
+        ti._team_name = None
+        tags = ti.stats_tags
+        assert "team_name" not in tags

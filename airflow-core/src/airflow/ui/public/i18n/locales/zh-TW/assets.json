@@ -2,6 +2,22 @@
   "additional_data": "資源額外資訊",
   "asset_many": "資源",
   "asset_one": "資源",
+  "assetStateStore": {
+    "add": "新增資源儲存區",
+    "clearAll": {
+      "resource": "所有資源儲存區",
+      "title": "清除所有資源儲存區",
+      "warning": "所有資源儲存區將被清空。使用此儲存區協調工作的任務將失去其持久化的記憶資料。"
+    },
+    "delete": "刪除資源儲存區",
+    "deleteWarning": "此資源將失去這筆持久化的儲存資料。",
+    "edit": "編輯資源儲存區",
+    "emptyState": "資源儲存區會儲存綁定於資源識別的值，並在所有 Dag 執行間共用。工作節點可透過 Task SDK 寫入資源儲存區。",
+    "lastUpdatedBy": "Last Updated By",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Watcher",
+    "title": "資源儲存區"
+  },
   "consumingDags": "消費者 Dags",
   "consumingTasks": "消費者任務",
   "createEvent": {
@@ -25,6 +41,7 @@
     },
     "title": "為 {{name}} 建立資源事件"
   },
+  "events": "資源事件",
   "extra": "額外資源資訊",
   "group": "群組",
   "lastAssetEvent": "最後資源事件",

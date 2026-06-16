@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Box, Spacer, HStack, Accordion, Text } from "@chakra-ui/react";
+import { Button, Box, Spacer, HStack, Text } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiSend } from "react-icons/fi";
@@ -108,14 +108,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
             : undefined}
         </Text>
       ) : undefined}
-      <Accordion.Root
-        defaultValue={[hitlDetail.subject]}
-        mb={4}
-        mt={4}
-        overflow="visible"
-        size="lg"
-        variant="enclosed"
-      >
+      <Box mb={4} mt={4} overflow="visible">
         <FlexibleForm
           disabled={!isPending || hitlDetail.response_received}
           flexFormDescription={hitlDetail.body ?? undefined}
@@ -126,9 +119,10 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
           isHITL
           key={hitlDetail.subject}
           namespace="hitl"
+          noAccordion
           setError={setErrors}
         />
-      </Accordion.Root>
+      </Box>
 
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">

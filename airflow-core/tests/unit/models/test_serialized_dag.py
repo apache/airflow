@@ -348,6 +348,49 @@ class TestSerializedDagModel:
         latest_versions = SDM.get_latest_serialized_dags(dag_ids=["dag1", "dag2"], session=session)
         assert len(latest_versions) == 2
 
+    def _seed_two_versions(self, dag_maker, session, dag_id):
+        """Create two serialized versions of ``dag_id`` (version 1 has task instances)."""
+        with dag_maker(dag_id) as dag:
+            EmptyOperator(task_id="task1")
+        sync_dag_to_db(dag, session=session)
+        dag_maker.create_dagrun()
+        with dag_maker(dag_id) as dag:
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+        sync_dag_to_db(dag, session=session)
+
+    def test_get_latest_serialized_dags_returns_one_row_per_dag_under_created_at_tie(
+        self, dag_maker, session
+    ):
+        """A created_at tie must not yield duplicate rows; the max version_number wins."""
+        self._seed_two_versions(dag_maker, session, "tie_dag")
+        # Force both serialized_dag rows to share a created_at (e.g. frozen clock / same second).
+        session.execute(
+            update(SDM).where(SDM.dag_id == "tie_dag").values(created_at=pendulum.datetime(2025, 1, 1))
+        )
+        session.commit()
+
+        latest = SDM.get_latest_serialized_dags(dag_ids=["tie_dag"], session=session)
+
+        assert len(latest) == 1
+        assert latest[0].dag_version.version_number == 2
+
+    def test_get_returns_latest_version_when_created_at_ordering_disagrees(self, dag_maker, session):
+        """SDM.get (latest_item_select_object) must pick the max version_number, not max created_at."""
+        self._seed_two_versions(dag_maker, session, "tie_dag2")
+        v1 = DagVersion.get_version("tie_dag2", 1, session=session)
+        v2 = DagVersion.get_version("tie_dag2", 2, session=session)
+        # Invert created_at: version 1's serdag looks "newer" than version 2's.
+        session.execute(
+            update(SDM).where(SDM.dag_version_id == v1.id).values(created_at=pendulum.datetime(2025, 1, 2))
+        )
+        session.execute(
+            update(SDM).where(SDM.dag_version_id == v2.id).values(created_at=pendulum.datetime(2025, 1, 1))
+        )
+        session.commit()
+
+        assert SDM.get("tie_dag2", session=session).dag_version.version_number == 2
+
     def test_new_dag_versions_are_not_created_if_no_dagruns(self, dag_maker, session):
         with dag_maker("dag1") as dag:
             PythonOperator(task_id="task1", python_callable=lambda: None)
@@ -584,6 +627,69 @@ class TestSerializedDagModel:
 
         # There should now be two versions of the DAG
         assert session.scalar(select(func.count()).select_from(DagVersion)) == 2
+
+    def test_bundle_version_refreshed_in_place_when_hash_unchanged(self, dag_maker, session):
+        """When the bundle advances to a new version/commit but the DAG's serialized
+        content is unchanged, ``write_dag`` must refresh the latest DagVersion's
+        ``bundle_version`` in place (so tasks resolve the current commit) without
+        creating a new DagVersion (which would inflate versions on every commit).
+        """
+        with dag_maker("test_dag_bundle_version_refresh", bundle_name="bundleA") as dag:
+            EmptyOperator(task_id="task1")
+        # Pin the version with task instances so the in-place "no TI" branch is NOT taken.
+        dag_maker.create_dagrun(run_id="test_run")
+
+        did_write = SDM.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name="bundleA",
+            bundle_version="commit_A",
+            version_data={"manifest": "A"},
+            session=session,
+        )
+        assert did_write is True
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+        latest = DagVersion.get_latest_version(dag.dag_id, session=session)
+        assert latest.bundle_version == "commit_A"
+        assert latest.version_data == {"manifest": "A"}
+
+        # Same content, same bundle_name, but the bundle moved to a new commit.
+        did_write = SDM.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name="bundleA",
+            bundle_version="commit_B",
+            version_data={"manifest": "B"},
+            session=session,
+        )
+
+        # No new version was created, but the latest version's bundle pointer advanced.
+        assert did_write is True
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+        latest = DagVersion.get_latest_version(dag.dag_id, session=session)
+        assert latest.bundle_version == "commit_B"
+        assert latest.version_data == {"manifest": "B"}
+
+    def test_write_dag_unchanged_with_same_bundle_version_skips_write(self, dag_maker, session):
+        """A re-parse with identical content and identical bundle metadata is a no-op."""
+        with dag_maker("test_dag_unchanged_noop", bundle_name="bundleA") as dag:
+            EmptyOperator(task_id="task1")
+        dag_maker.create_dagrun(run_id="test_run")
+
+        SDM.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name="bundleA",
+            bundle_version="commit_A",
+            session=session,
+        )
+
+        did_write = SDM.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name="bundleA",
+            bundle_version="commit_A",
+            session=session,
+        )
+
+        assert did_write is False
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
 
     def test_hash_method_removes_fileloc_and_remains_consistent(self):
         """Test that the hash method removes fileloc before hashing."""
