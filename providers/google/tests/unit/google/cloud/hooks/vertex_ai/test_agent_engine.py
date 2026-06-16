@@ -70,7 +70,6 @@ class TestAgentEngineHookWithDefaultProjectId:
         mock_get_client.assert_called_once_with(self.hook, project_id=GCP_PROJECT, location=GCP_LOCATION)
         mock_get_client.return_value.create.assert_called_once_with(
             agent=None,
-            agent_engine=None,
             config=CONFIG,
         )
         assert result == mock_get_client.return_value.create.return_value
@@ -120,6 +119,35 @@ class TestAgentEngineHookWithDefaultProjectId:
         )
 
         assert result == full_response
+
+    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
+    def test_query_agent_engine_returns_full_response_when_output_is_none(self, mock_get_client):
+        full_response = {"output": None}
+        mock_get_client.return_value._api_client.request.return_value.body = json.dumps(full_response)
+
+        result = self.hook.query_agent_engine(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            agent_engine_id=AGENT_ENGINE_ID,
+            config=QUERY_CONFIG,
+        )
+
+        assert result == full_response
+
+    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
+    def test_query_agent_engine_raises_when_sdk_request_helper_is_missing(self, mock_get_client):
+        del mock_get_client.return_value._api_client.request
+
+        with pytest.raises(
+            RuntimeError,
+            match="The Vertex AI Agent Engine SDK no longer exposes _api_client.request",
+        ):
+            self.hook.query_agent_engine(
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                agent_engine_id=AGENT_ENGINE_ID,
+                config=QUERY_CONFIG,
+            )
 
     @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
     def test_query_agent_engine_parses_json_string_input(self, mock_get_client):
@@ -181,27 +209,6 @@ class TestAgentEngineHookWithDefaultProjectId:
         mock_get_client.return_value.update.assert_called_once_with(
             name=AGENT_ENGINE_NAME,
             agent=None,
-            agent_engine=None,
-            config=CONFIG,
-        )
-        assert result == mock_get_client.return_value.update.return_value
-
-    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
-    def test_update_agent_engine_with_deprecated_agent_engine_alias(self, mock_get_client):
-        agent_engine = object()
-
-        result = self.hook.update_agent_engine(
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            agent_engine_id=AGENT_ENGINE_ID,
-            agent_engine=agent_engine,
-            config=CONFIG,
-        )
-
-        mock_get_client.return_value.update.assert_called_once_with(
-            name=AGENT_ENGINE_NAME,
-            agent=None,
-            agent_engine=agent_engine,
             config=CONFIG,
         )
         assert result == mock_get_client.return_value.update.return_value
