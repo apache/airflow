@@ -297,8 +297,8 @@ class TestAsyncConnectionCache:
         assert cached_conn.conn_type == "mysql"
         assert cached_conn.host == "host"
 
-    @patch("airflow.sdk.log.amask_secret")
     @pytest.mark.asyncio
+    @patch("airflow.sdk.execution_time.context.amask_secret")
     async def test_async_get_connection_masks_secrets(self, mock_amask_secret):
         """Test that async connection secrets are masked from logs using amask_secret."""
         from airflow.sdk.execution_time.context import _async_get_connection
