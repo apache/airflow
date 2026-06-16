@@ -16,13 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Text, VStack } from "@chakra-ui/react";
+import { Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
 
 import type { HITLDetail } from "openapi/requests/types.gen.ts";
 import { HITLResponseForm } from "src/pages/HITLTaskInstances/HITLResponseForm.tsx";
-import { getTaskInstanceLink } from "src/utils/links.ts";
 
 import { HITLReviewDetailSummary } from "./HITLReviewDetailSummary.tsx";
 
@@ -46,17 +44,10 @@ export const HITLReviewDetail = ({
   }
 
   const ti = detail.task_instance;
-  const taskLink = `${getTaskInstanceLink(ti)}/required_actions`;
 
   return (
     <VStack alignItems="stretch" gap={4}>
-      <HITLReviewDetailSummary detail={detail} />
-
-      <Button alignSelf="flex-end" asChild variant="outline">
-        <Link onClick={onOpenTask} to={taskLink}>
-          {translate("review.detail.openTask")}
-        </Link>
-      </Button>
+      <HITLReviewDetailSummary detail={detail} onOpenTask={onOpenTask} />
 
       <HITLResponseForm hitlDetail={detail} key={ti.id} namespace={ti.id} onResponded={onResponded} />
     </VStack>

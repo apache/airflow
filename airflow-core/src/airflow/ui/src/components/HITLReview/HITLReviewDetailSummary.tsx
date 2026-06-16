@@ -22,7 +22,9 @@ import { useTranslation } from "react-i18next";
 
 import type { HITLDetail } from "openapi/requests/types.gen.ts";
 import Time from "src/components/Time.tsx";
+import { RouterLink } from "src/components/ui/RouterLink.tsx";
 import { getRelativeTime } from "src/utils/datetimeUtils.ts";
+import { getTaskInstanceLink } from "src/utils/links.ts";
 
 const HITLReviewRow = ({ label, value }: { readonly label: string; readonly value: ReactNode }) => (
   <Table.Row>
@@ -31,7 +33,13 @@ const HITLReviewRow = ({ label, value }: { readonly label: string; readonly valu
   </Table.Row>
 );
 
-export const HITLReviewDetailSummary = ({ detail }: { readonly detail: HITLDetail }) => {
+export const HITLReviewDetailSummary = ({
+  detail,
+  onOpenTask,
+}: {
+  readonly detail: HITLDetail;
+  readonly onOpenTask: () => void;
+}) => {
   const { t: translate } = useTranslation(["hitl", "common"]);
   const ti = detail.task_instance;
   const mappedIndex = ti.rendered_map_index ?? (ti.map_index >= 0 ? ti.map_index : undefined);
@@ -42,7 +50,14 @@ export const HITLReviewDetailSummary = ({ detail }: { readonly detail: HITLDetai
         <HITLReviewRow label={translate("common:dagId")} value={ti.dag_id} />
         <HITLReviewRow label={translate("common:dagRunId")} value={ti.dag_run_id} />
         <HITLReviewRow label={translate("common:mapIndex")} value={mappedIndex ?? "-"} />
-        <HITLReviewRow label={translate("common:taskId")} value={ti.task_id} />
+        <HITLReviewRow
+          label={translate("common:taskId")}
+          value={
+            <RouterLink onClick={onOpenTask} to={`${getTaskInstanceLink(ti)}/required_actions`}>
+              {ti.task_id}
+            </RouterLink>
+          }
+        />
         <HITLReviewRow
           label={translate("common:table.createdAt")}
           value={

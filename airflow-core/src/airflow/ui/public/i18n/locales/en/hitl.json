@@ -26,7 +26,6 @@
   },
   "review": {
     "detail": {
-      "openTask": "Open task",
       "selectRequiredAction": "Select a required action to see details"
     },
     "list": {
