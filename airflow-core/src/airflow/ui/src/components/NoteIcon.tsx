@@ -16,26 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { DAGRunResponse } from "openapi/requests/types.gen";
+import { PiNoteBold, PiNoteBlankBold } from "react-icons/pi";
 
-import { useNoteEditor } from "./useNoteEditor";
-import { usePatchDagRun } from "./usePatchDagRun";
+/** Filled note icon when a note exists, blank otherwise. */
+const NoteIcon = ({ hasNote }: { readonly hasNote: boolean }) =>
+  hasNote ? <PiNoteBold /> : <PiNoteBlankBold />;
 
-/**
- * Note-editing state and save logic for a Dag run.
- * Used by both the detail-page NotePreview and the list-page RunNoteButton
- * so mutation + cache invalidation stays in one place.
- */
-export const useDagRunNote = (dagRun: DAGRunResponse) => {
-  const { isPending, mutate } = usePatchDagRun({
-    dagId: dagRun.dag_id,
-    dagRunId: dagRun.dag_run_id,
-  });
-
-  return useNoteEditor({
-    isPending,
-    mutateNote: (note, options) =>
-      mutate({ dagId: dagRun.dag_id, dagRunId: dagRun.dag_run_id, requestBody: { note } }, options),
-    savedNote: dagRun.note,
-  });
-};
+export default NoteIcon;

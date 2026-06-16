@@ -27,7 +27,7 @@ import { DagVersion } from "src/components/DagVersion";
 import { HeaderCard } from "src/components/HeaderCard";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
-import NoteAccordion from "src/components/NoteAccordion";
+import NotePreview from "src/components/NotePreview";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
 import { RouterLink } from "src/components/ui";
@@ -40,7 +40,7 @@ import { DeadlineStatus } from "./DeadlineStatus";
 
 export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const { t: translate } = useTranslation();
-  const { note, onSave, setNote } = useDagRunNote(dagRun);
+  const { isPending, note, onOpen, onSave, setNote } = useDagRunNote(dagRun);
 
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
@@ -125,7 +125,14 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
         ]}
         title={dagRun.dag_run_id}
       />
-      <NoteAccordion note={note} onSave={onSave} setNote={setNote} />
+      <NotePreview
+        header={translate("note.dagRun")}
+        isPending={isPending}
+        note={note}
+        onOpen={onOpen}
+        onSave={onSave}
+        setNote={setNote}
+      />
     </Box>
   );
 };

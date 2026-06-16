@@ -16,20 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useState } from "react";
-
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
+import { useNoteEditor } from "./useNoteEditor";
 import { usePatchTaskInstance } from "./usePatchTaskInstance";
 
 /**
- * Shared note-editing state and save logic for a task instance.
- * Used by both the detail-page NoteAccordion and the list-page TaskInstanceNoteButton
+ * Note-editing state and save logic for a task instance.
+ * Used by both the detail-page NotePreview and the list-page TaskInstanceNoteButton
  * so mutation + cache invalidation stays in one place.
  */
 export const useTaskInstanceNote = (taskInstance: TaskInstanceResponse) => {
-  const [note, setNote] = useState<string | null>(taskInstance.note);
-
   const { isPending, mutate } = usePatchTaskInstance({
     dagId: taskInstance.dag_id,
     dagRunId: taskInstance.dag_run_id,
@@ -37,8 +34,9 @@ export const useTaskInstanceNote = (taskInstance: TaskInstanceResponse) => {
     taskId: taskInstance.task_id,
   });
 
-  const onSave = () => {
-    if (note !== taskInstance.note) {
+  return useNoteEditor({
+    isPending,
+    mutateNote: (note, options) =>
       mutate(
         {
           dagId: taskInstance.dag_id,
@@ -47,14 +45,8 @@ export const useTaskInstanceNote = (taskInstance: TaskInstanceResponse) => {
           requestBody: { note },
           taskId: taskInstance.task_id,
         },
-        { onError: () => setNote(taskInstance.note ?? null) },
-      );
-    }
-  };
-
-  // Reset local state to server value each time an edit surface is opened,
-  // so stale edits from a previous session don't linger.
-  const onOpen = () => setNote(taskInstance.note ?? "");
-
-  return { isPending, note, onOpen, onSave, setNote };
+        options,
+      ),
+    savedNote: taskInstance.note,
+  });
 };

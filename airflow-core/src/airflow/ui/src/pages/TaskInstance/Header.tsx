@@ -27,14 +27,14 @@ import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTask
 import { DagVersion } from "src/components/DagVersion";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
-import NoteAccordion from "src/components/NoteAccordion";
+import NotePreview from "src/components/NotePreview";
 import Time from "src/components/Time";
 import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
 import { getDuration, renderDuration } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
-  const { note, onSave, setNote } = useTaskInstanceNote(taskInstance);
+  const { isPending, note, onOpen, onSave, setNote } = useTaskInstanceNote(taskInstance);
 
   const stats = [
     { label: translate("task.operator"), value: taskInstance.operator_name },
@@ -83,7 +83,14 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
         stats={stats}
         title={`${taskInstance.task_display_name}${taskInstance.map_index > -1 ? ` [${taskInstance.rendered_map_index ?? taskInstance.map_index}]` : ""}`}
       />
-      <NoteAccordion note={note} onSave={onSave} setNote={setNote} />
+      <NotePreview
+        header={translate("note.taskInstance")}
+        isPending={isPending}
+        note={note}
+        onOpen={onOpen}
+        onSave={onSave}
+        setNote={setNote}
+      />
       <ClearTaskInstanceDialog
         onClose={() => setClearOpen(false)}
         open={clearOpen}
