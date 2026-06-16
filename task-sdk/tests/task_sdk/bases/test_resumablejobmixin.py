@@ -81,7 +81,7 @@ class FakeTaskState:
 def make_context(task_store: FakeTaskState | None = None) -> dict:
     ctx: dict = {}
     if task_store is not None:
-        ctx["task_store"] = task_store
+        ctx["task_state_store"] = task_store
     return ctx
 
 

@@ -2067,7 +2067,7 @@ requires-dist = [
     { name = "deprecated", specifier = ">=1.2.13" },
     { name = "dill", specifier = ">=0.2.2" },
     { name = "eventlet", marker = "extra == 'async'", specifier = ">=0.37.0" },
-    { name = "fastapi", extras = ["standard-no-fastapi-cloud-cli"], specifier = ">=0.129.0" },
+    { name = "fastapi", extras = ["standard-no-fastapi-cloud-cli"], specifier = ">=0.129.0,<0.137.0" },
     { name = "gevent", marker = "extra == 'async'", specifier = ">=25.4.1" },
     { name = "graphviz", marker = "sys_platform != 'darwin' and extra == 'graphviz'", specifier = ">=0.20" },
     { name = "greenback", marker = "extra == 'async'", specifier = ">=1.2.1" },

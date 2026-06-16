@@ -1136,9 +1136,11 @@
     "deps": [
       "apache-airflow-providers-common-compat>=1.12.0",
       "apache-airflow-providers-http>=4.13.2",
-      "apache-airflow>=3.0.0"
+      "apache-airflow>=3.0.0",
+      "sqlglot>=30.0.0"
     ],
     "devel-deps": [
+      "sqlglot>=30.0.0",
       "uuid6>=2024.7.10"
     ],
     "plugins": [
@@ -1149,6 +1151,7 @@
     ],
     "cross-providers-deps": [
       "common.compat",
+      "common.sql",
       "http"
     ],
     "excluded-python-versions": [],

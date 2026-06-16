@@ -340,7 +340,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -348,7 +348,7 @@ paths:
             \ possible."
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -385,7 +385,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -393,7 +393,7 @@ paths:
             \ when possible."
           title: Dag Display Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -1221,14 +1221,14 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
             \ tables. Prefer the equivalent ``triggering_user`` parameter when possible."
           title: Triggering User
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -1394,14 +1394,14 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
             \ tables. Prefer the equivalent ``triggering_user`` parameter when possible."
           title: Triggering User
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
