@@ -1495,13 +1495,17 @@ class TestDagRun:
         mock_prune.assert_not_called()
         assert dag_run.state == DagRunState.SUCCESS
 
-    @mock.patch.object(Variable, "get")
     @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_deadline_variable_interval_stable(self, _, mock_get, session, deadline_test_dag):
+    def test_dagrun_deadline_variable_interval_stable(self, _, session, deadline_test_dag):
+        from airflow.models.variable import Variable as VariableModel
+
         future_date = datetime.datetime.now() + datetime.timedelta(days=365)
 
-        # First value used during resolution.
-        mock_get.return_value = "60"
+        # Seed a real Variable: the scheduler-side resolver reads it directly off the session
+        # (it must NOT go through Variable.get, which would commit the scheduler session under
+        # prohibit_commit). First value used during resolution.
+        session.add(VariableModel(key="my_key", val="60"))
+        session.flush()
 
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
@@ -1518,16 +1522,17 @@ class TestDagRun:
         )
         dag_run.dag = scheduler_dag
 
-        # First update resolve interval to "5".
         dag_run.update_state(session=session)
 
         deadline = session.execute(select(Deadline)).scalars().one_or_none()
         first_deadline_time = deadline.deadline_time
 
-        # Change Variable value after resolution.
-        mock_get.return_value = "120"
+        # Change the Variable value after the deadline was already resolved.
+        var_row = session.scalar(select(VariableModel).where(VariableModel.key == "my_key"))
+        var_row.set_val("120")
+        session.flush()
 
-        # Run again (This should not change existing deadline).
+        # Run again — the existing deadline must NOT change (resolution happens once, at creation).
         dag_run.update_state(session=session)
 
         deadline = session.execute(select(Deadline)).scalars().one_or_none()
@@ -1578,40 +1583,35 @@ class TestDagRun:
         ``VariableInterval.resolve()`` raises ``ValueError`` for a missing/invalid Variable.
         That resolution happens inside ``_process_dagrun_deadline_alerts`` during
         ``create_dagrun``; previously the error propagated out and aborted the whole run,
-        silently stopping the DAG from scheduling. The per-alert SAVEPOINT now isolates the
-        failure: the DagRun is created, the bad deadline is skipped (logged), and no Deadline
-        row is written.
+        silently stopping the DAG from scheduling. The per-alert ``try``/``except`` now isolates
+        the failure: the DagRun is created, the bad deadline is skipped (logged), and no Deadline
+        row is written. (Isolation must NOT use ``begin_nested`` here — ``create_dagrun`` runs
+        under the scheduler ``prohibit_commit`` guard, where a SAVEPOINT release would raise
+        ``UNEXPECTED COMMIT`` and skip every scheduled DagRun's deadlines.)
         """
-        mock_err = mock.Mock()
-        mock_err.error.value = "MISSING_DEADLINE"
-        mock_err.detail = "missing deadline"
+        # No Variable named "missing_key" is seeded, so the scheduler-side resolver's direct
+        # session read returns None -> ValueError("VariableInterval 'missing_key' not found").
+        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
 
-        with mock.patch.object(
-            Variable,
-            "get",
-            side_effect=AirflowRuntimeError(mock_err),
-        ):
-            future_date = datetime.datetime.now() + datetime.timedelta(days=365)
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=VariableInterval("missing_key"),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
 
-            scheduler_dag = deadline_test_dag(
-                deadline=DeadlineAlert(
-                    reference=DeadlineReference.FIXED_DATETIME(future_date),
-                    interval=VariableInterval("missing_key"),
-                    callback=AsyncCallback(empty_callback_for_deadline),
-                ),
-            )
+        # DagRun creation must succeed despite the unresolvable VariableInterval.
+        dag_run = self.create_dag_run(
+            dag=scheduler_dag,
+            task_states={"task_1": TaskInstanceState.SUCCESS},
+            session=session,
+        )
+        assert dag_run is not None
 
-            # DagRun creation must succeed despite the unresolvable VariableInterval.
-            dag_run = self.create_dag_run(
-                dag=scheduler_dag,
-                task_states={"task_1": TaskInstanceState.SUCCESS},
-                session=session,
-            )
-            assert dag_run is not None
-
-            # The bad deadline was skipped — no Deadline row created.
-            deadline = session.execute(select(Deadline)).scalars().one_or_none()
-            assert deadline is None
+        # The bad deadline was skipped — no Deadline row created.
+        deadline = session.execute(select(Deadline)).scalars().one_or_none()
+        assert deadline is None
 
     @mock.patch.object(Deadline, "prune_deadlines")
     def test_dagrun_deadline_variable_interval_overflow_is_isolated(self, _, session, deadline_test_dag):
@@ -1620,31 +1620,36 @@ class TestDagRun:
         interval") because ``timedelta(seconds=huge)`` overflows (hardening H-D translates the
         OverflowError to ValueError). This exercises H-D × Bug #10 end-to-end: the H-D ValueError
         is raised inside ``_process_dagrun_deadline_alerts`` and must be caught by the per-alert
-        SAVEPOINT — DagRun created, bad deadline skipped, no Deadline row.
+        ``try``/``except`` — DagRun created, bad deadline skipped, no Deadline row.
         """
-        # 10**14 seconds overflows timedelta (caps at ~999999999 days).
-        with mock.patch.object(Variable, "get", return_value="99999999999999"):
-            future_date = datetime.datetime.now() + datetime.timedelta(days=365)
+        from airflow.models.variable import Variable as VariableModel
 
-            scheduler_dag = deadline_test_dag(
-                deadline=DeadlineAlert(
-                    reference=DeadlineReference.FIXED_DATETIME(future_date),
-                    interval=VariableInterval("overflow_key"),
-                    callback=AsyncCallback(empty_callback_for_deadline),
-                ),
-            )
+        # 10**14 seconds overflows timedelta (caps at ~999999999 days). Seed a real Variable so
+        # the scheduler-side resolver reads it off the session and hits the overflow->ValueError.
+        session.add(VariableModel(key="overflow_key", val="99999999999999"))
+        session.flush()
 
-            # DagRun creation must succeed despite the overflowing VariableInterval.
-            dag_run = self.create_dag_run(
-                dag=scheduler_dag,
-                task_states={"task_1": TaskInstanceState.SUCCESS},
-                session=session,
-            )
-            assert dag_run is not None
+        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
 
-            # The bad deadline was skipped — no Deadline row created.
-            deadline = session.execute(select(Deadline)).scalars().one_or_none()
-            assert deadline is None
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=VariableInterval("overflow_key"),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        # DagRun creation must succeed despite the overflowing VariableInterval.
+        dag_run = self.create_dag_run(
+            dag=scheduler_dag,
+            task_states={"task_1": TaskInstanceState.SUCCESS},
+            session=session,
+        )
+        assert dag_run is not None
+
+        # The bad deadline was skipped — no Deadline row created.
+        deadline = session.execute(select(Deadline)).scalars().one_or_none()
+        assert deadline is None
 
     @mock.patch.object(Deadline, "prune_deadlines")
     def test_dagrun_deadline_decode_failure_is_isolated(self, _, session, deadline_test_dag):
@@ -1742,9 +1747,9 @@ class TestDagRun:
         a single ``deadline=[...]`` list, driven through the real create_dagrun pipeline (SDK author
         -> serialize -> deadline_alert rows -> create_dagrun -> Deadline rows).
 
-        This stresses cross-reference-type interaction, ordering, and per-alert independence — every
-        alert is evaluated in its own SAVEPOINT inside ``_process_dagrun_deadline_alerts``, so the
-        create-time evaluation of each reference must be correct and must not interfere with the
+        This stresses cross-reference-type interaction, ordering, and per-alert independence — each
+        alert is evaluated under its own ``try``/``except`` inside ``_process_dagrun_deadline_alerts``,
+        so the create-time evaluation of each reference must be correct and must not interfere with the
         others. The four references differ in their create-time semantics:
 
         * ``DAGRUN_LOGICAL_DATE``  -> resolves to the DagRun's logical_date (set at create-time)

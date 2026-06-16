@@ -413,9 +413,19 @@ class VariableInterval:
             value = Variable.get(self.key)
         except AirflowRuntimeError as e:
             raise ValueError(f"VariableInterval '{self.key}' not found") from e
+        return self.coerce_to_timedelta(value)
 
+    def coerce_to_timedelta(self, value: object) -> timedelta:
+        """
+        Validate a raw Variable value and convert it into a ``timedelta``.
+
+        Split out from :meth:`resolve` so callers that already hold the Variable value (e.g. a
+        scheduler-side reader that must fetch it on its own session — see
+        ``DAG._process_dagrun_deadline_alerts`` — to avoid committing inside ``prohibit_commit``)
+        can reuse the exact same validation without going through ``Variable.get``.
+        """
         try:
-            seconds = int(value)
+            seconds = int(value)  # type: ignore[arg-type]
         except (TypeError, ValueError) as e:
             raise ValueError(
                 f"VariableInterval '{self.key}' must be an integer (seconds), got: {value!r}"

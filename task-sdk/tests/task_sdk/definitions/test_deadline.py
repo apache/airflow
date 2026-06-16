@@ -306,3 +306,31 @@ class TestVariableInterval:
 
         with pytest.raises(ValueError, match=match):
             interval.resolve()
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ("60", timedelta(seconds=60)),
+            (5, timedelta(seconds=5)),  # already an int (scheduler reads the raw value)
+            ("05", timedelta(seconds=5)),
+        ],
+    )
+    def test_coerce_to_timedelta_valid(self, value, expected):
+        # coerce_to_timedelta validates a pre-fetched value WITHOUT touching Variable.get,
+        # so it must not require any DB/Variable patching.
+        assert VariableInterval(key="k").coerce_to_timedelta(value) == expected
+
+    @pytest.mark.parametrize(
+        ("value", "match"),
+        [
+            ("abc", "must be an integer"),
+            ("", "must be an integer"),
+            (None, "must be an integer"),
+            ("0", "must be > 0"),
+            ("-5", "must be > 0"),
+            ("99999999999999", "too large to be a valid interval"),
+        ],
+    )
+    def test_coerce_to_timedelta_invalid(self, value, match):
+        with pytest.raises(ValueError, match=match):
+            VariableInterval(key="k").coerce_to_timedelta(value)
