@@ -103,6 +103,7 @@ class CreateAgentEngineOperator(GoogleCloudBaseOperator):
         )
 
     def execute(self, context: Context) -> dict[str, Any]:
+        self.log.info("Creating Agent Engine.")
         agent_engine = self.hook.create_agent_engine(
             project_id=self.project_id,
             location=self.location,
@@ -110,7 +111,9 @@ class CreateAgentEngineOperator(GoogleCloudBaseOperator):
             agent_engine=self.agent_engine,
             config=self.config,
         )
-        return _serialize_agent_engine(agent_engine)
+        result = _serialize_agent_engine(agent_engine)
+        self.log.info("Agent Engine was created.")
+        return result
 
 
 class GetAgentEngineOperator(GoogleCloudBaseOperator):
@@ -151,12 +154,15 @@ class GetAgentEngineOperator(GoogleCloudBaseOperator):
         )
 
     def execute(self, context: Context) -> dict[str, Any]:
+        self.log.info("Getting Agent Engine %s.", self.agent_engine_id)
         agent_engine = self.hook.get_agent_engine(
             project_id=self.project_id,
             location=self.location,
             agent_engine_id=self.agent_engine_id,
         )
-        return _serialize_agent_engine(agent_engine)
+        result = _serialize_agent_engine(agent_engine)
+        self.log.info("Agent Engine %s was retrieved.", self.agent_engine_id)
+        return result
 
 
 class QueryAgentEngineOperator(GoogleCloudBaseOperator):
@@ -210,13 +216,16 @@ class QueryAgentEngineOperator(GoogleCloudBaseOperator):
         )
 
     def execute(self, context: Context) -> Any:
-        return self.hook.query_agent_engine(
+        self.log.info("Querying Agent Engine %s.", self.agent_engine_id)
+        result = self.hook.query_agent_engine(
             project_id=self.project_id,
             location=self.location,
             agent_engine_id=self.agent_engine_id,
             config=self.config,
             request_timeout=self.request_timeout,
         )
+        self.log.info("Agent Engine %s was queried.", self.agent_engine_id)
+        return result
 
 
 class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
@@ -275,6 +284,7 @@ class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
         )
 
     def execute(self, context: Context) -> dict[str, Any]:
+        self.log.info("Updating Agent Engine %s.", self.agent_engine_id)
         agent_engine = self.hook.update_agent_engine(
             project_id=self.project_id,
             location=self.location,
@@ -283,7 +293,9 @@ class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
             agent_engine=self.agent_engine,
             config=self.config,
         )
-        return _serialize_agent_engine(agent_engine)
+        result = _serialize_agent_engine(agent_engine)
+        self.log.info("Agent Engine %s was updated.", self.agent_engine_id)
+        return result
 
 
 class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
@@ -350,6 +362,7 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
         )
 
     def execute(self, context: Context) -> dict[str, Any]:
+        self.log.info("Deleting Agent Engine %s.", self.agent_engine_id)
         operation = self.hook.delete_agent_engine(
             project_id=self.project_id,
             location=self.location,
@@ -383,6 +396,7 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
             poll_interval=self.poll_interval,
             timeout=self.timeout,
         )
+        self.log.info("Agent Engine %s was deleted.", self.agent_engine_id)
         return result
 
     def execute_complete(
