@@ -2873,6 +2873,55 @@ class TestSchedulerJob:
         mock_stats.gauge.assert_any_call("pool.queued_slots", mock.ANY, tags=expected_tags)
         mock_stats.gauge.assert_any_call("pool.running_slots", mock.ANY, tags=expected_tags)
 
+    @pytest.mark.parametrize(
+        ("multi_team", "expected_tags"),
+        [
+            pytest.param(
+                "true",
+                {"queue": "default", "dag_id": "ti_gauge_dag", "task_id": "task1", "team_name": "ti_team"},
+                id="with_team",
+            ),
+            pytest.param(
+                "false",
+                {"queue": "default", "dag_id": "ti_gauge_dag", "task_id": "task1"},
+                id="without_team",
+            ),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_emit_ti_metrics_team_name(self, mock_get_backend, multi_team, expected_tags, dag_maker, session):
+        """TI gauge metrics include team_name only when multi_team is enabled."""
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+
+        clear_db_teams()
+
+        team = Team(name="ti_team")
+        session.add(team)
+        session.flush()
+
+        clear_db_dag_bundles()
+
+        bundle = DagBundleModel(name="ti_bundle")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        with dag_maker(dag_id="ti_gauge_dag", bundle_name="ti_bundle", session=session):
+            EmptyOperator(task_id="task1")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instances(session=session)[0]
+        ti.state = State.RUNNING
+        session.flush()
+
+        with conf_vars({("core", "multi_team"): multi_team}):
+            scheduler_job = Job()
+            self.job_runner = SchedulerJobRunner(job=scheduler_job)
+            self.job_runner._emit_ti_metrics(session=session)
+
+        mock_stats.gauge.assert_any_call("ti.running", mock.ANY, tags=expected_tags)
+
     def test_enqueue_task_instances_with_queued_state(self, dag_maker, session):
         dag_id = "SchedulerJobTest.test_enqueue_task_instances_with_queued_state"
         task_id_1 = "dummy"
@@ -3536,6 +3585,57 @@ class TestSchedulerJob:
         # (dag_maker creates one) and the callback should be sent
         assert any("Backfilled dag_version_id" in rec.message for rec in caplog.records)
         mock_executor.send_callback.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("multi_team", "expected_tags"),
+        [
+            pytest.param(
+                "true",
+                {"dag_id": "heartbeat_dag", "task_id": "task", "team_name": "hb_team"},
+                id="with_team",
+            ),
+            pytest.param(
+                "false",
+                {"dag_id": "heartbeat_dag", "task_id": "task"},
+                id="without_team",
+            ),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats.incr")
+    def test_purge_heartbeat_killed_metric_team_name(
+        self, mock_incr, multi_team, expected_tags, dag_maker, session
+    ):
+        clear_db_teams()
+        team = Team(name="hb_team")
+        session.add(team)
+        session.flush()
+
+        clear_db_dag_bundles()
+        bundle = DagBundleModel(name="hb_bundle")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        with dag_maker("heartbeat_dag", bundle_name="hb_bundle", session=session):
+            EmptyOperator(task_id="task")
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        mock_executor = MagicMock()
+        scheduler_job = Job()
+
+        ti = dag_run.get_task_instance(task_id="task", session=session)
+        ti.state = TaskInstanceState.RUNNING
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(hours=1)
+        session.merge(ti)
+        session.commit()
+
+        with conf_vars({("core", "multi_team"): multi_team}):
+            self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
+            self.job_runner._purge_task_instances_without_heartbeats([ti], session=session)
+
+        mock_incr.assert_any_call("task_instances_without_heartbeats_killed", tags=expected_tags)
 
     @staticmethod
     def mock_failure_callback(context):
