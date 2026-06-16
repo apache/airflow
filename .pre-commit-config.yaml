@@ -16,6 +16,7 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
+default_install_hook_types: [pre-commit, commit-msg]
 minimum_prek_version: '0.3.4'
 default_language_version:
   python: python3
@@ -1092,6 +1093,14 @@ repos:
         language: python
         files: changelog\.(rst|txt)$
         entry: ./scripts/ci/prek/changelog_duplicates.py
+        pass_filenames: true
+      - id: check-no-conventional-commit-message
+        name: Check commit message is not Conventional Commits style
+        description: "Reject feat:/fix:/chore: style commit subjects - Airflow uses plain prose"
+        language: python
+        entry: ./scripts/ci/prek/check_no_conventional_commit_message.py
+        stages: [commit-msg]
+        always_run: true
         pass_filenames: true
       - id: check-changelog-format
         name: Check changelog format

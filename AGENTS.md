@@ -167,6 +167,15 @@ Write commit messages focused on user impact, not implementation details.
 - **Good:** `Fix airflow dags test command failure without serialized Dags`
 - **Good:** `UI: Fix Grid view not refreshing after task actions`
 - **Bad:** `Initialize Dag bundles in CLI get_dag function`
+- **Bad:** `fix(cli): dags test failure` — Airflow does not use Conventional Commits
+  (`feat:`, `fix:`, `chore:` …). Write the subject as plain prose. A `commit-msg`
+  prek hook (`check-no-conventional-commit-message`) rejects these, and CI checks
+  every commit of the PR.
+
+**Always run `prek install` before committing any code.** It installs the
+`commit-msg` hook (in addition to `pre-commit`) so the Conventional Commits guard
+runs locally; a clone that ran `prek install` before this hook existed must re-run
+it to pick up the new hook type.
 
 For `airflow-core` (and `chart/`, `dev/mypy/`) **user-facing** changes, add a newsfragment in that distribution's `newsfragments/` directory. **Golden rule: only add a newsfragment when you are certain the change is visible to users; when in doubt, do not add one** — a maintainer will request one in review if it is needed. Build/release tooling, CI, packaging, internal refactors, and dev-only scripts are not user-facing and must not get a newsfragment:
 `echo "Brief description" > airflow-core/newsfragments/{PR_NUMBER}.{bugfix|feature|improvement|doc|misc|significant}.rst`
