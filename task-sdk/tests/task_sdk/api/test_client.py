@@ -779,6 +779,24 @@ class TestTaskInstanceOperations:
         assert isinstance(result, PreviousTIResult)
         assert result.task_instance is None
 
+    def test_get_previous_quotes_dag_id_and_task_id_as_single_path_segments(self):
+        """A dag_id / task_id cannot escape the task-instances/previous API path."""
+        requests_seen = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests_seen.append(request)
+            return httpx.Response(status_code=200, content="null")
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.get_previous(dag_id="x/../../variables/secret_key", task_id="t")
+
+        assert (
+            requests_seen[0].url.raw_path.split(b"?")[0]
+            == b"/task-instances/previous/x%2F..%2F..%2Fvariables%2Fsecret_key/t"
+        )
+        assert requests_seen[0].url.path != "/variables/secret_key"
+        assert isinstance(result, PreviousTIResult)
+
 
 class TestVariableOperations:
     """
@@ -1170,6 +1188,31 @@ class TestConnectionOperations:
         assert result.error == ErrorType.PERMISSION_DENIED
         assert result.detail == {"conn_id": "denied_conn", "status_code": status_code}
 
+    def test_get_quotes_conn_id_as_single_path_segment(self):
+        """A connection id cannot escape the connections API path."""
+        requests_seen = []
+        crafted_conn_id = "x/../../variables/secret_key"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests_seen.append(request)
+            if request.url.path == "/variables/secret_key":
+                return httpx.Response(
+                    status_code=200,
+                    json={"key": "secret_key", "value": "super-secret-value"},
+                )
+            return httpx.Response(
+                status_code=404,
+                json={"reason": "not_found", "message": "Connection not found"},
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.connections.get(conn_id=crafted_conn_id)
+
+        assert requests_seen[0].url.raw_path == b"/connections/x%2F..%2F..%2Fvariables%2Fsecret_key"
+        assert requests_seen[0].url.path != "/variables/secret_key"
+        assert isinstance(result, ErrorResponse)
+        assert "super-secret-value" not in str(result.detail)
+
 
 class TestAssetEventOperations:
     @pytest.mark.parametrize(
@@ -1328,6 +1371,20 @@ class TestDagRunOperations:
         )
 
         assert result == OKResponse(ok=True)
+
+    def test_trigger_quotes_dag_id_and_run_id_as_single_path_segments(self):
+        """A dag_id / run_id cannot escape the dag-runs API path."""
+        requests_seen = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests_seen.append(request)
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        client.dag_runs.trigger(dag_id="x/../../variables", run_id="secret_key")
+
+        assert requests_seen[0].url.raw_path == b"/dag-runs/x%2F..%2F..%2Fvariables/secret_key"
+        assert requests_seen[0].url.path != "/variables/secret_key"
 
     def test_trigger_conflict(self):
         """Test that if the dag run already exists, the client returns an error when default reset_dag_run=False"""
