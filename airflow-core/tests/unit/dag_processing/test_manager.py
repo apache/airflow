@@ -3092,3 +3092,76 @@ class TestMultiTeamMetrics:
             1.5,
             tags={"bundle_name": "testing", "file_name": "dag"},
         )
+
+    @pytest.mark.parametrize(
+        ("multi_team", "team_name", "expected_tags"),
+        [
+            pytest.param(
+                "true",
+                "team_alpha",
+                {"file_path": "dag_file.py", "action": "stop", "team_name": "team_alpha"},
+                id="with_team",
+            ),
+            pytest.param(
+                "false",
+                None,
+                {"file_path": "dag_file.py", "action": "stop"},
+                id="without_team",
+            ),
+        ],
+    )
+    @mock.patch("airflow.dag_processing.manager.stats.decr")
+    def test_terminate_orphan_processes_includes_team_name(
+        self, mock_decr, multi_team, team_name, expected_tags
+    ):
+        manager = DagFileProcessorManager(max_runs=1)
+        dag_file = DagFileInfo(
+            bundle_name="testing", rel_path=Path("dag_file.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+        processor = self.mock_processor()
+        manager._processors = {dag_file: processor}
+
+        with (
+            conf_vars({("core", "multi_team"): multi_team}),
+            mock.patch("airflow.dag_processing.manager.DagBundleModel.get_team_name", return_value=team_name),
+            mock.patch.object(type(processor), "kill"),
+        ):
+            # Empty "present" set means the file is orphaned, so its processor is stopped.
+            manager.terminate_orphan_processes(present=set())
+
+        mock_decr.assert_called_once_with("dag_processing.processes", tags=expected_tags)
+
+    @pytest.mark.parametrize(
+        ("multi_team", "team_name", "expected_tags"),
+        [
+            pytest.param(
+                "true",
+                "team_alpha",
+                {"file_path": "dag_file.py", "action": "terminate", "team_name": "team_alpha"},
+                id="with_team",
+            ),
+            pytest.param(
+                "false",
+                None,
+                {"file_path": "dag_file.py", "action": "terminate"},
+                id="without_team",
+            ),
+        ],
+    )
+    @mock.patch("airflow.dag_processing.manager.stats.decr")
+    def test_terminate_includes_team_name(self, mock_decr, multi_team, team_name, expected_tags):
+        manager = DagFileProcessorManager(max_runs=1)
+        dag_file = DagFileInfo(
+            bundle_name="testing", rel_path=Path("dag_file.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+        processor = self.mock_processor()
+        manager._processors = {dag_file: processor}
+
+        with (
+            conf_vars({("core", "multi_team"): multi_team}),
+            mock.patch("airflow.dag_processing.manager.DagBundleModel.get_team_name", return_value=team_name),
+            mock.patch.object(type(processor), "kill"),
+        ):
+            manager.terminate()
+
+        mock_decr.assert_called_once_with("dag_processing.processes", tags=expected_tags)
