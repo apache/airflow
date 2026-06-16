@@ -33,8 +33,6 @@ describe("useHITLReviewModalSelection", () => {
     const { result } = renderHook(() => useHITLReviewModalSelection({ hitlDetails: [] }));
 
     expect(result.current.selectedDetail).toBeUndefined();
-    expect(result.current.hasPrevious).toBe(false);
-    expect(result.current.hasNext).toBe(false);
   });
 
   it("selects the first HITL detail by default", () => {
@@ -45,30 +43,13 @@ describe("useHITLReviewModalSelection", () => {
     expect(result.current.selectedDetail).toBe(details[0]);
   });
 
-  it("moves selection forward and backward", () => {
+  it("moves selection forward", () => {
     const details = [hitl("first"), hitl("second")];
 
     const { result } = renderHook(() => useHITLReviewModalSelection({ hitlDetails: details }));
 
     act(() => result.current.onNext());
     expect(result.current.selectedDetail).toBe(details[1]);
-
-    act(() => result.current.onPrevious());
-    expect(result.current.selectedDetail).toBe(details[0]);
-  });
-
-  it("updates previous and next availability after moving selection", () => {
-    const details = [hitl("first"), hitl("second")];
-
-    const { result } = renderHook(() => useHITLReviewModalSelection({ hitlDetails: details }));
-
-    expect(result.current.hasPrevious).toBe(false);
-    expect(result.current.hasNext).toBe(true);
-
-    act(() => result.current.onNext());
-
-    expect(result.current.hasPrevious).toBe(true);
-    expect(result.current.hasNext).toBe(false);
   });
 
   it("falls back to the first HITL detail when the selected key is no longer visible", () => {
