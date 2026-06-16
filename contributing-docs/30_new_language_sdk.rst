@@ -242,6 +242,10 @@ Error handling
 
 * If the task raises an unhandled error, the SDK MUST send a ``TaskState``
   message with ``"state": "failed"`` before closing the comm socket.
+* If the task fails but still has retries left, the SDK MUST send a
+  ``RetryTask`` message instead so the supervisor moves the task to
+  ``up_for_retry``. Field names MUST match the Supervisor Schema exactly — the
+  failure detail key is ``retry_reason``, not ``reason``.
 * If the process exits without sending a terminal message, the supervisor marks
   the task instance ``failed`` based on the abnormal exit, but the task log may
   be incomplete.
