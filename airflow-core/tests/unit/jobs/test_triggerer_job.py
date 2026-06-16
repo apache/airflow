@@ -2460,6 +2460,48 @@ def test_handle_events_does_not_confirm_seq_when_persist_fails(jobless_superviso
     assert list(jobless_supervisor.persisted_event_seqs) == []
 
 
+@pytest.mark.parametrize(
+    ("team_name", "expected_tags"),
+    [
+        pytest.param("team_alpha", {"team_name": "team_alpha"}, id="with_team"),
+        pytest.param(None, {}, id="without_team"),
+    ],
+)
+def test_handle_events_emits_team_name(jobless_supervisor, team_name, expected_tags):
+    """triggers.succeeded carries the triggerer's team_name (omitted when the triggerer has none)."""
+    jobless_supervisor.team_name = team_name
+    jobless_supervisor.events.append(TriggerEventEntry(1, TriggerEvent(True), 7))
+
+    with (
+        mock.patch.object(TriggerRunnerSupervisor, "on_trigger_event", autospec=True),
+        mock.patch("airflow.jobs.triggerer_job_runner.stats.incr") as mock_incr,
+    ):
+        jobless_supervisor.handle_events()
+
+    mock_incr.assert_called_once_with("triggers.succeeded", tags=expected_tags)
+
+
+@pytest.mark.parametrize(
+    ("team_name", "expected_tags"),
+    [
+        pytest.param("team_alpha", {"team_name": "team_alpha"}, id="with_team"),
+        pytest.param(None, {}, id="without_team"),
+    ],
+)
+def test_handle_failed_triggers_emits_team_name(jobless_supervisor, team_name, expected_tags):
+    """triggers.failed carries the triggerer's team_name (omitted when the triggerer has none)."""
+    jobless_supervisor.team_name = team_name
+    jobless_supervisor.failed_triggers.append((1, None))
+
+    with (
+        mock.patch.object(TriggerRunnerSupervisor, "on_trigger_failure", autospec=True),
+        mock.patch("airflow.jobs.triggerer_job_runner.stats.incr") as mock_incr,
+    ):
+        jobless_supervisor.handle_failed_triggers()
+
+    mock_incr.assert_called_once_with("triggers.failed", tags=expected_tags)
+
+
 def test_state_sync_carries_and_drains_persist_confirmations(jobless_supervisor):
     """The state-sync response carries pending confirmations once, then None when there are none."""
     jobless_supervisor.persisted_event_seqs.extend([3, 9])
