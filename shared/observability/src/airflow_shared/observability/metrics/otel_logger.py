@@ -35,7 +35,7 @@ from opentelemetry.sdk.metrics._internal.export import (
 from opentelemetry.sdk.metrics.view import ExponentialBucketHistogramAggregation, View
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
-from ..common import _format_url_host
+from ..common import _format_url_host, _resolve_otlp_protocol
 from ..exceptions import InvalidStatsNameException
 from .protocols import Timer
 from .validators import (
@@ -485,11 +485,7 @@ def _load_exporter_from_env() -> MetricExporter:
     """
     exporter_name = os.environ.get("OTEL_METRICS_EXPORTER", "otlp")
     if exporter_name == "otlp":
-        protocol = (
-            os.environ.get("OTEL_EXPORTER_OTLP_METRICS_PROTOCOL")
-            or os.environ.get("OTEL_EXPORTER_OTLP_PROTOCOL")
-            or "http/protobuf"
-        )
+        protocol = _resolve_otlp_protocol("OTEL_EXPORTER_OTLP_METRICS_PROTOCOL")
         if protocol == "http/protobuf":
             from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 

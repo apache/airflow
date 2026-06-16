@@ -17,16 +17,20 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
 from opentelemetry.trace import NonRecordingSpan, SpanContext, TraceFlags, TraceState
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from airflow_shared.observability.traces import (
     DEFAULT_TASK_SPAN_DETAIL_LEVEL,
     TASK_SPAN_DETAIL_LEVEL_KEY,
+    _load_exporter_from_env,
     build_trace_state_entries,
     get_task_span_detail_level,
     new_dagrun_trace_carrier,
 )
+
+from tests_common.test_utils.config import env_vars
 
 
 class TestBuildTraceStateEntries:
@@ -102,3 +106,58 @@ class TestGetTaskSpanDetailLevel:
 
         span = trace.get_current_span(ctx)
         assert get_task_span_detail_level(span) == 3
+
+
+class TestLoadExporterFromEnv:
+    @pytest.mark.parametrize(
+        ("provided_env_vars", "expected_module"),
+        [
+            pytest.param(
+                {},
+                "opentelemetry.exporter.otlp.proto.http.trace_exporter",
+                id="default_otlp_no_protocol_uses_http",
+            ),
+            pytest.param(
+                {"OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf"},
+                "opentelemetry.exporter.otlp.proto.http.trace_exporter",
+                id="generic_protocol_http_protobuf_uses_http",
+            ),
+            pytest.param(
+                {"OTEL_EXPORTER_OTLP_PROTOCOL": "grpc"},
+                "opentelemetry.exporter.otlp.proto.grpc.trace_exporter",
+                id="generic_protocol_grpc_uses_grpc",
+            ),
+            pytest.param(
+                {"OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": "grpc"},
+                "opentelemetry.exporter.otlp.proto.grpc.trace_exporter",
+                id="traces_specific_protocol_grpc_uses_grpc",
+            ),
+            pytest.param(
+                {
+                    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+                    "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": "grpc",
+                },
+                "opentelemetry.exporter.otlp.proto.grpc.trace_exporter",
+                id="traces_specific_protocol_overrides_generic",
+            ),
+            pytest.param(
+                {"OTEL_TRACES_EXPORTER": "console"},
+                "opentelemetry.sdk.trace.export",
+                id="console_exporter_via_entry_point",
+            ),
+        ],
+    )
+    def test_load_exporter_from_env_selects_correct_exporter(self, provided_env_vars, expected_module):
+        with env_vars(provided_env_vars):
+            exporter = _load_exporter_from_env()
+            assert exporter.__class__.__module__ == expected_module
+
+    def test_load_exporter_from_env_raises_on_unsupported_otlp_protocol(self):
+        with env_vars({"OTEL_EXPORTER_OTLP_PROTOCOL": "bogus"}):
+            with pytest.raises(ValueError, match="Unsupported OTLP protocol 'bogus'"):
+                _load_exporter_from_env()
+
+    def test_load_exporter_from_env_raises_on_unknown_exporter_name(self):
+        with env_vars({"OTEL_TRACES_EXPORTER": "no-such-exporter"}):
+            with pytest.raises(RuntimeError, match="No span exporter found"):
+                _load_exporter_from_env()

@@ -17,6 +17,25 @@
 # under the License.
 from __future__ import annotations
 
+import os
+
+
+def _resolve_otlp_protocol(specific_env_var: str) -> str:
+    """
+    Return the OTLP transport per the OTel SDK environment-variable spec.
+
+    Returns ``'http/protobuf'`` (default) or ``'grpc'``. ``specific_env_var`` is
+    the signal-specific override (e.g. ``OTEL_EXPORTER_OTLP_METRICS_PROTOCOL``
+    or ``OTEL_EXPORTER_OTLP_TRACES_PROTOCOL``); falls back to the generic
+    ``OTEL_EXPORTER_OTLP_PROTOCOL`` and finally the default.
+
+    See:
+      https://opentelemetry.io/docs/specs/otel/protocol/exporter/#specify-protocol
+    """
+    return (
+        os.environ.get(specific_env_var) or os.environ.get("OTEL_EXPORTER_OTLP_PROTOCOL") or "http/protobuf"
+    )
+
 
 def _format_url_host(host: str | None) -> str | None:
     """
