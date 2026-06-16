@@ -46,6 +46,7 @@ def test_serialize_template_field_truncation_kicks_in(monkeypatch):
 
     assert "Truncated. You can change this behaviour" in result
 
+
 @pytest.mark.enable_redact
 def test_serialize_template_field_masks_dotted_sensitive_keys_on_truncation(monkeypatch):
     """Dotted config keys like spark.hadoop.*.access.key must be masked even when field is truncated."""
@@ -67,6 +68,7 @@ def test_serialize_template_field_masks_dotted_sensitive_keys_on_truncation(monk
     assert access_key_value not in result, "S3 access key must not appear in truncated output"
     assert token_value not in result, "JWT token must not appear in truncated output"
     assert "***" in result
+
 
 def test_serialize_template_field_with_notset():
     """NOTSET must serialize deterministically via serialize(), not str() fallback."""
