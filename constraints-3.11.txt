@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-12T16:18:19.722647
+# This constraints file was automatically generated on 2026-06-16T05:13:05.063507
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -47,7 +47,7 @@ Jinja2==3.1.6
 Mako==1.3.12
 Markdown==3.10.2
 MarkupSafe==3.0.3
-PyAthena==3.31.1
+PyAthena==3.32.0
 PyGithub==2.9.1
 PyHive==0.7.0
 PyJWT==2.13.0
@@ -82,7 +82,7 @@ akeyless==5.0.27
 alembic==1.18.4
 alibabacloud-adb20211201==3.7.0
 alibabacloud-credentials-api==1.0.0
-alibabacloud-credentials==1.0.8
+alibabacloud-credentials==1.0.9
 alibabacloud-openapi-util==0.2.4
 alibabacloud-oss-v2==1.3.1
 alibabacloud-tea-util==0.3.14
@@ -199,7 +199,7 @@ apispec==6.10.0
 apprise==1.11.0
 argcomplete==3.6.3
 arrow==1.4.0
-asana==5.2.4
+asana==5.2.5
 asgiref==3.11.1
 asn1crypto==1.5.1
 asttokens==3.0.1
@@ -231,7 +231,7 @@ azure-mgmt-storage==25.0.0
 azure-nspkg==3.0.2
 azure-servicebus==7.14.3
 azure-storage-blob==12.30.0
-azure-storage-file-datalake==12.24.0
+azure-storage-file-datalake==12.25.0
 azure-storage-file-share==12.26.0
 azure-synapse-artifacts==0.22.0
 azure-synapse-spark==0.7.0
@@ -250,6 +250,7 @@ botocore==1.43.0
 cachelib==0.14.0
 cachetools==7.1.4
 cadwyn==7.0.0
+capi_param_builder_python==1.3.0
 cassandra-driver==3.30.0
 cattrs==26.1.0
 celery==5.6.3
@@ -262,9 +263,9 @@ click-didyoumean==0.3.1
 click-plugins==1.1.1.2
 click-repl==0.3.0
 click==8.4.1
-clickhouse-connect==1.1.1
+clickhouse-connect==1.3.0
 cloudpickle==3.1.1
-cohere==7.0.3
+cohere==7.0.4
 colorama==0.4.6
 colorful==0.5.8
 colorlog==6.10.1
@@ -273,7 +274,7 @@ confluent-kafka==2.14.2
 crcmod-plus==2.3.1
 cron_descriptor==2.1.0
 croniter==6.2.2
-cryptography==48.0.0
+cryptography==48.0.1
 curlify==3.0.0
 databricks-sql-connector==4.2.5
 dataclasses-json==0.6.7
@@ -284,7 +285,7 @@ decorator==5.3.1
 defusedxml==0.7.1
 deprecation==2.1.0
 dill==0.4.1
-distlib==0.4.1
+distlib==0.4.2
 distro==1.9.0
 dnspython==2.8.0
 docker==7.1.0
@@ -298,14 +299,14 @@ entrypoints==0.4
 et_xmlfile==2.0.0
 eventlet==0.41.0
 executing==2.2.1
-facebook_business==25.0.1
+facebook_business==25.0.2
 fastapi-cli==0.0.24
 fastapi==0.136.3
 fastavro==1.12.2
-fastcore==1.13.2
+fastcore==1.13.3
 fastjsonschema==2.21.2
 fastuuid==0.14.0
-filelock==3.29.1
+filelock==3.29.3
 flask-appbuilder==5.2.1
 flask-babel==4.0.0
 flower==2.0.1
@@ -316,7 +317,7 @@ gcloud-aio-auth==5.4.4
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.6.4
 gcsfs==2026.4.0
-genai-prices==0.0.65
+genai-prices==0.0.66
 geomet==1.1.0
 gevent==26.5.0
 gitdb==4.0.12
@@ -384,24 +385,24 @@ griffelib==2.0.2
 grpc-google-iam-v1==0.14.4
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
-grpcio-health-checking==1.81.0
-grpcio-status==1.81.0
-grpcio-tools==1.81.0
-grpcio==1.81.0
+grpcio-health-checking==1.81.1
+grpcio-status==1.81.1
+grpcio-tools==1.81.1
+grpcio==1.81.1
 gssapi==1.11.1
 gunicorn==26.0.0
 h11==0.16.0
 h2==4.3.0
 hdfs==2.7.3
-hf-xet==1.5.0
+hf-xet==1.5.1
 hmsclient==0.1.1
 hpack==4.1.0
-httpcore2==2.3.0
+httpcore2==2.4.0
 httpcore==1.0.9
 httplib2==0.31.2
 httpr==0.4.8
 httptools==0.8.0
-httpx2==2.3.0
+httpx2==2.4.0
 httpx==0.28.1
 huggingface_hub==1.16.1
 humanize==4.15.0
@@ -417,8 +418,8 @@ importlib_resources==7.1.0
 impyla==0.23.0
 inflection==0.5.1
 influxdb-client==1.50.0
-influxdb3-python==0.19.0
-ipykernel==7.2.0
+influxdb3-python==0.20.0
+ipykernel==7.3.0
 ipython==9.14.1
 ipython_pygments_lexers==1.1.1
 isodate==0.7.2
@@ -438,7 +439,7 @@ jsonpath-ng==1.8.0
 jsonpath-python==1.1.6
 jsonschema-specifications==2025.9.1
 jsonschema==4.26.0
-jupyter_client==8.9.0
+jupyter_client==8.9.1
 jupyter_core==5.9.1
 jupyterlab_pygments==0.3.0
 jwcrypto==1.5.7
@@ -454,8 +455,8 @@ limits==5.8.0
 linkify-it-py==2.1.0
 litellm==1.82.6
 lockfile==0.12.2
-logfire-api==4.35.0
-looker_sdk==26.8.0
+logfire-api==4.36.0
+looker_sdk==26.10.0
 lxml==6.1.1
 lz4==4.4.5
 markdown-it-py==4.2.0
@@ -467,17 +468,17 @@ mdurl==0.1.2
 memray==1.19.3
 mergedeep==1.3.4
 methodtools==0.4.7
-microsoft-kiota-abstractions==1.10.2
-microsoft-kiota-authentication-azure==1.10.2
-microsoft-kiota-http==1.10.2
-microsoft-kiota-serialization-json==1.10.2
-microsoft-kiota-serialization-text==1.10.2
+microsoft-kiota-abstractions==1.10.3
+microsoft-kiota-authentication-azure==1.10.3
+microsoft-kiota-http==1.10.3
+microsoft-kiota-serialization-json==1.10.3
+microsoft-kiota-serialization-text==1.10.3
 mistune==3.2.1
 mmh3==5.2.1
 more-itertools==11.1.0
 msal-extensions==1.3.1
 msal==1.37.0
-msgpack==1.1.2
+msgpack==1.2.0
 msgraph-core==1.4.0
 msgraphfs==0.4
 msgspec==0.21.1
@@ -494,15 +495,16 @@ nbclient==0.11.0
 nbconvert==7.17.1
 nbformat==5.10.4
 neo4j==6.2.0
+nest-asyncio2==1.7.2
 nest-asyncio==1.6.0
 numpy==2.4.6
 oauthlib==3.3.1
-openai==2.41.0
+openai==2.41.1
 opencensus-context==0.1.3
 opencensus==0.11.4
-openlineage-integration-common==1.48.0
-openlineage-python==1.48.0
-openlineage_sql==1.48.0
+openlineage-integration-common==1.49.0
+openlineage-python==1.49.0
+openlineage_sql==1.49.0
 openpyxl==3.1.5
 opensearch-protobufs==1.2.0
 opensearch-py==3.2.0
@@ -564,9 +566,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==1.106.0
+pydantic-ai-slim==1.107.0
 pydantic-extra-types==2.11.1
-pydantic-graph==1.106.0
+pydantic-graph==1.107.0
 pydantic-settings==2.14.1
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -578,7 +580,7 @@ pykerberos==1.2.4
 pymongo==4.17.0
 pymssql==2.3.13
 pyodbc==5.3.0
-pyodps==0.12.6
+pyodps==0.13.0
 pyparsing==3.3.2
 pypsrp==0.9.1
 pyspark-client==4.1.2
@@ -586,7 +588,7 @@ pyspnego==0.12.1
 python-arango==8.3.3
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
-python-discovery==1.4.0
+python-discovery==1.4.2
 python-dotenv==1.2.2
 python-http-client==3.3.7
 python-jenkins==1.8.3
@@ -605,7 +607,7 @@ qdrant-client==1.18.0
 ray==2.55.1
 reactivex==4.1.0
 redis==6.4.0
-redshift_connector==2.1.14
+redshift_connector==2.1.15
 referencing==0.37.0
 regex==2026.5.9
 requests-file==3.0.1
@@ -641,7 +643,7 @@ smbprotocol==1.16.1
 smmap==5.0.3
 sniffio==1.3.1
 snowflake-connector-python==4.6.0
-snowflake-snowpark-python==1.51.1
+snowflake-snowpark-python==1.52.0
 snowflake-sqlalchemy==1.10.0
 sortedcontainers==2.4.0
 soupsieve==2.8.4
@@ -651,7 +653,7 @@ sqlalchemy-spanner==1.19.0
 sqlalchemy_drill==1.1.10
 sqlparse==0.5.5
 stack-data==0.6.3
-starlette==1.2.1
+starlette==1.3.0
 statsd==4.0.1
 std-uritemplate==2.0.10
 structlog==26.1.0
@@ -671,8 +673,8 @@ tiktoken==0.13.0
 tinycss2==1.5.1
 tokenizers==0.23.1
 tomlkit==0.15.0
-tornado==6.5.6
-tqdm==4.68.1
+tornado==6.5.7
+tqdm==4.68.2
 traitlets==5.15.1
 trino==0.337.0
 truststore==0.10.4
@@ -689,13 +691,13 @@ universal_pathlib==0.3.10
 uritemplate==4.2.0
 urllib3==2.7.0
 uuid6==2025.0.1
-uv==0.11.19
+uv==0.11.21
 uvicorn==0.49.0
 uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==21.4.2
+virtualenv==21.4.3
 watchfiles==1.2.0
 watchtower==3.4.0
 wcwidth==0.8.1
@@ -708,10 +710,10 @@ wrapt==2.2.1
 xmlsec==1.3.17
 xmltodict==1.0.4
 yandex-query-client==0.1.4
-yandexcloud==0.393.0
+yandexcloud==0.394.0
 yarl==1.24.2
 ydb-dbapi==0.1.22
-ydb==3.29.2
+ydb==3.29.4
 zeep==4.3.2
 zenpy==2.0.57
 zipp==4.1.0
