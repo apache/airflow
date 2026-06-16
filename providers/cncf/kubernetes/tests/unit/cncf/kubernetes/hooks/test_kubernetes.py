@@ -574,7 +574,9 @@ class TestKubernetesHook:
         with mock.patch.dict("os.environ", AIRFLOW_CONN_KUBERNETES_DEFAULT=conn_uri):
             kubernetes_hook = KubernetesHook(conn_id="kubernetes_default")
             kubernetes_hook.get_conn()
-            mock_get_client.assert_called_with(cluster_context="test", disable_verify_ssl=None, enable_tcp_keepalive=True)
+            mock_get_client.assert_called_with(
+                cluster_context="test", disable_verify_ssl=None, enable_tcp_keepalive=True
+            )
             assert kubernetes_hook.get_namespace() == "test"
 
     def test_missing_default_connection_is_ok(self, remove_default_conn, sdk_connection_not_found):

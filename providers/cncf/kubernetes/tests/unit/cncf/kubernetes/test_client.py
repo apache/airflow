@@ -20,6 +20,7 @@ from unittest import mock
 
 import pytest
 from kubernetes.client import Configuration
+
 from airflow.providers.cncf.kubernetes.kube_client import (
     _disable_verify_ssl,
     _enable_tcp_keepalive,
