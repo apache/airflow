@@ -571,11 +571,8 @@ class TestOtelMetrics:
         )
 
 
-_DEBUG_KWARGS = {"host": "localhost", "port": "4318", "debug": True}
-
-
 def mock_service_run():
-    logger = configure_otel(**_DEBUG_KWARGS)
+    logger = configure_otel(host="localhost", port="4318", debug=True)
     logger.incr("my_test_stat")
 
 
@@ -588,7 +585,7 @@ def mock_service_run_reinit():
     set_meter_provider() silently fails and the child uses a stale provider.
     """
     # First init — sets Once._done = True
-    configure_otel(**_DEBUG_KWARGS)
+    configure_otel(host="localhost", port="4318", debug=True)
     # Second init — simulates post-fork re-initialization
-    logger = configure_otel(**_DEBUG_KWARGS)
+    logger = configure_otel(host="localhost", port="4318", debug=True)
     logger.incr("post_fork_stat")
