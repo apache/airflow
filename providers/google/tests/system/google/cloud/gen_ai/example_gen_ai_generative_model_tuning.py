@@ -23,10 +23,8 @@ Example Airflow DAG for Google Vertex AI Generative Model Tuning Tasks.
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
-
-import requests
 
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
@@ -41,60 +39,70 @@ try:
 except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    # Airflow 2.x fallback path
+    from airflow.utils import timezone  # type: ignore[no-redef,attr-defined]
+
+
 from google.genai.types import TuningDataset
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gen_ai import (
     GenAISupervisedFineTuningTrainOperator,
 )
-from airflow.providers.google.common.utils.get_secret import get_secret
 
-
-def _get_actual_model(key) -> str:
-    source_model: str | None = None
-    try:
-        response = requests.get("https://generativelanguage.googleapis.com/v1/models", {"key": key})
-        response.raise_for_status()
-        available_models = response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching models from API: {e}")
-        return ""
-    for model in available_models.get("models", []):
-        try:
-            model_name = model["name"].split("/")[-1]
-            splited_model_name = model_name.split("-")
-            if not source_model and "flash" in model_name:
-                source_model = model_name
-            elif (
-                source_model
-                and "flash" in model_name
-                and float(source_model.split("-")[1]) < float(splited_model_name[1])
-            ):
-                source_model = model_name
-            elif (
-                source_model
-                and "flash" in model_name
-                and (
-                    float(source_model.split("-")[1]) == float(splited_model_name[1])
-                    and int(splited_model_name[-1]) > int(source_model.split("-")[-1])
-                )
-            ):
-                source_model = model_name
-        except (ValueError, IndexError) as e:
-            print(f"Could not parse model name '{model.get('name')}'. Skipping. Error: {e}")
-            continue
-    if not source_model:
-        raise ValueError("Source model not found")
-    return source_model
+STABLE_SFT_MODELS = [
+    # The Source:
+    # https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/tuning/supervised-tuning/use#supported_models
+    # https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/tuning/supervised-tuning#limitations
+    {
+        "model_id": "gemini-2.5-pro",
+        "display_name": "Gemini 2.5 Pro",
+        "sft_availability": "GenerallyAvailable",
+        "guaranteed_until": date(2026, 10, 16),
+        "details_link": "https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/tuning/supervised-tuning",
+    },
+    {
+        "model_id": "gemini-2.5-flash",
+        "display_name": "Gemini 2.5 Flash",
+        "sft_availability": "GenerallyAvailable",
+        "guaranteed_until": date(2026, 10, 16),
+        "details_link": "https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/tuning/supervised-tuning",
+    },
+    {
+        "model_id": "gemini-2.5-flash-lite",
+        "display_name": "Gemini 2.5 Flash-Lite",
+        "sft_availability": "GenerallyAvailable",
+        "guaranteed_until": date(2026, 10, 16),
+        "details_link": "https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/tuning/supervised-tuning",
+    },
+    {
+        "model_id": "gemini-3.1-flash-lite",
+        "display_name": "Gemini 3.1 Flash-Lite",
+        "sft_availability": "PrivatePreview",
+        "guaranteed_until": date(2027, 5, 7),
+        "details_link": "https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/tuning/supervised-tuning",
+    },
+    {
+        "model_id": "gemini-3.5-flash",
+        "display_name": "Gemini 3.5 Flash",
+        "sft_availability": "PrivatePreview",
+        "guaranteed_until": date(2027, 5, 19),
+        "details_link": "https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/tuning/supervised-tuning",
+    },
+]
 
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "gen_ai_generative_model_tuning_dag"
 REGION = "us-central1"
-GEMINI_API_KEY = "api_key"
-SOURCE_MODEL = "{{ task_instance.xcom_pull('get_actual_model') }}"
+SOURCE_MODEL = (
+    "{{ task_instance.xcom_pull(task_ids='get_actual_model').get('model_id', 'no-model-matched') }}"
+)
 TRAIN_DATASET = TuningDataset(
-    gcs_uri="gs://cloud-samples-data/ai-platform/generative_ai/gemini-1_5/text/sft_train_data.jsonl",
+    gcs_uri="gs://cloud-samples-data/ai-platform/generative_ai/gemini/text/sft_train_data.jsonl",
 )
 TUNED_MODEL_DISPLAY_NAME = "my_tuned_gemini_model"
 TUNING_JOB_CONFIG = {"tuned_model_display_name": TUNED_MODEL_DISPLAY_NAME}
@@ -118,16 +126,21 @@ with DAG(
 ) as dag:
 
     @task
-    def get_gemini_api_key():
-        return get_secret(GEMINI_API_KEY)
+    def get_actual_model():
+        latest_available_model = max(
+            filter(lambda model: model["sft_availability"] == "GenerallyAvailable", STABLE_SFT_MODELS),
+            key=lambda model: model["guaranteed_until"],
+        )
 
-    get_gemini_api_key_task = get_gemini_api_key()
+        if datetime.now(timezone.utc).date() > latest_available_model["guaranteed_until"]:
+            msg = (
+                f"The model: {latest_available_model} guarantee date has expired. "
+                f"Please check and update the stable SFT models list according to the official documentation: "
+                f"https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/tuning/supervised-tuning#limitations"
+            )
+            raise ValueError(msg)
 
-    @task
-    def get_actual_model(key):
-        return _get_actual_model(key)
-
-    get_actual_model_task = get_actual_model(get_gemini_api_key_task)
+        return latest_available_model
 
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
@@ -168,14 +181,7 @@ with DAG(
 
     delete_bucket.trigger_rule = TriggerRule.ALL_DONE
 
-    (
-        get_gemini_api_key_task
-        >> get_actual_model_task
-        >> create_bucket
-        >> upload_file
-        >> [sft_train_task, sft_video_task]
-        >> delete_bucket
-    )
+    (get_actual_model() >> create_bucket >> upload_file >> [sft_train_task, sft_video_task] >> delete_bucket)
 
     from tests_common.test_utils.watcher import watcher
 
