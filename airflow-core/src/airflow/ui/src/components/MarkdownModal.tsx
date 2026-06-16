@@ -18,7 +18,7 @@
  */
 import { Box, Button, Flex, Heading, HStack, Text, Textarea, VStack } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiEdit, FiEye } from "react-icons/fi";
 
@@ -57,6 +57,20 @@ const MarkdownModal = ({
   // While editing, toggle between the textarea and a rendered preview.
   const [showPreview, setShowPreview] = useState(false);
 
+  // Track the saved content while closed; it freezes on open, so dismissing (X / Esc / backdrop)
+  // restores it and discards the unsaved draft instead of leaking it into the shared note state.
+  // Confirm closes through onClose directly and keeps the edited value.
+  const openContentRef = useRef(mdContent ?? "");
+
+  if (!isOpen) {
+    openContentRef.current = mdContent ?? "";
+  }
+
+  const onDismiss = () => {
+    setMdContent(openContentRef.current);
+    onClose();
+  };
+
   const length = mdContent?.length ?? 0;
   // Existing notes may already exceed the limit (created before validation or
   // via the API); block saving until trimmed rather than silently truncating.
@@ -74,7 +88,11 @@ const MarkdownModal = ({
     <Dialog.Root
       data-testid="markdown-modal"
       lazyMount
-      onOpenChange={onClose}
+      onOpenChange={({ open: nextOpen }) => {
+        if (!nextOpen) {
+          onDismiss();
+        }
+      }}
       open={isOpen}
       size="xl"
       unmountOnExit={true}
@@ -91,19 +109,22 @@ const MarkdownModal = ({
             <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
           </Dialog.Header>
           <Dialog.Body alignItems="stretch" as={VStack} flex="1" gap="0" overflow="hidden" p={0}>
-            <Box flex="1" overflow="auto" p={4} width="100%">
+            <Box display="flex" flex="1" flexDirection="column" minH={0} overflow="hidden" p={4} width="100%">
               {showEditor ? (
                 <Textarea
                   data-testid="markdown-input"
-                  height="100%"
+                  flex="1"
                   maxLength={MAX_NOTE_LENGTH}
+                  minH={0}
                   onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setMdContent(event.target.value)}
                   placeholder={placeholder}
                   resize="none"
                   value={mdContent ?? ""}
                 />
               ) : (
-                renderedContent
+                <Box flex="1" minH={0} overflow="auto">
+                  {renderedContent}
+                </Box>
               )}
             </Box>
             <Box bg="bg.panel" flexShrink={0} width="100%">
