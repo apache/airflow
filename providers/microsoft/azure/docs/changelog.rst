@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+13.5.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add GCSToAzureBlobStorageOperator for GCS to Azure Blob transfer (#64966)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(test_wasb.py): SAS token tests failing with azure-storage-blob 12.30.0 (#68490)``
+* ``Fix remote-log providers not satisfying RemoteLogIO upload contract (#68300)``
+* ``Fix coroutine serialization error in PowerBIDatasetRefreshOperator (#63829)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 13.4.0
 ......
 

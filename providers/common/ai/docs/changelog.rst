@@ -25,6 +25,50 @@
 Changelog
 ---------
 
+0.5.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Enforce SQLToolset allowed_tables on queries, not just discovery (#68487)``
+
+Features
+~~~~~~~~
+
+* ``common.ai: Park approval reviews in awaiting_input on Airflow 3.3+ (#68489)``
+* ``Add spec_file support to PydanticAIHook.create_agent (#67788)``
+* ``Return common.ai SQLToolset errors to the agent so it self-corrects (#68117)``
+* ``Allow DESCRIBE/SHOW in common.ai SQLToolset read-only queries (#68102)``
+* ``Support multi-schema introspection in common.ai SQLToolset (#68103)``
+* ``Add token_provider for short-lived MCP auth in common.ai (#68104)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'LlamaIndexEmbeddingOperator' returning 'vector=None' for every chunk (#68491)``
+
+Misc
+~~~~
+
+* ``Bump vite (#68580)``
+* ``Access AgentRunResult.usage as a property in common.ai logging (#68405)``
+* ``Bump pydantic-ai-slim to resolve dependabot (#68105)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: Explain the agent tool boundary in common.ai security docs (#68404)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix common.ai example DAGs failing to parse without the sql extra (#68497)``
+   * ``Informatica provider: Add SQL auto-lineage and selective lineage control (#66612)``
+   * ``Rename task_store/asset_store to task_state_store/asset_state_store (#68438)``
+   * ``[main] Upgrade important CI environment (#68163)``
+   * ``Improve AIP progress tracker example for accuracy (#68037)``
+   * ``Fix XCom deserialization of Pydantic models in LangChain 10-K example (#67930)``
+
 Breaking change: operators with ``output_type=<BaseModel subclass>``
 (``LLMOperator``, ``LLMAgentOperator``, ``LLMFileAnalysisOperator``, and
 their ``@task.llm`` / ``@task.agent`` / ``@task.llm_file_analysis`` decorators)

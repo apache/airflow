@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+10.18.1
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``made await_pod_start to run before await_init_containers_completion (#68450)``
+* ``Kubernetes Pod Operator - handle pod preemption before container creation (#68328)``
+
+Misc
+~~~~
+
+* ``Make pod patching logic explicitly reflect when a pod is retained (#68507)``
+* ``[main] Upgrade important CI environment (#68322)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add regression test for KPO awaiting pod start before init-container logs (#68503)``
+
 10.18.0
 .......
 

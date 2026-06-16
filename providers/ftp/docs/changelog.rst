@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+3.15.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix the ftp tls (#67946)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.15.0
 ......
 

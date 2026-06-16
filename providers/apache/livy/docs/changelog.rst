@@ -28,6 +28,17 @@
 Changelog
 ---------
 
+4.5.7
+.....
+
+Misc
+~~~~
+
+* ``Bump aiohttp regarding dependabot warning (#67978)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.5.6
 .....
 

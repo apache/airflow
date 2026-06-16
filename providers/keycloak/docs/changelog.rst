@@ -25,6 +25,17 @@
 Changelog
 ---------
 
+0.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``[AIP-94] Create a CLI airflowctl client and adopt it in existing commands (#68175)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.7.3
 .....
 
