@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import ast
+import copy
 import hashlib
 import json as json_utils
 import time
@@ -136,15 +137,15 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                         "%s but since repair run is set, repairing the run with all failed tasks",
                         error_message,
                     )
-                    job_id = operator.json["job_id"]
+                    job_id = operator._merged_json["job_id"]
                     update_job_for_repair(operator, hook, job_id, run_state)
                     latest_repair_id = hook.get_latest_repair_id(operator.run_id)
                     repair_json = {"run_id": operator.run_id, "rerun_all_failed_tasks": True}
                     if latest_repair_id is not None:
                         repair_json["latest_repair_id"] = latest_repair_id
-                    if "job_parameters" in operator.json:
-                        repair_json["job_parameters"] = operator.json["job_parameters"]
-                    operator.json["latest_repair_id"] = hook.repair_run(repair_json)
+                    if "job_parameters" in operator._merged_json:
+                        repair_json["job_parameters"] = operator._merged_json["job_parameters"]
+                    hook.repair_run(repair_json)
                     _handle_databricks_operator_execution(operator, hook, log, context)
                 raise AirflowException(error_message)
 
@@ -297,6 +298,20 @@ def _coerce_json_to_dict(json: Any) -> dict[str, Any]:
 
 
 def _parse_json_string_to_dict(json: str) -> dict[str, Any]:
+    """
+    Parse a rendered ``json`` payload string into a dict.
+
+    A templated ``json`` payload may render to a string in two shapes:
+
+    * valid JSON (double-quoted keys/values), or
+    * a Python dict literal (single-quoted), which is what classic Jinja produces when it renders a
+      ``dict`` pulled from XCom, e.g. ``json="{{ ti.xcom_pull(task_ids='payload') }}"``.
+
+    Both are accepted: JSON is tried first, then ``ast.literal_eval`` as a fallback for the dict-literal
+    case. Anything that is not a mapping (or cannot be parsed) raises ``DatabricksOperatorPayloadError``.
+    Prefer passing an ``XComArg`` (``producer.output``) when possible — it resolves to a real ``dict`` at
+    runtime and never goes through this string parser.
+    """
     if not json:
         return {}
     try:
@@ -356,6 +371,10 @@ class DatabricksCreateJobsOperator(BaseOperator):
         be merged with this json dictionary if they are provided.
         If there are conflicts during the merge, the named parameters will
         take precedence and override the top level json keys. (templated)
+        When templated, ``json`` may resolve to a mapping, a JSON string, or a Python-dict-literal
+        string (the latter is what classic Jinja produces when rendering a dict pulled from XCom).
+        To avoid the string round-trip, prefer passing an ``XComArg`` (e.g. ``producer.output``),
+        which resolves to a real ``dict`` at runtime.
 
         .. seealso::
             For more information about templating see :ref:`concepts:jinja-templating`.
@@ -504,7 +523,6 @@ class DatabricksCreateJobsOperator(BaseOperator):
         job_id = self._hook.find_job_id_by_name(json["name"])
         if not json.get("parameters") and self.params:
             json["parameters"] = [{"name": k, "default": v} for k, v in dict(self.params).items()]
-        self.json = json
         if job_id is None:
             return self._hook.create_job(json)
         self._hook.reset_job(str(job_id), json)
@@ -533,6 +551,10 @@ class DatabricksSubmitRunOperator(BaseOperator):
         be merged with this json dictionary if they are provided.
         If there are conflicts during the merge, the named parameters will
         take precedence and override the top level json keys. (templated)
+        When templated, ``json`` may resolve to a mapping, a JSON string, or a Python-dict-literal
+        string (the latter is what classic Jinja produces when rendering a dict pulled from XCom).
+        To avoid the string round-trip, prefer passing an ``XComArg`` (e.g. ``producer.output``),
+        which resolves to a real ``dict`` at runtime.
 
         .. seealso::
             For more information about templating see :ref:`concepts:jinja-templating`.
@@ -779,8 +801,14 @@ class DatabricksSubmitRunOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
-        json = self._get_merged_json()
+        # Work on an isolated deep copy so the per-task ``params`` injection below cannot mutate the
+        # (templated) named fields (e.g. ``self.tasks`` / ``self.notebook_task``) in place, which would
+        # break re-rendering on a retry. ``self.json`` and the named template fields are never written.
+        json = copy.deepcopy(self._get_merged_json())
         self._validate_merged_json(json)
+        # Validate payload types up front so an invalid payload fails before any Databricks API call
+        # (parity with DatabricksRunNowOperator). The payload is re-normalised after param injection below.
+        normalise_json_content(json)
         if (
             isinstance(json.get("pipeline_task"), Mapping)
             and json["pipeline_task"].get("pipeline_id") is None
@@ -802,8 +830,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
             else:
                 _inject_airflow_params_into_task(json, params_dump)
 
-        self.json = normalise_json_content(json)
-        self.run_id = self._hook.submit_run(self.json)
+        normalised = cast("dict[str, Any]", normalise_json_content(json))
+        self.run_id = self._hook.submit_run(normalised)
         if self.deferrable:
             _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
         else:
@@ -914,6 +942,10 @@ class DatabricksRunNowOperator(BaseOperator):
         be merged with this json dictionary if they are provided.
         If there are conflicts during the merge, the named parameters will
         take precedence and override the top level json keys. (templated)
+        When templated, ``json`` may resolve to a mapping, a JSON string, or a Python-dict-literal
+        string (the latter is what classic Jinja produces when rendering a dict pulled from XCom).
+        To avoid the string round-trip, prefer passing an ``XComArg`` (e.g. ``producer.output``),
+        which resolves to a real ``dict`` at runtime.
 
         .. seealso::
             For more information about templating see :ref:`concepts:jinja-templating`.
@@ -1123,6 +1155,9 @@ class DatabricksRunNowOperator(BaseOperator):
     def execute(self, context: Context):
         json = self._get_merged_json()
         self._validate_merged_json(json)
+        # Validate payload types before touching the hook so an invalid payload fails fast,
+        # before find_job_id_by_name / cancel_all_runs hit the Databricks API.
+        json = cast("dict[str, Any]", normalise_json_content(json))
         hook = self._hook
         if "job_name" in json:
             job_id = hook.find_job_id_by_name(json["job_name"])
@@ -1141,11 +1176,10 @@ class DatabricksRunNowOperator(BaseOperator):
 
             hook.cancel_all_runs(job_id)
 
-        json = cast("dict[str, Any]", normalise_json_content(json))
         if not json.get("job_parameters") and self.params:
             json["job_parameters"] = dict(self.params)
 
-        self.json = json
+        self._merged_json = json
         self.run_id = hook.run_now(json)
         if self.deferrable:
             _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
@@ -1171,11 +1205,14 @@ class DatabricksRunNowOperator(BaseOperator):
                 repair_json = {"run_id": self.run_id, "rerun_all_failed_tasks": True}
                 if latest_repair_id is not None:
                     repair_json["latest_repair_id"] = latest_repair_id
-                json = _coerce_json_to_dict(self.json)
-                if "job_parameters" in json:
-                    repair_json["job_parameters"] = json["job_parameters"]
-                json["latest_repair_id"] = self._hook.repair_run(repair_json)
-                self.json = json
+                # Reconstruct the payload from the (re-rendered) template fields + named params instead
+                # of reading a mutated self.json: on a deferral resume this is a fresh process, so any
+                # value written to self.json in execute() is gone. _get_merged_json() also recovers a
+                # job_parameters supplied via the named ``job_parameters=`` argument, not only inside json=.
+                merged = self._get_merged_json()
+                if "job_parameters" in merged:
+                    repair_json["job_parameters"] = merged["job_parameters"]
+                self._hook.repair_run(repair_json)
                 _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
 
     def on_kill(self) -> None:

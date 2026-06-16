@@ -26,6 +26,18 @@
 Changelog
 ---------
 
+.. note::
+   ``DatabricksCreateJobsOperator``, ``DatabricksSubmitRunOperator`` and ``DatabricksRunNowOperator``
+   now assemble and validate their Databricks request payload at task **execution** time instead of
+   at operator construction time. This is required so that templated ``json`` payloads and templated
+   named parameters (including values pulled from XCom) are rendered before the payload is built.
+   As a result, payload-validation errors that previously surfaced while the Dag was parsed — e.g.
+   ``git_source is required for dbt_task``, ``'pipeline_name' is not allowed in conjunction with
+   'pipeline_id'``, ``Argument 'job_name' is not allowed with argument 'job_id'`` and invalid
+   payload types — now surface when the task runs. A templated ``json`` payload may now also resolve
+   to a Python-dict-literal string (what classic Jinja produces when rendering a dict pulled from
+   XCom), in addition to a mapping or a JSON string.
+
 7.16.0
 ......
 
