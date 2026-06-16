@@ -410,7 +410,9 @@ class TaskInstanceOperations:
         if state:
             params["state"] = state.value if isinstance(state, TaskInstanceState) else state
 
-        resp = self.client.get(f"task-instances/previous/{dag_id}/{task_id}", params=params)
+        resp = self.client.get(
+            f"task-instances/previous/{quote(dag_id, safe='')}/{quote(task_id, safe='')}", params=params
+        )
         return PreviousTIResult(task_instance=resp.json())
 
     def get_task_states(
@@ -461,7 +463,7 @@ class ConnectionOperations:
     def get(self, conn_id: str) -> ConnectionResponse | ErrorResponse:
         """Get a connection from the API server."""
         try:
-            resp = self.client.get(f"connections/{conn_id}")
+            resp = self.client.get(f"connections/{quote(conn_id, safe='')}")
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
                 log.debug(
@@ -921,7 +923,8 @@ class DagRunOperations:
 
         try:
             self.client.post(
-                f"dag-runs/{dag_id}/{run_id}", content=body.model_dump_json(exclude_defaults=True)
+                f"dag-runs/{quote(dag_id, safe='')}/{quote(run_id, safe='')}",
+                content=body.model_dump_json(exclude_defaults=True),
             )
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.CONFLICT:
@@ -937,18 +940,18 @@ class DagRunOperations:
 
     def clear(self, dag_id: str, run_id: str) -> OKResponse:
         """Clear a Dag run via the API server."""
-        self.client.post(f"dag-runs/{dag_id}/{run_id}/clear")
+        self.client.post(f"dag-runs/{quote(dag_id, safe='')}/{quote(run_id, safe='')}/clear")
         # TODO: Error handling
         return OKResponse(ok=True)
 
     def get_detail(self, dag_id: str, run_id: str) -> DagRun:
         """Get detail of a dag run."""
-        resp = self.client.get(f"dag-runs/{dag_id}/{run_id}")
+        resp = self.client.get(f"dag-runs/{quote(dag_id, safe='')}/{quote(run_id, safe='')}")
         return DagRun.model_validate_json(resp.read())
 
     def get_state(self, dag_id: str, run_id: str) -> DagRunStateResponse:
         """Get the state of a Dag run via the API server."""
-        resp = self.client.get(f"dag-runs/{dag_id}/{run_id}/state")
+        resp = self.client.get(f"dag-runs/{quote(dag_id, safe='')}/{quote(run_id, safe='')}/state")
         return DagRunStateResponse.model_validate_json(resp.read())
 
     def get_count(
