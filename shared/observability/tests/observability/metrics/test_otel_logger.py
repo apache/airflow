@@ -35,6 +35,7 @@ from airflow_shared.observability.metrics.otel_logger import (
     _generate_key_name,
     _get_backcompat_config,
     _is_up_down_counter,
+    _load_exporter_from_env,
     configure_otel,
     full_name,
 )
@@ -455,6 +456,59 @@ class TestOtelMetrics:
         view = views[0]
         assert isinstance(view, View)
         assert isinstance(view._aggregation, ExponentialBucketHistogramAggregation)
+
+    @pytest.mark.parametrize(
+        ("provided_env_vars", "expected_module"),
+        [
+            pytest.param(
+                {},
+                "opentelemetry.exporter.otlp.proto.http.metric_exporter",
+                id="default_otlp_no_protocol_uses_http",
+            ),
+            pytest.param(
+                {"OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf"},
+                "opentelemetry.exporter.otlp.proto.http.metric_exporter",
+                id="generic_protocol_http_protobuf_uses_http",
+            ),
+            pytest.param(
+                {"OTEL_EXPORTER_OTLP_PROTOCOL": "grpc"},
+                "opentelemetry.exporter.otlp.proto.grpc.metric_exporter",
+                id="generic_protocol_grpc_uses_grpc",
+            ),
+            pytest.param(
+                {"OTEL_EXPORTER_OTLP_METRICS_PROTOCOL": "grpc"},
+                "opentelemetry.exporter.otlp.proto.grpc.metric_exporter",
+                id="metrics_specific_protocol_grpc_uses_grpc",
+            ),
+            pytest.param(
+                {
+                    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+                    "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL": "grpc",
+                },
+                "opentelemetry.exporter.otlp.proto.grpc.metric_exporter",
+                id="metrics_specific_protocol_overrides_generic",
+            ),
+            pytest.param(
+                {"OTEL_METRICS_EXPORTER": "console"},
+                "opentelemetry.sdk.metrics._internal.export",
+                id="console_exporter_via_entry_point",
+            ),
+        ],
+    )
+    def test_load_exporter_from_env_selects_correct_exporter(self, provided_env_vars, expected_module):
+        with env_vars(provided_env_vars):
+            exporter = _load_exporter_from_env()
+            assert exporter.__class__.__module__ == expected_module
+
+    def test_load_exporter_from_env_raises_on_unsupported_otlp_protocol(self):
+        with env_vars({"OTEL_EXPORTER_OTLP_PROTOCOL": "bogus"}):
+            with pytest.raises(ValueError, match="Unsupported OTLP protocol 'bogus'"):
+                _load_exporter_from_env()
+
+    def test_load_exporter_from_env_raises_on_unknown_exporter_name(self):
+        with env_vars({"OTEL_METRICS_EXPORTER": "no-such-exporter"}):
+            with pytest.raises(RuntimeError, match="No metric exporter found"):
+                _load_exporter_from_env()
 
     def test_atexit_flush_on_process_exit(self):
         """
