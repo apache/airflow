@@ -70,10 +70,6 @@ def new_dagrun_trace_carrier(task_span_detail_level=None) -> dict[str, str]:
     ``OTEL_TRACES_SAMPLER_ARG``), rather than being hardcoded. This makes the
     carrier the single head-sampling decision point for a DAG run: every
     downstream span (dag_run, task_run, worker) rides on this flag.
-
-    Backcompat: when ``OTEL_TRACES_SAMPLER`` is unset the SDK defaults to
-    ``parentbased_always_on`` whose root decision is ALWAYS_ON, so the flag is
-    SAMPLED and behavior is identical to the previous hardcoded value.
     """
     gen = RandomIdGenerator()
     trace_id = gen.generate_trace_id()
