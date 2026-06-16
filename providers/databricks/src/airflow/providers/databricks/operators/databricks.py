@@ -43,11 +43,11 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     store_databricks_job_run_link,
 )
 from airflow.providers.databricks.triggers.databricks import (
-    WORKFLOW_REPAIR_GRACE_POLLS,
     DatabricksExecutionTrigger,
     DatabricksWorkflowRepairWaitTrigger,
 )
 from airflow.providers.databricks.utils.databricks import (
+    compute_repair_deadline,
     extract_failed_task_errors,
     find_new_workflow_task_attempt,
     normalise_json_content,
@@ -1641,15 +1641,14 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             self.databricks_task_key,
         )
         polling_period_seconds = tg.workflow_repair_polling_period
-        terminal_observations = 0
-        last_repair_history_count: int | None = None
+        workflow_repair_timeout = tg.workflow_repair_timeout
+        # Give-up deadline (epoch seconds), anchored to the run's end_time to match the
+        # coordinator. Reset when the run leaves terminal failure so a later failure restarts it.
+        repair_deadline: float | None = None
         while True:
             run_info = self._hook.get_run(self.databricks_run_id)  # type: ignore[arg-type]
             parent_run_state = RunState(**run_info["state"])
             tasks = run_info.get("tasks", [])
-            repair_history_count = len(run_info.get("repair_history", []))
-            if last_repair_history_count is None:
-                last_repair_history_count = repair_history_count
             new_attempt = find_new_workflow_task_attempt(
                 tasks=tasks,
                 task_key=self.databricks_task_key,
@@ -1658,31 +1657,22 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             )
             if new_attempt is not None:
                 return new_attempt["run_id"]
-            if repair_history_count > last_repair_history_count:
-                self.log.info(
-                    "Parent run %s repair_history grew (was %s, now %s); resetting grace counter "
-                    "while waiting for a new attempt for task_key %s.",
-                    self.databricks_run_id,
-                    last_repair_history_count,
-                    repair_history_count,
-                    self.databricks_task_key,
-                )
-                last_repair_history_count = repair_history_count
-                terminal_observations = 0
-            elif parent_run_state.is_terminal:
-                terminal_observations += 1
-                if terminal_observations >= WORKFLOW_REPAIR_GRACE_POLLS:
+            if parent_run_state.is_terminal and not parent_run_state.is_successful:
+                if repair_deadline is None:
+                    repair_deadline = compute_repair_deadline(run_info, workflow_repair_timeout)
+                if time.time() >= repair_deadline:
                     self.log.info(
                         "Parent run %s reached terminal state %s without a new attempt for "
-                        "task_key %s after %s grace polls.",
+                        "task_key %s within %ss (anchored to the run's terminal end_time).",
                         self.databricks_run_id,
                         parent_run_state.result_state,
                         self.databricks_task_key,
-                        WORKFLOW_REPAIR_GRACE_POLLS,
+                        workflow_repair_timeout,
                     )
                     return None
             else:
-                terminal_observations = 0
+                # Not in terminal failure — clear the deadline so a later failure restarts it.
+                repair_deadline = None
             time.sleep(polling_period_seconds)
 
     def _defer_to_workflow_repair_wait(
@@ -1705,6 +1695,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
                 original_sub_run_id=original_sub_run_id,
                 original_start_time=original_start_time,
                 polling_period_seconds=tg.workflow_repair_polling_period,
+                workflow_repair_timeout=tg.workflow_repair_timeout,
                 retry_limit=self.databricks_retry_limit,
                 retry_delay=self.databricks_retry_delay,
                 retry_args=self.databricks_retry_args,

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from airflow.providers.common.compat.sdk import AirflowException, XComArg
@@ -124,6 +125,25 @@ def find_new_workflow_task_attempt(
     if not candidates:
         return None
     return max(candidates, key=lambda task: task.get("start_time", 0))
+
+
+def compute_repair_deadline(run_info: dict[str, Any], workflow_repair_timeout: int) -> float:
+    """
+    Return the wall-clock deadline (epoch seconds) for a repair to be reflected.
+
+    Anchored to the run's terminal ``end_time`` (epoch ms) so all waiters converge on the same
+    give-up instant. Falls back to now if ``end_time`` is not populated.
+    """
+    end_time_ms = run_info.get("end_time") or 0
+    anchor = end_time_ms / 1000 if end_time_ms else time.time()
+    return anchor + workflow_repair_timeout
+
+
+def is_repair_reflected(run_info: dict[str, Any], repair_id: int | None) -> bool:
+    """Return ``True`` once ``repair_id`` appears in the run's ``repair_history``."""
+    if repair_id is None:
+        return False
+    return any(entry.get("id") == repair_id for entry in run_info.get("repair_history", []))
 
 
 def build_repair_run_json(

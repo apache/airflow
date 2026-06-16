@@ -26,9 +26,11 @@ from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.hooks.databricks import RunState
 from airflow.providers.databricks.utils.databricks import (
     build_repair_run_json,
+    compute_repair_deadline,
     extract_failed_task_errors,
     extract_failed_task_errors_async,
     find_new_workflow_task_attempt,
+    is_repair_reflected,
     normalise_json_content,
     validate_trigger_event,
 )
@@ -132,6 +134,23 @@ class TestDatabricksOperatorSharedFunctions:
             "latest_repair_id": 42,
             "overriding_parameters": {"notebook_params": {"date": "2024-01-01"}},
         }
+
+    def test_compute_repair_deadline_anchors_to_terminal_end_time(self):
+        # end_time (epoch ms) in seconds plus the timeout, independent of when polling started.
+        assert compute_repair_deadline({"end_time": 1_700_000_000_000}, 180) == 1_700_000_000.0 + 180
+
+    def test_is_repair_reflected_detects_repair_id_in_history(self):
+        run_info = {"repair_history": [{"id": 111}, {"id": 222}]}
+        # The repair is reflected as soon as its repair_id is in repair_history, even while the run
+        # is still terminal — a fast repair never has to be caught mid-flight.
+        assert is_repair_reflected(run_info, 222) is True
+        assert is_repair_reflected(run_info, 111) is True
+
+    def test_is_repair_reflected_false_when_not_present_or_unknown(self):
+        # repair_id absent from history, history missing entirely, or no repair_id yet.
+        assert is_repair_reflected({"repair_history": [{"id": 111}]}, 999) is False
+        assert is_repair_reflected({}, 111) is False
+        assert is_repair_reflected({"repair_history": [{"id": 111}]}, None) is False
 
 
 class TestExtractFailedTaskErrors:

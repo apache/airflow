@@ -671,18 +671,24 @@ class TestDatabricksWorkflowRepairCoordinatorOperator:
         hook = MagicMock()
         operator.__dict__["_hook"] = hook
         # 1. top of outer loop: terminal+failed → repair_run
-        # 2. reflection poll: non-terminal → break reflection loop
+        # 2. reflection poll: run still terminal, but repair_id is in repair_history → reflected →
+        #    break reflection loop (the fast-repair case a terminal-state-only check would miss)
         # 3. top of outer loop: terminal+success → return
         hook.get_run_state.side_effect = [
             RunState("TERMINATED", "FAILED", ""),
-            RunState("RUNNING", "", ""),
             RunState("TERMINATED", "SUCCESS", ""),
         ]
-        hook.get_run.return_value = {
-            "state": {"life_cycle_state": "TERMINATED", "result_state": "FAILED", "state_message": ""},
-            "tasks": [],
-            "overriding_parameters": {"notebook_params": {"date": "2024-01-01"}},
-        }
+        hook.get_run.side_effect = [
+            {
+                "state": {"life_cycle_state": "TERMINATED", "result_state": "FAILED", "state_message": ""},
+                "tasks": [],
+                "overriding_parameters": {"notebook_params": {"date": "2024-01-01"}},
+            },
+            {
+                "state": {"life_cycle_state": "TERMINATED", "result_state": "FAILED", "state_message": ""},
+                "repair_history": [{"id": 555}],
+            },
+        ]
         hook.repair_run.return_value = 555
 
         result = operator._run_sync(run_id=100)
@@ -705,12 +711,10 @@ class TestDatabricksWorkflowRepairCoordinatorOperator:
         operator.workflow_repair_timeout = 0
         hook = MagicMock()
         operator.__dict__["_hook"] = hook
-        # 1. outer loop: terminal+failed → repair_run
-        # 2. reflection poll: still terminal → wall-clock deadline trips → raise (no second repair_run).
-        # workflow_repair_timeout=0 means the first elapsed ``time.monotonic()`` call
-        # after the no-op sleep is past the deadline, so the loop bails out.
+        # terminal+failed → repair_run; reflection poll still terminal with no repair_history entry
+        # → deadline trips → raise.
+        # timeout=0 makes the deadline the run's end_time, already past, so the loop bails out.
         hook.get_run_state.side_effect = [
-            RunState("TERMINATED", "FAILED", ""),
             RunState("TERMINATED", "FAILED", ""),
         ]
         hook.get_run.return_value = {

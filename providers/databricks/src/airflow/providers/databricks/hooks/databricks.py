@@ -560,25 +560,31 @@ class DatabricksHook(BaseDatabricksHook):
 
         return all_tasks
 
-    def get_run(self, run_id: int) -> dict[str, Any]:
+    def get_run(self, run_id: int, include_history: bool = False) -> dict[str, Any]:
         """
         Retrieve run information.
 
         :param run_id: id of the run
+        :param include_history: whether to include the run's ``repair_history`` in the response.
         :return: state of the run
         """
-        json = {"run_id": run_id}
+        json: dict[str, Any] = {"run_id": run_id}
+        if include_history:
+            json["include_history"] = "true"
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
         return response
 
-    async def a_get_run(self, run_id: int) -> dict[str, Any]:
+    async def a_get_run(self, run_id: int, include_history: bool = False) -> dict[str, Any]:
         """
         Async version of `get_run`.
 
         :param run_id: id of the run
+        :param include_history: whether to include the run's ``repair_history`` in the response.
         :return: state of the run
         """
-        json = {"run_id": run_id}
+        json: dict[str, Any] = {"run_id": run_id}
+        if include_history:
+            json["include_history"] = "true"
         response = await self._a_do_api_call(GET_RUN_ENDPOINT, json)
         return response
 

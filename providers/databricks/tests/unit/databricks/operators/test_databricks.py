@@ -18,12 +18,14 @@
 from __future__ import annotations
 
 import hashlib
+import time
 from datetime import datetime, timedelta
 from typing import Any
 from unittest import mock
 from unittest.mock import MagicMock, call
 
 import pytest
+import time_machine
 from tenacity import stop_after_attempt, wait_incrementing
 
 # Do not run the tests when FAB / Flask is not installed
@@ -2998,6 +3000,9 @@ class TestExecuteCompleteWorkflowRepair:
     PARENT_RUN_ID = 100
     ORIGINAL_SUB_RUN_ID = 500
     NEW_SUB_RUN_ID = 700
+    # Parent run terminal end_time (epoch ms) the sync waiter anchors its give-up deadline to.
+    PARENT_END_TIME_MS = 1_700_000_000_000
+    ANCHOR_S = PARENT_END_TIME_MS / 1000
 
     @staticmethod
     def _terminal_failure_event(sub_run_id: int) -> dict[str, Any]:
@@ -3035,6 +3040,7 @@ class TestExecuteCompleteWorkflowRepair:
         tg.is_databricks = True
         tg.workflow_repair_attempts = workflow_repair_attempts
         tg.workflow_repair_polling_period = 15
+        tg.workflow_repair_timeout = 120
         tg.task_group = None
         operator.task_group = tg
         return operator
@@ -3054,6 +3060,7 @@ class TestExecuteCompleteWorkflowRepair:
         assert trigger.databricks_task_key == operator.databricks_task_key
         assert trigger.original_sub_run_id == self.ORIGINAL_SUB_RUN_ID
         assert trigger.polling_period_seconds == 15
+        assert trigger.workflow_repair_timeout == 120
         assert exc.value.method_name == "execute_complete_after_repair_wait"
 
     def test_execute_complete_failure_pulls_workflow_metadata_from_xcom(self):
@@ -3070,6 +3077,7 @@ class TestExecuteCompleteWorkflowRepair:
         tg.is_databricks = True
         tg.workflow_repair_attempts = 2
         tg.workflow_repair_polling_period = 15
+        tg.workflow_repair_timeout = 120
         tg.task_group = None
         operator.task_group = tg
         operator.upstream_task_ids = {"workflow.launch"}
@@ -3174,7 +3182,8 @@ class TestExecuteCompleteWorkflowRepair:
         mock_sleep.assert_called_once_with(15)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
-    def test_sync_wait_for_new_sub_run_attempt_repair_history_growth_resets_grace(self, mock_sleep):
+    def test_sync_wait_for_new_sub_run_attempt_returns_none_after_repair_timeout(self, mock_sleep):
+        # Gives up only once the deadline (end_time + timeout) passes. 120s timeout, 15s polling = 8 sleeps.
         operator = self._operator_with_workflow_tg(workflow_repair_attempts=2)
         hook = MagicMock()
         operator.__dict__["_hook"] = hook
@@ -3185,40 +3194,61 @@ class TestExecuteCompleteWorkflowRepair:
             "start_time": 1000,
         }
         terminal_state = {"life_cycle_state": "TERMINATED", "result_state": "FAILED", "state_message": None}
-        # Two terminal polls, then a repair lands (history grows) — counter resets;
-        # then 3 more terminal polls with no further repair → returns None.
+        hook.get_run.return_value = {
+            "state": terminal_state,
+            "tasks": [original_task],
+            "end_time": self.PARENT_END_TIME_MS,
+        }
+
+        with time_machine.travel(self.ANCHOR_S, tick=False) as traveller:
+            mock_sleep.side_effect = lambda _seconds: traveller.move_to(time.time() + 15)
+            result = operator._sync_wait_for_new_sub_run_attempt(
+                original_sub_run_id=self.ORIGINAL_SUB_RUN_ID,
+                original_start_time=1000,
+                tg=operator.task_group,
+            )
+
+        assert result is None
+        # 8 sleeps advance the clock to the deadline; the 9th poll observes it has passed.
+        assert hook.get_run.call_count == 9
+        assert mock_sleep.call_count == 8
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
+    def test_sync_wait_deadline_resets_when_run_leaves_terminal(self, mock_sleep):
+        # When the repair takes effect the run leaves terminal, resetting the deadline, and the
+        # waiter picks up the repaired attempt instead of returning None.
+        operator = self._operator_with_workflow_tg(workflow_repair_attempts=2)
+        hook = MagicMock()
+        operator.__dict__["_hook"] = hook
+        operator.databricks_run_id = self.PARENT_RUN_ID
+        original_task = {
+            "run_id": self.ORIGINAL_SUB_RUN_ID,
+            "task_key": operator.databricks_task_key,
+            "start_time": 1000,
+        }
+        new_task = {
+            "run_id": self.NEW_SUB_RUN_ID,
+            "task_key": operator.databricks_task_key,
+            "start_time": 2000,
+        }
+        terminal_state = {"life_cycle_state": "TERMINATED", "result_state": "FAILED", "state_message": None}
+        running_state = {"life_cycle_state": "RUNNING", "result_state": None, "state_message": None}
         hook.get_run.side_effect = [
-            {"state": terminal_state, "tasks": [original_task], "repair_history": []},
-            {"state": terminal_state, "tasks": [original_task], "repair_history": []},
-            {
-                "state": terminal_state,
-                "tasks": [original_task],
-                "repair_history": [{"id": 1, "type": "REPAIR"}],
-            },
-            {
-                "state": terminal_state,
-                "tasks": [original_task],
-                "repair_history": [{"id": 1, "type": "REPAIR"}],
-            },
-            {
-                "state": terminal_state,
-                "tasks": [original_task],
-                "repair_history": [{"id": 1, "type": "REPAIR"}],
-            },
-            {
-                "state": terminal_state,
-                "tasks": [original_task],
-                "repair_history": [{"id": 1, "type": "REPAIR"}],
-            },
+            {"state": terminal_state, "tasks": [original_task], "end_time": self.PARENT_END_TIME_MS},
+            {"state": terminal_state, "tasks": [original_task], "end_time": self.PARENT_END_TIME_MS},
+            # Repair lands: the run is RUNNING again → deadline resets.
+            {"state": running_state, "tasks": [original_task]},
+            # The repaired attempt for the watched task_key appears.
+            {"state": running_state, "tasks": [original_task, new_task]},
         ]
 
-        result = operator._sync_wait_for_new_sub_run_attempt(
-            original_sub_run_id=self.ORIGINAL_SUB_RUN_ID,
-            original_start_time=1000,
-            tg=operator.task_group,
-        )
+        with time_machine.travel(self.ANCHOR_S, tick=False) as traveller:
+            mock_sleep.side_effect = lambda _seconds: traveller.move_to(time.time() + 15)
+            result = operator._sync_wait_for_new_sub_run_attempt(
+                original_sub_run_id=self.ORIGINAL_SUB_RUN_ID,
+                original_start_time=1000,
+                tg=operator.task_group,
+            )
 
-        # Without the reset, this would return after 3 polls. The reset on poll 3 delays the
-        # decision until 3 more terminal polls without further repair_history growth (poll 6).
-        assert result is None
-        assert hook.get_run.call_count == 6
+        assert result == self.NEW_SUB_RUN_ID
+        assert hook.get_run.call_count == 4

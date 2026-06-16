@@ -17,9 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from unittest import mock
 
 import pytest
+import time_machine
 from tenacity import stop_after_attempt, wait_incrementing
 
 from airflow.models import Connection
@@ -513,21 +515,21 @@ class TestDatabricksWorkflowRepairCoordinatorTrigger:
     async def test_first_failure_within_budget_calls_repair_and_emits_repaired(
         self, mock_get_run_state, mock_get_run, mock_get_run_output, mock_repair_run, mock_sleep
     ):
-        # First call: terminal+failed → trigger issues repair.
-        # Second call: reflection poll → non-terminal → reflection loop breaks.
+        # Outer loop: terminal+failed → trigger issues repair.
+        # Reflection poll: run is still terminal, but repair_id is in repair_history → reflected →
+        # reflection loop breaks. This is the fast-repair case that a terminal-state-only check
+        # would miss.
         mock_get_run_state.side_effect = [
             RunState(
                 life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
                 state_message="",
                 result_state="FAILED",
             ),
-            RunState(
-                life_cycle_state="RUNNING",
-                state_message="",
-                result_state="",
-            ),
         ]
-        mock_get_run.return_value = GET_RUN_RESPONSE_TERMINATED_WITH_FAILED
+        mock_get_run.side_effect = [
+            GET_RUN_RESPONSE_TERMINATED_WITH_FAILED,
+            {**GET_RUN_RESPONSE_TERMINATED_WITH_FAILED, "repair_history": [{"id": 101}]},
+        ]
         mock_get_run_output.return_value = GET_RUN_OUTPUT_RESPONSE
         mock_repair_run.return_value = 101
 
@@ -567,16 +569,10 @@ class TestDatabricksWorkflowRepairCoordinatorTrigger:
         mock_repair_run,
         mock_sleep,
     ):
-        # First call: terminal+failed → trigger issues repair.
-        # Reflection poll: still terminal → wall-clock deadline trips → yield repair_not_reflected.
-        # workflow_repair_timeout=0 means the deadline is "now"; the first elapsed
-        # ``time.monotonic()`` call after the no-op sleep is past it, so the loop bails out.
+        # terminal+failed → repair; reflection poll still terminal with no repair_history entry →
+        # deadline trips → repair_not_reflected.
+        # timeout=0 makes the deadline the run's end_time, already past, so the loop bails out.
         mock_get_run_state.side_effect = [
-            RunState(
-                life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
-                state_message="",
-                result_state="FAILED",
-            ),
             RunState(
                 life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
                 state_message="",
@@ -640,6 +636,9 @@ class TestDatabricksWorkflowRepairWaitTrigger:
     TASK_KEY = "monitored_task"
     ORIGINAL_SUB_RUN_ID = 500
     NEW_SUB_RUN_ID = 700
+    # Parent run terminal end_time (epoch ms) the waiter anchors its give-up deadline to.
+    PARENT_END_TIME_MS = 1_700_000_000_000
+    ANCHOR_S = PARENT_END_TIME_MS / 1000
 
     @pytest.fixture(autouse=True)
     def setup_connections(self, create_connection_without_db):
@@ -654,13 +653,14 @@ class TestDatabricksWorkflowRepairWaitTrigger:
             )
         )
 
-    def _make_trigger(self) -> DatabricksWorkflowRepairWaitTrigger:
+    def _make_trigger(self, workflow_repair_timeout: int = 180) -> DatabricksWorkflowRepairWaitTrigger:
         return DatabricksWorkflowRepairWaitTrigger(
             run_id=self.PARENT_RUN_ID,
             databricks_conn_id=DEFAULT_CONN_ID,
             databricks_task_key=self.TASK_KEY,
             original_sub_run_id=self.ORIGINAL_SUB_RUN_ID,
             polling_period_seconds=POLLING_INTERVAL_SECONDS,
+            workflow_repair_timeout=workflow_repair_timeout,
             run_page_url=RUN_PAGE_URL,
         )
 
@@ -669,9 +669,9 @@ class TestDatabricksWorkflowRepairWaitTrigger:
         result_state: str | None,
         life_cycle_state: str = LIFE_CYCLE_STATE_TERMINATED,
         tasks: list[dict] | None = None,
-        repair_history: list[dict] | None = None,
+        end_time: int | None = None,
     ) -> dict:
-        return {
+        payload = {
             "run_page_url": RUN_PAGE_URL,
             "state": {
                 "life_cycle_state": life_cycle_state,
@@ -679,8 +679,10 @@ class TestDatabricksWorkflowRepairWaitTrigger:
                 "result_state": result_state,
             },
             "tasks": tasks or [],
-            "repair_history": repair_history or [],
         }
+        if end_time is not None:
+            payload["end_time"] = end_time
+        return payload
 
     def test_serialize_round_trips_state(self):
         trigger = self._make_trigger()
@@ -724,27 +726,29 @@ class TestDatabricksWorkflowRepairWaitTrigger:
         }
 
     @pytest.mark.asyncio
-    @mock.patch("asyncio.sleep")
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
-    async def test_emits_parent_failed_after_grace_polls(self, mock_get_run, mock_sleep):
-        terminal_payload = self._run_payload(
+    async def test_emits_parent_failed_after_repair_timeout(self, mock_get_run):
+        # Gives up only once the deadline (end_time + timeout) passes, not after a fixed poll
+        # count. 180s timeout, 30s polling = 6 sleeps.
+        mock_get_run.return_value = self._run_payload(
             result_state="FAILED",
             life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
-            tasks=[
-                {
-                    "run_id": self.ORIGINAL_SUB_RUN_ID,
-                    "task_key": self.TASK_KEY,
-                    "start_time": 1000,
-                },
-            ],
+            tasks=[{"run_id": self.ORIGINAL_SUB_RUN_ID, "task_key": self.TASK_KEY, "start_time": 1000}],
+            end_time=self.PARENT_END_TIME_MS,
         )
-        mock_get_run.return_value = terminal_payload
 
-        trigger = self._make_trigger()
-        events = [event async for event in trigger.run()]
+        with time_machine.travel(self.ANCHOR_S, tick=False) as traveller:
 
-        assert mock_get_run.call_count == 3
-        assert mock_sleep.call_count == 2
+            def advance(_seconds):
+                traveller.move_to(time.time() + POLLING_INTERVAL_SECONDS)
+
+            with mock.patch("asyncio.sleep", side_effect=advance) as mock_sleep:
+                trigger = self._make_trigger(workflow_repair_timeout=180)
+                events = [event async for event in trigger.run()]
+
+        # 6 sleeps advance the clock to the deadline; parent_failed fires on the 7th poll.
+        assert mock_get_run.call_count == 7
+        assert mock_sleep.call_count == 6
         assert len(events) == 1
         payload = events[0].payload
         assert payload["status"] == "parent_failed"
@@ -755,44 +759,50 @@ class TestDatabricksWorkflowRepairWaitTrigger:
     @pytest.mark.asyncio
     @mock.patch("asyncio.sleep")
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
-    async def test_repair_history_growth_resets_grace_counter(self, mock_get_run, mock_sleep):
-        original_task = {
-            "run_id": self.ORIGINAL_SUB_RUN_ID,
-            "task_key": self.TASK_KEY,
-            "start_time": 1000,
-        }
-        # Sequence: terminal twice, then a repair lands (history grows) — counter resets;
-        # then 3 more terminal polls with no further repair → parent_failed.
+    async def test_parent_failed_fires_immediately_when_deadline_already_past(self, mock_get_run, mock_sleep):
+        # Deadline is anchored to end_time, not to when polling started: a run that went terminal
+        # long ago is already past its deadline, so the first poll fails without waiting.
+        mock_get_run.return_value = self._run_payload(
+            result_state="FAILED",
+            life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
+            tasks=[{"run_id": self.ORIGINAL_SUB_RUN_ID, "task_key": self.TASK_KEY, "start_time": 1000}],
+            end_time=self.PARENT_END_TIME_MS,
+        )
+
+        with time_machine.travel(self.ANCHOR_S + 1000, tick=False):
+            trigger = self._make_trigger(workflow_repair_timeout=180)
+            events = [event async for event in trigger.run()]
+
+        assert mock_get_run.call_count == 1
+        assert mock_sleep.call_count == 0
+        assert events[0].payload["status"] == "parent_failed"
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
+    async def test_deadline_resets_when_run_leaves_terminal(self, mock_get_run):
+        # When the repair takes effect the run leaves terminal, resetting the deadline, and the
+        # waiter picks up the repaired attempt instead of failing.
+        original_task = {"run_id": self.ORIGINAL_SUB_RUN_ID, "task_key": self.TASK_KEY, "start_time": 1000}
+        new_task = {"run_id": self.NEW_SUB_RUN_ID, "task_key": self.TASK_KEY, "start_time": 2000}
         mock_get_run.side_effect = [
-            self._run_payload(result_state="FAILED", tasks=[original_task], repair_history=[]),
-            self._run_payload(result_state="FAILED", tasks=[original_task], repair_history=[]),
-            self._run_payload(
-                result_state="FAILED",
-                tasks=[original_task],
-                repair_history=[{"id": 1, "type": "REPAIR"}],
-            ),
-            self._run_payload(
-                result_state="FAILED",
-                tasks=[original_task],
-                repair_history=[{"id": 1, "type": "REPAIR"}],
-            ),
-            self._run_payload(
-                result_state="FAILED",
-                tasks=[original_task],
-                repair_history=[{"id": 1, "type": "REPAIR"}],
-            ),
-            self._run_payload(
-                result_state="FAILED",
-                tasks=[original_task],
-                repair_history=[{"id": 1, "type": "REPAIR"}],
-            ),
+            self._run_payload(result_state="FAILED", tasks=[original_task], end_time=self.PARENT_END_TIME_MS),
+            self._run_payload(result_state="FAILED", tasks=[original_task], end_time=self.PARENT_END_TIME_MS),
+            # Repair lands: the run is RUNNING again → deadline resets.
+            self._run_payload(result_state=None, life_cycle_state="RUNNING", tasks=[original_task]),
+            # The repaired attempt for the watched task_key appears.
+            self._run_payload(result_state=None, life_cycle_state="RUNNING", tasks=[original_task, new_task]),
         ]
 
-        trigger = self._make_trigger()
-        events = [event async for event in trigger.run()]
+        with time_machine.travel(self.ANCHOR_S, tick=False) as traveller:
 
-        # Without the reset, parent_failed would fire on the 3rd poll. The reset on poll 3
-        # delays it until 3 more terminal polls have accumulated (poll 6).
-        assert mock_get_run.call_count == 6
+            def advance(_seconds):
+                traveller.move_to(time.time() + POLLING_INTERVAL_SECONDS)
+
+            with mock.patch("asyncio.sleep", side_effect=advance):
+                trigger = self._make_trigger(workflow_repair_timeout=180)
+                events = [event async for event in trigger.run()]
+
+        assert mock_get_run.call_count == 4
         assert len(events) == 1
-        assert events[0].payload["status"] == "parent_failed"
+        assert events[0].payload["status"] == "new_attempt"
+        assert events[0].payload["new_sub_run_id"] == self.NEW_SUB_RUN_ID
