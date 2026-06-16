@@ -76,7 +76,7 @@ class GKEClusterConnection:
         configuration = self._get_config()
         configuration.refresh_api_key_hook = self._refresh_api_key_hook
         if self.enable_tcp_keepalive:
-            _enable_tcp_keepalive()
+            _enable_tcp_keepalive(configuration)
         return client.ApiClient(configuration)
 
     def _refresh_api_key_hook(self, configuration: client.configuration.Configuration):

@@ -51,26 +51,34 @@ except ImportError as e:
     _import_err = e
 
 
-def _enable_tcp_keepalive() -> None:
+def _enable_tcp_keepalive(configuration: Configuration) -> None:
     """
-    Enable TCP keepalive mechanism.
+    Enable TCP keepalive mechanism on the provided Kubernetes client configuration.
 
-    This prevents urllib3 connection to hang indefinitely when idle connection
-    is time-outed on services like cloud load balancers or firewalls.
+    This prevents urllib3 connections from hanging indefinitely when an idle
+    connection is timed out by services like cloud load balancers or firewalls.
 
-    See https://github.com/apache/airflow/pull/11406 for detailed explanation.
+    Uses the ``socket_options`` field on the Kubernetes ``Configuration`` object
+    (kubernetes >= 36.0.0), which is threaded through to the underlying urllib3
+    ``PoolManager`` and ``HTTPConnection``. Falls back to monkey-patching urllib3
+    connection defaults for older kubernetes clients where ``socket_options`` is
+    not available.
+
+    See https://github.com/apache/airflow/pull/11406 for the original discussion
+    and https://github.com/apache/airflow/issues/68396 for the urllib3 v2 fix.
 
     Please ping @michalmisiewicz or @dimberman in the PR if you want to modify this function.
     """
     import socket
 
-    from urllib3.connection import HTTPConnection, HTTPSConnection
-
     tcp_keep_idle = conf.getint("kubernetes_executor", "tcp_keep_idle")
     tcp_keep_intvl = conf.getint("kubernetes_executor", "tcp_keep_intvl")
     tcp_keep_cnt = conf.getint("kubernetes_executor", "tcp_keep_cnt")
 
-    socket_options = [(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)]
+    socket_options: list[tuple[int, int, int | bytes]] = [
+        (socket.IPPROTO_TCP, socket.TCP_NODELAY, 1),
+        (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),
+    ]
 
     if hasattr(socket, "TCP_KEEPIDLE"):
         socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, tcp_keep_idle))
@@ -87,17 +95,23 @@ def _enable_tcp_keepalive() -> None:
     else:
         log.debug("Unable to set TCP_KEEPCNT on this platform")
 
-    # Cast both the default options and our socket options
-    socket_options_cast: list[tuple[int, int, int | bytes]] = [
-        (level, opt, val) for level, opt, val in socket_options
-    ]
-    default_options_cast: list[tuple[int, int, int | bytes]] = [
-        (level, opt, val) for level, opt, val in HTTPSConnection.default_socket_options
-    ]
+    if hasattr(configuration, "socket_options"):
+        configuration.socket_options = socket_options
+        return
 
-    # Then use the cast versions for both HTTPS and HTTP
-    HTTPSConnection.default_socket_options = default_options_cast + socket_options_cast
-    HTTPConnection.default_socket_options = default_options_cast + socket_options_cast
+    # kubernetes client < 36.0.0: fall back to monkey-patching urllib3 defaults.
+    # Note: this only works with urllib3 < 2.0 where the default argument is
+    # evaluated per-connection rather than at import time.
+    from urllib3.connection import HTTPConnection, HTTPSConnection
+
+    if not hasattr(HTTPSConnection, "default_socket_options"):
+        log.debug("urllib3 connection class has no default_socket_options; skipping TCP keepalive")
+        return
+
+    existing_options = list(HTTPSConnection.default_socket_options)
+    HTTPSConnection.default_socket_options = existing_options + socket_options
+    if hasattr(HTTPConnection, "default_socket_options"):
+        HTTPConnection.default_socket_options = existing_options + socket_options
 
 
 def get_kube_client(
@@ -118,10 +132,10 @@ def get_kube_client(
     if not has_kubernetes:
         raise _import_err
 
-    if conf.getboolean("kubernetes_executor", "enable_tcp_keepalive"):
-        _enable_tcp_keepalive()
-
     configuration = _get_default_configuration()
+
+    if conf.getboolean("kubernetes_executor", "enable_tcp_keepalive"):
+        _enable_tcp_keepalive(configuration)
     api_client_retry_configuration = conf.getjson(
         "kubernetes_executor", "api_client_retry_configuration", fallback={}
     )
