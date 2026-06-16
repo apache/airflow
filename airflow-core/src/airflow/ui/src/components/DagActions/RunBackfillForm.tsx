@@ -155,6 +155,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
         <ErrorAlert error={errors.date ?? dryRunError ?? error} />
       )}
       <VStack alignItems="stretch" gap={2} pt={4}>
+        <Alert status="info">{translate("backfill.schedulerPriorityHint")}</Alert>
         <Box>
           <Text fontSize="md" fontWeight="semibold" mb={3}>
             {translate("backfill.dateRange")}

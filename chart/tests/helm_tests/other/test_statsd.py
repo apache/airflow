@@ -422,6 +422,32 @@ class TestStatsd:
         assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
 
 
+class TestStatsdService:
+    """Tests statsd service."""
+
+    def test_ip_family_policy(self):
+        docs = render_chart(
+            values={
+                "statsd": {"enabled": True},
+                "ipFamilyPolicy": "PreferDualStack",
+                "ipFamilies": ["IPv4", "IPv6"],
+            },
+            show_only=["templates/statsd/statsd-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) == "PreferDualStack"
+        assert jmespath.search("spec.ipFamilies", docs[0]) == ["IPv4", "IPv6"]
+
+    def test_ip_family_policy_not_set_by_default(self):
+        docs = render_chart(
+            values={"statsd": {"enabled": True}},
+            show_only=["templates/statsd/statsd-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) is None
+        assert jmespath.search("spec.ipFamilies", docs[0]) is None
+
+
 class TestStatsdServiceAccount:
     """Tests statsd service account."""
 

@@ -215,6 +215,7 @@ class IntermediateTIState(str, Enum):
     UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     DEFERRED = "deferred"
+    AWAITING_INPUT = "awaiting_input"
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):
@@ -243,6 +244,21 @@ class PreviousTIResponse(BaseModel):
     try_number: Annotated[int, Field(title="Try Number")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
     duration: Annotated[float | None, Field(title="Duration")] = None
+
+
+class TIAwaitingInputStatePayload(BaseModel):
+    """
+    Schema for parking a TaskInstance in an awaiting_input state (Human-in-the-loop, no trigger).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: Annotated[Literal["awaiting_input"] | None, Field(title="State")] = "awaiting_input"
+    timeout: Annotated[timedelta | None, Field(title="Timeout")] = None
+    next_method: Annotated[str, Field(title="Next Method")]
+    next_kwargs: Annotated[dict[str, JsonValue] | None, Field(title="Next Kwargs")] = None
+    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
 class TIDeferredStatePayload(BaseModel):
@@ -382,6 +398,7 @@ class TaskInstanceState(str, Enum):
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
     DEFERRED = "deferred"
+    AWAITING_INPUT = "awaiting_input"
 
 
 class TaskStatesResponse(BaseModel):

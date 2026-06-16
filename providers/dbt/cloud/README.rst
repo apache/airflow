@@ -58,7 +58,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-http``
 ``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
 ``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
-``aiohttp``                                 ``>=3.9.2``
+``aiohttp``                                 ``>=3.14.0``
 ``tenacity``                                ``>=8.3.0``
 ==========================================  ======================================
 

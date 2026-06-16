@@ -41,7 +41,7 @@ export const NeedsReviewButton = ({
       dagId: dagId ?? "~",
       dagRunId: runId ?? "~",
       responseReceived: false,
-      state: ["deferred"],
+      state: ["deferred", "awaiting_input"],
       taskId,
     },
     undefined,

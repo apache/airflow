@@ -986,14 +986,46 @@ The `index.yaml` file on the Airflow website allows users to easily add the Apac
 helm repo add apache-airflow https://airflow.apache.org
 ```
 
+The index points **every** version -- including the one just released -- at
+`archive.apache.org`, never `downloads.apache.org`. `downloads.apache.org` keeps only the
+latest release and is fronted by a CDN (Fastly) whose cache can serve a stale `200` that turns
+into a real `404` once a version is removed -- exactly the failure that strands users on
+removed-version URLs. `archive.apache.org` is append-only: once a version lands there it is
+never removed, so those URLs resolve forever, no matter how stale a cached copy of `index.yaml`
+is.
+
+This matters because `index.yaml` is itself served from `airflow.apache.org`, which is *also*
+behind Fastly, so a freshly published index can be served stale for the cache TTL. That is
+harmless **as long as every URL the index has ever contained stays resolvable** -- which the
+archive-only policy guarantees for every superseded version. The one case it does not cover
+automatically is the **just-released** version: `archive.apache.org` lags `downloads.apache.org`
+(the archive sync is [documented](https://infra.apache.org/release-distribution.html) as
+happening "about a day" after a release first appears on downloads -- but that is the worst
+case; in practice the sync is usually within minutes, at most a few hours), so its archive URL
+can 404 during that window.
+**Do not publish the index entry for the new version until that version is live on archive** --
+the steps below block until it is. (Removing superseded versions from `dist/release`, by
+contrast, needs no waiting -- they have been on archive since their own release.)
+
 To update `index.yaml` for the newly released chart version, follow these steps:
 
 ```shell
 git clone https://github.com/apache/airflow-site.git airflow-site
 cd airflow-site
+
+# archive.apache.org lags the release (worst case ~1 day; usually minutes, at most hours). Block until the
+# new version is actually downloadable from archive before referencing it in the index --
+# otherwise the index could advertise an archive URL that 404s until the sync catches up.
+until curl -fsI "https://archive.apache.org/dist/airflow/helm-chart/${VERSION}/airflow-${VERSION}.tgz" >/dev/null; do
+  echo "airflow-${VERSION}.tgz not on archive.apache.org yet; waiting 10 min..."
+  sleep 600
+done
+echo "airflow-${VERSION}.tgz is live on archive.apache.org -- proceeding to publish the index."
+
 curl https://dist.apache.org/repos/dist/dev/airflow/helm-chart/${VERSION}${VERSION_SUFFIX}/index.yaml -o index.yaml
 cp ${AIRFLOW_SVN_RELEASE_HELM}/${VERSION}/airflow-${VERSION}.tgz .
-helm repo index --merge ./index.yaml . --url "https://downloads.apache.org/airflow/helm-chart/${VERSION}"
+# Point the new entry at archive.apache.org (see rationale above) -- never downloads.apache.org.
+helm repo index --merge ./index.yaml . --url "https://archive.apache.org/dist/airflow/helm-chart/${VERSION}"
 rm airflow-${VERSION}.tgz
 mv index.yaml landing-pages/site/static/index.yaml
 git checkout -b feature/new-chart-release-${VERSION}
@@ -1100,8 +1132,6 @@ Use: https://github.com/apache/airflow/milestones
 
 Before closing the milestone on GitHub, make sure that all PR marked for it are either part of the release (was cherry picked) or
 postponed to the next release, then close the milestone. Create the next one if it hasn't been already (it probably has been).
-Update the new milestone in the [*Currently we are working on* issue](https://github.com/apache/airflow/issues/10176)
-make sure to update the last updated timestamp as well.
 
 ## Close the testing status issue
 
@@ -1169,17 +1199,30 @@ Do not add `-dev` suffix to the version.
 
 ## Remove old releases
 
-We should keep the old version a little longer than a day or at least until the updated
-``index.yaml`` is published. This is to avoid errors for users who haven't run ``helm repo update``.
+ASF release policy requires that the distribution area (``dist/release``) holds only the
+latest release; every superseded version must be removed from ``dist/release`` once a new
+version is published. The removed releases are not lost -- they remain permanently available
+from the archive at https://archive.apache.org/dist/airflow/helm-chart/. See
+http://www.apache.org/legal/release-policy.html#when-to-archive
 
-It is probably ok if we leave last 2 versions on release svn repo too.
+By this point the published ``index.yaml`` already points every version at the archive, and it
+was published *only after* the newly released version was confirmed live on archive (the
+"Update ``index.yaml``" step blocks until then). The superseded versions have been on archive
+even longer -- since their own release -- so removing them from ``dist/release`` is safe
+immediately: there is no need to wait for ``index.yaml`` to propagate or for any CDN cache to
+expire. The archive-availability wait lives at the index step, keyed on the new version; once
+that has passed, no version this snippet removes can still be missing from archive.
+
+The snippet below removes every version except the one you just released (``${VERSION}``):
 
 ```shell
 # http://www.apache.org/legal/release-policy.html#when-to-archive
-cd cd ${AIRFLOW_REPO_ROOT}/asf-dist/release/airflow/helm-chart
-export PREVIOUS_VERSION=1.0.0
-svn rm ${PREVIOUS_VERSION}
-svn commit -m "Remove old Helm Chart release: ${PREVIOUS_VERSION}"
+cd "${AIRFLOW_SVN_RELEASE_HELM}"
+svn update
+for old_version in $(svn ls | sed 's:/$::' | grep -vx "${VERSION}"); do
+  svn rm "${old_version}"
+done
+svn commit -m "Remove superseded Helm Chart releases"
 ```
 
 # Additional processes

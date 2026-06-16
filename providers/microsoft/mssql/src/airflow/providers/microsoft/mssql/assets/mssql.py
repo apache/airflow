@@ -33,8 +33,10 @@ def sanitize_uri(uri: SplitResult) -> SplitResult:
     if uri.port is None:
         host = uri.netloc.rstrip(":")
         uri = uri._replace(netloc=f"{host}:1433")
-    if len(uri.path.split("/")) != 4:  # Leading slash, database, schema, and table names.
-        raise ValueError("URI format mssql:// must contain database, schema, and table names")
+    if len(uri.path.split("/")) not in {4, 5}:
+        raise ValueError(
+            "URI format mssql:// must contain database, schema, and table/view names with optional instance name"
+        )
     return uri
 
 
@@ -50,6 +52,10 @@ def convert_asset_to_openlineage(asset: Asset, lineage_context) -> OpenLineageDa
 
     from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 
-    parsed = urlsplit(asset.uri)
-    _, database, schema, table = parsed.path.split("/")  # Leading slash, database, schema, and table names.
+    parsed = sanitize_uri(urlsplit(asset.uri))
+    path_parts = parsed.path.split("/")
+    if len(path_parts) == 4:
+        _, database, schema, table = path_parts  # Leading slash, database, schema, and table names.
+    else:
+        _, _instance, database, schema, table = path_parts
     return OpenLineageDataset(namespace=f"mssql://{parsed.netloc}", name=f"{database}.{schema}.{table}")
