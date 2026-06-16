@@ -1507,19 +1507,24 @@ class TestKubernetesExecutor:
             header_params={"Accept": "application/json;as=PartialObjectMetadataList;v=v1;g=meta.k8s.io"},
         )
 
-    @staticmethod
-    def _completed_result(name):
-        """Build a KubernetesResults entry as ``_adopt_completed_pods`` would add to ``self.completed``."""
-        return KubernetesResults(
-            key=TaskInstanceKey("dag", name, "run_id", 1, -1),
-            state="completed",
-            pod_name=name,
-            namespace="somens",
-            resource_version="0",
-            failure_details=None,
-        )
+    @pytest.fixture
+    def completed_result(self):
+        """Factory for a KubernetesResults entry as ``_adopt_completed_pods`` would add to ``self.completed``."""
 
-    def _make_sync_ready_executor(self):
+        def _make(name):
+            return KubernetesResults(
+                key=TaskInstanceKey("dag", name, "run_id", 1, -1),
+                state="completed",
+                pod_name=name,
+                namespace="somens",
+                resource_version="0",
+                failure_details=None,
+            )
+
+        return _make
+
+    @pytest.fixture
+    def sync_ready_executor(self):
         """An executor whose ``sync()`` exercises only the ``self.completed`` drain.
 
         Both queues are mocked so their ``get_nowait`` raises ``Empty`` immediately (as an
@@ -1543,10 +1548,10 @@ class TestKubernetesExecutor:
     @mock.patch(
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._change_state"
     )
-    def test_sync_drains_and_clears_completed(self, mock_change_state):
+    def test_sync_drains_and_clears_completed(self, mock_change_state, sync_ready_executor, completed_result):
         """``sync()`` processes every entry in ``self.completed`` exactly once and clears the set."""
-        executor = self._make_sync_ready_executor()
-        results = {self._completed_result(name) for name in ("one", "two", "three")}
+        executor = sync_ready_executor
+        results = {completed_result(name) for name in ("one", "two", "three")}
         executor.completed = set(results)
 
         executor.sync()
@@ -1558,12 +1563,14 @@ class TestKubernetesExecutor:
     @mock.patch(
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._change_state"
     )
-    def test_sync_retains_completed_entry_on_change_state_failure(self, mock_change_state):
+    def test_sync_retains_completed_entry_on_change_state_failure(
+        self, mock_change_state, sync_ready_executor, completed_result
+    ):
         """A ``self.completed`` entry whose ``_change_state`` raises is retained; the rest still drain."""
-        executor = self._make_sync_ready_executor()
-        good_one = self._completed_result("good-one")
-        good_two = self._completed_result("good-two")
-        bad = self._completed_result("bad")
+        executor = sync_ready_executor
+        good_one = completed_result("good-one")
+        good_two = completed_result("good-two")
+        bad = completed_result("bad")
         executor.completed = {good_one, good_two, bad}
 
         def fail_only_bad(result):
