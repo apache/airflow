@@ -91,7 +91,7 @@ class DagVersion(Base):
     @property
     def bundle_url(self) -> str | None:
         """Render the bundle URL using the joined bundle metadata if available."""
-        # When the bundle row is loaded, use it (render_url returns None if it has no URL template).
+        # Prefer the bundle relationship when available (render_url returns None if it has no URL template).
         # Only when there is no bundle row do we fall back to the deprecated manager lookup -- doing
         # so for an empty template would hit the deprecated path (and its warning) on every call.
         bundle = getattr(self, "bundle", None)
