@@ -1091,9 +1091,16 @@ with airflow.DAG(
         dagbag.collect_dags()
         assert dagbag.dags
 
+        # NEW TEST
+        for dag in dagbag.dags.values():
+            assert dag.bundle_name == "test_collection"
+
         # test that dagbag.dags is not empty if collect_dags is True
         dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, bundle_name="test_collection")
         assert dagbag.dags
+        
+        for dag in dagbag.dags.values():
+            assert dag.bundle_name == "test_collection"
 
     def test_dabgag_captured_warnings(self):
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_warnings.py")

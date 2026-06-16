@@ -355,6 +355,7 @@ class PythonDagImporter(AbstractDagImporter):
             dag.fileloc = mod.__file__
             relative_fileloc = self.get_relative_path(dag.fileloc, bundle_path)
             dag.relative_fileloc = relative_fileloc
+            dag.bundle_name = bundle_name
 
             result.dags.append(dag)
             log.debug("Found DAG %s", dag.dag_id)
