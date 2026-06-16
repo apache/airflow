@@ -258,6 +258,19 @@ class TestAgentOperatorExecute:
             with pytest.raises(AirflowOptionalProviderFeatureException, match="code-mode"):
                 _build_code_mode()
 
+    def test_build_code_mode_reraises_unrelated_import_error(self):
+        """A broken transitive import inside the harness is re-raised, not masked as 'extra missing'."""
+        real_import = __import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "pydantic_ai_harness":
+                raise ModuleNotFoundError("No module named 'a_broken_dep'", name="a_broken_dep")
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=fake_import):
+            with pytest.raises(ModuleNotFoundError, match="a_broken_dep"):
+                _build_code_mode()
+
     @patch("airflow.providers.common.ai.operators.agent._build_code_mode")
     def test_code_mode_not_built_at_init(self, mock_build):
         """code_mode is serialization-safe: the CodeMode capability is built lazily in

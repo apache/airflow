@@ -101,10 +101,17 @@ def _build_code_mode() -> Any:
     try:
         from pydantic_ai_harness import CodeMode
     except ImportError as e:
-        raise AirflowOptionalProviderFeatureException(
-            "code_mode=True requires the 'code-mode' extra. Install it with "
-            '`pip install "apache-airflow-providers-common-ai[code-mode]"`.'
-        ) from e
+        # Only report "extra not installed" when pydantic-ai-harness itself is
+        # missing. A failure deeper in its import chain (a broken or missing
+        # transitive dependency) is a different problem -- re-raise it as-is so
+        # the real error isn't masked by a misleading "install the extra" message.
+        missing = e.name or ""
+        if missing == "pydantic_ai_harness" or missing.startswith("pydantic_ai_harness."):
+            raise AirflowOptionalProviderFeatureException(
+                "code_mode=True requires the 'code-mode' extra. Install it with "
+                '`pip install "apache-airflow-providers-common-ai[code-mode]"`.'
+            ) from e
+        raise
     return CodeMode()
 
 
