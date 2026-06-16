@@ -50,10 +50,16 @@ describe("NotePreview", () => {
       expect(screen.getByText(note, { selector: "p" })).toBeInTheDocument();
     });
 
-    it("shows only the first non-empty line for a multiline note", () => {
+    it("shows only the first non-empty line with an ellipsis for a multiline note", () => {
       renderNote({ note: "First line\nSecond line" });
-      expect(screen.getByText("First line")).toBeInTheDocument();
+      expect(screen.getByText(/First line …/u)).toBeInTheDocument();
       expect(screen.queryByText("Second line")).toBeNull();
+    });
+
+    it("does not append an ellipsis for a single-line note", () => {
+      renderNote({ note: "Only line" });
+      expect(screen.getByText("Only line", { selector: "p" })).toBeInTheDocument();
+      expect(screen.queryByText(/…/u)).toBeNull();
     });
 
     it("does not render an editable textarea before opening the modal", () => {

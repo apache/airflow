@@ -40,8 +40,11 @@ const NotePreview = ({ header, isPending, note, onOpen, onSave, setNote }: Props
   const [isOpen, setIsOpen] = useState(false);
 
   const hasNote = note !== null && note.trim().length > 0;
-  // First non-empty line drives the single-line preview.
-  const firstLine = hasNote ? (note.split("\n").find((line) => line.trim().length > 0) ?? "") : "";
+  // Only the first non-empty line drives the single-line preview; append an
+  // ellipsis when there's more content below it that the preview hides.
+  const meaningfulLines = hasNote ? note.split("\n").filter((line) => line.trim().length > 0) : [];
+  const firstLine = meaningfulLines[0] ?? "";
+  const previewContent = meaningfulLines.length > 1 ? `${firstLine} …` : firstLine;
 
   const handleOpen = () => {
     onOpen();
@@ -68,7 +71,7 @@ const NotePreview = ({ header, isPending, note, onOpen, onSave, setNote }: Props
         }}
       >
         {hasNote ? (
-          <ReactMarkdown>{firstLine}</ReactMarkdown>
+          <ReactMarkdown>{previewContent}</ReactMarkdown>
         ) : (
           <Text color="fg.subtle">{translate("note.placeholder")}</Text>
         )}
