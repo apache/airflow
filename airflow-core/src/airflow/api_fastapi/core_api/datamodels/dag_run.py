@@ -200,7 +200,6 @@ class TriggerDAGRunPostBody(StrictBaseModel):
             "conf": self.conf,
             "note": self.note,
             "partition_key": self.partition_key,
-            "bundle_version": self.bundle_version,
         }
 
 

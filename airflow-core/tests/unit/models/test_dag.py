@@ -4296,52 +4296,6 @@ def test_create_dagrun_uses_resolved_bundle_version_for_integrity(dag_maker, ses
     assert {ti.task_id for ti in dr.get_task_instances(session=session)} == {"t1", "t2"}
 
 
-def test_create_dagrun_callbacks_copied_to_resolved_bundle_version(dag_maker, session, clear_dags):
-    """Callbacks from the live dag are copied to the resolved (older) dag version."""
-    with dag_maker(
-        dag_id="test_dag_callbacks_bundle_version",
-        session=session,
-        serialized=True,
-        bundle_version="v1",
-    ) as _dag_v1:
-        EmptyOperator(task_id="t1")
-
-    with dag_maker(
-        dag_id="test_dag_callbacks_bundle_version",
-        session=session,
-        serialized=True,
-        bundle_version="v2",
-    ) as dag_v2:
-        EmptyOperator(task_id="t1")
-        EmptyOperator(task_id="t2")
-
-    def some_callable(context):
-        pass
-
-    dag_v2.on_failure_callback = some_callable
-    dag_v2.on_success_callback = some_callable
-    dag_v2.on_retry_callback = some_callable
-    dag_v2.sla_miss_callback = some_callable
-    dag_v2.has_on_failure_callback = True
-    dag_v2.has_on_success_callback = True
-
-    dr = dag_v2.create_dagrun(
-        run_id="callbacks_bundle_version",
-        run_after=pendulum.now(),
-        run_type="manual",
-        triggered_by=DagRunTriggeredByType.TEST,
-        state=None,
-        bundle_version="v1",
-    )
-
-    assert dr.dag.has_on_failure_callback is True
-    assert dr.dag.has_on_success_callback is True
-    assert dr.dag.on_failure_callback is some_callable
-    assert dr.dag.on_success_callback is some_callable
-    assert dr.dag.on_retry_callback is some_callable
-    assert dr.dag.sla_miss_callback is some_callable
-
-
 def test_create_dagrun_without_bundle_version_uses_live_dag(dag_maker, session, clear_dags):
     """
     When no explicit bundle_version is passed, TIs are created from the live dag even if

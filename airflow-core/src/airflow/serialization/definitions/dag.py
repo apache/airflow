@@ -34,7 +34,6 @@ from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import (
-    AirflowBadRequest,
     AirflowException,
     DagNotPartitionedError,
     DagVersionNotFound,
@@ -79,21 +78,6 @@ if TYPE_CHECKING:
     from airflow.utils.types import DagRunTriggeredByType
 
 log = structlog.get_logger(__name__)
-
-# Callbacks are not serialized, so when running an older bundle version we copy them
-# from the live dag to the resolved dag so dag-level event hooks still fire correctly.
-# Other DAG-level attrs (max_active_runs, catchup, params, …) intentionally come from
-# the old serialized version, since the caller asked for that specific historical snapshot.
-_DAG_CALLBACK_ATTRS = (
-    "sla_miss_callback",
-    "on_success_callback",
-    "on_failure_callback",
-    "on_retry_callback",
-    "on_execute_callback",
-    "on_skipped_callback",
-    "has_on_success_callback",
-    "has_on_failure_callback",
-)
 
 
 # TODO (GH-52141): Share definition with SDK?
@@ -673,7 +657,9 @@ class SerializedDAG:
 
         # When triggering against a specific bundle version, validate conf against that
         # version's param schema (not the live dag's), so callers get the right errors.
-        if bundle_version is not None and not self.disable_bundle_versioning:
+        if bundle_version is not None:
+            if self.disable_bundle_versioning:
+                raise ValueError(f"DAG '{self.dag_id}' does not support bundle versioning")
             if dag_version is None:
                 dag_version = DagVersion.get_latest_version(
                     self.dag_id, bundle_version=bundle_version, load_serialized_dag=True, session=session
@@ -707,6 +693,7 @@ class SerializedDAG:
             note=note,
             bundle_version=bundle_version,
             dag_version=dag_version,
+            resolved_dag=params_dag if bundle_version is not None else None,
             session=session,
         )
 
@@ -1422,24 +1409,13 @@ def _create_orm_dagrun(
     note: str | None = None,
     bundle_version: str | None = None,
     dag_version: DagVersion | None = None,
+    resolved_dag: SerializedDAG | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
     resolved_bundle_version: str | None = None
     use_resolved_dag = False
     if dag_version is not None:
         resolved_bundle_version = bundle_version
-        use_resolved_dag = True
-    elif bundle_version is not None:
-        if dag.disable_bundle_versioning:
-            raise AirflowBadRequest(f"DAG with dag_id: '{dag.dag_id}' does not support bundle versioning")
-        resolved_bundle_version = bundle_version
-        dag_version = DagVersion.get_latest_version(
-            dag.dag_id, bundle_version=bundle_version, load_serialized_dag=True, session=session
-        )
-        if not dag_version:
-            raise DagVersionNotFound(
-                f"DAG with dag_id: '{dag.dag_id}' does not have a version for bundle_version '{bundle_version}'"
-            )
         use_resolved_dag = True
     else:
         if not dag.disable_bundle_versioning:
@@ -1479,11 +1455,7 @@ def _create_orm_dagrun(
     session.flush()
     run.dag = dag
     if use_resolved_dag:
-        resolved_dag = dag_version.serialized_dag.dag
-        for attr in _DAG_CALLBACK_ATTRS:
-            if hasattr(dag, attr):
-                setattr(resolved_dag, attr, getattr(dag, attr))  # type: ignore[attr-defined]
-        run.dag = resolved_dag
+        run.dag = resolved_dag if resolved_dag is not None else dag_version.serialized_dag.dag
     # create the associated task instances
     # state is None at the moment of creation
     run.verify_integrity(session=session, dag_version_id=dag_version.id)

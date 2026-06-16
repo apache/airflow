@@ -43,7 +43,6 @@ from airflow.api_fastapi.execution_api.versions.v2026_04_06 import (
 from airflow.api_fastapi.execution_api.versions.v2026_06_30 import (
     AddAssetsByAliasEndpoint,
     AddAwaitingInputStatePayload,
-    AddBundleVersionField,
     AddConnectionTestEndpoint,
     AddRetryPolicyFields,
     AddTaskAndAssetStateStoreEndpoints,
@@ -59,8 +58,10 @@ bundle = VersionBundle(
         AddVariableKeysEndpoint,
         AddConnectionTestEndpoint,
         AddAwaitingInputStatePayload,
-        AddBundleVersionField,
         AddTaskInstanceQueueField,
+    ),
+    Version(
+        "2026-06-16",
         AddRetryPolicyFields,
         AddTeamNameField,
         AddTaskAndAssetStateStoreEndpoints,

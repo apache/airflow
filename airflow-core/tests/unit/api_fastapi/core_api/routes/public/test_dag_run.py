@@ -2797,6 +2797,9 @@ class TestTriggerDagRun:
         )
         assert response.status_code == 200
         assert response.json()["dag_versions"][0]["bundle_version"] == "v1"
+        run_id_v1 = response.json()["dag_run_id"]
+        dr_v1 = session.scalars(select(DagRun).where(DagRun.run_id == run_id_v1)).one()
+        assert {ti.task_id for ti in dr_v1.task_instances} == {"task_1"}
 
         response = test_client.post(
             f"/dags/{dag_id}/dagRuns",
@@ -2806,6 +2809,9 @@ class TestTriggerDagRun:
         )
         assert response.status_code == 200
         assert response.json()["dag_versions"][0]["bundle_version"] == "v2"
+        run_id_v2 = response.json()["dag_run_id"]
+        dr_v2 = session.scalars(select(DagRun).where(DagRun.run_id == run_id_v2)).one()
+        assert {ti.task_id for ti in dr_v2.task_instances} == {"task_1", "task_2"}
 
         response = test_client.post(
             f"/dags/{dag_id}/dagRuns",
