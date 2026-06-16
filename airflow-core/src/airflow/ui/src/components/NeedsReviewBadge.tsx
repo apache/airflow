@@ -43,7 +43,7 @@ export const NeedsReviewBadge = ({ dagId, pendingActions }: Props) => {
         data-testid="needs-review-badge"
         to={`/dags/${dagId}/required_actions?${SearchParamsKeys.RESPONSE_RECEIVED}=false`}
       >
-        <StateBadge colorPalette="deferred" fontSize="md" variant="solid">
+        <StateBadge colorPalette="awaiting_input" fontSize="md" variant="solid">
           <LuUserRoundPen />
           {pendingActions.length}
         </StateBadge>

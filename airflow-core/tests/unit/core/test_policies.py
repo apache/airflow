@@ -69,3 +69,80 @@ def test_local_settings_misnamed_argument(plugin_manager: pluggy.PluginManager):
     plugin_manager.hook.dag_policy(dag="passed_dag_value")
 
     assert called_with == "passed_dag_value"
+
+
+def test_local_settings_subset_of_parameters(plugin_manager: pluggy.PluginManager):
+    """
+    A local_settings function may declare a subset of a hookspec's parameters.
+
+    ``task_instance_mutation_hook`` accepts ``(task_instance, dag_run)``; a legacy hook that only declares
+    ``task_instance`` is registered as-is (no shim) and pluggy passes it just the argument it declares, so
+    single-parameter hooks keep working after the hookspec gained the optional ``dag_run`` parameter.
+    """
+    called_with = None
+
+    def local_hook(task_instance):
+        nonlocal called_with
+        called_with = task_instance
+
+    mod = Namespace(task_instance_mutation_hook=local_hook)
+
+    policies.make_plugin_from_local_settings(plugin_manager, mod, {"task_instance_mutation_hook"})
+
+    plugin_manager.hook.task_instance_mutation_hook(task_instance="ti", dag_run="dr")
+
+    assert called_with == "ti"
+
+
+def test_local_settings_receives_all_declared_parameters(plugin_manager: pluggy.PluginManager):
+    """A hook declaring ``(task_instance, dag_run)`` with no defaults receives both arguments."""
+    received = {}
+
+    def task_instance_mutation_hook(task_instance, dag_run):
+        received["task_instance"] = task_instance
+        received["dag_run"] = dag_run
+
+    mod = Namespace(task_instance_mutation_hook=task_instance_mutation_hook)
+
+    policies.make_plugin_from_local_settings(plugin_manager, mod, {"task_instance_mutation_hook"})
+
+    plugin_manager.hook.task_instance_mutation_hook(task_instance="ti", dag_run="dr")
+
+    assert received == {"task_instance": "ti", "dag_run": "dr"}
+
+
+def test_local_settings_defaulted_parameter_is_still_forwarded(plugin_manager: pluggy.PluginManager):
+    """A hook that gives a hookspec parameter a default still receives the passed value.
+
+    Pluggy forwards a hookimpl only the parameters it declares *without* a default, so it would silently
+    drop ``dag_run`` from ``def hook(task_instance, dag_run=None)`` and leave the default in place. The
+    shim detects the defaulted hookspec parameter and forwards the call positionally so the ergonomic
+    ``dag_run=None`` signature receives the real value.
+    """
+    received = {}
+
+    def task_instance_mutation_hook(task_instance, dag_run=None):
+        received["task_instance"] = task_instance
+        received["dag_run"] = dag_run
+
+    mod = Namespace(task_instance_mutation_hook=task_instance_mutation_hook)
+
+    policies.make_plugin_from_local_settings(plugin_manager, mod, {"task_instance_mutation_hook"})
+
+    plugin_manager.hook.task_instance_mutation_hook(task_instance="ti", dag_run="dr")
+
+    assert received == {"task_instance": "ti", "dag_run": "dr"}
+
+
+def test_local_settings_unknown_argument_still_raises(plugin_manager: pluggy.PluginManager):
+    """A local_settings function declaring a name the hookspec does not have is still rejected loudly."""
+
+    def dag_policy(not_a_real_parameter, dag): ...
+
+    mod = Namespace(dag_policy=dag_policy)
+
+    # ``not_a_real_parameter`` is not a subset of the hookspec params, so it is shimmed and forwarded
+    # positionally -- pluggy then rejects the extra positional argument rather than silently ignoring it.
+    policies.make_plugin_from_local_settings(plugin_manager, mod, {"dag_policy"})
+    with pytest.raises(TypeError):
+        plugin_manager.hook.dag_policy(dag="passed_dag_value")

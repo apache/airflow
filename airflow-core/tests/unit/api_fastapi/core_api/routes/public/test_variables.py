@@ -25,6 +25,9 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody
+from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
+from airflow.api_fastapi.core_api.services.public.variables import BulkVariableService
 from airflow.models.team import Team
 from airflow.models.variable import Variable
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -1503,3 +1506,26 @@ class TestBulkVariables(TestVariableEndpoint):
 
         expected_error_keys = {err["input"]["key"] for err in detail}
         assert sorted(expected_error_keys) == ["var_2", "var_3"]
+
+    @pytest.mark.parametrize("num_variables", [1, 25])
+    def test_bulk_delete_resolves_existence_in_single_query(self, session, num_variables):
+        """Bulk delete looks up all targeted variables in one query, not one per key (no N+1)."""
+        keys = [f"bulk_delete_var_{i}" for i in range(num_variables)]
+        for key in keys:
+            Variable.set(key=key, value="value", session=session)
+        session.commit()
+
+        request = BulkBody[VariableBody].model_validate(
+            {"actions": [{"action": "delete", "entities": keys, "action_on_non_existence": "skip"}]}
+        )
+        service = BulkVariableService(session=session, request=request)
+
+        # Only the single existence-lookup SELECT runs here; deletes flush later on commit.
+        with assert_queries_count(1):
+            response = service.handle_request()
+
+        assert response.delete is not None
+        assert sorted(response.delete.success) == sorted(keys)
+
+        session.commit()
+        assert session.scalars(select(Variable.key).where(Variable.key.in_(keys))).all() == []
