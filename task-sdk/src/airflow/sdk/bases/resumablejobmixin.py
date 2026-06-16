@@ -59,6 +59,10 @@ class ResumableJobMixin:
         class MyOperator(ResumableJobMixin, BaseOperator):
             external_id_key = "my_job_id"
 
+            def __init__(self, *, resume_on_retry: bool = True, **kwargs):
+                super().__init__(**kwargs)
+                self.resume_on_retry = resume_on_retry
+
             def execute(self, context):
                 return self.execute_resumable(context)
 
@@ -90,6 +94,10 @@ class ResumableJobMixin:
     # Renaming this on a deployed operator breaks in-flight retries — the old key is already stored.
     external_id_key: str = "remote_job_id"
 
+    # Per-task toggle switch for resumability. When False, execute_resumable() skips all task_state_store interaction
+    # and submits fresh every time. This class attribute is the fallback default.
+    resume_on_retry: bool = True
+
     def execute_resumable(self, context: Context) -> Any:
         """
         Core of the resumable execution logic. Call this from execute() when reconnection is supported.
@@ -107,6 +115,11 @@ class ResumableJobMixin:
         Closing this window would require atomic "submit + persist", which is not possible across
         an external system boundary.
         """
+        if not self.resume_on_retry:
+            external_id = self.submit_job(context)
+            self.poll_until_complete(external_id, context)
+            return self.get_job_result(external_id, context)
+
         operator_tag = {"operator": type(self).__name__}
         reconnect_to: Any = None
         already_succeeded_id: Any = None

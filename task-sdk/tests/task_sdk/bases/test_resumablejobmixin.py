@@ -38,8 +38,9 @@ class ConcreteResumableOperator(ResumableJobMixin, BaseOperator):
 
     external_id_key = "test_job_id"
 
-    def __init__(self, **kwargs):
+    def __init__(self, *, resume_on_retry: bool = True, **kwargs):
         super().__init__(**kwargs)
+        self.resume_on_retry = resume_on_retry
         self.submitted_ids: list[str] = []
         self.polled_ids: list[str] = []
         self._next_id = "job-001"
@@ -190,6 +191,35 @@ class TestNoneExternalId:
         op.execute_resumable(make_context(task_state))
 
         assert task_state._store == {}
+
+
+class TestResumeOnRetryDisabled:
+    def test_submits_and_polls_without_task_store_interaction(self):
+        op = ConcreteResumableOperator(task_id="test_task", resume_on_retry=False)
+        task_store = FakeTaskState()
+        op.execute_resumable(make_context(task_store))
+
+        assert op.submitted_ids == ["job-001"]
+        assert op.polled_ids == ["job-001"]
+        assert task_store._store == {}, "task_store must not be written when resume_on_retry=False"
+
+    def test_does_not_reconnect_when_prior_id_exists(self):
+        op = ConcreteResumableOperator(task_id="test_task", resume_on_retry=False)
+        op._status_map["job-001"] = "RUNNING"
+        task_store = FakeTaskState({"test_job_id": "job-001"})
+
+        op.execute_resumable(make_context(task_store))
+
+        assert op.submitted_ids == ["job-001"], "should submit fresh even with a prior ID stored"
+
+    def test_returns_result(self):
+        op = ConcreteResumableOperator(task_id="test_task", resume_on_retry=False)
+        result = op.execute_resumable(make_context(FakeTaskState()))
+        assert result == "result-of-job-001"
+
+    def test_default_is_true(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        assert op.resume_on_retry is True
 
 
 class TestExternalIdKey:

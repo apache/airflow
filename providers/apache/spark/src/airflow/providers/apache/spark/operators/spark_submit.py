@@ -203,7 +203,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         deploy_mode: str | None = None,
         use_krb5ccache: bool = False,
         post_submit_commands: list[str] | None = None,
-        reconnect_on_retry: bool = True,
+        resume_on_retry: bool = True,
         track_driver_via_k8s_api: bool = False,
         yarn_track_via_rm_api: bool = False,
         yarn_rm_auth: AuthBase | None = None,
@@ -252,7 +252,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         self._yarn_track_via_rm_api = yarn_track_via_rm_api
         self._yarn_rm_auth = yarn_rm_auth
 
-        self.reconnect_on_retry = reconnect_on_retry
+        self.resume_on_retry = resume_on_retry
         self._track_driver_via_k8s_api = track_driver_via_k8s_api
         self._openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self._openlineage_inject_transport_info = openlineage_inject_transport_info
@@ -272,33 +272,18 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if self._track_driver_via_k8s_api:
             hook._validate_track_driver_via_k8s_api_config()
         if hook._should_track_driver_status:
-            if self.reconnect_on_retry:
-                return self.execute_resumable(context)
-            # reconnect_on_retry=False: still submit-and-poll, just skip task_state_store persistence.
-            driver_id = self.submit_job(context)
-            self.poll_until_complete(driver_id, context)
-            return self.get_job_result(driver_id, context)
+            return self.execute_resumable(context)
         if hook._should_track_driver_via_k8s_api():
-            if self.reconnect_on_retry:
-                return self.execute_resumable(context)
-            # reconnect_on_retry=False: still submit-and-poll, just skip task_state persistence.
-            driver_id = self.submit_job(context)
-            self.poll_until_complete(driver_id, context)
-            return self.get_job_result(driver_id, context)
+            return self.execute_resumable(context)
         if hook._is_yarn_cluster_mode:
-            if self.reconnect_on_retry and not hook._yarn_track_via_rm_api:
+            if self.resume_on_retry and not hook._yarn_track_via_rm_api:
                 raise ValueError(
-                    "YARN cluster mode with reconnect_on_retry=True requires yarn_track_via_rm_api=True. "
+                    "YARN cluster mode with resume_on_retry=True requires yarn_track_via_rm_api=True. "
                     "The RM REST API is needed to check application status on retry."
                 )
             if hook._yarn_track_via_rm_api:
                 hook._validate_yarn_track_via_rm_api_config()
-                if self.reconnect_on_retry:
-                    return self.execute_resumable(context)
-                # reconnect_on_retry=False: still submit-and-poll, just skip task_state_store persistence.
-                driver_id = self.submit_job(context)
-                self.poll_until_complete(driver_id, context)
-                return self.get_job_result(driver_id, context)
+                return self.execute_resumable(context)
         hook.submit(self.application)
 
     def submit_job(self, context: Context) -> str | None:
@@ -319,7 +304,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
                 raise ValueError(
                     "spark.yarn.submit.waitAppCompletion=true cannot be set for cluster mode as it conflicts"
                     "with the need to exit spark-submit immediately to persist the application ID for tracking. "
-                    "Either remove the explicit conf or set reconnect_on_retry=False."
+                    "Either remove the explicit conf or set resume_on_retry=False."
                 )
             self._hook._conf["spark.yarn.submit.waitAppCompletion"] = "false"
             self._hook.submit(self.application)
@@ -445,7 +430,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             # Cache only when the pod actually reached Succeeded, the 404/vanished path
             # returns None for cases like: pod deleted by on_kill or garbage collected after failure)
             # and must not be cached, otherwise a retry would see "Succeeded" and skip resubmission.
-            if terminal_phase == "Succeeded" and self.reconnect_on_retry:
+            if terminal_phase == "Succeeded" and self.resume_on_retry:
                 if (task_state_store := context.get("task_state_store")) is not None:
                     task_state_store.set(self._K8S_DRIVER_STATUS_KEY, "Succeeded")
             return

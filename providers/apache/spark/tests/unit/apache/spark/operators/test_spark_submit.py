@@ -590,8 +590,8 @@ class TestSparkSubmitOperatorResumable:
         operator._hook.submit.assert_called_once_with("test.jar")
         assert polled == ["driver-001"]
 
-    def test_reconnect_on_retry_false_submits_fresh_and_polls(self):
-        operator = self._make_operator(reconnect_on_retry=False)
+    def test_resume_on_retry_false_submits_fresh_and_polls(self):
+        operator = self._make_operator(resume_on_retry=False)
         operator._hook = self._make_hook(should_track=True)
         operator._hook.submit.return_value = "driver-new"
         task_store = FakeTaskStateStore({"spark_job_id": "driver-old"})
@@ -599,7 +599,7 @@ class TestSparkSubmitOperatorResumable:
         operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
 
         operator.execute(context={"task_state_store": task_store})
-        # reconnect_on_retry=False: ignores prior driver ID, submits fresh, but still polls
+        # resume_on_retry=False: ignores prior driver ID, submits fresh, but still polls
         operator._hook.submit.assert_called_once_with("test.jar")
         assert polled == ["driver-new"]
 
@@ -863,8 +863,8 @@ class TestSparkSubmitOperatorResumable:
         hook._kill_yarn_application.assert_called_once_with("application_1234_0001")
 
     def test_yarn_cluster_reconnect_without_rm_api_raises(self):
-        """reconnect_on_retry=True + yarn_track_via_rm_api=False must raise - RM API is required for resume."""
-        operator = self._make_operator(reconnect_on_retry=True)
+        """resume_on_retry=True + yarn_track_via_rm_api=False must raise - RM API is required for resume."""
+        operator = self._make_operator(resume_on_retry=True)
         hook = self._make_hook(is_yarn_cluster=True)
         hook._yarn_track_via_rm_api = False
         operator._hook = hook
@@ -873,8 +873,8 @@ class TestSparkSubmitOperatorResumable:
             operator.execute(context={})
 
     def test_yarn_cluster_without_rm_api_reconnect_false_falls_through_to_hook_submit(self):
-        """reconnect_on_retry=False + yarn_track_via_rm_api=False falls through to hook.submit() - no RM polling."""
-        operator = self._make_operator(reconnect_on_retry=False)
+        """resume_on_retry=False + yarn_track_via_rm_api=False falls through to hook.submit() - no RM polling."""
+        operator = self._make_operator(resume_on_retry=False)
         hook = self._make_hook(is_yarn_cluster=True)
         hook._yarn_track_via_rm_api = False
         operator._hook = hook
@@ -1040,7 +1040,7 @@ class TestSparkSubmitOperatorK8sTracking:
         assert task_store.get("k8s_driver_status") == "Succeeded"
 
     def test_k8s_polling_does_not_write_task_store_when_reconnect_disabled(self):
-        operator = self._make_operator(track_driver_via_k8s_api=True, reconnect_on_retry=False)
+        operator = self._make_operator(track_driver_via_k8s_api=True, resume_on_retry=False)
         hook = self._make_k8s_hook()
         hook._poll_k8s_driver_via_api.return_value = "Succeeded"
         operator._hook = hook
@@ -1072,9 +1072,9 @@ class TestSparkSubmitOperatorK8sTracking:
         not AIRFLOW_V_3_3_PLUS,
         reason="ResumableJobMixin reconnect requires task_state, available in Airflow 3.3+",
     )
-    def test_k8s_execute_persists_pod_id_when_reconnect_on_retry(self):
-        """execute() with reconnect_on_retry=True stores the pod ID in task_store before polling."""
-        operator = self._make_operator(track_driver_via_k8s_api=True, reconnect_on_retry=True)
+    def test_k8s_execute_persists_pod_id_when_resume_on_retry(self):
+        """execute() with resume_on_retry=True stores the pod ID in task_store before polling."""
+        operator = self._make_operator(track_driver_via_k8s_api=True, resume_on_retry=True)
         hook = self._make_k8s_hook()
         hook._kubernetes_driver_pod = "spark-abc-driver"
         hook._connection = {"namespace": "mynamespace"}
@@ -1095,9 +1095,9 @@ class TestSparkSubmitOperatorK8sTracking:
         not AIRFLOW_V_3_3_PLUS,
         reason="ResumableJobMixin reconnect requires task_state, available in Airflow 3.3+",
     )
-    def test_k8s_execute_reconnect_on_retry_false_does_not_persist_pod_id(self):
-        """execute() with reconnect_on_retry=False does not write spark_job_id to task_store."""
-        operator = self._make_operator(track_driver_via_k8s_api=True, reconnect_on_retry=False)
+    def test_k8s_execute_resume_on_retry_false_does_not_persist_pod_id(self):
+        """execute() with resume_on_retry=False does not write spark_job_id to task_store."""
+        operator = self._make_operator(track_driver_via_k8s_api=True, resume_on_retry=False)
         hook = self._make_k8s_hook()
         hook._kubernetes_driver_pod = "spark-abc-driver"
         hook._connection = {"namespace": "mynamespace"}

@@ -124,6 +124,10 @@ Example
 
         external_id_key = "batch_job_id"
 
+        def __init__(self, *, resume_on_retry: bool = True, **kwargs):
+            super().__init__(**kwargs)
+            self.resume_on_retry = resume_on_retry
+
         def execute(self, context):
             return self.execute_resumable(context)
 
@@ -144,6 +148,27 @@ Example
 
         def get_job_result(self, external_id: JsonValue, context):
             return None
+
+.. _sdk-resumable-job-mixin-resume-on-retry:
+
+Disabling crash recovery per task
+----------------------------------
+
+Set ``resume_on_retry=False`` on a task to opt out of crash recovery for that specific instance.
+The operator will always submit a fresh job on retry, with no ``task_state_store`` interaction:
+
+.. code-block:: python
+
+    run_spark = MyBatchOperator(
+        task_id="run_spark",
+        resume_on_retry=False,
+    )
+
+This is useful when the external job is not idempotent and you want Airflow to always submit a
+clean run rather than reconnect to a prior submission.
+
+The default is ``True``. Operators that use this mixin must declare ``resume_on_retry`` as an
+``__init__`` parameter so that ``default_args`` injection and ``.partial()`` work correctly.
 
 .. _sdk-resumable-job-mixin-external-id-key:
 
