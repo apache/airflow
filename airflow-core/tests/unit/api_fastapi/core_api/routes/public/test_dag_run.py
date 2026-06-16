@@ -40,6 +40,7 @@ from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
+from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
@@ -151,6 +152,7 @@ def setup(request, dag_maker, *, session=None):
     with dag_maker(DAG1_ID, schedule=None, start_date=START_DATE1, serialized=True):
         task1 = EmptyOperator(task_id="task_1")
         task2 = EmptyOperator(task_id="task_2")
+        dag_maker.dag.add_result(task2.output)
 
     dag_run1 = dag_maker.create_dagrun(
         run_id=DAG1_RUN1_ID,
@@ -161,6 +163,10 @@ def setup(request, dag_maker, *, session=None):
     )
     # Set triggering_user_name for testing
     dag_run1.triggering_user_name = "alice_admin"
+    # Set partition_key for testing partition_key_pattern / partition_key_prefix_pattern filters.
+    # The value uses the ProductMapper default delimiter (|) to form a composite key so we can
+    # verify that the filter treats | as a literal character, not an OR separator.
+    dag_run1.partition_key = "2026-01-01|us"
     dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
     # Set end_date for testing duration filter
     dag_run1.end_date = dag_run1.start_date + timedelta(seconds=101)
@@ -172,7 +178,16 @@ def setup(request, dag_maker, *, session=None):
         ti.task = task
         ti.state = State.SUCCESS
         session.merge(ti)
-        ti.xcom_push("return_value", f"result_{i}")
+        XComModel.set(
+            key="return_value",
+            value=f"result_{i}",
+            task_id=ti.task_id,
+            dag_id=ti.dag_id,
+            run_id=ti.run_id,
+            map_index=ti.map_index,
+            dag_result=task.returns_dag_result,
+            session=session,
+        )
 
     dag_run2 = dag_maker.create_dagrun(
         run_id=DAG1_RUN2_ID,
@@ -208,6 +223,8 @@ def setup(request, dag_maker, *, session=None):
     )
     # Set triggering_user_name for testing
     dag_run3.triggering_user_name = "service_account"
+    # Set partition_key for testing: plain single-dimension key to pair with dag_run1's composite key.
+    dag_run3.partition_key = "us"
     # Set end_date for testing duration filter
     dag_run3.end_date = dag_run3.start_date + timedelta(seconds=51)
     # Set conf for testing conf_contains filter
@@ -299,7 +316,7 @@ def get_dag_run_dict(run: DagRun):
         "conf": run.conf,
         "note": run.note,
         "dag_versions": get_dag_versions_dict(run.dag_versions),
-        "partition_key": None,
+        "partition_key": run.partition_key,
     }
 
 
@@ -917,6 +934,29 @@ class TestGetDagRuns:
                 [DAG1_RUN1_ID, DAG1_RUN2_ID],
             ),  # Partial URI match
             ("~", {"consuming_asset_pattern": "nonexistent_asset"}, []),  # Non-existent asset returns empty
+            # Test partition_key_pattern filter.
+            # dag_run1 has partition_key="2026-01-01|us" (composite key with | as ProductMapper delimiter).
+            # dag_run3 has partition_key="us" (plain single-dimension key).
+            # dag_run2 and dag_run4 have partition_key=None.
+            #
+            # Composite-key literal match: the full "2026-01-01|us" matches only dag_run1 and NOT dag_run3.
+            # This verifies that | is NOT treated as an OR separator.
+            ("~", {"partition_key_pattern": "2026-01-01|us"}, [DAG1_RUN1_ID]),
+            # Substring "us" matches both dag_run1 (contains "|us") and dag_run3 (equals "us").
+            ("~", {"partition_key_pattern": "us"}, [DAG1_RUN1_ID, DAG2_RUN1_ID]),
+            # Substring "2026-01-01" matches only dag_run1 — NOT split on | to also match dag_run3.
+            ("~", {"partition_key_pattern": "2026-01-01"}, [DAG1_RUN1_ID]),
+            # No match → empty result.
+            ("~", {"partition_key_pattern": "nonexistent"}, []),
+            # dag_id_pattern still uses | as OR (other search params unaffected by this fix).
+            ("~", {"dag_id_pattern": f"{DAG1_ID}|{DAG2_ID}"}, DAG_RUNS_LIST),
+            # Test partition_key_prefix_pattern filter.
+            # Exact prefix "2026-01-01|us" matches dag_run1.
+            ("~", {"partition_key_prefix_pattern": "2026-01-01|us"}, [DAG1_RUN1_ID]),
+            # Prefix "us" matches only dag_run3 (dag_run1 starts with "2026", not "us").
+            ("~", {"partition_key_prefix_pattern": "us"}, [DAG2_RUN1_ID]),
+            # Prefix "2026" matches dag_run1 (starts with "2026-01-01|us").
+            ("~", {"partition_key_prefix_pattern": "2026"}, [DAG1_RUN1_ID]),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -2793,6 +2833,62 @@ class TestTriggerDagRun:
         )
         assert response.status_code == 200
 
+    def test_should_respond_400_when_empty_partition_key(self, test_client):
+        """An empty partition_key must return 400, not 500."""
+        now = timezone.utcnow().isoformat()
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={"logical_date": now, "partition_key": ""},
+        )
+        assert response.status_code == 400
+        assert (
+            response.json()["detail"]
+            == "Dag 'test_dag1' is not a partitioned Dag and does not accept a partition_key."
+        )
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_400_when_over_length_partition_key(self, dag_maker, test_client, session):
+        """A partition_key exceeding 250 characters must return 400, not 500."""
+        partitioned_dag_id = "test_over_length_partition_key"
+        with dag_maker(
+            dag_id=partitioned_dag_id,
+            schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{partitioned_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "a" * 251},
+        )
+        assert response.status_code == 400
+        assert "at most 250 characters" in response.json()["detail"]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_200_when_exactly_max_length_partition_key(self, dag_maker, test_client, session):
+        """A partition_key of exactly 250 characters must be accepted."""
+        partitioned_dag_id = "test_max_length_partition_key"
+        with dag_maker(
+            dag_id=partitioned_dag_id,
+            schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{partitioned_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "a" * 250},
+        )
+        assert response.status_code == 200
+
 
 class TestResolveRunOnLatestVersion:
     @pytest.mark.parametrize("explicit_value", [True, False])
@@ -2908,22 +3004,47 @@ class TestWaitDagRun:
         assert response.status_code == 422
 
     @pytest.mark.parametrize(
-        ("run_id", "state"),
-        [(DAG1_RUN1_ID, DAG1_RUN1_STATE), (DAG1_RUN2_ID, DAG1_RUN2_STATE)],
+        ("run_id", "expected"),
+        [
+            pytest.param(
+                DAG1_RUN1_ID,
+                {"state": DAG1_RUN1_STATE, "results": {"task_2": '"result_2"'}},
+                id="return-result-task",
+            ),
+            pytest.param(
+                DAG1_RUN2_ID,
+                {"state": DAG1_RUN2_STATE},
+                id="no-result-task",
+            ),
+        ],
     )
-    def test_should_respond_200_immediately_for_finished_run(self, test_client, run_id, state):
+    def test_should_respond_200_with_implicit_return_value(self, test_client, run_id, expected):
         response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{run_id}/wait", params={"interval": "100"})
         assert response.status_code == 200
         data = response.json()
-        assert data == {"state": state}
+        assert data == expected
 
-    def test_collect_task(self, test_client):
+    @pytest.mark.parametrize(
+        ("requested", "results"),
+        [
+            pytest.param("task_1", {"task_1": '"result_1"'}, id="only-non-result"),
+            pytest.param("task_2", {"task_2": '"result_2"'}, id="only-result"),
+        ],
+    )
+    def test_should_respond_200_with_explicit_return_value(self, test_client, requested, results):
         response = test_client.get(
-            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait", params={"interval": "1", "result": "task_1"}
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
+            params={"interval": "1", "result": requested},
         )
         assert response.status_code == 200
         data = response.json()
-        assert data == {"state": DagRunState.SUCCESS, "results": {"task_1": '"result_1"'}}
+        assert data == {"state": DagRunState.SUCCESS, "results": results}
+
+    def test_collect_authored_task_results(self, test_client):
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait", params={"interval": "1"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data == {"state": DagRunState.SUCCESS, "results": {"task_2": '"result_2"'}}
 
     def test_should_respond_403_when_user_lacks_xcom_permission(self, test_client):
         with mock.patch(
@@ -2947,10 +3068,17 @@ class TestWaitDagRun:
 
     def test_should_respond_200_without_result_when_user_lacks_xcom_permission(self, test_client):
         """Waiting without result parameter should not require XCom permissions."""
-        response = test_client.get(
-            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
-            params={"interval": "1"},
-        )
+        with mock.patch(
+            "airflow.api_fastapi.core_api.routes.public.dag_run.get_auth_manager",
+            autospec=True,
+        ) as mock_get_auth_manager:
+            mock_get_auth_manager.return_value.is_authorized_dag.return_value = False
+
+            response = test_client.get(
+                f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
+                params={"interval": "1"},
+            )
+
         assert response.status_code == 200
         data = response.json()
         assert data == {"state": DagRunState.SUCCESS}

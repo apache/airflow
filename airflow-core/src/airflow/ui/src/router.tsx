@@ -25,7 +25,7 @@ import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { Asset } from "src/pages/Asset";
 import { AssetEvents } from "src/pages/Asset/AssetEvents";
-import { AssetStore } from "src/pages/Asset/AssetStore";
+import { AssetStateStore } from "src/pages/Asset/AssetStateStore";
 import { AssetsList } from "src/pages/AssetsList";
 import { Configs } from "src/pages/Configs";
 import { Connections } from "src/pages/Connections";
@@ -47,6 +47,7 @@ import { GroupTaskInstance } from "src/pages/GroupTaskInstance";
 import { HITLTaskInstances } from "src/pages/HITLTaskInstances";
 import { Jobs } from "src/pages/Jobs";
 import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
+import { Details as MappedTaskInstanceDetails } from "src/pages/MappedTaskInstance/Details";
 import { Plugins } from "src/pages/Plugins";
 import { Pools } from "src/pages/Pools";
 import { Providers } from "src/pages/Providers";
@@ -62,7 +63,7 @@ import { Details as TaskInstanceDetails } from "src/pages/TaskInstance/Details";
 import { HITLResponse } from "src/pages/TaskInstance/HITLResponse";
 import { RenderedTemplates } from "src/pages/TaskInstance/RenderedTemplates";
 import { TaskInstances } from "src/pages/TaskInstances";
-import { TaskStore } from "src/pages/TaskStore";
+import { TaskStateStore } from "src/pages/TaskStateStore";
 import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
 
@@ -79,7 +80,7 @@ export const taskInstanceRoutes = [
   { element: <Events />, path: "events" },
   {
     children: [
-      { element: <TaskStore />, path: "task-store" },
+      { element: <TaskStateStore />, path: "task-state-store" },
       { element: <XCom />, path: "xcom" },
     ],
     element: <StorageLayout />,
@@ -135,7 +136,7 @@ export const routerConfig = [
       {
         children: [
           { element: <AssetEvents />, index: true },
-          { element: <AssetStore />, path: "asset-store" },
+          { element: <AssetStateStore />, path: "asset-state-store" },
         ],
         element: <Asset />,
         path: "assets/:assetId",
@@ -216,7 +217,10 @@ export const routerConfig = [
         path: "dags/:dagId/runs/:runId/tasks/:taskId",
       },
       {
-        children: [{ element: <TaskInstances />, index: true }],
+        children: [
+          { element: <TaskInstances />, index: true },
+          { element: <MappedTaskInstanceDetails />, path: "details" },
+        ],
         element: <MappedTaskInstance />,
         path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped",
       },

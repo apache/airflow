@@ -1100,6 +1100,21 @@ def test_hierarchical_alphabetical_sort():
     ]
 
 
+def _make_padded_reverse_chain(chain_length: int, independent_count: int) -> DAG:
+    with DAG(
+        f"padded_reverse_chain_{chain_length}_{independent_count}",
+        schedule=None,
+        start_date=DEFAULT_DATE,
+    ) as dag:
+        tasks = [EmptyOperator(task_id=f"r{chain_length - 1 - i}") for i in range(chain_length)]
+        by_id = {task.task_id: task for task in tasks}
+        for i in range(chain_length - 1):
+            by_id[f"r{i}"] >> by_id[f"r{i + 1}"]
+        for i in range(independent_count):
+            EmptyOperator(task_id=f"i{i}")
+    return dag
+
+
 def test_topological_group_dep():
     logical_date = pendulum.parse("20200101")
     with DAG("test_dag_edges", schedule=None, start_date=logical_date) as dag:
@@ -1161,6 +1176,33 @@ def test_topological_sort_serialized_layered():
                 assert position[upstream.task_id] < position[downstream.task_id], (
                     f"{upstream.task_id!r} must precede {downstream.task_id!r}, got {order!r}"
                 )
+
+
+def test_topological_sort_serialized_padded_reverse_chain_uses_pass_numbering(monkeypatch):
+    dag = _make_padded_reverse_chain(chain_length=80, independent_count=80)
+    serialized = create_scheduler_dag(dag)
+    serialized.task_group.children = {
+        **{f"r{i}": serialized.task_group.children[f"r{i}"] for i in range(79, -1, -1)},
+        **{f"i{i}": serialized.task_group.children[f"i{i}"] for i in range(80)},
+    }
+
+    called = {"value": False}
+    serialized_task_group_cls = type(serialized.task_group)
+    original = serialized_task_group_cls._sort_via_pass_numbering
+
+    def spy(self, nodes, projected):
+        called["value"] = True
+        return original(self, nodes, projected)
+
+    monkeypatch.setattr(serialized_task_group_cls, "_sort_via_pass_numbering", spy)
+
+    order = [node.node_id for node in serialized.task_group.topological_sort()]
+    position = {node_id: i for i, node_id in enumerate(order)}
+
+    assert called["value"]
+    assert set(position) == {*(f"r{i}" for i in range(80)), *(f"i{i}" for i in range(80))}
+    for i in range(79):
+        assert position[f"r{i}"] < position[f"r{i + 1}"]
 
 
 def test_task_group_arrow_with_setup_group():
