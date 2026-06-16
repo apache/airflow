@@ -37,6 +37,25 @@ def _print_file_error(message: str, file_path: str) -> None:
 
 
 @provide_api_client(kind=ClientKind.CLI)
+def set_(args, api_client=NEW_API_CLIENT) -> None:
+    """Set a variable, creating it if it does not exist and updating it otherwise."""
+    value = args.value
+    if args.json:
+        value = json.dumps(value)
+    bulk_body = BulkBodyVariableBody(
+        actions=[
+            BulkCreateActionVariableBody(
+                action="create",
+                entities=[VariableBody(key=args.key, value=value, description=args.description)],
+                action_on_existence=BulkActionOnExistence.OVERWRITE,
+            )
+        ]
+    )
+    api_client.variables.bulk(variables=bulk_body)
+    rich.print(f"[green]Variable {args.key} set[/green]")
+
+
+@provide_api_client(kind=ClientKind.CLI)
 def import_(args, api_client=NEW_API_CLIENT) -> list[str]:
     """Import variables from a given file."""
     success_message = "[green]Import successful! success: {success}[/green]"

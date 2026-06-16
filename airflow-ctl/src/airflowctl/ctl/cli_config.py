@@ -276,6 +276,21 @@ ARG_ACTION_ON_EXISTING_KEY = Arg(
     choices=("overwrite", "fail", "skip"),
 )
 
+# Variable command args
+ARG_VAR_KEY = Arg(flags=("key",), type=str, help="Variable key")
+ARG_VAR_VALUE = Arg(flags=("value",), metavar="VALUE", type=str, help="Variable value")
+ARG_VAR_DESCRIPTION = Arg(
+    flags=("--description",),
+    type=str,
+    default=None,
+    help="Variable description, optional when setting a variable",
+)
+ARG_VAR_SERIALIZE_JSON = Arg(
+    flags=("-j", "--json"),
+    action="store_true",
+    help="Serialize JSON variable",
+)
+
 # Config arguments
 ARG_CONFIG_SECTION = Arg(
     flags=("--section",),
@@ -1007,6 +1022,12 @@ POOL_COMMANDS = (
 )
 
 VARIABLE_COMMANDS = (
+    ActionCommand(
+        name="set",
+        help="Set a variable, creating it if it does not exist and updating it otherwise.",
+        func=lazy_load_command("airflowctl.ctl.commands.variable_command.set_"),
+        args=(ARG_VAR_KEY, ARG_VAR_VALUE, ARG_VAR_DESCRIPTION, ARG_VAR_SERIALIZE_JSON),
+    ),
     ActionCommand(
         name="import",
         help="Import variables from a file exported with local CLI.",

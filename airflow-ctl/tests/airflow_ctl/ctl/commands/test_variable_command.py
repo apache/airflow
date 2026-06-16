@@ -63,6 +63,40 @@ class TestCliVariableCommands:
         delete=None,
     )
 
+    def _captured_set_entity(self, argv):
+        """Run ``set`` against a capturing client and return the variable entity it sent."""
+        captured: dict = {}
+
+        def bulk(variables):
+            captured["body"] = variables
+            return self.bulk_response_success
+
+        api_client = SimpleNamespace(variables=SimpleNamespace(bulk=bulk))
+        variable_command.set_(self.parser.parse_args(argv), api_client=api_client)
+
+        action = captured["body"].actions[0]
+        assert action.action == "create"
+        assert action.action_on_existence == "overwrite"
+        return action.entities[0]
+
+    def test_set(self):
+        """Test variable_set command"""
+        entity = self._captured_set_entity(["variables", "set", "new_key", "new_value"])
+        assert entity.key == "new_key"
+        assert entity.value.root == "new_value"
+
+    def test_set_serialize_json(self):
+        """Test variable_set command with json argument"""
+        entity = self._captured_set_entity(["variables", "set", "json_key", '{"a": 1}', "--json"])
+        assert entity.value.root == json.dumps('{"a": 1}')
+
+    def test_set_forwards_description(self):
+        """Test variable_set command with optional description argument"""
+        entity = self._captured_set_entity(
+            ["variables", "set", "key", "value", "--description", "a description"]
+        )
+        assert entity.description == "a description"
+
     def test_import_success(self, api_client_maker, tmp_path, monkeypatch):
         api_client = api_client_maker(
             path="/api/v2/variables",

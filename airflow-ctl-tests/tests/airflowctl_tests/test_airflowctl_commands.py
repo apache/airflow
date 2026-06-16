@@ -120,6 +120,11 @@ TEST_COMMANDS = [
     "variables get test_key",
     "variables get test_key -o table",
     "variables update --key=test_key --value=updated_value",
+    # set is an upsert: the first call creates the key, the second updates the existing key.
+    "variables set test_set_key set_value",
+    "variables set test_set_key updated_set_value",
+    "variables get test_set_key",
+    "variables delete test_set_key",
     "variables import tests/airflowctl_tests/fixtures/test_variables.json",
     "variables delete test_key",
     "variables delete test_import_var",

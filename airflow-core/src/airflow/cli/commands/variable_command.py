@@ -23,10 +23,17 @@ import json
 import os
 from typing import TYPE_CHECKING
 
+from airflowctl.api.datamodels.generated import (
+    BulkActionOnExistence,
+    BulkBodyVariableBody,
+    BulkCreateActionVariableBody,
+    VariableBody,
+)
 from sqlalchemy import select
 
+from airflow.cli.api_client import NEW_API_CLIENT, Client, provide_api_client
 from airflow.cli.simple_table import AirflowConsole
-from airflow.cli.utils import SENSITIVE_PLACEHOLDER, print_export_output
+from airflow.cli.utils import SENSITIVE_PLACEHOLDER, deprecated_for_airflowctl, print_export_output
 from airflow.exceptions import (
     AirflowFileParseException,
     AirflowUnsupportedFileTypeException,
@@ -108,10 +115,25 @@ def variables_get(args):
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl variables set")
+@suppress_logs_and_warning
 @providers_configuration_loaded
-def variables_set(args):
-    """Create new variable with a given name, value and description."""
-    Variable.set(args.key, args.value, args.description, serialize_json=args.json)
+@provide_api_client
+def variables_set(args, api_client: Client = NEW_API_CLIENT):
+    """Set a variable, creating it if it does not exist and updating it otherwise."""
+    value = args.value
+    if args.json:
+        value = json.dumps(value, indent=2)
+    bulk_body = BulkBodyVariableBody(
+        actions=[
+            BulkCreateActionVariableBody(
+                action="create",
+                entities=[VariableBody(key=args.key, value=value, description=args.description)],
+                action_on_existence=BulkActionOnExistence.OVERWRITE,
+            )
+        ]
+    )
+    api_client.variables.bulk(variables=bulk_body)
     print(f"Variable {args.key} created")
 
 
