@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import time
 from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from asgiref.sync import sync_to_async
 from google.genai._api_client import HttpOptions
@@ -34,6 +34,9 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseAsyncHook,
     GoogleBaseHook,
 )
+
+if TYPE_CHECKING:
+    from vertexai._genai import types
 
 
 class AgentEngineHook(GoogleBaseHook):
@@ -72,7 +75,7 @@ class AgentEngineHook(GoogleBaseHook):
         agent_engine: Any | None = None,
         config: Any | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
-    ) -> Any:
+    ) -> types.AgentEngine:
         """
         Create an Agent Engine.
 
@@ -92,7 +95,7 @@ class AgentEngineHook(GoogleBaseHook):
         location: str,
         agent_engine_id: str,
         project_id: str = PROVIDE_PROJECT_ID,
-    ) -> Any:
+    ) -> types.AgentEngine:
         """
         Get an Agent Engine.
 
@@ -159,7 +162,7 @@ class AgentEngineHook(GoogleBaseHook):
         agent: Any | None = None,
         agent_engine: Any | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
-    ) -> Any:
+    ) -> types.AgentEngine:
         """
         Update an Agent Engine.
 
@@ -183,7 +186,7 @@ class AgentEngineHook(GoogleBaseHook):
         force: bool | None = None,
         config: Any | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
-    ) -> Any:
+    ) -> types.DeleteAgentEngineOperation:
         """
         Delete an Agent Engine.
 
