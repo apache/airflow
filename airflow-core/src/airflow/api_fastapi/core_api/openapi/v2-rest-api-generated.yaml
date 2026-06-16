@@ -5305,6 +5305,14 @@ paths:
           - type: string
           - type: 'null'
           title: Job State
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       - name: job_type
         in: query
         required: false
