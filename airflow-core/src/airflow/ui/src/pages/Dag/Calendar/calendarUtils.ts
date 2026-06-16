@@ -245,6 +245,75 @@ type ScaleOptions = {
   viewMode: CalendarColorMode;
 };
 
+type ColorValue = string | { _dark: string; _light: string };
+
+type ResolveColorParams = {
+  failedColor: ColorValue;
+  failedCount: number;
+  hasPending: boolean;
+  runningCount: number;
+  successColor: ColorValue;
+  successCount: number;
+};
+
+const resolveCellColor = ({
+  failedColor,
+  failedCount,
+  hasPending,
+  runningCount,
+  successColor,
+  successCount,
+}: ResolveColorParams): ColorValue | { primary: ColorValue; secondary: ColorValue } => {
+  const hasActual = failedCount > 0 || runningCount > 0 || successCount > 0;
+
+  if (hasPending && hasActual) {
+    let primaryColor: ColorValue = EMPTY_COLOR;
+
+    if (failedCount > 0) {
+      primaryColor = failedColor;
+    } else if (runningCount > 0) {
+      primaryColor = RUNNING_COLOR;
+    } else if (successCount > 0) {
+      primaryColor = successColor;
+    }
+
+    return {
+      primary: primaryColor,
+      secondary: PLANNED_COLOR,
+    };
+  }
+
+  if (hasPending && !hasActual) {
+    return PLANNED_COLOR;
+  }
+
+  if (hasActual) {
+    if (failedCount > 0 && runningCount > 0) {
+      return { primary: failedColor, secondary: RUNNING_COLOR };
+    }
+
+    if (failedCount > 0 && successCount > 0) {
+      return { primary: failedColor, secondary: successColor };
+    }
+
+    if (runningCount > 0 && successCount > 0) {
+      return { primary: RUNNING_COLOR, secondary: successColor };
+    }
+
+    if (failedCount > 0) {
+      return failedColor;
+    }
+    if (runningCount > 0) {
+      return RUNNING_COLOR;
+    }
+    if (successCount > 0) {
+      return successColor;
+    }
+  }
+
+  return EMPTY_COLOR;
+};
+
 export const createCalendarScale = (
   data: Array<CalendarTimeRangeResponse>,
   options: ScaleOptions,
@@ -273,55 +342,18 @@ export const createCalendarScale = (
         const successCount = viewMode === "total" ? counts.success : 0;
 
         const hasPending = getPendingRunCount(counts) > 0;
-        const hasActual = failedCount > 0 || runningCount > 0 || successCount > 0;
 
         const failedColor = FAILURE_COLOR_INTENSITIES[2] ?? EMPTY_COLOR;
         const successColor = TOTAL_COLOR_INTENSITIES[2] ?? EMPTY_COLOR;
 
-        if (hasPending && hasActual) {
-          let actualColor = EMPTY_COLOR;
-
-          if (failedCount > 0) {
-            actualColor = failedColor;
-          } else if (runningCount > 0) {
-            actualColor = RUNNING_COLOR;
-          } else if (successCount > 0) {
-            actualColor = successColor;
-          }
-
-          return {
-            actual: actualColor,
-            planned: PLANNED_COLOR,
-          };
-        }
-
-        if (hasPending && !hasActual) {
-          return PLANNED_COLOR;
-        }
-
-        if (hasActual) {
-          if (failedCount > 0 && runningCount > 0) {
-            return { actual: RUNNING_COLOR, planned: failedColor };
-          }
-          if (failedCount > 0 && successCount > 0) {
-            return { actual: successColor, planned: failedColor };
-          }
-          if (runningCount > 0 && successCount > 0) {
-            return { actual: successColor, planned: RUNNING_COLOR };
-          }
-
-          if (failedCount > 0) {
-            return failedColor;
-          }
-          if (runningCount > 0) {
-            return RUNNING_COLOR;
-          }
-          if (successCount > 0) {
-            return successColor;
-          }
-        }
-
-        return EMPTY_COLOR;
+        return resolveCellColor({
+          failedColor,
+          failedCount,
+          hasPending,
+          runningCount,
+          successColor,
+          successCount,
+        });
       },
       legendItems: [
         { color: EMPTY_COLOR, label: "0" },
@@ -351,17 +383,14 @@ export const createCalendarScale = (
     | string
     | { _dark: string; _light: string }
     | {
-        actual: string | { _dark: string; _light: string };
-        planned: string | { _dark: string; _light: string };
+        primary: string | { _dark: string; _light: string };
+        secondary: string | { _dark: string; _light: string };
       } => {
     const failedCount = counts.failed;
     const runningCount = viewMode === "total" ? counts.running : 0;
     const successCount = viewMode === "total" ? counts.success : 0;
 
     const hasPending = getPendingRunCount(counts) > 0;
-    const hasActual = failedCount > 0 || runningCount > 0 || successCount > 0;
-
-    type ColorValue = string | { _dark: string; _light: string };
 
     const getIntensityColor = (count: number, scheme: Array<ColorValue>) => {
       if (count === 0) {
@@ -378,61 +407,19 @@ export const createCalendarScale = (
       return scheme[1] ?? EMPTY_COLOR;
     };
 
-    if (hasPending && hasActual) {
-      let actualColor: ColorValue = EMPTY_COLOR;
+    const failedColor =
+      failedCount > 0 ? getIntensityColor(failedCount, FAILURE_COLOR_INTENSITIES) : EMPTY_COLOR;
+    const successColor =
+      successCount > 0 ? getIntensityColor(successCount, TOTAL_COLOR_INTENSITIES) : EMPTY_COLOR;
 
-      if (failedCount > 0) {
-        actualColor = getIntensityColor(failedCount, FAILURE_COLOR_INTENSITIES);
-      } else if (runningCount > 0) {
-        actualColor = RUNNING_COLOR;
-      } else if (successCount > 0) {
-        actualColor = getIntensityColor(successCount, TOTAL_COLOR_INTENSITIES);
-      }
-
-      return {
-        actual: actualColor,
-        planned: PLANNED_COLOR,
-      };
-    }
-
-    if (hasPending && !hasActual) {
-      return PLANNED_COLOR;
-    }
-
-    if (hasActual) {
-      if (failedCount > 0 && runningCount > 0) {
-        return {
-          actual: RUNNING_COLOR,
-          planned: getIntensityColor(failedCount, FAILURE_COLOR_INTENSITIES),
-        };
-      }
-
-      if (failedCount > 0 && successCount > 0) {
-        return {
-          actual: getIntensityColor(successCount, TOTAL_COLOR_INTENSITIES),
-          planned: getIntensityColor(failedCount, FAILURE_COLOR_INTENSITIES),
-        };
-      }
-
-      if (runningCount > 0 && successCount > 0) {
-        return {
-          actual: getIntensityColor(successCount, TOTAL_COLOR_INTENSITIES),
-          planned: RUNNING_COLOR,
-        };
-      }
-
-      if (failedCount > 0) {
-        return getIntensityColor(failedCount, FAILURE_COLOR_INTENSITIES);
-      }
-      if (runningCount > 0) {
-        return RUNNING_COLOR;
-      }
-      if (successCount > 0) {
-        return getIntensityColor(successCount, TOTAL_COLOR_INTENSITIES);
-      }
-    }
-
-    return EMPTY_COLOR;
+    return resolveCellColor({
+      failedColor,
+      failedCount,
+      hasPending,
+      runningCount,
+      successColor,
+      successCount,
+    });
   };
 
   const legendItems: Array<LegendItem> = [];
