@@ -108,6 +108,12 @@ class ResumableJobMixin:
         an external system boundary.
         """
         operator_tag = {"operator": type(self).__name__}
+        # The task is team-scoped in multi-team deployments; surface team_name on the
+        # resumable_job metrics via the running task instance's stats tags (omitted when
+        # not multi-team or the task has no team).
+        ti = context.get("ti")
+        if ti is not None and (team_name := ti.stats_tags.get("team_name")):
+            operator_tag["team_name"] = team_name
         reconnect_to: Any = None
         already_succeeded_id: Any = None
 
