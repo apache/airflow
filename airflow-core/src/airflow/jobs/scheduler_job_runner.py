@@ -1869,8 +1869,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             guard.commit()
 
             # Bulk fetch the currently active dag runs for the dags we are
-            # examining, rather than making one query per DagRun
-            dag_runs = DagRun.get_running_dag_runs_to_examine(session=session)
+            # examining, rather than making one query per DagRun.
+            # Materialize into a list because the multi-team block below iterates
+            # the result and ScalarResult is a one-pass iterator.
+            dag_runs = list(DagRun.get_running_dag_runs_to_examine(session=session))
 
             if self._multi_team and dag_runs:
                 unique_dag_ids = {dr.dag_id for dr in dag_runs}
