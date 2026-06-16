@@ -33,6 +33,7 @@ AGENT_ENGINE_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.agent_engi
 TEST_GCP_CONN_ID = "test-gcp-conn-id"
 GCP_PROJECT = "test-project"
 GCP_LOCATION = "us-central1"
+AGENT_ENGINE_ID = "123"
 AGENT_ENGINE_NAME = "projects/test-project/locations/us-central1/reasoningEngines/123"
 CONFIG = {"display_name": "test-agent-engine"}
 QUERY_CONFIG = {"class_method": "query", "input": {"prompt": "hello"}}
@@ -79,7 +80,7 @@ class TestAgentEngineHookWithDefaultProjectId:
         result = self.hook.get_agent_engine(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
         )
 
         mock_get_client.return_value.get.assert_called_once_with(name=AGENT_ENGINE_NAME)
@@ -94,7 +95,7 @@ class TestAgentEngineHookWithDefaultProjectId:
         result = self.hook.query_agent_engine(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
             config=QUERY_CONFIG,
         )
 
@@ -114,7 +115,7 @@ class TestAgentEngineHookWithDefaultProjectId:
         result = self.hook.query_agent_engine(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
             config=QUERY_CONFIG,
         )
 
@@ -129,7 +130,7 @@ class TestAgentEngineHookWithDefaultProjectId:
         result = self.hook.query_agent_engine(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
             config={"class_method": "query", "input": '{"prompt": "hello"}'},
         )
 
@@ -146,7 +147,7 @@ class TestAgentEngineHookWithDefaultProjectId:
             self.hook.query_agent_engine(
                 project_id=GCP_PROJECT,
                 location=GCP_LOCATION,
-                name=AGENT_ENGINE_NAME,
+                agent_engine_id=AGENT_ENGINE_ID,
                 config={"class_method": "query", "input": "not valid json"},
             )
 
@@ -164,7 +165,7 @@ class TestAgentEngineHookWithDefaultProjectId:
             self.hook.query_agent_engine(
                 project_id=GCP_PROJECT,
                 location=GCP_LOCATION,
-                name=AGENT_ENGINE_NAME,
+                agent_engine_id=AGENT_ENGINE_ID,
                 config={"class_method": "query", "input": input_value},
             )
 
@@ -173,7 +174,7 @@ class TestAgentEngineHookWithDefaultProjectId:
         result = self.hook.update_agent_engine(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
             config=CONFIG,
         )
 
@@ -192,7 +193,7 @@ class TestAgentEngineHookWithDefaultProjectId:
         result = self.hook.update_agent_engine(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
             agent_engine=agent_engine,
             config=CONFIG,
         )
@@ -210,7 +211,7 @@ class TestAgentEngineHookWithDefaultProjectId:
         result = self.hook.delete_agent_engine(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
             force=True,
             config=CONFIG,
         )
@@ -227,13 +228,13 @@ class TestAgentEngineHookWithDefaultProjectId:
         assert not self.hook.is_agent_engine_deleted(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
         )
         mock_get_agent_engine.assert_called_once_with(
             self.hook,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
         )
 
     @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine"), autospec=True)
@@ -243,7 +244,7 @@ class TestAgentEngineHookWithDefaultProjectId:
         assert self.hook.is_agent_engine_deleted(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
         )
 
     @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine"), autospec=True)
@@ -254,7 +255,7 @@ class TestAgentEngineHookWithDefaultProjectId:
             self.hook.is_agent_engine_deleted(
                 project_id=GCP_PROJECT,
                 location=GCP_LOCATION,
-                name=AGENT_ENGINE_NAME,
+                agent_engine_id=AGENT_ENGINE_ID,
             )
 
         assert err.value.code == 500
@@ -270,7 +271,7 @@ class TestAgentEngineHookWithDefaultProjectId:
             self.hook.is_agent_engine_deleted(
                 project_id=GCP_PROJECT,
                 location=GCP_LOCATION,
-                name=AGENT_ENGINE_NAME,
+                agent_engine_id=AGENT_ENGINE_ID,
             )
 
         assert err.value.code == 500

@@ -49,7 +49,7 @@ CONTAINER_URI = os.environ.get(
     "us-central1-docker.pkg.dev/example-project/example-repository/example-agent:latest",
 )
 
-AGENT_ENGINE_NAME = "{{ task_instance.xcom_pull(task_ids='create_agent_engine')['name'] }}"
+AGENT_ENGINE_ID = "{{ task_instance.xcom_pull(task_ids='create_agent_engine')['name'].split('/')[-1] }}"
 DISPLAY_NAME = f"airflow-agent-engine-{ENV_ID}"
 
 QUERY_CONFIG = {
@@ -92,7 +92,7 @@ with DAG(
         task_id="get_agent_engine",
         project_id=PROJECT_ID,
         location=LOCATION,
-        name=AGENT_ENGINE_NAME,
+        agent_engine_id=AGENT_ENGINE_ID,
     )
     # [END how_to_cloud_vertex_ai_get_agent_engine_operator]
 
@@ -101,7 +101,7 @@ with DAG(
         task_id="query_agent_engine",
         project_id=PROJECT_ID,
         location=LOCATION,
-        name=AGENT_ENGINE_NAME,
+        agent_engine_id=AGENT_ENGINE_ID,
         config=QUERY_CONFIG,
     )
     # [END how_to_cloud_vertex_ai_query_agent_engine_operator]
@@ -111,7 +111,7 @@ with DAG(
         task_id="update_agent_engine",
         project_id=PROJECT_ID,
         location=LOCATION,
-        name=AGENT_ENGINE_NAME,
+        agent_engine_id=AGENT_ENGINE_ID,
         config={
             "display_name": f"{DISPLAY_NAME}-updated",
             "description": "Updated Airflow system test Agent Engine",
@@ -124,7 +124,7 @@ with DAG(
         task_id="delete_agent_engine",
         project_id=PROJECT_ID,
         location=LOCATION,
-        name=AGENT_ENGINE_NAME,
+        agent_engine_id=AGENT_ENGINE_ID,
         force=True,
         deferrable=True,
         trigger_rule=TriggerRule.ALL_DONE,

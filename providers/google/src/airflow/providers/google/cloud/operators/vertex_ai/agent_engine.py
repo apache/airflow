@@ -119,19 +119,19 @@ class GetAgentEngineOperator(GoogleCloudBaseOperator):
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
-    :param name: Required. The Agent Engine resource name.
+    :param agent_engine_id: Required. The Agent Engine ID.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term credentials.
     """
 
-    template_fields = ("project_id", "location", "name", "gcp_conn_id", "impersonation_chain")
+    template_fields = ("project_id", "location", "agent_engine_id", "gcp_conn_id", "impersonation_chain")
 
     def __init__(
         self,
         *,
         project_id: str,
         location: str,
-        name: str,
+        agent_engine_id: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -139,7 +139,7 @@ class GetAgentEngineOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
         self.project_id = project_id
         self.location = location
-        self.name = name
+        self.agent_engine_id = agent_engine_id
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
@@ -154,7 +154,7 @@ class GetAgentEngineOperator(GoogleCloudBaseOperator):
         agent_engine = self.hook.get_agent_engine(
             project_id=self.project_id,
             location=self.location,
-            name=self.name,
+            agent_engine_id=self.agent_engine_id,
         )
         return _serialize_agent_engine(agent_engine)
 
@@ -165,21 +165,28 @@ class QueryAgentEngineOperator(GoogleCloudBaseOperator):
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
-    :param name: Required. The Agent Engine resource name.
+    :param agent_engine_id: Required. The Agent Engine ID.
     :param config: Optional. Configuration for the query request (``class_method``, ``input``).
     :param request_timeout: Optional. Timeout in seconds for the HTTP request. Defaults to no timeout.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term credentials.
     """
 
-    template_fields = ("project_id", "location", "name", "config", "gcp_conn_id", "impersonation_chain")
+    template_fields = (
+        "project_id",
+        "location",
+        "agent_engine_id",
+        "config",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     def __init__(
         self,
         *,
         project_id: str,
         location: str,
-        name: str,
+        agent_engine_id: str,
         config: Any | None = None,
         request_timeout: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -189,7 +196,7 @@ class QueryAgentEngineOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
         self.project_id = project_id
         self.location = location
-        self.name = name
+        self.agent_engine_id = agent_engine_id
         self.config = config
         self.request_timeout = request_timeout
         self.gcp_conn_id = gcp_conn_id
@@ -206,7 +213,7 @@ class QueryAgentEngineOperator(GoogleCloudBaseOperator):
         return self.hook.query_agent_engine(
             project_id=self.project_id,
             location=self.location,
-            name=self.name,
+            agent_engine_id=self.agent_engine_id,
             config=self.config,
             request_timeout=self.request_timeout,
         )
@@ -218,7 +225,7 @@ class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
-    :param name: Required. The Agent Engine resource name.
+    :param agent_engine_id: Required. The Agent Engine ID.
     :param agent: Optional. The updated agent object to deploy.
     :param agent_engine: Optional. Deprecated alias for ``agent``.
     :param config: Required. Configuration for the Agent Engine update.
@@ -229,7 +236,7 @@ class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
     template_fields = (
         "project_id",
         "location",
-        "name",
+        "agent_engine_id",
         "agent",
         "agent_engine",
         "config",
@@ -242,7 +249,7 @@ class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
         *,
         project_id: str,
         location: str,
-        name: str,
+        agent_engine_id: str,
         config: Any,
         agent: Any | None = None,
         agent_engine: Any | None = None,
@@ -253,7 +260,7 @@ class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
         self.project_id = project_id
         self.location = location
-        self.name = name
+        self.agent_engine_id = agent_engine_id
         self.agent = agent
         self.agent_engine = agent_engine
         self.config = config
@@ -271,7 +278,7 @@ class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
         agent_engine = self.hook.update_agent_engine(
             project_id=self.project_id,
             location=self.location,
-            name=self.name,
+            agent_engine_id=self.agent_engine_id,
             agent=self.agent,
             agent_engine=self.agent_engine,
             config=self.config,
@@ -285,7 +292,7 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
-    :param name: Required. The Agent Engine resource name.
+    :param agent_engine_id: Required. The Agent Engine ID.
     :param force: Optional. Whether to delete child resources.
     :param config: Optional. Additional deletion configuration.
     :param wait_for_completion: Whether to wait until the Agent Engine no longer exists.
@@ -299,7 +306,7 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
     template_fields = (
         "project_id",
         "location",
-        "name",
+        "agent_engine_id",
         "force",
         "config",
         "gcp_conn_id",
@@ -311,7 +318,7 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
         *,
         project_id: str,
         location: str,
-        name: str,
+        agent_engine_id: str,
         force: bool | None = None,
         config: Any | None = None,
         wait_for_completion: bool = True,
@@ -325,7 +332,7 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
         self.project_id = project_id
         self.location = location
-        self.name = name
+        self.agent_engine_id = agent_engine_id
         self.force = force
         self.config = config
         self.wait_for_completion = wait_for_completion
@@ -346,7 +353,7 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
         operation = self.hook.delete_agent_engine(
             project_id=self.project_id,
             location=self.location,
-            name=self.name,
+            agent_engine_id=self.agent_engine_id,
             force=self.force,
             config=self.config,
         )
@@ -359,7 +366,7 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
                 trigger=AgentEngineDeleteTrigger(
                     project_id=self.project_id,
                     location=self.location,
-                    name=self.name,
+                    agent_engine_id=self.agent_engine_id,
                     gcp_conn_id=self.gcp_conn_id,
                     impersonation_chain=self.impersonation_chain,
                     poll_interval=self.poll_interval,
@@ -372,7 +379,7 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
         self.hook.wait_for_agent_engine_deleted(
             project_id=self.project_id,
             location=self.location,
-            name=self.name,
+            agent_engine_id=self.agent_engine_id,
             poll_interval=self.poll_interval,
             timeout=self.timeout,
         )
@@ -384,7 +391,7 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
         if event is None:
             raise RuntimeError("No event received in trigger callback")
         if event["status"] == "success":
-            self.log.info("Agent Engine %s deleted.", event["name"])
+            self.log.info("Agent Engine %s deleted.", event["agent_engine_id"])
             return operation or {}
         if event["status"] == "timeout":
             raise TimeoutError(event["message"])

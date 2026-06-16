@@ -136,7 +136,7 @@ class AgentEngineDeleteTrigger(BaseTrigger):
         self,
         project_id: str,
         location: str,
-        name: str,
+        agent_engine_id: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         poll_interval: float = 30,
@@ -145,7 +145,7 @@ class AgentEngineDeleteTrigger(BaseTrigger):
         super().__init__()
         self.project_id = project_id
         self.location = location
-        self.name = name
+        self.agent_engine_id = agent_engine_id
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.poll_interval = poll_interval
@@ -157,7 +157,7 @@ class AgentEngineDeleteTrigger(BaseTrigger):
             {
                 "project_id": self.project_id,
                 "location": self.location,
-                "name": self.name,
+                "agent_engine_id": self.agent_engine_id,
                 "gcp_conn_id": self.gcp_conn_id,
                 "impersonation_chain": self.impersonation_chain,
                 "poll_interval": self.poll_interval,
@@ -179,14 +179,14 @@ class AgentEngineDeleteTrigger(BaseTrigger):
                 deleted = await self.async_hook.is_agent_engine_deleted(
                     project_id=self.project_id,
                     location=self.location,
-                    name=self.name,
+                    agent_engine_id=self.agent_engine_id,
                 )
                 if deleted:
                     yield TriggerEvent(
                         {
                             "status": "success",
                             "message": "Agent Engine deleted",
-                            "name": self.name,
+                            "agent_engine_id": self.agent_engine_id,
                         }
                     )
                     return
@@ -195,13 +195,15 @@ class AgentEngineDeleteTrigger(BaseTrigger):
                     yield TriggerEvent(
                         {
                             "status": "timeout",
-                            "message": f"Timed out waiting for Agent Engine {self.name} to be deleted",
-                            "name": self.name,
+                            "message": (
+                                f"Timed out waiting for Agent Engine {self.agent_engine_id} to be deleted"
+                            ),
+                            "agent_engine_id": self.agent_engine_id,
                         }
                     )
                     return
 
-                self.log.info("Waiting for Agent Engine %s to be deleted.", self.name)
+                self.log.info("Waiting for Agent Engine %s to be deleted.", self.agent_engine_id)
                 await asyncio.sleep(self.poll_interval)
         except Exception as err:
             self.log.exception("Exception occurred while waiting for Agent Engine deletion.")
@@ -209,7 +211,7 @@ class AgentEngineDeleteTrigger(BaseTrigger):
                 {
                     "status": "error",
                     "message": str(err),
-                    "name": self.name,
+                    "agent_engine_id": self.agent_engine_id,
                 }
             )
 

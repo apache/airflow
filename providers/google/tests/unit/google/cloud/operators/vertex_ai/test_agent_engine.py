@@ -37,6 +37,7 @@ GCP_PROJECT = "test-project"
 GCP_LOCATION = "us-central1"
 GCP_CONN_ID = "test-conn"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
+AGENT_ENGINE_ID = "123"
 AGENT_ENGINE_NAME = "projects/test-project/locations/us-central1/reasoningEngines/123"
 CONFIG = {"display_name": "test-agent-engine"}
 QUERY_CONFIG = {"class_method": "query", "input": {"prompt": "hello"}}
@@ -104,7 +105,7 @@ class TestGetAgentEngineOperator:
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -114,7 +115,7 @@ class TestGetAgentEngineOperator:
         mock_hook.return_value.get_agent_engine.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
         )
         assert result == {"name": AGENT_ENGINE_NAME}
 
@@ -127,7 +128,7 @@ class TestQueryAgentEngineOperator:
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
             config=QUERY_CONFIG,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -138,7 +139,7 @@ class TestQueryAgentEngineOperator:
         mock_hook.return_value.query_agent_engine.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
             config=QUERY_CONFIG,
             request_timeout=None,
         )
@@ -155,7 +156,7 @@ class TestUpdateAgentEngineOperator:
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
             config=CONFIG,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -166,7 +167,7 @@ class TestUpdateAgentEngineOperator:
         mock_hook.return_value.update_agent_engine.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
             agent=None,
             agent_engine=None,
             config=CONFIG,
@@ -183,7 +184,7 @@ class TestUpdateAgentEngineOperator:
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
             agent_engine=agent_engine,
             config=CONFIG,
             gcp_conn_id=GCP_CONN_ID,
@@ -195,7 +196,7 @@ class TestUpdateAgentEngineOperator:
         mock_hook.return_value.update_agent_engine.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
             agent=None,
             agent_engine=agent_engine,
             config=CONFIG,
@@ -211,7 +212,7 @@ class TestDeleteAgentEngineOperator:
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
             force=True,
             config=CONFIG,
             wait_for_completion=False,
@@ -224,7 +225,7 @@ class TestDeleteAgentEngineOperator:
         mock_hook.return_value.delete_agent_engine.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
             force=True,
             config=CONFIG,
         )
@@ -238,7 +239,7 @@ class TestDeleteAgentEngineOperator:
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
             wait_for_completion=True,
             poll_interval=1,
             timeout=60,
@@ -251,7 +252,7 @@ class TestDeleteAgentEngineOperator:
         mock_hook.return_value.wait_for_agent_engine_deleted.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
             poll_interval=1,
             timeout=60,
         )
@@ -265,7 +266,7 @@ class TestDeleteAgentEngineOperator:
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
             wait_for_completion=True,
             poll_interval=1,
             timeout=60,
@@ -280,7 +281,7 @@ class TestDeleteAgentEngineOperator:
         mock_trigger.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
             poll_interval=1,
@@ -293,12 +294,16 @@ class TestDeleteAgentEngineOperator:
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
         )
 
         result = op.execute_complete(
             context=context,
-            event={"status": "success", "message": "Agent Engine deleted", "name": AGENT_ENGINE_NAME},
+            event={
+                "status": "success",
+                "message": "Agent Engine deleted",
+                "agent_engine_id": AGENT_ENGINE_ID,
+            },
             operation=OPERATION,
         )
 
@@ -309,7 +314,7 @@ class TestDeleteAgentEngineOperator:
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
         )
 
         with pytest.raises(RuntimeError, match="boom"):
@@ -320,13 +325,13 @@ class TestDeleteAgentEngineOperator:
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
         )
 
         with pytest.raises(TimeoutError, match="timed out"):
             op.execute_complete(
                 context=context,
-                event={"status": "timeout", "message": "timed out", "name": AGENT_ENGINE_NAME},
+                event={"status": "timeout", "message": "timed out", "agent_engine_id": AGENT_ENGINE_ID},
             )
 
     def test_execute_complete_without_event(self, context):
@@ -334,7 +339,7 @@ class TestDeleteAgentEngineOperator:
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
         )
 
         with pytest.raises(RuntimeError, match="No event received in trigger callback"):

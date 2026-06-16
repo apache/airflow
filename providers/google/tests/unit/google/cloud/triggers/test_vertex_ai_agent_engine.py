@@ -28,7 +28,7 @@ GCP_PROJECT = "test-project"
 GCP_LOCATION = "us-central1"
 GCP_CONN_ID = "test-conn"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
-AGENT_ENGINE_NAME = "projects/test-project/locations/us-central1/reasoningEngines/123"
+AGENT_ENGINE_ID = "123"
 
 
 @pytest.fixture
@@ -36,7 +36,7 @@ def delete_trigger():
     return AgentEngineDeleteTrigger(
         project_id=GCP_PROJECT,
         location=GCP_LOCATION,
-        name=AGENT_ENGINE_NAME,
+        agent_engine_id=AGENT_ENGINE_ID,
         gcp_conn_id=GCP_CONN_ID,
         impersonation_chain=IMPERSONATION_CHAIN,
         poll_interval=1,
@@ -51,7 +51,7 @@ class TestAgentEngineDeleteTrigger:
             {
                 "project_id": GCP_PROJECT,
                 "location": GCP_LOCATION,
-                "name": AGENT_ENGINE_NAME,
+                "agent_engine_id": AGENT_ENGINE_ID,
                 "gcp_conn_id": GCP_CONN_ID,
                 "impersonation_chain": IMPERSONATION_CHAIN,
                 "poll_interval": 1,
@@ -69,13 +69,13 @@ class TestAgentEngineDeleteTrigger:
         mock_hook.return_value.is_agent_engine_deleted.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            name=AGENT_ENGINE_NAME,
+            agent_engine_id=AGENT_ENGINE_ID,
         )
         assert event == TriggerEvent(
             {
                 "status": "success",
                 "message": "Agent Engine deleted",
-                "name": AGENT_ENGINE_NAME,
+                "agent_engine_id": AGENT_ENGINE_ID,
             }
         )
 
@@ -92,8 +92,8 @@ class TestAgentEngineDeleteTrigger:
         assert event == TriggerEvent(
             {
                 "status": "timeout",
-                "message": f"Timed out waiting for Agent Engine {AGENT_ENGINE_NAME} to be deleted",
-                "name": AGENT_ENGINE_NAME,
+                "message": f"Timed out waiting for Agent Engine {AGENT_ENGINE_ID} to be deleted",
+                "agent_engine_id": AGENT_ENGINE_ID,
             }
         )
 
@@ -108,6 +108,6 @@ class TestAgentEngineDeleteTrigger:
             {
                 "status": "error",
                 "message": "boom",
-                "name": AGENT_ENGINE_NAME,
+                "agent_engine_id": AGENT_ENGINE_ID,
             }
         )
