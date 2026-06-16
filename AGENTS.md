@@ -168,6 +168,15 @@ Write commit messages focused on user impact, not implementation details.
 - **Good:** `UI: Fix Grid view not refreshing after task actions`
 - **Bad:** `Initialize Dag bundles in CLI get_dag function`
 
+Use the **imperative mood** and a plain message — do **not** use Conventional Commits prefixes
+(`fix:`, `feat:`, `chore:`, `docs:`, `refactor:`, …). apache/airflow does not follow that
+convention. (Area tags the project already uses, like `UI:` / `API:` / `Helm:`, are fine;
+Conventional-Commit `type:` tokens are not.) The same rule applies to PR titles.
+
+The commit message **body** should describe **why** the change is made — the motivation and
+context — and **never what** the change is. The diff already shows what changed; restating it in
+prose adds noise.
+
 For `airflow-core` (and `chart/`, `dev/mypy/`) **user-facing** changes, add a newsfragment in that distribution's `newsfragments/` directory. **Golden rule: only add a newsfragment when you are certain the change is visible to users; when in doubt, do not add one** — a maintainer will request one in review if it is needed. Build/release tooling, CI, packaging, internal refactors, and dev-only scripts are not user-facing and must not get a newsfragment:
 `echo "Brief description" > airflow-core/newsfragments/{PR_NUMBER}.{bugfix|feature|improvement|doc|misc|significant}.rst`
 
@@ -313,7 +322,7 @@ pre-fills the PR template with the generative AI disclosure already completed.
 
 Remind the user to:
 
-1. Review the PR title — keep it short (under 70 chars) and focused on user impact.
+1. Review the PR title — keep it short (under 70 chars), in the imperative mood, and focused on user impact. Do not use Conventional Commits prefixes (`fix:`, `feat:`, `chore:`, …).
 2. Add a brief description of the changes at the top of the body.
 3. Reference related issues when applicable (`closes: #ISSUE` or `related: #ISSUE`).
 

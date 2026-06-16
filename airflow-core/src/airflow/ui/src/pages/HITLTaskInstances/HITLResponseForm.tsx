@@ -34,6 +34,8 @@ type HITLResponseFormProps = {
   readonly hitlDetail: {
     task_instance: TaskInstanceHistoryResponse;
   } & Omit<HITLDetailHistory, "task_instance">;
+  readonly namespace?: string;
+  readonly onResponded?: () => void;
 };
 
 const isHighlightOption = (
@@ -54,11 +56,11 @@ const isHighlightOption = (
   return isSelected ?? isDefault ?? !Boolean(hitlDetail.defaults);
 };
 
-export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
+export const HITLResponseForm = ({ hitlDetail, namespace = "hitl", onResponded }: HITLResponseFormProps) => {
   const { t: translate } = useTranslation("hitl");
   const [errors, setErrors] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const { paramsDict } = useParamStore("hitl");
+  const { paramsDict } = useParamStore(namespace);
   const [searchParams] = useSearchParams();
   const { preloadedHITLOptions } = getPreloadHITLFormData(searchParams, hitlDetail);
 
@@ -76,6 +78,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
     dagId: hitlDetail.task_instance.dag_id,
     dagRunId: hitlDetail.task_instance.dag_run_id,
     mapIndex: hitlDetail.task_instance.map_index,
+    onSuccess: onResponded,
     taskId: hitlDetail.task_instance.task_id,
   });
 
@@ -118,7 +121,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
           }}
           isHITL
           key={hitlDetail.subject}
-          namespace="hitl"
+          namespace={namespace}
           noAccordion
           setError={setErrors}
         />

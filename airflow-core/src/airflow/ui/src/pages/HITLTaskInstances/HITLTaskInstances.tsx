@@ -16,10 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { VStack } from "@chakra-ui/react";
+import { HStack, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
+import type { ReactNode } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { LuPanelRightOpen } from "react-icons/lu";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
@@ -27,10 +30,11 @@ import type { HITLDetail } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { HITLReviewDrawer } from "src/components/HITLReview/HITLReviewDrawer.tsx";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { RouterLink } from "src/components/ui";
+import { IconButton, RouterLink } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useAutoRefresh } from "src/utils";
@@ -54,13 +58,50 @@ const {
   TASK_ID_PATTERN,
 }: SearchParamsKeysType = SearchParamsKeys;
 
+const HITLReviewDrawerButton = ({
+  detail,
+  onOpen,
+}: {
+  readonly detail: HITLDetail;
+  readonly onOpen: (detail: HITLDetail) => void;
+}) => {
+  const { t: translate } = useTranslation("hitl");
+
+  return (
+    <IconButton label={translate("review.openReviewDrawer")} onClick={() => onOpen(detail)}>
+      <LuPanelRightOpen />
+    </IconButton>
+  );
+};
+
+const useHITLReviewDrawer = () => {
+  const [selectedDetail, setSelectedDetail] = useState<HITLDetail | undefined>(undefined);
+
+  const openHITLReviewDrawer = (detail: HITLDetail) => {
+    setSelectedDetail(detail);
+  };
+
+  const closeHITLReviewDrawer = () => {
+    setSelectedDetail(undefined);
+  };
+
+  return {
+    closeHITLReviewDrawer,
+    isHITLReviewDrawerOpen: selectedDetail !== undefined,
+    openHITLReviewDrawer,
+    selectedDetail,
+  };
+};
+
 const taskInstanceColumns = ({
   dagId,
+  renderHITLReviewDrawerButton,
   runId,
   taskId,
   translate,
 }: {
   dagId?: string;
+  renderHITLReviewDrawerButton?: (detail: HITLDetail) => ReactNode;
   runId?: string;
   taskId?: string;
   translate: TFunction;
@@ -68,14 +109,21 @@ const taskInstanceColumns = ({
   {
     accessorKey: "task_instance_state",
     cell: ({ row: { original } }: HITLRow) => (
-      <StateBadge state={original.task_instance.state}>{getHITLState(translate, original)}</StateBadge>
+      <HStack justifyContent="space-between">
+        <StateBadge state={original.task_instance.state}>{getHITLState(translate, original)}</StateBadge>
+        {renderHITLReviewDrawerButton?.(original)}
+      </HStack>
     ),
     header: translate("requiredActionState"),
   },
   {
     accessorKey: "subject",
     cell: ({ row: { original } }: HITLRow) => (
-      <RouterLink fontWeight="bold" to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}>
+      <RouterLink
+        fontWeight="bold"
+        onClick={(event) => event.stopPropagation()}
+        to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}
+      >
         <TruncatedText text={original.subject} />
       </RouterLink>
     ),
@@ -87,7 +135,10 @@ const taskInstanceColumns = ({
         {
           accessorKey: "task_instance.dag_id",
           cell: ({ row: { original } }: HITLRow) => (
-            <RouterLink to={`/dags/${original.task_instance.dag_id}`}>
+            <RouterLink
+              onClick={(event) => event.stopPropagation()}
+              to={`/dags/${original.task_instance.dag_id}`}
+            >
               <TruncatedText text={original.task_instance.dag_display_name} />
             </RouterLink>
           ),
@@ -102,6 +153,7 @@ const taskInstanceColumns = ({
           accessorKey: "run_id",
           cell: ({ row: { original } }: HITLRow) => (
             <RouterLink
+              onClick={(event) => event.stopPropagation()}
               to={`/dags/${original.task_instance.dag_id}/runs/${original.task_instance.dag_run_id}`}
             >
               <TruncatedText text={original.task_instance.dag_run_id} />
@@ -127,6 +179,7 @@ const taskInstanceColumns = ({
           cell: ({ row: { original } }: HITLRow) => (
             <RouterLink
               fontWeight="bold"
+              onClick={(event) => event.stopPropagation()}
               to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}
             >
               <TruncatedText text={original.task_instance.task_display_name} />
@@ -162,9 +215,15 @@ const taskInstanceColumns = ({
   },
 ];
 
-export const HITLTaskInstances = () => {
+export const HITLTaskInstances = ({
+  enableHITLReviewDrawer = false,
+}: {
+  readonly enableHITLReviewDrawer?: boolean;
+}) => {
   const { t: translate } = useTranslation("hitl");
   const { dagId, runId, taskId } = useParams();
+  const { closeHITLReviewDrawer, isHITLReviewDrawerOpen, openHITLReviewDrawer, selectedDetail } =
+    useHITLReviewDrawer();
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -248,6 +307,9 @@ export const HITLTaskInstances = () => {
 
   const columns = taskInstanceColumns({
     dagId,
+    renderHITLReviewDrawerButton: enableHITLReviewDrawer
+      ? (detail) => <HITLReviewDrawerButton detail={detail} onOpen={openHITLReviewDrawer} />
+      : undefined,
     runId,
     taskId,
     translate,
@@ -266,6 +328,13 @@ export const HITLTaskInstances = () => {
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />
+      {enableHITLReviewDrawer ? (
+        <HITLReviewDrawer
+          detail={selectedDetail}
+          onClose={closeHITLReviewDrawer}
+          open={isHITLReviewDrawerOpen}
+        />
+      ) : null}
     </VStack>
   );
 };
