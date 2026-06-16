@@ -19,6 +19,7 @@
 import { Button, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuUserRoundPen } from "react-icons/lu";
+import { Link } from "react-router-dom";
 
 import type { HITLDetail } from "openapi/requests/types.gen";
 import { HITLReviewModal } from "src/components/HITLReview/HITLReviewModal.tsx";
@@ -48,6 +49,13 @@ export const NeedsReviewBadge = ({ pendingActions }: Props) => {
         </Button>
       </Tooltip>
       <HITLReviewModal
+        headerAction={
+          <Button asChild size="sm" variant="outline">
+            <Link onClick={onClose} to="/required_actions?response_received=false">
+              {translate("review.viewAll")}
+            </Link>
+          </Button>
+        }
         onClose={onClose}
         open={open}
         pendingHitl={{ data: pendingActions, isError: false, isLoading: false }}

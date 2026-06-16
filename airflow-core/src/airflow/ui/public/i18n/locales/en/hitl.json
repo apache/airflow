@@ -35,6 +35,7 @@
       "pendingRequiredActions": "Pending required actions ({{count}})"
     },
     "openReviewDrawer": "Open Review Drawer",
+    "pageLimitHint": "Only the first few of actions are shown here. Use \"$t(review.viewAll)\" to see all of them.",
     "viewAll": "View all required actions"
   },
   "state": {

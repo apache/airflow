@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, VStack } from "@chakra-ui/react";
+import { Box, HStack, Icon, VStack } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FiInfo } from "react-icons/fi";
 
 import type { HITLDetail } from "openapi/requests/types.gen.ts";
 import { HITLReviewDetail } from "src/components/HITLReview/HITLReviewDetail.tsx";
+import { Tooltip } from "src/components/ui";
 import { ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import { Dialog } from "src/components/ui/Dialog";
 
@@ -90,7 +92,14 @@ export const HITLReviewModal = ({
       <Dialog.Content maxW="1440px" p={4}>
         <Dialog.Header>
           <HStack justifyContent="space-between" overflowX="auto" width="100%">
-            <Dialog.Title flexShrink={0}>{translate("requiredAction_other")}</Dialog.Title>
+            <HStack flexShrink={0} gap={1}>
+              <Dialog.Title>{translate("requiredAction_other")}</Dialog.Title>
+              <Tooltip content={translate("review.pageLimitHint")}>
+                <Icon color="fg.muted">
+                  <FiInfo />
+                </Icon>
+              </Tooltip>
+            </HStack>
             <HStack gap={3}>
               {headerAction}
               {shouldShowCompletedHitl ? (
