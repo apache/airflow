@@ -200,12 +200,20 @@ class DagRunWaiter:
             return await session.scalar(select(DagRun).filter_by(dag_id=self.dag_id, run_id=self.run_id))
 
     async def _serialize_xcoms(self) -> dict[str, Any]:
-        xcom_query = XComModel.get_many(
-            run_id=self.run_id,
-            key=XCOM_RETURN_KEY,
-            task_ids=self.result_task_ids,
-            dag_ids=self.dag_id,
-        )
+        if self.result_task_ids is None:  # Return dag-author-specified results.
+            xcom_query = XComModel.get_many(
+                run_id=self.run_id,
+                key=XCOM_RETURN_KEY,
+                dag_ids=self.dag_id,
+            )
+            xcom_query = xcom_query.where(XComModel.dag_result.is_(True))
+        else:  # Explicitly API user-specified results.
+            xcom_query = XComModel.get_many(
+                run_id=self.run_id,
+                key=XCOM_RETURN_KEY,
+                task_ids=self.result_task_ids,
+                dag_ids=self.dag_id,
+            )
         async with create_session_async() as session:
             xcom_results = (
                 await session.scalars(xcom_query.order_by(XComModel.task_id, XComModel.map_index))
@@ -226,8 +234,9 @@ class DagRunWaiter:
         resp = {"state": dag_run.state}
         if dag_run.state not in State.finished_dr_states:
             return json.dumps(resp)
-        if self.result_task_ids:
-            resp["results"] = await self._serialize_xcoms()
+        if self.result_task_ids is None or self.result_task_ids:
+            if result_xcoms := await self._serialize_xcoms():
+                resp["results"] = result_xcoms
         return json.dumps(resp)
 
     async def wait(self) -> AsyncGenerator[str, None]:

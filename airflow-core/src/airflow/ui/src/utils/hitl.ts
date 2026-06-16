@@ -76,7 +76,7 @@ export const getHITLParamsDict = (
   searchParams: URLSearchParams,
 ): ParamsSpec => {
   const paramsDict: ParamsSpec = {};
-  const { preloadedHITLOptions, preloadedHITLParams } = getPreloadHITLFormData(searchParams, hitlDetail);
+  const { preloadedHITLOptions } = getPreloadHITLFormData(searchParams, hitlDetail);
   const isApprovalTask =
     hitlDetail.options.includes("Approve") &&
     hitlDetail.options.includes("Reject") &&
@@ -120,7 +120,7 @@ export const getHITLParamsDict = (
       const paramData = hitlDetail.params[key] as ParamsSpec | undefined;
 
       // Check if there's a preloaded value from URL params
-      let finalValue = preloadedHITLParams[key] ?? value;
+      let finalValue = hitlDetail.params_input?.[key] ?? paramData?.value ?? value;
 
       // If preloaded value is a string that might be JSON, try to parse it
       if (typeof finalValue === "string" && finalValue.trim().startsWith("{")) {
@@ -170,7 +170,7 @@ export const getHITLParamsDict = (
       paramsDict[key] = {
         description,
         schema,
-        value: paramData?.value ?? finalValue,
+        value: finalValue ?? paramData?.value,
       };
     });
   }

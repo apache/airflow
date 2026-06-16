@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow_shared.state import AssetScope, BaseStoreBackend, StoreScope
+from airflow_shared.state import AssetScope, BaseStoreBackend, StoreScope, TaskScope
 
 
 class TestAssetScope:
@@ -86,25 +86,27 @@ class TestBaseStoreBackend:
         expected = {"get", "set", "delete", "clear", "aget", "aset", "adelete", "aclear"}
         assert BaseStoreBackend.__abstractmethods__ == expected
 
-    def test_task_store_serialize_deserialize_round_trip(self, backend):
+    def test_task_state_store_serialize_deserialize_round_trip(self, backend):
         original = "app_1234"
-        serialized = backend.serialize_task_store_to_ref(value=original, key="job_id", ti_id="abc-123")
-        deserialized = backend.deserialize_task_store_from_ref(serialized)
+        scope = TaskScope(dag_id="d", run_id="r", task_id="t", map_index=-1)
+        serialized = backend.serialize_task_state_store_to_ref(value=original, key="job_id", scope=scope)
+        deserialized = backend.deserialize_task_state_store_from_ref(serialized)
         assert deserialized == original
 
-    def test_task_store_serialize_deserialize_typed_values(self, backend):
+    def test_task_state_store_serialize_deserialize_typed_values(self, backend):
         """Default backend passes typed values through unchanged (custom backends handle storage)."""
+        scope = TaskScope(dag_id="d", run_id="r", task_id="t", map_index=-1)
         assert (
-            backend.deserialize_task_store_from_ref(
-                backend.serialize_task_store_to_ref(value=42, key="count", ti_id="abc-123")
+            backend.deserialize_task_state_store_from_ref(
+                backend.serialize_task_state_store_to_ref(value=42, key="count", scope=scope)
             )
             == 42
         )
-        assert backend.deserialize_task_store_from_ref(
-            backend.serialize_task_store_to_ref(value={"status": "ok"}, key="result", ti_id="abc-123")
+        assert backend.deserialize_task_state_store_from_ref(
+            backend.serialize_task_state_store_to_ref(value={"status": "ok"}, key="result", scope=scope)
         ) == {"status": "ok"}
 
-    def test_custom_backend_overrides_task_store_ser_deser(self):
+    def test_custom_backend_overrides_task_state_store_ser_deser(self):
         class MyBackend(BaseStoreBackend):
             def get(self, scope, key): ...
             def set(self, scope, key, value): ...
@@ -115,41 +117,44 @@ class TestBaseStoreBackend:
             async def adelete(self, scope, key): ...
             async def aclear(self, scope, *, all_map_indices=False): ...
 
-            def serialize_task_store_to_ref(self, *, value, key, ti_id):
-                return f"s3://bucket/{ti_id}/{key}"
+            def serialize_task_state_store_to_ref(self, *, value, key, scope: TaskScope):
+                return f"s3://bucket/{scope.dag_id}/{scope.task_id}/{key}"
 
-            def deserialize_task_store_from_ref(self, stored):
+            def deserialize_task_state_store_from_ref(self, stored):
                 return f"fetched:{stored}"
 
         b = MyBackend()
-        assert b.serialize_task_store_to_ref(value="app_1234", key="job_id", ti_id="abc-123") == (
-            "s3://bucket/abc-123/job_id"
+        scope = TaskScope(dag_id="my_dag", run_id="r", task_id="my_task", map_index=-1)
+        assert b.serialize_task_state_store_to_ref(value="app_1234", key="job_id", scope=scope) == (
+            "s3://bucket/my_dag/my_task/job_id"
         )
         assert (
-            b.deserialize_task_store_from_ref("s3://bucket/abc-123/job_id")
-            == "fetched:s3://bucket/abc-123/job_id"
+            b.deserialize_task_state_store_from_ref("s3://bucket/my_dag/my_task/job_id")
+            == "fetched:s3://bucket/my_dag/my_task/job_id"
         )
 
-    def test_asset_store_serialize_deserialize_round_trip(self, backend):
+    def test_asset_state_store_serialize_deserialize_round_trip(self, backend):
         original = "2026-05-01"
-        serialized = backend.serialize_asset_store_to_ref(
-            value="2026-05-01", key="watermark", asset_ref="my_asset"
+        scope = AssetScope(name="my_asset")
+        serialized = backend.serialize_asset_state_store_to_ref(
+            value="2026-05-01", key="watermark", scope=scope
         )
-        deserialized = backend.deserialize_asset_store_from_ref(serialized)
+        deserialized = backend.deserialize_asset_state_store_from_ref(serialized)
         assert deserialized == original
 
-    def test_asset_store_serialize_deserialize_typed_values(self, backend):
+    def test_asset_state_store_serialize_deserialize_typed_values(self, backend):
+        scope = AssetScope(name="my_asset")
         assert (
-            backend.deserialize_asset_store_from_ref(
-                backend.serialize_asset_store_to_ref(value=5, key="total_runs", asset_ref="my_asset")
+            backend.deserialize_asset_state_store_from_ref(
+                backend.serialize_asset_state_store_to_ref(value=5, key="total_runs", scope=scope)
             )
             == 5
         )
-        assert backend.deserialize_asset_store_from_ref(
-            backend.serialize_asset_store_to_ref(value={"rows": 1234}, key="last_run", asset_ref="my_asset")
+        assert backend.deserialize_asset_state_store_from_ref(
+            backend.serialize_asset_state_store_to_ref(value={"rows": 1234}, key="last_run", scope=scope)
         ) == {"rows": 1234}
 
-    def test_custom_backend_overrides_asset_store_ser_deser(self):
+    def test_custom_backend_overrides_asset_state_store_ser_deser(self):
         class MyBackend(BaseStoreBackend):
             def get(self, scope, key): ...
             def set(self, scope, key, value): ...
@@ -160,17 +165,18 @@ class TestBaseStoreBackend:
             async def adelete(self, scope, key): ...
             async def aclear(self, scope, *, all_map_indices=False): ...
 
-            def serialize_asset_store_to_ref(self, *, value, key, asset_ref):
-                return f"s3://bucket/assets/{asset_ref}/{key}"
+            def serialize_asset_state_store_to_ref(self, *, value, key, scope: AssetScope):
+                return f"s3://bucket/assets/{scope.name}/{key}"
 
-            def deserialize_asset_store_from_ref(self, stored):
+            def deserialize_asset_state_store_from_ref(self, stored):
                 return f"resolved:{stored}"
 
         b = MyBackend()
-        assert b.serialize_asset_store_to_ref(value="2026-05-01", key="watermark", asset_ref="my_asset") == (
+        scope = AssetScope(name="my_asset")
+        assert b.serialize_asset_state_store_to_ref(value="2026-05-01", key="watermark", scope=scope) == (
             "s3://bucket/assets/my_asset/watermark"
         )
         assert (
-            b.deserialize_asset_store_from_ref("s3://bucket/assets/my_asset/watermark")
+            b.deserialize_asset_state_store_from_ref("s3://bucket/assets/my_asset/watermark")
             == "resolved:s3://bucket/assets/my_asset/watermark"
         )
