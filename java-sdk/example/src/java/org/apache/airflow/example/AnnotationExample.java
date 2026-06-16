@@ -19,11 +19,10 @@
 
 package org.apache.airflow.example;
 
+import java.util.Date;
 import org.apache.airflow.sdk.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Date;
 
 @SuppressWarnings("DuplicatedCode")
 @Builder.Dag(id = "java_annotation_example")
@@ -60,9 +59,17 @@ public class AnnotationExample {
     return new Date().getTime();
   }
 
+  // load fails on its first attempt and succeeds on the retry. With retries
+  // configured on the stub task, the first failure makes the supervisor mark
+  // the task UP_FOR_RETRY -- which only works because the Java SDK now returns
+  // RetryTask (instead of a terminal FAILED) when ti_context.should_retry is
+  // set. The retry then runs this task again and it returns normally.
   @Builder.Task
-  public void load(@Builder.XCom(task = "transform") long transformed) {
+  public void load(Context context, @Builder.XCom(task = "transform") long transformed) {
     logger.info("Got XCom from 'transform' {}", transformed);
-    throw new RuntimeException("I failed");
+    if (context.ti.tryNumber == 1) {
+      throw new RuntimeException("I failed");
+    }
+    logger.info("Recovered on retry, try number {}", context.ti.tryNumber);
   }
 }

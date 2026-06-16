@@ -471,3 +471,67 @@ class TestFabAirflowSecurityManagerOverride:
             assert user_info["username"] == "user-123"
             assert user_info["email"] == "jane.smith@example.com"
             assert user_info["role_keys"] == ["admin-group", "viewer-group"]
+
+
+def test_ldap_search_escapes_username_and_validates_filter():
+    """Test that LDAP search properly escapes username and validates search filter."""
+    mock_ldap = Mock()
+    mock_ldap.SCOPE_SUBTREE = 2
+
+    def escape_chars(text):
+        # Escape backslash first, then special chars
+        result = text.replace("\\", "\\5c")
+        result = result.replace("*", "\\2a")
+        result = result.replace("(", "\\28")
+        result = result.replace(")", "\\29")
+        return result
+
+    mock_ldap.filter.escape_filter_chars = escape_chars
+    mock_con = Mock()
+    mock_con.search_s = Mock(return_value=[("cn=test,dc=example,dc=com", {})])
+
+    sm = EmptySecurityManager()
+    with (
+        mock.patch.object(
+            type(sm), "auth_ldap_search", new_callable=mock.PropertyMock, return_value="dc=example,dc=com"
+        ),
+        mock.patch.object(
+            type(sm),
+            "auth_ldap_search_filter",
+            new_callable=mock.PropertyMock,
+            return_value="(objectClass=person)",
+        ),
+        mock.patch.object(
+            type(sm), "auth_ldap_uid_field", new_callable=mock.PropertyMock, return_value="uid"
+        ),
+        mock.patch.object(
+            type(sm), "auth_ldap_firstname_field", new_callable=mock.PropertyMock, return_value="givenName"
+        ),
+        mock.patch.object(
+            type(sm), "auth_ldap_lastname_field", new_callable=mock.PropertyMock, return_value="sn"
+        ),
+        mock.patch.object(
+            type(sm), "auth_ldap_email_field", new_callable=mock.PropertyMock, return_value="mail"
+        ),
+        mock.patch.object(type(sm), "auth_roles_mapping", new_callable=mock.PropertyMock, return_value=None),
+        mock.patch.object(
+            type(sm),
+            "auth_ldap_use_nested_groups_for_roles",
+            new_callable=mock.PropertyMock,
+            return_value=False,
+        ),
+    ):
+        # Test with special characters in username - should be escaped
+        sm._search_ldap(mock_ldap, mock_con, "test*user")
+
+        # Verify the filter was constructed with escaped username
+        call_args = mock_con.search_s.call_args
+        actual_filter = call_args[0][2]
+        assert "test\\2auser" in actual_filter  # * should be escaped
+
+        # Test that invalid filter raises ValueError
+        with mock.patch.object(
+            type(sm), "auth_ldap_search_filter", new_callable=mock.PropertyMock, return_value="invalid"
+        ):
+            with pytest.raises(ValueError, match="AUTH_LDAP_SEARCH_FILTER"):
+                sm._search_ldap(mock_ldap, mock_con, "testuser")

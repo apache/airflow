@@ -199,6 +199,27 @@ class C:
         return None
 
 
+class NestedLeaf(BaseModel):
+    value: int
+
+
+class NestedMid(BaseModel):
+    leaves: list[NestedLeaf]
+
+
+class NestedRoot(BaseModel):
+    mid: NestedMid
+    maybe: NestedLeaf | None
+
+
+class SelfRefNode(BaseModel):
+    name: str
+    children: list[SelfRefNode] = []
+
+
+SelfRefNode.model_rebuild()
+
+
 @pytest.mark.usefixtures("recalculate_patterns")
 class TestSerDe:
     def test_ser_primitives(self):
@@ -474,6 +495,16 @@ class TestSerDe:
         # Non-model annotations yield nothing.
         assert set(iter_pydantic_models(str)) == set()
         assert set(iter_pydantic_models(list[int])) == set()
+
+    def test_iter_pydantic_models_recurses_into_fields(self):
+        """Models nested inside a model's fields are yielded, not just the top-level type."""
+        assert set(iter_pydantic_models(NestedRoot)) == {NestedRoot, NestedMid, NestedLeaf}
+        # Holds when the declared type is a container of the root model.
+        assert set(iter_pydantic_models(list[NestedRoot])) == {NestedRoot, NestedMid, NestedLeaf}
+
+    def test_iter_pydantic_models_terminates_on_self_reference(self):
+        """A self-referential model must not loop forever."""
+        assert set(iter_pydantic_models(SelfRefNode)) == {SelfRefNode}
 
     def test_incompatible_version(self):
         data = dict(

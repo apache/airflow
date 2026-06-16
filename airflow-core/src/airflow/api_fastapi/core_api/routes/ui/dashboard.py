@@ -63,9 +63,10 @@ def historical_metrics(
     current_time = timezone.utcnow()
     permitted_dag_ids = cast("set[str]", readable_dags_filter.value)
 
+    end_bound = end_date if end_date is not None else current_time
     dag_run_filters = [
-        func.coalesce(DagRun.start_date, current_time) >= start_date,
-        func.coalesce(DagRun.end_date, current_time) <= func.coalesce(end_date, current_time),
+        DagRun.run_after >= start_date,
+        DagRun.run_after <= end_bound,
         DagRun.dag_id.in_(permitted_dag_ids),
     ]
 
@@ -127,13 +128,6 @@ def dag_stats(
 ) -> DashboardDagStatsResponse:
     """Return basic Dag stats with counts of Dags in various states."""
     permitted_dag_ids = cast("set[str]", readable_dags_filter.value)
-    latest_dates_subq = (
-        select(DagRun.dag_id, func.max(DagRun.logical_date).label("max_logical_date"))
-        .where(DagRun.logical_date.is_not(None))
-        .where(DagRun.dag_id.in_(permitted_dag_ids))
-        .group_by(DagRun.dag_id)
-        .subquery()
-    )
 
     # Active Dags need another query from DagModel, as a Dag may not have any runs but still be active
     active_count_query = (
@@ -145,30 +139,28 @@ def dag_stats(
     )
     active_count = session.execute(active_count_query).scalar_one()
 
-    # Other metrics are based on latest DagRun states
-    latest_runs_cte = (
-        select(
-            DagModel.dag_id,
-            DagModel.is_paused,
-            DagRun.state,
-        )
-        .join(DagModel, DagRun.dag_id == DagModel.dag_id)
-        .join(
-            latest_dates_subq,
-            (DagRun.dag_id == latest_dates_subq.c.dag_id)
-            & (DagRun.logical_date == latest_dates_subq.c.max_logical_date),
-        )
+    latest_state = (
+        select(DagRun.state)
+        .where(DagRun.dag_id == DagModel.dag_id, DagRun.logical_date.is_not(None))
+        .order_by(DagRun.logical_date.desc())
+        .limit(1)
+        .correlate(DagModel)
+        .scalar_subquery()
+    )
+    latest_runs_subq = (
+        select(latest_state.label("state"))
+        .select_from(DagModel)
         .where(DagModel.is_stale == false())
-        .where(DagRun.dag_id.in_(permitted_dag_ids))
-        .cte()
+        .where(DagModel.dag_id.in_(permitted_dag_ids))
+        .subquery()
     )
     combined_runs_query = select(
-        func.coalesce(func.sum(case((latest_runs_cte.c.state == DagRunState.FAILED, 1))), 0).label("failed"),
-        func.coalesce(func.sum(case((latest_runs_cte.c.state == DagRunState.RUNNING, 1))), 0).label(
+        func.coalesce(func.sum(case((latest_runs_subq.c.state == DagRunState.FAILED, 1))), 0).label("failed"),
+        func.coalesce(func.sum(case((latest_runs_subq.c.state == DagRunState.RUNNING, 1))), 0).label(
             "running"
         ),
-        func.coalesce(func.sum(case((latest_runs_cte.c.state == DagRunState.QUEUED, 1))), 0).label("queued"),
-    ).select_from(latest_runs_cte)
+        func.coalesce(func.sum(case((latest_runs_subq.c.state == DagRunState.QUEUED, 1))), 0).label("queued"),
+    ).select_from(latest_runs_subq)
 
     counts = session.execute(combined_runs_query).one()
 

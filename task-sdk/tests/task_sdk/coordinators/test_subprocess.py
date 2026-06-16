@@ -18,27 +18,32 @@
 from __future__ import annotations
 
 import contextlib
+import os
 import socket
 import subprocess
+import sys
 import threading
 import time
 from unittest.mock import ANY, MagicMock, call, patch
 
 import attrs
+import psutil
 import pytest
 from uuid6 import uuid7
 
 from airflow.sdk.api.client import Client, TaskInstanceOperations
+from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.coordinators._subprocess import (
     SubprocessCoordinator,
     _accept_connections,
+    _connection_owned_by_process_tree,
+    _is_connection_from_process,
     _PopenActivitySubprocess,
     _ResourceTracker,
     _start_server,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
-from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
@@ -46,8 +51,8 @@ if not AIRFLOW_V_3_3_PLUS:
     pytest.skip("Coordinator is only compatible with Airflow >= 3.3.0", allow_module_level=True)
 
 
-def _make_ti(dag_id: str = "tutorial_dag", queue: str = "socket") -> TaskInstanceDTO:
-    return TaskInstanceDTO(
+def _make_ti(dag_id: str = "tutorial_dag", queue: str = "socket") -> TaskInstance:
+    return TaskInstance(
         id=uuid7(),
         dag_version_id=uuid7(),
         task_id="task_1",
@@ -55,9 +60,7 @@ def _make_ti(dag_id: str = "tutorial_dag", queue: str = "socket") -> TaskInstanc
         run_id="run_1",
         try_number=1,
         map_index=-1,
-        pool_slots=1,
         queue=queue,
-        priority_weight=1,
     )
 
 
@@ -102,6 +105,14 @@ class TestStartServer:
 
 
 class TestAcceptConnections:
+    @pytest.fixture(autouse=True)
+    def mock_child_connection_check(self):
+        with patch(
+            "airflow.sdk.coordinators._subprocess._is_connection_from_process",
+            return_value=True,
+        ) as mock_check:
+            yield mock_check
+
     def _connect_after_delay(self, addr: tuple[str, int], delay: float = 0.0) -> None:
         def _connect():
             time.sleep(delay)
@@ -255,6 +266,202 @@ class TestAcceptConnections:
             accepted[server].close()
         finally:
             server.close()
+
+    def test_rejects_connections_not_owned_by_child_process(self, mock_child_connection_check):
+        server = _start_server()
+        _, port = server.getsockname()
+        mock_child_connection_check.side_effect = [False, True]
+        self._connect_after_delay(("127.0.0.1", port))
+        self._connect_after_delay(("127.0.0.1", port), delay=0.05)
+
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = 12345
+        mock_proc.poll.return_value = None
+
+        try:
+            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc)
+            assert mock_child_connection_check.call_count == 2
+            assert server in accepted
+            accepted[server].close()
+        finally:
+            server.close()
+
+
+class TestAcceptConnectionsProcessValidation:
+    def _start_connector_process(self, addr: tuple[str, int], *, delay: float = 0.0) -> subprocess.Popen:
+        script = """
+import socket
+import sys
+import time
+
+time.sleep(float(sys.argv[3]))
+sock = socket.socket()
+sock.connect((sys.argv[1], int(sys.argv[2])))
+sock.recv(1)
+"""
+        return subprocess.Popen([sys.executable, "-c", script, addr[0], str(addr[1]), str(delay)])
+
+    def test_rejects_racing_connection_from_other_process(self):
+        server = _start_server()
+        addr = server.getsockname()
+        attacker = socket.socket()
+        attacker.connect(addr)
+        child_proc = self._start_connector_process(addr, delay=0.05)
+
+        try:
+            accepted, _ = _accept_connections({"comm": server}, {}, child_proc)
+            accepted[server].sendall(b"x")
+            accepted[server].close()
+            assert child_proc.wait(timeout=5) == 0
+            assert attacker.recv(1) == b""
+        finally:
+            attacker.close()
+            server.close()
+            if child_proc.poll() is None:
+                child_proc.terminate()
+                child_proc.wait(timeout=5)
+
+
+class TestConnectionFromProcess:
+    def test_matches_child_process_tcp_connection(self):
+        server = _start_server()
+        _, port = server.getsockname()
+        client = socket.socket()
+        client.connect(("127.0.0.1", port))
+        conn, _ = server.accept()
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = os.getpid()
+
+        try:
+            assert _is_connection_from_process(conn, mock_proc) is True
+        finally:
+            conn.close()
+            client.close()
+            server.close()
+
+    def test_matches_dual_stack_ipv4_mapped_connection(self):
+        """A dual-stack (AF_INET6) client connecting to the IPv4 server is accepted.
+
+        Regression test for the Java coordinator (#67781 / #68147): on an
+        IPv6-enabled host the JVM connects back over a dual-stack socket, so the
+        kernel records its loopback connection as the IPv4-mapped
+        ``::ffff:127.0.0.1`` in ``/proc/net/tcp6``. The AF_INET supervisor socket's
+        ``getpeername()`` reports plain ``127.0.0.1``, so the ownership check must
+        treat the mapped and plain forms as the same address -- otherwise every
+        Java task is rejected with "process exited with 1 before connecting".
+        """
+        server = _start_server()
+        _, port = server.getsockname()
+        try:
+            client = socket.socket(socket.AF_INET6)
+            client.connect(("::ffff:127.0.0.1", port))
+        except OSError as e:
+            server.close()
+            pytest.skip(f"IPv6 loopback unavailable: {e}")
+        conn, _ = server.accept()
+        # Sanity: the client really is using the IPv4-mapped form the JVM exhibits.
+        assert client.getsockname()[0] == "::ffff:127.0.0.1"
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = os.getpid()
+
+        try:
+            assert _is_connection_from_process(conn, mock_proc) is True
+        finally:
+            conn.close()
+            client.close()
+            server.close()
+
+    def test_rejects_tcp_connection_not_owned_by_child_process(self):
+        server = _start_server()
+        _, port = server.getsockname()
+        client = socket.socket()
+        client.connect(("127.0.0.1", port))
+        conn, _ = server.accept()
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = os.getpid()
+
+        try:
+            with patch("airflow.sdk.coordinators._subprocess.psutil.Process") as mock_process:
+                mock_process.return_value.children.return_value = []
+                mock_process.return_value.net_connections.return_value = []
+                assert _is_connection_from_process(conn, mock_proc, verify_timeout=0.0) is False
+        finally:
+            conn.close()
+            client.close()
+            server.close()
+
+    def test_matches_descendant_process_tcp_connection(self):
+        """A connection owned by a *descendant* of the child process is accepted.
+
+        Regression test for the Java coordinator (#67781): the launched process
+        may itself spawn the runtime that connects back, so the peer can belong
+        to a descendant of ``proc.pid`` rather than ``proc.pid`` directly.
+        """
+        server = _start_server()
+        host, port = server.getsockname()
+        # A real subprocess — a descendant of this test process — opens the connection.
+        connector = subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                "import socket, sys, time; s = socket.socket(); "
+                "s.connect((sys.argv[1], int(sys.argv[2]))); time.sleep(30)",
+                host,
+                str(port),
+            ],
+        )
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = os.getpid()  # connector is a descendant of this process
+
+        try:
+            conn, _ = server.accept()
+            try:
+                assert _is_connection_from_process(conn, mock_proc) is True
+            finally:
+                conn.close()
+        finally:
+            connector.terminate()
+            connector.wait(timeout=5)
+            server.close()
+
+    def test_retries_until_ownership_is_confirmed(self):
+        """The lookup is retried while the connection is not yet visible in /proc."""
+        conn = MagicMock()
+        conn.getpeername.return_value = ("127.0.0.1", 5000)
+        conn.getsockname.return_value = ("127.0.0.1", 6000)
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = 999
+
+        with patch(
+            "airflow.sdk.coordinators._subprocess._connection_owned_by_process_tree",
+            side_effect=[False, False, True],
+        ) as mock_owned:
+            assert _is_connection_from_process(conn, mock_proc, poll_interval=0.0) is True
+        assert mock_owned.call_count == 3
+
+    def test_rejects_when_ownership_never_confirmed(self):
+        conn = MagicMock()
+        conn.getpeername.return_value = ("127.0.0.1", 5000)
+        conn.getsockname.return_value = ("127.0.0.1", 6000)
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = 999
+
+        with patch(
+            "airflow.sdk.coordinators._subprocess._connection_owned_by_process_tree",
+            return_value=False,
+        ):
+            assert (
+                _is_connection_from_process(conn, mock_proc, verify_timeout=0.0, poll_interval=0.0) is False
+            )
+
+    def test_owned_by_tree_returns_false_when_process_gone(self):
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = 999999
+        with patch(
+            "airflow.sdk.coordinators._subprocess.psutil.Process",
+            side_effect=psutil.NoSuchProcess(999999),
+        ):
+            assert _connection_owned_by_process_tree(("127.0.0.1", 1), ("127.0.0.1", 2), mock_proc) is False
 
 
 class TestResourceTracker:

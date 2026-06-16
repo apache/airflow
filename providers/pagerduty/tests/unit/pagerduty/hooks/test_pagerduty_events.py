@@ -23,7 +23,6 @@ from unittest.mock import patch
 import httpx
 import pagerduty
 import pytest
-from aioresponses import aioresponses
 from pagerduty import EventsApiV2Client
 
 from airflow.models import Connection
@@ -33,6 +32,8 @@ from airflow.providers.pagerduty.hooks.pagerduty_events import (
     prepare_event_data,
 )
 
+from tests_common.test_utils.aiohttp import MockAiohttpClientResponse
+
 DEFAULT_CONN_ID = "pagerduty_events_default"
 
 
@@ -41,15 +42,6 @@ def events_connections(create_connection_without_db):
     create_connection_without_db(
         Connection(conn_id=DEFAULT_CONN_ID, conn_type="pagerduty_events", password="events_token")
     )
-
-
-@pytest.fixture
-def aioresponse():
-    """
-    Creates mock async API response.
-    """
-    with aioresponses() as async_response:
-        yield async_response
 
 
 class TestPrepareEventData:
@@ -157,7 +149,7 @@ class TestPagerdutyEventsAsyncHook:
         assert integration_key == "override_key", "token initialised."
 
     @pytest.mark.asyncio
-    async def test_send_event_with_payload(self, events_connections, aioresponse):
+    async def test_send_event_with_payload(self, events_connections):
         hook = PagerdutyEventsAsyncHook(pagerduty_events_conn_id=DEFAULT_CONN_ID)
 
         with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
@@ -173,11 +165,17 @@ class TestPagerdutyEventsAsyncHook:
             assert mocked_function.call_args.kwargs.get("auth") is None
 
     @pytest.mark.asyncio
-    async def test_send_event_with_success(self, events_connections, aioresponse):
+    async def test_send_event_with_success(self, events_connections):
         hook = PagerdutyEventsAsyncHook(pagerduty_events_conn_id=DEFAULT_CONN_ID)
         exp_response = {"dedup_key": "random"}
-        aioresponse.post("https://events.pagerduty.com/v2/enqueue", status=200, payload=exp_response)
-        res = await hook.send_event(
-            summary="test", source="airflow_test", severity="error", dedup_key="random"
-        )
+        with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_post:
+            mocked_post.return_value = MockAiohttpClientResponse(
+                status=200,
+                payload=exp_response,
+                method="POST",
+                url="https://events.pagerduty.com/v2/enqueue",
+            )
+            res = await hook.send_event(
+                summary="test", source="airflow_test", severity="error", dedup_key="random"
+            )
         assert res == exp_response["dedup_key"]

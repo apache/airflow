@@ -1011,6 +1011,21 @@ def _make_reverse_chain(n: int) -> DAG:
     return dag
 
 
+def _make_padded_reverse_chain(chain_length: int, independent_count: int) -> DAG:
+    with DAG(
+        f"padded_reverse_chain_{chain_length}_{independent_count}",
+        schedule=None,
+        start_date=DEFAULT_DATE,
+    ) as dag:
+        tasks = [EmptyOperator(task_id=f"r{chain_length - 1 - i}") for i in range(chain_length)]
+        by_id = {t.task_id: t for t in tasks}
+        for i in range(chain_length - 1):
+            by_id[f"r{i}"] >> by_id[f"r{i + 1}"]
+        for i in range(independent_count):
+            EmptyOperator(task_id=f"i{i}")
+    return dag
+
+
 def _make_diamond(n: int) -> DAG:
     with DAG(f"diamond_{n}", schedule=None, start_date=DEFAULT_DATE) as dag:
         root = EmptyOperator(task_id="root")
@@ -1124,3 +1139,33 @@ def test_topological_sort_shape_correctness(shape, builder, n):
     for group in _walk_groups(dag.task_group):
         order = [node.node_id for node in group.topological_sort()]
         _assert_valid_topological_order(group, order)
+
+
+def test_topological_sort_reverse_declared_order_matches_sweep():
+    dag = _make_reverse_chain(100)
+    group = dag.task_group
+    nodes = list(group.children.values())
+    id_to_idx = {nid: i for i, nid in enumerate(group.children)}
+    projected = [group._project_child_deps(i, child, id_to_idx) for i, child in enumerate(nodes)]
+
+    sweep_order = [node.node_id for node in group._sweep_projection(nodes, projected)]
+    pass_number_order = [node.node_id for node in group._sort_via_pass_numbering(nodes, projected)]
+
+    assert pass_number_order == sweep_order
+
+
+def test_topological_sort_padded_reverse_chain_uses_pass_numbering(monkeypatch):
+    dag = _make_padded_reverse_chain(chain_length=80, independent_count=80)
+    called = {"value": False}
+    original = TaskGroup._sort_via_pass_numbering
+
+    def spy(self, nodes, projected):
+        called["value"] = True
+        return original(self, nodes, projected)
+
+    monkeypatch.setattr(TaskGroup, "_sort_via_pass_numbering", spy)
+
+    order = [node.node_id for node in dag.task_group.topological_sort()]
+
+    assert called["value"]
+    _assert_valid_topological_order(dag.task_group, order)

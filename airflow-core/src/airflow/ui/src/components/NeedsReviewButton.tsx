@@ -41,7 +41,7 @@ export const NeedsReviewButton = ({
       dagId: dagId ?? "~",
       dagRunId: runId ?? "~",
       responseReceived: false,
-      state: ["deferred"],
+      state: ["deferred", "awaiting_input"],
       taskId,
     },
     undefined,
@@ -58,7 +58,7 @@ export const NeedsReviewButton = ({
   return hitlTIsCount > 0 ? (
     <Box maxW="250px">
       <StatsCard
-        colorScheme="deferred"
+        colorScheme="awaiting_input"
         count={hitlTIsCount}
         icon={<LuUserRoundPen />}
         isLoading={isLoading}

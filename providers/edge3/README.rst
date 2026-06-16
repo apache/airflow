@@ -70,7 +70,7 @@ PIP package                                 Version required
 ``pydantic``                                ``>=2.11.0``
 ``retryhttp``                               ``>=1.4.0``
 ``aiofiles``                                ``>=23.2.0``
-``aiohttp``                                 ``>=3.9.2``
+``aiohttp``                                 ``>=3.14.0``
 ==========================================  ===================
 
 Cross provider package dependencies

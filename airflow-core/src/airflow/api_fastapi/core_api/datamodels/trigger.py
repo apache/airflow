@@ -19,9 +19,24 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BeforeValidator, ConfigDict
+from pydantic import BeforeValidator, ConfigDict, Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
+
+
+def _remove_kwargs(_: object) -> str:
+    """
+    Return empty trigger kwargs for API responses.
+
+    Trigger ``kwargs`` may contain sensitive values (for example credentials a deferred
+    operator hands to its trigger -- an API key, a token), so they are never exposed through
+    the REST API. The field is kept in the response schema for backwards compatibility -- so
+    existing API consumers do not break on a missing property -- but it is always returned
+    empty, as ``"{}"`` (the stringified empty dict, matching the string format the field has
+    always used). The triggerer still decrypts and uses the real kwargs at runtime; only the
+    API representation is emptied.
+    """
+    return "{}"
 
 
 class TriggerResponse(BaseModel):
@@ -31,7 +46,10 @@ class TriggerResponse(BaseModel):
 
     id: int
     classpath: str
-    kwargs: Annotated[str, BeforeValidator(str)]
+    # Deprecated: always emptied (see ``_remove_kwargs``). Marked deprecated in the schema so
+    # consumers are nudged off it. ``deprecated`` only warns on direct attribute access, not
+    # during model serialization, so our own response rendering stays warning-free.
+    kwargs: Annotated[str, BeforeValidator(_remove_kwargs), Field(deprecated=True)]
     created_date: datetime
     queue: str | None
     triggerer_id: int | None

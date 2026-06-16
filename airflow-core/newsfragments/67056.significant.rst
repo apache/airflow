@@ -1,0 +1,101 @@
+Decouple remote logging resolution from ``airflow.logging_config``
+
+Remote task log handler resolution is now owned by the shared
+``airflow_shared.logging.factory`` module and applies a single, well-defined
+precedence rule. ``airflow.logging_config.load_logging_config`` is deprecated:
+loading the ``[logging] logging_config_class`` dict and resolving the remote
+handler are now two independent steps.
+
+**Resolution order (``resolve_remote_task_log``):**
+
+1. **User-defined ``[logging] logging_config_class``** — if the user has set
+   ``logging_config_class`` to a custom module path, and that module exports a
+   ``REMOTE_TASK_LOG`` (or ``DEFAULT_REMOTE_CONN_ID``) attribute, those values
+   win. Existing custom logging configs keep working unchanged.
+2. **ProvidersManager scheme dispatch** — the scheme of ``[logging]
+   remote_base_log_folder`` (e.g. ``s3``, ``gs``, ``wasb``) is looked up in the
+   provider yaml ``remote-logging:`` registry. The matching ``RemoteLogIO``
+   class is imported and instantiated via its ``from_config()`` classmethod.
+   The connection id comes from ``[logging] remote_log_conn_id`` (set
+   explicitly by the user; providers needing a backend default can read it
+   inside ``from_config``).
+3. **Legacy attr-path fallback** — if neither of the above produced a handler,
+   the resolver imports the default logging module
+   (``airflow.config_templates.airflow_local_settings``) and reads its
+   ``REMOTE_TASK_LOG`` / ``DEFAULT_REMOTE_CONN_ID`` attributes. This is the
+   per-scheme ``if/elif`` chain in ``airflow_local_settings.py`` and is
+   transitional — it will be removed once every in-tree provider exposes
+   ``from_config`` in Airflow 4.0.
+
+**``RemoteLogIO.from_config`` contract:**
+
+Provider remote-log handler classes opting into provider dispatch must expose
+a ``from_config`` classmethod. The shape is::
+
+    class MyRemoteLogIO(LoggingMixin):
+        @classmethod
+        def from_config(cls) -> "MyRemoteLogIO":
+            from airflow.providers.common.compat.sdk import conf
+
+            return cls(
+                base_log_folder=conf.get("logging", "base_log_folder"),
+                remote_base=conf.get("logging", "remote_base_log_folder"),
+                delete_local_copy=conf.getboolean("logging", "delete_local_logs"),
+                # backend-specific keys live in the provider's own config section
+                ...,
+            )
+
+Key properties:
+
+- Takes no arguments — the shared factory calls ``cls.from_config()`` with no
+  inputs. Providers read ``airflow.providers.common.compat.sdk.conf`` themselves and pick
+  the keys they care about.
+- Returns a fully instantiated ``RemoteLogIO`` (or ``RemoteLogStreamIO``).
+- Failures inside ``from_config`` are logged and treated as "no remote
+  handler" (the factory returns ``None`` and the legacy fallback runs); under
+  ``PYTEST_CURRENT_TEST`` the exception is re-raised so tests fail loudly.
+- Providers that don't yet implement ``from_config`` continue to work via the
+  legacy ``airflow_local_settings.py`` chain (step 3).
+
+**``airflow.logging_config`` API changes:**
+
+- ``_get_logging_config()`` — new private helper that imports and validates
+  the ``[logging] logging_config_class`` dict only. Does not touch remote
+  logging state.
+- ``_load_logging_config()`` — new private helper that calls
+  ``resolve_remote_task_log`` and caches the result on
+  ``_ActiveLoggingConfig``. Used lazily by ``get_remote_task_log`` and
+  ``get_default_remote_conn_id``.
+- ``load_logging_config()`` — deprecated. Emits ``DeprecationWarning`` and
+  delegates to both helpers; still returns ``(logging_config_dict,
+  logging_class_path)`` so existing callers keep working.
+
+**Behaviour changes:**
+
+- ``configure_logging`` no longer eagerly resolves the remote handler.
+  Resolution is now lazy and happens on the first call to
+  ``get_remote_task_log()`` / ``get_default_remote_conn_id()``.
+- Providers that registered a ``remote-logging:`` block but did not implement
+  ``from_config`` will be skipped with a warning; the legacy fallback path
+  takes over.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes
+
+* Migration rules needed
+
+  * Replace direct calls to ``airflow.logging_config.load_logging_config()``
+    with ``_get_logging_config()`` (for the logging dict) and/or
+    ``_load_logging_config()`` (to prime the remote-handler cache).
+  * Provider remote-log handler classes should implement a no-argument
+    ``from_config`` classmethod that reads ``airflow.providers.common.compat.sdk.conf``
+    and returns a configured instance. Until they do, resolution falls
+    through to the legacy ``airflow_local_settings.py`` chain.

@@ -65,6 +65,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -1029,6 +1035,7 @@ components:
           oneOf:
           - $ref: '#/components/schemas/ExecuteTask'
           - $ref: '#/components/schemas/ExecuteCallback'
+          - $ref: '#/components/schemas/TestConnection'
           title: Command
           description: Command line to use to execute the job in Airflow
           discriminator:
@@ -1036,6 +1043,7 @@ components:
             mapping:
               ExecuteCallback: '#/components/schemas/ExecuteCallback'
               ExecuteTask: '#/components/schemas/ExecuteTask'
+              TestConnection: '#/components/schemas/TestConnection'
         concurrency_slots:
           type: integer
           title: Concurrency Slots
@@ -1269,10 +1277,6 @@ components:
           type: string
           format: uuid
           title: Id
-        dag_version_id:
-          type: string
-          format: uuid
-          title: Dag Version Id
         task_id:
           type: string
           title: Task Id
@@ -1285,45 +1289,55 @@ components:
         try_number:
           type: integer
           title: Try Number
+        dag_version_id:
+          type: string
+          format: uuid
+          title: Dag Version Id
         map_index:
           type: integer
           title: Map Index
           default: -1
-        pool_slots:
-          type: integer
-          title: Pool Slots
-        queue:
-          type: string
-          title: Queue
-        priority_weight:
-          type: integer
-          title: Priority Weight
-        parent_context_carrier:
+        hostname:
           anyOf:
-          - additionalProperties: true
-            type: object
+          - type: string
           - type: 'null'
-          title: Parent Context Carrier
+          title: Hostname
         context_carrier:
           anyOf:
           - additionalProperties: true
             type: object
           - type: 'null'
           title: Context Carrier
+        queue:
+          type: string
+          title: Queue
+          default: default
+        pool_slots:
+          type: integer
+          title: Pool Slots
+        priority_weight:
+          type: integer
+          title: Priority Weight
       type: object
       required:
       - id
-      - dag_version_id
       - task_id
       - dag_id
       - run_id
       - try_number
+      - dag_version_id
       - pool_slots
-      - queue
       - priority_weight
       title: TaskInstanceDTO
-      description: TaskInstanceDTO with executor-specific ``external_executor_id``
-        field and ``key`` property.
+      description: 'The versioned execution API ``TaskInstance`` schema plus executor-only
+        fields.
+
+
+        The base class is the single source of truth for the fields a worker needs;
+
+        the fields added here are executor concerns (queueing order and pool
+
+        accounting) the worker never reads.'
     TaskInstanceState:
       type: string
       enum:
@@ -1339,11 +1353,45 @@ components:
       - upstream_failed
       - skipped
       - deferred
+      - awaiting_input
       title: TaskInstanceState
       description: 'All possible states that a Task Instance can be in.
 
 
         Note that None is also allowed, so always use this in a type hint with Optional.'
+    TestConnection:
+      properties:
+        token:
+          type: string
+          title: Token
+        connection_test_id:
+          type: string
+          format: uuid
+          title: Connection Test Id
+        connection_id:
+          type: string
+          title: Connection Id
+        timeout:
+          type: integer
+          title: Timeout
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
+        type:
+          type: string
+          const: TestConnection
+          title: Type
+          default: TestConnection
+      type: object
+      required:
+      - token
+      - connection_test_id
+      - connection_id
+      - timeout
+      title: TestConnection
+      description: Execute a connection test on a worker.
     ValidationError:
       properties:
         loc:
