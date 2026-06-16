@@ -135,15 +135,16 @@ def _index_urls_to_uv_env_vars(index_urls: list[str] | None = None) -> dict[str,
     return uv_index_env_vars
 
 
-_LEVEL_PREFIX_RE = re.compile(r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL): (.*)$")
+_LEVEL_PREFIX_RE = re.compile(r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL): ")
+_MAX_PREFIX_LEN = len("CRITICAL: ")  # longest possible prefix — regex never sees beyond this
 
 
 def _log_subprocess_line(log: logging.Logger, line: str) -> None:
-    match = _LEVEL_PREFIX_RE.match(line)
+    match = _LEVEL_PREFIX_RE.match(line[:_MAX_PREFIX_LEN])
     if match:
-        log.log(getattr(logging, match.group(1)), "%s", match.group(2))
+        log.log(getattr(logging, match.group(1)), "%s", line[match.end() :])
     else:
-        log.log(logging.INFO, "%s", line)
+        log.info("%s", line)
 
 
 def _execute_in_subprocess(cmd: list[str], cwd: str | None = None, env: dict[str, str] | None = None) -> None:

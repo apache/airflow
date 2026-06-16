@@ -25,6 +25,7 @@ from unittest import mock
 import pytest
 
 from airflow.providers.standard.utils.python_virtualenv import (
+    _execute_in_subprocess,
     _generate_pip_conf,
     _log_subprocess_line,
     _use_uv,
@@ -301,4 +302,31 @@ class TestLogSubprocessLine:
     def test_log_subprocess_line(self, line, expected_level, expected_message):
         log = mock.MagicMock(spec=logging.Logger)
         _log_subprocess_line(log, line)
-        log.log.assert_called_once_with(expected_level, "%s", expected_message)
+        if expected_level == logging.INFO and not line.startswith(
+            ("DEBUG: ", "INFO: ", "WARNING: ", "ERROR: ", "CRITICAL: ")
+        ):
+            log.info.assert_called_once_with("%s", expected_message)
+        else:
+            log.log.assert_called_once_with(expected_level, "%s", expected_message)
+
+    def test_execute_in_subprocess_forwards_log_levels(self, tmp_path):
+        script = tmp_path / "script.py"
+        script.write_text(
+            "import logging, sys, traceback as _tb\n"
+            "class _F(logging.Formatter):\n"
+            "    def format(self, r):\n"
+            "        msg = super().format(r)\n"
+            "        return '\\n'.join(r.levelname + ': ' + l for l in msg.splitlines())\n"
+            "_h = logging.StreamHandler(); _h.setFormatter(_F()); logging.root.addHandler(_h)\n"
+            "logging.warning('watch out')\n"
+            "logging.error('bad thing\\nstill error')\n"
+        )
+        with mock.patch(
+            "airflow.providers.standard.utils.python_virtualenv._log_subprocess_line"
+        ) as mock_log_line:
+            _execute_in_subprocess(["python", str(script)])
+
+        logged_lines = [c.args[1] for c in mock_log_line.call_args_list]
+        assert "WARNING: watch out" in logged_lines
+        assert "ERROR: bad thing" in logged_lines
+        assert "ERROR: still error" in logged_lines
