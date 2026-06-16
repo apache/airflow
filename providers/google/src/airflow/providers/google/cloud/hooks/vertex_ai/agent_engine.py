@@ -72,7 +72,6 @@ class AgentEngineHook(GoogleBaseHook):
         self,
         location: str,
         agent: Any | None = None,
-        agent_engine: Any | None = None,
         config: Any | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> types.AgentEngine:
@@ -81,13 +80,12 @@ class AgentEngineHook(GoogleBaseHook):
 
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param agent: Optional. The agent object to deploy.
-        :param agent_engine: Optional. Deprecated alias for ``agent``.
         :param config: Optional. Configuration for the Agent Engine.
         :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
             configured in the connection.
         """
         client = self.get_agent_engine_client(project_id=project_id, location=location)
-        return client.create(agent=agent, agent_engine=agent_engine, config=config)
+        return client.create(agent=agent, config=config)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_agent_engine(
@@ -131,6 +129,8 @@ class AgentEngineHook(GoogleBaseHook):
         # (requires GCS) or _query (private method; triggers a Pydantic parsing bug in
         # google-genai 2.8.0 when the response output type is Any). Calling request() bypasses
         # Pydantic parsing while still letting the SDK handle URL construction and auth.
+        # Replace with a public synchronous query API when available; tracked at
+        # https://github.com/apache/airflow/issues/68605
         cfg = config if isinstance(config, dict) else {}
         body: dict[str, Any] = {"classMethod": cfg.get("class_method", "query")}
         if "input" in cfg:
@@ -149,9 +149,17 @@ class AgentEngineHook(GoogleBaseHook):
             timeout=int(request_timeout * 1000) if request_timeout is not None else None
         )
         name = self.build_agent_engine_name(project_id, location, agent_engine_id)
-        response = sdk_client._api_client.request("post", f"{name}:query", body, http_options)
+        api_client = getattr(sdk_client, "_api_client", None)
+        request = getattr(api_client, "request", None)
+        if request is None:
+            raise RuntimeError(
+                "The Vertex AI Agent Engine SDK no longer exposes _api_client.request. "
+                "QueryAgentEngineOperator must be updated to use a supported synchronous query API."
+            )
+        response = request("post", f"{name}:query", body, http_options)
         data = {} if not response.body else json.loads(response.body)
-        return data.get("output", data)
+        output = data.get("output")
+        return output if output is not None else data
 
     @GoogleBaseHook.fallback_to_default_project_id
     def update_agent_engine(
@@ -160,7 +168,6 @@ class AgentEngineHook(GoogleBaseHook):
         agent_engine_id: str,
         config: Any,
         agent: Any | None = None,
-        agent_engine: Any | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> types.AgentEngine:
         """
@@ -170,13 +177,12 @@ class AgentEngineHook(GoogleBaseHook):
         :param agent_engine_id: Required. The Agent Engine ID.
         :param config: Required. Configuration for the Agent Engine update.
         :param agent: Optional. The updated agent object to deploy.
-        :param agent_engine: Optional. Deprecated alias for ``agent``.
         :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
             configured in the connection.
         """
         client = self.get_agent_engine_client(project_id=project_id, location=location)
         name = self.build_agent_engine_name(project_id, location, agent_engine_id)
-        return client.update(name=name, agent=agent, agent_engine=agent_engine, config=config)
+        return client.update(name=name, agent=agent, config=config)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_agent_engine(

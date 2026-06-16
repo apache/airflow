@@ -58,7 +58,6 @@ class CreateAgentEngineOperator(GoogleCloudBaseOperator):
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
     :param agent: Optional. The agent object to deploy.
-    :param agent_engine: Optional. Deprecated alias for ``agent``.
     :param config: Optional. Configuration for the Agent Engine.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term credentials.
@@ -68,7 +67,6 @@ class CreateAgentEngineOperator(GoogleCloudBaseOperator):
         "project_id",
         "location",
         "agent",
-        "agent_engine",
         "config",
         "gcp_conn_id",
         "impersonation_chain",
@@ -80,7 +78,6 @@ class CreateAgentEngineOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         agent: Any | None = None,
-        agent_engine: Any | None = None,
         config: Any | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -90,7 +87,6 @@ class CreateAgentEngineOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.location = location
         self.agent = agent
-        self.agent_engine = agent_engine
         self.config = config
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -108,7 +104,6 @@ class CreateAgentEngineOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
             location=self.location,
             agent=self.agent,
-            agent_engine=self.agent_engine,
             config=self.config,
         )
         result = _serialize_agent_engine(agent_engine)
@@ -236,7 +231,6 @@ class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
     :param agent_engine_id: Required. The Agent Engine ID.
     :param agent: Optional. The updated agent object to deploy.
-    :param agent_engine: Optional. Deprecated alias for ``agent``.
     :param config: Required. Configuration for the Agent Engine update.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term credentials.
@@ -247,7 +241,6 @@ class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
         "location",
         "agent_engine_id",
         "agent",
-        "agent_engine",
         "config",
         "gcp_conn_id",
         "impersonation_chain",
@@ -261,7 +254,6 @@ class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
         agent_engine_id: str,
         config: Any,
         agent: Any | None = None,
-        agent_engine: Any | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -271,7 +263,6 @@ class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
         self.location = location
         self.agent_engine_id = agent_engine_id
         self.agent = agent
-        self.agent_engine = agent_engine
         self.config = config
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -290,7 +281,6 @@ class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
             location=self.location,
             agent_engine_id=self.agent_engine_id,
             agent=self.agent,
-            agent_engine=self.agent_engine,
             config=self.config,
         )
         result = _serialize_agent_engine(agent_engine)
