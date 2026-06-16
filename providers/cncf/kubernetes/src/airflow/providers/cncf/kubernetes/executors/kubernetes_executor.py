@@ -227,8 +227,8 @@ class KubernetesExecutor(BaseExecutor):
         else:
             pod_template_file = None
         self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
-        self.running.add(key)
         self.task_queue.put(KubernetesJob(key, command, kube_executor_config, pod_template_file))
+        self.running.add(key)
         # We keep a temporary local record that we've handled this so we don't
         # try and remove it from the QUEUED state while we process it
         self.last_handled[key] = time.time()
