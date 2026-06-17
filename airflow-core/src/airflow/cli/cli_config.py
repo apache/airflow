@@ -374,10 +374,22 @@ ARG_TEAM_NAME = Arg(("name",), help="Team name")
 # backfill
 ARG_BACKFILL_DAG = Arg(flags=("--dag-id",), help="The dag to backfill.", required=True)
 ARG_BACKFILL_FROM_DATE = Arg(
-    ("--from-date",), help="Earliest logical date to backfill.", type=parsedate, required=True
+    ("--from-date",),
+    help=(
+        "Backfill window start (inclusive). "
+        "For partitioned Dags, this range is interpreted as the partition-date range (auto-detected)."
+    ),
+    type=parsedate,
+    required=True,
 )
 ARG_BACKFILL_TO_DATE = Arg(
-    ("--to-date",), help="Latest logical date to backfill", type=parsedate, required=True
+    ("--to-date",),
+    help=(
+        "Backfill window end (inclusive). "
+        "For partitioned Dags, this range is interpreted as the partition-date range (auto-detected)."
+    ),
+    type=parsedate,
+    required=True,
 )
 ARG_DAG_RUN_CONF = Arg(flags=("--dag-run-conf",), help="JSON dag run configuration.")
 ARG_RUN_BACKWARDS = Arg(
@@ -417,8 +429,6 @@ ARG_BACKFILL_RUN_ON_LATEST_VERSION = Arg(
     action=argparse.BooleanOptionalAction,
     default=None,
 )
-
-
 # misc
 ARG_TREAT_DAG_ID_AS_REGEX = Arg(
     ("--treat-dag-id-as-regex",),

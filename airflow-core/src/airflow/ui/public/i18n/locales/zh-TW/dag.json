@@ -91,10 +91,6 @@
     "critical": "CRITICAL",
     "debug": "DEBUG",
     "error": "ERROR",
-    "fullscreen": {
-      "button": "全螢幕",
-      "tooltip": "按下 {{hotkey}} 進入全螢幕"
-    },
     "info": "INFO",
     "noTryNumber": "無嘗試次數",
     "search": {

@@ -24,12 +24,17 @@ from typing import TYPE_CHECKING, Any, cast
 import requests
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
+from airflow.providers.apache.spark.hooks.spark_submit import _K8S_WAIT_APP_COMPLETION_CONF, SparkSubmitHook
 from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_parent_job_information_into_spark_properties,
     inject_transport_information_into_spark_properties,
 )
 from airflow.providers.common.compat.sdk import BaseOperator, conf
+
+try:
+    from airflow.providers.cncf.kubernetes import kube_client
+except ImportError:
+    kube_client = None  # type: ignore[assignment]
 
 try:
     from airflow.sdk import ResumableJobMixin
@@ -38,7 +43,7 @@ except ImportError:
     # ResumableJobMixin does not exist in Airflow 2, so we need to add a stub to make it
     # behave as before
     class ResumableJobMixin:  # type: ignore[no-redef]
-        """Airflow 2 stub — no task_state, always submits fresh."""
+        """Airflow 2 stub — no task_state_store, always submits fresh."""
 
         external_id_key: str = "remote_job_id"
 
@@ -333,6 +338,11 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
     # YARN application ID, K8s driver pod name).
     external_id_key = "spark_job_id"
 
+    # Used only for k8s cluster mode. Caches the pod phase ("Succeeded" / "Failed") to task_store at the end of
+    # poll_until_complete. On retry, get_job_status reads this before querying the K8s API
+    # so that a completed job can be identified even after the driver pod is garbage collected.
+    _K8S_DRIVER_STATUS_KEY = "k8s_driver_status"
+
     template_fields: Sequence[str] = (
         "application",
         "conf",
@@ -458,16 +468,17 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if hook._should_track_driver_status:
             if self.reconnect_on_retry:
                 return self.execute_resumable(context)
-            # reconnect_on_retry=False: still submit-and-poll, just skip task_state persistence.
+            # reconnect_on_retry=False: still submit-and-poll, just skip task_state_store persistence.
             driver_id = self.submit_job(context)
             self.poll_until_complete(driver_id, context)
             return self.get_job_result(driver_id, context)
         if hook._should_track_driver_via_k8s_api():
-            # TODO: Wire into execute_resumable() via ResumableJobMixin
-            # (fill submit_job / poll_until_complete K8s stubs) to enable crash recovery.
-            hook.submit(self.application)
-            hook._poll_k8s_driver_via_api()
-            return
+            if self.reconnect_on_retry:
+                return self.execute_resumable(context)
+            # reconnect_on_retry=False: still submit-and-poll, just skip task_state persistence.
+            driver_id = self.submit_job(context)
+            self.poll_until_complete(driver_id, context)
+            return self.get_job_result(driver_id, context)
         if hook._is_yarn_cluster_mode:
             if self.reconnect_on_retry and not hook._yarn_track_via_rm_api:
                 raise ValueError(
@@ -478,7 +489,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
                 hook._validate_yarn_track_via_rm_api_config()
                 if self.reconnect_on_retry:
                     return self.execute_resumable(context)
-                # reconnect_on_retry=False: still submit-and-poll, just skip task_state persistence.
+                # reconnect_on_retry=False: still submit-and-poll, just skip task_state_store persistence.
                 driver_id = self.submit_job(context)
                 self.poll_until_complete(driver_id, context)
                 return self.get_job_result(driver_id, context)

@@ -26,7 +26,7 @@ What is verified
 The test triggers the ``java_annotation_example`` Dag, which has this task
 graph::
 
-    python_task_1 >> extract >> transform >> python_task_2
+    python_task_1 >> extract >> transform >> [load, python_task_2]
 
 * ``extract`` and ``transform`` are ``@task.stub(queue="java")`` stubs whose
   implementations live in ``AnnotationExample.java``.  Both run via
@@ -35,8 +35,11 @@ graph::
   connection, and returns a timestamp (long).
 * ``transform`` reads the XCom from ``extract``, fetches the ``my_variable``
   Airflow variable, and returns a timestamp (long).
+* ``load`` (``retries=1``) reads the XCom from ``transform``, throws on its
+  first attempt and returns normally on the retry, exercising the UP_FOR_RETRY
+  path through the Java coordinator.
 
-The test asserts that both Java task instances reach state ``success``, which
+The test asserts that the Java task instances reach state ``success``, which
 confirms:
 
 1. ``JavaCoordinator`` correctly discovers and launches the JVM JAR.
@@ -44,6 +47,9 @@ confirms:
    ``StartupDetails`` and the task result (``SucceedTask``/``TaskState``).
 3. XCom reads and API calls (getXCom, getConnection, getVariable) work
    end-to-end through the Task Execution API.
+4. A Java task that throws with retries left returns ``RetryTask`` rather than a
+   terminal ``FAILED``, so the supervisor marks it UP_FOR_RETRY and re-runs it;
+   ``load`` therefore ends ``success`` on its second attempt (try_number 2).
 """
 
 from __future__ import annotations
@@ -125,4 +131,38 @@ class TestJavaSDKAnnotationExample:
         )
         assert value > 0, (
             f"Expected 'transform' XCom to be a positive integer (millisecond timestamp), got {value!r}"
+        )
+
+    def test_load_retried_then_succeeded(self):
+        """``load`` fails once (UP_FOR_RETRY) then succeeds on the second attempt.
+
+        The Java coordinator must return ``RetryTask`` (not terminal ``FAILED``)
+        when the task throws with retries left, so the supervisor re-runs it. The
+        end state is ``success`` reached on ``try_number`` 2.
+        """
+        resp = self.airflow_client.trigger_dag(
+            "java_annotation_example",
+            json={"logical_date": datetime.now(timezone.utc).isoformat()},
+        )
+        run_id = resp["dag_run_id"]
+
+        dag_state = self.airflow_client.wait_for_dag_run(
+            dag_id="java_annotation_example",
+            run_id=run_id,
+            timeout=_JAVA_TASK_TIMEOUT,
+        )
+
+        ti_resp = self.airflow_client.get_task_instances(dag_id="java_annotation_example", run_id=run_id)
+        ti_map = {ti["task_id"]: ti for ti in ti_resp.get("task_instances", [])}
+        load_ti = ti_map.get("load", {})
+
+        assert load_ti.get("state") == "success", (
+            f"Java 'load' task should succeed on retry.\n"
+            f"  task state : {load_ti.get('state')!r}\n"
+            f"  dag state  : {dag_state!r}\n"
+            f"  all tasks  : { {k: v.get('state') for k, v in ti_map.items()} }"
+        )
+        assert load_ti.get("try_number") == 2, (
+            f"Java 'load' task should have run twice (fail then retry); "
+            f"try_number={load_ti.get('try_number')!r}, ti: {load_ti}"
         )
