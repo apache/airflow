@@ -545,9 +545,7 @@ class TestCalculatedDeadlineDatabaseCalls:
         for i, (state, duration) in enumerate(specs):
             logical_date = base_time + timedelta(days=i)
             start_time = logical_date + timedelta(minutes=5)
-            dagrun = dag_maker.create_dagrun(
-                logical_date=logical_date, run_id=f"mix_run_{i}", state=state
-            )
+            dagrun = dag_maker.create_dagrun(logical_date=logical_date, run_id=f"mix_run_{i}", state=state)
             dagrun.start_date = start_time
             dagrun.end_date = start_time + timedelta(seconds=duration)
 
