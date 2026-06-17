@@ -1369,7 +1369,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 cls.logger().debug("Draining executor event with state %s for connection test %s", state, key)
             elif isinstance(key, CallbackKey):
                 cls.logger().info("Received executor event with state %s for callback %s", state, key)
-                if state in (CallbackState.RUNNING, CallbackState.FAILED, CallbackState.SUCCESS):
+                if state in (
+                    CallbackState.RUNNING,
+                    CallbackState.FAILED,
+                    CallbackState.SUCCESS,
+                    CallbackState.PENDING,
+                ):
                     callback_keys_with_events.append(key)
             else:
                 cls.logger().error("Unknown workload key type in event buffer: %r", key)
@@ -1396,6 +1401,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 callback.state = CallbackState.FAILED
                 callback.output = str(info) if info else "Execution failed"
                 cls.logger().error("Callback %s failed: %s", callback_id, callback.output)
+            elif state == CallbackState.PENDING:
+                # Transient failure (e.g. the executor callback could not fetch its DagRun
+                # context — an API blip / network partition / token expiry). Reset to PENDING so
+                # the next scheduler loop re-picks it from the PENDING-callbacks query and retries,
+                # rather than terminally failing on a recoverable error. This mirrors the triggerer
+                # path, which re-evaluates a callback trigger on the next loop when the fetch fails.
+                callback.state = CallbackState.PENDING
+                cls.logger().warning(
+                    "Callback %s hit a transient failure; requeueing for retry: %s", callback_id, info
+                )
             session.add(callback)
 
         # Return if no finished tasks

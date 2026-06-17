@@ -275,3 +275,55 @@ class TestEnqueueExecutorCallbacksResilience:
         assert seen.get("skip_locked") is True, "callback selection must use SKIP LOCKED"
         # Sanity: the callback was still enqueued (lock didn't break the happy path).
         assert session.get(ExecutorCallback, cb.id).state == CallbackState.QUEUED
+
+    # ---- Transient context-fetch failure -> requeue (PENDING), not terminal FAILED ----
+    def test_transient_failure_event_requeues_callback_as_pending(self, dag_maker, session):
+        """A PENDING event from the executor (the callback hit a transient context-fetch failure)
+        must reset the callback to PENDING so the next scheduler loop retries it — NOT mark it
+        terminally FAILED. This keeps the executor path's transient-failure behavior in lockstep
+        with the triggerer path, which re-evaluates on the next loop.
+        """
+        from airflow.models.callback import CallbackKey
+
+        with dag_maker(dag_id="transient_cb"):
+            pass
+        dr = dag_maker.create_dagrun()
+        cb = self._make_pending_callback(dr, session, executor_name=None)
+        cb_id = cb.id
+        # Move it out of PENDING first (as if it had been queued/run), so the requeue is observable.
+        cb.state = CallbackState.RUNNING
+        session.add(cb)
+        session.flush()
+
+        runner, executor = self._runner_with_executor()
+        executor.get_event_buffer = mock.MagicMock(
+            return_value={CallbackKey(id=str(cb_id)): (CallbackState.PENDING, "context fetch failed")}
+        )
+
+        runner._process_executor_events(executor=executor, session=session)
+
+        assert session.get(ExecutorCallback, cb_id).state == CallbackState.PENDING, (
+            "a transient (PENDING) executor event must requeue the callback, not fail it"
+        )
+
+    def test_real_failure_event_marks_callback_failed(self, dag_maker, session):
+        """Control: a FAILED event (a genuine callback error) still terminally fails the callback."""
+        from airflow.models.callback import CallbackKey
+
+        with dag_maker(dag_id="failed_cb"):
+            pass
+        dr = dag_maker.create_dagrun()
+        cb = self._make_pending_callback(dr, session, executor_name=None)
+        cb_id = cb.id
+        cb.state = CallbackState.RUNNING
+        session.add(cb)
+        session.flush()
+
+        runner, executor = self._runner_with_executor()
+        executor.get_event_buffer = mock.MagicMock(
+            return_value={CallbackKey(id=str(cb_id)): (CallbackState.FAILED, "callback raised")}
+        )
+
+        runner._process_executor_events(executor=executor, session=session)
+
+        assert session.get(ExecutorCallback, cb_id).state == CallbackState.FAILED

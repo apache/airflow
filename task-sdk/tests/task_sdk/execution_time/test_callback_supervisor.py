@@ -35,9 +35,12 @@ from airflow.sdk._shared.template_rendering import render_callback_kwargs
 from airflow.sdk._shared.timezones import timezone
 from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, DagRunType
 from airflow.sdk.execution_time.callback_supervisor import (
+    CALLBACK_CONTEXT_FETCH_EXIT_CODE,
+    CallbackContextFetchError,
     CallbackSubprocess,
     Path,
     execute_callback,
+    supervise_callback,
 )
 from airflow.sdk.execution_time.comms import (
     BundleInfo,
@@ -1292,3 +1295,37 @@ class TestJinjaContextIntegration:
         # dag_run is a SimpleNamespace without 'conf' -> render fails -> raw value kept.
         assert result["msg"] == "conf={{ dag_run.conf['x'] }}"
         mock_log.warning.assert_called_once()
+
+
+class TestSuperviseCallbackExitMapping:
+    """supervise_callback maps the subprocess exit code to the right exception so the executor can
+    distinguish a transient context-fetch failure (retryable) from a real callback failure."""
+
+    def _run(self, mocker, exit_code):
+        proc = mocker.Mock()
+        proc.wait.return_value = exit_code
+        mocker.patch.object(CallbackSubprocess, "start", return_value=proc)
+        return supervise_callback(
+            id=str(uuid.uuid4()),
+            callback_path="some.module.cb",
+            callback_kwargs={},
+            dag_id="d",
+            run_id="r",
+            client=mocker.Mock(),
+        )
+
+    def test_context_fetch_exit_code_raises_transient_error(self, mocker):
+        """The sentinel context-fetch exit code -> CallbackContextFetchError (retryable)."""
+        with pytest.raises(CallbackContextFetchError):
+            self._run(mocker, CALLBACK_CONTEXT_FETCH_EXIT_CODE)
+
+    def test_other_nonzero_exit_raises_generic_runtime_error(self, mocker):
+        """A real callback failure (any other non-zero exit) -> generic RuntimeError, NOT the
+        transient subclass, so the executor still marks it terminally FAILED."""
+        with pytest.raises(RuntimeError) as exc_info:
+            self._run(mocker, 1)
+        assert not isinstance(exc_info.value, CallbackContextFetchError)
+
+    def test_zero_exit_returns_without_raising(self, mocker):
+        """A clean exit returns the code and raises nothing."""
+        assert self._run(mocker, 0) == 0

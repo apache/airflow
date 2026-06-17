@@ -78,9 +78,27 @@ if TYPE_CHECKING:
         version: str | None
 
 
-__all__ = ["CallbackSubprocess", "supervise_callback"]
+__all__ = ["CallbackSubprocess", "CallbackContextFetchError", "supervise_callback"]
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="callback_supervisor")
+
+# Distinct subprocess exit code for "could not fetch the DagRun context" — a transient,
+# retryable failure (API blip, network partition, token expiry), as opposed to a genuine
+# callback failure (any other non-zero exit). The supervisor maps this code to
+# ``CallbackContextFetchError`` so the executor can requeue rather than terminally FAIL,
+# matching the triggerer path (which re-evaluates on the next loop). 75 is the conventional
+# EX_TEMPFAIL from sysexits.h ("temporary failure; user is invited to retry").
+CALLBACK_CONTEXT_FETCH_EXIT_CODE = 75
+
+
+class CallbackContextFetchError(RuntimeError):
+    """
+    Raised when a deadline callback subprocess could not fetch its DagRun context.
+
+    Distinct from a generic callback failure so the executor can treat it as transient and
+    requeue the callback (PENDING) instead of marking it terminally FAILED — keeping the
+    executor path's transient-failure behavior in lockstep with the triggerer path.
+    """
 
 
 # The set of messages that a callback subprocess can send to the supervisor.
@@ -285,11 +303,13 @@ class CallbackSubprocess(WatchedSubprocess):
                 )
                 if context is None:
                     _log.error(
-                        "Cannot execute callback without context — failing to surface the error rather than running degraded",
+                        "Cannot fetch DagRun context for callback — exiting with the transient "
+                        "context-fetch code so the executor requeues rather than failing terminally "
+                        "(a transient API/network blip should not permanently drop the deadline callback)",
                         dag_id=dag_id,
                         run_id=run_id,
                     )
-                    sys.exit(1)
+                    sys.exit(CALLBACK_CONTEXT_FETCH_EXIT_CODE)
                 effective_kwargs["context"] = context
                 effective_kwargs = render_callback_kwargs(effective_kwargs, context)
 
@@ -577,6 +597,13 @@ def supervise_callback(
                 exit_code=exit_code,
                 duration=end - start,
             )
+            if exit_code == CALLBACK_CONTEXT_FETCH_EXIT_CODE:
+                # Transient: the subprocess could not fetch the DagRun context. Signal the
+                # executor to requeue (not terminally fail) so a transient blip retries, mirroring
+                # the triggerer path's re-evaluate-next-loop behavior.
+                raise CallbackContextFetchError(
+                    f"Callback subprocess could not fetch DagRun context (exit code {exit_code})"
+                )
             if exit_code != 0:
                 raise RuntimeError(f"Callback subprocess exited with code {exit_code}")
             return exit_code
