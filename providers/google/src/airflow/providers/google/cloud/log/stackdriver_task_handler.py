@@ -184,9 +184,12 @@ class StackdriverRemoteLogIO(LoggingMixin):
                 if map_index := event.get("map_index"):
                     labels["map_index"] = str(map_index)
                 # In AF3 supervisor context record.task_instance is not set.
-                # Parse labels from the structured log path as additional fallback.
-                path_labels = _labels_from_path(str(relative))
-                labels.update(path_labels)
+                # Parse labels from the structured log path as fallback only for
+                # keys that are still missing after the event-derived labels.
+                path_labels = _extract_labels_from_path(str(relative))
+                for key, value in path_labels.items():
+                    if key not in labels:
+                        labels[key] = value
             _transport.send(record, str(msg.get("event", "")), resource=self.resource, labels=labels)
             return event
 
@@ -282,14 +285,14 @@ class StackdriverRemoteLogIO(LoggingMixin):
         return "\n".join(messages), page.next_page_token
 
 
-def _labels_from_path(relative_path: str) -> dict[str, str]:
+def _extract_labels_from_path(relative_path: str) -> dict[str, str]:
     """Parse AF3 log path into Stackdriver labels.
 
     AF3's log path template is::
 
         dag_id=<x>/run_id=<x>/task_id=<x>/attempt=<N>.log
 
-    All four label fields are extracted with zero DB access.  When the path
+    All label fields are extracted with zero DB access.  When the path
     does not match the expected format the function returns an empty dict
     so callers can fall back to other label sources.
     """
@@ -308,10 +311,7 @@ def _labels_from_path(relative_path: str) -> dict[str, str]:
         elif key == "attempt":
             labels[LABEL_TRY_NUMBER] = value
         elif key == "run_id":
-            # run_id is NOT a standard Stackdriver label yet, but it is used
-            # on the write side via the log path template.  Store it so the
-            # read path can filter on it (Bug 2 will wire this up).
-            pass
+            labels["run_id"] = value
     return labels
 
 

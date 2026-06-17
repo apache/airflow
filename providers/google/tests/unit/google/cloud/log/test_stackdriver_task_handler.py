@@ -364,12 +364,12 @@ class TestStackdriverRemoteLogIO:
         assert labels["try_number"] == "3"
 
     def test_labels_from_path_returns_empty_on_unexpected_format(self):
-        """_labels_from_path returns an empty dict when the path doesn't match."""
-        from airflow.providers.google.cloud.log.stackdriver_task_handler import _labels_from_path
+        """_extract_labels_from_path returns an empty dict when the path doesn't match."""
+        from airflow.providers.google.cloud.log.stackdriver_task_handler import _extract_labels_from_path
 
-        assert _labels_from_path("") == {}
-        assert _labels_from_path("no_equals_here.log") == {}
-        assert _labels_from_path("random/path/without/keys.log") == {}
+        assert _extract_labels_from_path("") == {}
+        assert _extract_labels_from_path("no_equals_here.log") == {}
+        assert _extract_labels_from_path("random/path/without/keys.log") == {}
 
 
 @pytest.mark.usefixtures("clean_stackdriver_handlers")
