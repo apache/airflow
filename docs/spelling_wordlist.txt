@@ -172,6 +172,7 @@ baseoperatorlink
 BaseView
 BaseXCom
 bashrc
+BatchClient
 batchGet
 BatchServiceClient
 bc

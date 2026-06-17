@@ -88,8 +88,6 @@ class AzureBatchOperator(BaseOperator):
     :param vm_version: The version of the virtual machine
     :param vm_version: str | None
     :param vm_node_agent_sku_id: The node agent sku id of the virtual machine
-    :param os_family: The Azure Guest OS family to be installed on the virtual machines in the Pool.
-    :param os_version: The OS family version
     :param timeout: The amount of time to wait for the job to complete in minutes. Default is 25
     :param should_delete_job: Whether to delete job after execution. Default is False
     :param should_delete_pool: Whether to delete pool after execution of jobs. Default is False
@@ -116,22 +114,20 @@ class AzureBatchOperator(BaseOperator):
         batch_job_id: str,
         batch_task_command_line: str,
         batch_task_id: str,
-        vm_node_agent_sku_id: str,
+        vm_node_agent_sku_id: str | None = None,
         vm_publisher: str | None = None,
         vm_offer: str | None = None,
         sku_starts_with: str | None = None,
         vm_sku: str | None = None,
         vm_version: str | None = None,
-        os_family: str | None = None,
-        os_version: str | None = None,
         batch_pool_display_name: str | None = None,
         batch_job_display_name: str | None = None,
-        batch_job_manager_task: batch_models.JobManagerTask | None = None,
-        batch_job_preparation_task: batch_models.JobPreparationTask | None = None,
-        batch_job_release_task: batch_models.JobReleaseTask | None = None,
+        batch_job_manager_task: batch_models.BatchJobManagerTask | None = None,
+        batch_job_preparation_task: batch_models.BatchJobPreparationTask | None = None,
+        batch_job_release_task: batch_models.BatchJobReleaseTask | None = None,
         batch_task_display_name: str | None = None,
-        batch_task_container_settings: batch_models.TaskContainerSettings | None = None,
-        batch_start_task: batch_models.StartTask | None = None,
+        batch_task_container_settings: batch_models.BatchTaskContainerSettings | None = None,
+        batch_start_task: batch_models.BatchStartTask | None = None,
         batch_max_retries: int = 3,
         batch_task_resource_files: list[batch_models.ResourceFile] | None = None,
         batch_task_output_files: list[batch_models.OutputFile] | None = None,
@@ -179,8 +175,6 @@ class AzureBatchOperator(BaseOperator):
         self.vm_sku = vm_sku
         self.vm_version = vm_version
         self.vm_node_agent_sku_id = vm_node_agent_sku_id
-        self.os_family = os_family
-        self.os_version = os_version
         self.timeout = timeout
         self.should_delete_job = should_delete_job
         self.should_delete_pool = should_delete_pool
@@ -193,29 +187,26 @@ class AzureBatchOperator(BaseOperator):
         return AzureBatchHook(self.azure_batch_conn_id)
 
     def _check_inputs(self) -> Any:
-        if not self.os_family and not self.vm_publisher:
-            raise AirflowException("You must specify either vm_publisher or os_family")
-        if self.os_family and self.vm_publisher:
-            raise AirflowException(
-                "Cloud service configuration and virtual machine configuration "
-                "are mutually exclusive. You must specify either of os_family and"
-                " vm_publisher"
-            )
+        if not self.vm_publisher:
+            raise AirflowException("You must specify vm_publisher")
 
         if self.use_latest_image:
+            # When using latest image, only vm_publisher and vm_offer are required
+            # The hook will derive vm_sku and vm_node_agent_sku_id
             if not self.vm_publisher or not self.vm_offer:
                 raise AirflowException(
                     f"If use_latest_image_and_sku is set to True then the parameters vm_publisher, "
                     f"vm_offer, must all be set. "
                     f"Found vm_publisher={self.vm_publisher}, vm_offer={self.vm_offer}"
                 )
-        if self.vm_publisher:
+        else:
+            # When not using latest image, all VM configuration parameters are required
             if not all([self.vm_sku, self.vm_offer, self.vm_node_agent_sku_id]):
                 raise AirflowException(
-                    "If vm_publisher is set, then the parameters vm_sku, vm_offer,"
-                    "vm_node_agent_sku_id must be set. Found "
-                    f"vm_publisher={self.vm_publisher}, vm_offer={self.vm_offer} "
-                    f"vm_node_agent_sku_id={self.vm_node_agent_sku_id}, "
+                    "When use_latest_image_and_sku is False, the parameters vm_sku, vm_offer, "
+                    "and vm_node_agent_sku_id must all be set. Found "
+                    f"vm_publisher={self.vm_publisher}, vm_offer={self.vm_offer}, "
+                    f"vm_sku={self.vm_sku}, vm_node_agent_sku_id={self.vm_node_agent_sku_id}, "
                     f"vm_version={self.vm_version}"
                 )
 
@@ -253,7 +244,6 @@ class AzureBatchOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         self._check_inputs()
-        self.hook.connection.config.retry_policy = self.batch_max_retries
 
         pool = self.hook.configure_pool(
             pool_id=self.batch_pool_id,
@@ -267,8 +257,6 @@ class AzureBatchOperator(BaseOperator):
             vm_sku=self.vm_sku,
             vm_version=self.vm_version,
             vm_node_agent_sku_id=self.vm_node_agent_sku_id,
-            os_family=self.os_family,
-            os_version=self.os_version,
             target_low_priority_nodes=self.target_low_priority_nodes,
             enable_auto_scale=self.enable_auto_scale,
             auto_scale_formula=self.auto_scale_formula,
@@ -280,9 +268,9 @@ class AzureBatchOperator(BaseOperator):
         self.hook.wait_for_all_node_state(
             self.batch_pool_id,
             {
-                batch_models.ComputeNodeState.start_task_failed,
-                batch_models.ComputeNodeState.unusable,
-                batch_models.ComputeNodeState.idle,
+                batch_models.BatchNodeState.START_TASK_FAILED,
+                batch_models.BatchNodeState.UNUSABLE,
+                batch_models.BatchNodeState.IDLE,
             },
         )
         # Create job if not already exist
@@ -310,11 +298,11 @@ class AzureBatchOperator(BaseOperator):
 
         if self.deferrable:
             # Pre-deferral check (node readiness is already enforced by wait_for_all_node_state above)
-            pool = self.hook.connection.pool.get(self.batch_pool_id)
-            if pool.resize_errors:
-                raise RuntimeError(f"Pool resize errors: {pool.resize_errors}")
+            remote_pool: batch_models.BatchPool = self.hook.connection.get_pool(self.batch_pool_id)
+            if remote_pool.resize_errors:
+                raise RuntimeError(f"Pool resize errors: {remote_pool.resize_errors}")
 
-            nodes = list(self.hook.connection.compute_node.list(self.batch_pool_id))
+            nodes = list(self.hook.connection.list_nodes(self.batch_pool_id))
             self.log.debug("Deferral pre-check: %d nodes present in pool %s", len(nodes), self.batch_pool_id)
             end_time = time.time() + (self.timeout * 60)
 
@@ -380,10 +368,8 @@ class AzureBatchOperator(BaseOperator):
                 self.clean_up(pool_id=self.batch_pool_id)
 
     def on_kill(self) -> None:
-        response = self.hook.connection.job.terminate(
-            job_id=self.batch_job_id, terminate_reason="Job killed by user"
-        )
-        self.log.info("Azure Batch job (%s) terminated: %s", self.batch_job_id, response)
+        self.hook.connection.begin_terminate_job(self.batch_job_id)
+        self.log.info("Azure Batch job (%s) terminated", self.batch_job_id)
 
     def clean_up(self, pool_id: str | None = None, job_id: str | None = None) -> None:
         """
@@ -395,7 +381,7 @@ class AzureBatchOperator(BaseOperator):
         """
         if job_id:
             self.log.info("Deleting job: %s", job_id)
-            self.hook.connection.job.delete(job_id)
+            self.hook.connection.begin_delete_job(job_id)
         if pool_id:
             self.log.info("Deleting pool: %s", pool_id)
-            self.hook.connection.pool.delete(pool_id)
+            self.hook.connection.begin_delete_pool(pool_id)
