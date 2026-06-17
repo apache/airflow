@@ -272,24 +272,39 @@ represented as Java objects when read back via ``getXCom``.
 Building and packaging
 -----------------------
 
-The Java SDK is distributed as a JAR. Use any build tool; Gradle is shown here.
+The Java SDK is distributed as a JAR. The sections below show how to build a bundle with Gradle or Maven.
 
-**Gradle setup**
+.. _java-sdk/build/gradle:
 
-Add the SDK dependency to your ``build.gradle.kts``:
+Gradle
+~~~~~~
 
-.. code-block:: kotlin
+Apply the Airflow SDK Gradle plugin in your ``build.gradle``:
+
+.. code-block:: groovy
+
+    plugins {
+        id("org.apache.airflow.sdk") version "${version}"
+    }
 
     dependencies {
-      implementation("org.apache.airflow:airflow-java-sdk:<version>")
-      annotationProcessor("org.apache.airflow:airflow-java-sdk:<version>")
+        annotationProcessor("org.apache.airflow:airflow-sdk-processor:${version}")
+        implementation("org.apache.airflow:airflow-sdk:${version}")
     }
 
-    tasks.withType<Jar> {
-      manifest {
-        attributes("Main-Class" to "com.example.Main")
-      }
+    airflowBundle {
+        mainClass = "com.example.Main"  // Point to your main class instead.
     }
+
+Then run:
+
+.. code-block:: bash
+
+    ./gradlew bundle
+
+The ``build/bundle/`` directory contains all required JAR(s). Copy or mount it into the directory pointed to
+by ``jars_root`` in the coordinator configuration. :class:`~airflow.sdk.coordinators.java.JavaCoordinator`
+scans ``jars_root`` recursively and builds the classpath automatically.
 
 .. note::
 
@@ -298,20 +313,172 @@ Add the SDK dependency to your ``build.gradle.kts``:
 
 .. note::
 
-  The ``Main-Class`` manifest value is needed for the coordinator to know how to run the JAR. You can choose
-  to set this *on the coordinator itself* too by adding the ``main_class`` kwarg in coordinator configuration.
+  The plugin generates a fat JAR with the `Shadow <https://gradleup.com/shadow/>`__ plugin by default. This is
+  generally a good idea since you only deploy one JAR file to avoid dependency issues between projects. If this
+  does not suit you, set ``fatJar = false`` in ``airflowBundle`` to produce thin JARs instead. The rest of the
+  process stays the same, but you will need to put all dependency JARs somewhere Airflow can find with
+  ``jars_root``.
 
-Building a distribution
-~~~~~~~~~~~~~~~~~~~~~~~
+.. _java-sdk/build/maven:
+
+Maven
+~~~~~
+
+Import the ``airflow-sdk-bom`` Bill of Materials so that artifact versions and the
+``${airflow.supervisor.schema.version}`` property are managed in one place:
+
+.. code-block:: xml
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.apache.airflow</groupId>
+                <artifactId>airflow-sdk-bom</artifactId>
+                <version>${version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+Add the SDK as a dependency (version is managed by the BOM):
+
+.. code-block:: xml
+
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.airflow</groupId>
+            <artifactId>airflow-sdk</artifactId>
+        </dependency>
+    </dependencies>
+
+Wire the annotation processor through ``maven-compiler-plugin`` so it stays off the runtime classpath:
+
+.. code-block:: xml
+
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+            <annotationProcessorPaths>
+                <path>
+                    <groupId>org.apache.airflow</groupId>
+                    <artifactId>airflow-sdk-processor</artifactId>
+                    <version>${version}</version>
+                </path>
+            </annotationProcessorPaths>
+        </configuration>
+    </plugin>
+
+**Option 1 (recommended): fat JAR**
+
+Use ``maven-shade-plugin`` to bundle your code and all dependencies into a single JAR. This is the
+simplest deployment: one file, no dependency management at runtime.
+
+.. code-block:: xml
+
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.6.0</version>
+        <executions>
+            <execution>
+                <phase>package</phase>
+                <goals><goal>shade</goal></goals>
+                <configuration>
+                    <transformers>
+                        <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                            <!-- Replace with your BundleBuilder implementation. -->
+                            <mainClass>com.example.Main</mainClass>
+                            <manifestEntries>
+                                <!-- Resolved from the BOM; do not hard-code this value. -->
+                                <Airflow-Supervisor-Schema-Version>${airflow.supervisor.schema.version}</Airflow-Supervisor-Schema-Version>
+                            </manifestEntries>
+                        </transformer>
+                    </transformers>
+                </configuration>
+            </execution>
+        </executions>
+    </plugin>
+
+Then run:
 
 .. code-block:: bash
 
-    ./gradlew :myproject:installDist
+    mvn package
 
-The ``lib/`` directory of the resulting distribution contains all required JARs. Copy or mount it into the
-directory pointed to by ``jars_root`` in the coordinator configuration.
-:class:`~airflow.sdk.coordinators.java.JavaCoordinator` scans ``jars_root``
-recursively and builds the classpath automatically.
+The fat JAR is written to ``target/<artifactId>-<version>.jar``. Copy it to the directory configured as
+``jars_root`` in your coordinator.
+
+**Option 2: thin JAR with separate dependencies**
+
+If a fat JAR does not suit your project, use ``maven-jar-plugin`` to set ``Main-Class`` on the regular
+JAR and ``maven-dependency-plugin`` to collect all runtime dependencies alongside it. Note that
+``Airflow-Supervisor-Schema-Version`` does not need to be set here since Airflow reads it directly from the
+``airflow-sdk`` JAR on the classpath.
+
+.. code-block:: xml
+
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+            <archive>
+                <manifestEntries>
+                    <Main-Class>com.example.Main</Main-Class>
+                </manifestEntries>
+            </archive>
+        </configuration>
+    </plugin>
+
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+            <execution>
+                <id>copy-dependencies</id>
+                <phase>package</phase>
+                <goals><goal>copy-dependencies</goal></goals>
+                <configuration>
+                    <outputDirectory>${project.build.directory}/bundle</outputDirectory>
+                    <includeScope>runtime</includeScope>
+                </configuration>
+            </execution>
+            <execution>
+                <id>copy-artifact</id>
+                <phase>package</phase>
+                <goals><goal>copy</goal></goals>
+                <configuration>
+                    <artifactItems>
+                        <artifactItem>
+                            <groupId>${project.groupId}</groupId>
+                            <artifactId>${project.artifactId}</artifactId>
+                            <version>${project.version}</version>
+                            <outputDirectory>${project.build.directory}/bundle</outputDirectory>
+                        </artifactItem>
+                    </artifactItems>
+                </configuration>
+            </execution>
+        </executions>
+    </plugin>
+
+Then run:
+
+.. code-block:: bash
+
+    mvn package
+
+``target/bundle/`` will contain the thin JAR and all runtime dependency JARs. Point ``jars_root`` at
+this directory.
+
+.. note::
+
+  You only need the ``annotationProcessorPaths`` entry if you use the annotation-based API.
+
+.. note::
+
+  Unlike the Gradle plugin, Maven has no equivalent of the ``verifyBundleMainClass`` validation step.
+  A wrong ``<mainClass>`` value will not be caught until runtime.
 
 .. _java-sdk/coordinator-config:
 

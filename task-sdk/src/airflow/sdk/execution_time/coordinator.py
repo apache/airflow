@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from airflow.sdk.api.client import Client
-    from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
+    from airflow.sdk.api.datamodels._generated import TaskInstance
 
 __all__ = [
     "BaseCoordinator",
@@ -89,7 +89,7 @@ class BaseCoordinator:
     def execute_task(
         self,
         *,
-        what: TaskInstanceDTO,
+        what: TaskInstance,
         dag_rel_path: str | PathLike[str],
         bundle_info,
         client: Client,
@@ -122,7 +122,7 @@ class _PythonCoordinator(BaseCoordinator):
     def execute_task(
         self,
         *,
-        what: TaskInstanceDTO,
+        what: TaskInstance,
         dag_rel_path: str | PathLike[str],
         bundle_info,
         client: Client,

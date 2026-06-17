@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example Dags <https://github.com/apache/airflow/tree/providers-clickhouse/|version|/providers/clickhouse/tests/system/clickhouse>
+    Example Dags <https://github.com/apache/airflow/tree/providers-clickhousedb/|version|/providers/clickhousedb/tests/system/clickhouse>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-clickhousedb/>
     Installing from sources <installing-providers-from-sources>
 
@@ -102,7 +102,7 @@ PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.11.0``
 ``apache-airflow-providers-common-sql``  ``>=1.32.0``
-``clickhouse-connect``                   ``>=0.7.0``
+``clickhouse-connect``                   ``>=1.3.0``
 =======================================  ==================
 
 Cross provider package dependencies

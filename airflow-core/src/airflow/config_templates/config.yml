@@ -1939,9 +1939,9 @@ workers:
       sensitive: true
       example: ~
       default: ""
-    state_backend:
+    state_store_backend:
       description: |
-        Full class name of a custom worker-side state backend. When set, task state values are
+        Full class name of a custom worker-side store backend. When set, task store values are
         routed through this backend so large payloads or credentialed storage stay on worker
         infrastructure. The Execution API still records a reference string in the database.
 
@@ -2688,6 +2688,20 @@ scheduler:
       type: integer
       default: "20"
       see_also: ":ref:`scheduler:ha:tunables`"
+    partition_mapper_max_downstream_keys:
+      description: |
+        Maximum number of downstream partition keys produced by a single
+        PartitionMapper invocation, applied to any PartitionMapper that returns
+        multiple keys (e.g. FanOutMapper). When a mapper instance sets a per-instance
+        ``max_downstream_keys`` parameter, that value completely overrides this global
+        cap for that instance — including when the per-mapper value exceeds this
+        global. **Deployment managers cannot enforce this setting as a hard
+        cluster-wide ceiling**; treat this value as a default that user code may
+        override.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "1000"
     use_job_schedule:
       description: |
         Turn off scheduler use of cron intervals by setting this to ``False``.
@@ -2905,6 +2919,17 @@ triggerer:
       type: integer
       example: ~
       default: "1024"
+    shared_stream_ack_timeout:
+      description: |
+        Per-event ack timeout in seconds for shared-stream triggers running in ack mode (triggers that
+        override ``BaseEventTrigger.create_shared_stream_producer``). A subscriber that has not finished
+        processing an event (moved past it and had its derived trigger events confirmed persisted) within
+        this window is force-failed. Other subscribers in the same group are unaffected; once they
+        resolve, the producer advances normally.
+      version_added: 3.3.0
+      type: float
+      example: ~
+      default: "300.0"
 kerberos:
   description: ~
   options:
@@ -3193,7 +3218,7 @@ state_store:
       version_added: 3.3.0
       type: string
       example: "mypackage.state.CustomStateBackend"
-      default: "airflow.state.metastore.MetastoreStoreBackend"
+      default: "airflow.state.metastore.MetastoreBackend"
     clear_on_success:
       description: |
         If set to True, all task state keys for a task instance are automatically cleared
@@ -3212,7 +3237,7 @@ state_store:
       description: |
         Number of days to retain task state after their last update.
         Rows older than this are removed when cleanup is triggered.
-        This config does not affect asset_state rows.
+        This config does not affect asset_state_store rows.
         Set to 0 to disable time-based cleanup entirely.
       version_added: 3.3.0
       type: integer
@@ -3221,11 +3246,27 @@ state_store:
     state_cleanup_batch_size:
       description: |
         Number of rows deleted per batch during cleanup. Defaults to 0 (no batching).
-        Tune this on deployments with large task_state tables to improve performance per transaction.
+        Tune this on deployments with large task_state_store tables to improve performance per transaction.
       version_added: 3.3.0
       type: integer
       example: "10000"
       default: "0"
+    max_value_storage_bytes:
+      description: |
+        Maximum size in bytes that a single task or asset store value may have when written via
+        the public REST API. Values that exceed this limit are rejected with a 422 error.
+
+        Workers writing via the execution API are not blocked, they log a warning and the write
+        proceeds, so tasks are never interrupted mid-execution. Set to 0 to disable the limit entirely.
+
+        The default of 65535 bytes (64 KB) is a policy default suited for coordination state such as
+        job IDs, cursors, and small status maps — the underlying database column (MEDIUMTEXT on MySQL,
+        unbounded Text on Postgres) does not enforce this limit. For larger payloads, configure a custom
+        [workers] state_store_backend to offload values to external storage.
+      version_added: 3.3.0
+      type: integer
+      example: "1048576"
+      default: "65535"
 
 profiling:
   description: |
