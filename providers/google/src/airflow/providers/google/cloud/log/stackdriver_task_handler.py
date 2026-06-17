@@ -79,6 +79,7 @@ LABEL_DAG_ID = "dag_id"
 LABEL_LOGICAL_DATE = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
 LABEL_TRY_NUMBER = "try_number"
 LABEL_TASK_INSTANCE_ID = "task_instance_id"
+LABEL_RUN_ID = "run_id"
 
 
 @attrs.define(kw_only=True)
@@ -178,7 +179,7 @@ class StackdriverRemoteLogIO(LoggingMixin):
                 if task_id := event.get("task_id"):
                     labels[LABEL_TASK_ID] = str(task_id)
                 if run_id := event.get("run_id"):
-                    labels["run_id"] = str(run_id)
+                    labels[LABEL_RUN_ID] = str(run_id)
                 if try_number := event.get("try_number"):
                     labels[LABEL_TRY_NUMBER] = str(try_number)
                 if map_index := event.get("map_index"):
@@ -302,14 +303,18 @@ def _task_instance_to_labels(ti) -> dict[str, str]:
     labels = {
         LABEL_TASK_ID: str(ti.task_id),
         LABEL_DAG_ID: str(ti.dag_id),
-        LABEL_LOGICAL_DATE: str(ti.logical_date.isoformat())
-        if AIRFLOW_V_3_0_PLUS
-        else str(ti.execution_date.isoformat()),
         LABEL_TRY_NUMBER: str(ti.try_number),
     }
+
     ti_id = getattr(ti, "id", None)
     if ti_id:
         labels[LABEL_TASK_INSTANCE_ID] = str(ti_id)
+
+    if logical_date := getattr(ti, LABEL_LOGICAL_DATE, None):
+        labels[LABEL_LOGICAL_DATE] = str(logical_date.isoformat())
+    elif run_id := getattr(ti, "run_id", None):
+        labels[LABEL_RUN_ID] = str(run_id)
+
     return labels
 
 
