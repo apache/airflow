@@ -823,6 +823,15 @@ def requires_access_dag_run_clear_bulk() -> Callable[[BulkDAGRunClearBody, BaseU
                 continue
             entity_methods.append((entity_dag_id, "PUT"))
 
+        partition_selectors_present = (
+            body.partition_key is not None
+            or body.partition_date_start is not None
+            or body.partition_date_end is not None
+        )
+        if not body.dag_runs and partition_selectors_present:
+            if dag_id and dag_id != "~":
+                entity_methods.append((dag_id, "PUT"))
+
         requests = _build_dag_run_access_requests(entity_methods)
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(

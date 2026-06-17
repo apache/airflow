@@ -92,7 +92,40 @@ class DAGRunClearBody(BaseDAGRunClear):
 class BulkDAGRunClearBody(BaseDAGRunClear):
     """Request body for the bulk clear Dag Runs endpoint."""
 
-    dag_runs: list[BulkDAGRunBody] = Field(min_length=1)
+    dag_runs: list[BulkDAGRunBody] = Field(default_factory=list)
+    partition_key: str | None = Field(
+        default=None,
+        description="Select runs by exact partition key match. Mutually exclusive with ``dag_runs`` and partition date window.",
+    )
+    partition_date_start: datetime | None = Field(
+        default=None,
+        description="Inclusive start of the partition date window (calendar-day granular). Mutually exclusive with ``dag_runs`` and ``partition_key``.",
+    )
+    partition_date_end: datetime | None = Field(
+        default=None,
+        description="Inclusive end of the partition date window (calendar-day granular). Mutually exclusive with ``dag_runs`` and ``partition_key``.",
+    )
+
+    @model_validator(mode="after")
+    def validate_exactly_one_selection_mode(self) -> BulkDAGRunClearBody:
+        has_dag_runs = bool(self.dag_runs)
+        has_partition_key = self.partition_key is not None
+        has_partition_date_window = (
+            self.partition_date_start is not None or self.partition_date_end is not None
+        )
+        modes_active = sum([has_dag_runs, has_partition_key, has_partition_date_window])
+        if modes_active != 1:
+            raise ValueError(
+                "Exactly one of dag_runs (non-empty), partition_key, or a partition date window "
+                "(partition_date_start / partition_date_end) must be provided."
+            )
+        if (
+            self.partition_date_start is not None
+            and self.partition_date_end is not None
+            and self.partition_date_start > self.partition_date_end
+        ):
+            raise ValueError("partition_date_start must be on or before partition_date_end.")
+        return self
 
 
 class DAGRunResponse(BaseModel):
@@ -242,3 +275,61 @@ class DAGRunsBatchBody(StrictBaseModel):
     duration_lt: float | None = None
 
     conf_contains: str | None = None
+
+
+class ClearPartitionsBody(StrictBaseModel):
+    """Request body for the clearPartitions endpoint (column-reset: set partition fields to None)."""
+
+    run_id: str | None = Field(
+        default=None,
+        description="Select runs by exact run_id. Mutually exclusive with ``partition_key`` and partition date window.",
+    )
+    partition_key: str | None = Field(
+        default=None,
+        description="Select runs by exact partition key match. Mutually exclusive with ``run_id`` and partition date window.",
+    )
+    partition_date_start: datetime | None = Field(
+        default=None,
+        description="Inclusive start of the partition date window (calendar-day granular). Mutually exclusive with ``run_id`` and ``partition_key``.",
+    )
+    partition_date_end: datetime | None = Field(
+        default=None,
+        description="Inclusive end of the partition date window (calendar-day granular). Mutually exclusive with ``run_id`` and ``partition_key``.",
+    )
+    clear_task_instances: bool = Field(
+        default=False,
+        description="Also clear task instances on the matched runs.",
+    )
+    dry_run: bool = Field(
+        default=True,
+        description="If True, compute counts without writing any changes.",
+    )
+
+    @model_validator(mode="after")
+    def validate_exactly_one_selector(self) -> ClearPartitionsBody:
+        has_run_id = self.run_id is not None
+        has_partition_key = self.partition_key is not None
+        has_partition_date_window = (
+            self.partition_date_start is not None or self.partition_date_end is not None
+        )
+        selectors_active = sum([has_run_id, has_partition_key, has_partition_date_window])
+        if selectors_active != 1:
+            raise ValueError(
+                "Exactly one of run_id, partition_key, or a partition date window "
+                "(partition_date_start / partition_date_end) must be provided."
+            )
+        if (
+            self.partition_date_start is not None
+            and self.partition_date_end is not None
+            and self.partition_date_start > self.partition_date_end
+        ):
+            raise ValueError("partition_date_start must be on or before partition_date_end.")
+        return self
+
+
+class ClearPartitionsResponse(BaseModel):
+    """Response for the clearPartitions endpoint."""
+
+    dag_runs_cleared: int
+    task_instances_cleared: int
+    dry_run: bool

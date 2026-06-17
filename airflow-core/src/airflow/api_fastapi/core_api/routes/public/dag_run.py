@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import textwrap
+from datetime import timedelta
 from typing import Annotated, Literal, cast
 
 from fastapi import Depends, HTTPException, Query, Request, status
@@ -73,6 +74,8 @@ from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkRespons
 from airflow.api_fastapi.core_api.datamodels.dag_run import (
     BulkDAGRunBody,
     BulkDAGRunClearBody,
+    ClearPartitionsBody,
+    ClearPartitionsResponse,
     DAGRunClearBody,
     DAGRunCollectionResponse,
     DagRunMutableStates,
@@ -98,6 +101,7 @@ from airflow.api_fastapi.core_api.security import (
 from airflow.api_fastapi.core_api.services.public.dag_run import (
     BulkDagRunService,
     DagRunWaiter,
+    clear_partition_fields,
     dry_run_clear_dag_run,
     get_dag_run_and_dag_for_clear,
     patch_dag_run_note,
@@ -349,26 +353,56 @@ def clear_dag_runs(
     """Clear multiple Dag Runs in a single request."""
     url_dag_id_is_wildcard = dag_id == "~"
 
-    # No ordered set type in Python, using a dict with throwaway values as replacement.
-    runs_to_clear: dict[tuple[str, str], None] = {}
-    for run in body.dag_runs:
+    partition_mode = not body.dag_runs and (
+        body.partition_key is not None
+        or body.partition_date_start is not None
+        or body.partition_date_end is not None
+    )
+
+    if partition_mode:
         if url_dag_id_is_wildcard:
-            if not run.dag_id or run.dag_id == "~":
-                raise HTTPException(
-                    status.HTTP_400_BAD_REQUEST,
-                    f"When the URL dag_id is '~', every entry must provide a concrete dag_id "
-                    f"(missing on dag_run_id: {run.dag_run_id!r}).",
-                )
-            run_to_clear = (run.dag_id, run.dag_run_id)
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Partition selectors require a concrete dag_id; '~' is not supported.",
+            )
+        dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+
+        stmt = select(DagRun.run_id).where(DagRun.dag_id == dag_id)
+        if body.partition_key is not None:
+            stmt = stmt.where(DagRun.partition_key == body.partition_key)
         else:
-            entity_dag_id = run.dag_id or dag_id
-            if entity_dag_id != dag_id:
-                raise HTTPException(
-                    status.HTTP_400_BAD_REQUEST,
-                    f"Entry dag_id {entity_dag_id!r} does not match the URL dag_id {dag_id!r}.",
-                )
-            run_to_clear = (dag_id, run.dag_run_id)
-        runs_to_clear[run_to_clear] = None
+            stmt = stmt.where(DagRun.partition_date.is_not(None))
+            if body.partition_date_start is not None:
+                lower = dag.timetable.resolve_day_bound(body.partition_date_start.date())
+                stmt = stmt.where(DagRun.partition_date >= lower)
+            if body.partition_date_end is not None:
+                upper = dag.timetable.resolve_day_bound(body.partition_date_end.date() + timedelta(days=1))
+                stmt = stmt.where(DagRun.partition_date < upper)
+        stmt = stmt.order_by(DagRun.partition_date, DagRun.run_id)
+
+        run_ids = list(session.scalars(stmt))
+        runs_to_clear: dict[tuple[str, str], None] = {(dag_id, run_id): None for run_id in run_ids}
+    else:
+        # No ordered set type in Python, using a dict with throwaway values as replacement.
+        runs_to_clear = {}
+        for run in body.dag_runs:
+            if url_dag_id_is_wildcard:
+                if not run.dag_id or run.dag_id == "~":
+                    raise HTTPException(
+                        status.HTTP_400_BAD_REQUEST,
+                        f"When the URL dag_id is '~', every entry must provide a concrete dag_id "
+                        f"(missing on dag_run_id: {run.dag_run_id!r}).",
+                    )
+                run_to_clear = (run.dag_id, run.dag_run_id)
+            else:
+                entity_dag_id = run.dag_id or dag_id
+                if entity_dag_id != dag_id:
+                    raise HTTPException(
+                        status.HTTP_400_BAD_REQUEST,
+                        f"Entry dag_id {entity_dag_id!r} does not match the URL dag_id {dag_id!r}.",
+                    )
+                run_to_clear = (dag_id, run.dag_run_id)
+            runs_to_clear[run_to_clear] = None
 
     if body.dry_run:
         affected: list[TaskInstanceResponse | NewTaskResponse] = []
@@ -412,6 +446,35 @@ def clear_dag_runs(
     return DAGRunCollectionResponse(
         dag_runs=cleared_runs,
         total_entries=len(cleared_runs),
+    )
+
+
+@dag_run_at_dag_router.post(
+    "/clearPartitions",
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]),
+    dependencies=[
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.RUN)),
+        Depends(action_logging()),
+    ],
+)
+def clear_dag_run_partitions(
+    dag_id: str,
+    body: ClearPartitionsBody,
+    dag_bag: DagBagDep,
+    session: SessionDep,
+) -> ClearPartitionsResponse:
+    """Reset partition_key and partition_date fields on matching Dag Runs."""
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+    dag_runs_cleared, task_instances_cleared = clear_partition_fields(
+        dag=dag,
+        body=body,
+        dag_id=dag_id,
+        session=session,
+    )
+    return ClearPartitionsResponse(
+        dag_runs_cleared=dag_runs_cleared,
+        task_instances_cleared=task_instances_cleared,
+        dry_run=body.dry_run,
     )
 
 

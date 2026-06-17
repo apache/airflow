@@ -347,6 +347,18 @@ export type BulkDAGRunBody = {
  * Request body for the bulk clear Dag Runs endpoint.
  */
 export type BulkDAGRunClearBody = {
+    /**
+     * Select runs by exact partition key match. Mutually exclusive with the other partition selectors.
+     */
+    partition_key?: string | null;
+    /**
+     * Inclusive start of the partition date window (calendar-day granular). Mutually exclusive with the other partition selectors.
+     */
+    partition_date_start?: string | null;
+    /**
+     * Inclusive end of the partition date window (calendar-day granular). Mutually exclusive with the other partition selectors.
+     */
+    partition_date_end?: string | null;
     dry_run?: boolean;
     only_failed?: boolean;
     /**
@@ -358,7 +370,7 @@ export type BulkDAGRunClearBody = {
      */
     run_on_latest_version?: boolean | null;
     note?: string | null;
-    dag_runs: Array<BulkDAGRunBody>;
+    dag_runs?: Array<BulkDAGRunBody>;
 };
 
 export type BulkDeleteAction_BulkDAGRunBody_ = {
@@ -537,6 +549,45 @@ export type BulkUpdateAction_VariableBody_ = {
      */
     update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+/**
+ * Request body for the clearPartitions endpoint (column-reset: set partition fields to None).
+ */
+export type ClearPartitionsBody = {
+    /**
+     * Select runs by exact partition key match. Mutually exclusive with the other partition selectors.
+     */
+    partition_key?: string | null;
+    /**
+     * Inclusive start of the partition date window (calendar-day granular). Mutually exclusive with the other partition selectors.
+     */
+    partition_date_start?: string | null;
+    /**
+     * Inclusive end of the partition date window (calendar-day granular). Mutually exclusive with the other partition selectors.
+     */
+    partition_date_end?: string | null;
+    /**
+     * Select runs by exact run_id. Mutually exclusive with ``partition_key`` and partition date window.
+     */
+    run_id?: string | null;
+    /**
+     * Also clear task instances on the matched runs.
+     */
+    clear_task_instances?: boolean;
+    /**
+     * If True, compute counts without writing any changes.
+     */
+    dry_run?: boolean;
+};
+
+/**
+ * Response for the clearPartitions endpoint.
+ */
+export type ClearPartitionsResponse = {
+    dag_runs_cleared: number;
+    task_instances_cleared: number;
+    dry_run: boolean;
 };
 
 /**
@@ -3116,6 +3167,13 @@ export type ClearDagRunsData = {
 };
 
 export type ClearDagRunsResponse = ClearTaskInstanceCollectionResponse | DAGRunCollectionResponse;
+
+export type ClearDagRunPartitionsData = {
+    dagId: string;
+    requestBody: ClearPartitionsBody;
+};
+
+export type ClearDagRunPartitionsResponse = ClearPartitionsResponse;
 
 export type GetDagRunStatsData = {
     dagId: string;
@@ -5705,6 +5763,37 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: ClearTaskInstanceCollectionResponse | DAGRunCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/clearPartitions': {
+        post: {
+            req: ClearDagRunPartitionsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ClearPartitionsResponse;
                 /**
                  * Bad Request
                  */
