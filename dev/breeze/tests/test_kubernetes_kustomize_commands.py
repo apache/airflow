@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow_breeze.commands.kubernetes_commands import (
+from airflow_breeze.commands.kubernetes_kustomize_commands import (
     ALLOWED_OVERLAY_IMAGES,
     _discover_overlay_images,
     _find_disallowed_overlay_images,
