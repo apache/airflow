@@ -19,6 +19,7 @@ from __future__ import annotations
 import ast
 import functools
 import importlib.util
+import inspect
 import textwrap
 from pathlib import Path
 
@@ -524,8 +525,6 @@ def example():
         When a docstring has no common leading whitespace, inspect.cleandoc should
         return it unchanged and only remove surrounding whitespace.
         """
-        import inspect
-
         # Verify inspect.cleandoc behavior on non-indented strings
         raw_doc = "This docstring has no leading indentation."
         assert inspect.cleandoc(raw_doc) == "This docstring has no leading indentation."
@@ -544,3 +543,23 @@ def example():
 
         # The docstring should be unchanged after cleandoc
         assert task_obj.doc_md == "This docstring has no leading indentation."
+
+    def test_task_docstring_same_line_start(self):
+        """Test that docstring starting on same line as quotes is handled correctly.
+
+        When docstring content starts on the same line as opening quotes,
+        inspect.cleandoc should handle it properly.
+        """
+        @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+        def pipeline():
+            @task
+            def my_task():
+                """This docstring starts immediately."""
+
+            return my_task()
+
+        dag_obj = pipeline()
+        task_obj = dag_obj.task_dict["my_task"]
+
+        assert task_obj.doc_md == "This docstring starts immediately."
+
