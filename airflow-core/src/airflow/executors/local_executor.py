@@ -110,7 +110,9 @@ def _run_worker(
             # A transient callback context-fetch failure should requeue (not terminally fail), so
             # the scheduler retries it next loop — mirroring the triggerer path. The workload
             # exposes ``retry_state`` (PENDING for callbacks) for exactly this case.
-            from airflow.sdk.execution_time.callback_supervisor import CallbackContextFetchError
+            from airflow.sdk.execution_time.callback_supervisor import (  # noqa: SDK001
+                CallbackContextFetchError,
+            )
 
             retry_state = getattr(workload, "retry_state", None)
             if isinstance(e, CallbackContextFetchError) and retry_state is not None:
