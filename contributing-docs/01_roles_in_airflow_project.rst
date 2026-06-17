@@ -64,7 +64,7 @@ Release managers
 ----------------
 
 The task of release managers is to prepare and release Airflow artifacts (airflow, providers, Helm Chart, Python client).
-The release managers are usually PMC members and the process of releasing is described in the `dev <../dev>`__
+The release managers are usually PMC members and the process of releasing is described in the `dev <../dev/README.md>`__
 documentation where we keep information and tools used for releasing.
 
 Contributors
