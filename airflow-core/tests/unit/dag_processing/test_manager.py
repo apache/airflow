@@ -3165,3 +3165,52 @@ class TestMultiTeamMetrics:
             manager.terminate()
 
         mock_decr.assert_called_once_with("dag_processing.processes", tags=expected_tags)
+
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param("team_alpha", {"team_name": "team_alpha"}, id="with_team"),
+            pytest.param(None, {}, id="without_team"),
+        ],
+    )
+    @mock.patch("airflow.dag_processing.manager.stats.incr")
+    def test_process_parse_results_callback_only_count_includes_team_name(
+        self, mock_incr, team_name, expected_tags
+    ):
+        from airflow.dag_processing.manager import process_parse_results
+
+        process_parse_results(
+            run_duration=1.5,
+            finish_time=timezone.utcnow(),
+            run_count=0,
+            bundle_name="testing",
+            parsing_result=None,
+            is_callback_only=True,
+            relative_fileloc="dag.py",
+            team_name=team_name,
+        )
+
+        mock_incr.assert_called_once_with("dag_processing.callback_only_count", tags=expected_tags)
+
+    @pytest.mark.parametrize(
+        ("multi_team", "team_name", "expected_tags"),
+        [
+            pytest.param("true", "team_alpha", {"team_name": "team_alpha"}, id="with_team"),
+            pytest.param("false", None, {}, id="without_team"),
+        ],
+    )
+    @mock.patch("airflow.dag_processing.manager.stats.incr")
+    def test_add_callback_to_queue_includes_team_name(self, mock_incr, multi_team, team_name, expected_tags):
+        manager = DagFileProcessorManager(max_runs=1)
+        request = MagicMock(filepath="test_dag.py", bundle_name="testing", bundle_version=None)
+        bundle = MagicMock(path=TEST_DAGS_FOLDER)
+
+        with (
+            conf_vars({("core", "multi_team"): multi_team}),
+            mock.patch.object(manager, "prepare_callback_bundle", return_value=bundle),
+            mock.patch.object(manager, "_add_files_to_queue"),
+            mock.patch("airflow.dag_processing.manager.DagBundleModel.get_team_name", return_value=team_name),
+        ):
+            manager._add_callback_to_queue(request)
+
+        mock_incr.assert_called_once_with("dag_processing.other_callback_count", tags=expected_tags)
