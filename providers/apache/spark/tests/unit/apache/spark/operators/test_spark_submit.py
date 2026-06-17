@@ -18,12 +18,14 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from datetime import timedelta
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
@@ -591,10 +593,6 @@ class TestSparkSubmitOperatorResumable:
         assert polled == ["driver-001"]
 
     def test_reconnect_on_retry_deprecated_alias(self):
-        import warnings
-
-        from airflow.exceptions import AirflowProviderDeprecationWarning
-
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             operator = self._make_operator(reconnect_on_retry=False)
