@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import suppress
 from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, TextIO
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
     from airflow.sdk.types import Logger, RuntimeTaskInstanceProtocol as RuntimeTI
 
 
-from airflow.sdk._shared.secrets_masker import redact
+from airflow.sdk._shared.secrets_masker import _secrets_masker, redact
 
 
 class _ActiveLoggingConfig:
@@ -249,10 +250,6 @@ def mask_secret(secret: JsonValue, name: str | None = None) -> None:
     they're masked in both the task subprocess AND supervisor's log output.
     Works safely in both sync and async contexts.
     """
-    from contextlib import suppress
-
-    from airflow.sdk._shared.secrets_masker import _secrets_masker
-
     _secrets_masker().add_mask(secret, name)
 
     with suppress(Exception):
@@ -271,10 +268,6 @@ async def amask_secret(secret: JsonValue, name: str | None = None) -> None:
     Uses asend() instead of send() to avoid deadlock when called from within
     an async task that already has an asend() in flight.
     """
-    from contextlib import suppress
-
-    from airflow.sdk._shared.secrets_masker import _secrets_masker
-
     _secrets_masker().add_mask(secret, name)
 
     with suppress(Exception):
