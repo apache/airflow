@@ -39,6 +39,12 @@ if sys.version_info >= (3, 12) and (
     )
 
 from airflow.api_fastapi.app import cached_app
+from airflow.sdk.log import configure_logging
+
+# Configure logging in every worker so logging settings such as
+# logging.colored_console_log are respected. Both uvicorn and gunicorn import
+# this module in each worker process.
+configure_logging()
 
 # There is no way to pass the apps to this file from Airflow CLI
 # because fastapi dev command does not accept any additional arguments
