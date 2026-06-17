@@ -38,11 +38,12 @@ from airflow.providers.openlineage.utils.utils import (
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from openlineage.client.event_v2 import Dataset
+    from openlineage.client.event_v2 import Dataset, InputDataset, OutputDataset
     from openlineage.client.facet_v2 import JobFacet, RunFacet
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
 log = logging.getLogger(__name__)
 
@@ -54,8 +55,8 @@ def emit_query_lineage(
     query_id: str | None = None,
     query_source_namespace: str | None = None,
     query_text: str | None = None,
-    inputs: list[Dataset] | None = None,
-    outputs: list[Dataset] | None = None,
+    inputs: list[InputDataset | Dataset] | None = None,
+    outputs: list[OutputDataset | Dataset] | None = None,
     start_time: datetime | None = None,
     end_time: datetime | None = None,
     is_successful: bool = True,
@@ -63,7 +64,7 @@ def emit_query_lineage(
     default_database: str | None = None,
     default_schema: str | None = None,
     job_name: str | None = None,
-    task_instance: TaskInstance | RuntimeTaskInstance | None = None,
+    task_instance: RuntimeTaskInstanceProtocol | RuntimeTaskInstance | TaskInstance | None = None,
     additional_run_facets: dict[str, RunFacet] | None = None,
     additional_job_facets: dict[str, JobFacet] | None = None,
     raise_on_error: bool = False,
