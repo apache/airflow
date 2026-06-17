@@ -367,12 +367,19 @@ A **custom asynchronous callback** might look like this:
 Templating and Context
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Currently, a relatively simple version of the Airflow context is passed to callables and Airflow does not run
-:ref:`concepts:jinja-templating` on the kwargs. However, Notifiers already run templating with the
-provided context as part of their execution. This means that templating can be used when using a Notifier
-as long as the variables being templated are included in the simplified context. This currently includes the
-ID and the calculated deadline time of the Deadline Alert as well as the data included in the ``GET`` REST API
-response for Dag Run. Support for more comprehensive context and templating will be added in future versions.
+A relatively simple version of the Airflow context is passed to callables, and Airflow runs
+:ref:`concepts:jinja-templating` on string-valued callback ``kwargs`` using that context. String
+kwargs that contain ``{{ ... }}`` are rendered before the callback runs; non-string kwargs and
+strings without template markers are passed through untouched, and a template that fails to render
+falls back to its raw value (logged at warning) rather than failing the callback. Templating works
+identically on both the synchronous (executor) and asynchronous (triggerer) callback paths.
+
+The variables available for templating are those in the simplified context: the ID and the
+calculated deadline time of the Deadline Alert (``{{ deadline.id }}``, ``{{ deadline.deadline_time }}``),
+plus the Dag Run fields included in the ``GET`` REST API response for Dag Run (e.g.
+``{{ dag_run.run_id }}``, ``{{ run_id }}``, ``{{ logical_date }}``, ``{{ ds }}``, ``{{ ts }}``).
+Notifiers continue to run their own templating as part of their execution. Support for a more
+comprehensive context will be added in future versions.
 
 Deadline Calculation
 ^^^^^^^^^^^^^^^^^^^^

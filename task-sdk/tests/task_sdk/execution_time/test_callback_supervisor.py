@@ -31,12 +31,12 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 import structlog
 
+from airflow.sdk._shared.template_rendering import render_callback_kwargs
 from airflow.sdk._shared.timezones import timezone
 from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, DagRunType
 from airflow.sdk.execution_time.callback_supervisor import (
     CallbackSubprocess,
     Path,
-    _render_callback_kwargs,
     execute_callback,
 )
 from airflow.sdk.execution_time.comms import (
@@ -984,69 +984,71 @@ class TestLoadMangledModule:
 
 
 class TestRenderCallbackKwargs:
-    """Tests for _render_callback_kwargs Jinja template rendering."""
+    """Tests for the shared render_callback_kwargs Jinja template rendering.
+
+    The supervisor (executor path) and CallbackTrigger (triggerer path) both use this single
+    shared helper so the two paths render kwargs identically.
+    """
 
     def test_renders_template_in_string_value(self):
-        from airflow.sdk.execution_time.callback_supervisor import _render_callback_kwargs
 
         kwargs = {"text": "DAG {{ dag_run.dag_id }} missed deadline", "context": {"dag_run": "x"}}
         context = {"dag_run": {"dag_id": "my_dag", "run_id": "run_1"}}
-        log = structlog.get_logger()
 
-        result = _render_callback_kwargs(kwargs, context, log)
+        result = render_callback_kwargs(kwargs, context)
 
         assert result["text"] == "DAG my_dag missed deadline"
         assert result["context"] == {"dag_run": "x"}
 
     def test_skips_non_string_values(self):
-        from airflow.sdk.execution_time.callback_supervisor import _render_callback_kwargs
 
         kwargs = {"count": 42, "items": ["a", "b"], "flag": True}
         context = {"dag_run": {"dag_id": "test"}}
-        log = structlog.get_logger()
 
-        result = _render_callback_kwargs(kwargs, context, log)
+        result = render_callback_kwargs(kwargs, context)
 
         assert result == kwargs
 
     def test_skips_strings_without_template_markers(self):
-        from airflow.sdk.execution_time.callback_supervisor import _render_callback_kwargs
 
         kwargs = {"channel": "#alerts", "text": "plain message"}
         context = {"dag_run": {"dag_id": "test"}}
-        log = structlog.get_logger()
 
-        result = _render_callback_kwargs(kwargs, context, log)
+        result = render_callback_kwargs(kwargs, context)
 
         assert result == kwargs
 
     def test_renders_deadline_context(self):
-        from airflow.sdk.execution_time.callback_supervisor import _render_callback_kwargs
 
         kwargs = {"text": "Deadline {{ deadline.deadline_time }} missed for {{ dag_run.dag_id }}"}
         context = {
             "deadline": {"id": "dl-123", "deadline_time": "2026-06-01T07:00:00Z"},
             "dag_run": {"dag_id": "production_etl"},
         }
-        log = structlog.get_logger()
 
-        result = _render_callback_kwargs(kwargs, context, log)
+        result = render_callback_kwargs(kwargs, context)
 
         assert result["text"] == "Deadline 2026-06-01T07:00:00Z missed for production_etl"
 
+    def test_bad_template_falls_back_to_raw_value(self):
+
+        kwargs = {"bad": "{{ 1 / 0 }}", "good": "ok"}
+        result = render_callback_kwargs(kwargs, {})
+
+        # A template that raises during render falls back to the raw value rather than failing.
+        assert result["bad"] == "{{ 1 / 0 }}"
+        assert result["good"] == "ok"
+
     def test_graceful_on_invalid_template(self):
-        from airflow.sdk.execution_time.callback_supervisor import _render_callback_kwargs
 
         kwargs = {"text": "{{ invalid. }}"}
         context = {"dag_run": {"dag_id": "test"}}
-        log = structlog.get_logger()
 
-        result = _render_callback_kwargs(kwargs, context, log)
+        result = render_callback_kwargs(kwargs, context)
 
         assert result["text"] == "{{ invalid. }}"
 
     def test_renders_multiple_kwargs(self):
-        from airflow.sdk.execution_time.callback_supervisor import _render_callback_kwargs
 
         kwargs = {
             "subject": "Alert: {{ dag_run.dag_id }}",
@@ -1057,9 +1059,8 @@ class TestRenderCallbackKwargs:
             "dag_run": {"dag_id": "payments"},
             "deadline": {"id": "dl-456"},
         }
-        log = structlog.get_logger()
 
-        result = _render_callback_kwargs(kwargs, context, log)
+        result = render_callback_kwargs(kwargs, context)
 
         assert result["subject"] == "Alert: payments"
         assert result["body"] == "Deadline dl-456 fired"
@@ -1067,7 +1068,7 @@ class TestRenderCallbackKwargs:
 
 
 class TestRenderCallbackKwargsAdversarial:
-    """Adversarial QA-loop tests for _render_callback_kwargs (mutation/SSTI/missing-key/guard edges)."""
+    """Adversarial QA-loop tests for render_callback_kwargs (mutation/SSTI/missing-key/guard edges)."""
 
     @pytest.fixture
     def context(self):
@@ -1078,10 +1079,8 @@ class TestRenderCallbackKwargsAdversarial:
 
     def test_renders_string_kwarg_using_context(self, context):
         """A string kwarg containing {{ }} is rendered against the context."""
-        log = Mock()
-        result = _render_callback_kwargs({"msg": "Deadline {{ dag_run.run_id }} missed"}, context, log)
+        result = render_callback_kwargs({"msg": "Deadline {{ dag_run.run_id }} missed"}, context)
         assert result["msg"] == "Deadline manual__2026-06-10 missed"
-        log.warning.assert_not_called()
 
     @pytest.mark.parametrize(
         "value",
@@ -1089,25 +1088,19 @@ class TestRenderCallbackKwargsAdversarial:
     )
     def test_non_string_values_pass_through_untouched(self, context, value):
         """Non-string kwargs (int/float/bool/None/dict/list/tuple) are returned unchanged."""
-        log = Mock()
-        result = _render_callback_kwargs({"arg": value}, context, log)
+        result = render_callback_kwargs({"arg": value}, context)
         assert result["arg"] == value
-        log.warning.assert_not_called()
 
     def test_context_key_is_never_rendered(self, context):
         """The reserved 'context' key is passed through even if it looks templatey."""
-        log = Mock()
         sentinel = "{{ dag_run.run_id }}"
-        result = _render_callback_kwargs({"context": sentinel}, context, log)
+        result = render_callback_kwargs({"context": sentinel}, context)
         assert result["context"] == sentinel
-        log.warning.assert_not_called()
 
     def test_string_without_markers_passes_through(self, context):
         """A plain string with no {{ markers is returned verbatim, never rendered."""
-        log = Mock()
-        result = _render_callback_kwargs({"msg": "no templates here"}, context, log)
+        result = render_callback_kwargs({"msg": "no templates here"}, context)
         assert result["msg"] == "no templates here"
-        log.warning.assert_not_called()
 
     @pytest.mark.parametrize(
         "broken",
@@ -1115,39 +1108,33 @@ class TestRenderCallbackKwargsAdversarial:
     )
     def test_broken_template_does_not_raise_and_returns_raw(self, context, broken):
         """A template that errors at render time returns the raw value and logs a warning."""
-        log = Mock()
-        result = _render_callback_kwargs({"msg": broken}, context, log)
+        with patch("airflow.sdk._shared.template_rendering.log") as mock_log:
+            result = render_callback_kwargs({"msg": broken}, context)
         assert result["msg"] == broken
-        log.warning.assert_called_once()
+        mock_log.warning.assert_called_once()
 
     def test_does_not_mutate_input_dict(self, context):
         """Rendering builds a new dict and leaves the caller's kwargs untouched."""
-        log = Mock()
         original = {"msg": "Run {{ dag_run.run_id }}"}
-        result = _render_callback_kwargs(original, context, log)
+        result = render_callback_kwargs(original, context)
         assert original == {"msg": "Run {{ dag_run.run_id }}"}
         assert result is not original
         assert result["msg"] == "Run manual__2026-06-10"
 
     def test_missing_context_key_renders_empty_not_raises(self, context):
         """A reference to an absent top-level context key renders to empty string."""
-        log = Mock()
-        result = _render_callback_kwargs({"msg": "value=[{{ missing_key }}]"}, context, log)
+        result = render_callback_kwargs({"msg": "value=[{{ missing_key }}]"}, context)
         assert result["msg"] == "value=[]"
-        log.warning.assert_not_called()
 
     def test_jinja_statement_block_is_skipped(self, context):
         """A string with only {% %} (no {{ }}) is skipped by the marker guard, left raw."""
-        log = Mock()
         raw = "{% if dag_run %}hit{% endif %}"
-        result = _render_callback_kwargs({"msg": raw}, context, log)
+        result = render_callback_kwargs({"msg": raw}, context)
         assert result["msg"] == raw
-        log.warning.assert_not_called()
 
     def test_ssti_payload_is_rendered(self, context):
         """SSTI-style payload IS evaluated by the Template engine (documents the behavior)."""
-        log = Mock()
-        result = _render_callback_kwargs({"msg": "{{ ''.__class__.__mro__ }}"}, context, log)
+        result = render_callback_kwargs({"msg": "{{ ''.__class__.__mro__ }}"}, context)
         # Sandbox is NOT used -> attribute access succeeds and the tuple is rendered.
         assert "object" in result["msg"]
 
@@ -1157,7 +1144,7 @@ class TestJinjaContextIntegration:
     Integration tests coupling the two newly-added features:
 
     1. ``build_context_from_dag_run`` (context.py) which constructs the real context dict.
-    2. ``_render_callback_kwargs`` (callback_supervisor.py) which Jinja-renders kwargs.
+    2. ``render_callback_kwargs`` (callback_supervisor.py) which Jinja-renders kwargs.
 
     These verify the ACTUAL fields produced by ``build_context_from_dag_run`` render
     correctly when a deadline-callback kwarg references them, rather than rendering
@@ -1188,27 +1175,24 @@ class TestJinjaContextIntegration:
 
     def test_real_context_fields_render(self, real_context):
         """run_id, ds, and the injected deadline_time all render from a real context."""
-        log = Mock()
         kwargs = {
             "msg": "run={{ dag_run.run_id }} ds={{ ds }} dl={{ deadline.deadline_time }}",
             "context": real_context,
         }
-        result = _render_callback_kwargs(kwargs, real_context, log)
+        result = render_callback_kwargs(kwargs, real_context)
 
         assert result["msg"] == (
             "run=manual__2026-06-01T07:30:45+00:00 ds=2026-06-01 dl=2026-06-01T07:00:00Z"
         )
         # The reserved context key is passed through untouched.
         assert result["context"] is real_context
-        log.warning.assert_not_called()
 
     def test_top_level_run_id_and_ts_fields_render(self, real_context):
         """The top-level run_id/ts/ts_nodash fields produced by the builder render."""
-        log = Mock()
         kwargs = {
             "msg": "run_id={{ run_id }} ts={{ ts }} tsnd={{ ts_nodash }} dsnd={{ ds_nodash }}",
         }
-        result = _render_callback_kwargs(kwargs, real_context, log)
+        result = render_callback_kwargs(kwargs, real_context)
 
         assert result["msg"] == (
             "run_id=manual__2026-06-01T07:30:45+00:00 "
@@ -1216,7 +1200,6 @@ class TestJinjaContextIntegration:
             "tsnd=20260601T073045 "
             "dsnd=20260601"
         )
-        log.warning.assert_not_called()
 
     def test_logical_date_none_branch_renders_empty_for_missing_keys(self):
         """
@@ -1240,25 +1223,22 @@ class TestJinjaContextIntegration:
         assert "ts" not in context
         assert set(context) == {"dag_run", "run_id"}
 
-        log = Mock()
         kwargs = {"msg": "run={{ dag_run.run_id }} ds=[{{ ds }}] ts=[{{ ts }}]"}
-        result = _render_callback_kwargs(kwargs, context, log)
+        result = render_callback_kwargs(kwargs, context)
 
         assert result["msg"] == "run=asset_triggered_run ds=[] ts=[]"
-        log.warning.assert_not_called()
 
     def test_datetime_logical_date_renders_sanely(self, real_context, logical_date):
         """
         Adversarial: {{ dag_run.logical_date }} and {{ data_interval_start }} are pendulum
         DateTimes. They must render as a clean ISO-ish string, not a Python repr or a crash.
         """
-        log = Mock()
         kwargs = {
             "ld": "{{ dag_run.logical_date }}",
             "dis": "{{ data_interval_start }}",
             "die": "{{ data_interval_end }}",
         }
-        result = _render_callback_kwargs(kwargs, real_context, log)
+        result = render_callback_kwargs(kwargs, real_context)
 
         # Jinja renders via str(pendulum.DateTime), which uses a SPACE separator
         # ("2026-06-01 07:30:45+00:00"), NOT the ISO "T" separator. This is sane --
@@ -1272,7 +1252,6 @@ class TestJinjaContextIntegration:
         assert result["dis"] == str(real_context["data_interval_start"])
         assert result["dis"] == "2026-06-01 07:30:45+00:00"
         assert result["die"] == "2026-06-01 08:30:45+00:00"
-        log.warning.assert_not_called()
 
     def test_present_but_none_key_renders_literal_none_vs_missing_renders_empty(self):
         """
@@ -1286,28 +1265,25 @@ class TestJinjaContextIntegration:
         them to None (which would render "None"). This test pins that distinction so a
         future change that starts inserting None-valued context keys is caught.
         """
-        log = Mock()
         context = {"dag_run": SimpleNamespace(run_id="r1"), "ds": None}
-        result = _render_callback_kwargs(
+        result = render_callback_kwargs(
             {"msg": "present_none=[{{ ds }}] missing=[{{ ts }}] run={{ dag_run.run_id }}"},
             context,
-            log,
         )
 
         # ds is present-but-None -> literal "None"; ts is absent -> empty string.
         assert result["msg"] == "present_none=[None] missing=[] run=r1"
-        log.warning.assert_not_called()
 
     def test_missing_attribute_on_real_dag_run_does_not_raise(self, real_context):
         """
         Adversarial: referencing an attribute the dag_run stub does not have
         (e.g. {{ dag_run.conf }}) -- SimpleNamespace raises AttributeError, which
-        Jinja surfaces; _render_callback_kwargs must catch it and return the raw value.
+        Jinja surfaces; render_callback_kwargs must catch it and return the raw value.
         """
-        log = Mock()
         kwargs = {"msg": "conf={{ dag_run.conf['x'] }}"}
-        result = _render_callback_kwargs(kwargs, real_context, log)
+        with patch("airflow.sdk._shared.template_rendering.log") as mock_log:
+            result = render_callback_kwargs(kwargs, real_context)
 
         # dag_run is a SimpleNamespace without 'conf' -> render fails -> raw value kept.
         assert result["msg"] == "conf={{ dag_run.conf['x'] }}"
-        log.warning.assert_called_once()
+        mock_log.warning.assert_called_once()
