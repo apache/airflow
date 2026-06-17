@@ -41,6 +41,8 @@ class TestIsConventionalCommit:
             "build: tweak wheel",
             "perf: speed up parsing",
             "style: reformat",
+            "fix/issue-66592: something",
+            "Bugfix/make edge resilient to something"
         ],
     )
     def test_conventional_subjects_are_detected(self, subject):

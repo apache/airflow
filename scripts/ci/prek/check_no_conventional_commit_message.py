@@ -42,6 +42,7 @@ from pathlib import Path
 
 # Standard Conventional Commits types (https://www.conventionalcommits.org).
 CONVENTIONAL_TYPES = (
+    "bugfix"
     "build",
     "chore",
     "ci",
@@ -60,7 +61,7 @@ CONVENTIONAL_TYPES = (
 # prefixes such as "UI:" or "API:" are not Conventional Commit types and are not
 # matched.
 CONVENTIONAL_COMMIT_REGEX = re.compile(
-    rf"^(?:{'|'.join(CONVENTIONAL_TYPES)})(?:\([^)]*\))?!?:\s",
+    rf"^(?:{'|'.join(CONVENTIONAL_TYPES)})(?:\([^)]*\))?!?[:/]",
     re.IGNORECASE,
 )
 
