@@ -4,7 +4,8 @@ description: >
   Replace the manual commit-by-commit classification step in
   `breeze release-management prepare-provider-documentation` with AI-driven
   classification. For each provider with pending changes, analyze every PR
-  (using sub-agents per PR), pay special attention to potentially breaking
+  (batched into one sub-agent per provider, not one per PR), pay special
+  attention to potentially breaking
   changes by inspecting the actual diff, scope multi-provider PRs to the
   current provider's slice, ask the release manager when uncertain, and
   apply version bumps + changelog entries. Use during the regular provider
@@ -190,7 +191,7 @@ each commit. Note that some old providers also have legacy paths under
 `provider_details.possible_old_provider_paths` semantics by checking the
 provider's `provider.yaml` history if needed).
 
-### Phase 3 — Classify each PR with sub-agents
+### Phase 3 — Classify the PRs (inline, or batched per-provider sub-agents)
 
 For each commit, classify it into one of:
 
@@ -218,21 +219,39 @@ Before spawning a sub-agent, apply the same fast heuristics breeze uses
 
 Note these classifications and move on — no sub-agent needed.
 
-#### Sub-agent per PR for the rest
+#### Classify the rest — batched per provider, not one agent per PR
 
-For the remaining commits, spawn sub-agents in parallel (batches of 5–10 to
-avoid context pressure). Use the `Explore` agent type — they need read-only
-access. Brief each sub-agent with:
+Classification is the token-heavy part of this skill, so spend sub-agents
+sparingly. Do **not** spawn one sub-agent per PR — that is one agent per
+commit and balloons to hundreds of agents on a normal release wave. Pick the
+smallest fan-out that fits the volume:
+
+- **Few commits remain (≲ 15 across all providers) → classify inline.** Read
+  each PR and its provider-scoped diff yourself, in this context. Spawn no
+  sub-agents at all.
+- **More than that → one sub-agent per provider.** Each agent classifies that
+  provider's *entire* remaining commit list in a single pass. This is the
+  natural unit: multi-provider PRs are classified independently per provider
+  anyway (see Cross-Cutting Rules), and one provider-scoped agent amortizes
+  the breaking-change checklist across all of that provider's commits instead
+  of paying a fresh agent spin-up per commit. Only split a provider across
+  more than one agent when its remaining list is large (> ~25 commits) — chunk
+  it then. This keeps the sub-agent count at roughly the number of providers
+  with pending changes, not the number of commits.
+
+Use the `Explore` agent type — they need read-only access. Brief each
+sub-agent with its provider and the whole batch of commits it owns:
 
 ```
-Classify a single Apache Airflow provider PR.
+Classify a batch of Apache Airflow provider PRs for ONE provider.
 
-PR:        #<NNNN>
-Commit:    <full-hash>
-Subject:   <subject>
 Provider:  <provider-id>      (path: providers/<provider-path>/)
+Commits to classify (<N>) — one row per PR:
+  #<NNNN>  <full-hash>  <subject>
+  #<MMMM>  <full-hash>  <subject>
+  …(this provider's full remaining list)
 
-Tasks:
+For EACH commit above:
 1. Read the PR's title, body, and labels:
    `gh pr view <NNNN> --json title,body,labels,files`
 2. Read the diff for the slice of the PR that touched
@@ -250,14 +269,14 @@ Tasks:
                     changes, type-hint cleanups, no user-visible behavior
    - skip:          only tests/examples/CI for this provider's slice
    - min_airflow_bump: explicitly bumps the minimum Airflow version pin
-4. Output strictly:
-   CLASSIFICATION: <one of: documentation|bugfix|feature|breaking|misc|skip|min_airflow_bump>
-   CONFIDENCE: <high|medium|low>
-   JUSTIFICATION: <one sentence>
-   BREAKING_RISK: <none|maybe|yes>     (set "maybe" when the diff has any
-                                         signal from the breaking-change
-                                         checklist, even if you think the
-                                         author intended otherwise)
+4. Set BREAKING_RISK to "maybe" whenever the diff has any signal from the
+   breaking-change checklist below, even if you think the author intended
+   otherwise.
+
+Output one row per commit and nothing else, in this exact pipe format
+(<N> rows for <N> commits):
+
+   #<NNNN> | <documentation|bugfix|feature|breaking|misc|skip|min_airflow_bump> | <high|medium|low> | <none|maybe|yes> | <one-sentence justification>
 
 Breaking-change checklist (any of these → BREAKING_RISK >= maybe; usually
 breaking unless clearly behind a deprecation shim):
@@ -290,7 +309,8 @@ that removes a public method is breaking. A PR titled "BREAKING: rename
 foo" that only renames a private symbol is not.
 ```
 
-Collect all sub-agent results into a table.
+Collect every sub-agent's rows (and any you classified inline) into one
+classification table for Phase 3.5.
 
 ### Phase 3.5 — Confirm with the release manager
 
@@ -542,9 +562,12 @@ If there are zero new commits for a provider, skip it.
 ### Incremental Phase 3 — Classify the new commits
 
 Same logic as Phase 3 of the initial run — including the auto-classify
-heuristic for docs/test-only changes and the sub-agent-per-PR pattern with
-the breaking-change checklist. The output is a per-provider table mapping
-each new commit hash to a classification.
+heuristic for docs/test-only changes and the batched classification (inline
+when few commits remain, otherwise one sub-agent per provider) with the
+breaking-change checklist. Incremental runs usually have only a handful of new
+commits, so prefer classifying them inline rather than spawning any sub-agent.
+The output is a per-provider table mapping each new commit hash to a
+classification.
 
 ### Incremental Phase 3.5 — Decide whether to escalate the version bump
 
@@ -612,8 +635,8 @@ When a single PR touches several providers (e.g.
 `Add Python 3.14 Support (#63520)` touches dozens), classify it
 **independently per provider**. The same PR can be `feature` in one provider
 (a real new capability) and `misc` in another (just a constraint bump in
-`pyproject.toml`). Always scope the sub-agent's diff inspection to the
-current provider's path:
+`pyproject.toml`). Always scope the diff inspection (whether inline or in a
+per-provider sub-agent) to the current provider's path:
 
 ```bash
 gh pr diff <NNNN> -- 'providers/<provider-path>/**'
