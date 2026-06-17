@@ -57,8 +57,8 @@ export interface SetXComOpts {
 
 /** Airflow Connection details returned by a task client. */
 export interface ConnectionResult {
-  connId: string;
-  connType: string;
+  id: string;
+  type: string;
   host?: string | null;
   schema?: string | null;
   login?: string | null;

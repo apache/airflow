@@ -23,6 +23,7 @@ import type {
   GetXComOpts,
   SetXComOpts,
   TaskClient,
+  TaskContext,
   TaskRegistration,
 } from "../src/index.js";
 import { listRegisteredTasks, registerTask, VariableNotFoundError } from "../src/index.js";
@@ -43,8 +44,16 @@ describe("public API", () => {
 
   it("uses idiomatic TypeScript names for public client types", () => {
     expectTypeOf<TaskRegistration>().toEqualTypeOf<{
-      dagId: string;
-      taskId: string;
+      readonly dagId: string;
+      readonly taskId: string;
+    }>();
+    expectTypeOf<TaskContext>().toEqualTypeOf<{
+      readonly dagId: string;
+      readonly taskId: string;
+      readonly runId: string;
+      readonly tryNumber: number;
+      readonly mapIndex: number;
+      readonly signal: AbortSignal;
     }>();
     expectTypeOf<GetXComOpts>().toEqualTypeOf<{
       key: string;
@@ -63,8 +72,8 @@ describe("public API", () => {
       mapIndex?: number | null;
     }>();
     expectTypeOf<ConnectionResult>().toEqualTypeOf<{
-      connId: string;
-      connType: string;
+      id: string;
+      type: string;
       host?: string | null;
       schema?: string | null;
       login?: string | null;
@@ -108,8 +117,12 @@ describe("public API", () => {
     acceptsGetXComOpts({ key: "result", dag_id: "example" });
     // @ts-expect-error public options use includePriorDates, not include_prior_dates.
     acceptsGetXComOpts({ key: "result", include_prior_dates: true });
-    // @ts-expect-error public options use connId/connType, not conn_id/conn_type.
+    // @ts-expect-error public ConnectionResult uses id/type, not wire-format names.
     expectTypeOf<ConnectionResult>().toEqualTypeOf<{ conn_id: string; conn_type: string }>();
+    // @ts-expect-error public ConnectionResult uses id/type, not connId/connType.
+    expectTypeOf<ConnectionResult>().toEqualTypeOf<{ connId: string; connType: string }>();
+    // @ts-expect-error public TaskContext does not expose the raw task-instance id.
+    expectTypeOf<TaskContext>().toHaveProperty("taskInstanceId");
     // @ts-expect-error task registration requires explicit dagId/taskId fields.
     acceptsTaskRegistration("public_api_task");
     // @ts-expect-error task registration uses dagId, not dag_id.

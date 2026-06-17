@@ -85,7 +85,7 @@ registerTask({ dagId: "sales_pipeline", taskId: "extract" }, async ({ client }) 
   const rowCount = Number((await client.getVariable("daily_row_count")) ?? "0");
 
   return {
-    connectionId: connection?.connId ?? null,
+    connectionId: connection?.id ?? null,
     rowCount,
   };
 });

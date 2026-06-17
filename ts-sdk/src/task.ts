@@ -33,8 +33,6 @@ export interface TaskContext {
   readonly tryNumber: number;
   /** -1 for non-mapped tasks, 0..N-1 for mapped instances. */
   readonly mapIndex: number;
-  /** Stable Airflow task instance identifier. */
-  readonly taskInstanceId: string;
   /**
    * AbortSignal that fires when Airflow terminates the task subprocess
    * with SIGTERM or SIGINT.

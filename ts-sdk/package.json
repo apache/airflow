@@ -31,6 +31,7 @@
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "lint": "eslint src tests",
+    "lint:fix": "eslint src tests --fix",
     "format:check": "prettier --check src tests",
     "format": "prettier --write src tests",
     "typecheck": "tsc --noEmit",

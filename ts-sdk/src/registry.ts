@@ -22,9 +22,9 @@ import type { TaskHandler } from "./task.js";
 /** Identifies the Airflow task handled by a TypeScript function. */
 export interface TaskRegistration {
   /** Identifier of the Dag containing this task. */
-  dagId: string;
+  readonly dagId: string;
   /** Airflow task ID, including any TaskGroup prefix. */
-  taskId: string;
+  readonly taskId: string;
 }
 
 /** Registry of TypeScript task handlers keyed by Dag ID and task ID. */

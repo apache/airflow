@@ -239,6 +239,21 @@ repos:
           ^pyproject\.toml$
         pass_filenames: false
         require_serial: true
+      - id: ts-sdk-lint
+        name: Lint TypeScript SDK
+        entry: ./scripts/ci/prek/ts_sdk_lint.py
+        language: node
+        files: |
+          (?x)
+          ^ts-sdk/.*\.(js|ts|json)$
+        exclude: |
+          (?x)
+          ^ts-sdk/node_modules/.*|
+          ^ts-sdk/.pnpm-store/.*|
+          ^ts-sdk/dist/.*
+        additional_dependencies: ['pnpm@10.28.1']
+        pass_filenames: false
+        require_serial: true
       - id: check-ci-workflows-in-sync
         name: Check ci-arm.yml and ci-amd.yml stay in sync
         entry: ./scripts/ci/prek/check_ci_workflows_in_sync.py
