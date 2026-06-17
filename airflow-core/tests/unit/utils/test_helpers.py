@@ -21,6 +21,7 @@ import itertools
 import re
 from typing import TYPE_CHECKING
 
+import jinja2.exceptions
 import pendulum
 import pytest
 
@@ -272,13 +273,26 @@ class TriggererJobRunner(MockJobRunner):
     job_type = "TriggererJob"
 
 
+# ``logical_date`` (DEFAULT_DATE, 2016) deliberately differs from ``run_after`` (RUN_AFTER, 2020) so
+# the ``logical_date or run_after`` fallback is observable: a test using the same value for both could
+# not tell the fallback path apart from the normal path.
+RUN_AFTER = pendulum.datetime(2020, 5, 5, 6, 0)
+
+
 @pytest.mark.db_test
 class TestLogFilenameTemplateRenderer:
-    """Regression tests for #68075: the scheduler-side log filename renderer must tolerate
-    ``logical_date is None`` (asset-triggered / partitioned runs) and never abort the scheduler."""
+    """
+    Tests for the scheduler-side log path renderer (:func:`log_filename_template_renderer`), #68075.
 
-    # log_filename_template contains '%' in its default ({% if %}), which configparser interpolation
-    # (used by conf_vars) cannot round-trip; set it via an env var, which airflow reads raw.
+    The scheduler renders ``log_filename_template`` to decide where the worker writes a task's log,
+    and the UI renders the same template (via :meth:`FileTaskHandler._render_filename`) to find that
+    file again. The two must resolve to the same string, including for runs whose ``logical_date`` is
+    ``None`` (asset-triggered / partitioned runs, AIP-83).
+    """
+
+    # The default log_filename_template contains a Jinja ``{% %}`` block; its raw ``%`` breaks
+    # configparser interpolation when ``conf_vars`` restores it on teardown. ``env_vars`` sets the
+    # template via an env var instead, which ``conf.get`` reads unprocessed.
     TEMPLATE_ENV = "AIRFLOW__LOGGING__LOG_FILENAME_TEMPLATE"
 
     def _make_ti(self, create_task_instance, logical_date):
@@ -286,7 +300,7 @@ class TestLogFilenameTemplateRenderer:
             dag_id="dag_for_log_filename_rendering",
             task_id="task_for_log_filename_rendering",
             run_type=DagRunType.SCHEDULED,
-            run_after=DEFAULT_DATE,
+            run_after=RUN_AFTER,
             logical_date=logical_date,
         )
 
@@ -298,46 +312,59 @@ class TestLogFilenameTemplateRenderer:
             finally:
                 log_filename_template_renderer.cache_clear()
 
+    def test_jinja_logical_date_none_renders_none(self, create_task_instance):
+        """A plain ``{{ ti.logical_date }}`` stringifies a missing logical date to "None" without crashing."""
+        ti = self._make_ti(create_task_instance, None)
+        assert self._render("{{ ti.logical_date }}", ti) == "None"
+
     @pytest.mark.parametrize("logical_date", [None, DEFAULT_DATE])
-    def test_jinja_ts_is_none_safe(self, create_task_instance, logical_date):
+    def test_jinja_ts_uses_logical_date_or_run_after(self, create_task_instance, logical_date):
+        """``ts`` mirrors the reader: it is ``(logical_date or run_after).isoformat()``."""
         ti = self._make_ti(create_task_instance, logical_date)
-        rendered = self._render("{{ ti.dag_id }}/{{ ts }}/{{ try_number }}.log", ti)
-        # ts resolves to a valid date (run_after fallback when logical_date is None); no crash.
-        assert rendered == f"dag_for_log_filename_rendering/{DEFAULT_DATE.isoformat()}/{ti.try_number}.log"
+        assert self._render("{{ ts }}", ti) == (logical_date or RUN_AFTER).isoformat()
 
     def test_fstring_logical_date_none_uses_run_after(self, create_task_instance):
+        """An f-string ``{logical_date}`` falls back to ``run_after`` instead of dereferencing ``None``."""
         ti = self._make_ti(create_task_instance, None)
-        rendered = self._render("{dag_id}/{logical_date}/{try_number}.log", ti)
-        assert rendered == f"dag_for_log_filename_rendering/{DEFAULT_DATE.isoformat()}/{ti.try_number}.log"
+        assert self._render("{logical_date}", ti) == RUN_AFTER.isoformat()
 
-    def test_broken_template_does_not_crash_scheduler(self, create_task_instance):
-        """The exact template from #68075 calls ``ti.logical_date.strftime(...)`` directly. With
-        logical_date=None it cannot render (Jinja's ``default()`` evaluates its argument eagerly),
-        but it must NOT raise - aborting the scheduler - so the renderer falls back to the default
-        run_id-based template instead."""
-        ti = self._make_ti(create_task_instance, None)
-        template = (
-            'shared/{{ ti.dag_id }}/{{ ts_nodash | default(ti.logical_date.strftime("%Y%m%dT%H%M%S")) }}'
-            "/{{ ti.task_id }}/attempt_{{ try_number | default(ti.try_number) }}.log"
-        )
-        rendered = self._render(template, ti)  # must not raise
-        assert f"run_id={ti.run_id}" in rendered
+    def test_fstring_extra_keys_available(self, create_task_instance):
+        """``run_id`` and the data-interval keys are passed, so templates using them don't raise ``KeyError``."""
+        ti = self._make_ti(create_task_instance, DEFAULT_DATE)
+        rendered = self._render("{run_id}/{data_interval_start}/{data_interval_end}", ti)
+        assert rendered.startswith(f"{ti.run_id}/")
 
     @pytest.mark.parametrize("logical_date", [None, DEFAULT_DATE])
     @pytest.mark.parametrize(
         "template",
         [
-            "{{ ti.dag_id }}/{{ ts }}/{{ try_number }}.log",
-            "{dag_id}/{logical_date}/{try_number}.log",
+            "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log",
+            "{dag_id}/{task_id}/{logical_date}/{run_id}"
+            "/{data_interval_start}/{data_interval_end}/{try_number}.log",
         ],
     )
     def test_write_path_matches_read_path(
         self, create_task_instance, create_log_template, template, logical_date
     ):
-        """The write-side renderer and the read-side FileTaskHandler._render_filename must produce
-        identical paths for well-formed templates, for both logical_date set and None."""
+        """
+        The path the scheduler hands the worker to write to must equal the path the UI reads from.
+
+        ``create_log_template`` must run before ``_make_ti`` so the new DagRun points at the template
+        under test (``log_template_id`` defaults to the latest template id).
+        """
         create_log_template(template)
         ti = self._make_ti(create_task_instance, logical_date)
         write_path = self._render(template, ti)
         read_path = FileTaskHandler("")._render_filename(ti, ti.try_number)
         assert write_path == read_path
+
+    def test_jinja_method_on_none_logical_date_raises(self, create_task_instance):
+        """
+        Calling a method on a ``None`` logical_date is a user template error; the renderer does not
+        rescue it (use ``ti.run_after.strftime(...)`` instead). This documents the boundary: ``None``
+        renders as the string "None", but a broken template is allowed to raise rather than silently
+        falling back to a different template.
+        """
+        ti = self._make_ti(create_task_instance, None)
+        with pytest.raises(jinja2.exceptions.UndefinedError):
+            self._render("{{ ti.logical_date.strftime('%Y') }}", ti)
