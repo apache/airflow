@@ -67,7 +67,7 @@ Name                                        Description                         
                                             is not started to be executed because of a preceding branching
                                             decision in the Dag or a trigger rule which causes execution
                                             to skip so that the task execution is never scheduled.
-``on_skipped_intervals_callback``           Invoked when a Dag with ``catchup=False`` skips one or more            Dag
+``on_skipped_intervals_callback``           Invoked when a Dag with ``catchup=False`` skips one or more             Dag
                                             scheduled data intervals without creating Dag runs (for example
                                             after a scheduler restart or when a paused Dag is re-enabled).
 =========================================== ======================================================================= =================
