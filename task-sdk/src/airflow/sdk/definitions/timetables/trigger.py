@@ -157,7 +157,6 @@ class CronPartitionTimetable(CronTriggerTimetable):
     """
 
     run_offset: int | datetime.timedelta | relativedelta | None = None
-    # todo: AIP-76 we can't infer partition date from this, so we need to store it separately
     key_format: str = r"%Y-%m-%dT%H:%M:%S"
 
     def __init__(
@@ -167,7 +166,6 @@ class CronPartitionTimetable(CronTriggerTimetable):
         timezone: str | Timezone | FixedTimezone,
         run_offset: int | datetime.timedelta | relativedelta | None = None,
         run_immediately: bool | datetime.timedelta = False,
-        # todo: AIP-76 we can't infer partition date from this, so we need to store it separately
         key_format: str = r"%Y-%m-%dT%H:%M:%S",
     ) -> None:
         if not isinstance(run_offset, (int, NoneType)):
