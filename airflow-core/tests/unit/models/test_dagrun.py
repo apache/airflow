@@ -1382,9 +1382,10 @@ class TestDagRun:
         def on_success_callable(context):
             assert context["dag_run"].dag_id == "test_dag"
 
-        # Fixed far-future date (repo standard: no datetime.now() in tests). Only needs to be
-        # well past any wall-clock the test runs at so the FIXED_DATETIME deadline never fires.
-        future_date = datetime.datetime(2099, 1, 1, tzinfo=datetime.timezone.utc)
+        # Fixed future date (repo standard: no datetime.now() in tests). Far enough ahead that the
+        # FIXED_DATETIME deadline never fires, but within MySQL's TIMESTAMP range (< 2038-01-19) so
+        # the deadline_time UtcDateTime column accepts it on all backends.
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
 
         # First value used during resolution
         mock_get.return_value = "5"
@@ -1554,9 +1555,10 @@ class TestDagRun:
         """
         # No Variable named "missing_key" is seeded, so the scheduler-side resolver's direct
         # session read returns None -> ValueError("VariableInterval 'missing_key' not found").
-        # Fixed far-future date (repo standard: no datetime.now() in tests). Only needs to be
-        # well past any wall-clock the test runs at so the FIXED_DATETIME deadline never fires.
-        future_date = datetime.datetime(2099, 1, 1, tzinfo=datetime.timezone.utc)
+        # Fixed future date (repo standard: no datetime.now() in tests). Far enough ahead that the
+        # FIXED_DATETIME deadline never fires, but within MySQL's TIMESTAMP range (< 2038-01-19) so
+        # the deadline_time UtcDateTime column accepts it on all backends.
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
 
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
@@ -1588,9 +1590,10 @@ class TestDagRun:
         isolated just like a resolve-time failure: the DagRun is created and the bad deadline
         skipped, rather than the corrupt row taking down scheduling for the whole DAG.
         """
-        # Fixed far-future date (repo standard: no datetime.now() in tests). Only needs to be
-        # well past any wall-clock the test runs at so the FIXED_DATETIME deadline never fires.
-        future_date = datetime.datetime(2099, 1, 1, tzinfo=datetime.timezone.utc)
+        # Fixed future date (repo standard: no datetime.now() in tests). Far enough ahead that the
+        # FIXED_DATETIME deadline never fires, but within MySQL's TIMESTAMP range (< 2038-01-19) so
+        # the deadline_time UtcDateTime column accepts it on all backends.
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
                 reference=DeadlineReference.FIXED_DATETIME(future_date),
