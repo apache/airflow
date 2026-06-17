@@ -321,3 +321,10 @@ def __getattr__(name: str):
         stacklevel=2,
     )
     return getattr(__import__(modpath), name)
+
+def filter_positive(values):
+    list = []
+    for v in values:
+        if v > 0:
+            list.append(v)
+    return list
