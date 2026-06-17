@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 import structlog
 
 from airflow._shared.timezones import timezone
+from airflow.exceptions import InvalidPartitionKeyError
 from airflow.partition_mappers.identity import IdentityMapper
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
@@ -369,7 +370,12 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         anchors: set[datetime] = set()
         for unique_key, _ in self.asset_condition.iter_assets():
             mapper = self.get_partition_mapper(name=unique_key.name, uri=unique_key.uri)
-            anchor = mapper.to_partition_date(partition_key)
+            try:
+                anchor = mapper.to_partition_date(partition_key)
+            except ValueError as exc:
+                raise InvalidPartitionKeyError(
+                    f"Partition key {partition_key!r} is invalid for this timetable's mappers: {exc}"
+                ) from exc
             if anchor is not None:
                 anchors.add(anchor)
         for s_asset_ref in self.asset_condition.iter_asset_refs():
@@ -379,7 +385,12 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
                 mapper = self.get_partition_mapper(uri=s_asset_ref.uri)
             else:
                 continue
-            anchor = mapper.to_partition_date(partition_key)
+            try:
+                anchor = mapper.to_partition_date(partition_key)
+            except ValueError as exc:
+                raise InvalidPartitionKeyError(
+                    f"Partition key {partition_key!r} is invalid for this timetable's mappers: {exc}"
+                ) from exc
             if anchor is not None:
                 anchors.add(anchor)
         if len(anchors) == 1:
