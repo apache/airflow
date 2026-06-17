@@ -63,11 +63,7 @@ class Variable:
         from airflow.sdk.exceptions import AirflowRuntimeError
         from airflow.sdk.execution_time.context import _set_variable
 
-        try:
-            return _set_variable(key, value, description, serialize_json=serialize_json)
-        except AirflowRuntimeError as e:
-            log.exception(e)
-            raise
+        _set_variable(key, value, description, serialize_json=serialize_json)
 
     @classmethod
     def keys(cls, prefix: str | None = None) -> Sequence[str]:
@@ -98,8 +94,4 @@ class Variable:
         from airflow.sdk.exceptions import AirflowRuntimeError
         from airflow.sdk.execution_time.context import _delete_variable
 
-        try:
-            _delete_variable(key=key)
-        except AirflowRuntimeError as e:
-            log.exception(e)
-            raise
+        _delete_variable(key=key)
