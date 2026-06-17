@@ -662,6 +662,12 @@ class BaseSerialization:
                 exc_cls = import_string(exc_cls_name)
             else:
                 exc_cls = import_string(f"builtins.{exc_cls_name}")
+            # ``exc_cls_name`` comes from the serialized payload. A tampered blob can name any
+            # importable callable (``os.system``, ``builtins.exec``, ...) which would then be
+            # invoked with attacker-supplied args. Only accept genuine exception types, matching
+            # the import-path guards the timetable/window/wait-policy decoders already apply.
+            if not (isinstance(exc_cls, type) and issubclass(exc_cls, BaseException)):
+                raise DeserializationError(f"{exc_cls_name!r} does not resolve to an exception type")
             return exc_cls(*args, **kwargs)
         elif type_ == DAT.SET:
             return {cls.deserialize(v) for v in var}
