@@ -74,14 +74,21 @@ class TestStackdriverRemoteLogIO:
         )
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
 
-        ti = mock.MagicMock()
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk.types import RuntimeTaskInstanceProtocol
+
+            ti = mock.MagicMock(spec=RuntimeTaskInstanceProtocol)
+            ti.id = "test_ti_id"
+            ti.run_id = "run1"
+        else:
+            from airflow.models.taskinstance import TaskInstance
+
+            ti = mock.MagicMock(spec=TaskInstance)
+            ti.execution_date = timezone.datetime(2016, 1, 1)
+
         ti.task_id = "test_task"
         ti.dag_id = "test_dag"
         ti.try_number = 1
-        if AIRFLOW_V_3_0_PLUS:
-            ti.logical_date = timezone.datetime(2016, 1, 1)
-        else:
-            ti.execution_date = timezone.datetime(2016, 1, 1)
 
         messages, logs = self.io.read("dag_id=test_dag/run_id=run1/task_id=test_task/attempt=1.log", ti)
 
@@ -97,14 +104,21 @@ class TestStackdriverRemoteLogIO:
         )
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
 
-        ti = mock.MagicMock()
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk.types import RuntimeTaskInstanceProtocol
+
+            ti = mock.MagicMock(spec=RuntimeTaskInstanceProtocol)
+            ti.id = "test_ti_id"
+            ti.run_id = "run1"
+        else:
+            from airflow.models.taskinstance import TaskInstance
+
+            ti = mock.MagicMock(spec=TaskInstance)
+            ti.execution_date = timezone.datetime(2016, 1, 1)
+
         ti.task_id = "test_task"
         ti.dag_id = "test_dag"
         ti.try_number = 1
-        if AIRFLOW_V_3_0_PLUS:
-            ti.logical_date = timezone.datetime(2016, 1, 1)
-        else:
-            ti.execution_date = timezone.datetime(2016, 1, 1)
 
         messages, logs = self.io.read("test/path", ti)
 
@@ -585,8 +599,8 @@ class TestStackdriverLoggingHandlerTask:
                 f'(labels.task_instance_id="{str(self.ti.id)}" OR ('
                 'labels.task_id="task_for_testing_stackdriver_task_handler" AND '
                 'labels.dag_id="dag_for_testing_stackdriver_file_task_handler" AND '
-                f'labels.{date_label}="2016-01-01T00:00:00+00:00" AND '
-                'labels.try_number="3"))'
+                'labels.try_number="3" AND '
+                f'labels.{date_label}="2016-01-01T00:00:00+00:00"))'
             )
         else:
             filter_str = (
@@ -594,8 +608,8 @@ class TestStackdriverLoggingHandlerTask:
                 'logName="projects/project_id/logs/airflow"\n'
                 'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
                 'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
-                f'labels.{date_label}="2016-01-01T00:00:00+00:00"\n'
-                'labels.try_number="3"'
+                'labels.try_number="3"\n'
+                f'labels.{date_label}="2016-01-01T00:00:00+00:00"'
             )
         mock_client.return_value.list_log_entries.assert_called_once_with(
             request=ListLogEntriesRequest(
@@ -628,8 +642,8 @@ class TestStackdriverLoggingHandlerTask:
                 f'(labels.task_instance_id="{str(self.ti.id)}" OR ('
                 'labels.task_id="task_for_testing_stackdriver_task_handler" AND '
                 'labels.dag_id="dag_for_testing_stackdriver_file_task_handler" AND '
-                f'labels.{date_label}="2016-01-01T00:00:00+00:00" AND '
-                'labels.try_number="3"))'
+                'labels.try_number="3" AND '
+                f'labels.{date_label}="2016-01-01T00:00:00+00:00"))'
             )
         else:
             filter_str = (
@@ -637,8 +651,8 @@ class TestStackdriverLoggingHandlerTask:
                 'logName="projects/project_id/logs/airflow"\n'
                 'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
                 'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
-                f'labels.{date_label}="2016-01-01T00:00:00+00:00"\n'
-                'labels.try_number="3"'
+                'labels.try_number="3"\n'
+                f'labels.{date_label}="2016-01-01T00:00:00+00:00"'
             )
         mock_client.return_value.list_log_entries.assert_called_once_with(
             request=ListLogEntriesRequest(
@@ -782,8 +796,8 @@ class TestStackdriverLoggingHandlerTask:
                 'logName="projects/project_id/logs/airflow"',
                 f'(labels.task_instance_id="{str(self.ti.id)}" OR (labels.task_id="{self.ti.task_id}" AND '
                 f'labels.dag_id="{self.DAG_ID}" AND '
-                f'labels.{date_label}="{self.ti.logical_date.isoformat() if AIRFLOW_V_3_0_PLUS else self.ti.execution_date.isoformat()}" AND '
-                f'labels.try_number="{self.ti.try_number}"))',
+                f'labels.try_number="{self.ti.try_number}" AND '
+                f'labels.{date_label}="{self.ti.logical_date.isoformat() if AIRFLOW_V_3_0_PLUS else self.ti.execution_date.isoformat()}"))',
             ]
         else:
             expected_filter = [
@@ -819,12 +833,21 @@ class TestStackdriverTaskHandlerExceptionHandling:
         )
 
         handler = StackdriverTaskHandler()
-        ti = mock.MagicMock()
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk.types import RuntimeTaskInstanceProtocol
+
+            ti = mock.MagicMock(spec=RuntimeTaskInstanceProtocol)
+            ti.id = "test_ti_id"
+            ti.run_id = "run1"
+        else:
+            from airflow.models.taskinstance import TaskInstance
+
+            ti = mock.MagicMock(spec=TaskInstance)
+            ti.execution_date = mock.MagicMock(isoformat=lambda: "2020-01-01T00:00:00+00:00")
+
         ti.task_id = "t"
         ti.dag_id = "d"
         ti.try_number = 1
-        ti.logical_date = mock.MagicMock(isoformat=lambda: "2020-01-01T00:00:00+00:00")
-        ti.execution_date = ti.logical_date
 
         with caplog.at_level(logging.ERROR):
             logs, metadata = handler.read(ti, try_number=1)
@@ -855,12 +878,21 @@ class TestStackdriverTaskHandlerExceptionHandling:
         )
 
         handler = StackdriverTaskHandler()
-        ti = mock.MagicMock()
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk.types import RuntimeTaskInstanceProtocol
+
+            ti = mock.MagicMock(spec=RuntimeTaskInstanceProtocol)
+            ti.id = "test_ti_id"
+            ti.run_id = "run1"
+        else:
+            from airflow.models.taskinstance import TaskInstance
+
+            ti = mock.MagicMock(spec=TaskInstance)
+            ti.execution_date = mock.MagicMock(isoformat=lambda: "2020-01-01T00:00:00+00:00")
+
         ti.task_id = "t"
         ti.dag_id = "d"
         ti.try_number = 1
-        ti.logical_date = mock.MagicMock(isoformat=lambda: "2020-01-01T00:00:00+00:00")
-        ti.execution_date = ti.logical_date
 
         logs, _ = handler.read(ti, try_number=1)
 
