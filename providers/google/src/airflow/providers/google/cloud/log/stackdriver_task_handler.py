@@ -493,9 +493,6 @@ class StackdriverTaskHandler(logging.Handler):
             else str(ti.execution_date.isoformat()),
             cls.LABEL_TRY_NUMBER: str(ti.try_number),
         }
-        ti_id = getattr(ti, "id", None)
-        if ti_id:
-            labels[cls.LABEL_TASK_INSTANCE_ID] = str(ti_id)
         return labels
 
     @property
