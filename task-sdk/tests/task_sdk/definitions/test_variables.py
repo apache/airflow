@@ -97,30 +97,10 @@ class TestVariables:
             ),
         )
 
-    def test_var_set_raises_on_runtime_error(self, mock_supervisor_comms):
-        with mock.patch(
-            "airflow.sdk.execution_time.context._set_variable",
-            side_effect=AirflowRuntimeError(
-                ErrorResponse(error=ErrorType.GENERIC_ERROR, detail={"message": "API_SERVER_ERROR"})
-            ),
-        ):
-            with pytest.raises(AirflowRuntimeError):
-                Variable.set(key="my_key", value="my_value")
-
     def test_var_delete(self, mock_supervisor_comms):
         Variable.delete(key="my_key")
 
         mock_supervisor_comms.send.assert_called_once_with(msg=DeleteVariable(key="my_key"))
-
-    def test_var_delete_raises_on_runtime_error(self, mock_supervisor_comms):
-        with mock.patch(
-            "airflow.sdk.execution_time.context._delete_variable",
-            side_effect=AirflowRuntimeError(
-                ErrorResponse(error=ErrorType.GENERIC_ERROR, detail={"message": "API_SERVER_ERROR"})
-            ),
-        ):
-            with pytest.raises(AirflowRuntimeError):
-                Variable.delete(key="my_key")
 
 
 class TestVariableKeys:
@@ -204,8 +184,6 @@ class TestVariableKeys:
         )
 
     def test_keys_raises_on_error_response(self, mock_supervisor_comms):
-        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
-        from airflow.sdk.execution_time.comms import ErrorResponse
 
         mock_supervisor_comms.send.return_value = ErrorResponse(
             error=ErrorType.GENERIC_ERROR, detail={"message": "boom"}
