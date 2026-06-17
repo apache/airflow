@@ -106,8 +106,8 @@ The chart's kerberos sidecar (``workers.celery.kerberosInitContainer`,
 Migration guide from the chart
 ------------------------------
 
-What the chart currently does
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+What the chart's kerberos support
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When ``kerberos.enabled=true`` and ``kerberos.keytabBase64Content`` is
 provided, the chart renders a ``Secret`` carrying the user-supplied
