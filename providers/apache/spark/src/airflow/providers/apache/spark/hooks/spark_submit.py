@@ -1166,6 +1166,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         consecutive_pending = 0
         consecutive_waiting = 0
         waiting_or_pending_warn_threshold = 10
+        terminal_phase: str | None = None
 
         try:
             if not pod_name:
@@ -1254,7 +1255,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     raise RuntimeError(f"Spark application {app_id} failed (phase=Failed{container_state})")
                 if phase == "Pending":
                     consecutive_pending += 1
-                    if consecutive_pending == pending_warn_threshold:
+                    if consecutive_pending == waiting_or_pending_warn_threshold:
                         self.log.warning(
                             "Driver pod %s has been Pending for %d polls (~%ds); "
                             "it may be unschedulable. Continuing to wait — set execution_timeout to bound wait time.",
@@ -1299,6 +1300,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     else:
                         consecutive_unknown = 0
                 if container_completed:
+                    # Driver container exited 0 — the application succeeded even if the
+                    # pod phase still reads "Running" at this poll.
+                    terminal_phase = "Succeeded"
                     break
                 time.sleep(poll_interval)
             # Pod deletion is best-effort cleanup. If it fails (e.g. already garbage collected or RBAC
