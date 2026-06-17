@@ -133,9 +133,7 @@ const createColumns = (
   },
   {
     accessorKey: "pending_actions",
-    cell: ({ row: { original: dag } }) => (
-      <NeedsReviewBadge dagId={dag.dag_id} pendingActions={dag.pending_actions} />
-    ),
+    cell: ({ row: { original: dag } }) => <NeedsReviewBadge pendingActions={dag.pending_actions} />,
     enableSorting: false,
     header: "",
   },
