@@ -1421,8 +1421,23 @@ async def test_ack_mode_queue_full_during_fanout_does_not_break_iteration():
         group = manager._groups[key]
         group._subscribers[1].put_nowait(("filler", -1))
 
-        # t_full: its queue will be drained + replaced by _PollFailure(_SubscriberOverflow).
-        # _drain() raises the inner exception, so we expect _SubscriberOverflow here.
+        # Wait for the background poll task to fan the burst out before we start draining
+        # s_full. The fan-out hits QueueFull on trigger 1's pre-filled queue, overflow-fails
+        # it (recorded in ``_failed_subscribers``) and drains+replaces its queue with the
+        # _PollFailure, while trigger 2's enqueue succeeds. Synchronising on the overflow is
+        # required, not just convenient: if collect_full() drained the filler first, trigger
+        # 1's queue would no longer be full when the burst is fanned out, the put_nowait would
+        # succeed, and the overflow under test would never happen (the iteration would then
+        # block forever waiting for an event that was delivered as a normal item).
+        for _ in range(10000):
+            if 1 in group._failed_subscribers:
+                break
+            await asyncio.sleep(0)
+        else:
+            raise AssertionError("poll task did not overflow the pre-filled subscriber queue")
+
+        # t_full: its queue was drained + replaced by _PollFailure(_SubscriberOverflow).
+        # _ack_drain() raises the inner exception, so we expect _SubscriberOverflow here.
         full_exc: list[BaseException] = []
 
         async def collect_full():
@@ -1434,8 +1449,8 @@ async def test_ack_mode_queue_full_during_fanout_does_not_break_iteration():
 
         # t_ok: drive its ack stream and collect the real event.
         async with _consume_in_background(t_ok.filter_shared_stream(s_ok)) as ok_collector:
-            await asyncio.wait_for(collect_full(), timeout=2.0)
-            ok_result = await ok_collector.wait_for(1)
+            await asyncio.wait_for(collect_full(), timeout=5.0)
+            ok_result = await ok_collector.wait_for(1, timeout=5.0)
 
             # Give the advance pump a tick to run.
             await asyncio.sleep(0)
