@@ -35,6 +35,27 @@ Use these rules as a starting point and reduce or extend them for your
 deployment. For example, use a ``Role`` for a single namespace and a
 ``ClusterRole`` only when Airflow must work across namespaces.
 
+The examples below show the RBAC rules. Bind the ``Role`` or ``ClusterRole`` to
+the ``ServiceAccount`` used by the Airflow component that makes the Kubernetes
+API calls. For example, a namespace-scoped deployment can bind a pod launcher
+role to a worker service account:
+
+.. code-block:: yaml
+
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: airflow-pod-launcher-binding
+      namespace: airflow
+    subjects:
+      - kind: ServiceAccount
+        name: airflow-worker
+        namespace: airflow
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: Role
+      name: airflow-pod-launcher
+
 Pod launch permissions
 ----------------------
 
@@ -93,6 +114,11 @@ When a job operator waits for completion, streams pod logs, reads XCom, or
 cleans up discovered pods, it also needs the relevant pod permissions from
 the pod launch section.
 
+For deferrable job operators, the worker creates the Job before deferring and
+the triggerer polls Job status. If the triggerer uses in-cluster credentials,
+bind the triggerer's ``ServiceAccount`` to the Job status permissions and any
+pod permissions needed for logs or XCom.
+
 ``KubernetesDeleteJobOperator`` and ``KubernetesPatchJobOperator`` can use a
 smaller rule set if they only delete or patch existing jobs.
 
@@ -122,7 +148,19 @@ Some operators act on Kubernetes custom resources:
 * ``SparkKubernetesOperator`` creates and monitors SparkApplication resources
   from the Spark-on-Kubernetes operator. Grant permissions for the API group
   and plural resource installed in your cluster, commonly
-  ``sparkoperator.k8s.io`` and ``sparkapplications``.
+  ``sparkoperator.k8s.io`` and ``sparkapplications``. It also monitors the
+  Spark driver pod, so grant the relevant pod permissions from the pod launch
+  section. A typical SparkApplication rule includes:
+
+  .. code-block:: yaml
+
+      - apiGroups: ["sparkoperator.k8s.io"]
+        resources: ["sparkapplications"]
+        verbs: ["create", "get", "delete"]
+      - apiGroups: ["sparkoperator.k8s.io"]
+        resources: ["sparkapplications/status"]
+        verbs: ["get"]
+
 * ``KubernetesCreateResourceOperator`` and ``KubernetesDeleteResourceOperator``
   apply or delete the resources from the YAML you provide. Grant permissions
   for every Kubernetes resource kind in that YAML.
@@ -146,9 +184,18 @@ Relevant chart settings include:
 * ``multiNamespaceMode`` when Airflow needs access beyond the release
   namespace.
 
+The chart binds pod launcher permissions to the triggerer when the triggerer is
+enabled. If you use deferrable job operators with in-cluster triggerer
+credentials, also ensure the triggerer's ``ServiceAccount`` has the required
+Job permissions.
+
 The chart templates are a useful reference when maintaining custom manifests:
 
 * ``chart/templates/rbac/pod-launcher-role.yaml``
 * ``chart/templates/rbac/job-launcher-role.yaml``
 * ``chart/templates/rbac/pod-cleanup-role.yaml``
 * ``chart/templates/rbac/pod-log-reader-role.yaml``
+* ``chart/templates/rbac/pod-launcher-rolebinding.yaml``
+* ``chart/templates/rbac/job-launcher-rolebinding.yaml``
+* ``chart/templates/rbac/pod-cleanup-rolebinding.yaml``
+* ``chart/templates/rbac/pod-log-reader-rolebinding.yaml``
