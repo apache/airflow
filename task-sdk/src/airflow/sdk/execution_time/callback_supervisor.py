@@ -275,7 +275,14 @@ class CallbackSubprocess(WatchedSubprocess):
             # and build a context dict to pass to the callback function.
             effective_kwargs = dict(callback_kwargs)
             if dag_id and run_id:
-                context = _fetch_and_build_context(task_runner.SUPERVISOR_COMMS, dag_id, run_id, _log)
+                deadline = (
+                    {"id": deadline_id, "deadline_time": deadline_time}
+                    if (deadline_id or deadline_time)
+                    else None
+                )
+                context = _fetch_and_build_context(
+                    task_runner.SUPERVISOR_COMMS, dag_id, run_id, _log, deadline=deadline
+                )
                 if context is None:
                     _log.error(
                         "Cannot execute callback without context — failing to surface the error rather than running degraded",
@@ -283,8 +290,6 @@ class CallbackSubprocess(WatchedSubprocess):
                         run_id=run_id,
                     )
                     sys.exit(1)
-                if deadline_id or deadline_time:
-                    context["deadline"] = {"id": deadline_id, "deadline_time": deadline_time}
                 effective_kwargs["context"] = context
                 effective_kwargs = render_callback_kwargs(effective_kwargs, context)
 
@@ -469,6 +474,7 @@ def _fetch_and_build_context(
     dag_id: str,
     run_id: str,
     _log,
+    deadline: dict | None = None,
 ) -> dict | None:
     """
     Fetch DagRun via SUPERVISOR_COMMS and build a standard context dict.
@@ -488,7 +494,7 @@ def _fetch_and_build_context(
             )
             return None
 
-        return build_context_from_dag_run(response)
+        return build_context_from_dag_run(response, deadline=deadline)
     except Exception:
         _log.warning(
             "Failed to fetch DagRun for callback context",

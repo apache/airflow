@@ -779,13 +779,16 @@ class TestCallbackSubprocessStart:
             CallbackSubprocess.start(**adjusted)
             self.mock_super_start.call_args.kwargs["target"]()
 
+        # The deadline dict is assembled by the caller and threaded into
+        # _fetch_and_build_context (which forwards it to the shared build_context_from_dag_run),
+        # so both the executor and triggerer paths produce context["deadline"] identically.
         mock_fetch.assert_called_once()
-        passed_kwargs = self.mock_execute_callback.call_args.kwargs["callback_kwargs"]
-        assert "context" in passed_kwargs
-        assert passed_kwargs["context"]["deadline"] == {
+        assert mock_fetch.call_args.kwargs["deadline"] == {
             "id": deadline_id,
             "deadline_time": deadline_time,
         }
+        passed_kwargs = self.mock_execute_callback.call_args.kwargs["callback_kwargs"]
+        assert "context" in passed_kwargs
 
     def test_context_has_no_deadline_key_when_metadata_absent(self, base_start_kwargs):
         """With dag_id/run_id but no deadline_id/deadline_time, the context is still passed but
@@ -795,10 +798,12 @@ class TestCallbackSubprocessStart:
         with patch(
             "airflow.sdk.execution_time.callback_supervisor._fetch_and_build_context",
             return_value={"dag_run": Mock(), "run_id": "my_run"},
-        ):
+        ) as mock_fetch:
             CallbackSubprocess.start(**adjusted)
             self.mock_super_start.call_args.kwargs["target"]()
 
+        # No deadline metadata -> the caller passes deadline=None, so context carries no deadline key.
+        assert mock_fetch.call_args.kwargs["deadline"] is None
         passed_kwargs = self.mock_execute_callback.call_args.kwargs["callback_kwargs"]
         assert "context" in passed_kwargs
         assert "deadline" not in passed_kwargs["context"]

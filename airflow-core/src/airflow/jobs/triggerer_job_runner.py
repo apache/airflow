@@ -1352,10 +1352,7 @@ class TriggerRunner:
 
         deadline_info = dag_run_data.pop("_deadline", None)
         dag_run = DRDataModel(**dag_run_data)
-        context = build_context_from_dag_run(dag_run)
-        if deadline_info:
-            context["deadline"] = deadline_info  # type: ignore[literal-required]
-        return context  # type: ignore[return-value]
+        return build_context_from_dag_run(dag_run, deadline=deadline_info)  # type: ignore[return-value]
 
     async def create_triggers(self):
         """Drain the to_create queue and create all new triggers that have been requested in the DB."""

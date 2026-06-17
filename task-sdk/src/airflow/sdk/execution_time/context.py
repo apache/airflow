@@ -1420,7 +1420,7 @@ def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
     return outlet_events
 
 
-def build_context_from_dag_run(dag_run) -> dict:
+def build_context_from_dag_run(dag_run, deadline: dict | None = None) -> dict:
     """
     Build a standard callback Context dict from a DagRun-like object.
 
@@ -1429,6 +1429,10 @@ def build_context_from_dag_run(dag_run) -> dict:
 
     Returns a context dict with dag_run, run_id, logical_date, ds, ts, etc.
     Task-specific fields are absent since callbacks are not tied to a task.
+
+    :param deadline: Optional ``{"id": ..., "deadline_time": ...}`` dict exposed as
+        ``context["deadline"]`` (for templates such as ``{{ deadline.deadline_time }}``).
+        Assembled here so the executor and triggerer callback paths produce identical context.
     """
     from airflow.sdk.timezone import coerce_datetime
 
@@ -1452,5 +1456,8 @@ def build_context_from_dag_run(dag_run) -> dict:
         )
     else:
         context["run_id"] = dag_run.run_id
+
+    if deadline:
+        context["deadline"] = deadline
 
     return context

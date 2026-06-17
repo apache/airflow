@@ -235,3 +235,19 @@ class TestBuildContextFromDagRun:
         assert "deadline_id" not in context
         assert "deadline_time" not in context
         assert "deadline" not in context
+
+    def test_deadline_dict_is_exposed_when_passed(self):
+        """When a deadline dict is supplied it is exposed as ``context["deadline"]``.
+
+        Both callback paths (executor + triggerer) pass the deadline through this single helper,
+        so the resulting context is identical by construction.
+        """
+        dag_run = make_dag_run_result(
+            run_id="test_run",
+            logical_date=pendulum.datetime(2024, 1, 15, 0, 0, 0),
+        )
+        deadline = {"id": "dl-1", "deadline_time": "2024-01-15T01:00:00+00:00"}
+
+        context = build_context_from_dag_run(dag_run, deadline=deadline)
+
+        assert context["deadline"] == deadline
