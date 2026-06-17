@@ -28,7 +28,7 @@ from copy import deepcopy
 from itertools import chain
 from pathlib import Path
 from shlex import quote
-from typing import Any, Literal
+from typing import Any
 
 import click
 import yaml
@@ -68,7 +68,6 @@ from airflow_breeze.utils.docker_command_utils import perform_environment_checks
 from airflow_breeze.utils.kubernetes_utils import (
     CHART_PATH,
     K8S_CLUSTERS_PATH,
-    KUBECTL_BIN_PATH,
     KUBERNETES_TEST_PATH,
     SCRIPTS_CI_KUBERNETES_PATH,
     KubernetesPythonVersion,
@@ -742,22 +741,6 @@ K8S_TEST_IMAGES_TO_PRELOAD: tuple[str, ...] = (
     "bitnamilegacy/postgresql:16.1.0-debian-11-r15",  # chart/values.yaml postgresql subchart
     "busybox:1.38.0",  # busybox-based system tests in kubernetes-tests/
     "ubuntu:24.04",  # ubuntu-based system tests in kubernetes-tests/
-)
-
-# Allow-list of third-party container images that kustomize overlays under
-# chart/kustomize-overlays/ may declare. `breeze k8s smoke-test-overlay`
-# auto-discovers every `image:` in the rendered manifest and `docker pull`s it
-# into kind; this list bounds *what* it may pull so an overlay cannot make CI
-# pull and run an arbitrary, unreviewed image. It is a deliberately-reviewed
-# gate: introducing an overlay image means editing both the overlay manifest
-# (owned by `/chart/` in .github/CODEOWNERS) and this list (owned by `/dev/`),
-# so a maintainer must approve before CI will pull it. Keep entries pinned to
-# the exact `image:` string the overlay declares.
-ALLOWED_OVERLAY_IMAGES: frozenset[str] = frozenset(
-    {
-        "gcavalcante8808/krb5-server:latest",  # kerberos overlay KDC + client test pod
-        "alpine/k8s:1.31.0",  # kerberos overlay keytab-bootstrap job
-    }
 )
 
 
