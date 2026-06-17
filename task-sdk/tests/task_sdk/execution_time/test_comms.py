@@ -38,35 +38,6 @@ from airflow.sdk.execution_time.comms import (
 )
 
 
-class LockWrapper:
-    """
-    threading.Lock wrapper that fires ``acquired`` after each successful acquire().
-
-    Useful in tests that need to observe when a lock transitions from free to held
-    without being able to monkey-patch the C-level ``_thread.lock.acquire`` attribute.
-    """
-
-    def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self.acquired = threading.Event()
-
-    def acquire(self, blocking: bool = True, timeout: float = -1) -> bool:
-        result = self._lock.acquire(blocking, timeout)
-        if result:
-            self.acquired.set()
-        return result
-
-    def release(self) -> None:
-        self._lock.release()
-
-    def __enter__(self) -> LockWrapper:
-        self.acquire()
-        return self
-
-    def __exit__(self, *args: object) -> None:
-        self.release()
-
-
 class TestCommsModels:
     """Test Pydantic models used in task communication for proper validation."""
 
@@ -250,51 +221,36 @@ class TestCommsDecoder:
         DeadlockImminentError inherits from BaseException so it escapes
         contextlib.suppress(Exception) in mask_secret() and similar helpers.
         """
-        import asyncio
-
-        r, w = socket_pair
+        r, _ = socket_pair
         decoder = CommsDecoder(socket=r, log=structlog.get_logger())
 
-        # threading.Lock() returns a _thread.lock C extension object whose
-        # `acquire` attribute is read-only and cannot be monkey-patched directly.
-        # Replace the lock with a LockWrapper so we can observe when it is held.
-        decoder._thread_lock = LockWrapper()
+        # Simulate asend() having recorded this thread as the event-loop thread.
+        decoder._loop_thread_id = threading.get_ident()
 
-        # Serve exactly one asend() request so the socket doesn't block
-        def _serve_one():
-            length = int.from_bytes(w.recv(4), "big")
-            body = b""
-            while len(body) < length:
-                body += w.recv(length - len(body))
-            req = msgspec.msgpack.decode(body, type=_RequestFrame)
-            resp = {"type": "VariableResult", "key": req.body["key"], "value": "v"}
-            encoded = msgspec.msgpack.encode(_ResponseFrame(req.id, resp, None))
-            w.sendall(len(encoded).to_bytes(4, "big") + encoded)
+        # Hold _thread_lock from a background thread to simulate an in-flight asend().
+        lock_held = threading.Event()
+        lock_release = threading.Event()
 
-        server = threading.Thread(target=_serve_one, daemon=True)
-        server.start()
+        def _hold_lock():
+            decoder._thread_lock.acquire()
+            lock_held.set()
+            lock_release.wait()
+            decoder._thread_lock.release()
 
-        # Start asend() — this will acquire _thread_lock inside the thread pool
-        async_task = asyncio.create_task(decoder.asend(GetVariable(key="k")))
+        holder = threading.Thread(target=_hold_lock, daemon=True)
+        holder.start()
+        assert lock_held.wait(timeout=2), "Background thread never acquired _thread_lock"
 
-        # Yield control to let the async task start and acquire the lock.
-        # The task needs to run through _async_lock acquisition and schedule
-        # the thread-pool executor call before we can observe the lock.
-        await asyncio.sleep(0.05)
+        try:
+            # send() from the event loop thread while lock is held must raise immediately.
+            with pytest.raises(DeadlockImminentError) as exc_info:
+                decoder.send(GetVariable(key="should_fail"))
 
-        # Wait until _thread_lock is held by the thread-pool worker
-        assert decoder._thread_lock.acquired.wait(timeout=2), "Thread pool never acquired _thread_lock"
-
-        # send() from the event loop thread while lock is held must raise immediately
-        with pytest.raises(DeadlockImminentError) as exc_info:
-            decoder.send(GetVariable(key="should_fail"))
-
-        assert exc_info.value.args[0].startswith("comms.send() called from the event loop thread")
-        assert "deadlock is imminent" in exc_info.value.args[0]
-
-        # Let the in-flight asend() complete cleanly
-        await asyncio.wait_for(async_task, timeout=5)
-        server.join(timeout=2)
+            assert exc_info.value.args[0].startswith("comms.send() called from the event loop thread")
+            assert "deadlock is imminent" in exc_info.value.args[0]
+        finally:
+            lock_release.set()
+            holder.join(timeout=2)
 
     @pytest.mark.asyncio
     async def test_send_from_event_loop_succeeds_when_lock_free(self, socket_pair):
