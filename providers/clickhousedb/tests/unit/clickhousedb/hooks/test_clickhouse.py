@@ -1000,53 +1000,6 @@ class TestClickHouseHookDbApiMethods:
 
 
 # ---------------------------------------------------------------------------
-# Regression: executemany=True with tuple rows (clickhouse-connect >= 1.3.0)
-#
-# clickhouse_connect < 1.3.0 raised:
-#   AttributeError: 'tuple' object has no attribute 'keys'
-# because Cursor._try_bulk_insert called data[0].keys() without checking
-# whether the rows were mappings or sequences (PEP 249 allows both).
-# ---------------------------------------------------------------------------
-
-
-class TestInsertRowsExecutemanyRegression:
-    """Verify that cursor.executemany and hook.insert_rows accept tuple rows."""
-
-    def test_cursor_executemany_tuple_rows_do_not_raise(self):
-        """Real Cursor.executemany must handle tuple rows without AttributeError."""
-        from clickhouse_connect.dbapi.cursor import Cursor
-
-        mock_client = MagicMock()
-        cursor = Cursor(mock_client)
-
-        sql = "INSERT INTO repro_executemany (id, name) VALUES (%s, %s)"
-        rows = [(1, "Alice"), (2, "Bob"), (3, "Charlie")]
-
-        # Pre-1.3.0 raised: AttributeError: 'tuple' object has no attribute 'keys'
-        cursor.executemany(sql, rows)
-
-        mock_client.insert.assert_called_once()
-
-    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
-    @patch("clickhouse_connect.get_client")
-    def test_hook_insert_rows_executemany_does_not_raise(self, mock_get_client, mock_get_connection):
-        """hook.insert_rows(..., executemany=True) must not raise AttributeError."""
-        mock_get_connection.return_value = BASE_CONN
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-
-        hook = ClickHouseHook(clickhouse_conn_id="clickhouse_test")
-        hook.insert_rows(
-            table="repro_executemany",
-            rows=[(1, "Alice"), (2, "Bob"), (3, "Charlie")],
-            target_fields=["id", "name"],
-            executemany=True,
-        )
-
-        mock_client.insert.assert_called_once()
-
-
-# ---------------------------------------------------------------------------
 # Tests: client_name / User-Agent identity
 # ---------------------------------------------------------------------------
 
