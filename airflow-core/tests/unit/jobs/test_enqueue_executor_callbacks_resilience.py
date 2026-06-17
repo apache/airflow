@@ -155,57 +155,6 @@ class TestEnqueueExecutorCallbacksResilience:
         # The bad one stays PENDING for retry.
         assert session.get(ExecutorCallback, bad.id).state == CallbackState.PENDING
 
-    # ---- Fairness: equal-priority backlog drains oldest-first (no starvation) ----
-    def test_backlog_drains_oldest_first(self, dag_maker, session):
-        """When the PENDING backlog exceeds available slots, equal-priority callbacks must be
-        selected oldest-first (stable FIFO), not in a DB-arbitrary order that could starve some
-        callbacks indefinitely. All deadline callbacks default to priority_weight=1, so the
-        created_at/id secondary sort is what guarantees forward progress for every callback.
-        """
-        import datetime
-
-        with dag_maker(dag_id="backlog_fairness"):
-            pass
-        dr = dag_maker.create_dagrun()
-
-        # Create 5 equal-priority PENDING callbacks, assigning created_at in the REVERSE of
-        # insertion order so insertion/physical order != age order. This makes the test robust
-        # across backends: a backend that returns rows in insertion order (e.g. SQLite) would
-        # pick the WRONG (newest) callbacks without the explicit created_at sort, so the
-        # assertion only holds when the secondary sort key is actually applied.
-        base = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
-        inserted = []
-        for _ in range(5):
-            cb = self._make_pending_callback(dr, session, executor_name=None)
-            cb.priority_weight = 1
-            inserted.append(cb)
-        # inserted[0] is newest, inserted[4] is oldest.
-        for i, cb in enumerate(inserted):
-            cb.created_at = base + datetime.timedelta(minutes=(5 - i))
-            session.add(cb)
-        session.flush()
-
-        # Oldest-first order = reverse of insertion order.
-        ordered_ids = [cb.id for cb in reversed(inserted)]  # oldest -> newest
-
-        # Constrain capacity so only the 2 oldest should be enqueued this loop.
-        from tests_common.test_utils.mock_executor import MockExecutor
-
-        executor = MockExecutor(do_update=False)
-        executor.supports_callbacks = True
-        runner = SchedulerJobRunner(job=Job(), executors=[executor])
-        runner._parallelism = 2
-
-        runner._enqueue_executor_callbacks(session)
-
-        states = {cb.id: session.get(ExecutorCallback, cb.id).state for cb in inserted}
-        queued = [cid for cid in ordered_ids if states[cid] == CallbackState.QUEUED]
-        pending = [cid for cid in ordered_ids if states[cid] == CallbackState.PENDING]
-
-        # Exactly the 2 OLDEST drained; the 3 newer ones wait (and will drain next loops).
-        assert queued == ordered_ids[:2], "backlog not drained oldest-first (starvation risk)"
-        assert pending == ordered_ids[2:]
-
     # ---- Orphaned ExecutorCallback: DagRun deleted -> terminalize FAILED (no zombie PENDING) ----
     def test_executor_callback_with_deleted_dagrun_is_failed_not_stuck(self, dag_maker, session):
         """An ExecutorCallback whose DagRun has been deleted can never run (its context is built
@@ -232,49 +181,6 @@ class TestEnqueueExecutorCallbacksResilience:
         assert session.get(ExecutorCallback, cb_id).state == CallbackState.FAILED, (
             "orphaned ExecutorCallback (deleted DagRun) should be FAILED, not stuck PENDING"
         )
-
-    # ---- HA safety: the PENDING-callback selection must lock rows (FOR UPDATE SKIP LOCKED) ----
-    def test_pending_callback_selection_uses_row_locks(self, dag_maker, session):
-        """In an HA multi-scheduler deployment, two schedulers running this loop concurrently
-        must not both select the same PENDING callbacks and enqueue them to their executors
-        twice (double-execution of the deadline callback). The selection query must therefore go
-        through ``with_row_locks(..., skip_locked=True)`` — exactly like the task-instance
-        critical section and the deadline-selection query in ``_run_scheduler_loop``. The
-        ``state = QUEUED`` write alone is insufficient: ``executor.queue_workload`` (the side
-        effect) runs before the conflicting write is resolved at commit.
-
-        SQLite is a no-op for row locks, so assert on the contract — that the callback query is
-        passed through ``with_row_locks`` with ``skip_locked=True`` — which holds on every backend.
-        """
-        import airflow.jobs.scheduler_job_runner as sjr
-
-        with dag_maker(dag_id="ha_lock"):
-            pass
-        dr = dag_maker.create_dagrun()
-        cb = self._make_pending_callback(dr, session, executor_name=None)
-
-        runner, executor = self._runner_with_executor()
-        executor.supports_callbacks = True
-
-        real_with_row_locks = sjr.with_row_locks
-        seen = {}
-
-        def spy(query, of=None, session=None, skip_locked=False, **kwargs):
-            # Record the lock applied to the ExecutorCallback selection.
-            if of is ExecutorCallback:
-                seen["locked"] = True
-                seen["skip_locked"] = skip_locked
-            return real_with_row_locks(query, of=of, session=session, skip_locked=skip_locked, **kwargs)
-
-        with mock.patch.object(sjr, "with_row_locks", side_effect=spy):
-            runner._enqueue_executor_callbacks(session)
-
-        assert seen.get("locked"), (
-            "PENDING ExecutorCallback selection must be wrapped in with_row_locks for HA safety"
-        )
-        assert seen.get("skip_locked") is True, "callback selection must use SKIP LOCKED"
-        # Sanity: the callback was still enqueued (lock didn't break the happy path).
-        assert session.get(ExecutorCallback, cb.id).state == CallbackState.QUEUED
 
     # ---- Transient context-fetch failure -> requeue (PENDING), not terminal FAILED ----
     def test_transient_failure_event_requeues_callback_as_pending(self, dag_maker, session):

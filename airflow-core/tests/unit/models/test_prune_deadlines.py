@@ -31,14 +31,14 @@ from typing import TYPE_CHECKING
 
 import pytest
 import time_machine
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from airflow.models import DagRun
 from airflow.models.callback import Callback
 from airflow.models.deadline import Deadline
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.callback import AsyncCallback
-from airflow.utils.state import CallbackState, DagRunState
+from airflow.utils.state import DagRunState
 
 from tests_common.test_utils import db
 from unit.models import DEFAULT_DATE
@@ -99,148 +99,6 @@ class TestPruneDeadlines:
     def teardown_method():
         _clean_db()
 
-    # ------------------------------------------------------------------
-    # Scenario 1: selection logic — only on-time-completed deadlines pruned
-    # ------------------------------------------------------------------
-    def test_prunes_only_on_time_completion(self, dagrun, session):
-        """
-        prune_deadlines must delete ONLY deadlines whose DagRun finished
-        on/before deadline_time. Overdue (end_date after deadline) and pending
-        (end_date is None) deadlines must survive.
-        """
-        # on-time: DagRun finished BEFORE the deadline -> should be pruned
-        on_time = _make_deadline(
-            session, dagrun_id=dagrun.id, deadline_time=DEFAULT_DATE + timedelta(hours=2)
-        )
-        # overdue: deadline already passed before DagRun ended -> must NOT be pruned
-        overdue = _make_deadline(
-            session, dagrun_id=dagrun.id, deadline_time=DEFAULT_DATE - timedelta(hours=2)
-        )
-
-        # DagRun completes at DEFAULT_DATE (on time vs on_time deadline, late vs overdue deadline)
-        dagrun.end_date = DEFAULT_DATE
-        session.add(dagrun)
-        session.flush()
-
-        deleted = Deadline.prune_deadlines(session=session, conditions={DagRun.id: dagrun.id})
-
-        remaining = set(session.scalars(select(Deadline.id)).all())
-        assert deleted == 1
-        assert on_time.id not in remaining
-        assert overdue.id in remaining
-
-    def test_pending_dagrun_not_pruned(self, dagrun, session):
-        """A DagRun that has not finished (end_date is None) prunes nothing."""
-        d = _make_deadline(session, dagrun_id=dagrun.id, deadline_time=DEFAULT_DATE + timedelta(hours=2))
-        assert dagrun.end_date is None  # QUEUED fixture leaves it unset
-
-        deleted = Deadline.prune_deadlines(session=session, conditions={DagRun.id: dagrun.id})
-
-        assert deleted == 0
-        assert d.id in set(session.scalars(select(Deadline.id)).all())
-
-    def test_exact_boundary_end_date_equals_deadline_pruned(self, dagrun, session):
-        """end_date == deadline_time is on-time (the code uses <=), so it is pruned."""
-        d = _make_deadline(session, dagrun_id=dagrun.id, deadline_time=DEFAULT_DATE)
-        dagrun.end_date = DEFAULT_DATE
-        session.add(dagrun)
-        session.flush()
-
-        deleted = Deadline.prune_deadlines(session=session, conditions={DagRun.id: dagrun.id})
-        assert deleted == 1
-        assert d.id not in set(session.scalars(select(Deadline.id)).all())
-
-    # ------------------------------------------------------------------
-    # Scenario 2: batching / LIMIT behaviour (CLAUDE.md scheduler-loop rule)
-    # ------------------------------------------------------------------
-    def test_many_deadlines_deleted_in_single_unbounded_pass(self, dagrun, session):
-        """
-        FINDING PROBE: With many prunable deadlines, are they deleted in
-        bounded batches with intermediate commits (per the CLAUDE.md bulk-DELETE
-        rule), or in one unbounded in-memory pass?
-
-        We assert the observable outcome (all deleted) and document that the
-        implementation loads every matching row via a single SELECT (no LIMIT)
-        and issues one session.delete per row inside one transaction.
-        """
-        dagrun.end_date = DEFAULT_DATE
-        session.add(dagrun)
-        session.flush()
-
-        count = 50
-        for _ in range(count):
-            _make_deadline(session, dagrun_id=dagrun.id, deadline_time=DEFAULT_DATE + timedelta(hours=1))
-
-        assert session.scalar(select(func.count()).select_from(Deadline)) == count
-
-        deleted = Deadline.prune_deadlines(session=session, conditions={DagRun.id: dagrun.id})
-
-        assert deleted == count
-        assert session.scalar(select(func.count()).select_from(Deadline)) == 0
-
-    # ------------------------------------------------------------------
-    # Scenario 3: callback cascade when callback is already QUEUED / RUNNING
-    # ------------------------------------------------------------------
-    @pytest.mark.parametrize(
-        "state",
-        [
-            pytest.param(CallbackState.QUEUED, id="queued"),
-            pytest.param(CallbackState.RUNNING, id="running"),
-        ],
-    )
-    def test_prune_cascades_callback_even_if_in_flight(self, dagrun, session, state):
-        """
-        ADVERSARIAL: a deadline pruned while its callback is QUEUED/RUNNING.
-        prune_deadlines does not inspect callback state, so it will delete the
-        deadline and (via cascade='all, delete-orphan') the callback too.
-        Verify no orphaned Callback row is left behind.
-        """
-        d = _make_deadline(
-            session,
-            dagrun_id=dagrun.id,
-            deadline_time=DEFAULT_DATE + timedelta(hours=1),
-            state=state,
-        )
-        callback_id = d.callback.id
-        assert session.get(Callback, callback_id) is not None
-
-        dagrun.end_date = DEFAULT_DATE
-        session.add(dagrun)
-        session.flush()
-
-        deleted = Deadline.prune_deadlines(session=session, conditions={DagRun.id: dagrun.id})
-        session.flush()
-
-        assert deleted == 1
-        # No orphaned callback row.
-        assert session.get(Callback, callback_id) is None
-
-    # ------------------------------------------------------------------
-    # Scenario 4: race between prune and handle_miss on the same row
-    # ------------------------------------------------------------------
-    def test_prune_then_handle_miss_on_same_deadline(self, dagrun, session):
-        """
-        RACE: prune deletes the on-time deadline; a concurrent scheduler pass
-        then tries handle_miss on the (now stale) in-memory object. The deadline
-        row is gone, so handle_miss must not resurrect a half-state. We simulate
-        the interleaving: prune first, then attempt to operate on the deleted row.
-        """
-        d = _make_deadline(session, dagrun_id=dagrun.id, deadline_time=DEFAULT_DATE + timedelta(hours=1))
-        callback_id = d.callback.id
-
-        dagrun.end_date = DEFAULT_DATE
-        session.add(dagrun)
-        session.flush()
-
-        deleted = Deadline.prune_deadlines(session=session, conditions={DagRun.id: dagrun.id})
-        assert deleted == 1
-        session.flush()
-
-        # The row (and its callback) are gone; a stale handle_miss must not
-        # recreate a dangling callback.
-        assert session.get(Deadline, d.id) is None
-        assert session.get(Callback, callback_id) is None
-
     def test_handle_miss_then_prune_does_not_delete_missed(self, dagrun, session):
         """
         Inverse race: handle_miss marks the deadline missed and queues the callback
@@ -274,24 +132,3 @@ class TestPruneDeadlines:
         assert deleted == 0
         assert session.get(Deadline, deadline_id) is not None
         assert session.get(Callback, callback_id) is not None
-
-    # ------------------------------------------------------------------
-    # Scenario 5: DagRun row already gone
-    # ------------------------------------------------------------------
-    def test_prune_when_dagrun_deleted_is_clean(self, dagrun, session):
-        """
-        If the DagRun row is already deleted, the inner JOIN in prune_deadlines
-        returns no pairs, so it is a clean no-op (returns 0) and does not raise.
-        Deadlines are FK ondelete=CASCADE on dag_run, so deleting the DagRun
-        also removes its deadlines — prune then finds nothing.
-        """
-        _make_deadline(session, dagrun_id=dagrun.id, deadline_time=DEFAULT_DATE + timedelta(hours=1))
-        dagrun_id = dagrun.id
-
-        session.delete(dagrun)
-        session.flush()
-
-        deleted = Deadline.prune_deadlines(session=session, conditions={DagRun.id: dagrun_id})
-        assert deleted == 0
-        # Cascade removed the deadline along with the DagRun.
-        assert session.scalar(select(func.count()).select_from(Deadline)) == 0

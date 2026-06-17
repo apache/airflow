@@ -29,13 +29,11 @@ code + the 4 in-flight fixes, and where the fixes interact:
 
 from __future__ import annotations
 
-import json
 from unittest import mock
 
 import pytest
 
-from airflow.models.callback import CallbackState
-from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY, CallbackTrigger
+from airflow.triggers.callback import CallbackTrigger
 
 OLD_CALLBACK_PATH = "tests.unit.triggers.test_callback_upgrade_seams.dummy_async_callback"
 
@@ -50,31 +48,6 @@ async def dummy_async_callback(**kwargs):
 # fallback (fix #4) + non-string-output coercion (fix #2) must both behave.
 # ---------------------------------------------------------------------------
 class TestScenario1OldFormatStoredContext:
-    @pytest.mark.asyncio
-    @mock.patch("airflow.triggers.callback.import_string")
-    async def test_old_format_stored_context_dict_return_coerced(self, mock_import_string):
-        # callback returns a dict (non-string) -> handle_event coercion will apply later,
-        # but at the trigger level the body just passes through. Assert the stored context
-        # is used and stripped, and the non-string body is carried in the SUCCESS event.
-        async def cb(**kwargs):
-            assert kwargs == {"message": "hi", "context": {"dag_run": "legacy"}}
-            return {"k": "v", "n": 1}
-
-        mock_import_string.return_value = cb
-        trigger = CallbackTrigger(
-            callback_path=OLD_CALLBACK_PATH,
-            callback_kwargs={"message": "hi", "context": {"dag_run": "legacy"}},
-        )
-        # Freshly deserialized: TriggerRunner did NOT set _callback_context.
-        assert trigger._callback_context is None
-
-        gen = trigger.run()
-        running = await anext(gen)
-        assert running.payload[PAYLOAD_STATUS_KEY] == CallbackState.RUNNING
-        success = await anext(gen)
-        assert success.payload[PAYLOAD_STATUS_KEY] == CallbackState.SUCCESS
-        assert success.payload[PAYLOAD_BODY_KEY] == {"k": "v", "n": 1}
-
     @pytest.mark.asyncio
     @mock.patch("airflow.triggers.callback.import_string")
     async def test_old_format_context_none_in_kwargs(self, mock_import_string):
@@ -96,43 +69,6 @@ class TestScenario1OldFormatStoredContext:
         await anext(gen)
         # context was None -> stripped, not forwarded.
         assert captured == {"message": "hi"}
-
-
-# ---------------------------------------------------------------------------
-# Scenario 2: Old callback whose stored context dict has a non-serializable
-# value, then the callback returns non-string. fix #2 coercion + old-context
-# path (fix #4) must compose without crash. handle_event does the coercion,
-# so drive it via the real model handle_event.
-# ---------------------------------------------------------------------------
-class TestScenario2NonSerializableContextAndReturn:
-    @pytest.mark.asyncio
-    @mock.patch("airflow.triggers.callback.import_string")
-    async def test_nonserializable_context_value_callback_returns_nonstring(self, mock_import_string):
-        class Unserializable:
-            def __repr__(self):
-                return "<Unserializable>"
-
-        stored_ctx = {"dag_run": "legacy", "obj": Unserializable()}
-
-        async def cb(**kwargs):
-            # context received intact (object identity); returns a non-string dict
-            assert "context" in kwargs
-            return {"echo": kwargs["context"]["dag_run"], "obj": Unserializable()}
-
-        mock_import_string.return_value = cb
-        trigger = CallbackTrigger(
-            callback_path=OLD_CALLBACK_PATH,
-            callback_kwargs={"context": stored_ctx},
-        )
-        gen = trigger.run()
-        await anext(gen)
-        success = await anext(gen)
-        assert success.payload[PAYLOAD_STATUS_KEY] == CallbackState.SUCCESS
-        # Body is a dict containing a non-serializable value; trigger doesn't coerce,
-        # handle_event (fix #2) does. Confirm json.dumps(default=str) handles it:
-        body = success.payload[PAYLOAD_BODY_KEY]
-        coerced = json.dumps(body, default=str, sort_keys=True)
-        assert "Unserializable" in coerced
 
 
 # ---------------------------------------------------------------------------

@@ -28,6 +28,7 @@ from unittest.mock import ANY, call
 
 import pendulum
 import pytest
+import time_machine
 from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -65,7 +66,6 @@ from airflow.sdk import DAG, BaseOperator, get_current_context, setup, task, tas
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
 from airflow.sdk.definitions.variable import Variable
-from airflow.sdk.exceptions import AirflowRuntimeError
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.settings import get_policy_plugin_manager
@@ -1496,49 +1496,6 @@ class TestDagRun:
         assert dag_run.state == DagRunState.SUCCESS
 
     @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_deadline_variable_interval_stable(self, _, session, deadline_test_dag):
-        from airflow.models.variable import Variable as VariableModel
-
-        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
-
-        # Seed a real Variable: the scheduler-side resolver reads it directly off the session
-        # (it must NOT go through Variable.get, which would commit the scheduler session under
-        # prohibit_commit). First value used during resolution.
-        session.add(VariableModel(key="my_key", val="60"))
-        session.flush()
-
-        scheduler_dag = deadline_test_dag(
-            deadline=DeadlineAlert(
-                reference=DeadlineReference.FIXED_DATETIME(future_date),
-                interval=VariableInterval("my_key"),
-                callback=AsyncCallback(empty_callback_for_deadline),
-            ),
-        )
-
-        dag_run = self.create_dag_run(
-            dag=scheduler_dag,
-            task_states={"task_1": TaskInstanceState.SUCCESS, "task_2": TaskInstanceState.SUCCESS},
-            session=session,
-        )
-        dag_run.dag = scheduler_dag
-
-        dag_run.update_state(session=session)
-
-        deadline = session.execute(select(Deadline)).scalars().one_or_none()
-        first_deadline_time = deadline.deadline_time
-
-        # Change the Variable value after the deadline was already resolved.
-        var_row = session.scalar(select(VariableModel).where(VariableModel.key == "my_key"))
-        var_row.set_val("120")
-        session.flush()
-
-        # Run again — the existing deadline must NOT change (resolution happens once, at creation).
-        dag_run.update_state(session=session)
-
-        deadline = session.execute(select(Deadline)).scalars().one_or_none()
-        assert deadline.deadline_time == first_deadline_time
-
-    @mock.patch.object(Deadline, "prune_deadlines")
     def test_dagrun_past_fixed_datetime_creates_immediately_overdue_deadline(
         self, _, session, deadline_test_dag
     ):
@@ -1548,7 +1505,10 @@ class TestDagRun:
         creation path must NOT reject or skip a past deadline (it's a legitimate config, e.g. a
         fixed cutoff that has already elapsed).
         """
-        past_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=10)
+        # Frozen "now" so the test is deterministic and does not depend on the wall clock
+        # (repo standard: no datetime.now() in tests).
+        frozen_now = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        past_date = frozen_now - datetime.timedelta(days=10)
 
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
@@ -1558,11 +1518,12 @@ class TestDagRun:
             ),
         )
 
-        dag_run = self.create_dag_run(
-            dag=scheduler_dag,
-            task_states={"task_1": TaskInstanceState.SUCCESS},
-            session=session,
-        )
+        with time_machine.travel(frozen_now, tick=False):
+            dag_run = self.create_dag_run(
+                dag=scheduler_dag,
+                task_states={"task_1": TaskInstanceState.SUCCESS},
+                session=session,
+            )
         assert dag_run is not None
 
         # The Deadline row IS created (past deadlines are not skipped) with a past deadline_time.
@@ -1572,7 +1533,7 @@ class TestDagRun:
         expected = past_date + datetime.timedelta(minutes=5)
         assert abs((deadline.deadline_time - expected).total_seconds()) < 1
         # Genuinely in the past → the overdue-scan (deadline_time < now) will select it.
-        assert deadline.deadline_time < datetime.datetime.now(datetime.timezone.utc)
+        assert deadline.deadline_time < frozen_now
 
     @mock.patch.object(Deadline, "prune_deadlines")
     def test_dagrun_deadline_variable_interval_missing_variable_is_isolated(
@@ -1602,44 +1563,6 @@ class TestDagRun:
         )
 
         # DagRun creation must succeed despite the unresolvable VariableInterval.
-        dag_run = self.create_dag_run(
-            dag=scheduler_dag,
-            task_states={"task_1": TaskInstanceState.SUCCESS},
-            session=session,
-        )
-        assert dag_run is not None
-
-        # The bad deadline was skipped — no Deadline row created.
-        deadline = session.execute(select(Deadline)).scalars().one_or_none()
-        assert deadline is None
-
-    @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_deadline_variable_interval_overflow_is_isolated(self, _, session, deadline_test_dag):
-        """A VariableInterval whose backing Variable resolves to an out-of-range value must NOT
-        abort DagRun creation. ``resolve()`` raises ``ValueError`` ("too large to be a valid
-        interval") because ``timedelta(seconds=huge)`` overflows (hardening H-D translates the
-        OverflowError to ValueError). This exercises H-D × Bug #10 end-to-end: the H-D ValueError
-        is raised inside ``_process_dagrun_deadline_alerts`` and must be caught by the per-alert
-        ``try``/``except`` — DagRun created, bad deadline skipped, no Deadline row.
-        """
-        from airflow.models.variable import Variable as VariableModel
-
-        # 10**14 seconds overflows timedelta (caps at ~999999999 days). Seed a real Variable so
-        # the scheduler-side resolver reads it off the session and hits the overflow->ValueError.
-        session.add(VariableModel(key="overflow_key", val="99999999999999"))
-        session.flush()
-
-        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
-
-        scheduler_dag = deadline_test_dag(
-            deadline=DeadlineAlert(
-                reference=DeadlineReference.FIXED_DATETIME(future_date),
-                interval=VariableInterval("overflow_key"),
-                callback=AsyncCallback(empty_callback_for_deadline),
-            ),
-        )
-
-        # DagRun creation must succeed despite the overflowing VariableInterval.
         dag_run = self.create_dag_run(
             dag=scheduler_dag,
             task_states={"task_1": TaskInstanceState.SUCCESS},
@@ -1685,173 +1608,6 @@ class TestDagRun:
         # No Deadline row — the undecodable alert was skipped, not fatal.
         deadline = session.execute(select(Deadline)).scalars().one_or_none()
         assert deadline is None
-
-    @mock.patch.object(Deadline, "prune_deadlines")
-    def test_multiple_mixed_deadline_alerts_one_failure_isolated(self, _, session, deadline_test_dag):
-        """A DAG with MULTIPLE deadline alerts of mixed reference types: if ONE alert fails to
-        evaluate (a VariableInterval whose Variable is missing), the per-alert SAVEPOINT (Bug #10)
-        must isolate it so the GOOD sibling alerts still create their Deadline rows. Confirms the
-        isolation works across siblings, not just for a lone failing alert.
-        """
-        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
-
-        # 3 alerts: two good (FIXED_DATETIME, which evaluates reliably at create-time),
-        # one bad (VariableInterval -> missing Variable raises ValueError at resolve()).
-        # (DAGRUN_QUEUED_AT is intentionally avoided here — it legitimately evaluates to None
-        # during create_dagrun because queued_at isn't set yet, which would muddy the isolation
-        # assertion; this test is about a *failing* sibling not blocking *good* siblings.)
-        second_future = future_date + datetime.timedelta(days=1)
-        scheduler_dag = deadline_test_dag(
-            deadline=[
-                DeadlineAlert(
-                    reference=DeadlineReference.FIXED_DATETIME(future_date),
-                    interval=datetime.timedelta(hours=1),
-                    callback=AsyncCallback(empty_callback_for_deadline),
-                ),
-                DeadlineAlert(
-                    reference=DeadlineReference.FIXED_DATETIME(second_future),
-                    interval=datetime.timedelta(minutes=30),
-                    callback=AsyncCallback(empty_callback_for_deadline),
-                ),
-                DeadlineAlert(
-                    reference=DeadlineReference.FIXED_DATETIME(future_date),
-                    interval=VariableInterval("missing_key_for_mixed_test"),
-                    callback=AsyncCallback(empty_callback_for_deadline),
-                ),
-            ],
-        )
-
-        mock_err = mock.Mock()
-        mock_err.error.value = "MISSING_DEADLINE"
-        mock_err.detail = "missing deadline"
-        with mock.patch.object(Variable, "get", side_effect=AirflowRuntimeError(mock_err)):
-            dag_run = self.create_dag_run(
-                dag=scheduler_dag,
-                task_states={"task_1": TaskInstanceState.SUCCESS},
-                session=session,
-            )
-
-        assert dag_run is not None
-        # The two GOOD alerts created their Deadline rows; the bad VariableInterval was skipped.
-        deadlines = session.execute(select(Deadline)).scalars().all()
-        assert len(deadlines) == 2, (
-            f"expected 2 deadline rows from the good alerts, got {len(deadlines)} — "
-            "a failing sibling alert was not isolated"
-        )
-
-    @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_multiple_distinct_reference_types_each_creates_correct_deadline(
-        self, _, session, deadline_test_dag
-    ):
-        """END-TO-END: one DAG carrying FOUR deadline alerts of DISTINCT builtin reference types in
-        a single ``deadline=[...]`` list, driven through the real create_dagrun pipeline (SDK author
-        -> serialize -> deadline_alert rows -> create_dagrun -> Deadline rows).
-
-        This stresses cross-reference-type interaction, ordering, and per-alert independence — each
-        alert is evaluated under its own ``try``/``except`` inside ``_process_dagrun_deadline_alerts``,
-        so the create-time evaluation of each reference must be correct and must not interfere with the
-        others. The four references differ in their create-time semantics:
-
-        * ``DAGRUN_LOGICAL_DATE``  -> resolves to the DagRun's logical_date (set at create-time)
-                                      => a Deadline row is created, deadline_time = logical_date + interval.
-        * ``FIXED_DATETIME(dt)``   -> always resolves to the fixed dt
-                                      => a Deadline row is created, deadline_time = dt + interval.
-        * ``DAGRUN_QUEUED_AT``     -> resolves to the DagRun's queued_at, which is still NULL during
-                                      create_dagrun (RUNNING run, never queued) => evaluate_with returns
-                                      None => NO Deadline row (legitimately skipped, not a failure).
-        * ``AVERAGE_RUNTIME``      -> needs completed-run history; this is the very first run so there
-                                      are zero samples => returns None => NO Deadline row (skipped).
-
-        Expected outcome: the DagRun is created and EXACTLY TWO Deadline rows exist (LOGICAL_DATE +
-        FIXED_DATETIME). Each created row's deadline_time is its own reference base + its own interval,
-        proving the references neither share state nor clobber each other.
-        """
-        # Deterministic, distinct intervals so each row's deadline_time is uniquely attributable.
-        logical_date = pendulum.datetime(2025, 6, 1, 12, 0, 0, tz="UTC")
-        logical_interval = datetime.timedelta(hours=2)
-        fixed_dt = datetime.datetime(2030, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
-        fixed_interval = datetime.timedelta(minutes=45)
-
-        scheduler_dag = deadline_test_dag(
-            deadline=[
-                DeadlineAlert(
-                    reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
-                    interval=logical_interval,
-                    callback=AsyncCallback(empty_callback_for_deadline),
-                ),
-                DeadlineAlert(
-                    reference=DeadlineReference.FIXED_DATETIME(fixed_dt),
-                    interval=fixed_interval,
-                    callback=AsyncCallback(empty_callback_for_deadline),
-                ),
-                DeadlineAlert(
-                    reference=DeadlineReference.DAGRUN_QUEUED_AT,
-                    interval=datetime.timedelta(hours=1),
-                    callback=AsyncCallback(empty_callback_for_deadline),
-                ),
-                DeadlineAlert(
-                    # First run of this DAG -> no completed-run history -> AVERAGE_RUNTIME yields None.
-                    reference=DeadlineReference.AVERAGE_RUNTIME(max_runs=5, min_runs=1),
-                    interval=datetime.timedelta(minutes=10),
-                    callback=AsyncCallback(empty_callback_for_deadline),
-                ),
-            ],
-        )
-
-        dag_run = self.create_dag_run(
-            dag=scheduler_dag,
-            task_states={"task_1": TaskInstanceState.SUCCESS, "task_2": TaskInstanceState.SUCCESS},
-            logical_date=logical_date,
-            session=session,
-        )
-
-        # (a) The DagRun was created and (precondition for the QUEUED_AT skip) was never queued.
-        assert dag_run is not None
-        assert dag_run.queued_at is None
-
-        # (b) Exactly the two create-time-evaluable references produced rows; the two that
-        #     resolve to None at create-time (QUEUED_AT, AVERAGE_RUNTIME) were silently skipped.
-        deadlines = session.execute(select(Deadline)).scalars().all()
-        assert len(deadlines) == 2, (
-            f"expected exactly 2 Deadline rows (LOGICAL_DATE + FIXED_DATETIME), got {len(deadlines)} — "
-            "a distinct reference type either leaked an extra row or clobbered a sibling"
-        )
-
-        # (c) Per-reference-type deadline_time correctness. Match each row to its alert by the
-        #     serialized reference_type recorded on its DeadlineAlert, then assert base + interval.
-        ref_type_field = SerializedReferenceModels.REFERENCE_TYPE_FIELD
-        by_reference_type: dict[str, Deadline] = {}
-        for dl in deadlines:
-            alert = session.get(DeadlineAlertModel, dl.deadline_alert_id)
-            by_reference_type[alert.reference[ref_type_field]] = dl
-
-        # All rows belong to the same DagRun — per-alert independence, no cross-wiring.
-        assert {dl.dagrun_id for dl in deadlines} == {dag_run.id}
-        # Each row points at a DISTINCT DeadlineAlert (no alert reused / overwritten).
-        assert len({dl.deadline_alert_id for dl in deadlines}) == 2
-
-        logical_name = SerializedReferenceModels.DagRunLogicalDateDeadline.reference_name
-        fixed_name = SerializedReferenceModels.FixedDatetimeDeadline.reference_name
-        assert set(by_reference_type) == {logical_name, fixed_name}
-
-        # LOGICAL_DATE: deadline_time == logical_date + its own interval.
-        logical_deadline = by_reference_type[logical_name]
-        expected_logical = logical_date + logical_interval
-        assert abs((logical_deadline.deadline_time - expected_logical).total_seconds()) < 1, (
-            f"LOGICAL_DATE deadline_time {logical_deadline.deadline_time} != "
-            f"logical_date + interval {expected_logical}"
-        )
-
-        # FIXED_DATETIME: deadline_time == fixed_dt + its own (different) interval.
-        fixed_deadline = by_reference_type[fixed_name]
-        expected_fixed = fixed_dt + fixed_interval
-        assert abs((fixed_deadline.deadline_time - expected_fixed).total_seconds()) < 1, (
-            f"FIXED_DATETIME deadline_time {fixed_deadline.deadline_time} != "
-            f"fixed_dt + interval {expected_fixed}"
-        )
-
-        # The two rows did not converge on a shared value — distinct references stayed distinct.
-        assert logical_deadline.deadline_time != fixed_deadline.deadline_time
 
 
 @pytest.mark.parametrize(

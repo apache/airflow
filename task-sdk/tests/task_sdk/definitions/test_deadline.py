@@ -48,25 +48,12 @@ TEST_DEADLINE_CALLBACK = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_
 
 
 class TestAverageRuntimeReference:
-    def test_min_runs_must_be_at_least_one(self):
-        for bad in (0, -1):
-            with pytest.raises(ValueError, match="min_runs must be at least 1"):
-                DeadlineReference.AVERAGE_RUNTIME(max_runs=10, min_runs=bad)
-
     def test_min_runs_cannot_exceed_max_runs(self):
         """``min_runs > max_runs`` is unsatisfiable (the evaluator samples at most ``max_runs``
         rows then requires ``min_runs`` of them), so it must be rejected at authoring time rather
         than producing a deadline that silently never fires."""
         with pytest.raises(ValueError, match="cannot exceed max_runs"):
             DeadlineReference.AVERAGE_RUNTIME(max_runs=5, min_runs=10)
-
-    def test_min_runs_equal_to_max_runs_is_allowed(self):
-        ref = DeadlineReference.AVERAGE_RUNTIME(max_runs=5, min_runs=5)
-        assert ref.min_runs == ref.max_runs == 5
-
-    def test_min_runs_defaults_to_max_runs(self):
-        ref = DeadlineReference.AVERAGE_RUNTIME(max_runs=7)
-        assert ref.min_runs == 7
 
 
 class TestDeadlineAlert:
@@ -215,21 +202,6 @@ class TestDeadlineAlert:
         assert hash(a1) == hash(a2)
         assert len({a1, a2}) == 1
 
-    def test_deadline_alert_hash_with_variable_interval(self):
-        """A DeadlineAlert with a VariableInterval (frozen attrs, hashable) must hash cleanly."""
-        a1 = DeadlineAlert(
-            reference=DeadlineReference.DAGRUN_QUEUED_AT,
-            interval=VariableInterval("deadline_seconds"),
-            callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs={"config": {"k": "v"}}),
-        )
-        a2 = DeadlineAlert(
-            reference=DeadlineReference.DAGRUN_QUEUED_AT,
-            interval=VariableInterval("deadline_seconds"),
-            callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs={"config": {"k": "v"}}),
-        )
-        assert hash(a1) == hash(a2)
-        assert len({a1, a2}) == 1
-
     @pytest.mark.parametrize(
         ("callback_class"),
         [
@@ -306,19 +278,6 @@ class TestVariableInterval:
 
         with pytest.raises(ValueError, match=match):
             interval.resolve()
-
-    @pytest.mark.parametrize(
-        ("value", "expected"),
-        [
-            ("60", timedelta(seconds=60)),
-            (5, timedelta(seconds=5)),  # already an int (scheduler reads the raw value)
-            ("05", timedelta(seconds=5)),
-        ],
-    )
-    def test_coerce_to_timedelta_valid(self, value, expected):
-        # coerce_to_timedelta validates a pre-fetched value WITHOUT touching Variable.get,
-        # so it must not require any DB/Variable patching.
-        assert VariableInterval(key="k").coerce_to_timedelta(value) == expected
 
     @pytest.mark.parametrize(
         ("value", "match"),

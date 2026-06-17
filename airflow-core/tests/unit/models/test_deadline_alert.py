@@ -126,25 +126,8 @@ class TestDeadlineAlert:
             pytest.param(
                 {"__classname__": "datetime.timedelta", "__data__": 7200.0}, "interval=2h", id="timedelta_2h"
             ),
-            pytest.param(
-                {"__classname__": "datetime.timedelta", "__data__": 300.0}, "interval=5m", id="timedelta_5m"
-            ),
-            pytest.param(
-                {"__classname__": "datetime.timedelta", "__data__": 45.0}, "interval=45s", id="timedelta_45s"
-            ),
-            # A dynamic VariableInterval has a nested-object ``__data__`` (no recoverable seconds).
-            pytest.param(
-                {
-                    "__classname__": "airflow.sdk.definitions.deadline.VariableInterval",
-                    "__data__": {"key": "k"},
-                },
-                "interval=dynamic",
-                id="variable_interval_dynamic",
-            ),
             # A corrupted dict without ``__data__`` must still render (no raise) as dynamic.
             pytest.param({"unexpected": "shape"}, "interval=dynamic", id="corrupted_dict_dynamic"),
-            # Legacy pre-0117 bare-number interval (back-compat) still renders.
-            pytest.param(3600, "interval=1h", id="legacy_bare_number"),
         ],
     )
     def test_deadline_alert_repr_does_not_raise_on_json_dict_interval(

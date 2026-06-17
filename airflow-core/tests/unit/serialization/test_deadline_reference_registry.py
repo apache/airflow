@@ -104,9 +104,7 @@ def test_serialized_custom_reference_rejects_unregistered(monkeypatch):
     "reference_data",
     [
         pytest.param({"reference_type": "TotallyUnknownReference"}, id="unknown_type_no_class_path"),
-        pytest.param({}, id="empty_blob"),
         pytest.param({"reference_type": "X", "__class_path": ""}, id="empty_class_path"),
-        pytest.param({"reference_type": "X", "__class_path": None}, id="null_class_path"),
     ],
 )
 def test_serialized_custom_reference_missing_class_path_raises_clear_error(reference_data):

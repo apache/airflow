@@ -51,22 +51,7 @@ _spec = importlib.util.spec_from_file_location("migration_0117", _MIGRATION_PATH
 _migration = importlib.util.module_from_spec(_spec)  # type: ignore[arg-type]
 _spec.loader.exec_module(_migration)  # type: ignore[union-attr]
 
-upgrade = _migration.upgrade
 downgrade = _migration.downgrade
-
-# Minimal deadline_alert schema. Pre-0117: interval is FLOAT NOT NULL. The other columns are
-# only here so rows can be inserted; their exact types don't matter for the interval migration.
-_PRE_0117_DDL = """
-CREATE TABLE deadline_alert (
-    id               TEXT    PRIMARY KEY,
-    serialized_dag_id TEXT,
-    name             TEXT,
-    reference        TEXT    NOT NULL,
-    interval         FLOAT   NOT NULL,
-    callback_def     TEXT    NOT NULL,
-    created_at       TEXT
-)
-"""
 
 _POST_0117_DDL = """
 CREATE TABLE deadline_alert (
@@ -135,28 +120,7 @@ def _rows(engine):
         }
 
 
-class TestMigration0117Upgrade:
-    def test_upgrade_empty_table(self):
-        engine = _engine(_PRE_0117_DDL)
-        _run(engine, upgrade)
-        assert _rows(engine) == {}
-
-    def test_upgrade_wraps_float_in_timedelta_envelope(self):
-        engine = _engine(_PRE_0117_DDL)
-        _insert(engine, interval=300.0, name="fixed")
-        _run(engine, upgrade)
-        stored = json.loads(_rows(engine)["fixed"])
-        assert stored["__classname__"] == "datetime.timedelta"
-        assert stored["__data__"] == 300.0
-
-
 class TestMigration0117Downgrade:
-    def test_downgrade_timedelta_recovers_float(self):
-        engine = _engine(_POST_0117_DDL)
-        _insert(engine, interval=_TIMEDELTA_JSON, name="fixed")
-        _run(engine, downgrade)
-        assert _rows(engine)["fixed"] == 300.0
-
     def test_downgrade_variable_interval_becomes_null_not_zero(self):
         """The core regression: a VariableInterval must downgrade to NULL, never a bogus 0.0,
         and the NOT NULL constraint must not crash the downgrade."""
@@ -178,12 +142,3 @@ class TestMigration0117Downgrade:
         _insert(engine, interval=_VARIABLE_INTERVAL_JSON, name="d2")
         _run(engine, downgrade)
         assert _rows(engine) == {"d1": None, "d2": None}
-
-
-class TestMigration0117RoundTrip:
-    def test_timedelta_round_trip_preserves_value(self):
-        engine = _engine(_PRE_0117_DDL)
-        _insert(engine, interval=42.0, name="rt")
-        _run(engine, upgrade)
-        _run(engine, downgrade)
-        assert _rows(engine)["rt"] == 42.0

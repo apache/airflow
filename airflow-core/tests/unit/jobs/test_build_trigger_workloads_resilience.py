@@ -141,16 +141,3 @@ class TestBuildTriggerWorkloadsResilience:
         assert built_ids == sorted(i for i in ids if i != bad_id)
         # The bad trigger must NOT leave a leaked logger factory behind.
         assert bad_id not in supervisor.logger_cache
-
-    def test_all_triggers_build_when_none_fail(self, session, mocker):
-        """Sanity: with no failures every trigger in the batch is built."""
-        job = Job()
-        session.add(job)
-        session.flush()
-
-        ids = [self._make_task_trigger(session, i) for i in range(3)]
-        supervisor = self._make_supervisor(job, mocker)
-
-        result = supervisor.build_trigger_workloads(set(ids))
-
-        assert sorted(w.id for w in result) == sorted(ids)

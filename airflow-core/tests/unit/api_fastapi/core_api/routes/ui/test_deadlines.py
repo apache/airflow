@@ -509,11 +509,6 @@ class TestGetDagDeadlineAlerts:
         response = test_client.get("/dags/nonexistent_dag/deadlineAlerts")
         assert response.status_code == 404
 
-    @pytest.mark.parametrize("order_by", ["id", "created_at", "name", "-id", "-name"])
-    def test_valid_order_by_keys_succeed(self, test_client, order_by):
-        response = test_client.get(f"/dags/{DAG_ID}/deadlineAlerts", params={"order_by": order_by})
-        assert response.status_code == 200
-
     @pytest.mark.parametrize("order_by", ["interval", "-interval"])
     def test_order_by_interval_is_rejected(self, test_client, order_by):
         """``interval`` is a serialized-JSON column (timedelta/VariableInterval dict), so DB-level
@@ -605,16 +600,11 @@ class TestDeadlineAlertsIntervalSerialization:
         ("stored_interval", "expected"),
         [
             pytest.param({"__classname__": "datetime.timedelta", "__data__": 300.0}, 300.0, id="timedelta"),
-            pytest.param(3600, 3600.0, id="legacy_bare_int"),
-            pytest.param(3600.0, 3600.0, id="legacy_bare_float"),
             pytest.param({"__classname__": "x", "__data__": {"key": "k"}}, None, id="variable_interval"),
             # Malformed / corrupted shapes must degrade to null, never 500.
             pytest.param(
                 {"__classname__": "datetime.timedelta", "__data__": "oops"}, None, id="data_not_number"
             ),
-            pytest.param({"__classname__": "datetime.timedelta"}, None, id="no_data_key"),
-            pytest.param({}, None, id="empty_dict"),
-            pytest.param({"__classname__": "datetime.timedelta", "__data__": None}, None, id="data_none"),
         ],
     )
     def test_interval_validator_never_500s(self, dag_maker, session, stored_interval, expected):

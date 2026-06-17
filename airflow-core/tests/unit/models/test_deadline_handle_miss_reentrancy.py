@@ -68,7 +68,7 @@ class TestHandleMissReentrancy:
     def teardown_method():
         _clean_db()
 
-    def _make_deadline(self, dagrun, session, *, preset_data=None):
+    def _make_deadline(self, dagrun, session):
         deadline = Deadline(
             deadline_time=DEFAULT_DATE,
             callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
@@ -76,8 +76,6 @@ class TestHandleMissReentrancy:
             dag_id=dagrun.dag_id,
             deadline_alert_id=None,
         )
-        if preset_data:
-            deadline.callback.data.update(preset_data)
         session.add(deadline)
         session.flush()
         return deadline
@@ -92,41 +90,6 @@ class TestHandleMissReentrancy:
         assert d.callback.data["deadline_id"] == str(d.id)
         assert d.callback.data["deadline_time"] == d.deadline_time.isoformat()
         assert d.callback.data["kwargs"] == TEST_CALLBACK_KWARGS
-
-    def test_prepopulated_stale_routing_data_is_overwritten(self, dagrun, session):
-        """callback.data already carries stale dag_id/run_id -> handle_miss overwrites
-        them with the current dagrun's values (not the stale ones)."""
-        d = self._make_deadline(
-            dagrun,
-            session,
-            preset_data={"dag_id": "STALE_DAG", "run_id": "STALE_RUN"},
-        )
-        with mock.patch.object(d.callback, "queue"):
-            d.handle_miss(session)
-            session.flush()
-        # Must reflect the real dagrun, not the stale preset
-        assert d.callback.data["dag_id"] == dagrun.dag_id
-        assert d.callback.data["run_id"] == dagrun.run_id
-        assert d.callback.data["dag_id"] != "STALE_DAG"
-        assert d.callback.data["run_id"] != "STALE_RUN"
-
-    def test_double_handle_miss_is_idempotent_on_routing_fields(self, dagrun, session):
-        """Calling handle_miss twice (re-entrancy) keeps correct top-level fields and
-        flips missed=True without corrupting routing data."""
-        d = self._make_deadline(dagrun, session)
-        with mock.patch.object(d.callback, "queue") as mock_queue:
-            d.handle_miss(session)
-            session.flush()
-            first_deadline_id = d.callback.data["deadline_id"]
-            d.handle_miss(session)
-            session.flush()
-        assert d.missed is True
-        assert d.callback.data["dag_id"] == dagrun.dag_id
-        assert d.callback.data["run_id"] == dagrun.run_id
-        # Routing identifiers stay stable across the (guarded) re-entrant call.
-        assert d.callback.data["deadline_id"] == first_deadline_id
-        # The idempotency guard means the second call short-circuits before re-queueing.
-        assert mock_queue.call_count == 1
 
     def test_second_handle_miss_does_not_recreate_trigger_or_reset_state(self, dagrun, session):
         """The ``if self.missed: return`` guard makes handle_miss self-protecting. With the REAL

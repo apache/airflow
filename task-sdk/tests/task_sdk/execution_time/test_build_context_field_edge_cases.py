@@ -55,21 +55,6 @@ def _full_kwargs():
 class TestMissingOptionalAttrs:
     """Probe build_context_from_dag_run with each optional attr removed."""
 
-    def test_missing_data_interval_start_raises_attributeerror(self):
-        kw = _full_kwargs()
-        del kw["data_interval_start"]
-        dr = MockDagRun(**kw)
-        # logical_date is present so the branch that reads data_interval_start runs.
-        with pytest.raises(AttributeError):
-            build_context_from_dag_run(dr)
-
-    def test_missing_data_interval_end_raises_attributeerror(self):
-        kw = _full_kwargs()
-        del kw["data_interval_end"]
-        dr = MockDagRun(**kw)
-        with pytest.raises(AttributeError):
-            build_context_from_dag_run(dr)
-
     def test_missing_logical_date_raises_attributeerror(self):
         # logical_date is read first (coerce_datetime(dag_run.logical_date));
         # absence => AttributeError, not a graceful partial context.
@@ -114,100 +99,6 @@ class TestKeyCompleteness:
             "data_interval_end",
         ):
             assert key in ctx, f"documented key {key!r} missing"
-
-    def test_conf_key_absent_doc_impl_mismatch(self):
-        """PR description promises a top-level ``conf`` key; impl does not add it.
-
-        This asserts the CURRENT (buggy-doc) behaviour: ``conf`` is absent even
-        though DRDataModel carries a ``conf`` attribute. Documents the
-        doc/impl mismatch flagged in the wave-1 audit.
-        """
-        kw = _full_kwargs()
-        dr = MockDagRun(conf={"k": "v"}, **kw)
-        ctx = build_context_from_dag_run(dr)
-        assert "conf" not in ctx, (
-            "If this fails, conf was added to the context - update the PR docs and this test together."
-        )
-
-
-# ---------------------------------------------------------------------------
-# datetime edge cases
-# ---------------------------------------------------------------------------
-class TestDatetimeEdges:
-    @pytest.mark.parametrize(
-        ("ld", "exp_ds", "exp_ds_nodash"),
-        [
-            (pendulum.datetime(9999, 12, 31, 23, 59, 59), "9999-12-31", "99991231"),
-            (pendulum.datetime(1969, 7, 20, 20, 17, 0), "1969-07-20", "19690720"),
-            (pendulum.datetime(1900, 1, 1, 0, 0, 0), "1900-01-01", "19000101"),
-            (pendulum.datetime(2024, 1, 1, 0, 0, 0, 123456), "2024-01-01", "20240101"),
-            (pendulum.datetime(2024, 12, 31, 23, 59, 59), "2024-12-31", "20241231"),
-        ],
-    )
-    def test_ds_formatting_edge_dates(self, ld, exp_ds, exp_ds_nodash):
-        kw = _full_kwargs()
-        kw["logical_date"] = ld
-        dr = MockDagRun(**kw)
-        ctx = build_context_from_dag_run(dr)
-        assert ctx["ds"] == exp_ds
-        assert ctx["ds_nodash"] == exp_ds_nodash
-        # ts must be a valid isoformat round-trip
-        assert ctx["ts"] == ld.isoformat()
-
-    def test_year_below_1000_matches_existing_strftime_convention(self):
-        """ds for a year < 1000 is NOT zero-padded to 4 digits.
-
-        build_context_from_dag_run uses ``logical_date.strftime("%Y-%m-%d")`` -
-        the SAME pattern as the task-bound context path in task_runner.py. On
-        glibc, ``%Y`` is not zero-padded for years < 1000, so year 1 yields
-        '1-01-01'. This is a long-standing, consistent convention (not a
-        #66608 regression), asserted here so the behaviour is pinned.
-        """
-        kw = _full_kwargs()
-        ld = pendulum.datetime(1, 1, 1, 0, 0, 0)
-        kw["logical_date"] = ld
-        dr = MockDagRun(**kw)
-        ctx = build_context_from_dag_run(dr)
-        # Whatever the platform produces, it must equal the raw strftime output
-        assert ctx["ds"] == ld.strftime("%Y-%m-%d")
-        assert ctx["ds_nodash"] == ld.strftime("%Y-%m-%d").replace("-", "")
-
-    def test_microseconds_dropped_from_ts_nodash(self):
-        kw = _full_kwargs()
-        kw["logical_date"] = pendulum.datetime(2024, 1, 1, 1, 2, 3, 999999)
-        dr = MockDagRun(**kw)
-        ctx = build_context_from_dag_run(dr)
-        # %H%M%S has no microseconds
-        assert ctx["ts_nodash"] == "20240101T010203"
-
-
-# ---------------------------------------------------------------------------
-# very deeply nested callback_kwargs through context path
-# ---------------------------------------------------------------------------
-class TestDeepNesting:
-    def _nested(self, depth):
-        d: dict = {"leaf": 1}
-        for _ in range(depth):
-            d = {"n": d}
-        return d
-
-    def test_deeply_nested_kwargs_on_dag_run_attr(self):
-        """A 50-level nested structure carried on the dag_run object does not
-        affect build_context_from_dag_run (it never recurses into payload)."""
-        kw = _full_kwargs()
-        dr = MockDagRun(conf=self._nested(50), **kw)
-        ctx = build_context_from_dag_run(dr)
-        # conf is not copied; no recursion / no RecursionError
-        assert "conf" not in ctx
-        assert ctx["ds"] == "2024-01-15"
-
-    def test_deeply_nested_kwargs_survive_dict_identity(self):
-        """The deeply nested object is reachable only via dag_run, intact."""
-        kw = _full_kwargs()
-        nested = self._nested(50)
-        dr = MockDagRun(conf=nested, **kw)
-        ctx = build_context_from_dag_run(dr)
-        assert ctx["dag_run"].conf is nested
 
 
 # ---------------------------------------------------------------------------

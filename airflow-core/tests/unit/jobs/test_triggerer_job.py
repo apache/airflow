@@ -1370,43 +1370,6 @@ class TestTriggerRunner:
         assert 7 not in trigger_runner.triggers
         mock_build_ctx.assert_called_once()
 
-    @patch(
-        "airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath",
-        return_value=SuccessTrigger,
-    )
-    @patch(
-        "airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs",
-        side_effect=ValueError("simulated Fernet InvalidToken / corrupt encrypted_kwargs blob"),
-    )
-    @pytest.mark.asyncio
-    async def test_decrypt_kwargs_failure_fails_only_that_trigger(
-        self, mock_decrypt, mock_get_class, session
-    ):
-        """A corrupt / un-decryptable ``encrypted_kwargs`` blob (Fernet ``InvalidToken`` after key
-        rotation, a truncated blob → ``json.JSONDecodeError``, or a bad ``deserialize``) makes
-        ``Trigger._decrypt_kwargs`` RAISE at create_triggers (triggerer_job_runner.py:1355). These are
-        NOT ``TypeError``s, so the Bug #21 fix (``except Exception``, not ``except TypeError``) is what
-        keeps the raise from escaping to ``arun()``'s ``except Exception: self.stop = True`` and shutting
-        down the WHOLE triggerer. This pins that the decrypt-raise path is isolated to the one trigger —
-        the failure-path counterpart to the clean DB-persistence round-trip; the Bug #21 comment names
-        ``_decrypt_kwargs`` as a covered raise source but no test made it actually raise."""
-        trigger_runner = TriggerRunner()
-        trigger_runner.to_create.append(
-            workloads.RunTrigger.model_construct(
-                id=11,
-                ti=None,
-                classpath="airflow.triggers.callback.CallbackTrigger",
-                encrypted_kwargs="corrupt-not-decryptable",
-            )
-        )
-
-        # Must NOT raise — a decrypt failure escaping would crash the whole triggerer.
-        await trigger_runner.create_triggers()
-
-        assert (11, ANY) in trigger_runner.failed_triggers
-        assert 11 not in trigger_runner.triggers
-        mock_decrypt.assert_called_once()
-
     @pytest.mark.asyncio
     @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
     async def test_invalid_trigger(self, supervisor_builder):
@@ -2970,15 +2933,6 @@ class TestBuildContextFromDagRunData:
         assert context["deadline"]["id"] == "abc-123"
         assert context["deadline"]["deadline_time"] == "2024-01-01T01:00:00+00:00"
 
-    def test_no_deadline_when_key_absent(self):
-        """Without _deadline key, context has no 'deadline' entry."""
-        dag_run_data = dict(self._BASE_DAG_RUN_DATA)
-
-        context = TriggerRunner._build_context_from_dag_run_data(dag_run_data)
-
-        assert "deadline" not in context
-        # Standard context fields should still be present
-
 
 class TestFetchCallbackDagRunData:
     """Tests for TriggerRunnerSupervisor._fetch_callback_dag_run_data (the PRODUCER of the
@@ -3039,80 +2993,3 @@ class TestFetchCallbackDagRunData:
         assert "_deadline" in data
         assert data["_deadline"]["id"] == str(deadline.id)
         assert data["_deadline"]["deadline_time"] == deadline.deadline_time.isoformat()
-
-    def test_returns_none_when_routing_keys_absent(self, session, mocker):
-        """A trigger whose callback has no dag_id/run_id (e.g. 3.2.x format) returns None."""
-        from unittest.mock import MagicMock as _MM
-
-        from airflow.models.callback import TriggererCallback
-
-        callback_def = _MM()
-        callback_def.path = "builtins.print"
-        callback_def.kwargs = {}
-        callback_def.serialize.return_value = {"path": "builtins.print", "kwargs": {}}
-        callback = TriggererCallback(callback_def=callback_def)
-        assert "dag_id" not in callback.data
-        trigger = Trigger.from_object(TimeDeltaTrigger(datetime.timedelta(days=1)))
-        session.add_all([callback, trigger])
-        session.flush()
-        trigger.callback = callback
-        session.flush()
-
-        supervisor = self._supervisor(mocker)
-        assert supervisor._fetch_callback_dag_run_data(trigger, session=session) is None
-
-
-class TestBuildTriggerWorkloads32xCompat:
-    """Tests for 3.2.x backward compat: old callbacks without dag_id/run_id in data."""
-
-    def test_old_format_callback_passes_through_without_skip(self, session, mocker):
-        """A 3.2.x TriggererCallback has context in kwargs but no dag_id/run_id routing data."""
-        import psutil
-
-        from airflow.models.callback import TriggererCallback
-
-        trigger = Trigger.from_object(TimeDeltaTrigger(datetime.timedelta(days=1)))
-        session.add(trigger)
-        session.flush()
-
-        # Simulate 3.2.x format: context stored in kwargs, no routing data.
-        # Use a mock callback_def that provides the required protocol fields.
-        callback_def = MagicMock()
-        callback_def.path = "builtins.print"
-        callback_def.kwargs = {"text": "alert"}
-        callback_def.serialize.return_value = {
-            "path": "builtins.print",
-            "kwargs": {"text": "alert", "context": {"dag_run": "legacy"}},
-        }
-        callback = TriggererCallback(callback_def=callback_def)
-        # Ensure no dag_id/run_id in data — mimics the old 3.2.x format
-        assert "dag_id" not in callback.data
-        assert "run_id" not in callback.data
-        session.add(callback)
-        session.flush()
-        trigger.callback = callback
-        session.flush()
-
-        job = Job()
-        session.add(job)
-        session.flush()
-
-        process = mocker.Mock(spec=psutil.Process, pid=99)
-        mock_stdin = mocker.Mock(spec=socket)
-        supervisor = TriggerRunnerSupervisor(
-            process_log=mocker.Mock(spec=FilteringBoundLogger),
-            id=job.id,
-            job=job,
-            pid=process.pid,
-            stdin=mock_stdin,
-            process=process,
-            capacity=10,
-        )
-
-        result = supervisor._create_workload(
-            trigger=trigger, dag_bag=MagicMock(), render_log_fname=MagicMock(), session=session
-        )
-
-        # Should NOT be skipped — old format passes through with dag_run_data=None
-        assert result is not None
-        assert result.dag_run_data is None

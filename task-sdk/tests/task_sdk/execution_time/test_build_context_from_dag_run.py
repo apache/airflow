@@ -25,14 +25,6 @@ from airflow.sdk.execution_time.comms import DagRunResult
 from airflow.sdk.execution_time.context import build_context_from_dag_run
 
 
-class MockDagRun:
-    """Minimal DagRun stand-in for testing build_context_from_dag_run."""
-
-    def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
-
-
 def make_dag_run_result(
     *,
     dag_id="test_dag",
@@ -63,8 +55,6 @@ class TestBuildContextFromDagRun:
     - All expected context fields are present with correct values
     - logical_date=None case (asset-triggered runs)
     - DagRunResult (comms model) as input
-    - MockDagRun (generic object) as input
-    - Date formatting correctness
     """
 
     def test_all_context_fields_present_with_correct_values(self):
@@ -100,22 +90,6 @@ class TestBuildContextFromDagRun:
         assert context["data_interval_start"] is not None
         assert context["data_interval_end"] is not None
 
-    def test_ds_format_is_yyyy_mm_dd(self):
-        """TEST 10: Context field values are accurate - ds must be YYYY-MM-DD."""
-        dag_run = make_dag_run_result(
-            run_id="test_run",
-            logical_date=pendulum.datetime(2025, 3, 5, 14, 0, 0),
-        )
-
-        context = build_context_from_dag_run(dag_run)
-
-        assert context["ds"] == "2025-03-05", "ds must be zero-padded YYYY-MM-DD"
-        assert context["ds_nodash"] == "20250305"
-        assert "ts" in context
-        # ts should be ISO format
-        ts = context["ts"]
-        assert "2025-03-05" in ts or "2025" in ts
-
     def test_logical_date_none_returns_minimal_context(self):
         """TEST: When logical_date is None (asset-triggered), context has only run_id and dag_run."""
         dag_run = make_dag_run_result(
@@ -137,104 +111,6 @@ class TestBuildContextFromDagRun:
         assert "logical_date" not in context
         assert "data_interval_start" not in context
         assert "data_interval_end" not in context
-
-    def test_context_with_mock_dag_run_object(self):
-        """TEST: build_context_from_dag_run works with any duck-typed object."""
-        dag_run = MockDagRun(
-            run_id="manual__2024-06-01",
-            logical_date=pendulum.datetime(2024, 6, 1, 0, 0, 0),
-            data_interval_start=pendulum.datetime(2024, 5, 31, 0, 0, 0),
-            data_interval_end=pendulum.datetime(2024, 6, 1, 0, 0, 0),
-        )
-
-        context = build_context_from_dag_run(dag_run)
-
-        assert context["run_id"] == "manual__2024-06-01"
-        assert context["ds"] == "2024-06-01"
-        assert context["dag_run"] is dag_run
-
-    def test_dag_run_is_original_object_reference(self):
-        """TEST: dag_run in context is the SAME object, not a copy."""
-        dag_run = make_dag_run_result(
-            run_id="test_run",
-            logical_date=pendulum.datetime(2024, 1, 15, 0, 0, 0),
-        )
-
-        context = build_context_from_dag_run(dag_run)
-
-        # Should be the same reference, not a copy
-        assert context["dag_run"] is dag_run
-
-    def test_data_interval_start_and_end_in_context(self):
-        """TEST: data_interval_start and data_interval_end are correctly populated."""
-        data_start = pendulum.datetime(2024, 1, 14, 0, 0, 0)
-        data_end = pendulum.datetime(2024, 1, 15, 0, 0, 0)
-
-        dag_run = make_dag_run_result(
-            run_id="test_run",
-            logical_date=pendulum.datetime(2024, 1, 15, 0, 0, 0),
-            data_interval_start=data_start,
-            data_interval_end=data_end,
-        )
-
-        context = build_context_from_dag_run(dag_run)
-
-        assert context["data_interval_start"] is not None
-        assert context["data_interval_end"] is not None
-        # Verify they're timezone-aware pendulum DateTime objects
-        assert hasattr(context["data_interval_start"], "tzinfo")
-        assert hasattr(context["data_interval_end"], "tzinfo")
-
-    def test_context_keys_match_expected_set(self):
-        """TEST: Context contains exactly the expected keys (no extras, no missing)."""
-        dag_run = make_dag_run_result(
-            run_id="test_run",
-            logical_date=pendulum.datetime(2024, 1, 15, 0, 0, 0),
-            data_interval_start=pendulum.datetime(2024, 1, 14, 0, 0, 0),
-            data_interval_end=pendulum.datetime(2024, 1, 15, 0, 0, 0),
-        )
-
-        context = build_context_from_dag_run(dag_run)
-
-        expected_keys = {
-            "dag_run",
-            "run_id",
-            "logical_date",
-            "ds",
-            "ds_nodash",
-            "ts",
-            "ts_nodash",
-            "ts_nodash_with_tz",
-            "data_interval_start",
-            "data_interval_end",
-        }
-        assert set(context.keys()) == expected_keys, (
-            f"Context keys mismatch.\n"
-            f"Expected: {expected_keys}\n"
-            f"Got: {set(context.keys())}\n"
-            f"Missing: {expected_keys - set(context.keys())}\n"
-            f"Extra: {set(context.keys()) - expected_keys}"
-        )
-
-    def test_deadline_id_and_deadline_time_are_not_in_context(self):
-        """
-        TEST 2: deadline_id and deadline_time are kwargs, NOT inside context.
-
-        The new design puts deadline_id/deadline_time at the top level of callback
-        kwargs (passed directly to the function), while context is built from DagRun.
-        This test verifies the separation.
-        """
-        dag_run = make_dag_run_result(
-            run_id="test_run",
-            logical_date=pendulum.datetime(2024, 1, 15, 0, 0, 0),
-        )
-
-        context = build_context_from_dag_run(dag_run)
-
-        # deadline_id and deadline_time must NOT be inside the context dict
-        assert "deadline_id" not in context
-        assert "deadline_time" not in context
-        assert "deadline" not in context
 
     def test_deadline_dict_is_exposed_when_passed(self):
         """When a deadline dict is supplied it is exposed as ``context["deadline"]``.

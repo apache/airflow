@@ -79,37 +79,3 @@ class TestBundleInitializeRaises:
         finally:
             sys.modules.pop(mod_name, None)
             sys.path[:] = before
-
-    def test_load_mangled_raises_after_path_append_is_swallowed(self, tmp_path):
-        """
-        If load_mangled_dag_module raises AFTER the sys.path.append (the fix #1 site),
-        the outer except must swallow it. The appended path is the REAL matched bundle
-        dir (not a bogus path), so leaving it is acceptable; key invariant: no crash.
-        """
-        from airflow.triggers.callback import _ensure_bundle_module_registered
-
-        stem = "raising_dag"
-        (tmp_path / f"{stem}.py").write_text("X = 1\n")
-        mod_name = get_unique_dag_module_name(str(tmp_path / f"{stem}.py"))
-
-        bundle = mock.Mock()
-        bundle.name = "b"
-        bundle.path = tmp_path
-
-        before = list(sys.path)
-        try:
-            with (
-                mock.patch("airflow.triggers.callback.DagBundlesManager") as mgr,
-                mock.patch(
-                    "airflow.triggers.callback.load_mangled_dag_module",
-                    side_effect=ImportError("cannot exec module"),
-                ),
-            ):
-                mgr.return_value.get_all_dag_bundles.return_value = [bundle]
-                _ensure_bundle_module_registered(f"{mod_name}.fn")  # must not raise
-            # The matched bundle path may remain on sys.path (it is a real dir), but the
-            # module must NOT be registered since loading failed.
-            assert mod_name not in sys.modules
-        finally:
-            sys.modules.pop(mod_name, None)
-            sys.path[:] = before

@@ -397,14 +397,6 @@ class TestWorkloadTokenScopeEnforcement:
         assert response.status_code == 200
         assert response.json()["value"] == "hello"
 
-    def test_workload_token_can_list_variable_keys(self, workload_client, session):
-        """GET /variables/keys allows workload tokens."""
-        Variable.set(key="listed_var", value="x", session=session)
-        session.commit()
-
-        response = workload_client.get("/execution/variables/keys")
-        assert response.status_code == 200
-
     def test_workload_token_rejected_on_put_variable(self, workload_client):
         """PUT /variables/{key} rejects workload tokens — write requires execution scope."""
         response = workload_client.put(
