@@ -46,9 +46,11 @@ from airflow.api_fastapi.core_api.datamodels.event_logs import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
+    GetUserDep,
     ReadableEventLogsFilterDep,
     requires_access_event_log,
 )
+from airflow.api_fastapi.core_api.services.public.event_logs import event_log_to_response
 from airflow.models import Log
 
 event_logs_router = AirflowRouter(tags=["Event Log"], prefix="/eventLogs")
@@ -62,6 +64,7 @@ event_logs_router = AirflowRouter(tags=["Event Log"], prefix="/eventLogs")
 def get_event_log(
     event_log_id: int,
     session: SessionDep,
+    user: GetUserDep,
 ) -> EventLogResponse:
     event_log = session.scalar(
         # Log.dttm is nullable at the DB level, but EventLogResponse.when is a non-optional
@@ -72,11 +75,12 @@ def get_event_log(
         # clients that currently rely on `when` always being present.
         select(Log)
         .where(Log.id == event_log_id, Log.dttm.is_not(None))
-        .options(joinedload(Log.task_instance))
+        .options(joinedload(Log.task_instance), joinedload(Log.dag_model))
     )
     if event_log is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Event Log with id: `{event_log_id}` not found")
-    return event_log
+
+    return event_log_to_response(event_log=event_log, user=user)
 
 
 @event_logs_router.get(
@@ -100,6 +104,7 @@ def get_event_logs(
                     "event",
                     "logical_date",
                     "owner",
+                    "owner_display_name",
                     "extra",
                 ],
                 Log,
@@ -161,6 +166,7 @@ def get_event_logs(
         Depends(prefix_search_param_factory(Log.event, "event_prefix_pattern")),
     ],
     readable_event_logs_filter: ReadableEventLogsFilterDep,
+    user: GetUserDep,
 ) -> EventLogCollectionResponse:
     """Get all Event Logs."""
     query = (
@@ -208,9 +214,9 @@ def get_event_logs(
         limit=limit,
         session=session,
     )
-    event_logs = session.scalars(event_logs_select)
+    event_logs = list(session.scalars(event_logs_select))
 
     return EventLogCollectionResponse(
-        event_logs=event_logs,
+        event_logs=[event_log_to_response(event_log=event_log, user=user) for event_log in event_logs],
         total_entries=total_entries,
     )

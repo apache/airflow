@@ -20,11 +20,23 @@ import json
 
 import pytest
 
+from airflow.api_fastapi.core_api.services.public.event_logs import get_user_display_name
 from airflow.api_fastapi.logging.decorators import (
     _mask_connection_fields,
     _mask_variable_fields,
     _sanitize_for_stdlib_log,
 )
+
+
+class User:
+    def __init__(self, username, first_name=None, last_name=None, email=None):
+        self.username = username
+        self.first_name = first_name
+        self.last_name = last_name
+        self.email = email
+
+    def get_name(self):
+        return self.username
 
 
 class TestSanitizeForStdlibLog:
@@ -122,3 +134,33 @@ class TestMaskVariableFields:
     def test_value_without_key_is_still_masked(self):
         result = _mask_variable_fields({"value": "secretval"})
         assert result == {"value": "***"}
+
+
+@pytest.mark.parametrize(
+    ("user", "expected_display_name"),
+    [
+        pytest.param(User(username="jane"), "jane", id="username-only"),
+        pytest.param(
+            User(username="jane", first_name="Jane", last_name="Smith", email="jane@example.com"),
+            "Jane Smith",
+            id="first-and-last-name",
+        ),
+        pytest.param(
+            User(username="jane", first_name="", last_name="", email="jane@example.com"),
+            "jane@example.com",
+            id="email",
+        ),
+        pytest.param(
+            User(
+                username="accounts.google.com:123456789",
+                first_name="jane@example.com",
+                last_name="-",
+                email="jane@example.com",
+            ),
+            "jane@example.com",
+            id="composer-email-placeholder-last-name",
+        ),
+    ],
+)
+def test_get_user_display_name(user, expected_display_name):
+    assert get_user_display_name(user) == expected_display_name

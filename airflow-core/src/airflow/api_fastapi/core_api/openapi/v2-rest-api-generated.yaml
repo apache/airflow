@@ -4462,13 +4462,15 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, dttm,
-            dag_id, task_id, run_id, event, logical_date, owner, extra, when, event_log_id`'
+            dag_id, task_id, run_id, event, logical_date, owner, owner_display_name,
+            extra, when, event_log_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, dttm, dag_id,
-          task_id, run_id, event, logical_date, owner, extra, when, event_log_id`'
+          task_id, run_id, event, logical_date, owner, owner_display_name, extra,
+          when, event_log_id`'
       - name: dag_id
         in: query
         required: false
@@ -14364,6 +14366,11 @@ components:
           - type: string
           - type: 'null'
           title: Owner
+        owner_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner Display Name
         extra:
           anyOf:
           - type: string
@@ -14391,6 +14398,7 @@ components:
       - event
       - logical_date
       - owner
+      - owner_display_name
       - extra
       title: EventLogResponse
       description: Event Log Response.

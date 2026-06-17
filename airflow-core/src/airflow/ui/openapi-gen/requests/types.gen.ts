@@ -1147,6 +1147,7 @@ export type EventLogResponse = {
     event: string;
     logical_date: string | null;
     owner: string | null;
+    owner_display_name: string | null;
     extra: string | null;
     dag_display_name?: string | null;
     task_display_name?: string | null;
@@ -3410,7 +3411,7 @@ export type GetEventLogsData = {
     mapIndex?: number | null;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, extra, when, event_log_id`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, owner_display_name, extra, when, event_log_id`
      */
     orderBy?: Array<(string)>;
     owner?: string | null;

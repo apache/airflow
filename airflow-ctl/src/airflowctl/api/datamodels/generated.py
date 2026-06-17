@@ -582,6 +582,7 @@ class EventLogResponse(BaseModel):
     event: Annotated[str, Field(title="Event")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
     owner: Annotated[str | None, Field(title="Owner")] = None
+    owner_display_name: Annotated[str | None, Field(title="Owner Display Name")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
     dag_display_name: Annotated[str | None, Field(title="Dag Display Name")] = None
     task_display_name: Annotated[str | None, Field(title="Task Display Name")] = None
