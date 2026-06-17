@@ -1064,7 +1064,7 @@ class BaseDatabricksHook(BaseHook):
         ):
             self.log.debug("Using Kubernetes OIDC token federation.")
             return self._get_federated_databricks_token(self._get_oidc_token_service_url())
-        if self.databricks_conn.extra.get("use_gcp_workload_federation"):
+        if self.databricks_conn.extra_dejson.get("use_gcp_workload_federation"):
             self._get_wif_databricks_token()
         if raise_error:
             raise AirflowException("Token authentication isn't configured")
