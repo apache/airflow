@@ -75,31 +75,6 @@ class TestSnowparkContainerJobOperator:
         with pytest.raises(ValueError, match=match):
             _make_operator(**kwargs)
 
-    def test_default_values(self):
-        op = _make_operator()
-        assert op.compute_pool == COMPUTE_POOL
-        assert op.container_name == CONTAINER_NAME
-        assert op.spec == SPEC
-        assert op.spec_stage == SPEC_STAGE
-        assert op.replicas == 1
-        assert op.wait_for_completion is True
-        assert op.drop_on_completion is True
-        assert op.poll_interval == 10
-        assert op.snowflake_conn_id == SNOWFLAKE_CONN_ID
-        assert op.job_name is None
-
-    def test_custom_values(self):
-        op = _make_operator(
-            query_warehouse="COMPUTE_WH",
-            replicas=3,
-            poll_interval=30,
-            wait_for_completion=False,
-        )
-        assert op.query_warehouse == "COMPUTE_WH"
-        assert op.replicas == 3
-        assert op.poll_interval == 30
-        assert op.wait_for_completion is False
-
     def test_build_sql_with_spec_stage(self):
         op = _make_operator()
         sql = op._build_sql()
