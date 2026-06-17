@@ -55,6 +55,7 @@ from airflow.serialization.definitions.deadline import DeadlineAlertFields, Seri
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
+from airflow.utils.helpers import prune_dict
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -749,7 +750,15 @@ class SerializedDAG:
                             bundle_name=orm_dagrun.dag_model.bundle_name,
                         )
                     )
-                    stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
+                    team_name = (
+                        DagModel.get_team_name(self.dag_id, session=session)
+                        if airflow_conf.getboolean("core", "multi_team")
+                        else None
+                    )
+                    stats.incr(
+                        "deadline_alerts.deadline_created",
+                        tags=prune_dict({"dag_id": self.dag_id, "team_name": team_name}),
+                    )
 
     @provide_session
     def set_task_instance_state(
