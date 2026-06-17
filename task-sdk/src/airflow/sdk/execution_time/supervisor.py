@@ -37,7 +37,7 @@ from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
 from socket import socket, socketpair
-from typing import TYPE_CHECKING, Any, BinaryIO, ClassVar, NoReturn, TextIO, cast
+from typing import TYPE_CHECKING, Any, BinaryIO, ClassVar, NoReturn, TextIO, cast, get_args
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -68,17 +68,12 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
-    SetAssetStateStoreByName,
-    SetAssetStateStoreByUri,
     SetRenderedFields,
     SetRenderedMapIndex,
-    SetTaskStateStore,
-    SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
     TaskState,
-    TaskStateStoreResult,
     ToSupervisor,
     _RequestFrame,
     _ResponseFrame,
@@ -544,6 +539,13 @@ class WatchedSubprocess:
     This class handles common functionalities required for subprocess management, such as
     socket handling, process monitoring, and request handling.
     """
+
+    _msg_union: ClassVar[type]  # subclasses override
+
+    @classmethod
+    @functools.cache
+    def _allowed_msg_types(cls) -> frozenset[type]:
+        return frozenset(get_args(get_args(cls._msg_union)[0]))
 
     id: UUID
 
