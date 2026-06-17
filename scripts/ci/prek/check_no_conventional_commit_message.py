@@ -28,9 +28,10 @@ As a ``commit-msg`` stage hook it receives the path to the file holding the comm
 message being created and fails if the subject line looks like a Conventional
 Commit.
 
-With ``--from-stdin`` it instead reads commit subjects (one per line) from standard
-input and fails if any of them looks like a Conventional Commit. This is how CI
-validates every commit of a pull request.
+With ``--from-stdin`` it instead reads subjects (one per line) from standard input
+and fails if any of them looks like a Conventional Commit. This is how CI validates
+the pull request title, which is the subject that lands on the target branch under
+"squash and merge".
 """
 
 from __future__ import annotations
@@ -42,7 +43,7 @@ from pathlib import Path
 
 # Standard Conventional Commits types (https://www.conventionalcommits.org).
 CONVENTIONAL_TYPES = (
-    "bugfix"
+    "bugfix",
     "build",
     "chore",
     "ci",
