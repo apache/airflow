@@ -887,6 +887,10 @@ class WatchedSubprocess:
                     otel_context.detach(token)
 
     def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
+        if type(msg) not in self._allowed_msg_types():
+            log.error("Unhandled request", msg=msg)
+            self.send_msg(None, request_id=req_id, error=ErrorResponse(error=ErrorType.UNKNOWN_REQUEST, detail={"type": type(msg).__name__}))
+            return
         resp, dump_opts = get_handler(type(msg))(self.client, msg)
         self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
 
