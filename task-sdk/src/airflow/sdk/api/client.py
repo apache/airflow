@@ -241,6 +241,17 @@ def _log_and_trace_retry(retry_state) -> None:
         )
 
 
+def _path(prefix: str, *identifiers: str) -> str:
+    """
+    Build a request path, quoting each identifier so it stays a single segment.
+
+    ``prefix`` is the fixed, trusted portion of the path. Each identifier is quoted
+    with ``safe=""`` because a value containing ``/`` or ``..`` would otherwise be
+    collapsed by httpx dot-segment normalization and escape onto another endpoint.
+    """
+    return "/".join([prefix, *(quote(identifier, safe="") for identifier in identifiers)])
+
+
 class TaskInstanceOperations:
     __slots__ = ("client",)
 
@@ -410,9 +421,7 @@ class TaskInstanceOperations:
         if state:
             params["state"] = state.value if isinstance(state, TaskInstanceState) else state
 
-        resp = self.client.get(
-            f"task-instances/previous/{quote(dag_id, safe='')}/{quote(task_id, safe='')}", params=params
-        )
+        resp = self.client.get(_path("task-instances/previous", dag_id, task_id), params=params)
         return PreviousTIResult(task_instance=resp.json())
 
     def get_task_states(
@@ -463,7 +472,7 @@ class ConnectionOperations:
     def get(self, conn_id: str) -> ConnectionResponse | ErrorResponse:
         """Get a connection from the API server."""
         try:
-            resp = self.client.get(f"connections/{quote(conn_id, safe='')}")
+            resp = self.client.get(_path("connections", conn_id))
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
                 log.debug(
@@ -923,7 +932,7 @@ class DagRunOperations:
 
         try:
             self.client.post(
-                f"dag-runs/{quote(dag_id, safe='')}/{quote(run_id, safe='')}",
+                _path("dag-runs", dag_id, run_id),
                 content=body.model_dump_json(exclude_defaults=True),
             )
         except ServerResponseError as e:
@@ -940,18 +949,18 @@ class DagRunOperations:
 
     def clear(self, dag_id: str, run_id: str) -> OKResponse:
         """Clear a Dag run via the API server."""
-        self.client.post(f"dag-runs/{quote(dag_id, safe='')}/{quote(run_id, safe='')}/clear")
+        self.client.post(f"{_path('dag-runs', dag_id, run_id)}/clear")
         # TODO: Error handling
         return OKResponse(ok=True)
 
     def get_detail(self, dag_id: str, run_id: str) -> DagRun:
         """Get detail of a dag run."""
-        resp = self.client.get(f"dag-runs/{quote(dag_id, safe='')}/{quote(run_id, safe='')}")
+        resp = self.client.get(_path("dag-runs", dag_id, run_id))
         return DagRun.model_validate_json(resp.read())
 
     def get_state(self, dag_id: str, run_id: str) -> DagRunStateResponse:
         """Get the state of a Dag run via the API server."""
-        resp = self.client.get(f"dag-runs/{quote(dag_id, safe='')}/{quote(run_id, safe='')}/state")
+        resp = self.client.get(f"{_path('dag-runs', dag_id, run_id)}/state")
         return DagRunStateResponse.model_validate_json(resp.read())
 
     def get_count(
@@ -1000,7 +1009,7 @@ class DagsOperations:
 
     def get(self, dag_id: str) -> DagResponse:
         """Get a DAG via the API server."""
-        resp = self.client.get(f"dags/{quote(dag_id, safe='')}")
+        resp = self.client.get(_path("dags", dag_id))
         return DagResponse.model_validate_json(resp.read())
 
 
