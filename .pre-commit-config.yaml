@@ -224,6 +224,13 @@ repos:
         entry: ./scripts/ci/prek/check_min_python_version.py
         language: python
         require_serial: true
+      - id: update-notice-year
+        name: Update NOTICE files to current year (manual)
+        entry: ./scripts/ci/prek/update_notice_year.py
+        stages: ['manual']
+        language: python
+        pass_filenames: false
+        require_serial: true
       - id: check-notice-files
         name: Check NOTICE files for current year and ASF references
         entry: ./scripts/ci/prek/check_notice_files.py
@@ -246,6 +253,20 @@ repos:
         entry: ./scripts/ci/prek/check_ci_workflows_in_sync.py
         language: python
         files: ^\.github/workflows/ci-(arm|amd)\.yml$
+        pass_filenames: false
+        require_serial: true
+      - id: check-java-sdk-version-in-sync
+        name: Check Java SDK JDK version is consistent across build files
+        entry: ./scripts/ci/prek/check_java_sdk_version_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^\.github/workflows/ci-(arm|amd)\.yml$|
+          ^\.github/workflows/codeql-analysis\.yml$|
+          ^java-sdk/buildSrc/src/main/kotlin/airflow-jvm-conventions\.gradle\.kts$|
+          ^scripts/docker/install_os_dependencies\.sh$|
+          ^Dockerfile$|
+          ^Dockerfile\.ci$
         pass_filenames: false
         require_serial: true
       - id: check-partition-mapper-defaults-in-sync
@@ -384,6 +405,7 @@ repos:
           ^.*init_git_sync\.template\.yaml$|
           ^chart/(?:templates|files)/.*\.yaml$|
           ^chart/tests/chart_utils/keda.sh_scaledobjects\.yaml$|
+          ^chart/tests/chart_utils/gateway.networking.k8s.io_httproutes\.yaml$|
           .*/v1.*\.yaml$|
           ^.*openapi.*\.yaml$|
           ^\.pre-commit-config\.yaml$|
@@ -439,7 +461,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: ed088a72e7773e24b3ed72a2c4323f594736aa39  # frozen: nightly
+    rev: 2bba271688c1abb1503097a064e6c3bc1d1b6a9b  # frozen: lychee-lib-v0.24.2
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script
@@ -532,12 +554,6 @@ repos:
         language: python
         pass_filenames: false
         files: ^dev/registry/registry_tools/types\.py$|^registry/src/_data/types\.json$
-      - id: check-task-instance-dto-sync
-        name: Check BaseTaskInstanceDTO duplicate is in sync between core and task-sdk
-        entry: ./scripts/ci/prek/check_task_instance_dto_sync.py
-        language: python
-        pass_filenames: false
-        files: ^airflow-core/src/airflow/executors/workloads/task\.py$|^task-sdk/src/airflow/sdk/execution_time/workloads/task\.py$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -546,7 +562,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.15']
+        additional_dependencies: ['ruff==0.15.16']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'

@@ -68,12 +68,17 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
+    SetAssetStateStoreByName,
+    SetAssetStateStoreByUri,
     SetRenderedFields,
     SetRenderedMapIndex,
+    SetTaskStateStore,
+    SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
     TaskState,
+    TaskStateStoreResult,
     ToSupervisor,
     _RequestFrame,
     _ResponseFrame,
@@ -101,7 +106,6 @@ if TYPE_CHECKING:
     from airflow.executors.workloads import BundleInfo
     from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
     from airflow.sdk.definitions.connection import Connection
-    from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
 __all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise", "supervise_task"]
@@ -1113,10 +1117,10 @@ def _fetch_remote_logging_conn(conn_id: str, client: Client) -> Connection | Non
         from airflow.sdk.definitions.connection import Connection
 
         result: Connection | None = Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True))
+        _REMOTE_LOGGING_CONN_CACHE[conn_id] = result
     else:
         result = None
 
-    _REMOTE_LOGGING_CONN_CACHE[conn_id] = result
     return result
 
 
@@ -1246,7 +1250,7 @@ class ActivitySubprocess(WatchedSubprocess):
     def start(  # type: ignore[override]
         cls,
         *,
-        what: TaskInstanceDTO,
+        what: TaskInstance,
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
         client: Client,
@@ -1275,7 +1279,7 @@ class ActivitySubprocess(WatchedSubprocess):
     def _on_child_started(
         self,
         *,
-        ti: TaskInstanceDTO,
+        ti: TaskInstance,
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
         sentry_integration: str,
@@ -1352,11 +1356,13 @@ class ActivitySubprocess(WatchedSubprocess):
         # If it hasn't, assume it's failed
         self._exit_code = self._exit_code if self._exit_code is not None else 1
 
-        self.update_task_state_if_needed()
-
-        # Now at the last possible moment, when all logs and comms with the subprocess has finished, lets
-        # upload the remote logs
-        self._upload_logs()
+        try:
+            self.update_task_state_if_needed()
+        finally:
+            # Now at the last possible moment, when all logs and comms with the subprocess has finished,
+            # lets upload the remote logs. Run this in a `finally` so the logs are uploaded even if the
+            # state update above raised — a failed state update is exactly when the logs matter most.
+            self._upload_logs()
 
         return self._exit_code
 
@@ -2188,7 +2194,7 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
 
 def supervise_task(
     *,
-    ti: TaskInstanceDTO,
+    ti: TaskInstance,
     bundle_info: BundleInfo,
     dag_rel_path: str | os.PathLike[str],
     token: str,
@@ -2258,7 +2264,7 @@ def supervise_task(
         raise ValueError("dag_path is required")
 
     try:
-        coordinator = get_coordinator_manager().for_queue(ti.queue)
+        coordinator = get_coordinator_manager().for_queue(ti.queue or "default")
     except:
         log.exception(
             "Failed to initialize coordinator for task",

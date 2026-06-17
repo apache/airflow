@@ -1240,3 +1240,68 @@ class TestBulkPools(TestPoolsEndpoint):
 
         expected_error_names = {err["input"]["name"] for err in detail}
         assert sorted(expected_error_names) == ["pool_2", "pool_3"]
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_bulk_create_overwrite_preserves_unset_team_name(self, test_client, session):
+        """A bulk create+overwrite that omits ``team_name`` must NOT reset an existing pool's
+        ``team_name`` to ``None``.
+
+        ``POOL1_NAME`` is owned by team ``test``. Overwriting it with a body that changes only
+        ``slots`` (no ``team_name``) previously clobbered every unset field back to its default via
+        ``model_dump()`` — silently nulling the pool's multi-team ownership. With
+        ``model_dump(exclude_unset=True)`` the omitted ``team_name`` keeps its current value.
+        """
+        self.create_pools()
+        before = session.scalar(select(Pool).where(Pool.pool == POOL1_NAME))
+        assert before.team_name == "test"
+
+        response = test_client.patch(
+            "/pools",
+            json={
+                "actions": [
+                    {
+                        "action": "create",
+                        "action_on_existence": "overwrite",
+                        "entities": [{"name": POOL1_NAME, "slots": 99}],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["create"]["success"] == [POOL1_NAME]
+
+        session.expire_all()
+        after = session.scalar(select(Pool).where(Pool.pool == POOL1_NAME))
+        assert after.slots == 99  # the field that WAS provided is applied
+        assert after.team_name == "test", (
+            "bulk overwrite that omitted team_name must preserve existing ownership, "
+            f"got team_name={after.team_name!r}"
+        )
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_bulk_create_overwrite_applies_explicit_team_name(self, test_client, session):
+        """An explicitly-provided ``team_name`` on a bulk overwrite is still applied (the fix only
+        skips *omitted* fields, it must not skip fields the request actually set)."""
+        _create_team()
+        session.add(Team(name="other"))
+        session.commit()
+        _create_pools()  # POOL1 owned by team "test"
+
+        response = test_client.patch(
+            "/pools",
+            json={
+                "actions": [
+                    {
+                        "action": "create",
+                        "action_on_existence": "overwrite",
+                        "entities": [{"name": POOL1_NAME, "slots": 7, "team_name": "other"}],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+
+        session.expire_all()
+        after = session.scalar(select(Pool).where(Pool.pool == POOL1_NAME))
+        assert after.team_name == "other"
+        assert after.slots == 7

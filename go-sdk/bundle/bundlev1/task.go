@@ -61,7 +61,22 @@ func (f *taskFunction) Execute(ctx context.Context, logger *slog.Logger) error {
 		in := fnType.In(i)
 
 		switch {
+		case isTIRunContext(in):
+			// sdk.TIRunContext embeds context.Context, so it also satisfies
+			// isContext - this case must come first. The runtime stores the
+			// identifiers/timestamps under RuntimeContextKey; rebuild the
+			// value around the live task context here.
+			var ti sdk.TaskInstance
+			var dagRun sdk.DagRun
+			if stored, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext); ok {
+				ti, dagRun = stored.TaskInstance(), stored.DagRun()
+			}
+			reflectArgs[i] = reflect.ValueOf(sdk.NewTIRunContext(ctx, ti, dagRun))
 		case isContext(in):
+			// Plain context.Context injection is retained for the Edge Worker
+			// runtime path, which does not populate the task runtime context
+			// (TI/DagRun) that sdk.TIRunContext carries. New tasks should
+			// declare sdk.TIRunContext instead.
 			reflectArgs[i] = reflect.ValueOf(ctx)
 		case isLogger(in):
 			reflectArgs[i] = reflect.ValueOf(logger)
@@ -148,9 +163,10 @@ func isValidResultType(inType reflect.Type) bool {
 }
 
 var (
-	errorType      = reflect.TypeFor[error]()
-	contextType    = reflect.TypeFor[context.Context]()
-	slogLoggerType = reflect.TypeFor[*slog.Logger]()
+	errorType        = reflect.TypeFor[error]()
+	contextType      = reflect.TypeFor[context.Context]()
+	tiRunContextType = reflect.TypeFor[sdk.TIRunContext]()
+	slogLoggerType   = reflect.TypeFor[*slog.Logger]()
 
 	connClientType = reflect.TypeFor[sdk.ConnectionClient]()
 	varClientType  = reflect.TypeFor[sdk.VariableClient]()
@@ -163,6 +179,10 @@ func isError(inType reflect.Type) bool {
 
 func isContext(inType reflect.Type) bool {
 	return inType != nil && inType.Implements(contextType)
+}
+
+func isTIRunContext(inType reflect.Type) bool {
+	return inType == tiRunContextType
 }
 
 func isLogger(inType reflect.Type) bool {

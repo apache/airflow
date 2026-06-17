@@ -20,6 +20,7 @@ from datetime import datetime, timezone as dt_timezone
 
 import pendulum
 import pytest
+from pendulum.tz.exceptions import InvalidTimezone
 
 from airflow import sdk
 from airflow.partition_mappers.base import RollupMapper
@@ -38,6 +39,7 @@ from airflow.partition_mappers.temporal import (
 from airflow.partition_mappers.window import HourWindow, WeekWindow
 from airflow.serialization.decoders import decode_partition_mapper
 from airflow.serialization.encoders import encode_partition_mapper
+from airflow.serialization.enums import Encoding
 
 
 class TestTemporalMappers:
@@ -297,8 +299,6 @@ class TestSdkTemporalMappersTimezoneSerialization:
     def test_sdk_constructor_invalid_timezone_raises_eagerly(self, sdk_mapper_name):
         """Passing an unknown timezone string must raise at construction time
         (via ``parse_timezone``), not silently fall back to UTC or fail later."""
-        from pendulum.tz.exceptions import InvalidTimezone
-
         sdk_cls = getattr(sdk, sdk_mapper_name)
         with pytest.raises(InvalidTimezone):
             sdk_cls(timezone="Not/A/Real/Zone")
@@ -447,3 +447,19 @@ class TestToPartitionDateDelegation:
     )
     def test_to_partition_date(self, mapper, downstream_key, expected):
         assert mapper.to_partition_date(downstream_key) == expected
+
+
+class TestTemporalMapperMaxDownstreamKeys:
+    """Round-trip and zero-bloat tests for max_downstream_keys on temporal mappers."""
+
+    def test_max_downstream_keys_encode_decode_roundtrip(self):
+        """max_downstream_keys=5 survives encode_partition_mapper → decode_partition_mapper."""
+        mapper = StartOfWeekMapper(max_downstream_keys=5)
+        restored = decode_partition_mapper(encode_partition_mapper(mapper))
+        assert restored.max_downstream_keys == 5
+
+    def test_max_downstream_keys_absent_from_default_encoded_payload(self):
+        """max_downstream_keys must NOT appear in the encoded payload when not set (zero-bloat contract)."""
+        mapper = StartOfWeekMapper()
+        encoded_var = encode_partition_mapper(mapper)[Encoding.VAR]
+        assert "max_downstream_keys" not in encoded_var

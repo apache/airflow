@@ -1459,8 +1459,10 @@ class TestDagFileProcessorManager:
             tags={"bundle_name": bundle_name, "file_name": dag_filename[:-3]},
         )
 
-    @mock.patch("airflow.dag_processing.manager.stats.gauge")
-    def test_log_file_processing_stats_normalizes_metric_name(self, statsd_gauge_mock):
+    @mock.patch("airflow.dag_processing.manager.stats._get_backend")
+    def test_log_file_processing_stats_normalizes_metric_name(self, mock_get_backend):
+        backend = mock.MagicMock()
+        mock_get_backend.return_value = backend
         manager = DagFileProcessorManager(max_runs=1)
         dag_file = DagFileInfo(
             bundle_name="testing",
@@ -1473,9 +1475,21 @@ class TestDagFileProcessorManager:
 
         manager._log_file_processing_stats({"testing": {dag_file}})
 
-        statsd_gauge_mock.assert_any_call(
+        # Legacy interpolated metric, kept for backward compatibility.
+        backend.gauge.assert_any_call(
             "dag_processing.last_run.seconds_ago.test_of_sprak_opertaor",
             mock.ANY,
+            tags={"file_path": "test_of_sprak_opertaor.py", "bundle_name": "testing"},
+        )
+        # New metric with file_path, bundle_name and file_name tagging.
+        backend.gauge.assert_any_call(
+            "dag_processing.last_run.seconds_ago",
+            mock.ANY,
+            tags={
+                "file_path": "test_of_sprak_opertaor.py",
+                "bundle_name": "testing",
+                "file_name": "test_of_sprak_opertaor",
+            },
         )
 
     @pytest.mark.usefixtures("testing_dag_bundle")

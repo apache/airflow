@@ -48,7 +48,6 @@ from uuid6 import uuid7
 from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.metrics.stats import normalize_name_for_stats
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import (
     BundleUsageTrackingManager,
@@ -91,9 +90,20 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.sdk.api.client import Client
+
+
+def _make_execution_api() -> InProcessExecutionAPI:
+    # This is a seriously weighty import, pulling in svcs, cadwyn, fastapi, aiohttp, etc.
+    #
+    # Defer it so that an import of this module for types (e.g. DagFileStat, DagFileInto) doesn't need to pay
+    # that cost.
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
+
+    return InProcessExecutionAPI()
 
 
 class DagParsingStat(NamedTuple):
@@ -286,7 +296,7 @@ class DagFileProcessorManager(LoggingMixin):
         factory=_config_get_factory("dag_processor", "file_parsing_sort_mode")
     )
 
-    _api_server: InProcessExecutionAPI = attrs.field(init=False, factory=InProcessExecutionAPI)
+    _api_server: InProcessExecutionAPI = attrs.field(init=False, factory=_make_execution_api)
     """API server to interact with Metadata DB"""
 
     def register_exit_signals(self):
@@ -1023,7 +1033,19 @@ class DagFileProcessorManager(LoggingMixin):
                 last_run = stat.last_finish_time
                 if last_run:
                     seconds_ago = (utcnow - last_run).total_seconds()
-                    stats.gauge(f"dag_processing.last_run.seconds_ago.{file_name}", seconds_ago)
+                    # file_path and bundle_name uniquely identify a file (the same file name can
+                    # exist in different folders or bundles). file_name is kept as a tag to ease
+                    # migration from the legacy interpolated metric, which is emitted automatically
+                    # from the registry (controlled by the export_legacy_names config).
+                    stats.gauge(
+                        "dag_processing.last_run.seconds_ago",
+                        seconds_ago,
+                        tags={
+                            "file_path": file.normalized_file_path_for_stats,
+                            "bundle_name": normalize_name_for_stats(file.bundle_name),
+                            "file_name": file_name,
+                        },
+                    )
 
                 rows.append(
                     (
