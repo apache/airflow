@@ -39,7 +39,7 @@ from pathlib import Path
 from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper, gettempdir
 from typing import TYPE_CHECKING, Any, cast
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlencode
 
 import httpx
 from aiohttp import ClientSession
@@ -71,7 +71,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from google.cloud.secretmanager_v1 import AccessSecretVersionResponse
-    from requests import Session
 
     from airflow.providers.common.sql.hooks.sql import DbApiHook
 
@@ -430,6 +429,23 @@ class CloudSQLHook(GoogleBaseHook):
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def get_instance_operations(self, project_id: str, instance: str) -> list[dict]:
+        """
+        Retrieve Cloud SQL operations for an instance.
+
+        :param project_id: Project ID of the project that contains the instance.
+        :param instance: Cloud SQL instance ID. This does not include the project ID.
+        :return: Cloud SQL operation resources for the instance.
+        """
+        response = (
+            self.get_conn()
+            .operations()
+            .list(project=project_id, instance=instance)
+            .execute(num_retries=self.num_retries)
+        )
+        return response.get("items", [])
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def _wait_for_operation_to_complete(
         self, project_id: str, operation_name: str, time_to_sleep: int = TIME_TO_SLEEP_IN_SECONDS
     ) -> None:
@@ -465,14 +481,14 @@ class CloudSQLAsyncHook(GoogleBaseAsyncHook):
 
     sync_hook_class = CloudSQLHook
 
-    async def _get_conn(self, session: Session, url: str):
+    async def _get_conn(self, session: ClientSession, url: str):
         scopes = [
             "https://www.googleapis.com/auth/cloud-platform",
             "https://www.googleapis.com/auth/sqlservice.admin",
         ]
 
         async with Token(scopes=scopes) as token:
-            session_aio = AioSession(session)
+            session_aio = AioSession(cast("Any", session))
             headers = {
                 "Authorization": f"Bearer {await token.get()}",
             }
@@ -497,6 +513,18 @@ class CloudSQLAsyncHook(GoogleBaseAsyncHook):
             )
             operation = await operation.json(content_type=None)
             return operation
+
+    async def get_instance_operations(
+        self, project_id: str, instance: str, api_version: str = "v1beta4"
+    ) -> list[dict]:
+        query = urlencode({"instance": instance})
+        url = f"https://sqladmin.googleapis.com/sql/{api_version}/projects/{project_id}/operations?{query}"
+        async with ClientSession() as session:
+            response = await self._get_conn(url=url, session=session)
+            operation_list = await response.json(content_type=None)
+            if "error" in operation_list:
+                raise RuntimeError(operation_list["error"].get("message", operation_list["error"]))
+            return operation_list.get("items", [])
 
 
 class CloudSqlProxyRunner(LoggingMixin):

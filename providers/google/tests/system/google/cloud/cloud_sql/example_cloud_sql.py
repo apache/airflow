@@ -46,6 +46,7 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSDeleteBucketOperator,
     GCSObjectCreateAclEntryOperator,
 )
+from airflow.providers.google.cloud.sensors.cloud_sql import CloudSQLNoOperationInProgressSensor
 
 try:
     from airflow.sdk import TriggerRule
@@ -234,6 +235,17 @@ with DAG(
     )
     # [END howto_operator_cloudsql_import]
 
+    # [START howto_sensor_cloudsql_no_operation]
+    wait_for_cloudsql_operation_slot = CloudSQLNoOperationInProgressSensor(
+        task_id="wait_for_cloudsql_operation_slot",
+        project_id=PROJECT_ID,
+        instance=INSTANCE_NAME,
+        poke_interval=60,
+        timeout=60 * 60,
+        deferrable=True,
+    )
+    # [END howto_sensor_cloudsql_no_operation]
+
     # ############################################## #
     # ### CLONE AN INSTANCE ######################## #
     # ############################################## #
@@ -288,6 +300,7 @@ with DAG(
         >> sql_export_task
         >> sql_export_def_task
         >> sql_gcp_add_object_permission_task
+        >> wait_for_cloudsql_operation_slot
         >> sql_import_task
         >> sql_instance_clone
         >> sql_db_delete_task

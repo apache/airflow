@@ -56,6 +56,7 @@ from unit.google.cloud.utils.base_gcp_mock import (
 HOOK_STR = "airflow.providers.google.cloud.hooks.cloud_sql.{}"
 PROJECT_ID = "test_project_id"
 OPERATION_NAME = "test_operation_name"
+INSTANCE = "test-instance"
 OPERATION_URL = (
     f"https://sqladmin.googleapis.com/sql/v1beta4/projects/{PROJECT_ID}/operations/{OPERATION_NAME}"
 )
@@ -542,6 +543,31 @@ class TestGcpSqlHookDefaultProjectId:
         operations_method.assert_called_once()
         get_method.assert_called_once_with(project="gcp-project", operation="operation_id")
         execute_method.assert_called_once_with(num_retries=self.cloudsql_hook.num_retries)
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn")
+    def test_get_instance_operations(self, mock_get_conn):
+        operations_method = mock_get_conn.return_value.operations
+        list_method = operations_method.return_value.list
+        execute_method = list_method.return_value.execute
+
+        operations = [{"name": "operation_id", "targetId": INSTANCE, "status": "RUNNING"}]
+        execute_method.return_value = {"items": operations}
+
+        result = self.cloudsql_hook.get_instance_operations(project_id="gcp-project", instance=INSTANCE)
+
+        assert result == operations
+        operations_method.assert_called_once()
+        list_method.assert_called_once_with(project="gcp-project", instance=INSTANCE)
+        execute_method.assert_called_once_with(num_retries=self.cloudsql_hook.num_retries)
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn")
+    def test_get_instance_operations_returns_empty_list_without_items(self, mock_get_conn):
+        execute_method = mock_get_conn.return_value.operations.return_value.list.return_value.execute
+        execute_method.return_value = {}
+
+        result = self.cloudsql_hook.get_instance_operations(project_id="gcp-project", instance=INSTANCE)
+
+        assert result == []
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.build")
     def test_get_conn_obj_caching(self, mock_build):
@@ -2014,6 +2040,35 @@ class TestCloudSQLAsyncHook:
         )
         with pytest.raises(HttpError):
             await hook_async.get_operation(operation_name=OPERATION_NAME, project_id=PROJECT_ID)
+
+    @pytest.mark.asyncio
+    @mock.patch(HOOK_STR.format("CloudSQLAsyncHook._get_conn"))
+    async def test_async_get_instance_operations(self, mocked_get_conn, hook_async):
+        operation_list_url = f"https://sqladmin.googleapis.com/sql/v1beta4/projects/{PROJECT_ID}/operations?instance={INSTANCE}"
+        mocked_get_conn.return_value = MockAiohttpClientResponse(
+            status=200,
+            payload={"items": [{"name": OPERATION_NAME, "targetId": INSTANCE, "status": "RUNNING"}]},
+            method="GET",
+            url=operation_list_url,
+        )
+
+        result = await hook_async.get_instance_operations(project_id=PROJECT_ID, instance=INSTANCE)
+
+        assert result == [{"name": OPERATION_NAME, "targetId": INSTANCE, "status": "RUNNING"}]
+        mocked_get_conn.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(HOOK_STR.format("CloudSQLAsyncHook._get_conn"))
+    async def test_async_get_instance_operations_raises_on_api_error(self, mocked_get_conn, hook_async):
+        mocked_get_conn.return_value = MockAiohttpClientResponse(
+            status=400,
+            payload={"error": {"message": "Bad request"}},
+            method="GET",
+            url="test-url",
+        )
+
+        with pytest.raises(RuntimeError, match="Bad request"):
+            await hook_async.get_instance_operations(project_id=PROJECT_ID, instance=INSTANCE)
 
     @pytest.mark.asyncio
     async def test_get_sync_hook_override_sets_custom_api_version(self):
