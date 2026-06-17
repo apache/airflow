@@ -39,7 +39,7 @@ if sys.version_info >= (3, 12) and (
     )
 
 from airflow.api_fastapi.app import cached_app
-from airflow.sdk.log import configure_logging
+from airflow.sdk.log import configure_logging  # noqa: SDK001
 
 # Configure logging in every worker so logging settings such as
 # logging.colored_console_log are respected. Both uvicorn and gunicorn import
