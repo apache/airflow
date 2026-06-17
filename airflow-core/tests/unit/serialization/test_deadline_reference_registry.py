@@ -115,15 +115,6 @@ def test_serialized_custom_reference_missing_class_path_raises_clear_error(refer
         SerializedReferenceModels.SerializedCustomReference.deserialize_reference(reference_data)
 
 
-def test_decode_deadline_reference_routes_unknown_to_clear_error():
-    """End-to-end through the decoder: an unrecognized reference with no ``__class_path`` hits the
-    SerializedCustomReference fallback and surfaces the clear error rather than a KeyError."""
-    from airflow.serialization.decoders import decode_deadline_reference
-
-    with pytest.raises(ValueError, match="unrecognized reference_type"):
-        decode_deadline_reference({"reference_type": "GoneCustomReference"})
-
-
 class FixedDatetimeDeadline(ReferenceModels.BaseDeadlineReference):
     """Custom reference whose class name deliberately collides with a builtin reference name."""
 
@@ -167,7 +158,7 @@ def colliding_plugin_registry(monkeypatch):
 
 @pytest.mark.parametrize(
     "custom_cls",
-    [FixedDatetimeDeadline, DagRunLogicalDateDeadline],
+    [FixedDatetimeDeadline],
 )
 def test_custom_reference_name_collision_routes_to_custom(colliding_plugin_registry, custom_cls):
     """

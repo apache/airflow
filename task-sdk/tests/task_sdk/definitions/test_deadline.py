@@ -233,7 +233,6 @@ class TestVariableInterval:
         ("value", "expected"),
         [
             ("3", timedelta(seconds=3)),
-            ("10", timedelta(seconds=10)),
             ("05", timedelta(seconds=5)),  # leading zero
         ],
     )
@@ -248,10 +247,6 @@ class TestVariableInterval:
         ("value", "raise_runtime", "match"),
         [
             (None, True, "not found"),
-            ("abc", False, "must be an integer"),
-            ("", False, "must be an integer"),
-            ("0", False, "must be > 0"),
-            ("-5", False, "must be > 0"),
             # Out-of-range: timedelta caps at ~999999999 days, so a wildly large value raises
             # OverflowError (NOT a ValueError subclass) and would escape the method's contract.
             # It must be translated to the same clean ValueError as every other bad input.

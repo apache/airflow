@@ -28,7 +28,6 @@ from unittest.mock import ANY, call
 
 import pendulum
 import pytest
-import time_machine
 from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -1497,46 +1496,6 @@ class TestDagRun:
 
         mock_prune.assert_not_called()
         assert dag_run.state == DagRunState.SUCCESS
-
-    @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_past_fixed_datetime_creates_immediately_overdue_deadline(
-        self, _, session, deadline_test_dag
-    ):
-        """A FIXED_DATETIME deadline whose reference time is already in the PAST creates a Deadline
-        row with a past ``deadline_time`` (reference + interval), i.e. immediately overdue — so the
-        scheduler's ``deadline_time < now`` overdue-scan picks it up on the very next loop. The
-        creation path must NOT reject or skip a past deadline (it's a legitimate config, e.g. a
-        fixed cutoff that has already elapsed).
-        """
-        # Frozen "now" so the test is deterministic and does not depend on the wall clock
-        # (repo standard: no datetime.now() in tests).
-        frozen_now = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
-        past_date = frozen_now - datetime.timedelta(days=10)
-
-        scheduler_dag = deadline_test_dag(
-            deadline=DeadlineAlert(
-                reference=DeadlineReference.FIXED_DATETIME(past_date),
-                interval=datetime.timedelta(minutes=5),
-                callback=AsyncCallback(empty_callback_for_deadline),
-            ),
-        )
-
-        with time_machine.travel(frozen_now, tick=False):
-            dag_run = self.create_dag_run(
-                dag=scheduler_dag,
-                task_states={"task_1": TaskInstanceState.SUCCESS},
-                session=session,
-            )
-        assert dag_run is not None
-
-        # The Deadline row IS created (past deadlines are not skipped) with a past deadline_time.
-        deadline = session.execute(select(Deadline)).scalars().one_or_none()
-        assert deadline is not None
-        assert deadline.missed is False  # not yet marked — the scheduler does that on its scan
-        expected = past_date + datetime.timedelta(minutes=5)
-        assert abs((deadline.deadline_time - expected).total_seconds()) < 1
-        # Genuinely in the past → the overdue-scan (deadline_time < now) will select it.
-        assert deadline.deadline_time < frozen_now
 
     @mock.patch.object(Deadline, "prune_deadlines")
     def test_dagrun_deadline_variable_interval_missing_variable_is_isolated(

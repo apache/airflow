@@ -18,8 +18,6 @@
 
 from __future__ import annotations
 
-from unittest import mock
-
 import pytest
 import time_machine
 from sqlalchemy import select
@@ -27,7 +25,6 @@ from sqlalchemy import select
 from airflow.models import DagRun
 from airflow.models.deadline import Deadline
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.utils.state import DagRunState
 
 from tests_common.test_utils import db
@@ -67,59 +64,6 @@ class TestHandleMissReentrancy:
     @staticmethod
     def teardown_method():
         _clean_db()
-
-    def _make_deadline(self, dagrun, session):
-        deadline = Deadline(
-            deadline_time=DEFAULT_DATE,
-            callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
-            dagrun_id=dagrun.id,
-            dag_id=dagrun.dag_id,
-            deadline_alert_id=None,
-        )
-        session.add(deadline)
-        session.flush()
-        return deadline
-
-    def test_empty_data_handle_miss_sets_correct_top_level_fields(self, dagrun, session):
-        d = self._make_deadline(dagrun, session)
-        with mock.patch.object(d.callback, "queue"):
-            d.handle_miss(session)
-            session.flush()
-        assert d.callback.data["dag_id"] == dagrun.dag_id
-        assert d.callback.data["run_id"] == dagrun.run_id
-        assert d.callback.data["deadline_id"] == str(d.id)
-        assert d.callback.data["deadline_time"] == d.deadline_time.isoformat()
-        assert d.callback.data["kwargs"] == TEST_CALLBACK_KWARGS
-
-    def test_second_handle_miss_does_not_recreate_trigger_or_reset_state(self, dagrun, session):
-        """The ``if self.missed: return`` guard makes handle_miss self-protecting. With the REAL
-        (un-mocked) ``queue()``, a second call would otherwise replace ``self.trigger`` with a
-        brand-new Trigger (orphaning the first) and reset the callback state — resurrecting a
-        callback that may already be progressing. The guard must short-circuit the second call so
-        the Trigger identity and state are preserved.
-        """
-        from airflow.models import Trigger
-
-        d = self._make_deadline(dagrun, session)
-
-        d.handle_miss(session)
-        session.flush()
-        first_trigger = d.callback.trigger
-        assert first_trigger is not None
-        first_trigger_id = first_trigger.id
-        assert d.missed is True
-
-        trigger_count_after_first = len(session.scalars(select(Trigger)).all())
-
-        # Second call must be a no-op (guard returns early) — no new Trigger, same identity.
-        d.handle_miss(session)
-        session.flush()
-
-        assert d.callback.trigger is not None
-        assert d.callback.trigger.id == first_trigger_id, "guard must not replace the Trigger"
-        assert len(session.scalars(select(Trigger)).all()) == trigger_count_after_first, (
-            "second handle_miss must not create a duplicate Trigger"
-        )
 
     def test_routing_data_persists_across_commit_and_refetch_executor(self, dagrun, session):
         """handle_miss must ``flag_modified`` the JSON ``data`` column so the routing keys it

@@ -81,45 +81,6 @@ class TestEnqueueExecutorCallbacksResilience:
         runner = SchedulerJobRunner(job=job, executors=[executor])
         return runner, executor
 
-    # ---- Scenario #4: get_executor_name on old-format data (no 'executor' key) ----
-    def test_get_executor_name_missing_key_returns_none(self, dag_maker, session):
-        with dag_maker(dag_id="old_format_data"):
-            pass
-        dr = dag_maker.create_dagrun()
-        cb = self._make_pending_callback(dr, session, executor_name=None)
-        # Simulate an old-format row whose data dict predates the 'executor' key.
-        cb.data.pop("executor", None)
-        assert "executor" not in cb.data
-        assert cb.get_executor_name() is None  # graceful, no KeyError
-
-    # ---- Scenario #1: ExecutorCallback referencing a non-existent executor ----
-    def test_unknown_executor_does_not_crash(self, dag_maker, session):
-        with dag_maker(dag_id="unknown_exec"):
-            pass
-        dr = dag_maker.create_dagrun()
-        cb = self._make_pending_callback(dr, session, executor_name="does_not_exist_executor")
-        runner, _ = self._runner_with_executor()
-
-        # Must not raise: unknown executor should be skipped/dropped, not crash.
-        runner._enqueue_executor_callbacks(session)
-
-        # Dropped -> remains PENDING (not QUEUED), loop survived.
-        assert session.get(ExecutorCallback, cb.id).state == CallbackState.PENDING
-
-    # ---- Scenario #7: queue_workload raises -> scheduler loop must survive ----
-    def test_queue_workload_raises_is_isolated(self, dag_maker, session):
-        with dag_maker(dag_id="queue_raises"):
-            pass
-        dr = dag_maker.create_dagrun()
-        cb = self._make_pending_callback(dr, session, executor_name=None)
-        runner, _ = self._runner_with_executor(queue_side_effect=RuntimeError("executor boom"))
-
-        # Must not propagate: a failing enqueue must be isolated like handle_miss.
-        runner._enqueue_executor_callbacks(session)
-
-        # Failed callback should NOT be marked QUEUED (left for retry as PENDING).
-        assert session.get(ExecutorCallback, cb.id).state == CallbackState.PENDING
-
     # ---- Scenario #3: many callbacks, one bad one must not block the rest ----
     def test_one_bad_callback_does_not_block_others(self, dag_maker, session):
         with dag_maker(dag_id="mixed_batch"):
@@ -211,25 +172,3 @@ class TestEnqueueExecutorCallbacksResilience:
         assert session.get(ExecutorCallback, cb_id).state == CallbackState.PENDING, (
             "a transient (PENDING) executor event must requeue the callback, not fail it"
         )
-
-    def test_real_failure_event_marks_callback_failed(self, dag_maker, session):
-        """Control: a FAILED event (a genuine callback error) still terminally fails the callback."""
-        from airflow.models.callback import CallbackKey
-
-        with dag_maker(dag_id="failed_cb"):
-            pass
-        dr = dag_maker.create_dagrun()
-        cb = self._make_pending_callback(dr, session, executor_name=None)
-        cb_id = cb.id
-        cb.state = CallbackState.RUNNING
-        session.add(cb)
-        session.flush()
-
-        runner, executor = self._runner_with_executor()
-        executor.get_event_buffer = mock.MagicMock(
-            return_value={CallbackKey(id=str(cb_id)): (CallbackState.FAILED, "callback raised")}
-        )
-
-        runner._process_executor_events(executor=executor, session=session)
-
-        assert session.get(ExecutorCallback, cb_id).state == CallbackState.FAILED

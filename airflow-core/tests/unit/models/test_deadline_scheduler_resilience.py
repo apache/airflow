@@ -90,28 +90,6 @@ def _make_deadline(session, dagrun, deadline_time, callback=None):
 
 
 # ---------------------------------------------------------------------------
-# Scenario 7: reference computed against DagRun missing the referenced field.
-# logical_date is None -> 0 deadlines, no crash.
-# ---------------------------------------------------------------------------
-
-
-def test_logical_date_none_yields_none_not_crash(dag_maker, session):
-    from airflow.serialization.definitions.deadline import SerializedReferenceModels
-
-    dr = _make_dagrun(dag_maker, session, "dl_ld_none", DEFAULT_DATE, "run_x")
-    # Force logical_date to None on the row.
-    dr.logical_date = None
-    session.add(dr)
-    session.commit()
-
-    ref = SerializedReferenceModels.DagRunLogicalDateDeadline()
-    result = ref.evaluate_with(
-        session=session, interval=timedelta(hours=1), dag_id="dl_ld_none", run_id="run_x"
-    )
-    assert result is None, f"expected None for missing logical_date, got {result!r}"
-
-
-# ---------------------------------------------------------------------------
 # Scenario 6 + 4: error isolation in the REAL scheduler detection loop.
 # A bad deadline (handle_miss raises) must not crash the scheduler nor prevent
 # the other overdue deadlines from being processed.

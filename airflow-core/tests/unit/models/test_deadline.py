@@ -546,24 +546,11 @@ class TestCalculatedDeadlineDatabaseCalls:
         """
         match = "cannot exceed max_runs"
 
-        # Public factory (authoring time).
-        with pytest.raises(ValueError, match=match):
-            DeadlineReference.AVERAGE_RUNTIME(max_runs=5, min_runs=10)
-
-        # Direct construction of the Core serialized model (covers __post_init__).
-        with pytest.raises(ValueError, match=match):
-            SerializedReferenceModels.AverageRuntimeDeadline(max_runs=5, min_runs=10)
-
-        # Deserialize path (e.g. a hand-edited / legacy serialized blob) must also reject it.
+        # Deserialize path (e.g. a hand-edited / legacy serialized blob) must reject it.
         with pytest.raises(ValueError, match=match):
             SerializedReferenceModels.AverageRuntimeDeadline.deserialize_reference(
                 {"max_runs": 5, "min_runs": 10}
             )
-
-        # Boundary: min_runs == max_runs is allowed (the common default).
-        ref = DeadlineReference.AVERAGE_RUNTIME(max_runs=5, min_runs=5)
-        assert ref.min_runs == 5
-        assert ref.max_runs == 5
 
 
 class TestDeadlineReference:

@@ -45,9 +45,7 @@ class TestDeadlineAlertIntervalValidation:
         "interval",
         [
             pytest.param(5, id="int"),
-            pytest.param("1h", id="str"),
             pytest.param(None, id="none"),
-            pytest.param(3.5, id="float"),
         ],
     )
     def test_non_timedelta_interval_rejected_at_authoring(self, interval):

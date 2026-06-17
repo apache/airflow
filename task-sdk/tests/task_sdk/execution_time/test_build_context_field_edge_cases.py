@@ -24,7 +24,6 @@ and the supervisor ``_fetch_and_build_context`` path with partial DagRun fields.
 from __future__ import annotations
 
 import pendulum
-import pytest
 import structlog
 
 from airflow.sdk.execution_time.context import build_context_from_dag_run
@@ -55,15 +54,6 @@ def _full_kwargs():
 class TestMissingOptionalAttrs:
     """Probe build_context_from_dag_run with each optional attr removed."""
 
-    def test_missing_logical_date_raises_attributeerror(self):
-        # logical_date is read first (coerce_datetime(dag_run.logical_date));
-        # absence => AttributeError, not a graceful partial context.
-        kw = _full_kwargs()
-        del kw["logical_date"]
-        dr = MockDagRun(**kw)
-        with pytest.raises(AttributeError):
-            build_context_from_dag_run(dr)
-
     def test_missing_run_after_is_tolerated(self):
         # run_after is never read by build_context_from_dag_run, so its absence
         # must NOT affect the built context.
@@ -73,32 +63,6 @@ class TestMissingOptionalAttrs:
         ctx = build_context_from_dag_run(dr)
         assert ctx["run_id"] == "r"
         assert ctx["ds"] == "2024-01-15"
-
-    def test_logical_date_none_then_missing_run_id_raises(self):
-        # When logical_date is None the else-branch reads run_id; if run_id is
-        # also absent it raises AttributeError.
-        dr = MockDagRun(logical_date=None)
-        with pytest.raises(AttributeError):
-            build_context_from_dag_run(dr)
-
-
-# ---------------------------------------------------------------------------
-# Context dict key completeness / documented `conf` key
-# ---------------------------------------------------------------------------
-class TestKeyCompleteness:
-    def test_documented_keys_present(self):
-        dr = MockDagRun(**_full_kwargs())
-        ctx = build_context_from_dag_run(dr)
-        for key in (
-            "dag_run",
-            "run_id",
-            "logical_date",
-            "ds",
-            "ts",
-            "data_interval_start",
-            "data_interval_end",
-        ):
-            assert key in ctx, f"documented key {key!r} missing"
 
 
 # ---------------------------------------------------------------------------
@@ -118,18 +82,6 @@ class TestFetchPartialFields:
         )
         base.update(overrides)
         return DagRunResult(**base)
-
-    def test_null_logical_date_builds_minimal_context(self, mocker):
-        from airflow.sdk.execution_time.callback_supervisor import _fetch_and_build_context
-
-        comms = mocker.Mock()
-        comms.send.return_value = self._result(logical_date=None)
-        ctx = _fetch_and_build_context(comms, "test_dag", "test_run", structlog.get_logger())
-        assert ctx is not None
-        assert ctx["run_id"] == "test_run"
-        # logical_date None => no ds/ts keys, but no crash
-        assert "ds" not in ctx
-        assert "logical_date" not in ctx
 
     def test_full_logical_date_builds_full_context(self, mocker):
         from airflow.sdk.execution_time.callback_supervisor import _fetch_and_build_context

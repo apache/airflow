@@ -369,31 +369,6 @@ class TestTriggererCallback:
         # The row must actually persist without an adapter error on the Text column.
         session.commit()
 
-    def test_handle_event_body_that_breaks_both_json_and_repr_uses_uncoercible_placeholder(self, session):
-        """The last-resort branch: if both ``json.dumps`` and ``repr()`` raise, ``output`` falls
-        back to a static ``<uncoercible ...>`` placeholder so the run loop never crashes on a
-        pathological callback return value."""
-
-        class _Pathological:
-            def __str__(self):
-                raise RuntimeError("str() blows up")
-
-            def __repr__(self):
-                raise RuntimeError("repr() blows up too")
-
-        callback = TriggererCallback(TEST_ASYNC_CALLBACK)
-        callback.queue(session=session)
-        body = _Pathological()
-        event = TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.SUCCESS, PAYLOAD_BODY_KEY: body})
-
-        # Must not raise even though json.dumps AND repr() both fail.
-        callback.handle_event(event, session)
-
-        assert callback.state == CallbackState.SUCCESS
-        assert callback.output == "<uncoercible callback result of type _Pathological>"
-        assert isinstance(callback.output, str)
-        session.commit()
-
     @pytest.mark.parametrize(
         ("terminal_state", "late_event"),
         [

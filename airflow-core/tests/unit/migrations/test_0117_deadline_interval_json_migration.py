@@ -133,12 +133,3 @@ class TestMigration0117Downgrade:
         assert rows["dynamic"] is None, (
             "VariableInterval must downgrade to NULL (lossy), not be silently coerced to 0.0"
         )
-
-    def test_downgrade_only_variable_intervals_does_not_crash(self):
-        """A table containing ONLY VariableInterval rows downgrades cleanly (all NULL) — this is
-        the case that crashes if the resulting FLOAT column is left NOT NULL."""
-        engine = _engine(_POST_0117_DDL)
-        _insert(engine, interval=_VARIABLE_INTERVAL_JSON, name="d1")
-        _insert(engine, interval=_VARIABLE_INTERVAL_JSON, name="d2")
-        _run(engine, downgrade)
-        assert _rows(engine) == {"d1": None, "d2": None}

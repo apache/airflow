@@ -46,11 +46,6 @@ _BASE_DAG_RUN_DATA: dict = {
 # _build_context_from_dag_run_data with the _deadline key variants
 # ---------------------------------------------------------------------------
 class TestDeadlineKey:
-    def test_no_deadline_key_no_deadline_in_context(self):
-        ctx = TriggerRunner._build_context_from_dag_run_data(dict(_BASE_DAG_RUN_DATA))
-        assert "deadline" not in ctx
-        assert ctx["run_id"] == "manual__2024-01-01"
-
     def test_deadline_popped_before_model_construction(self):
         """_deadline must be popped so it does not trip extra='forbid'."""
         data = {**_BASE_DAG_RUN_DATA, "_deadline": {"id": "x", "deadline_time": "t"}}

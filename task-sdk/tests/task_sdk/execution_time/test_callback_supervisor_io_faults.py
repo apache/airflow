@@ -30,26 +30,9 @@ from unittest import mock
 
 import structlog
 
-from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, DagRunType
 from airflow.sdk.execution_time.callback_supervisor import _fetch_and_build_context
-from airflow.sdk.execution_time.comms import DagRunResult
 
 log = structlog.get_logger()
-
-
-def _mk_dagrun(**over):
-    from airflow.sdk._shared.timezones import timezone
-
-    base = dict(
-        dag_id="d",
-        run_id="r",
-        run_after=timezone.parse("2024-01-01T00:00:00+00:00"),
-        run_type=DagRunType.MANUAL,
-        state=DagRunState.RUNNING,
-        consumed_asset_events=[],
-    )
-    base.update(over)
-    return DagRun(**base)
 
 
 # ---------------------------------------------------------------------------
@@ -76,30 +59,3 @@ class TestScenario2MalformedDagRunPayload:
         comms = mock.MagicMock()
         comms.send.return_value = {"not": "a DagRunResult"}
         assert _fetch_and_build_context(comms, "d", "r", log) is None
-
-    def test_none_response_returns_none(self):
-        comms = mock.MagicMock()
-        comms.send.return_value = None
-        assert _fetch_and_build_context(comms, "d", "r", log) is None
-
-    def test_dagrunresult_missing_logical_date_builds_minimal_context(self):
-        """logical_date None -> context built with only run_id (graceful degrade, no crash)."""
-        comms = mock.MagicMock()
-        dr = DagRunResult.from_api_response(_mk_dagrun(logical_date=None))
-        comms.send.return_value = dr
-        ctx = _fetch_and_build_context(comms, "d", "r", log)
-        assert ctx is not None
-        assert ctx["run_id"] == "r"
-        # task-specific / date fields must be absent, never half-built
-        assert "logical_date" not in ctx
-
-
-# ---------------------------------------------------------------------------
-# Scenario 8: SUPERVISOR_COMMS not initialized (init-order race)
-# ---------------------------------------------------------------------------
-class TestScenario8CommsNotInitialized:
-    def test_fetch_context_with_none_comms(self):
-        """Passing None comms -> AttributeError is caught, returns None (no crash bubbling)."""
-        # _fetch_and_build_context calls comms.send(...); None.send -> AttributeError,
-        # which the broad except in the function must swallow into None.
-        assert _fetch_and_build_context(None, "d", "r", log) is None

@@ -2901,39 +2901,6 @@ def test_run_trigger_appends_none_seq_for_non_shared_trigger():
     assert seq is None
 
 
-class TestBuildContextFromDagRunData:
-    """Tests for TriggerRunner._build_context_from_dag_run_data (triggerer callback context)."""
-
-    _BASE_DAG_RUN_DATA: dict = {
-        "dag_id": "example_dag",
-        "run_id": "manual__2024-01-01",
-        "logical_date": "2024-01-01T00:00:00+00:00",
-        "data_interval_start": None,
-        "data_interval_end": None,
-        "run_after": "2024-01-01T00:00:00+00:00",
-        "start_date": "2024-01-01T00:01:00+00:00",
-        "end_date": None,
-        "run_type": "manual",
-        "state": "running",
-        "conf": {},
-        "consumed_asset_events": [],
-        "partition_key": None,
-    }
-
-    def test_injects_deadline_info_into_context(self):
-        """The _deadline key in dag_run_data is surfaced as context['deadline']."""
-        dag_run_data = {
-            **self._BASE_DAG_RUN_DATA,
-            "_deadline": {"id": "abc-123", "deadline_time": "2024-01-01T01:00:00+00:00"},
-        }
-
-        context = TriggerRunner._build_context_from_dag_run_data(dag_run_data)
-
-        assert "deadline" in context
-        assert context["deadline"]["id"] == "abc-123"
-        assert context["deadline"]["deadline_time"] == "2024-01-01T01:00:00+00:00"
-
-
 class TestFetchCallbackDagRunData:
     """Tests for TriggerRunnerSupervisor._fetch_callback_dag_run_data (the PRODUCER of the
     ``_deadline`` passthrough that ``_build_context_from_dag_run_data`` consumes). Without this,

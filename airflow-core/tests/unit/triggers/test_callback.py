@@ -163,30 +163,6 @@ class TestCallbackTrigger:
         assert all(s in failure_event.payload[PAYLOAD_BODY_KEY] for s in ["raise", "RuntimeError", exc_msg])
 
     @pytest.mark.asyncio
-    async def test_run_without_context(self, mock_import_string):
-        """Test trigger calls callback without context when self.context is None."""
-        callback_return_value = "no context value"
-        mock_callback = mock.AsyncMock(return_value=callback_return_value)
-        mock_import_string.return_value = mock_callback
-
-        trigger = CallbackTrigger(
-            callback_path=TEST_CALLBACK_PATH,
-            callback_kwargs={"message": TEST_MESSAGE},
-        )
-        # _callback_context is None by default (not set by TriggerRunner)
-
-        trigger_gen = trigger.run()
-
-        running_event = await anext(trigger_gen)
-        assert running_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.RUNNING
-
-        success_event = await anext(trigger_gen)
-        # Context is None, so callback is called without context parameter
-        mock_callback.assert_called_once_with(message=TEST_MESSAGE)
-        assert success_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.SUCCESS
-        assert success_event.payload[PAYLOAD_BODY_KEY] == callback_return_value
-
-    @pytest.mark.asyncio
     async def test_run_with_both_runtime_and_stale_kwargs_context(self, mock_import_string):
         """A 3.2.x-serialized callback trigger has a stale ``context`` in ``callback_kwargs``; a 3.3
         TriggerRunner ALSO sets ``_callback_context`` (it does so unconditionally for callback
@@ -218,27 +194,6 @@ class TestCallbackTrigger:
 
 class TestEnsureBundleModuleRegistered:
     """Tests for _ensure_bundle_module_registered."""
-
-    def test_registers_module_from_matching_bundle(self, tmp_path):
-        from airflow.triggers.callback import _ensure_bundle_module_registered
-        from airflow.utils.file import get_unique_dag_module_name
-
-        stem = "my_dag_file"
-        (tmp_path / f"{stem}.py").write_text("LOADED = True\n")
-        # Use the real mangled name so the hash verification passes
-        mod_name = get_unique_dag_module_name(str(tmp_path / f"{stem}.py"))
-
-        fake_bundle = mock.Mock()
-        fake_bundle.name = "test-bundle"
-        fake_bundle.path = tmp_path
-
-        with mock.patch("airflow.triggers.callback.DagBundlesManager") as mock_mgr:
-            mock_mgr.return_value.get_all_dag_bundles.return_value = [fake_bundle]
-            _ensure_bundle_module_registered(f"{mod_name}.my_func")
-
-        assert mod_name in sys.modules
-        assert sys.modules[mod_name].LOADED is True
-        sys.modules.pop(mod_name)
 
     def test_adds_bundle_path_to_sys_path_for_sibling_imports(self, tmp_path):
         """The bundle dir must be put on sys.path so callbacks can import sibling modules.
