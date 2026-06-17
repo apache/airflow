@@ -84,6 +84,15 @@ def create_app(enable_plugins: bool):
     with flask_app.app_context():
         flask_app.config.from_pyfile(webserver_config, silent=True)
 
+    # Bridge ``[fab] auth_role_public`` Airflow config into the Flask app config so legacy FAB
+    # code paths that read ``AUTH_ROLE_PUBLIC`` from ``current_app.config`` (e.g.
+    # ``AnonymousUser.roles``, basic_auth, kerberos_auth, security manager) stay in sync with
+    # the FastAPI-based auth flow. The Airflow config takes precedence over
+    # ``webserver_config.py`` when both are set so there is a single source of truth.
+    auth_role_public_conf = conf.get("fab", "auth_role_public", fallback="") or ""
+    if auth_role_public_conf:
+        flask_app.config["AUTH_ROLE_PUBLIC"] = auth_role_public_conf
+
     url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
     if url.drivername == "sqlite" and url.database and not isabs(url.database):
         raise AirflowConfigException(

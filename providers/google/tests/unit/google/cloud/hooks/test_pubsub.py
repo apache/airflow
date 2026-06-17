@@ -77,9 +77,10 @@ class TestPubSubHook:
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.pubsub_hook = PubSubHook(gcp_conn_id="test")
 
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.get_client_options")
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PublisherClient")
-    def test_publisher_client_creation(self, mock_client, mock_get_creds):
+    def test_publisher_client_creation(self, mock_client, mock_get_creds, mock_get_client_options):
         assert self.pubsub_hook._client is None
         result = self.pubsub_hook.get_conn()
 
@@ -90,13 +91,17 @@ class TestPubSubHook:
                 enable_message_ordering=False,
                 enable_open_telemetry_tracing=False,
             ),
+            client_options=mock_get_client_options.return_value,
         )
         assert mock_client.return_value == result
         assert self.pubsub_hook._client == result
 
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.get_client_options")
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PublisherClient")
-    def test_publisher_client_creation_with_open_telemetry_tracing(self, mock_client, mock_get_creds):
+    def test_publisher_client_creation_with_open_telemetry_tracing(
+        self, mock_client, mock_get_creds, mock_get_client_options
+    ):
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             pubsub_hook_with_tracing = PubSubHook(
                 gcp_conn_id="test",
@@ -112,13 +117,17 @@ class TestPubSubHook:
                 enable_message_ordering=False,
                 enable_open_telemetry_tracing=True,
             ),
+            client_options=mock_get_client_options.return_value,
         )
         assert mock_client.return_value == result
         assert pubsub_hook_with_tracing._client == result
 
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.get_client_options")
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PublisherClient")
-    def test_publisher_client_creation_with_message_ordering_and_tracing(self, mock_client, mock_get_creds):
+    def test_publisher_client_creation_with_message_ordering_and_tracing(
+        self, mock_client, mock_get_creds, mock_get_client_options
+    ):
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             pubsub_hook_with_both = PubSubHook(
                 gcp_conn_id="test",
@@ -135,16 +144,22 @@ class TestPubSubHook:
                 enable_message_ordering=True,
                 enable_open_telemetry_tracing=True,
             ),
+            client_options=mock_get_client_options.return_value,
         )
         assert mock_client.return_value == result
         assert pubsub_hook_with_both._client == result
 
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.get_client_options")
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.SubscriberClient")
-    def test_subscriber_client_creation(self, mock_client, mock_get_creds):
+    def test_subscriber_client_creation(self, mock_client, mock_get_creds, mock_get_client_options):
         assert self.pubsub_hook._client is None
         result = self.pubsub_hook.subscriber_client
-        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=CLIENT_INFO,
+            client_options=mock_get_client_options.return_value,
+        )
         assert mock_client.return_value == result
 
     @mock.patch(PUBSUB_STRING.format("PubSubHook.get_conn"))

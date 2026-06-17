@@ -29,8 +29,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from airflow.api_fastapi.auth.tokens import get_signing_key
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException
 
 log = logging.getLogger(__name__)
 
@@ -145,6 +144,20 @@ def init_config(app: FastAPI) -> None:
     allow_methods = conf.getlist("api", "access_control_allow_methods")
     allow_headers = conf.getlist("api", "access_control_allow_headers")
 
+    if "*" in allow_origins:
+        # The CORS spec forbids combining `Access-Control-Allow-Origin: *` with
+        # `Access-Control-Allow-Credentials: true`, and browsers reject any response that does so
+        # (see https://fetch.spec.whatwg.org/#cors-protocol-and-credentials). Airflow's API needs
+        # credentialed requests for cookie / Authorization-header auth, so a wildcard origin is
+        # never a valid configuration. Fail loudly at startup instead of silently shipping a
+        # response shape that no browser will accept.
+        raise AirflowConfigException(
+            "`[api] access_control_allow_origins` must not contain `*`: the wildcard origin is "
+            "incompatible with the credentialed CORS Airflow's API requires, and browsers will "
+            "reject every cross-origin response. List the exact origins that need access "
+            "(e.g. `https://airflow.mycompany.com`) instead."
+        )
+
     if allow_origins or allow_methods or allow_headers:
         app.add_middleware(
             CORSMiddleware,
@@ -165,14 +178,14 @@ def init_error_handlers(app: FastAPI) -> None:
 
 
 def init_middlewares(app: FastAPI) -> None:
+    from airflow.api_fastapi.app import get_auth_manager
     from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
     from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
 
     app.add_middleware(JWTRefreshMiddleware)
-    if conf.getboolean("core", "simple_auth_manager_all_admins"):
-        from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
 
-        app.add_middleware(SimpleAllAdminMiddleware)
+    for middleware_cls, middleware_kwargs in get_auth_manager().get_fastapi_middlewares():
+        app.add_middleware(middleware_cls, **middleware_kwargs)
 
     # GZipMiddleware must be inside HttpAccessLogMiddleware so that access logs capture
     # the full end-to-end duration including compression time.

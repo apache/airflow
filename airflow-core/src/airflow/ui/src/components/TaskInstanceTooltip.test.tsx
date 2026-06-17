@@ -1,5 +1,3 @@
-/* eslint-disable unicorn/no-null */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -195,6 +193,28 @@ describe("TaskInstanceTooltip", () => {
     expect(screen.getByText("Task Group Info")).toBeInTheDocument();
     expect(screen.getAllByText(/state/iu).length).toBeGreaterThan(0);
     expect(screen.getByText(/startDate/iu)).toBeInTheDocument();
+  });
+
+  it("renders API-normalized none child state in the breakdown", () => {
+    const taskInstance: LightGridTaskInstanceSummary = {
+      child_states: { none: 2, success: 1 },
+      max_end_date: null,
+      min_start_date: null,
+      state: null,
+      task_display_name: "Mapped Task",
+      task_id: "mapped_task",
+    };
+
+    render(
+      <TaskInstanceTooltip open taskInstance={taskInstance}>
+        <span>trigger</span>
+      </TaskInstanceTooltip>,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByText(/2\s+common:states\.none/iu)).toBeInTheDocument();
+    expect(screen.queryByText(/^common:states\.None$/iu)).toBeNull();
+    expect(screen.getByText(/1\s+common:states\.success/iu)).toBeInTheDocument();
   });
 
   it("shows run ID when provided explicitly for grid summaries", () => {

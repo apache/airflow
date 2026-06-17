@@ -16,7 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example DAG demonstrating the usage of BranchDayOfWeekOperator.
+### BranchDayOfWeekOperator
+
+This example demonstrates how to use the BranchDayOfWeekOperator to choose downstream tasks based on the day
+of the week. It shows both a single-day branch and a weekend branch using the WeekDay enum.
 """
 
 from __future__ import annotations
@@ -34,6 +37,7 @@ with DAG(
     catchup=False,
     tags=["example"],
     schedule="@daily",
+    doc_md=__doc__,
 ) as dag:
     # [START howto_operator_day_of_week_branch]
     empty_task_1 = EmptyOperator(task_id="branch_true")

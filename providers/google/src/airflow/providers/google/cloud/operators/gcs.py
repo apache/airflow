@@ -829,7 +829,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
         timespan_start = orig_start
         if orig_start >= orig_end:  # Airflow 2.2 sets start == end for non-perodic schedules.
-            self.log.warning("DAG schedule not periodic, setting timespan end to max %s", orig_end)
+            self.log.warning("Dag schedule not periodic, setting timespan end to max %s", orig_end)
             timespan_end = pendulum.instance(datetime.datetime.max)
         else:
             timespan_end = orig_end
@@ -877,6 +877,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
         with TemporaryDirectory() as temp_input_dir, TemporaryDirectory() as temp_output_dir:
             temp_input_dir_path = Path(temp_input_dir)
+            temp_input_dir_resolved = temp_input_dir_path.resolve()
             temp_output_dir_path = Path(temp_output_dir)
 
             num_downloads = len(blobs_to_transform)
@@ -897,6 +898,15 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                 blob = bucket.blob(blob_name=blob_name, chunk_size=self.chunk_size)
 
                 destination_file = temp_input_dir_path / blob_name
+                # Containment check: ``blob_name`` originates outside the worker, and GCS
+                # allows object names containing ``..``. Resolve the target and assert it
+                # stays under ``temp_input_dir_path`` so a hostile blob name cannot write
+                # outside the worker's temp directory (CWE-22).
+                if not destination_file.resolve().is_relative_to(temp_input_dir_resolved):
+                    raise ValueError(
+                        f"Refusing to download GCS blob {blob_name!r}: resolved path "
+                        f"{destination_file} escapes the temp directory {temp_input_dir_path}."
+                    )
                 destination_file.parent.mkdir(parents=True, exist_ok=True)
 
                 blob.download_to_filename(filename=str(destination_file))

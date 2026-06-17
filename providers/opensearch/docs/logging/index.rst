@@ -88,9 +88,7 @@ The wiring that registers ``OpensearchTaskHandler`` inside the stock
 ``airflow_local_settings.py`` (the file that builds ``DEFAULT_LOGGING_CONFIG``) only landed
 in Airflow **3.2.1**. On Airflow **3.0.0 – 3.2.0** installing the provider is not enough:
 to make the UI's log viewer fetch logs from OpenSearch you must ship a custom logging
-config that swaps the ``task`` handler. The handler self-registers as the remote-log
-reader on construction (via ``REMOTE_TASK_LOG`` on 3.0/3.1 and ``_ActiveLoggingConfig``
-on 3.2), so swapping the handler class is the only change required.
+config that swaps the ``task`` handler **and** sets ``REMOTE_TASK_LOG`` at module scope.
 
 Create a module on the Python path — for example ``config/airflow_local_settings.py`` —
 and point Airflow at it via ``[logging] logging_config_class``:
@@ -102,8 +100,12 @@ and point Airflow at it via ``[logging] logging_config_class``:
         DEFAULT_LOGGING_CONFIG,
     )
     from airflow.providers.common.compat.sdk import conf
+    from airflow.providers.opensearch.log.os_task_handler import OpensearchRemoteLogIO
 
     OPENSEARCH_HOST = conf.get("opensearch", "host", fallback=None)
+
+    REMOTE_TASK_LOG = None
+    DEFAULT_REMOTE_CONN_ID = None
 
     if OPENSEARCH_HOST:
         DEFAULT_LOGGING_CONFIG["handlers"]["task"] = {
@@ -123,6 +125,25 @@ and point Airflow at it via ``[logging] logging_config_class``:
             "write_to_opensearch": conf.getboolean("opensearch", "write_to_os", fallback=False),
             "target_index": conf.get("opensearch", "target_index", fallback="airflow-logs"),
         }
+        REMOTE_TASK_LOG = OpensearchRemoteLogIO(
+            host=OPENSEARCH_HOST,
+            port=conf.getint("opensearch", "port", fallback=9200),
+            username=conf.get("opensearch", "username"),
+            password=conf.get("opensearch", "password"),
+            target_index=conf.get("opensearch", "target_index", fallback="airflow-logs"),
+            write_stdout=conf.getboolean("opensearch", "write_stdout"),
+            write_to_opensearch=conf.getboolean("opensearch", "write_to_os", fallback=False),
+            offset_field=conf.get("opensearch", "offset_field", fallback="offset"),
+            host_field=conf.get("opensearch", "host_field", fallback="host"),
+            base_log_folder=str(BASE_LOG_FOLDER),
+            delete_local_copy=conf.getboolean("logging", "delete_local_logs"),
+            json_format=conf.getboolean("opensearch", "json_format"),
+            log_id_template=conf.get(
+                "opensearch",
+                "log_id_template",
+                fallback="{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
+            ),
+        )
 
 Then, in ``airflow.cfg``:
 
@@ -131,6 +152,15 @@ Then, in ``airflow.cfg``:
     [logging]
     remote_logging = True
     logging_config_class = config.airflow_local_settings.DEFAULT_LOGGING_CONFIG
+
+.. note::
+
+   Earlier versions of this guide relied on ``OpensearchTaskHandler`` self-registering
+   ``REMOTE_TASK_LOG`` from inside ``__init__`` when ``dictConfig`` instantiated it.
+   That implicit registration is now deprecated (``AirflowProviderDeprecationWarning``)
+   and will be removed in a future provider release; define ``REMOTE_TASK_LOG`` at
+   module scope as shown above. See :ref:`write-logs-advanced` for the full
+   ``logging_config_class`` contract.
 
 On Airflow **3.2.1+** this override is unnecessary — the stock ``airflow_local_settings.py``
 already contains an ``elif OPENSEARCH_HOST:`` branch, so configuring the ``[opensearch]``

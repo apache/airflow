@@ -181,6 +181,15 @@ def _drop_unique_constraint_if_exists(table_name: str, constraint_name: str) -> 
                 batch_op.drop_constraint(constraint_name, type_="unique")
 
 
+def _resolve_fk_name(bind, table_name: str, column_name: str, default: str) -> str:
+    if bind is None:
+        return default
+    for fk in sa.inspect(bind).get_foreign_keys(table_name):
+        if fk["constrained_columns"] == [column_name]:
+            return fk["name"] or default
+    return default
+
+
 def _drop_index_if_exists(table_name: str, index_name: str) -> None:
     dialect_name = op.get_context().dialect.name
 
@@ -247,13 +256,20 @@ def upgrade() -> None:
         op.execute(sa.text(_mysql_create_idx_permission_view_id_if_not_exists()))
         op.execute(sa.text(_mysql_create_idx_role_id_if_not_exists()))
 
+    pvr_role_fk = _resolve_fk_name(
+        bind, "ab_permission_view_role", "role_id", "ab_permission_view_role_role_id_fkey"
+    )
+    pvr_view_fk = _resolve_fk_name(
+        bind,
+        "ab_permission_view_role",
+        "permission_view_id",
+        "ab_permission_view_role_permission_view_id_fkey",
+    )
     with op.batch_alter_table(
         "ab_permission_view_role", schema=None, naming_convention=_naming_convention
     ) as batch_op:
-        batch_op.drop_constraint(batch_op.f("ab_permission_view_role_role_id_fkey"), type_="foreignkey")
-        batch_op.drop_constraint(
-            batch_op.f("ab_permission_view_role_permission_view_id_fkey"), type_="foreignkey"
-        )
+        batch_op.drop_constraint(pvr_role_fk, type_="foreignkey")
+        batch_op.drop_constraint(pvr_view_fk, type_="foreignkey")
         batch_op.create_foreign_key(
             batch_op.f("ab_permission_view_role_permission_view_id_fkey"),
             "ab_permission_view",
@@ -285,9 +301,11 @@ def upgrade() -> None:
     with op.batch_alter_table("ab_register_user", schema=None) as batch_op:
         batch_op.create_unique_constraint(batch_op.f("ab_register_user_email_uq"), ["email"])
 
+    user_role_fk = _resolve_fk_name(bind, "ab_user_role", "role_id", "ab_user_role_role_id_fkey")
+    user_user_fk = _resolve_fk_name(bind, "ab_user_role", "user_id", "ab_user_role_user_id_fkey")
     with op.batch_alter_table("ab_user_role", schema=None, naming_convention=_naming_convention) as batch_op:
-        batch_op.drop_constraint(batch_op.f("ab_user_role_role_id_fkey"), type_="foreignkey")
-        batch_op.drop_constraint(batch_op.f("ab_user_role_user_id_fkey"), type_="foreignkey")
+        batch_op.drop_constraint(user_role_fk, type_="foreignkey")
+        batch_op.drop_constraint(user_user_fk, type_="foreignkey")
         batch_op.create_foreign_key(
             batch_op.f("ab_user_role_role_id_fkey"), "ab_role", ["role_id"], ["id"], ondelete="CASCADE"
         )

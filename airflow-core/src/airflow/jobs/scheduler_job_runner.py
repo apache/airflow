@@ -32,15 +32,30 @@ from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, cast
+from uuid import UUID
 
-from sqlalchemy import CTE, and_, case, delete, exists, func, inspect, or_, select, text, tuple_, update
+from sqlalchemy import (
+    CTE,
+    Text,
+    and_,
+    case,
+    cast as sql_cast,
+    delete,
+    exists,
+    func,
+    inspect,
+    or_,
+    select,
+    text,
+    tuple_,
+    update,
+)
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
-from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel, TIRunContext
 from airflow.assets.evaluation import AssetEvaluator
@@ -71,8 +86,16 @@ from airflow.models.asset import (
     TaskInletAssetReference,
     TaskOutletAssetReference,
 )
+from airflow.models.asset_state_store import AssetStateStoreModel
 from airflow.models.backfill import Backfill, BackfillDagRun
-from airflow.models.callback import Callback, CallbackType, ExecutorCallback
+from airflow.models.callback import Callback, CallbackKey, CallbackType, ExecutorCallback
+from airflow.models.connection_test import (
+    ACTIVE_STATES as CONNECTION_TEST_ACTIVE_STATES,
+    DISPATCHED_STATES,
+    ConnectionTestKey,
+    ConnectionTestRequest,
+    ConnectionTestState,
+)
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -84,13 +107,17 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.team import Team
-from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
+from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, handle_event_submit
 from airflow.observability.metrics import stats_utils
+from airflow.partition_mappers.base import is_rollup
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
-from airflow.ti_deps.dependencies_states import EXECUTION_STATES
+from airflow.ti_deps.dependencies_states import ACTIVE_STATES, EXECUTION_STATES
+from airflow.timetables.base import Timetable, compute_rollup_fingerprint
 from airflow.timetables.simple import AssetTriggeredTimetable
+from airflow.triggers.base import TriggerEvent
 from airflow.utils.event_scheduler import EventScheduler
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -126,6 +153,13 @@ DM = DagModel
 
 TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
+
+# Per-tick cap on pending AssetPartitionDagRun rows the scheduler evaluates.
+# Bounds the per-tick transaction so executor heartbeats and regular scheduling
+# aren't starved; remaining APDRs drain across subsequent ticks.
+# Internal constant rather than a user setting — this is a performance
+# safety bound, not a behavioural knob operators need to tune.
+MAX_PARTITION_DAG_RUNS_PER_LOOP = 500
 
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
@@ -207,14 +241,20 @@ class ConcurrencyMap:
         self.task_concurrency_map.clear()
         self.task_dagrun_concurrency_map.clear()
         query = session.execute(
-            select(TI.dag_id, TI.task_id, TI.run_id, func.count("*"))
-            .where(TI.state.in_(EXECUTION_STATES))
-            .group_by(TI.task_id, TI.run_id, TI.dag_id)
+            select(TI.dag_id, TI.task_id, TI.run_id, TI.state, func.count("*"))
+            .where(TI.state.in_(ACTIVE_STATES))
+            .group_by(TI.dag_id, TI.task_id, TI.run_id, TI.state)
         )
-        for dag_id, task_id, run_id, c in query:
-            self.dag_run_active_tasks_map[dag_id, run_id] += c
-            self.task_concurrency_map[(dag_id, task_id)] += c
-            self.task_dagrun_concurrency_map[(dag_id, run_id, task_id)] += c
+        for dag_id, task_id, run_id, state, count in query:
+            # Always count towards task-level concurrency (max_active_tis_per_dag /
+            # max_active_tis_per_dagrun), including DEFERRED.
+            self.task_concurrency_map[(dag_id, task_id)] += count
+            self.task_dagrun_concurrency_map[(dag_id, run_id, task_id)] += count
+            # Only count states that hold a worker slot towards DAG-run active tasks
+            # (max_active_tasks / worker slot accounting). DEFERRED and AWAITING_INPUT
+            # are in-flight but parked, holding no worker slot.
+            if state not in (TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT):
+                self.dag_run_active_tasks_map[dag_id, run_id] += count
 
 
 def _is_parent_process() -> bool:
@@ -294,6 +334,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._scheduler_use_job_schedule = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
         self._parallelism = conf.getint("core", "parallelism")
         self._multi_team = conf.getboolean("core", "multi_team")
+        self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
+        self._dag_id_to_team_name: dict[str, str | None] = {}
 
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
         self.executor: BaseExecutor = self.executors[0]
@@ -308,9 +350,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self.scheduler_dag_bag = DBDagBag(load_op_links=False)
 
+        # Set of (dag_id, asset_name, asset_uri) tuples for trigger policies that
+        # are permanently unreachable for the rollup window's cardinality — the
+        # Dag run can never fire, and we warn once per process lifetime so an
+        # unreachable APDR is visible in scheduler logs without spamming every
+        # tick.
+        self._partition_unreachable_seen: set[tuple[str, str, str]] = set()
+
     @provide_session
-    def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
-        Stats.incr("scheduler_heartbeat", 1, 1)
+    def heartbeat_callback(self, *, session: Session = NEW_SESSION) -> None:
+        stats.incr("scheduler_heartbeat", 1, 1)
 
     def _get_current_dag(self, dag_id: str, session: Session) -> SerializedDAG | None:
         try:
@@ -344,9 +393,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self, dag_ids: Collection[str], session: Session
     ) -> dict[str, str | None]:
         """
-        Batch query to resolve team names for multiple DAG IDs using the DAG > Bundle > Team relationship chain.
+        Resolve team names for DAG IDs via the DAG > Bundle > Team relationship.
 
-        DAG IDs > DagModel (via dag_id) > DagBundleModel (via bundle_name) > Team
+        Results are cached for the current scheduler loop iteration. The cache is cleared
+        at the start of each loop so all injection points within one heartbeat share
+        a single query, but changes are picked up on the next iteration.
 
         :param dag_ids: Collection of DAG IDs to resolve team names for
         :param session: Database session for queries
@@ -355,36 +406,35 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if not dag_ids:
             return {}
 
-        try:
-            # Query all team names for the given DAG IDs in a single query
-            query_results = session.execute(
-                select(DagModel.dag_id, Team.name)
-                .join(DagBundleModel.teams)  # Join Team to DagBundleModel via association table
-                .join(
-                    DagModel, DagModel.bundle_name == DagBundleModel.name
-                )  # Join DagBundleModel to DagModel
-                .where(DagModel.dag_id.in_(dag_ids))
-            ).all()
+        missing = [dag_id for dag_id in dag_ids if dag_id not in self._dag_id_to_team_name]
+        if missing:
+            try:
+                # Query all team names for the given DAG IDs in a single query
+                query_results = session.execute(
+                    select(DagModel.dag_id, Team.name)
+                    .join(DagBundleModel.teams)  # Join Team to DagBundleModel via association table
+                    .join(
+                        DagModel, DagModel.bundle_name == DagBundleModel.name
+                    )  # Join DagBundleModel to DagModel
+                    .where(DagModel.dag_id.in_(missing))
+                ).all()
 
-            # Create mapping from results
-            dag_id_to_team_name = {dag_id: team_name for dag_id, team_name in query_results}
+                # Create mapping from results
+                queried = {dag_id: team_name for dag_id, team_name in query_results}
 
-            # Ensure all requested dag_ids are in the result (with None for those not found)
-            result = {dag_id: dag_id_to_team_name.get(dag_id) for dag_id in dag_ids}
+                # Cache all results, including None for dag_ids with no team
+                for dag_id in missing:
+                    self._dag_id_to_team_name[dag_id] = queried.get(dag_id)
+                    self.log.debug("Cached team names for %d new dag_ids", len(missing))
 
-            self.log.debug(
-                "Resolved team names for %d DAGs: %s",
-                len([team for team in result.values() if team is not None]),
-                {dag_id: team for dag_id, team in result.items()},
-            )
+            except Exception:
+                # Log the error, explicitly don't fail the scheduling loop
+                self.log.exception("Failed to resolve team names for DAG IDs: %s", missing)
+                # Return dict with all None values to ensure graceful degradation
+                return {}
 
-            return result
-
-        except Exception:
-            # Log the error, explicitly don't fail the scheduling loop
-            self.log.exception("Failed to resolve team names for DAG IDs: %s", list(dag_ids))
-            # Return dict with all None values to ensure graceful degradation
-            return {}
+        # Ensure all requested dag_ids are in the result (with None for those not found)
+        return {dag_id: self._dag_id_to_team_name.get(dag_id) for dag_id in dag_ids}
 
     def _get_workload_team_name(self, workload: SchedulerWorkload, session: Session) -> str | None:
         """
@@ -614,7 +664,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Select only rows where row_number <= max_active_tasks.
             query = (
                 select(TI)
-                .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
                 .select_from(ranked_query)
                 .join(
                     TI,
@@ -635,7 +684,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             query = query.limit(max_tis)
 
-            timer = Stats.timer("scheduler.critical_section_query_duration")
+            timer = stats.timer("scheduler.critical_section_query_duration")
             timer.start()
 
             try:
@@ -655,7 +704,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 raise e
 
             # TODO[HA]: This was wrong before anyway, as it only looked at a sub-set of dags, not everything.
-            # Stats.gauge('scheduler.tasks.pending', len(task_instances_to_examine))
+            # stats.gauge('scheduler.tasks.pending', len(task_instances_to_examine))
 
             if not task_instances_to_examine:
                 self.log.debug("No tasks to consider for execution.")
@@ -676,6 +725,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     len(unique_dag_ids),
                     list(unique_dag_ids),
                 )
+                for ti in task_instances_to_examine:
+                    # Set team as a transient attribute; team lives on the Bundle, not
+                    # on the TI/DagRun schema, so we resolve it at scheduling time.
+                    if team := dag_id_to_team_name.get(ti.dag_id):
+                        ti._team_name = team
 
             executor_slots_available: dict[ExecutorName, int] = {}
             # First get a mapping of executor names to slots they have available
@@ -885,16 +939,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 loop_count,
             )
 
+        starving_pool_team_mapping = (
+            Pool.get_name_to_team_name_mapping(list(pool_num_starving_tasks.keys()), session=session)
+            if self._multi_team and pool_num_starving_tasks
+            else {}
+        )
         for pool_name, num_starving_tasks in pool_num_starving_tasks.items():
-            DualStatsManager.gauge(
-                "pool.starving_tasks",
-                num_starving_tasks,
-                tags={},
-                extra_tags={"pool_name": pool_name},
-            )
+            starving_tags: dict[str, str] = {"pool_name": normalize_pool_name_for_stats(pool_name)}
+            if team := starving_pool_team_mapping.get(pool_name):
+                starving_tags["team_name"] = team
+            stats.gauge("pool.starving_tasks", num_starving_tasks, tags=starving_tags)
 
-        Stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
-        Stats.gauge("scheduler.tasks.executable", len(executable_tis))
+        stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
+        stats.gauge("scheduler.tasks.executable", len(executable_tis))
 
         if executable_tis:
             task_instance_str = "\n".join(
@@ -937,9 +994,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         opt_in_names.add(exc.name.module_path)
                 whens = []
                 if opt_in_names:
-                    whens.append((TI.executor.in_(opt_in_names), random_db_uuid()))
+                    whens.append((TI.executor.in_(opt_in_names), sql_cast(random_db_uuid(), Text)))
                 if default_opts_in:
-                    whens.append((TI.executor.is_(None), random_db_uuid()))
+                    whens.append((TI.executor.is_(None), sql_cast(random_db_uuid(), Text)))
                 if whens:
                     queued_values["external_executor_id"] = case(*whens, else_=TI.external_executor_id)
 
@@ -1195,7 +1252,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         The method handles several key scenarios:
         1. **Normal task completion**: Updates task states for successful/failed tasks
         2. **External termination**: Detects tasks killed outside Airflow and marks them as failed
-        3. **Task requeuing**: Handles tasks that were requeued by other schedulers or executors
+        3. **Task requeuing**: Handles tasks that were requeued by other schedulers or executors,
+           and tasks moved to ``scheduled`` after a trigger fired so a stale executor success from the
+           pre-deferral worker exit does not fail the task instance
         4. **Callback processing**: Sends task callback requests to DAG Processor for execution
         5. **Email notifications**: Sends email notification requests to DAG Processor
 
@@ -1215,7 +1274,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
         event_buffer = executor.get_event_buffer()
         tis_with_right_state: list[TaskInstanceKey] = []
-        callback_keys_with_events: list[str] = []
+        callback_keys_with_events: list[CallbackKey] = []
 
         # Report execution - handle both task and callback events
         for key, (state, _) in event_buffer.items():
@@ -1240,16 +1299,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     TaskInstanceState.RESTARTING,
                 ):
                     tis_with_right_state.append(key)
-            else:
-                # Callback event (key is string UUID)
+            elif isinstance(key, ConnectionTestKey):
+                cls.logger().debug("Draining executor event with state %s for connection test %s", state, key)
+            elif isinstance(key, CallbackKey):
                 cls.logger().info("Received executor event with state %s for callback %s", state, key)
                 if state in (CallbackState.RUNNING, CallbackState.FAILED, CallbackState.SUCCESS):
                     callback_keys_with_events.append(key)
+            else:
+                cls.logger().error("Unknown workload key type in event buffer: %r", key)
 
         # Handle callback state events
         for callback_id in callback_keys_with_events:
             state, info = event_buffer.pop(callback_id)
-            callback = session.get(Callback, callback_id)
+            callback = session.get(Callback, UUID(str(callback_id)))
             if not callback:
                 # This should not normally happen - we just received an event for this callback.
                 # Only possible if callback was deleted mid-execution (e.g., cascade delete from DagRun deletion).
@@ -1278,12 +1340,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
         if filter_for_tis is None:
             return len(event_buffer)
-        asset_loader, _ = _eager_load_dag_run_for_validation()
+        asset_loader, alias_loader = _eager_load_dag_run_for_validation()
         query = (
             select(TI)
             .where(filter_for_tis)
             .options(selectinload(TI.dag_model))
             .options(asset_loader)
+            .options(alias_loader)
             .options(joinedload(TI.dag_run).selectinload(DagRun.created_dag_version))
             .options(joinedload(TI.dag_version))
         )
@@ -1344,12 +1407,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.pid,
             )
 
-            # There are two scenarios why the same TI with the same try_number is queued
-            # after executor is finished with it:
+            # There are multiple scenarios why the same TI with the same try_number looks queued or
+            # waiting after the executor is finished with it:
             # 1) the TI was killed externally and it had no time to mark itself failed
             # - in this case we should mark it as failed here.
             # 2) the TI has been requeued after getting deferred - in this case either our executor has it
             # or the TI is queued by another job. Either ways we should not fail it.
+            # 3) the trigger already put the TI back to scheduled (resume after defer) but the executor success
+            # from the worker exit after defer() has not been processed yet - should not fail it.
 
             # All of this could also happen if the state is "running",
             # but that is handled by the scheduler detecting task instances without heartbeats.
@@ -1363,12 +1428,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             ti_requeued = (
                 ti.queued_by_job_id != job_id  # Another scheduler has queued this task again
                 or executor.has_task(ti)  # This scheduler has this task already
+                or (
+                    # Resume-after-defer: trigger moved TI to scheduled (next_method set) before we saw the
+                    # executor success from the defer exit for the same try_number.
+                    ti.state == TaskInstanceState.SCHEDULED
+                    and state == TaskInstanceState.SUCCESS
+                    and ti.next_method is not None
+                )
             )
 
             if ti_queued and not ti_requeued:
-                Stats.incr(
+                team_name = (
+                    DagModel.get_team_name(ti.dag_id, session=session)
+                    if conf.getboolean("core", "multi_team")
+                    else None
+                )
+                stats.incr(
                     "scheduler.tasks.killed_externally",
-                    tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
+                    tags=prune_dict({"dag_id": ti.dag_id, "task_id": ti.task_id, "team_name": team_name}),
                 )
                 msg = (
                     "Executor %s reported that the task instance %s finished with state %s, but the task instance's state attribute is %s. "  # noqa: RUF100, UP031, flynt
@@ -1404,8 +1481,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # fall back to dag_model/dag_run for legacy tasks migrated from
                     # Airflow 2 where dag_version may be None (AIP-66).
                     _bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+                    # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
+                    # leave the callback unpinned so it runs against the same code as the task.
                     _bundle_version = (
-                        ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+                        ti.dag_version.bundle_version
+                        if ti.dag_version and ti.dag_run.bundle_version is not None
+                        else ti.dag_run.bundle_version
                     )
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
@@ -1505,8 +1586,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             # local import due to type_checking.
 
-            stats_factory = stats_utils.get_stats_factory(Stats)
-            Stats.initialize(factory=stats_factory)
+            stats.initialize(
+                factory=stats_utils.get_stats_factory(),
+                export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+            )
 
             self._run_scheduler_loop()
 
@@ -1529,7 +1612,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return None
 
     @provide_session
-    def _update_dag_run_state_for_paused_dags(self, session: Session = NEW_SESSION) -> None:
+    def _update_dag_run_state_for_paused_dags(self, *, session: Session = NEW_SESSION) -> None:
         try:
             paused_runs = list(
                 session.scalars(
@@ -1544,6 +1627,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .group_by(DagRun)
                 )
             )
+            if self._multi_team and paused_runs:
+                paused_dag_ids = {dr.dag_id for dr in paused_runs}
+                paused_team_mapping = self._get_team_names_for_dag_ids(paused_dag_ids, session)
+                for dr in paused_runs:
+                    if team := paused_team_mapping.get(dr.dag_id):
+                        dr._team_name = team
             for dag_run in paused_runs:
                 dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
                 if dag is not None:
@@ -1584,6 +1673,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timers.call_regular_interval(
             conf.getfloat("scheduler", "trigger_timeout_check_interval", fallback=15.0),
             self.check_trigger_timeouts,
+        )
+
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "trigger_timeout_check_interval", fallback=15.0),
+            self.check_awaiting_input_timeouts,
         )
 
         timers.call_regular_interval(
@@ -1641,10 +1735,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     action=bundle_cleanup_mgr.remove_stale_bundle_versions,
                 )
 
+        timers.call_regular_interval(
+            delay=conf.getfloat("connection_test", "reaper_interval", fallback=30.0),
+            action=self._reap_stale_connection_tests,
+        )
+
         idle_count = 0
 
         for loop_count in itertools.count(start=1):
-            with Stats.timer("scheduler.scheduler_loop_duration") as timer:
+            # Reset per-loop team name cache so changes to bundle-team assignments
+            # are picked up each iteration without requiring a scheduler restart.
+            self._dag_id_to_team_name = {}
+            with stats.timer("scheduler.scheduler_loop_duration") as timer:
                 with create_session() as session:
                     # This will schedule for as many executors as possible.
                     num_queued_tis = self._do_scheduling(session)
@@ -1655,7 +1757,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # either a no-op, or they will check-in on currently running tasks and send out new
                 # events to be processed below.
                 for executor in self.executors:
-                    executor.heartbeat()
+                    with stats.timer(
+                        "scheduler.executor_heartbeat_duration",
+                        tags={"executor": type(executor).__name__},
+                    ):
+                        executor.heartbeat()
 
                 with create_session() as session:
                     num_finished_events = 0
@@ -1694,6 +1800,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     # Route ExecutorCallback workloads to executors (similar to task routing)
                     self._enqueue_executor_callbacks(session)
+
+                    self._enqueue_connection_tests(session=session)
 
                 # Heartbeat the scheduler periodically
                 perform_heartbeat(
@@ -1767,8 +1875,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             guard.commit()
 
             # Bulk fetch the currently active dag runs for the dags we are
-            # examining, rather than making one query per DagRun
-            dag_runs = DagRun.get_running_dag_runs_to_examine(session=session)
+            # examining, rather than making one query per DagRun.
+            # Materialize into a list because the multi-team block below iterates
+            # the result and ScalarResult is a one-pass iterator.
+            dag_runs = list(DagRun.get_running_dag_runs_to_examine(session=session))
+
+            if self._multi_team and dag_runs:
+                unique_dag_ids = {dr.dag_id for dr in dag_runs}
+                dr_team_mapping = self._get_team_names_for_dag_ids(unique_dag_ids, session)
+                for dr in dag_runs:
+                    if team := dr_team_mapping.get(dr.dag_id):
+                        dr._team_name = team
 
             callback_tuples = self._schedule_all_dag_runs(guard, dag_runs, session)
 
@@ -1798,7 +1915,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 num_queued_tis = 0
             else:
                 try:
-                    timer = Stats.timer("scheduler.critical_section_duration")
+                    timer = stats.timer("scheduler.critical_section_duration")
                     timer.start()
 
                     # Find any TIs in state SCHEDULED, try to QUEUE them (send it to the executors)
@@ -1812,7 +1929,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     if is_lock_not_available_error(error=e):
                         self.log.debug("Critical section lock held by another Scheduler")
-                        Stats.incr("scheduler.critical_section_busy")
+                        stats.incr("scheduler.critical_section_busy")
                         session.rollback()
                         return 0
                     raise
@@ -1821,44 +1938,339 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return num_queued_tis
 
+    def _warn_unreachable_asset_partition(
+        self,
+        *,
+        apdr: AssetPartitionDagRun,
+        name: str,
+        uri: str,
+        reason: str | None,
+    ) -> None:
+        """
+        Emit a warning that a rollup asset partition can never satisfy its wait policy.
+
+        The warning is deduplicated per ``(target_dag_id, name, uri)`` so a stuck APDR
+        is surfaced once rather than on every scheduler tick.
+        """
+        unreachable_key = (apdr.target_dag_id, name, uri)
+        if unreachable_key in self._partition_unreachable_seen:
+            return
+        self.log.warning(
+            "Rollup asset (name=%r, uri=%r) on Dag %r is permanently unreachable: %s",
+            name,
+            uri,
+            apdr.target_dag_id,
+            reason,
+        )
+        self._partition_unreachable_seen.add(unreachable_key)
+
+    def _resolve_asset_partition_status(
+        self,
+        *,
+        session: Session,
+        asset_id: int,
+        name: str,
+        uri: str,
+        apdr: AssetPartitionDagRun,
+        timetable: Timetable,
+        actual_by_asset: dict[int, set[str]],
+    ) -> bool:
+        """
+        Return whether *asset_id* has been satisfied for *apdr*.
+
+        Non-rollup assets resolve to ``True`` because the caller only invokes
+        this for assets that already have at least one logged event for *APDR*
+        (see :class:`~airflow.models.asset.PartitionedAssetKeyLog`), which is
+        the non-rollup contract for "received". Rollup assets delegate to
+        :meth:`~airflow.partition_mappers.wait_policy.WaitPolicy.is_satisfied_by_keys`
+        for the upstream-window check.
+
+        A misconfigured mapper that raises returns ``False`` (treated as
+        not-yet-satisfied); the exception is logged at ``ERROR`` level in the
+        scheduler log so operators can diagnose the misconfiguration.
+        """
+        try:
+            mapper = timetable.get_partition_mapper(name=name, uri=uri)
+            if not is_rollup(mapper):
+                return True
+            if TYPE_CHECKING:
+                assert apdr.partition_key is not None
+            expected = mapper.to_upstream(apdr.partition_key)
+            actual = actual_by_asset.get(asset_id, set())
+
+            # The policy returns both the satisfaction result and, when permanently
+            # unreachable, a ready-made reason string. Dedup and forwarding are the
+            # scheduler's responsibility; the policy owns the message content.
+            result = mapper.wait_policy.is_satisfied_by_keys(matched=actual, expected=expected)
+            if result.unreachable:
+                self._warn_unreachable_asset_partition(
+                    apdr=apdr, name=name, uri=uri, reason=result.unreachable_reason
+                )
+                return False
+            return result.satisfied
+        except Exception:
+            self.log.exception(
+                "Failed to evaluate rollup status for asset; treating as not-yet-satisfied. "
+                "This likely indicates a misconfigured partition mapper.",
+                dag_id=apdr.target_dag_id,
+                partition_key=apdr.partition_key,
+                asset_name=name,
+                asset_uri=uri,
+            )
+            return False
+
+    def _resolve_partition_date(
+        self,
+        *,
+        timetable: Timetable,
+        asset_infos: Iterable[tuple[str, str]],
+        partition_key: str,
+        dag_id: str,
+    ) -> datetime | None:
+        """
+        Return the temporal anchor (period-start datetime) for *partition_key*.
+
+        Resolves the temporal anchor (period-start datetime) for *partition_key*
+        across *asset_infos* — the ``(name, uri)`` pairs of the upstream assets
+        that contributed to it. Each upstream mapper resolves the key via
+        :meth:`~airflow.partition_mappers.base.PartitionMapper.to_partition_date`:
+        temporal mappers decode the key, composite mappers delegate to their
+        child, and non-temporal mappers (e.g.
+        :class:`~airflow.partition_mappers.identity.IdentityMapper`) return ``None``.
+
+        A partitioned consumer has a single partition identity, so every temporal
+        mapper feeding it must resolve the same key to the same instant. Anchors
+        are compared by instant (timezone-aware), so equivalent moments collapse
+        to one. When the temporal mappers agree, that anchor is returned; when
+        they disagree — a misconfiguration, e.g. assets mapping the same key under
+        different timezones — ``partition_date`` is left unset and a warning is
+        logged rather than silently picking one by scan order. Returns ``None`` if
+        no mapper is temporal.
+
+        A failure in any mapper aborts the whole resolution and returns ``None``
+        (logged) — anchors accumulated from earlier mappers are discarded rather
+        than used as a partial result, since a partial set could hide a conflict.
+        A broken mapper must not crash the scheduler tick.
+        """
+        anchors: set[datetime] = set()
+        try:
+            for name, uri in asset_infos:
+                mapper = timetable.get_partition_mapper(name=name, uri=uri)
+                anchor = mapper.to_partition_date(partition_key)
+                if anchor is not None:
+                    anchors.add(anchor)
+        except Exception:
+            self.log.exception(
+                "Failed to resolve partition_date for asset-triggered Dag run; partition_date will be None.",
+                dag_id=dag_id,
+                partition_key=partition_key,
+            )
+            return None
+
+        if not anchors:
+            return None
+        if len(anchors) > 1:
+            self.log.warning(
+                "Upstream partition mappers resolved conflicting partition_date values for the same "
+                "key; leaving partition_date unset. The consumer's assets likely use inconsistent "
+                "partition mappers.",
+                dag_id=dag_id,
+                partition_key=partition_key,
+                partition_dates=sorted(anchor.isoformat() for anchor in anchors),
+            )
+            return None
+        return anchors.pop()
+
     def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
+        """
+        Create Dag runs for pending :class:`AssetPartitionDagRun` rows whose partition is satisfied.
+
+        Returns the set of ``dag_id`` strings that received a new partition-driven Dag run in this
+        tick. The caller (:meth:`_create_dagruns_for_dags`) uses this set to exclude the same Dags
+        from the standard schedule-driven and asset-triggered creation paths so a single Dag never
+        gets two Dag runs for the same tick when it appears in more than one creation path. We
+        return ``dag_id`` strings rather than full Dag/DagRun objects because the only downstream
+        use is membership lookup, and a heavier return type would just be discarded.
+
+        Asset deactivation freezes pending APDRs: when an asset becomes inactive
+        (orphan — no Dag declares it any more), its ``PartitionedAssetKeyLog`` rows
+        stop contributing to the rollup. If the consumer Dag still depends on that
+        asset, firing on stale history would conflict with the declared topology,
+        so the APDR waits. Reactivating the asset resumes evaluation automatically.
+        This matches the UI's progress view (``_fetch_active_assets_per_dag``).
+        """
+        # Cap per-tick work so the scheduler transaction stays bounded and other
+        # scheduling work isn't starved. Remaining APDRs drain across subsequent ticks.
+        # FIFO is intentional: the oldest pending APDR fires first. A persistently
+        # unsatisfiable APDR at the head (e.g. broken mapper, upstream that will
+        # never arrive) blocks newer ones until an operator removes it or fixes
+        # the underlying mapper. We surface the stuck state rather than silently
+        # rotating past it.
+        # `with_row_locks(skip_locked=True)` mirrors the sibling ADRQ claim path:
+        # in HA two schedulers can otherwise both grab the same satisfied APDR
+        # and race the `created_dag_run_id` UPDATE, orphaning whichever DagRun
+        # loses. The `id` tiebreaker on `order_by` keeps LIMIT deterministic when
+        # two APDRs share a `created_at` under bulk asset-event ingestion.
+        # SQLite is single-writer and silently drops `FOR UPDATE`, which is fine.
+        pending_apdrs = session.scalars(
+            with_row_locks(
+                select(AssetPartitionDagRun)
+                .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
+                .where(
+                    AssetPartitionDagRun.created_dag_run_id.is_(None),
+                    DagModel.is_stale.is_(False),
+                )
+                .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
+                .limit(self._max_partition_dag_runs_per_loop),
+                of=AssetPartitionDagRun,
+                skip_locked=True,
+                key_share=False,
+                session=session,
+            )
+        ).all()
+        if not pending_apdrs:
+            return set()
+
+        # Pre-fetch all required serialized Dags in one query. The same map
+        # serves the stale-version cleanup below and the downstream rollup
+        # evaluation, so the table is only hit once per tick.
+        dag_ids = list({apdr.target_dag_id for apdr in pending_apdrs})
+        serdags_by_dag_id: dict[str, SerializedDagModel] = {
+            sd.dag_id: sd
+            for sd in SerializedDagModel.get_latest_serialized_dags(dag_ids=dag_ids, session=session)
+        }
+
+        # Stale-fingerprint cleanup. An APDR stamped with a ``rollup_fingerprint``
+        # that no longer matches the latest timetable's fingerprint was queued
+        # under a mapper / window definition that may not apply any more.
+        # Firing on partial data — or holding forever because the new mapper
+        # demands keys that will never arrive — would both be wrong, so the
+        # APDR + its PartitionedAssetKeyLog rows are dropped in the same
+        # transaction. Rows stamped ``NULL`` (legacy, pre-column) are likewise
+        # treated as stale on the first tick after upgrade. Unlike a Dag version
+        # UUID, this fingerprint captures only the rollup definition, so unrelated
+        # Dag edits (task changes, description updates) do not trigger cleanup.
+        #
+        # The fingerprint per dag is computed once and cached to avoid redundant
+        # serialization when multiple APDRs share the same target dag.
+        latest_fp_by_dag: dict[str, dict] = {}
+        for dag_id, serdag in serdags_by_dag_id.items():
+            try:
+                latest_fp_by_dag[dag_id] = compute_rollup_fingerprint(serdag.dag.timetable)
+            except Exception:
+                # If deserialization fails, skip rather than treating as stale —
+                # a broken serdag should not silently wipe pending progress.
+                self.log.exception("Failed to compute rollup fingerprint for Dag '%s'; skipping", dag_id)
+
+        stale_apdrs = [
+            apdr
+            for apdr in pending_apdrs
+            if serdags_by_dag_id.get(apdr.target_dag_id) is not None
+            and apdr.target_dag_id in latest_fp_by_dag  # fingerprint failed to compute → skip
+            and (
+                apdr.rollup_fingerprint is None
+                or apdr.rollup_fingerprint != latest_fp_by_dag[apdr.target_dag_id]
+            )
+        ]
+        if stale_apdrs:
+            stale_apdr_ids = [apdr.id for apdr in stale_apdrs]
+            cleared_by_dag: dict[str, int] = defaultdict(int)
+            for apdr in stale_apdrs:
+                cleared_by_dag[apdr.target_dag_id] += 1
+            for target_dag_id, cleared_count in cleared_by_dag.items():
+                self.log.info(
+                    "Cleared provisional partition Dag run(s) because the rollup definition "
+                    "(mapper / window) has changed since they were queued. "
+                    "The next scheduler tick will rebuild evaluation from fresh asset events.",
+                    target_dag_id=target_dag_id,
+                    cleared_count=cleared_count,
+                )
+            session.execute(
+                delete(PartitionedAssetKeyLog).where(
+                    PartitionedAssetKeyLog.asset_partition_dag_run_id.in_(stale_apdr_ids)
+                )
+            )
+            session.execute(delete(AssetPartitionDagRun).where(AssetPartitionDagRun.id.in_(stale_apdr_ids)))
+            stale_apdr_id_set = set(stale_apdr_ids)
+            pending_apdrs = [apdr for apdr in pending_apdrs if apdr.id not in stale_apdr_id_set]
+            if not pending_apdrs:
+                return set()
+
         partition_dag_ids: set[str] = set()
+        pending_apdr_ids = [apdr.id for apdr in pending_apdrs]
+
+        # {"dag_id": Serialized Dag}
+        serialized_dags: dict[str, SerializedDAG] = {}
+        for serdag in serdags_by_dag_id.values():
+            try:
+                serdag.load_op_links = False
+                serialized_dags[serdag.dag_id] = serdag.dag
+            except Exception:
+                self.log.exception("Failed to deserialize Dag '%s'", serdag.dag_id)
+
+        # {apdr_id: {asset_id: set(source_key, ...)}
+        source_key_by_asset_per_apdr: dict[int, dict[int, set[str]]] = defaultdict(lambda: defaultdict(set))
+        # {apdr_id: {asset_id: (asset_name, asset_uri)}
+        asset_info_per_apdr: dict[int, dict[int, tuple[str, str]]] = defaultdict(dict)
+        for apdr_id, asset_id, source_key, name, uri in session.execute(
+            select(
+                PartitionedAssetKeyLog.asset_partition_dag_run_id,
+                PartitionedAssetKeyLog.asset_id,
+                PartitionedAssetKeyLog.source_partition_key,
+                AssetModel.name,
+                AssetModel.uri,
+            )
+            .join(AssetModel, AssetModel.id == PartitionedAssetKeyLog.asset_id)
+            .where(
+                PartitionedAssetKeyLog.asset_partition_dag_run_id.in_(pending_apdr_ids),
+                # Skip PartitionedAssetKeyLog rows for assets that are no longer
+                # active (orphaned / no declaring Dag). If the consumer Dag still
+                # depends on an inactive asset, firing on stale history would
+                # conflict with the declared topology — so we freeze evaluation
+                # until the asset reactivates. Matches the UI's progress view
+                # (see ``_fetch_active_assets_per_dag``).
+                AssetModel.active.has(),
+            )
+        ):
+            source_key_by_asset_per_apdr[apdr_id][asset_id].add(source_key)
+            asset_info_per_apdr[apdr_id][asset_id] = (name, uri)
 
         evaluator = AssetEvaluator(session)
-        for apdr in session.scalars(
-            select(AssetPartitionDagRun).where(AssetPartitionDagRun.created_dag_run_id.is_(None))
-        ):
-            if TYPE_CHECKING:
-                assert apdr.target_dag_id
-
-            if not (dag := self._get_current_dag(dag_id=apdr.target_dag_id, session=session)):
+        for apdr in pending_apdrs:
+            if not (dag := serialized_dags.get(apdr.target_dag_id)):
                 self.log.error("Dag '%s' not found in serialized_dag table", apdr.target_dag_id)
                 continue
 
-            asset_models = session.scalars(
-                select(AssetModel).where(
-                    exists(
-                        select(1).where(
-                            PartitionedAssetKeyLog.asset_id == AssetModel.id,
-                            PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
-                            PartitionedAssetKeyLog.target_partition_key == apdr.partition_key,
-                        )
+            source_key_by_asset = source_key_by_asset_per_apdr[apdr.id]
+            timetable = dag.timetable
+            statuses: dict[SerializedAssetUniqueKey, bool] = {}
+            for asset_id, (name, uri) in asset_info_per_apdr[apdr.id].items():
+                key = SerializedAssetUniqueKey(name=name, uri=uri)
+                if timetable.partitioned:
+                    statuses[key] = self._resolve_asset_partition_status(
+                        session=session,
+                        asset_id=asset_id,
+                        name=name,
+                        uri=uri,
+                        apdr=apdr,
+                        timetable=timetable,
+                        actual_by_asset=source_key_by_asset,
                     )
-                )
-            )
-            statuses: dict[SerializedAssetUniqueKey, bool] = {
-                SerializedAssetUniqueKey.from_asset(a): True for a in asset_models
-            }
-            # todo: AIP-76 so, this basically works when we only require one partition from each asset to be there
-            #  but, we ultimately need rollup ability
-            #  that is, we need to ensure that whenever it is many -> one partitions, then we need to ensure
-            #  that all the required keys are there
-            #  one way to do this would be just to figure out what the count should be
-            if not evaluator.run(dag.timetable.asset_condition, statuses=statuses):
+                else:
+                    statuses[key] = True
+            if not evaluator.run(timetable.asset_condition, statuses=statuses):
                 continue
 
             partition_dag_ids.add(apdr.target_dag_id)
             run_after = timezone.utcnow()
+            partition_date: datetime | None = None
+            if timetable.partitioned:
+                partition_date = self._resolve_partition_date(
+                    timetable=timetable,
+                    asset_infos=asset_info_per_apdr[apdr.id].values(),
+                    partition_key=apdr.partition_key,
+                    dag_id=apdr.target_dag_id,
+                )
             dag_run = dag.create_dagrun(
                 run_id=DagRun.generate_run_id(
                     run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
@@ -1866,6 +2278,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 logical_date=None,
                 data_interval=None,
                 partition_key=apdr.partition_key,
+                partition_date=partition_date,
                 run_after=run_after,
                 run_type=DagRunType.ASSET_TRIGGERED,
                 triggered_by=DagRunTriggeredByType.ASSET,
@@ -1913,7 +2326,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # END: create dagruns
 
     @provide_session
-    def _mark_backfills_complete(self, session: Session = NEW_SESSION) -> None:
+    def _mark_backfills_complete(self, *, session: Session = NEW_SESSION) -> None:
         """Mark completed backfills as completed."""
         self.log.debug("checking for completed backfills.")
         unfinished_states = (DagRunState.RUNNING, DagRunState.QUEUED)
@@ -2180,7 +2593,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 creating_job_id=self.job.id,
                 session=session,
             )
-            Stats.incr("asset.triggered_dagruns")
+            stats.incr("asset.triggered_dagruns")
             dag_run.consumed_asset_events.extend(asset_events)
             self.log.info(
                 "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
@@ -2261,11 +2674,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             ):
                 expected_start_date = dag_run.run_after
                 schedule_delay = dag_run.start_date - expected_start_date
-                DualStatsManager.timing(
+                stats.timing(
                     "dagrun.schedule_delay",
                     schedule_delay,
-                    tags={},
-                    extra_tags={"dag_id": dag.dag_id},
+                    tags=prune_dict(
+                        {
+                            "dag_id": dag.dag_id,
+                            "team_name": self._get_team_names_for_dag_ids([dag.dag_id], session).get(
+                                dag.dag_id
+                            )
+                            if self._multi_team
+                            else None,
+                        }
+                    ),
                 )
 
         # cache saves time during scheduling of many dag_runs for same dag
@@ -2350,7 +2771,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         callback: DagCallbackRequest | None = None
 
         dag = dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
-        dag_model = DM.get_dagmodel(dag_run.dag_id, session)
+        dag_model = DM.get_dagmodel(dag_run.dag_id, session=session)
         if not dag_model:
             self.log.error("Couldn't find DAG model %s in database!", dag_run.dag_id)
             return callback
@@ -2413,11 +2834,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_run.notify_dagrun_state_changed(msg="timed_out")
             if dag_run.end_date and dag_run.start_date:
                 duration = dag_run.end_date - dag_run.start_date
-                DualStatsManager.timing(
+                stats.timing(
                     "dagrun.duration.failed",
                     duration,
-                    tags={},
-                    extra_tags={"dag_id": dag_run.dag_id},
+                    tags=prune_dict(
+                        {
+                            "dag_id": dag_run.dag_id,
+                            "team_name": self._get_team_names_for_dag_ids([dag_run.dag_id], session).get(
+                                dag_run.dag_id
+                            )
+                            if self._multi_team
+                            else None,
+                        }
+                    ),
                 )
             return callback_to_execute
 
@@ -2458,7 +2887,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     for ti in schedulable_tis
                 ],
             )
-        dag_run.schedule_tis(schedulable_tis, session, max_tis_per_query=self.job.max_tis_per_query)
+        dag_run.schedule_tis(schedulable_tis, session=session, max_tis_per_query=self.job.max_tis_per_query)
 
         return callback_to_run
 
@@ -2474,7 +2903,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if TYPE_CHECKING:
             assert latest_dag_version
 
-        if dag_run.check_version_id_exists_in_dr(latest_dag_version.id, session):
+        if dag_run.check_version_id_exists_in_dr(latest_dag_version.id, session=session):
             self.log.debug("DAG %s not changed structure, skipping dagrun.verify_integrity", dag_run.dag_id)
             return True
         # Refresh the DAG
@@ -2511,7 +2940,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.debug("callback is empty")
 
     @provide_session
-    def _handle_tasks_stuck_in_queued(self, session: Session = NEW_SESSION) -> None:
+    def _handle_tasks_stuck_in_queued(self, *, session: Session = NEW_SESSION) -> None:
         """
         Handle the scenario where a task is queued for longer than `task_queued_timeout`.
 
@@ -2552,7 +2981,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         Otherwise, fail it.
         """
-        num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
+        num_times_stuck = self._get_num_times_stuck_in_queued(ti, session=session)
         if num_times_stuck < self._num_stuck_queued_retries:
             self.log.info("Task stuck in queued; will try to requeue. task_instance=%s", ti)
             session.add(
@@ -2597,8 +3026,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     _stuck_bundle_name = (
                         ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
                     )
+                    # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
+                    # leave the callback unpinned so it runs against the same code as the task.
                     _stuck_bundle_version = (
-                        ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+                        ti.dag_version.bundle_version
+                        if ti.dag_version and ti.dag_run.bundle_version is not None
+                        else ti.dag_run.bundle_version
                     )
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     # Note: we cannot use `continue` here because this method is not
@@ -2640,7 +3073,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
     @provide_session
-    def _get_num_times_stuck_in_queued(self, ti: TaskInstance, session: Session = NEW_SESSION) -> int:
+    def _get_num_times_stuck_in_queued(self, ti: TaskInstance, *, session: Session = NEW_SESSION) -> int:
         """
         Check the Log table to see how many times a task instance has been stuck in queued.
 
@@ -2682,8 +3115,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     previous_ti_metrics: dict[TaskInstanceState, dict[tuple[str, str, str], int]] = {}
 
     @provide_session
-    def _emit_ti_metrics(self, session: Session = NEW_SESSION) -> None:
-        metric_states = {State.SCHEDULED, State.QUEUED, State.RUNNING, State.DEFERRED}
+    def _emit_ti_metrics(self, *, session: Session = NEW_SESSION) -> None:
+        metric_states = {State.SCHEDULED, State.QUEUED, State.RUNNING, State.DEFERRED, State.AWAITING_INPUT}
         stmt = (
             select(
                 TaskInstance.state,
@@ -2697,6 +3130,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
         all_states_metric = session.execute(stmt).all()
 
+        if self._multi_team:
+            unique_dag_ids = {row[1] for row in all_states_metric}
+            dag_id_to_team_name = self._get_team_names_for_dag_ids(unique_dag_ids, session)
+        else:
+            dag_id_to_team_name = {}
+
         for state in metric_states:
             if state not in self.previous_ti_metrics:
                 self.previous_ti_metrics[state] = {}
@@ -2708,72 +3147,66 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             }
 
             for (dag_id, task_id, queue), count in ti_metrics.items():
-                DualStatsManager.gauge(
+                stats.gauge(
                     f"ti.{state}",
                     float(count),
-                    tags={},
-                    extra_tags={"queue": queue, "dag_id": dag_id, "task_id": task_id},
+                    tags=prune_dict(
+                        {
+                            "queue": queue,
+                            "dag_id": dag_id,
+                            "task_id": task_id,
+                            "team_name": dag_id_to_team_name.get(dag_id),
+                        }
+                    ),
                 )
 
             for prev_key in self.previous_ti_metrics[state]:
                 # Reset previously exported stats that are no longer present in current metrics to zero
                 if prev_key not in ti_metrics:
                     dag_id, task_id, queue = prev_key
-                    DualStatsManager.gauge(
+                    stats.gauge(
                         f"ti.{state}",
                         0,
-                        tags={},
-                        extra_tags={"queue": queue, "dag_id": dag_id, "task_id": task_id},
+                        tags=prune_dict(
+                            {
+                                "queue": queue,
+                                "dag_id": dag_id,
+                                "task_id": task_id,
+                                "team_name": dag_id_to_team_name.get(dag_id),
+                            }
+                        ),
                     )
 
             self.previous_ti_metrics[state] = ti_metrics
 
     @provide_session
-    def _emit_running_dags_metric(self, session: Session = NEW_SESSION) -> None:
+    def _emit_running_dags_metric(self, *, session: Session = NEW_SESSION) -> None:
         stmt = select(func.count()).select_from(DagRun).where(DagRun.state == DagRunState.RUNNING)
         running_dags = float(session.scalar(stmt) or 0)
-        Stats.gauge("scheduler.dagruns.running", running_dags)
+        stats.gauge("scheduler.dagruns.running", running_dags)
 
     @provide_session
-    def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
+    def _emit_pool_metrics(self, *, session: Session = NEW_SESSION) -> None:
         from airflow.models.pool import Pool
 
         pools = Pool.slots_stats(session=session)
+        pool_team_mapping = (
+            Pool.get_name_to_team_name_mapping(list(pools.keys()), session=session)
+            if self._multi_team
+            else {}
+        )
         for pool_name, slot_stats in pools.items():
-            normalized_pool_name = normalize_pool_name_for_stats(pool_name)
-            DualStatsManager.gauge(
-                "pool.open_slots",
-                slot_stats["open"],
-                tags={},
-                extra_tags={"pool_name": normalized_pool_name},
-            )
-            DualStatsManager.gauge(
-                "pool.queued_slots",
-                slot_stats["queued"],
-                tags={},
-                extra_tags={"pool_name": normalized_pool_name},
-            )
-            DualStatsManager.gauge(
-                "pool.running_slots",
-                slot_stats["running"],
-                tags={},
-                extra_tags={"pool_name": normalized_pool_name},
-            )
-            DualStatsManager.gauge(
-                "pool.deferred_slots",
-                slot_stats["deferred"],
-                tags={},
-                extra_tags={"pool_name": normalized_pool_name},
-            )
-            DualStatsManager.gauge(
-                "pool.scheduled_slots",
-                slot_stats["scheduled"],
-                tags={},
-                extra_tags={"pool_name": normalized_pool_name},
-            )
+            metric_tags: dict[str, str] = {"pool_name": normalize_pool_name_for_stats(pool_name)}
+            if team := pool_team_mapping.get(pool_name):
+                metric_tags["team_name"] = team
+            stats.gauge("pool.open_slots", slot_stats["open"], tags=metric_tags)
+            stats.gauge("pool.queued_slots", slot_stats["queued"], tags=metric_tags)
+            stats.gauge("pool.running_slots", slot_stats["running"], tags=metric_tags)
+            stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags=metric_tags)
+            stats.gauge("pool.scheduled_slots", slot_stats["scheduled"], tags=metric_tags)
 
     @provide_session
-    def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
+    def adopt_or_reset_orphaned_tasks(self, *, session: Session = NEW_SESSION) -> int:
         """
         Adopt or reset any TaskInstance in resettable state if its SchedulerJob is no longer running.
 
@@ -2804,7 +3237,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     if num_failed:
                         self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
-                        Stats.incr(self.__class__.__name__.lower() + "_end", num_failed)
+                        stats.incr(self.__class__.__name__.lower() + "_end", num_failed)
 
                     query = (
                         select(TI)
@@ -2814,7 +3247,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         .where(Job.state.is_distinct_from(JobState.RUNNING))
                         .join(TI.dag_run)
                         .where(DagRun.state == DagRunState.RUNNING)
-                        .options(load_only(TI.dag_id, TI.task_id, TI.run_id, TI.external_executor_id))
+                        .options(
+                            load_only(
+                                TI.id,
+                                TI.dag_id,
+                                TI.task_id,
+                                TI.run_id,
+                                TI.map_index,
+                                TI.state,
+                                TI.external_executor_id,
+                            )
+                        )
                     )
 
                     # Lock these rows, so that another scheduler can't try and adopt these too
@@ -2853,8 +3296,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         if ti.dag_run.conf is None:
                             ti.dag_run.conf = {}
 
-                    Stats.incr("scheduler.orphaned_tasks.cleared", len(to_reset))
-                    Stats.incr("scheduler.orphaned_tasks.adopted", len(tis_to_adopt_or_reset) - len(to_reset))
+                    stats.incr("scheduler.orphaned_tasks.cleared", len(to_reset))
+                    stats.incr("scheduler.orphaned_tasks.adopted", len(tis_to_adopt_or_reset) - len(to_reset))
 
                     if to_reset:
                         task_instance_str = "\n\t".join(reset_tis_message)
@@ -2875,7 +3318,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @provide_session
     def check_trigger_timeouts(
-        self, max_retries: int = MAX_DB_RETRIES, session: Session = NEW_SESSION
+        self, max_retries: int = MAX_DB_RETRIES, *, session: Session = NEW_SESSION
     ) -> None:
         """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
         for attempt in run_with_db_retries(max_retries, logger=self.log):
@@ -2897,6 +3340,95 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 num_timed_out_tasks = getattr(result, "rowcount", 0)
                 if num_timed_out_tasks:
                     self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
+
+    @provide_session
+    def check_awaiting_input_timeouts(
+        self, max_retries: int = MAX_DB_RETRIES, *, session: Session = NEW_SESSION
+    ) -> None:
+        """
+        Resolve Human-in-the-loop tasks parked in AWAITING_INPUT whose response deadline has passed.
+
+        This is the scheduler-side liveness guarantee for HITL and runs independently of the
+        triggerer. For each timed-out task instance: if a response arrived just before the deadline,
+        resume with it; otherwise, if the request defines defaults, write the defaults as the
+        response and resume to success; otherwise fail the task (mirroring ``check_trigger_timeouts``).
+        """
+        for attempt in run_with_db_retries(max_retries, logger=self.log):
+            with attempt:
+                now = timezone.utcnow()
+                query = (
+                    select(TI)
+                    .where(
+                        TI.state == TaskInstanceState.AWAITING_INPUT,
+                        TI.trigger_timeout < now,
+                    )
+                    .options(joinedload(TI.hitl_detail))
+                    # Bound the batch so a single scheduler tick cannot lock/process an unbounded
+                    # backlog of timed-out tasks (which would block concurrent responses/clears);
+                    # any remaining rows are handled on subsequent ticks.
+                    .limit(100)
+                )
+                # Lock only the TI rows (of=TI) so HA schedulers don't double-resolve, and so the
+                # FOR UPDATE is not applied to the nullable side of the hitl_detail outer join.
+                query = with_row_locks(query, of=TI, session=session, skip_locked=True)
+                timed_out_tis = session.scalars(query).all()
+                if not timed_out_tis:
+                    return
+
+                num_resolved = 0
+                num_failed = 0
+                for ti in timed_out_tis:
+                    hitl_detail = ti.hitl_detail
+                    if hitl_detail is not None and hitl_detail.responded_at is not None:
+                        # A response landed just before the deadline; resume with it.
+                        handle_event_submit(
+                            TriggerEvent(hitl_detail.as_resume_event_payload(timedout=False)),
+                            task_instance=ti,
+                            session=session,
+                        )
+                        num_resolved += 1
+                    elif hitl_detail is not None and hitl_detail.defaults is not None:
+                        # Apply the configured defaults as the response, then resume to success.
+                        hitl_detail.chosen_options = list(hitl_detail.defaults)
+                        hitl_detail.params_input = {
+                            key: value["value"] if isinstance(value, dict) and "value" in value else value
+                            for key, value in (hitl_detail.params or {}).items()
+                        }
+                        hitl_detail.responded_by = None
+                        hitl_detail.responded_at = now
+                        session.add(hitl_detail)
+                        handle_event_submit(
+                            TriggerEvent(hitl_detail.as_resume_event_payload(timedout=True)),
+                            task_instance=ti,
+                            session=session,
+                        )
+                        num_resolved += 1
+                    else:
+                        # No defaults and no response: resume into execute_complete with a timeout
+                        # failure event so the operator raises HITLTimeoutError (matching the old
+                        # trigger path), rather than a generic deferral-timeout failure.
+                        handle_event_submit(
+                            TriggerEvent(
+                                {
+                                    "error": "The Human-in-the-loop response timeout has passed "
+                                    "without a response.",
+                                    "error_type": "timeout",
+                                }
+                            ),
+                            task_instance=ti,
+                            session=session,
+                        )
+                        num_failed += 1
+
+                # Flush within the retry block so both branches persist consistently (the defaults
+                # branch already flushes via handle_event_submit; the fail branch relies on this).
+                session.flush()
+                if num_resolved or num_failed:
+                    self.log.info(
+                        "AWAITING_INPUT timeout sweep: %i resolved (response/defaults), %i failed",
+                        num_resolved,
+                        num_failed,
+                    )
 
     # [START find_and_purge_task_instances_without_heartbeats]
     def _find_and_purge_task_instances_without_heartbeats(self) -> None:
@@ -2952,6 +3484,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if self._multi_team:
             unique_dag_ids = {ti.dag_id for ti in task_instances_without_heartbeats}
             dag_id_to_team_name = self._get_team_names_for_dag_ids(unique_dag_ids, session)
+            for ti in task_instances_without_heartbeats:
+                if team := dag_id_to_team_name.get(ti.dag_id):
+                    ti._team_name = team
         else:
             dag_id_to_team_name = {}
 
@@ -2962,8 +3497,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Safely extract bundle info with fallback for legacy tasks
             # (dag_version may be None after Airflow 2 → 3 migration).
             _hb_bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+            # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
+            # leave the callback unpinned so it runs against the same code as the task.
             _hb_bundle_version = (
-                ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+                ti.dag_version.bundle_version
+                if ti.dag_version and ti.dag_run.bundle_version is not None
+                else ti.dag_run.bundle_version
             )
             # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
             if not _ensure_ti_has_dag_version_id(ti, session, self.log):
@@ -3012,8 +3551,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
             executor.change_state(ti.key, TaskInstanceState.FAILED, remove_running=True)
-            Stats.incr(
-                "task_instances_without_heartbeats_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id}
+            stats.incr(
+                "task_instances_without_heartbeats_killed",
+                tags=prune_dict(
+                    {
+                        "dag_id": ti.dag_id,
+                        "task_id": ti.task_id,
+                        "team_name": dag_id_to_team_name.get(ti.dag_id),
+                    }
+                ),
             )
 
     # [END find_and_purge_task_instances_without_heartbeats]
@@ -3041,15 +3587,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session.execute(
             delete(Trigger)
             .where(
-                Trigger.id.not_in(select(AssetWatcherModel.trigger_id)),
-                Trigger.id.not_in(select(Callback.trigger_id)),
-                Trigger.id.not_in(select(TaskInstance.trigger_id)),
+                ~exists(
+                    select(AssetWatcherModel.trigger_id).where(AssetWatcherModel.trigger_id == Trigger.id)
+                ),
+                ~exists(select(Callback.trigger_id).where(Callback.trigger_id == Trigger.id)),
+                ~exists(select(TaskInstance.trigger_id).where(TaskInstance.trigger_id == Trigger.id)),
             )
             .execution_options(synchronize_session="fetch")
         )
 
     @provide_session
-    def _update_asset_orphanage(self, session: Session = NEW_SESSION) -> None:
+    def _update_asset_orphanage(self, *, session: Session = NEW_SESSION) -> None:
         """
         Check assets orphanization and update their active entry.
 
@@ -3081,6 +3629,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self._orphan_unreferenced_assets(orphan_query, session=session)
         self._activate_referenced_assets(activate_query, session=session)
+        self._cleanup_orphaned_asset_state_store(session=session)
 
     @staticmethod
     def _orphan_unreferenced_assets(assets_query: CTE, *, session: Session) -> None:
@@ -3092,7 +3641,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         )
 
-        Stats.gauge("asset.orphaned", max(getattr(deleted_orphaned_assets, "rowcount", 0), 0))
+        stats.gauge("asset.orphaned", max(getattr(deleted_orphaned_assets, "rowcount", 0), 0))
 
     @staticmethod
     def _activate_referenced_assets(assets_query: CTE, *, session: Session) -> None:
@@ -3188,6 +3737,149 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
             session.add(warning)
             existing_warned_dag_ids.add(warning.dag_id)
+
+    @staticmethod
+    def _cleanup_orphaned_asset_state_store(*, session: Session) -> None:
+        """
+        Delete asset_state_store rows for assets no longer active in any Dag.
+
+        When _orphan_unreferenced_assets removes an asset from asset_active, its
+        asset_state_store rows become unreachable — no task can write to them anymore.
+        This runs in the same pass as asset orphanage to keep the table clean.
+        """
+        active_asset_ids = select(AssetModel.id).join(
+            AssetActive,
+            (AssetActive.name == AssetModel.name) & (AssetActive.uri == AssetModel.uri),
+        )
+        session.execute(
+            delete(AssetStateStoreModel).where(AssetStateStoreModel.asset_id.not_in(active_asset_ids))
+        )
+
+    def _enqueue_connection_tests(self, *, session: Session) -> None:
+        """
+        Enqueue pending connection tests to executors that support them.
+
+        ``max_concurrency`` is per-scheduler, not global: with N HA schedulers
+        the worst-case per-tick dispatch is ``N * max_concurrency``. Connection
+        tests are user-initiated and rare, so the overshoot self-corrects via
+        the reaper. For a true global cap, wrap the budget+claim below in a
+        sentinel-row ``SELECT ... FOR UPDATE``.
+        """
+        max_concurrency = conf.getint("connection_test", "max_concurrency", fallback=4)
+        timeout = conf.getint("connection_test", "timeout", fallback=60)
+
+        active_count = (
+            session.scalar(
+                select(func.count(ConnectionTestRequest.id)).where(
+                    ConnectionTestRequest.state.in_(DISPATCHED_STATES)
+                )
+            )
+            or 0
+        )
+        pending_count = (
+            session.scalar(
+                select(func.count(ConnectionTestRequest.id)).where(
+                    ConnectionTestRequest.state == ConnectionTestState.PENDING
+                )
+            )
+            or 0
+        )
+        stats.gauge("connection_test.active", active_count)
+        stats.gauge("connection_test.pending", pending_count)
+
+        budget = max_concurrency - active_count
+        if budget <= 0:
+            return
+
+        pending_stmt = (
+            select(ConnectionTestRequest)
+            .where(ConnectionTestRequest.state == ConnectionTestState.PENDING)
+            .order_by(ConnectionTestRequest.created_at)
+            .limit(budget)
+        )
+        pending_stmt = with_row_locks(pending_stmt, session, of=ConnectionTestRequest, skip_locked=True)
+        pending_tests = session.scalars(pending_stmt).all()
+
+        if not pending_tests:
+            return
+
+        dispatch_timer = stats.timer("connection_test.dispatch_duration")
+        dispatch_timer.start()
+        for ct in pending_tests:
+            team_name = ct.team_name if self._multi_team else None
+            executor = self._try_to_load_executor(ct, session, team_name=team_name)
+            if executor is None:
+                reason = f"No executor matches '{ct.executor}'"
+                ct.state = ConnectionTestState.FAILED
+                ct.result_message = reason
+                self.log.warning("Failing connection test %s: %s", ct.id, reason)
+                continue
+            if not executor.supports_connection_test:
+                exec_name = executor.name
+                name = ct.executor or (exec_name and (exec_name.alias or exec_name.module_path))
+                reason = f"Executor '{name}' does not support connection testing"
+                ct.state = ConnectionTestState.FAILED
+                ct.result_message = reason
+                self.log.warning("Failing connection test %s: %s", ct.id, reason)
+                continue
+
+            workload = workloads.TestConnection.make(
+                connection_test_id=ct.id,
+                connection_id=ct.connection_id,
+                timeout=timeout,
+                queue=ct.queue,
+                generator=executor.jwt_generator,
+            )
+            executor.queue_workload(workload, session=session)
+            ct.state = ConnectionTestState.QUEUED
+
+        dispatch_timer.stop(send=True)
+        session.flush()
+
+    @provide_session
+    def _reap_stale_connection_tests(self, *, session: Session = NEW_SESSION) -> None:
+        """Mark connection tests that have exceeded their timeout as FAILED."""
+        timeout = conf.getint("connection_test", "timeout", fallback=60)
+        grace_period = max(30, timeout // 2)
+        cutoff = timezone.utcnow() - timedelta(seconds=timeout + grace_period)
+
+        stale_stmt = select(ConnectionTestRequest).where(
+            ConnectionTestRequest.state.in_(CONNECTION_TEST_ACTIVE_STATES),
+            ConnectionTestRequest.updated_at < cutoff,
+        )
+        stale_stmt = with_row_locks(stale_stmt, session, of=ConnectionTestRequest, skip_locked=True)
+        stale_tests = session.scalars(stale_stmt).all()
+
+        for ct in stale_tests:
+            prior_state = ct.state
+            ct.state = ConnectionTestState.FAILED
+            if prior_state == ConnectionTestState.PENDING:
+                ct.result_message = (
+                    f"Connection test expired in PENDING before any executor picked it up "
+                    f"(exceeded {timeout}s + {grace_period}s grace)"
+                )
+            elif prior_state == ConnectionTestState.QUEUED:
+                ct.result_message = (
+                    f"Connection test was queued but never started before timeout "
+                    f"(exceeded {timeout}s + {grace_period}s grace)"
+                )
+            else:
+                ct.result_message = f"Connection test timed out (exceeded {timeout}s + {grace_period}s grace)"
+            prior_state_value = ConnectionTestState(prior_state).value
+            self.log.warning(
+                "Reaped stale connection test %s (connection_id=%s, prior_state=%s, team=%s)",
+                ct.id,
+                ct.connection_id,
+                prior_state_value,
+                ct.team_name,
+            )
+            stats.incr("connection_test.reaped", tags={"prior_state": prior_state_value})
+            key = ConnectionTestKey(id=str(ct.id))
+            for executor in self.executors:
+                if executor.supports_connection_test:
+                    executor.fail_connection_test(key)
+
+        session.flush()
 
     def _executor_to_workloads(
         self,

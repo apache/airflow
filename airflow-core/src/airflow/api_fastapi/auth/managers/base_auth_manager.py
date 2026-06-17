@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from enum import Enum
@@ -57,6 +58,7 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
     from sqlalchemy import Row
     from sqlalchemy.orm import Session
+    from starlette.middleware import _MiddlewareFactory
 
     from airflow.api_fastapi.auth.managers.models.batch_apis import (
         IsAuthorizedConnectionRequest,
@@ -158,12 +160,40 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             log.error("Couldn't deserialize user from token, JWT token is not valid: %s", e)
             raise InvalidTokenError(str(e))
 
+    def get_fastapi_middlewares(self) -> list[tuple[_MiddlewareFactory[Any], dict[str, Any]]]:
+        """
+        Return middlewares the auth manager wants registered on the main FastAPI app.
+
+        Each entry is a ``(middleware_class, kwargs)`` tuple and is registered via
+        ``app.add_middleware`` by the API server. Auth managers that need to intercept or
+        augment incoming requests (for example, attaching an anonymous user to
+        unauthenticated requests when public access is configured) should override this
+        method.
+        """
+        return []
+
     def generate_jwt(
         self, user: T, *, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
     ) -> str:
         """Return the JWT token from a user object."""
         return self._get_token_signer(expiration_time_in_seconds=expiration_time_in_seconds).generate(
             self.serialize_user(user)
+        )
+
+    def get_cli_user(self) -> T:
+        """
+        Return the user the local CLI acts as when calling the API server.
+
+        The Airflow CLI mints a short-lived JWT for this user (via :meth:`generate_jwt`)
+        so it can talk to the API server without persisting any credentials. A generic
+        auth manager cannot know which user is authorized for local CLI access, so the
+        default raises. Auth managers that support local CLI usage should override this
+        to return an administrative user. Otherwise, operators must provide a token via
+        the ``AIRFLOW_CLI_TOKEN`` environment variable.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support minting a local CLI token. "
+            "Set the AIRFLOW_CLI_TOKEN environment variable with a valid API token instead."
         )
 
     @abstractmethod
@@ -234,13 +264,13 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         details: DagDetails | None = None,
     ) -> bool:
         """
-        Return whether the user is authorized to perform a given action on a DAG.
+        Return whether the user is authorized to perform a given action on a Dag.
 
         :param method: the method to perform
         :param user: the user to performing the action
-        :param access_entity: the kind of DAG information the authorization request is about.
-            If not provided, the authorization request is about the DAG itself
-        :param details: optional details about the DAG
+        :param access_entity: the kind of Dag information the authorization request is about.
+            If not provided, the authorization request is about the Dag itself
+        :param details: optional details about the Dag
         """
 
     @abstractmethod
@@ -551,7 +581,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """
-        Get DAGs the user has access to.
+        Get Dags the user has access to.
 
         :param user: the user
         :param method: the method to filter on
@@ -591,13 +621,13 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         team_name: str | None = None,
     ) -> set[str]:
         """
-        Filter DAGs the user has access to.
+        Filter Dags the user has access to.
 
-        By default, check individually if the user has permissions to access the DAG.
+        By default, check individually if the user has permissions to access the Dag.
         Can lead to some poor performance. It is recommended to override this method in the auth manager
         implementation to provide a more efficient implementation.
 
-        :param dag_ids: the set of DAG ids
+        :param dag_ids: the set of Dag ids
         :param user: the user
         :param method: the method to filter on
         :param team_name: the name of the team associated to the Dags if Airflow environment runs in
@@ -819,6 +849,37 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         return None
 
+    @staticmethod
+    def _get_jwt_audience() -> str:
+        """
+        Resolve the JWT audience from the documented ``[api_auth] jwt_audience`` option.
+
+        Falls back to the undocumented ``[api] jwt_audience`` location used by the signer in
+        earlier 3.x releases (with a deprecation warning) so deployments that set the wrong
+        section continue to work until they migrate. Returns the default ``apache-airflow``
+        when neither is configured.
+
+        :meta private:
+        """
+        if conf.has_option("api_auth", "jwt_audience"):
+            return conf.get("api_auth", "jwt_audience")
+        if conf.has_option("api", "jwt_audience"):
+            # Bug context in PR https://github.com/apache/airflow/pull/67494: the signer used to
+            # read `[api] jwt_audience` while the validator read `[api_auth] jwt_audience`, so
+            # any deployment that hit the bug set the value under `[api]`. Honour it with a
+            # deprecation warning until the fallback can be removed in a future major release.
+            warnings.warn(
+                "The `[api] jwt_audience` configuration option is deprecated and was never "
+                "documented. It was read only by the JWT signer due to a bug; the validator "
+                "always read `[api_auth] jwt_audience`. Move the value to `[api_auth] "
+                "jwt_audience` (env var `AIRFLOW__API_AUTH__JWT_AUDIENCE`). Support for the "
+                "`[api]` location will be removed in a future release.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return conf.get("api", "jwt_audience")
+        return "apache-airflow"
+
     @classmethod
     @cache
     def _get_token_signer(
@@ -835,7 +896,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         return JWTGenerator(
             **get_signing_args(),
             valid_for=expiration_time_in_seconds,
-            audience=conf.get("api", "jwt_audience", fallback="apache-airflow"),
+            audience=cls._get_jwt_audience(),
         )
 
     @classmethod
@@ -849,5 +910,5 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         return JWTValidator(
             **get_sig_validation_args(),
             leeway=conf.getint("api_auth", "jwt_leeway"),
-            audience=conf.get("api_auth", "jwt_audience", fallback="apache-airflow"),
+            audience=cls._get_jwt_audience(),
         )

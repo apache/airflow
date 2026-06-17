@@ -77,7 +77,11 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         :return: Cloud Natural Language service object
         """
         if not self._conn:
-            self._conn = LanguageServiceClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._conn = LanguageServiceClient(
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options=self.get_client_options(),
+            )
         return self._conn
 
     @GoogleBaseHook.quota_retry()

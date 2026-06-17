@@ -17,6 +17,7 @@
  * under the License.
  */
 import { expect, type Locator, type Page, type Response } from "@playwright/test";
+import { HITLReviewModal } from "tests/e2e/components/HITLReviewModal";
 import { BasePage } from "tests/e2e/pages/BasePage";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
@@ -32,6 +33,8 @@ export class DagsPage extends BasePage {
   public readonly cardViewButton: Locator;
   public readonly confirmButton: Locator;
   public readonly failedFilter: Locator;
+  public readonly hitlReviewModal: HITLReviewModal;
+  public readonly needsReviewBadges: Locator;
   public readonly needsReviewFilter: Locator;
   public readonly operatorFilter: Locator;
   public readonly queuedFilter: Locator;
@@ -55,7 +58,7 @@ export class DagsPage extends BasePage {
     this.confirmButton = page.getByRole("dialog").getByRole("button", { name: "Trigger" });
 
     this.searchBox = page.getByRole("textbox", { name: /search/i });
-    this.searchInput = page.getByPlaceholder("Search DAGs");
+    this.searchInput = page.getByPlaceholder("Search Dags");
     this.operatorFilter = page.getByTestId("operator-filter");
     this.triggerRuleFilter = page.getByTestId("trigger-rule-filter");
     this.retriesFilter = page.getByTestId("retries-filter");
@@ -63,6 +66,8 @@ export class DagsPage extends BasePage {
     this.tableViewButton = page.getByRole("button", { name: "Show table view" });
     this.successFilter = page.getByRole("button", { name: "Success" });
     this.failedFilter = page.getByRole("button", { name: "Failed" });
+    this.hitlReviewModal = new HITLReviewModal(page);
+    this.needsReviewBadges = page.getByTestId("needs-review-badge");
     this.runningFilter = page.getByRole("button", { name: "Running" });
     this.queuedFilter = page.getByRole("button", { name: "Queued" });
     // Uses testId because this button's text is driven by an i18n key.
@@ -108,7 +113,7 @@ export class DagsPage extends BasePage {
   }
 
   /**
-   * Filter DAGs by status
+   * Filter Dags by status
    */
   public async filterByStatus(
     status: "failed" | "needs_review" | "queued" | "running" | "success",
@@ -195,8 +200,24 @@ export class DagsPage extends BasePage {
     return texts.map((text) => text.trim()).filter((text) => text !== "");
   }
 
+  public async getDagNeedsReviewBadgeOnCard(dagId: string): Promise<Locator> {
+    const dagCard = this.page.getByTestId("dag-card").filter({ hasText: dagId });
+
+    await expect(dagCard).toBeVisible({ timeout: 60_000 });
+
+    return dagCard.getByTestId("needs-review-badge");
+  }
+
+  public async getDagNeedsReviewBadgeOnTable(dagId: string): Promise<Locator> {
+    const dagRow = this.page.getByTestId("table-list").getByRole("row").filter({ hasText: dagId });
+
+    await expect(dagRow).toBeVisible({ timeout: 60_000 });
+
+    return dagRow.getByTestId("needs-review-badge");
+  }
+
   /**
-   * Get count of DAGs on current page
+   * Get count of Dags on current page
    */
   public async getDagsCount(): Promise<number> {
     await this.waitForDagList();
@@ -232,7 +253,7 @@ export class DagsPage extends BasePage {
         : this.page.locator(`[id="${controlsId}"]`);
     const options = dropdown.locator('div[role="option"]');
 
-    await expect(options.first()).toBeVisible({ timeout: 10_000 });
+    await expect(options.first()).toBeVisible();
 
     const count = await options.count();
     const dataValues: Array<string> = [];
@@ -275,7 +296,7 @@ export class DagsPage extends BasePage {
         .or(this.page.locator(`[data-testid="dag-name"]:has-text("${dagName}")`))
         .first();
 
-      await expect(hydrationSignal).toBeVisible({ timeout: 10_000 });
+      await expect(hydrationSignal).toBeVisible();
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
@@ -343,7 +364,7 @@ export class DagsPage extends BasePage {
    */
   public async switchToCardView(): Promise<void> {
     await expect(this.cardViewButton).toBeVisible({ timeout: 30_000 });
-    await expect(this.cardViewButton).toBeEnabled({ timeout: 10_000 });
+    await expect(this.cardViewButton).toBeEnabled();
     await this.cardViewButton.click();
     await this.waitForCardView();
   }
@@ -353,7 +374,7 @@ export class DagsPage extends BasePage {
    */
   public async switchToTableView(): Promise<void> {
     await expect(this.tableViewButton).toBeVisible({ timeout: 30_000 });
-    await expect(this.tableViewButton).toBeEnabled({ timeout: 10_000 });
+    await expect(this.tableViewButton).toBeEnabled();
     await this.tableViewButton.click();
     await this.waitForTableView();
   }
@@ -375,11 +396,11 @@ export class DagsPage extends BasePage {
    * Wait for card view to be visible
    */
   public async waitForCardView(): Promise<void> {
-    await expect(this.page.locator('[data-testid="card-list"]')).toBeVisible({ timeout: 10_000 });
+    await expect(this.page.locator('[data-testid="card-list"]')).toBeVisible();
   }
 
   /**
-   * Wait for DAG list to be rendered (card view, table view, or empty state).
+   * Wait for Dag list to be rendered (card view, table view, or empty state).
    */
   public async waitForDagList(): Promise<void> {
     // Wait for actual rendered content — not skeletons, not bare table rows.
@@ -395,12 +416,12 @@ export class DagsPage extends BasePage {
    * Wait for table view to be visible
    */
   public async waitForTableView(): Promise<void> {
-    await expect(this.page.locator("table")).toBeVisible({ timeout: 10_000 });
+    await expect(this.page.locator("table")).toBeVisible();
   }
 
   private async handleTriggerDialog(): Promise<string | null> {
     await expect(this.confirmButton).toBeVisible({ timeout: 8000 });
-    await expect(this.confirmButton).toBeEnabled({ timeout: 10_000 });
+    await expect(this.confirmButton).toBeEnabled();
 
     const responsePromise = this.page.waitForResponse(
       (response: Response) => {
@@ -427,7 +448,6 @@ export class DagsPage extends BasePage {
       // Response parsing failed — return null so caller can handle.
     }
 
-    // eslint-disable-next-line unicorn/no-null
     return null;
   }
 

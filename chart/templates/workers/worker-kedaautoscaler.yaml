@@ -17,48 +17,45 @@
  under the License.
 */}}
 
-################################
+#############################
 ## Airflow Worker KEDA Scaler
-#################################
+#############################
 {{- $globals := deepCopy . -}}
-{{- $filteredCelery := include "removeNilFields" .Values.workers.celery | fromYaml -}}
-{{- $mergedWorkers := (include "workersMergeValues" (list .Values.workers $filteredCelery "" (list "kerberosInitContainer" "kerberosSidecar")) | fromYaml) -}}
-{{- $_ := unset $mergedWorkers "celery" -}}
 {{- $workerSets := .Values.workers.celery.sets | default list -}}
 {{- if .Values.workers.celery.enableDefault -}}
   {{- $workerSets = concat (list (dict "name" "default")) $workerSets -}}
 {{- end -}}
 {{- range $workerSet := $workerSets -}}
-  {{- $workers := (include "workersMergeValues" (list $mergedWorkers $workerSet "" list) | fromYaml) -}}
-  {{- $_ := set $globals.Values "workers" $workers -}}
+  {{- $workers := (include "workersMergeValues" (list $.Values.workers.celery $workerSet) | fromYaml) -}}
+  {{- $_ := set $globals.Values.workers "celery" $workers -}}
   {{- with $globals -}}
-{{- if and .Values.workers.keda.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) ) }}
+{{- if and .Values.workers.celery.keda.enabled (contains "CeleryExecutor" .Values.executor) }}
 ---
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
-  name: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
+  name: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.celery.name "default" }}-{{ .Values.workers.celery.name }}{{ end }}
   labels:
     tier: airflow
     component: worker-horizontalpodautoscaler
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    deploymentName: {{ .Release.Name }}-worker{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
-    {{- if or .Values.labels .Values.workers.labels }}
-      {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
+    deploymentName: {{ .Release.Name }}-worker{{ if ne .Values.workers.celery.name "default" }}-{{ .Values.workers.celery.name }}{{ end }}
+    {{- if or .Values.labels .Values.workers.celery.labels }}
+      {{- mustMerge .Values.workers.celery.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
 spec:
   scaleTargetRef:
-    kind: {{ ternary "StatefulSet" "Deployment" .Values.workers.persistence.enabled }}
-    name: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
+    kind: {{ ternary "StatefulSet" "Deployment" .Values.workers.celery.persistence.enabled }}
+    name: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.celery.name "default" }}-{{ .Values.workers.celery.name }}{{ end }}
     envSourceContainerName: worker
-  pollingInterval:  {{ .Values.workers.keda.pollingInterval }}
-  cooldownPeriod: {{ .Values.workers.keda.cooldownPeriod }}
-  minReplicaCount: {{ .Values.workers.keda.minReplicaCount }}
-  maxReplicaCount: {{ .Values.workers.keda.maxReplicaCount }}
-  {{- if .Values.workers.keda.advanced }}
-  advanced: {{- toYaml .Values.workers.keda.advanced | nindent 4 }}
+  pollingInterval:  {{ .Values.workers.celery.keda.pollingInterval }}
+  cooldownPeriod: {{ .Values.workers.celery.keda.cooldownPeriod }}
+  minReplicaCount: {{ .Values.workers.celery.keda.minReplicaCount }}
+  maxReplicaCount: {{ .Values.workers.celery.keda.maxReplicaCount }}
+  {{- if .Values.workers.celery.keda.advanced }}
+  advanced: {{- toYaml .Values.workers.celery.keda.advanced | nindent 4 }}
   {{- end }}
   triggers:
     {{- if eq .Values.data.metadataConnection.protocol "mysql" }}
@@ -66,17 +63,17 @@ spec:
       metadata:
         queryValue: "1"
         connectionStringFromEnv: KEDA_DB_CONN
-        query: {{ tpl .Values.workers.keda.query . | quote }}
+        query: {{ tpl .Values.workers.celery.keda.query . | quote }}
     {{- else }}
     - type: "postgresql"
       metadata:
         targetQueryValue: "1"
-        {{- if and .Values.pgbouncer.enabled (not .Values.workers.keda.usePgbouncer) }}
+        {{- if and .Values.pgbouncer.enabled (not .Values.workers.celery.keda.usePgbouncer) }}
         connectionFromEnv: KEDA_DB_CONN
         {{- else }}
         connectionFromEnv: AIRFLOW_CONN_AIRFLOW_DB
         {{- end }}
-        query: {{ tpl .Values.workers.keda.query . | quote }}
+        query: {{ tpl .Values.workers.celery.keda.query . | quote }}
     {{- end }}
 {{- end }}
 {{- end }}

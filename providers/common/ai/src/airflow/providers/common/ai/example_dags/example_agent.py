@@ -20,10 +20,31 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+from pydantic import BaseModel
+
 from airflow.providers.common.ai.operators.agent import AgentOperator
 from airflow.providers.common.ai.toolsets.hook import HookToolset
-from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.compat.sdk import dag, task
+
+try:
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
+except Exception:
+    SQLToolset = None  # type: ignore[assignment,misc]
+
+
+# [START howto_decorator_agent_structured_output_class]
+# Pydantic output classes must be defined at module scope so downstream
+# tasks can re-import them when deserializing the XCom payload.
+class Analysis(BaseModel):
+    """Structured analysis output for the agent example."""
+
+    summary: str
+    top_items: list[str]
+    row_count: int
+
+
+# [END howto_decorator_agent_structured_output_class]
+
 
 # ---------------------------------------------------------------------------
 # 1. SQL Agent: answer a question using database tools
@@ -31,29 +52,30 @@ from airflow.providers.common.compat.sdk import dag, task
 
 
 # [START howto_operator_agent_sql]
-@dag
-def example_agent_operator_sql():
-    AgentOperator(
-        task_id="analyst",
-        prompt="What are the top 5 customers by order count?",
-        llm_conn_id="pydanticai_default",
-        system_prompt=(
-            "You are a SQL analyst. Use the available tools to explore "
-            "the schema and answer the question with data."
-        ),
-        toolsets=[
-            SQLToolset(
-                db_conn_id="postgres_default",
-                allowed_tables=["customers", "orders"],
-                max_rows=20,
-            )
-        ],
-    )
+if SQLToolset is not None:
 
+    @dag(tags=["example"])
+    def example_agent_operator_sql():
+        AgentOperator(
+            task_id="analyst",
+            prompt="What are the top 5 customers by order count?",
+            llm_conn_id="pydanticai_default",
+            system_prompt=(
+                "You are a SQL analyst. Use the available tools to explore "
+                "the schema and answer the question with data."
+            ),
+            toolsets=[
+                SQLToolset(
+                    db_conn_id="postgres_default",
+                    allowed_tables=["customers", "orders"],
+                    max_rows=20,
+                )
+            ],
+        )
 
-# [END howto_operator_agent_sql]
+    # [END howto_operator_agent_sql]
 
-example_agent_operator_sql()
+    example_agent_operator_sql()
 
 
 # ---------------------------------------------------------------------------
@@ -62,7 +84,7 @@ example_agent_operator_sql()
 
 
 # [START howto_operator_agent_hook]
-@dag
+@dag(tags=["example"])
 def example_agent_operator_hook():
     from airflow.providers.http.hooks.http import HttpHook
 
@@ -94,27 +116,28 @@ example_agent_operator_hook()
 
 
 # [START howto_decorator_agent]
-@dag
-def example_agent_decorator():
-    @task.agent(
-        llm_conn_id="pydanticai_default",
-        system_prompt="You are a data analyst. Use tools to answer questions.",
-        toolsets=[
-            SQLToolset(
-                db_conn_id="postgres_default",
-                allowed_tables=["orders"],
-            )
-        ],
-    )
-    def analyze(question: str):
-        return f"Answer this question about our orders data: {question}"
+if SQLToolset is not None:
 
-    analyze("What was our total revenue last month?")
+    @dag(tags=["example"])
+    def example_agent_decorator():
+        @task.agent(
+            llm_conn_id="pydanticai_default",
+            system_prompt="You are a data analyst. Use tools to answer questions.",
+            toolsets=[
+                SQLToolset(
+                    db_conn_id="postgres_default",
+                    allowed_tables=["orders"],
+                )
+            ],
+        )
+        def analyze(question: str):
+            return f"Answer this question about our orders data: {question}"
 
+        analyze("What was our total revenue last month?")
 
-# [END howto_decorator_agent]
+    # [END howto_decorator_agent]
 
-example_agent_decorator()
+    example_agent_decorator()
 
 
 # ---------------------------------------------------------------------------
@@ -123,30 +146,24 @@ example_agent_decorator()
 
 
 # [START howto_decorator_agent_structured]
-@dag
-def example_agent_structured_output():
-    from pydantic import BaseModel
+if SQLToolset is not None:
 
-    class Analysis(BaseModel):
-        summary: str
-        top_items: list[str]
-        row_count: int
+    @dag(tags=["example"])
+    def example_agent_structured_output():
+        @task.agent(
+            llm_conn_id="pydanticai_default",
+            system_prompt="You are a data analyst. Return structured results.",
+            output_type=Analysis,
+            toolsets=[SQLToolset(db_conn_id="postgres_default")],
+        )
+        def analyze(question: str):
+            return f"Analyze: {question}"
 
-    @task.agent(
-        llm_conn_id="pydanticai_default",
-        system_prompt="You are a data analyst. Return structured results.",
-        output_type=Analysis,
-        toolsets=[SQLToolset(db_conn_id="postgres_default")],
-    )
-    def analyze(question: str):
-        return f"Analyze: {question}"
+        analyze("What are the trending products this week?")
 
-    analyze("What are the trending products this week?")
+    # [END howto_decorator_agent_structured]
 
-
-# [END howto_decorator_agent_structured]
-
-example_agent_structured_output()
+    example_agent_structured_output()
 
 
 # ---------------------------------------------------------------------------
@@ -155,29 +172,30 @@ example_agent_structured_output()
 
 
 # [START howto_agent_chain]
-@dag
-def example_agent_chain():
-    @task.agent(
-        llm_conn_id="pydanticai_default",
-        system_prompt="You are a SQL analyst.",
-        toolsets=[SQLToolset(db_conn_id="postgres_default", allowed_tables=["orders"])],
-    )
-    def investigate(question: str):
-        return f"Investigate: {question}"
+if SQLToolset is not None:
 
-    @task
-    def send_report(analysis: str):
-        """Send the agent's analysis to a downstream system."""
-        print(f"Report: {analysis}")
-        return analysis
+    @dag(tags=["example"])
+    def example_agent_chain():
+        @task.agent(
+            llm_conn_id="pydanticai_default",
+            system_prompt="You are a SQL analyst.",
+            toolsets=[SQLToolset(db_conn_id="postgres_default", allowed_tables=["orders"])],
+        )
+        def investigate(question: str):
+            return f"Investigate: {question}"
 
-    result = investigate("Summarize order trends for last quarter")
-    send_report(result)
+        @task
+        def send_report(analysis: str):
+            """Send the agent's analysis to a downstream system."""
+            print(f"Report: {analysis}")
+            return analysis
 
+        result = investigate("Summarize order trends for last quarter")
+        send_report(result)
 
-# [END howto_agent_chain]
+    # [END howto_agent_chain]
 
-example_agent_chain()
+    example_agent_chain()
 
 
 # ---------------------------------------------------------------------------
@@ -186,7 +204,7 @@ example_agent_chain()
 
 
 # [START howto_operator_agent_hitl_review]
-@dag
+@dag(tags=["example"])
 def example_agent_operator_hitl_review():
     """AgentOperator with HITL review — a human approves output via hitl-review plugin UI."""
     AgentOperator(

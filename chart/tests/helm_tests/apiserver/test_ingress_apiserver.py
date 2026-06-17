@@ -1,0 +1,159 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import jmespath
+import pytest
+from chart_utils.helm_template_generator import render_chart
+
+
+class TestIngressAPIServer:
+    """Tests ingress API Server."""
+
+    def test_should_pass_validation_with_just_ingress_enabled(self):
+        render_chart(
+            values={"ingress": {"apiServer": {"enabled": True}}},
+            show_only=["templates/api-server/api-server-ingress.yaml"],
+        )
+
+    def test_should_allow_more_than_one_annotation(self):
+        docs = render_chart(
+            values={
+                "ingress": {"apiServer": {"enabled": True, "annotations": {"aa": "bb", "cc": "dd"}}},
+            },
+            show_only=["templates/api-server/api-server-ingress.yaml"],
+        )
+        assert jmespath.search("metadata.annotations", docs[0]) == {"aa": "bb", "cc": "dd"}
+
+    def test_should_set_ingress_class_name(self):
+        docs = render_chart(
+            values={
+                "ingress": {"apiServer": {"enabled": True, "ingressClassName": "foo"}},
+            },
+            show_only=["templates/api-server/api-server-ingress.yaml"],
+        )
+        assert jmespath.search("spec.ingressClassName", docs[0]) == "foo"
+
+    def test_should_ingress_host_entry_not_exist(self):
+        docs = render_chart(
+            values={
+                "ingress": {
+                    "apiServer": {
+                        "enabled": True,
+                    }
+                },
+            },
+            show_only=["templates/api-server/api-server-ingress.yaml"],
+        )
+        assert not jmespath.search("spec.rules[*].host", docs[0])
+
+    @pytest.mark.parametrize(
+        ("api_server_value", "expected"),
+        [
+            (None, False),
+            (False, False),
+            (True, True),
+        ],
+    )
+    def test_ingress_created(self, api_server_value, expected):
+        values = {}
+        if api_server_value is not None:
+            values["ingress"] = {"apiServer": {"enabled": api_server_value}}
+        docs = render_chart(values=values, show_only=["templates/api-server/api-server-ingress.yaml"])
+        assert expected == (len(docs) == 1)
+
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "ingress": {"apiServer": {"enabled": True}},
+                "apiServer": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/api-server/api-server-ingress.yaml"],
+        )
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_can_ingress_hosts_be_templated(self):
+        docs = render_chart(
+            values={
+                "testValues": {
+                    "scalar": "aa",
+                    "list": ["bb", "cc"],
+                    "dict": {
+                        "key": "dd",
+                    },
+                },
+                "ingress": {
+                    "apiServer": {
+                        "enabled": True,
+                        "hosts": [
+                            {
+                                "name": "*.{{ .Release.Namespace }}.example.com",
+                                "tls": {"enabled": True, "secretName": "secret1"},
+                            },
+                            {
+                                "name": "{{ .Values.testValues.scalar }}.example.com",
+                                "tls": {"enabled": True, "secretName": "secret2"},
+                            },
+                            {"name": "{{ index .Values.testValues.list 1 }}.example.com"},
+                            {"name": "{{ .Values.testValues.dict.key }}.example.com"},
+                        ],
+                    },
+                },
+            },
+            show_only=["templates/api-server/api-server-ingress.yaml"],
+            namespace="airflow",
+        )
+
+        assert jmespath.search("spec.rules[*].host", docs[0]) == [
+            "*.airflow.example.com",
+            "aa.example.com",
+            "cc.example.com",
+            "dd.example.com",
+        ]
+        assert jmespath.search("spec.tls[*]", docs[0]) == [
+            {"hosts": ["*.airflow.example.com"], "secretName": "secret1"},
+            {"hosts": ["aa.example.com"], "secretName": "secret2"},
+        ]
+
+    def test_backend_service_name(self):
+        docs = render_chart(
+            values={"ingress": {"apiServer": {"enabled": True}}},
+            show_only=["templates/api-server/api-server-ingress.yaml"],
+        )
+
+        assert (
+            jmespath.search("spec.rules[0].http.paths[0].backend.service.name", docs[0])
+            == "release-name-api-server"
+        )
+
+    def test_backend_service_name_with_fullname_override(self):
+        docs = render_chart(
+            values={
+                "fullnameOverride": "test-basic",
+                "useStandardNaming": True,
+                "ingress": {"apiServer": {"enabled": True}},
+            },
+            show_only=["templates/api-server/api-server-ingress.yaml"],
+        )
+
+        assert (
+            jmespath.search("spec.rules[0].http.paths[0].backend.service.name", docs[0])
+            == "test-basic-api-server"
+        )

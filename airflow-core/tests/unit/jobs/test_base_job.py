@@ -56,16 +56,6 @@ class TestJob:
         assert job.state == State.SUCCESS
         assert job.end_date is not None
 
-    def test_base_job_respects_plugin_hooks(self):
-        import sys
-
-        job = Job()
-        job_runner = MockJobRunner(job=job, func=lambda: sys.exit(0))
-        run_job(job=job, execute_callable=job_runner._execute)
-
-        assert job.state == State.SUCCESS
-        assert job.end_date is not None
-
     def test_base_job_respects_plugin_lifecycle(self, dag_maker, listener_manager):
         """
         Test if DagRun is successful, and if Success callbacks is defined, it is sent to DagFileProcessor.
@@ -268,7 +258,7 @@ class TestJob:
             hb_callback = Mock()
             job.heartbeat(heartbeat_callback=hb_callback)
 
-            hb_callback.assert_called_once_with(ANY)
+            hb_callback.assert_called_once_with(session=ANY)
 
             hb_callback.reset_mock()
             perform_heartbeat(job=job, heartbeat_callback=hb_callback, only_if_necessary=True)

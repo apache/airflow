@@ -37,10 +37,13 @@ from airflow.providers.edge3.models.edge_worker import (
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueueUpdateBody, WorkerStateBody
 from airflow.providers.edge3.worker_api.routes.worker import (
     _assert_version,
+    _version,
     register,
     set_state,
     update_queues,
 )
+
+from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -68,6 +71,11 @@ class TestWorkerApiRoutes:
     def setup_test_cases(self, session: Session):
         session.execute(delete(EdgeWorkerModel))
 
+    def test_version(self):
+        assert _version("1.2.3") == (1, 2, 3)
+        assert _version("1.2.3rc1") == (1, 2, 3)
+        assert _version("1.2.3.dev0") == (1, 2, 3)
+
     def test_assert_version(self):
         from airflow import __version__ as airflow_version
         from airflow.providers.edge3 import __version__ as edge_provider_version
@@ -86,6 +94,22 @@ class TestWorkerApiRoutes:
 
         with pytest.raises(HTTPException):
             _assert_version({"airflow_version": airflow_version, "edge_provider_version": "2023.10.07"})
+
+        with conf_vars({("edge", "minimum_acceptable_edge_version_for_workers"): "3.2.0"}):
+            with pytest.raises(HTTPException):
+                _assert_version({"airflow_version": airflow_version, "edge_provider_version": "3.1.0"})
+
+            _assert_version({"airflow_version": airflow_version, "edge_provider_version": "3.2.0"})
+            _assert_version({"airflow_version": airflow_version, "edge_provider_version": "3.2.1rc1"})
+            _assert_version({"airflow_version": airflow_version, "edge_provider_version": "4.1.1"})
+
+        with conf_vars({("edge", "minimum_acceptable_core_version_for_workers"): "3.1.0"}):
+            with pytest.raises(HTTPException):
+                _assert_version({"airflow_version": "3.0.0", "edge_provider_version": edge_provider_version})
+
+            _assert_version({"airflow_version": "3.1.0", "edge_provider_version": edge_provider_version})
+            _assert_version({"airflow_version": "3.2.0rc3", "edge_provider_version": edge_provider_version})
+            _assert_version({"airflow_version": "4.1.0", "edge_provider_version": edge_provider_version})
 
         _assert_version({"airflow_version": airflow_version, "edge_provider_version": edge_provider_version})
 

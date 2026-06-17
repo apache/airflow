@@ -111,6 +111,12 @@ class _TimeoutK8sApiClient(client.ApiClient):
 class _TimeoutAsyncK8sApiClient(async_client.ApiClient):
     """Wrapper around kubernetes async ApiClient to set default timeout."""
 
+    def __init__(
+        self,
+        configuration: async_client.Configuration | None = None,
+    ) -> None:
+        super().__init__(configuration=configuration)
+
     async def call_api(self, *args, **kwargs):
         timeout_seconds = kwargs.get("timeout_seconds")  # server-side timeout
         kwargs.setdefault("_request_timeout", _get_request_timeout(timeout_seconds))  # client-side timeout
@@ -847,7 +853,12 @@ class AsyncKubernetesHook(KubernetesHook):
     """Hook to use Kubernetes SDK asynchronously."""
 
     def __init__(
-        self, config_dict: dict | None = None, connection_extras: dict | None = None, *args, **kwargs
+        self,
+        config_dict: dict | None = None,
+        connection_extras: dict | None = None,
+        client_configuration: async_client.Configuration | None = None,
+        *args,
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
 
@@ -855,6 +866,8 @@ class AsyncKubernetesHook(KubernetesHook):
         self._extras: dict | None = connection_extras
         self._event_polling_fallback = False
         self._config_loaded = False
+        # Override the parent's sync-typed client_configuration with the async type.
+        self.client_configuration: async_client.Configuration | None = client_configuration
         # Cached result of exec-auth detection. None means not yet detected.
         # This is to optimise and not calling _uses_exec_auth repeatedly on every _load_config() call.
         self._is_exec_auth: bool | None = None
@@ -894,6 +907,9 @@ class AsyncKubernetesHook(KubernetesHook):
         and cached. For exec-based auth (EKS, GKE), the config is reloaded on every call so
         that short-lived tokens are always refreshed.
         """
+        if self.client_configuration is None:
+            self.client_configuration = async_client.Configuration()
+
         if self._config_loaded:
             return
 
@@ -915,7 +931,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
         if in_cluster:
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("within a pod"))
-            async_config.load_incluster_config()
+            async_config.load_incluster_config(client_configuration=self.client_configuration)
             self._is_in_cluster = True
             self._config_loaded = True
             return
@@ -927,6 +943,7 @@ class AsyncKubernetesHook(KubernetesHook):
             await async_config.load_kube_config_from_dict(
                 self.config_dict,
                 context=cluster_context,
+                client_configuration=self.client_configuration,
             )
 
             if self._is_exec_auth is None:
@@ -1041,7 +1058,7 @@ class AsyncKubernetesHook(KubernetesHook):
         kube_client = None
         try:
             await self._load_config()
-            kube_client = _TimeoutAsyncK8sApiClient()
+            kube_client = _TimeoutAsyncK8sApiClient(configuration=self.client_configuration)
             yield kube_client
         finally:
             if kube_client is not None:

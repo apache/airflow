@@ -2,8 +2,6 @@
   "additional_data": "נתונים נוספים",
   "asset_many": "נכסים",
   "asset_one": "נכס",
-  "asset_other": "נכסים",
-  "asset_two": "שני נכסים",
   "consumingDags": "צורכים Dags",
   "consumingTasks": "משימות צורכות",
   "createEvent": {
@@ -33,5 +31,7 @@
   "name": "שם",
   "producingTasks": "מייצר משימות",
   "scheduledDags": "Dags מתוזמנים",
-  "searchPlaceholder": "חיפוש נכסים"
+  "scheduling": "תזמון",
+  "searchPlaceholder": "חיפוש נכסים",
+  "taskDependencies": "תלויות בין משימות"
 }

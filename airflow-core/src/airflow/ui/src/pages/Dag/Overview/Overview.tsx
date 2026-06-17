@@ -30,13 +30,14 @@ import {
 } from "openapi/queries";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { DurationChart } from "src/components/DurationChart";
-import { NeedsReviewButton } from "src/components/NeedsReviewButton";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { dagRunsLimitKey } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
+
+import { DagDeadlines } from "./DagDeadlines";
 
 const FailedLogs = lazy(() => import("./FailedLogs"));
 
@@ -85,7 +86,6 @@ export const Overview = () => {
 
   return (
     <Box m={4} spaceY={4}>
-      <NeedsReviewButton dagId={dagId} />
       <Box my={2}>
         <TimeRangeSelector
           defaultValue={defaultHour}
@@ -149,6 +149,7 @@ export const Overview = () => {
           />
         ) : undefined}
       </HStack>
+      {dagId === undefined ? undefined : <DagDeadlines dagId={dagId} />}
       <Suspense fallback={<Skeleton height="100px" width="full" />}>
         <FailedLogs failedTasks={failedTasks} />
       </Suspense>

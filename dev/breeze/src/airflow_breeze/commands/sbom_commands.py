@@ -198,11 +198,18 @@ SBOM_INDEX_TEMPLATE = """
 )
 @click.option(
     "--remote-name",
-    type=NotVerifiedBetterChoice(["apache", "origin"]),
-    default="apache",
+    # ``apache`` is kept in the autocomplete/help list for back-compat during the upstream/origin
+    # standardization; existing setups still work since NotVerifiedBetterChoice accepts any value.
+    type=NotVerifiedBetterChoice(["upstream", "origin", "apache"]),
+    default="upstream",
     show_default=True,
     envvar="REMOTE_NAME",
-    help="Remote name to use when pulling the constraints.",
+    help=(
+        "Remote name to use when pulling the constraints. Defaults to 'upstream' per the "
+        "standard remote naming convention (see contributing-docs/10_working_with_git.rst). "
+        "Use 'origin' if your clone of apache/airflow is set up as origin. 'apache' is still "
+        "accepted for back-compat with legacy clones."
+    ),
 )
 @click.option(
     "--add-stable",

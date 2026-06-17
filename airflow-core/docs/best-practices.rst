@@ -319,7 +319,7 @@ Installing and Using ruff
 
    .. code-block:: bash
 
-      pip install "ruff>=0.15.11"
+      pip install "ruff>=0.15.16"
 
 2. **Running ruff**: Execute ``ruff`` to check your Dags for potential issues:
 
@@ -355,6 +355,16 @@ Running ``ruff`` will produce:
    dags/legacy_dag.py:19:5: AIR303 airflow.sensors.filesystem.FileSensor is moved into ``standard`` provider in Airflow 3.0
 
 By integrating ``ruff`` into your development workflow, you can proactively address deprecations and maintain code quality, facilitating smoother transitions between Airflow versions.
+
+.. _best_practices/static_type_checking:
+
+Static Type Checking for Dags
+-----------------------------
+
+If you type-check your Dags with ``mypy``, the optional
+`apache-airflow-mypy <https://pypi.org/project/apache-airflow-mypy/>`_ plugins give accurate results for
+Airflow-specific patterns such as typed decorators and operator outputs. See
+:doc:`/howto/static-type-checking` for installation and configuration.
 
 .. _best_practices/dynamic_dag_generation:
 

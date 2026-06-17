@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
 class SageMakerNotebookOperator(BaseOperator):
     """
-    Provides Artifact execution functionality for Sagemaker Unified Studio Workflows.
+    Provides Jupyter notebook artifact execution functionality for Sagemaker Unified Studio Workflows.
 
     Examples:
      .. code-block:: python

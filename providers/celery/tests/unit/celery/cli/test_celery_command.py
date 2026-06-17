@@ -139,11 +139,15 @@ class TestWorkerStart:
             importlib.reload(cli_parser)
             cls.parser = cli_parser.get_parser()
 
+    @mock.patch("airflow.providers.celery.cli.celery_command.kombu.pools.reset")
+    @mock.patch("airflow.providers.celery.cli.celery_command.Celery")
     @mock.patch("airflow.providers.celery.cli.celery_command.setup_locations")
     @mock.patch("airflow.providers.celery.cli.celery_command.Process")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     @conf_vars({("celery", "pool"): "prefork"})
-    def test_worker_started_with_required_arguments(self, mock_celery_app, mock_popen, mock_locations):
+    def test_worker_started_with_required_arguments(
+        self, mock_celery_app, mock_popen, mock_locations, mock_celery_cls, mock_pools_reset
+    ):
         pid_file = "pid_file"
         mock_locations.return_value = (pid_file, None, None, None)
         concurrency = "1"
@@ -330,17 +334,17 @@ class TestWorkerDuplicateHostnameCheck:
             cls.parser = cli_parser.get_parser()
 
     @pytest.mark.db_test
-    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
-    def test_worker_fails_when_hostname_already_exists(self, mock_inspect):
+    @mock.patch("airflow.providers.celery.cli.celery_command.kombu.pools.reset")
+    @mock.patch("airflow.providers.celery.cli.celery_command.Celery")
+    def test_worker_fails_when_hostname_already_exists(self, mock_celery_cls, mock_pools_reset):
         """Test that worker command fails when trying to start a worker with a duplicate hostname."""
         args = self.parser.parse_args(["celery", "worker", "--celery-hostname", "existing_host"])
 
-        # Mock the inspect to return an active worker with the same hostname
-        mock_instance = MagicMock()
-        mock_instance.active_queues.return_value = {
+        mock_temp_app = MagicMock()
+        mock_temp_app.control.inspect.return_value.active_queues.return_value = {
             "celery@existing_host": [{"name": "queue1"}],
         }
-        mock_inspect.return_value = mock_instance
+        mock_celery_cls.return_value = mock_temp_app
 
         # Test that SystemExit is raised with appropriate error message
         with pytest.raises(SystemExit) as exc_info:
@@ -348,27 +352,38 @@ class TestWorkerDuplicateHostnameCheck:
 
         assert "existing_host" in str(exc_info.value)
         assert "already running" in str(exc_info.value)
+        # Pool cleanup must run even when the check raises — see issue #59707
+        mock_temp_app.close.assert_called_once()
+        mock_pools_reset.assert_called_once()
 
     @pytest.mark.db_test
-    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
+    @mock.patch("airflow.providers.celery.cli.celery_command.kombu.pools.reset")
+    @mock.patch("airflow.providers.celery.cli.celery_command.Celery")
     @mock.patch("airflow.providers.celery.cli.celery_command.Process")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
-    def test_worker_starts_when_hostname_is_unique(self, mock_celery_app, mock_popen, mock_inspect):
+    def test_worker_starts_when_hostname_is_unique(
+        self, mock_celery_app, mock_popen, mock_celery_cls, mock_pools_reset
+    ):
         """Test that worker command succeeds when the hostname is unique."""
         args = self.parser.parse_args(["celery", "worker", "--celery-hostname", "new_host"])
 
-        # Mock the inspect to return active workers without the new hostname
-        mock_instance = MagicMock()
-        mock_instance.active_queues.return_value = {
+        mock_temp_app = MagicMock()
+        mock_temp_app.control.inspect.return_value.active_queues.return_value = {
             "celery@existing_host": [{"name": "queue1"}],
         }
-        mock_inspect.return_value = mock_instance
+        mock_celery_cls.return_value = mock_temp_app
 
         # Worker should start successfully
         celery_command.worker(args)
 
-        # Verify that worker_main was called
+        # Verify that worker_main was called on the real app, not the temp app
         assert mock_celery_app.worker_main.called
+        mock_temp_app.worker_main.assert_not_called()
+        # Real app's inspect must not be touched — it would pollute the worker's pools
+        mock_celery_app.control.inspect.assert_not_called()
+        # Pool cleanup must still run on the happy path
+        mock_temp_app.close.assert_called_once()
+        mock_pools_reset.assert_called_once()
 
 
 @pytest.mark.backend("mysql", "postgres")

@@ -48,14 +48,21 @@ class TestGoogleDriveHook:
     def teardown_method(self) -> None:
         self.patcher_get_connection.stop()
 
+    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_client_options")
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook._authorize",
         return_value="AUTHORIZE",
     )
     @mock.patch("airflow.providers.google.suite.hooks.drive.build")
-    def test_get_conn(self, mock_discovery_build, mock_authorize):
+    def test_get_conn(self, mock_discovery_build, mock_authorize, mock_get_client_options):
         self.gdrive_hook.get_conn()
-        mock_discovery_build.assert_called_once_with("drive", "v3", cache_discovery=False, http="AUTHORIZE")
+        mock_discovery_build.assert_called_once_with(
+            "drive",
+            "v3",
+            cache_discovery=False,
+            http="AUTHORIZE",
+            client_options=mock_get_client_options.return_value,
+        )
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     def test_ensure_folders_exists_when_no_folder_exists(self, mock_get_conn):

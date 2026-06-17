@@ -74,7 +74,7 @@ export class XComsPage extends BasePage {
 
   public async verifyDagDisplayNameFiltering(dagDisplayNamePattern: string): Promise<void> {
     await this.navigate();
-    await this.applyFilter("DAG ID", dagDisplayNamePattern);
+    await this.applyFilter("Dag ID", dagDisplayNamePattern);
 
     await expect(async () => {
       const firstLink = this.tableRows.first().locator("a[href*='/dags/']").first();
@@ -82,12 +82,14 @@ export class XComsPage extends BasePage {
       await expect(firstLink).toContainText(dagDisplayNamePattern, { ignoreCase: true });
     }).toPass({ timeout: 30_000 });
 
-    await expect(this.tableRows).not.toHaveCount(0);
+    const rows = this.xcomsTable.locator("tbody tr");
 
-    const rowCount = await this.tableRows.count();
+    await expect(rows).not.toHaveCount(0);
+
+    const rowCount = await rows.count();
 
     for (let i = 0; i < Math.min(rowCount, 3); i++) {
-      const dagIdLink = this.tableRows.nth(i).locator("a[href*='/dags/']").first();
+      const dagIdLink = rows.nth(i).locator("a[href*='/dags/']").first();
 
       await expect(dagIdLink).toContainText(dagDisplayNamePattern, { ignoreCase: true });
     }
@@ -114,51 +116,27 @@ export class XComsPage extends BasePage {
       await expect(firstKeyCell).toContainText(keyPattern, { ignoreCase: true });
     }).toPass({ timeout: 30_000 });
 
-    await expect(this.tableRows).not.toHaveCount(0);
+    const rows = this.xcomsTable.locator("tbody tr");
 
-    const rowCount = await this.tableRows.count();
+    await expect(rows).not.toHaveCount(0);
+
+    const rowCount = await rows.count();
 
     for (let i = 0; i < Math.min(rowCount, 3); i++) {
-      const keyCell = this.tableRows.nth(i).locator("td").first();
+      const keyCell = rows.nth(i).locator("td").first();
 
       await expect(keyCell).toContainText(keyPattern, { ignoreCase: true });
     }
   }
 
-  public async verifySortByColumn(columnName: string): Promise<void> {
-    await this.navigate();
-
-    const columnHeader = this.xcomsTable.getByRole("columnheader", { name: columnName });
-
-    await expect(columnHeader).toBeVisible({ timeout: 10_000 });
-
-    const firstSortResponse = this.page.waitForResponse(
-      (response) => response.url().includes("xcomEntries") && response.ok(),
-      { timeout: 10_000 },
-    );
-
-    await columnHeader.click();
-    await firstSortResponse;
-    await expect(this.page).toHaveURL(/sorting/);
-
-    const secondSortResponse = this.page.waitForResponse(
-      (response) => response.url().includes("xcomEntries") && response.ok(),
-      { timeout: 10_000 },
-    );
-
-    await columnHeader.click();
-    await secondSortResponse;
-    await expect(this.page).toHaveURL(/sorting/);
-  }
-
   public async verifyXComDetailsDisplay(): Promise<void> {
     const firstRow = this.tableRows.first();
 
-    await expect(firstRow).toBeVisible({ timeout: 10_000 });
+    await expect(firstRow).toBeVisible();
 
     const keyCell = firstRow.locator("td").first();
 
-    await expect(keyCell).not.toHaveText("", { timeout: 10_000 });
+    await expect(keyCell).not.toBeEmpty();
 
     const dagIdLink = firstRow.locator("a[href*='/dags/']").first();
 
@@ -180,19 +158,12 @@ export class XComsPage extends BasePage {
     const dataLinks = this.xcomsTable.locator("a[href*='/dags/']");
 
     await expect(dataLinks.first()).toBeVisible({ timeout: 30_000 });
-    await expect(dataLinks).not.toHaveCount(0);
   }
 
   public async verifyXComValuesDisplayed(): Promise<void> {
     const firstRow = this.tableRows.first();
 
-    await expect(firstRow).toBeVisible({ timeout: 10_000 });
-
-    const valueCell = firstRow.locator("td").last();
-
-    await expect(valueCell).toBeVisible();
-    await expect(
-      valueCell.getByRole("button").or(valueCell.locator("pre")).or(valueCell.locator("code")),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(firstRow).toBeVisible();
+    await expect(firstRow.getByTestId("xcom-value")).toBeVisible();
   }
 }

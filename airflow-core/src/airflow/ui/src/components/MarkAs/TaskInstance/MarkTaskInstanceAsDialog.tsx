@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, Flex, Heading, VStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
@@ -52,11 +52,22 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
 
+  useEffect(() => {
+    if (open) {
+      setNote(taskInstance.note);
+    }
+  }, [open, taskInstance.note]);
+
+  const handleClose = () => {
+    setNote(taskInstance.note);
+    onClose();
+  };
+
   const { isPending, mutate } = usePatchTaskInstance({
     dagId,
     dagRunId,
     mapIndex,
-    onSuccess: onClose,
+    onSuccess: handleClose,
     taskId,
   });
   const { data, isPending: isPendingDryRun } = usePatchTaskInstanceDryRun({
@@ -84,7 +95,15 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
   };
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
+    <Dialog.Root
+      lazyMount
+      onOpenChange={(details) => {
+        if (!details.open) {
+          handleClose();
+        }
+      }}
+      open={open}
+    >
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
@@ -135,7 +154,6 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
-              colorPalette="brand"
               loading={isPending || isPendingDryRun}
               onClick={() => {
                 mutate({

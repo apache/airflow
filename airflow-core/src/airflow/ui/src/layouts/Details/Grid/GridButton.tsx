@@ -22,9 +22,11 @@ import { Link } from "react-router-dom";
 
 import type { DagRunState, TaskInstanceState } from "openapi/requests/types.gen";
 import { BasicTooltip } from "src/components/BasicTooltip";
+import { renderDuration } from "src/utils/datetimeUtils";
 
 type Props = {
   readonly dagId: string;
+  readonly duration?: number | null;
   readonly isGroup?: boolean;
   readonly label: string;
   readonly runId: string;
@@ -36,6 +38,7 @@ type Props = {
 export const GridButton = ({
   children,
   dagId,
+  duration,
   isGroup,
   label,
   runId,
@@ -54,6 +57,8 @@ export const GridButton = ({
       <br />
       {translate("state")}:{" "}
       {state ? translate(`common:states.${state}`) : translate("common:states.no_status")}
+      <br />
+      {translate("duration")}: {renderDuration(duration)}
     </>
   );
 

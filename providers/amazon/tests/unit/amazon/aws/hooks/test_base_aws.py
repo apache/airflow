@@ -406,7 +406,7 @@ class TestAwsBaseHook:
         """
         client_meta = AwsBaseHook(aws_conn_id=None, client_type="s3").conn_client_meta
 
-        expected_user_agent_tag_keys = ["Airflow", "AmPP", "Caller", "DagRunKey"]
+        expected_user_agent_tag_keys = ["Airflow", "AmPP", "Caller", "DagRunKey", "MultiTeam", "TeamNameKey"]
 
         result_user_agent_tags = client_meta.config.user_agent.split(" ")
         result_user_agent_tag_keys = [tag.split("/")[0].lower() for tag in result_user_agent_tags]
@@ -472,6 +472,29 @@ class TestAwsBaseHook:
             dag_run_key = self.fetch_tags()["DagRunKey"]
 
             assert UUID(dag_run_key).version == expected_version
+
+    @pytest.mark.parametrize(
+        ("env_var", "expected"),
+        [
+            pytest.param({"AIRFLOW_CTX_TEAM_NAME": "my-team"}, "True", id="multi-team-enabled"),
+            pytest.param({}, "False", id="multi-team-disabled"),
+        ],
+    )
+    def test_user_agent_multi_team(self, env_var, expected):
+        with mock.patch.dict(os.environ, env_var, clear=True):
+            assert AwsBaseHook._is_multi_team() == (expected == "True")
+
+    @pytest.mark.parametrize(
+        ("env_var", "expected_version"),
+        [
+            pytest.param({"AIRFLOW_CTX_TEAM_NAME": "my-team"}, 5, id="team-set"),
+            pytest.param({}, None, id="team-not-set"),
+        ],
+    )
+    def test_user_agent_team_name_key_is_hashed_correctly(self, env_var, expected_version):
+        with mock.patch.dict(os.environ, env_var, clear=True):
+            team_name_key = AwsBaseHook._generate_team_name_key()
+            assert UUID(team_name_key).version == expected_version
 
     @pytest.mark.parametrize(
         "sts_endpoint",

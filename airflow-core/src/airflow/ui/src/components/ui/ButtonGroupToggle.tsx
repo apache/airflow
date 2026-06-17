@@ -17,8 +17,10 @@
  * under the License.
  */
 import type { ButtonGroupProps, ButtonProps } from "@chakra-ui/react";
-import { Button, ButtonGroup, IconButton } from "@chakra-ui/react";
+import { Button, ButtonGroup } from "@chakra-ui/react";
 import type { FC, ReactNode } from "react";
+
+import { IconButton } from ".";
 
 export type ButtonGroupOption<T extends string = string> = {
   readonly dataTestId?: string;
@@ -45,7 +47,7 @@ export const ButtonGroupToggle = <T extends string = string>({
   const ButtonComponent: FC<ButtonProps> = isIcon ? IconButton : Button;
 
   return (
-    <ButtonGroup attached colorPalette="brand" size="sm" variant="outline" {...rest}>
+    <ButtonGroup attached colorPalette="brand" variant="outline" {...rest}>
       {options.map((option) => {
         const isSelected = option.value === value;
         const label = typeof option.label === "function" ? option.label(isSelected) : option.label;

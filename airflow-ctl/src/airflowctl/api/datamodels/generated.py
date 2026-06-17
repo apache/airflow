@@ -49,6 +49,32 @@ class AssetAliasResponse(BaseModel):
     group: Annotated[str, Field(title="Group")]
 
 
+class AssetEventAccessControl(BaseModel):
+    """
+    Access control settings for asset event consumer team filtering.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    consumer_teams: Annotated[list[str] | None, Field(title="Consumer Teams")] = None
+    allow_global: Annotated[bool | None, Field(title="Allow Global")] = True
+
+
+class AssetStateStoreWriterKind(str, Enum):
+    """
+    Identifies what kind of writer last updated an asset state store entry.
+
+    ``TASK`` — written by a task via the execution API.
+    ``WATCHER`` — written by a ``BaseEventTrigger`` (no task instance).
+    ``API`` — written directly through the Core API (e.g. manual admin write).
+    """
+
+    TASK = "task"
+    WATCHER = "watcher"
+    API = "api"
+
+
 class AssetWatcherResponse(BaseModel):
     """
     Asset watcher serializer for responses.
@@ -57,6 +83,18 @@ class AssetWatcherResponse(BaseModel):
     name: Annotated[str, Field(title="Name")]
     trigger_id: Annotated[int, Field(title="Trigger Id")]
     created_date: Annotated[datetime, Field(title="Created Date")]
+
+
+class AsyncConnectionTestResponse(BaseModel):
+    """
+    Response returned when polling for the status of an enqueued connection test.
+    """
+
+    token: Annotated[str, Field(title="Token")]
+    connection_id: Annotated[str, Field(title="Connection Id")]
+    state: Annotated[str, Field(title="State")]
+    result_message: Annotated[str | None, Field(title="Result Message")] = None
+    created_at: Annotated[datetime, Field(title="Created At")]
 
 
 class BaseInfoResponse(BaseModel):
@@ -108,6 +146,10 @@ class BulkActionResponse(BaseModel):
     ] = []
 
 
+class Note(RootModel[str]):
+    root: Annotated[str, Field(max_length=1000, title="Note")]
+
+
 class BulkResponse(BaseModel):
     """
     Serializer for responses to bulk entity operations.
@@ -129,10 +171,6 @@ class BulkResponse(BaseModel):
         BulkActionResponse | None,
         Field(description="Details of the bulk delete operation, including successful keys and errors."),
     ] = None
-
-
-class Note(RootModel[str]):
-    root: Annotated[str, Field(max_length=1000, title="Note")]
 
 
 class TaskIds(RootModel[list]):
@@ -168,10 +206,10 @@ class ClearTaskInstancesBody(BaseModel):
     run_on_latest_version: Annotated[
         bool | None,
         Field(
-            description="(Experimental) Run on the latest bundle version of the dag after clearing the task instances.",
+            description="(Experimental) Run on the latest bundle version of the dag after clearing the task instances. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False`` (the historical default for clear/rerun).",
             title="Run On Latest Version",
         ),
-    ] = False
+    ] = None
     prevent_running_task: Annotated[bool | None, Field(title="Prevent Running Task")] = False
     note: Annotated[Note | None, Field(title="Note")] = None
 
@@ -245,9 +283,59 @@ class ConnectionResponse(BaseModel):
     team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
+class ConnectionTestQueuedResponse(BaseModel):
+    """
+    Response returned when a connection test has been enqueued for worker execution.
+    """
+
+    token: Annotated[str, Field(title="Token")]
+    connection_id: Annotated[str, Field(title="Connection Id")]
+    state: Annotated[str, Field(title="State")]
+
+
+class ConnectionTestRequestBody(BaseModel):
+    """
+    Request body for enqueueing a connection test on a worker.
+
+    Inherits ``connection_id`` pattern, ``extra`` JSON validation, and
+    ``team_name`` handling from ``ConnectionBody`` so tested connections share
+    the same input contract as persisted ones.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    connection_id: Annotated[str, Field(max_length=200, pattern="^[\\w.-]+$", title="Connection Id")]
+    conn_type: Annotated[str, Field(title="Conn Type")]
+    description: Annotated[str | None, Field(title="Description")] = None
+    host: Annotated[str | None, Field(title="Host")] = None
+    login: Annotated[str | None, Field(title="Login")] = None
+    schema_: Annotated[str | None, Field(alias="schema", title="Schema")] = None
+    port: Annotated[int | None, Field(title="Port")] = None
+    password: Annotated[str | None, Field(title="Password")] = None
+    extra: Annotated[str | None, Field(title="Extra")] = None
+    team_name: Annotated[TeamName | None, Field(title="Team Name")] = None
+    commit_on_success: Annotated[
+        bool | None,
+        Field(
+            description="If True, save or update the connection in the connection table when the test succeeds.",
+            title="Commit On Success",
+        ),
+    ] = False
+    executor: Annotated[
+        str | None, Field(description="Executor name to dispatch the connection test to.", title="Executor")
+    ] = None
+    queue: Annotated[
+        str | None,
+        Field(
+            description="Worker queue to route the connection test to (executor-dependent).", title="Queue"
+        ),
+    ] = None
+
+
 class ConnectionTestResponse(BaseModel):
     """
-    Connection Test serializer for responses.
+    Connection Test serializer for synchronous test responses.
     """
 
     status: Annotated[bool, Field(title="Status")]
@@ -265,6 +353,7 @@ class CreateAssetEventsBody(BaseModel):
     asset_id: Annotated[int, Field(title="Asset Id")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
+    access_control: AssetEventAccessControl | None = None
 
 
 class DAGPatchBody(BaseModel):
@@ -280,7 +369,7 @@ class DAGPatchBody(BaseModel):
 
 class DAGRunClearBody(BaseModel):
     """
-    DAG Run serializer for clear endpoint body.
+    Dag Run serializer for clear endpoint body.
     """
 
     model_config = ConfigDict(
@@ -291,32 +380,23 @@ class DAGRunClearBody(BaseModel):
     only_new: Annotated[
         bool | None,
         Field(
-            description="Only queue newly added tasks in the latest DAG version without clearing existing tasks.",
+            description="Only queue newly added tasks in the latest Dag version without clearing existing tasks.",
             title="Only New",
         ),
     ] = False
     run_on_latest_version: Annotated[
         bool | None,
         Field(
-            description="(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.",
+            description="(Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.",
             title="Run On Latest Version",
         ),
-    ] = False
-
-
-class DAGRunPatchStates(str, Enum):
-    """
-    Enum for DAG Run states when updating a DAG Run.
-    """
-
-    QUEUED = "queued"
-    SUCCESS = "success"
-    FAILED = "failed"
+    ] = None
+    note: Annotated[Note | None, Field(title="Note")] = None
 
 
 class DAGSourceResponse(BaseModel):
     """
-    DAG Source serializer for responses.
+    Dag Source serializer for responses.
     """
 
     content: Annotated[str | None, Field(title="Content")] = None
@@ -327,7 +407,7 @@ class DAGSourceResponse(BaseModel):
 
 class DAGTagCollectionResponse(BaseModel):
     """
-    DAG Tags Collection serializer for responses.
+    Dag Tags Collection serializer for responses.
     """
 
     tags: Annotated[list[str], Field(title="Tags")]
@@ -362,6 +442,16 @@ class DagRunAssetReference(BaseModel):
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+
+
+class DagRunMutableStates(str, Enum):
+    """
+    Dag Run states from which the run may be mutated (patched, deleted).
+    """
+
+    QUEUED = "queued"
+    SUCCESS = "success"
+    FAILED = "failed"
 
 
 class DagRunState(str, Enum):
@@ -409,7 +499,7 @@ class DagRunType(str, Enum):
 
 class DagScheduleAssetReference(BaseModel):
     """
-    DAG schedule reference serializer for assets.
+    Dag schedule reference serializer for assets.
     """
 
     model_config = ConfigDict(
@@ -431,7 +521,7 @@ class DagStatsStateResponse(BaseModel):
 
 class DagTagResponse(BaseModel):
     """
-    DAG Tag serializer for responses.
+    Dag Tag serializer for responses.
     """
 
     name: Annotated[str, Field(title="Name")]
@@ -527,6 +617,7 @@ class ExternalViewResponse(BaseModel):
     icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
     url_route: Annotated[str | None, Field(title="Url Route")] = None
     category: Annotated[str | None, Field(title="Category")] = None
+    nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
     href: Annotated[str, Field(title="Href")]
     destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
 
@@ -762,6 +853,7 @@ class ReactAppResponse(BaseModel):
     icon_dark_mode: Annotated[str | None, Field(title="Icon Dark Mode")] = None
     url_route: Annotated[str | None, Field(title="Url Route")] = None
     category: Annotated[str | None, Field(title="Category")] = None
+    nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
     bundle_url: Annotated[str, Field(title="Bundle Url")]
     destination: Annotated[Destination1 | None, Field(title="Destination")] = "nav"
 
@@ -841,6 +933,7 @@ class TaskInstanceState(str, Enum):
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
     DEFERRED = "deferred"
+    AWAITING_INPUT = "awaiting_input"
 
 
 class TaskInstancesBatchBody(BaseModel):
@@ -906,6 +999,46 @@ class TaskOutletAssetReference(BaseModel):
     updated_at: Annotated[datetime, Field(title="Updated At")]
 
 
+class TaskStateStoreBody(BaseModel):
+    """
+    Request body for setting a task state store value.
+
+    ``expires_at`` controls expiry:
+
+    - ``"default"``: apply the configured ``[state_store] default_retention_days``.
+    - ``null``: never expire.
+    - aware datetime: expire at that time.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
+    expires_at: Annotated[datetime | str | None, Field(title="Expires At")] = "default"
+
+
+class TaskStateStorePatchBody(BaseModel):
+    """
+    Request body for patching only the value of an existing task state store key.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
+
+
+class TaskStateStoreResponse(BaseModel):
+    """
+    A single task state store key/value pair with metadata.
+    """
+
+    key: Annotated[str, Field(title="Key")]
+    value: JsonValue
+    updated_at: Annotated[datetime, Field(title="Updated At")]
+    expires_at: Annotated[datetime | None, Field(title="Expires At")] = None
+
+
 class TimeDelta(BaseModel):
     """
     TimeDelta can be used to interact with datetime.timedelta objects.
@@ -919,7 +1052,7 @@ class TimeDelta(BaseModel):
 
 class TriggerDAGRunPostBody(BaseModel):
     """
-    Trigger DAG Run Serializer for POST body.
+    Trigger Dag Run Serializer for POST body.
     """
 
     model_config = ConfigDict(
@@ -994,7 +1127,7 @@ class VariableResponse(BaseModel):
     """
 
     key: Annotated[str, Field(title="Key")]
-    value: Annotated[str, Field(title="Value")]
+    value: Annotated[str | None, Field(title="Value")] = None
     description: Annotated[str | None, Field(title="Description")] = None
     is_encrypted: Annotated[bool, Field(title="Is Encrypted")]
     team_name: Annotated[str | None, Field(title="Team Name")] = None
@@ -1136,6 +1269,40 @@ class AssetResponse(BaseModel):
     last_asset_event: LastAssetEventResponse | None = None
 
 
+class AssetStateStoreBody(BaseModel):
+    """
+    Request body for setting an asset state store value.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
+
+
+class AssetStateStoreLastUpdatedBy(BaseModel):
+    """
+    Writer info for the last write to an asset state store entry.
+    """
+
+    kind: AssetStateStoreWriterKind
+    dag_id: Annotated[str | None, Field(title="Dag Id")] = None
+    run_id: Annotated[str | None, Field(title="Run Id")] = None
+    task_id: Annotated[str | None, Field(title="Task Id")] = None
+    map_index: Annotated[int | None, Field(title="Map Index")] = None
+
+
+class AssetStateStoreResponse(BaseModel):
+    """
+    A single asset state store key/value pair with metadata.
+    """
+
+    key: Annotated[str, Field(title="Key")]
+    value: JsonValue
+    updated_at: Annotated[datetime, Field(title="Updated At")]
+    last_updated_by: AssetStateStoreLastUpdatedBy | None = None
+
+
 class BackfillPostBody(BaseModel):
     """
     Object used for create backfill request.
@@ -1151,7 +1318,13 @@ class BackfillPostBody(BaseModel):
     dag_run_conf: Annotated[dict[str, Any] | None, Field(title="Dag Run Conf")] = None
     reprocess_behavior: ReprocessBehavior | None = "none"
     max_active_runs: Annotated[int | None, Field(title="Max Active Runs")] = 10
-    run_on_latest_version: Annotated[bool | None, Field(title="Run On Latest Version")] = True
+    run_on_latest_version: Annotated[
+        bool | None,
+        Field(
+            description="Run on the latest bundle version of the Dag for each backfilled run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``True`` (the historical default for backfills).",
+            title="Run On Latest Version",
+        ),
+    ] = None
 
 
 class BackfillResponse(BaseModel):
@@ -1210,6 +1383,62 @@ class BulkCreateActionVariableBody(BaseModel):
         list[VariableBody], Field(description="A list of entities to be created.", title="Entities")
     ]
     action_on_existence: BulkActionOnExistence | None = "fail"
+
+
+class BulkDAGRunBody(BaseModel):
+    """
+    Request body for bulk operations on Dag Runs.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dag_run_id: Annotated[str, Field(title="Dag Run Id")]
+    dag_id: Annotated[str | None, Field(title="Dag Id")] = None
+    state: DagRunMutableStates | None = None
+    note: Annotated[Note | None, Field(title="Note")] = None
+
+
+class BulkDAGRunClearBody(BaseModel):
+    """
+    Request body for the bulk clear Dag Runs endpoint.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dry_run: Annotated[bool | None, Field(title="Dry Run")] = True
+    only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
+    only_new: Annotated[
+        bool | None,
+        Field(
+            description="Only queue newly added tasks in the latest Dag version without clearing existing tasks.",
+            title="Only New",
+        ),
+    ] = False
+    run_on_latest_version: Annotated[
+        bool | None,
+        Field(
+            description="(Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.",
+            title="Run On Latest Version",
+        ),
+    ] = None
+    note: Annotated[Note | None, Field(title="Note")] = None
+    dag_runs: Annotated[list[BulkDAGRunBody], Field(min_length=1, title="Dag Runs")]
+
+
+class BulkDeleteActionBulkDAGRunBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[str | BulkDAGRunBody],
+        Field(description="A list of entity id/key or entity objects to be deleted.", title="Entities"),
+    ]
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
 class BulkDeleteActionConnectionBody(BaseModel):
@@ -1272,6 +1501,26 @@ class BulkTaskInstanceBody(BaseModel):
     map_index: Annotated[int | None, Field(title="Map Index")] = None
     dag_id: Annotated[str | None, Field(title="Dag Id")] = None
     dag_run_id: Annotated[str | None, Field(title="Dag Run Id")] = None
+
+
+class BulkUpdateActionBulkDAGRunBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["update"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[BulkDAGRunBody], Field(description="A list of entities to be updated.", title="Entities")
+    ]
+    update_mask: Annotated[
+        list[str] | None,
+        Field(
+            description="A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.",
+            title="Update Mask",
+        ),
+    ] = None
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
 class BulkUpdateActionBulkTaskInstanceBody(BaseModel):
@@ -1376,7 +1625,7 @@ class ConnectionCollectionResponse(BaseModel):
 
 class DAGDetailsResponse(BaseModel):
     """
-    Specific serializer for DAG Details responses.
+    Specific serializer for Dag Details responses.
     """
 
     dag_id: Annotated[str, Field(title="Dag Id")]
@@ -1424,11 +1673,12 @@ class DAGDetailsResponse(BaseModel):
     timezone: Annotated[str | None, Field(title="Timezone")] = None
     last_parsed: Annotated[datetime | None, Field(title="Last Parsed")] = None
     default_args: Annotated[dict[str, Any] | None, Field(title="Default Args")] = None
+    rerun_with_latest_version: Annotated[bool | None, Field(title="Rerun With Latest Version")] = None
     owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
     is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
     active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
     is_backfillable: Annotated[
-        bool, Field(description="Whether this DAG's schedule supports backfilling.", title="Is Backfillable")
+        bool, Field(description="Whether this Dag's schedule supports backfilling.", title="Is Backfillable")
     ]
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
     concurrency: Annotated[
@@ -1445,7 +1695,7 @@ class DAGDetailsResponse(BaseModel):
 
 class DAGResponse(BaseModel):
     """
-    DAG serializer for responses.
+    Dag serializer for responses.
     """
 
     dag_id: Annotated[str, Field(title="Dag Id")]
@@ -1481,26 +1731,26 @@ class DAGResponse(BaseModel):
     allowed_run_types: Annotated[list[DagRunType] | None, Field(title="Allowed Run Types")] = None
     owners: Annotated[list[str], Field(title="Owners")]
     is_backfillable: Annotated[
-        bool, Field(description="Whether this DAG's schedule supports backfilling.", title="Is Backfillable")
+        bool, Field(description="Whether this Dag's schedule supports backfilling.", title="Is Backfillable")
     ]
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
 
 
 class DAGRunPatchBody(BaseModel):
     """
-    DAG Run Serializer for PATCH requests.
+    Dag Run Serializer for PATCH requests.
     """
 
     model_config = ConfigDict(
         extra="forbid",
     )
-    state: DAGRunPatchStates | None = None
+    state: DagRunMutableStates | None = None
     note: Annotated[Note | None, Field(title="Note")] = None
 
 
 class DAGRunResponse(BaseModel):
     """
-    DAG Run serializer for responses.
+    Dag Run serializer for responses.
     """
 
     dag_run_id: Annotated[str, Field(title="Dag Run Id")]
@@ -1528,7 +1778,7 @@ class DAGRunResponse(BaseModel):
 
 class DAGRunsBatchBody(BaseModel):
     """
-    List DAG Runs body for batch endpoint.
+    List Dag Runs body for batch endpoint.
     """
 
     model_config = ConfigDict(
@@ -1564,7 +1814,7 @@ class DAGRunsBatchBody(BaseModel):
 
 class DAGVersionCollectionResponse(BaseModel):
     """
-    DAG Version Collection serializer for responses.
+    Dag Version Collection serializer for responses.
     """
 
     dag_versions: Annotated[list[DagVersionResponse], Field(title="Dag Versions")]
@@ -1573,7 +1823,7 @@ class DAGVersionCollectionResponse(BaseModel):
 
 class DAGWarningResponse(BaseModel):
     """
-    DAG Warning serializer for responses.
+    Dag Warning serializer for responses.
     """
 
     dag_id: Annotated[str, Field(title="Dag Id")]
@@ -1585,7 +1835,7 @@ class DAGWarningResponse(BaseModel):
 
 class DagStatsResponse(BaseModel):
     """
-    DAG Stats serializer for responses.
+    Dag Stats serializer for responses.
     """
 
     dag_id: Annotated[str, Field(title="Dag Id")]
@@ -1657,7 +1907,7 @@ class JobCollectionResponse(BaseModel):
 
 class PatchTaskInstanceBody(BaseModel):
     """
-    Request body for Clear Task Instances endpoint.
+    Request body for patching task instance state.
     """
 
     model_config = ConfigDict(
@@ -1854,6 +2104,15 @@ class TaskResponse(BaseModel):
     ]
 
 
+class TaskStateStoreCollectionResponse(BaseModel):
+    """
+    All task state store entries for a task instance.
+    """
+
+    task_state_store: Annotated[list[TaskStateStoreResponse], Field(title="Task State Store")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
 class VariableCollectionResponse(BaseModel):
     """
     Variable Collection serializer for responses.
@@ -1887,6 +2146,15 @@ class AssetEventCollectionResponse(BaseModel):
     """
 
     asset_events: Annotated[list[AssetEventResponse], Field(title="Asset Events")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class AssetStateStoreCollectionResponse(BaseModel):
+    """
+    All asset state store entries for an asset.
+    """
+
+    asset_state_store: Annotated[list[AssetStateStoreResponse], Field(title="Asset State Store")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
@@ -1931,6 +2199,19 @@ class BulkBodyVariableBody(BaseModel):
     ]
 
 
+class BulkCreateActionBulkDAGRunBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["create"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[BulkDAGRunBody], Field(description="A list of entities to be created.", title="Entities")
+    ]
+    action_on_existence: BulkActionOnExistence | None = "fail"
+
+
 class BulkCreateActionBulkTaskInstanceBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -1969,7 +2250,7 @@ class ClearTaskInstanceCollectionResponse(BaseModel):
 
 class DAGCollectionResponse(BaseModel):
     """
-    DAG Collection serializer for responses.
+    Dag Collection serializer for responses.
     """
 
     dags: Annotated[list[DAGResponse], Field(title="Dags")]
@@ -1978,7 +2259,7 @@ class DAGCollectionResponse(BaseModel):
 
 class DAGRunCollectionResponse(BaseModel):
     """
-    DAG Run collection response supporting both offset and cursor pagination.
+    Dag Run collection response supporting both offset and cursor pagination.
 
     A single flat model is used instead of a discriminated union
     (``Annotated[Offset | Cursor, Field(discriminator=...)]``) because
@@ -2014,7 +2295,7 @@ class DAGRunCollectionResponse(BaseModel):
 
 class DAGWarningCollectionResponse(BaseModel):
     """
-    DAG warning collection serializer for responses.
+    Dag warning collection serializer for responses.
     """
 
     dag_warnings: Annotated[list[DAGWarningResponse], Field(title="Dag Warnings")]
@@ -2023,7 +2304,7 @@ class DAGWarningCollectionResponse(BaseModel):
 
 class DagStatsCollectionResponse(BaseModel):
     """
-    DAG Stats Collection serializer for responses.
+    Dag Stats Collection serializer for responses.
     """
 
     dags: Annotated[list[DagStatsResponse], Field(title="Dags")]
@@ -2142,6 +2423,18 @@ class TaskInstanceHistoryCollectionResponse(BaseModel):
 
     task_instances: Annotated[list[TaskInstanceHistoryResponse], Field(title="Task Instances")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class BulkBodyBulkDAGRunBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    actions: Annotated[
+        list[
+            BulkCreateActionBulkDAGRunBody | BulkUpdateActionBulkDAGRunBody | BulkDeleteActionBulkDAGRunBody
+        ],
+        Field(title="Actions"),
+    ]
 
 
 class BulkBodyBulkTaskInstanceBody(BaseModel):

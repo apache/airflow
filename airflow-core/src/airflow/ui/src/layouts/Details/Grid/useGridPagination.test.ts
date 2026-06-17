@@ -1,5 +1,3 @@
-/* eslint-disable unicorn/no-null -- GridRunsResponse uses null for optional API fields */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file

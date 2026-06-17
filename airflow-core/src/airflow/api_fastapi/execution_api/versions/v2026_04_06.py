@@ -169,7 +169,10 @@ class AddNoteField(VersionChange):
 
     description = __doc__
 
-    instructions_to_migrate_to_previous_version = (schema(DagRun).field("note").didnt_exist,)
+    instructions_to_migrate_to_previous_version = (
+        schema(DagRun).field("note").didnt_exist,
+        schema(TriggerDAGRunPayload).field("note").didnt_exist,
+    )
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
     def remove_note_field(response: ResponseInfo) -> None:  # type: ignore[misc]
@@ -197,3 +200,13 @@ class AddDagEndpoint(VersionChange):
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (endpoint("/dags/{dag_id}", ["GET"]).didnt_exist,)
+
+
+class AddRunAfterField(VersionChange):
+    """Add run_after parameter to TriggerDAGRunPayload Model."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TriggerDAGRunPayload).field("run_after").didnt_exist,
+    )

@@ -84,6 +84,7 @@ export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
           alignItems="center"
           color="fg"
           dagId={dagId}
+          duration={run.duration}
           flexDir="column"
           height={`${(run.duration / max) * BAR_HEIGHT}px`}
           justifyContent="flex-end"

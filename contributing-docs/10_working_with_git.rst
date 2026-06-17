@@ -26,6 +26,44 @@ that we are using rebase workflow. It also explains how to sync your fork with t
    :depth: 2
    :local:
 
+Git remote naming conventions
+=============================
+
+Airflow documentation, helper scripts (``dev/sync_fork.sh``), release tooling and
+agent instructions (``AGENTS.md``) all assume the following two remote names, and
+you should configure your local checkout to match:
+
+* ``upstream`` — the canonical ``apache/airflow`` repository (where you fetch from).
+* ``origin`` — your personal fork of ``apache/airflow`` (where you push branches
+  for PRs).
+
+Always push PR branches to ``origin``; don't push to ``upstream`` (the branch
+protection on ``apache/airflow`` will reject it anyway). Working on dedicated
+branches is recommended, though developing directly on your fork's ``main`` is
+tolerated — see `Contribution Workflow </contributing-docs/18_contribution_workflow.rst#step-4-prepare-pr>`_.
+
+If your existing checkout uses different names (for example ``apache`` for the
+Apache remote, or ``origin`` pointing at ``apache/airflow`` with your fork under
+another name), rename them to match the convention. Common migrations:
+
+.. code-block:: bash
+
+   # Case 1: upstream is currently named "apache"
+   git remote rename apache upstream
+
+   # Case 2: "origin" points at apache/airflow and your fork is named "fork"
+   git remote rename origin upstream
+   git remote rename fork origin
+
+   # Case 3: upstream is missing entirely
+   git remote add upstream https://github.com/apache/airflow.git
+   # ... or via SSH:
+   git remote add upstream git@github.com:apache/airflow.git
+
+Then confirm with ``git remote -v``. Ad-hoc remote names still work for one-off
+commands, but the helper scripts and documented workflows below all assume
+``upstream`` / ``origin``.
+
 Airflow Git Branches
 ====================
 
@@ -63,12 +101,39 @@ The production images are released in DockerHub from:
 * ``2.*.*``, ``2.*.*rc*`` releases from the ``v2-*-stable`` branch when we prepare release candidates and
   final releases.
 
+Airflow Helm Chart branches
+---------------------------
+
+The Airflow Helm Chart follows a different branch model from Airflow core, because
+the chart's major version cadence is independent of Airflow's:
+
+* ``main`` — development branch for the next **Airflow Helm Chart 2.x** major release.
+  This is where deprecations are *removed*, restructurings land, and a number of
+  optional features are being **extracted from the core chart into separate
+  kustomizable overlays** (users will compose them on top of the rendered chart with
+  ``kustomize`` instead of toggling them via ever-growing ``values.yaml`` keys). PRs
+  with new features, refactorings, or breaking changes for the chart should target
+  ``main``.
+
+* ``chart/v1-2x-test`` — maintenance branch for the **1.2x.x** release line. This
+  branch is **strictly for bug-fixes, doc-fixes, and deprecation warnings** that give
+  1.2x.x users notice before features are removed in 2.x. No new features, no
+  restructurings, and no overlay extractions land here. ``1.2x.x`` chart releases are
+  cut from this branch.
+
+The full workflow — which PRs target which branch, which commits are cherry-picked
+across, milestones, and the umbrella refurbish project — is documented in
+`dev/README_HELM_CHART2_DEV.md <../dev/README_HELM_CHART2_DEV.md>`__. Read it before
+opening a chart PR. The current 2.0 scope and chart release schedule live on the
+`Release Plan <https://cwiki.apache.org/confluence/display/AIRFLOW/Release+Plan>`__
+wiki page, which is the source of truth as the plan evolves.
+
 How to sync your fork
 =====================
 
 When you have your fork, you should periodically synchronize the main of your fork with the
 Apache Airflow main. In order to do that you can ``git pull --rebase`` to your local git repository from
-apache remote and push the main (often with ``--force`` to your fork). There is also an easy
+the ``upstream`` remote and push the main (often with ``--force`` to your fork). There is also an easy
 way to sync your fork in GitHub's web UI with the `Fetch upstream feature
 <https://docs.github.com/en/github/collaborating-with-pull-requests/working-with-forks/syncing-a-fork#syncing-a-fork-from-the-web-ui>`_.
 
@@ -139,30 +204,30 @@ First of all, we suggest you read about the rebase workflow here:
 `Merging vs. rebasing <https://www.atlassian.com/git/tutorials/merging-vs-rebasing>`_. This is an
 excellent article that describes all the ins/outs of the rebase workflow. I recommend keeping it for future reference.
 
-The goal of rebasing your PR on top of ``apache/main`` is to "transplant" your change on top of
+The goal of rebasing your PR on top of ``upstream/main`` is to "transplant" your change on top of
 the latest changes that are merged by others. It also allows you to fix all the conflicts
-that arise as a result of other people changing the same files as you and merging the changes to ``apache/main``.
+that arise as a result of other people changing the same files as you and merging the changes to ``upstream/main``.
 
 Here is how rebase looks in practice (you can find a summary below these detailed steps):
 
 1. You first need to add the Apache project remote to your git repository. This is only necessary once,
-so if it's not the first time you are following this tutorial you can skip this step. In this example,
-we will be adding the remote as "apache" so you can refer to it easily
+   so if it's not the first time you are following this tutorial you can skip this step. Per the
+   `Git remote naming conventions`_ we add it as ``upstream``:
 
-* If you use ssh: ``git remote add apache git@github.com:apache/airflow.git``
-* If you use https: ``git remote add apache https://github.com/apache/airflow.git``
+   * If you use ssh: ``git remote add upstream git@github.com:apache/airflow.git``
+   * If you use https: ``git remote add upstream https://github.com/apache/airflow.git``
 
-2. You then need to make sure that you have the latest main fetched from the ``apache`` repository. You can do this
+2. You then need to make sure that you have the latest main fetched from the ``upstream`` repository. You can do this
    via
 
-   ``git fetch apache`` (to fetch apache remote)
+   ``git fetch upstream`` (to fetch upstream remote)
 
    ``git fetch --all``  (to fetch all remotes)
 
 3. Assuming that your feature is in a branch in your repository called ``my-branch`` you can easily check
    what is the base commit you should rebase from via
 
-   ``git merge-base my-branch apache/main``
+   ``git merge-base my-branch upstream/main``
 
    This will print the HASH of the base commit which you should use to rebase your feature from.
    For example: ``5abce471e0690c6b8d06ca25685b0845c5fd270f``. Copy that HASH and go to the next step.
@@ -201,11 +266,11 @@ we will be adding the remote as "apache" so you can refer to it easily
 
 6. Rebase
 
-   ``git rebase HASH --onto apache/main``
+   ``git rebase HASH --onto upstream/main``
 
    For example:
 
-   ``git rebase 5abce471e0690c6b8d06ca25685b0845c5fd270f --onto apache/main``
+   ``git rebase 5abce471e0690c6b8d06ca25685b0845c5fd270f --onto upstream/main``
 
    Rebasing is a good practice recommended to follow for all code changes.
 
@@ -249,9 +314,9 @@ Useful when you understand the flow but don't remember the steps and want a quic
     git fetch --all
     git add .
     git commit
-    git merge-base my-branch apache/main
+    git merge-base my-branch upstream/main
     git checkout my-branch
-    git rebase HASH --onto apache/main
+    git rebase HASH --onto upstream/main
     git push --force-with-lease
 
 -------

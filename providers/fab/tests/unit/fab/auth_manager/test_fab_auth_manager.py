@@ -262,6 +262,89 @@ class TestFabAuthManager:
 
         assert auth_manager_with_appbuilder.is_logged_in() is False
 
+    @mock.patch.object(FabAuthManager, "get_user")
+    def test_is_logged_in_with_auth_role_public(self, mock_get_user, flask_app, auth_manager_with_appbuilder):
+        """When ``AUTH_ROLE_PUBLIC`` is set on the Flask app, anonymous users are 'logged in'."""
+        user = Mock()
+        user.is_anonymous.return_value = True
+        user.is_active.return_value = False
+        mock_get_user.return_value = user
+
+        previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
+        flask_app.config["AUTH_ROLE_PUBLIC"] = "Admin"
+        try:
+            assert auth_manager_with_appbuilder.is_logged_in() is True
+        finally:
+            flask_app.config["AUTH_ROLE_PUBLIC"] = previous
+
+    def test_build_public_user_returns_none_when_not_configured(
+        self, flask_app, auth_manager_with_appbuilder
+    ):
+        """Without ``AUTH_ROLE_PUBLIC`` set on the Flask app, there is no public user."""
+        previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
+        flask_app.config["AUTH_ROLE_PUBLIC"] = None
+        try:
+            assert auth_manager_with_appbuilder.build_public_user() is None
+        finally:
+            flask_app.config["AUTH_ROLE_PUBLIC"] = previous
+
+    def test_build_public_user_returns_anonymous_user(self, flask_app, auth_manager_with_appbuilder):
+        """``AUTH_ROLE_PUBLIC`` yields an :class:`AnonymousUser` with the role resolved from the DB."""
+        from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
+
+        previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
+        flask_app.config["AUTH_ROLE_PUBLIC"] = "Admin"
+        try:
+            user = auth_manager_with_appbuilder.build_public_user()
+        finally:
+            flask_app.config["AUTH_ROLE_PUBLIC"] = previous
+
+        assert isinstance(user, AnonymousUser)
+        assert len(user.roles) == 1
+        assert user.roles[0].name == "Admin"
+        # ``perms`` must be pre-populated so FastAPI can evaluate authorization outside a
+        # Flask request/app context.
+        assert user._perms, "Expected permissions to be pre-populated on the public user"
+
+    def test_build_public_user_with_unknown_role_returns_user_with_empty_perms(
+        self, flask_app, auth_manager_with_appbuilder
+    ):
+        """A misconfigured role name still yields an :class:`AnonymousUser` with empty perms."""
+        from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
+
+        previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
+        flask_app.config["AUTH_ROLE_PUBLIC"] = "DoesNotExist"
+        try:
+            user = auth_manager_with_appbuilder.build_public_user()
+        finally:
+            flask_app.config["AUTH_ROLE_PUBLIC"] = previous
+
+        assert isinstance(user, AnonymousUser)
+        # Role not found in the DB, so no pre-populated perms.
+        assert user._perms == set()
+
+    def test_get_fastapi_middlewares_disabled(self, flask_app, auth_manager_with_appbuilder):
+        """No middleware is registered when public access is not configured."""
+        previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
+        flask_app.config["AUTH_ROLE_PUBLIC"] = None
+        try:
+            assert auth_manager_with_appbuilder.get_fastapi_middlewares() == []
+        finally:
+            flask_app.config["AUTH_ROLE_PUBLIC"] = previous
+
+    def test_get_fastapi_middlewares_enabled(self, flask_app, auth_manager_with_appbuilder):
+        """``FabAuthRolePublicMiddleware`` is registered when public access is configured."""
+        from airflow.providers.fab.auth_manager.middleware import FabAuthRolePublicMiddleware
+
+        previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
+        flask_app.config["AUTH_ROLE_PUBLIC"] = "Admin"
+        try:
+            middlewares = auth_manager_with_appbuilder.get_fastapi_middlewares()
+        finally:
+            flask_app.config["AUTH_ROLE_PUBLIC"] = previous
+
+        assert middlewares == [(FabAuthRolePublicMiddleware, {})]
+
     @pytest.mark.parametrize(
         ("auth_type", "method"),
         [
@@ -748,6 +831,17 @@ class TestFabAuthManager:
                 [(ACTION_CAN_ACCESS_MENU, RESOURCE_AUDIT_LOG), (ACTION_CAN_READ, RESOURCE_VARIABLE)],
                 [MenuItem.AUDIT_LOG],
             ),
+            *(
+                [
+                    (
+                        [MenuItem.DEADLINES],
+                        [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG_RUN)],
+                        [MenuItem.DEADLINES],
+                    )
+                ]
+                if hasattr(MenuItem, "DEADLINES")
+                else []
+            ),
             (
                 [],
                 [],
@@ -952,7 +1046,7 @@ def test_resetdb(
     mock_connect = mock_engine.connect.return_value
 
     session_mock = MagicMock()
-    resetdb(session_mock, skip_init=skip_init)
+    resetdb(session=session_mock, skip_init=skip_init)
 
     # In the non-MySQL path, drop functions are called with the raw connection
     mock_drop_airflow.assert_called_once_with(mock_connect)
@@ -1204,3 +1298,29 @@ class TestFabAuthManagerSessionCleanupErrorHandling:
             mock_session.remove.assert_called()
             mock_log.warning.assert_called()
             assert response is not None
+
+
+class TestFabGetCliUser:
+    """``get_cli_user`` reuses an existing ``Admin`` user for the local CLI token."""
+
+    @mock.patch("airflow.utils.session.create_session")
+    def test_returns_admin_user(self, mock_create_session, auth_manager):
+        admin_user = MagicMock()
+        session = MagicMock()
+        session.scalars.return_value.first.return_value = admin_user
+        mock_create_session.return_value.__enter__.return_value = session
+
+        result = auth_manager.get_cli_user()
+
+        assert result is admin_user
+        # The user is detached so its attributes survive the session closing.
+        session.expunge.assert_called_once_with(admin_user)
+
+    @mock.patch("airflow.utils.session.create_session")
+    def test_raises_when_no_admin_user(self, mock_create_session, auth_manager):
+        session = MagicMock()
+        session.scalars.return_value.first.return_value = None
+        mock_create_session.return_value.__enter__.return_value = session
+
+        with pytest.raises(AirflowConfigException, match="Admin"):
+            auth_manager.get_cli_user()

@@ -18,10 +18,14 @@
   "asset_other": "Assets",
   "assetEvent_one": "Asset Event",
   "assetEvent_other": "Asset Events",
+  "assetInactive": {
+    "tooltip": "Upstream asset has been deactivated; the scheduler is holding partition evaluation until it is reactivated."
+  },
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Audit Log",
+    "deadlines": "Deadlines",
     "jobs": "Jobs",
     "requiredActions": "Required Actions",
     "xcoms": "XComs"
@@ -61,6 +65,11 @@
     "dagVersions": "Dag Version(s)",
     "dataIntervalEnd": "Data Interval End",
     "dataIntervalStart": "Data Interval Start",
+    "durationStats": {
+      "mean": "Mean",
+      "mode": "Mode"
+    },
+    "expectedDuration": "Expected Duration",
     "lastSchedulingDecision": "Last Scheduling Decision",
     "mappedPartitionKey": "Mapped Partition key",
     "partitionKey": "Partition key",
@@ -136,7 +145,11 @@
     "selectDateRange": "Select Date Range",
     "startTime": "Start Time"
   },
+  "fullscreen": {
+    "tooltip": "Press {{hotkey}} for fullscreen"
+  },
   "generateToken": "Generate Token",
+  "key": "Key",
   "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
@@ -166,10 +179,14 @@
   "note": {
     "add": "Add a note",
     "dagRun": "Dag Run Note",
+    "edit": "Edit note",
     "label": "Note",
     "placeholder": "Add a note...",
-    "taskInstance": "Task Instance Note"
+    "preview": "Preview",
+    "taskInstance": "Task Instance Note",
+    "write": "Write"
   },
+  "overallStatus": "Overall Status",
   "partitionedDagRun_one": "Partitioned Dag Run",
   "partitionedDagRun_other": "Partitioned Dag Runs",
   "partitionedDagRunDetail": {
@@ -193,6 +210,12 @@
     },
     "tooltip": "Press {{hotkey}} to scroll to {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Match anywhere in the value (substring search). Slower on large deployments because it can't use the default B-tree index. See the docs section on custom metadata indexes for details.",
+      "title": "Match anywhere"
+    }
+  },
   "security": {
     "actions": "Actions",
     "permissions": "Permissions",
@@ -214,6 +237,7 @@
   "startDate": "Start Date",
   "state": "State",
   "states": {
+    "awaiting_input": "Awaiting Input",
     "deferred": "Deferred",
     "failed": "Failed",
     "no_status": "No Status",
@@ -246,23 +270,33 @@
       "any": "Any"
     },
     "tagPlaceholder": "Filter by tag",
-    "to": "To"
+    "to": "To",
+    "updatedAt": "Updated at"
   },
   "task": {
+    "dependsOnPast": "Depends on Past",
     "documentation": "Task Documentation",
     "lastInstance": "Last Instance",
     "operator": "Operator",
-    "triggerRule": "Trigger Rule"
+    "retries": "Retries",
+    "triggerRule": "Trigger Rule",
+    "waitForDownstream": "Wait for Downstream"
   },
   "task_one": "Task",
   "task_other": "Tasks",
-  "taskGroup": "Task Group",
+  "taskGroup": {
+    "documentation": "Task Group Documentation"
+  },
+  "taskGroup_one": "Task Group",
+  "taskGroup_other": "Task Groups",
   "taskId": "Task ID",
   "taskInstance": {
+    "additionalAttributes": "Additional Task Instance Attributes",
     "dagVersion": "Dag Version",
     "executor": "Executor",
     "executorConfig": "Executor Config",
     "hostname": "Hostname",
+    "id": "ID",
     "maxTries": "Max Tries",
     "pid": "PID",
     "pool": "Pool",
@@ -270,12 +304,15 @@
     "priorityWeight": "Priority Weight",
     "queue": "Queue",
     "queuedWhen": "Queued At",
+    "renderedMapIndex": "Rendered Map Index",
     "scheduledWhen": "Scheduled At",
+    "trigger": "Trigger",
     "triggerer": {
       "assigned": "Assigned triggerer",
       "class": "Trigger class",
       "createdAt": "Trigger creation time",
       "id": "Trigger ID",
+      "job": "Triggerer Job",
       "latestHeartbeat": "Latest triggerer heartbeat",
       "title": "Triggerer Info"
     },
@@ -372,6 +409,7 @@
     "mustBeAtLeast": "Must be at least {{min}}.",
     "mustBeValidNumber": "Must be a valid number."
   },
+  "value": "Value",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Press {{hotkey}} to toggle wrap",

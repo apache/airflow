@@ -140,7 +140,7 @@ class CreateRayClusterOperator(RayBaseOperator):
         self,
         python_version: str,
         ray_version: Literal["2.9.3", "2.33", "2.42"],
-        head_node_type: resources.Resources = resources.Resources(),
+        head_node_type: resources.Resources | None = None,
         network: str | None = None,
         service_account: str | None = None,
         cluster_name: str | None = None,
@@ -155,7 +155,7 @@ class CreateRayClusterOperator(RayBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.head_node_type = head_node_type
+        self.head_node_type = head_node_type or resources.Resources()
         self.python_version = python_version
         self.ray_version = ray_version
         self.network = network

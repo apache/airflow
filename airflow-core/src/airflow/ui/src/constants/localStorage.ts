@@ -37,3 +37,6 @@ export const allGroupsKey = (dagId: string) => `${dagId}/all-groups`;
 
 // Page-scoped keys
 export const tableSortKey = (pageName: string) => `${pageName.replaceAll("/", "-").slice(1)}-table-sort`;
+
+// SearchBar advanced (substring) toggle, scoped per searchbar via a caller-provided id.
+export const advancedSearchKey = (id: string) => `advanced_search-${id}`;

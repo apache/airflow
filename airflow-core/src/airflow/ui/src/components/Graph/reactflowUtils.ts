@@ -29,6 +29,7 @@ export type CustomNodeProps = {
   depth?: number;
   height?: number;
   id: string;
+  isFiltered?: boolean;
   isGroup?: boolean;
   isMapped?: boolean;
   isOpen?: boolean;
@@ -37,6 +38,7 @@ export type CustomNodeProps = {
   operator?: string | null;
   setupTeardownType?: NodeResponse["setup_teardown_type"];
   taskInstance?: LightGridTaskInstanceSummary;
+  team?: string | null;
   tooltip?: string | null;
   type: string;
   width?: number;
@@ -123,6 +125,7 @@ type Edge = {
 export type EdgeData = {
   rest: {
     edgeType?: "data" | "scheduling";
+    isFiltered?: boolean;
     isSelected?: boolean;
     isSetupTeardown?: boolean;
   } & ElkExtendedEdge;

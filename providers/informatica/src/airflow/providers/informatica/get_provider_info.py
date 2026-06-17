@@ -24,7 +24,7 @@
 def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-informatica",
-        "name": "Informatica Airflow",
+        "name": "Informatica",
         "description": "`Informatica <https://www.informatica.com//>`__\n",
         "integrations": [
             {
@@ -66,6 +66,27 @@ def get_provider_info():
                         "type": "string",
                         "example": "informatica_edc_default",
                         "default": "informatica_edc_default",
+                        "version_added": None,
+                    },
+                    "auto_lineage_enabled": {
+                        "description": "Enable automatic SQL lineage detection for operators with a ``sql`` attribute.\nWhen set to ``true``, the provider parses each task's SQL at pre-execution time,\nresolves the referenced tables against the Informatica catalog, and creates lineage\nlinks on task success.  Set to ``false`` to rely solely on manually declared inlets\nand outlets.\n",
+                        "type": "boolean",
+                        "example": None,
+                        "default": "True",
+                        "version_added": None,
+                    },
+                    "disabled_for_operators": {
+                        "description": "Exclude specific operator classes from Informatica lineage tracking by providing\na semicolon-separated list of fully-qualified class names.  Operators listed here\nwill have neither manual nor automatic lineage processed.\n",
+                        "type": "string",
+                        "example": "airflow.providers.standard.operators.bash.BashOperator; airflow.providers.standard.operators.python.PythonOperator",
+                        "default": "",
+                        "version_added": None,
+                    },
+                    "request_timeout": {
+                        "description": "Timeout in seconds for HTTP requests made to the Informatica EDC REST API.\n",
+                        "type": "integer",
+                        "example": "30",
+                        "default": "30",
                         "version_added": None,
                     },
                 },

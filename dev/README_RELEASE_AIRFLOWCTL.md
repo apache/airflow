@@ -167,11 +167,11 @@ export CTL_VERSION_BRANCH=0-2
 # most recently released X.Y.Z, e.g. v3-2-stable.
 export AIRFLOW_STABLE_BRANCH=v3-2-stable
 
-git fetch apache
-git checkout -b "airflow-ctl/v${CTL_VERSION_BRANCH}-test" "apache/${AIRFLOW_STABLE_BRANCH}"
-git push apache "airflow-ctl/v${CTL_VERSION_BRANCH}-test"
+git fetch upstream
+git checkout -b "airflow-ctl/v${CTL_VERSION_BRANCH}-test" "upstream/${AIRFLOW_STABLE_BRANCH}"
+git push upstream "airflow-ctl/v${CTL_VERSION_BRANCH}-test"
 git checkout -b "airflow-ctl/v${CTL_VERSION_BRANCH}-stable" "airflow-ctl/v${CTL_VERSION_BRANCH}-test"
-git push apache "airflow-ctl/v${CTL_VERSION_BRANCH}-stable"
+git push upstream "airflow-ctl/v${CTL_VERSION_BRANCH}-stable"
 ```
 
 ## Add branch protection for the new stable branch
@@ -242,14 +242,14 @@ branch is what you expect:
 ```shell script
 # airflow-ctl commits on the test branch since the previous release.
 git log --oneline \
-    "airflow-ctl/${PREVIOUS_VERSION}..apache/airflow-ctl/v${CTL_VERSION_BRANCH}-test" -- airflow-ctl/
+    "airflow-ctl/${PREVIOUS_VERSION}..upstream/airflow-ctl/v${CTL_VERSION_BRANCH}-test" -- airflow-ctl/
 # Compare against main to spot commits that have NOT yet been cherry-picked.
 git log --oneline \
-    "airflow-ctl/${PREVIOUS_VERSION}..apache/main" -- airflow-ctl/
+    "airflow-ctl/${PREVIOUS_VERSION}..upstream/main" -- airflow-ctl/
 ```
 
 Everywhere below that mentions "the release branch", substitute
-`apache/airflow-ctl/v${CTL_VERSION_BRANCH}-stable` (or `-test` under the
+`upstream/airflow-ctl/v${CTL_VERSION_BRANCH}-stable` (or `-test` under the
 first-RC shortcut). In particular:
 
 - The release-prep PR (`Commit the version bump and release notes via a
@@ -311,9 +311,9 @@ merged PR" step — the release-prep PR also targets
 `airflow-ctl/vX-Y-stable`.
 
 ```shell script
-git fetch apache
+git fetch upstream
 git checkout "airflow-ctl/v${CTL_VERSION_BRANCH}-stable"
-git reset --hard "apache/airflow-ctl/v${CTL_VERSION_BRANCH}-stable"
+git reset --hard "upstream/airflow-ctl/v${CTL_VERSION_BRANCH}-stable"
 ```
 
 # Airflow-ctl versioning
@@ -420,7 +420,7 @@ git add airflow-ctl/src/airflowctl/__init__.py airflow-ctl/RELEASE_NOTES.rst
 # Also `git rm` any stale newsfragments you cleaned up
 git commit -m "Prepare airflow-ctl ${VERSION_RC} release"
 
-# Push to your fork (NOT to apache)
+# Push to your fork (origin), NOT to upstream (apache/airflow)
 git push -u origin "prepare-airflow-ctl-${VERSION_RC}"
 
 # Open the PR in the browser, pre-filled. Adjust --base to the release branch.
@@ -441,7 +441,7 @@ your local `HEAD` matches the commit you are about to tag:
 # Substitute the branch you are releasing from.
 RELEASE_BRANCH="airflow-ctl/v${CTL_VERSION_BRANCH}-stable"   # or -test under the first-RC shortcut
 git checkout "${RELEASE_BRANCH}"
-git pull apache "${RELEASE_BRANCH}"
+git pull upstream "${RELEASE_BRANCH}"
 ```
 
 ## Build airflow-ctl distributions for SVN apache upload
@@ -520,8 +520,9 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
 ## Add tags in git
 
-Assume that your remote for apache repository is called `apache` you should now
-set tags for the airflow-ctl in the repo.
+These instructions assume the standard remote naming convention
+(`upstream` → `apache/airflow`, `origin` → your fork). Set tags for airflow-ctl
+in the repo.
 
 **Prerequisite:** the version-bump + release-notes PR from "Commit the version
 bump and release notes via a merged PR" must already be merged, and your local
@@ -533,7 +534,7 @@ and lead to annoying errors. The default behaviour would be to clean such local 
 
 ```shell script
 git tag -s "airflow-ctl/${VERSION_RC}"
-git push apache "airflow-ctl/${VERSION_RC}"
+git push upstream "airflow-ctl/${VERSION_RC}"
 ```
 
 * Release candidate packages. **Default to the Docker build** per the
@@ -541,7 +542,7 @@ git push apache "airflow-ctl/${VERSION_RC}"
   you are actively debugging the build itself:
 
 ```shell script
-breeze release-management prepare-airflow-ctl-distributions --distribution-format both
+breeze release-management prepare-airflow-ctl-distributions --distribution-format both --version-suffix ""
 breeze release-management prepare-tarball --tarball-type apache_airflow_ctl --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}"
 ```
 
@@ -1018,7 +1019,7 @@ Choose the tag you used for release:
 
 ```shell
 cd "${AIRFLOW_REPO_ROOT}"
-git fetch apache --tags --force
+git fetch upstream --tags --force
 git checkout airflow-ctl/${VERSION_RC}
 ```
 
@@ -1232,6 +1233,32 @@ pip install apache-airflow-ctl==<VERSION>rc<X>
 Once you install and run Airflow, you can perform any verification you see as necessary to check
 that the Airflow works as you expected.
 
+### Non-interactive smoke test against a live API
+
+The [`dev/verify_airflow_ctl_rc.sh`](verify_airflow_ctl_rc.sh) helper exercises `airflowctl`
+end-to-end against a live API server in a single non-interactive `breeze shell` invocation: it boots
+`airflow standalone`, installs the RC, authenticates, and runs a handful of commands (`dags list`,
+`pools list`, `connections list`, `variables list`).
+
+```shell
+# install the RC from PyPI (published with the rcN suffix)
+CTL_VERSION=${VERSION_RC} breeze shell --load-example-dags --backend sqlite \
+    "bash dev/verify_airflow_ctl_rc.sh"
+
+# or test the exact SVN wheel (copy it under ./dist first so it is visible at /opt/airflow/dist)
+CTL_WHEEL=/opt/airflow/dist/apache_airflow_ctl-${VERSION}-py3-none-any.whl \
+    breeze shell --load-example-dags --backend sqlite "bash dev/verify_airflow_ctl_rc.sh"
+```
+
+The script prints `AIRFLOW_CTL_RC_VERIFY: OK` on success.
+
+> [!NOTE]
+> In a headless container the OS keyring has no backend, so `airflowctl auth login` with a
+> username/password fails (it tries to create an encrypted keyring and prompts for a password).
+> The headless path — which the script uses — is to mint a token with `airflowctl auth token` and
+> export it as `AIRFLOW_CLI_TOKEN`; `airflowctl auth login --skip-keyring` still persists the
+> api-url so subsequent commands know where to connect.
+
 
 # Publish release
 
@@ -1398,8 +1425,9 @@ Copy links to updated package and save it on the side. You will need it for the 
 
 ## Add the final release tag in git
 
-Assume that your remote for apache repository is called `apache` you should now
-set tags for airflow-ctl in the repo.
+These instructions assume the standard remote naming convention
+(`upstream` → `apache/airflow`, `origin` → your fork). Set tags for airflow-ctl
+in the repo.
 
 Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
 and lead to annoying errors. The default behaviour would be to clean such local tags up.
@@ -1408,7 +1436,7 @@ If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false
 
 ```shell script
 git tag -s airflow-ctl/${VERSION}
-git push apache airflow-ctl/${VERSION}
+git push upstream airflow-ctl/${VERSION}
 ```
 
 ## Publish documentation

@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 
-class PubSubMessageTransformException(AirflowException):
+class PubSubMessageTransformException(Exception):
     """Raise when messages failed to convert pubsub received format."""
 
 
@@ -200,7 +200,7 @@ class PubSubPullSensor(BaseSensorOperator):
         except Exception as e:
             raise PubSubMessageTransformException(
                 f"Error converting triggerer event message back to received message format: {e}"
-            )
+            ) from e
 
     def _default_message_callback(
         self,

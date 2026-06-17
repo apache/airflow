@@ -22,7 +22,7 @@ on:  # yamllint disable-line rule:truthy
     inputs:
       target-branch:
         description: >-
-          Branch to upgrade (e.g. 'main' or 'v3-2-test')
+          Branch to upgrade (e.g. 'main')
         required: true
         type: string
     secrets:
@@ -51,7 +51,7 @@ jobs:
           -u 0:0 bash -c "rm -rf /workspace/*"
       - name: >-
           [${{ inputs.target-branch }}] Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           ref: ${{ inputs.target-branch }}
           fetch-depth: 0
@@ -103,7 +103,7 @@ jobs:
           [${{ inputs.target-branch }}] Notify Slack on success
         if: success() && steps.find-pr.outputs.pr-url != ''
         uses: >-
-          slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95
+          slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -132,7 +132,7 @@ jobs:
           [${{ inputs.target-branch }}] Notify Slack on failure
         if: failure()
         uses: >-
-          slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95
+          slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
