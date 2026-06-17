@@ -675,7 +675,7 @@ class TestResponseHandler:
 
         assert isinstance(actual, bytes)
         assert actual == users
-        
+
     def test_default_response_handler_when_unicode_content(self):
         dummy = load_file_from_resources(
             dirname(__file__), "..", "resources", "dummy.pdf", mode="rb", encoding=None
