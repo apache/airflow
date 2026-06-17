@@ -1434,6 +1434,15 @@ async def test_ack_mode_queue_full_during_fanout_does_not_break_iteration():
 
         # t_ok: drive its ack stream and collect the real event.
         async with _consume_in_background(t_ok.filter_shared_stream(s_ok)) as ok_collector:
+            # Let the poll loop fan the event out and force QueueFull on trigger 1's
+            # pre-filled queue *before* draining s_full. Otherwise collect_full can pull
+            # the filler off the queue first, the fan-out put then succeeds, and the
+            # overflow path is never taken.
+            deadline = asyncio.get_event_loop().time() + 1.0
+            while 1 not in group._failed_subscribers:
+                assert asyncio.get_event_loop().time() < deadline, "fan-out did not overflow trigger 1"
+                await asyncio.sleep(0)
+
             await asyncio.wait_for(collect_full(), timeout=2.0)
             ok_result = await ok_collector.wait_for(1)
 
