@@ -160,8 +160,8 @@ place - there is no central registry to also update.
 | after apply              | ``chart/kustomize-overlays/<name>/STATUS.yaml`` (see "STATUS    |
 |                          | file format" above). The smoke-test runner walks this list.     |
 +--------------------------+-----------------------------------------------------------------+
-| Behavioural assertions   | ``chart/tests/overlay_tests/test_<name>.py``|
-| beyond "resource exists" | Auto-discovered by the smoke-test runner if present.|
+| Behavioural assertions   | ``chart/tests/overlay_tests/test_<name>.py``                    |
+| beyond "resource exists" | Auto-discovered by the smoke-test runner if present.            |
 |                          | Use the fixtures in the sibling ``conftest.py``                 |
 |                          | (``overlay_namespace``, ``overlay_release_name``, ``kubectl``,  |
 |                          | ``get_secret_data``, ``run_throwaway_pod``) - no copy-paste     |
