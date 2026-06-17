@@ -316,16 +316,12 @@ def test_run_invokes_seams_in_order(supervisor_builder, mocker):
 
 @pytest.mark.parametrize("json_logs", [True, False])
 def test_process_log_messages_configures_logging_matching_json_logs(supervisor_builder, mocker, json_logs):
-    """``_process_log_messages_from_subprocess`` must reconfigure structlog with the
-    ``logging.json_logs`` setting, not the ``configure_logging`` default of ``False``.
-
-    Priming this generator calls ``configure_logging()``, which reconfigures structlog
-    globally. With ``json_logs=True`` but ``json_output`` left to default ``False`` the
-    global logger factory becomes the text ``WriteLogger`` while the stdout/stderr
-    forwarders emit bytes from the JSON renderer, crashing the triggerer with
-    ``TypeError: can't concat str to bytes`` the first time a trigger subprocess writes
-    to stdout/stderr. See the regression where enabling json_logs CrashLoopBackOff-ed
-    triggerers running providers that warn at import time.
+    """_process_log_messages_from_subprocess() must reconfigure logging using the
+    configured ``logging.json_logs`` value rather than the default
+    ``json_output=False``.
+    This generator reconfigures structlog globally when first primed. Failing to
+    propagate the configured JSON logging mode can leave the triggerer with an
+    inconsistent logging configuration and break subprocess log forwarding.
     """
     supervisor = supervisor_builder()
 
