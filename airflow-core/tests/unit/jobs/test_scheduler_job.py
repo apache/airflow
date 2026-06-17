@@ -1425,6 +1425,70 @@ class TestSchedulerJob:
         assert tis[3].key in res_keys
         session.rollback()
 
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_find_executable_task_instances_pool_team_enforcement(self, dag_maker, session):
+        """Tasks using a pool owned by another team are not scheduled."""
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team_a = Team(name="team_a")
+        team_b = Team(name="team_b")
+        session.add_all([team_a, team_b])
+        session.flush()
+
+        bundle_a = DagBundleModel(name="bundle_a")
+        bundle_a.teams.append(team_a)
+        bundle_b = DagBundleModel(name="bundle_b")
+        bundle_b.teams.append(team_b)
+        session.add_all([bundle_a, bundle_b])
+        session.flush()
+
+        # Pool owned by team_a
+        pool_a = Pool(pool="pool_a", slots=10, include_deferred=False, team_name="team_a")
+        # Shared pool (no team)
+        pool_shared = Pool(pool="pool_shared", slots=10, include_deferred=False)
+        session.add_all([pool_a, pool_shared])
+        session.flush()
+
+        # DAG in team_a using pool_a (allowed)
+        with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
+            EmptyOperator(task_id="task_a", pool="pool_a")
+        dr_a = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        ti_a = dr_a.get_task_instance("task_a", session=session)
+        ti_a.state = State.SCHEDULED
+        session.merge(ti_a)
+
+        # DAG in team_b using pool_a (should be blocked)
+        with dag_maker(dag_id="dag_b_cross", bundle_name="bundle_b", session=session):
+            EmptyOperator(task_id="task_cross", pool="pool_a")
+        dr_b = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        ti_b = dr_b.get_task_instance("task_cross", session=session)
+        ti_b.state = State.SCHEDULED
+        session.merge(ti_b)
+
+        # DAG in team_b using shared pool (allowed)
+        with dag_maker(dag_id="dag_b_shared", bundle_name="bundle_b", session=session):
+            EmptyOperator(task_id="task_shared", pool="pool_shared")
+        dr_b2 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        ti_b2 = dr_b2.get_task_instance("task_shared", session=session)
+        ti_b2.state = State.SCHEDULED
+        session.merge(ti_b2)
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        queued_keys = {ti.key for ti in res}
+
+        # team_a task using its own pool: allowed
+        assert ti_a.key in queued_keys
+        # team_b task using team_a's pool: blocked
+        assert ti_b.key not in queued_keys
+        # team_b task using shared pool: allowed
+        assert ti_b2.key in queued_keys
+        session.rollback()
+
     @pytest.mark.parametrize(
         ("state", "total_executed_ti"),
         [
