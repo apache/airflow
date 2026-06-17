@@ -32,7 +32,7 @@ Use these rules when reviewing pull requests to the Apache Airflow repository.
 - **Flag any `@lru_cache(maxsize=None)`.** This creates an unbounded cache — every unique argument set is cached forever. Note: `@lru_cache()` without arguments defaults to `maxsize=128` and is fine.
 - **Flag any heavy import** (e.g., `kubernetes.client`) in multi-process code paths that is not behind a `TYPE_CHECKING` guard.
 - **Flag any file, connection, or session opened without a context manager or `try/finally`.**
-- **Flag any new `raise AirflowException` usage.** The community has stopped adding new ones (enforced by the `check-no-new-airflow-exceptions` prek hook) — prefer Python's standard exceptions (`ValueError`, `TypeError`, `OSError`), or a dedicated class in the appropriate `exceptions.py`. **Do not suggest changing specific exceptions back to `AirflowException`.**
+- **Flag any new `raise AirflowException` usage.** The community is reducing direct `AirflowException` usage, not increasing it; new ones are not allowed (enforced by the `check-no-new-airflow-exceptions` prek hook) — prefer Python's standard exceptions (`ValueError`, `TypeError`, `OSError`), or a dedicated class in the appropriate `exceptions.py`. **The one exception is a pure relocation: an already-existing `AirflowException` moved verbatim during a refactor (e.g. code moved between files) is not a new usage — do not flag it, but confirm the diff removes the identical raise elsewhere and leaves it otherwise unchanged.** **Do not suggest changing specific exceptions back to `AirflowException`.**
 
 ## Testing Requirements
 
