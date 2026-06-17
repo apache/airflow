@@ -590,6 +590,19 @@ class TestSparkSubmitOperatorResumable:
         operator._hook.submit.assert_called_once_with("test.jar")
         assert polled == ["driver-001"]
 
+    def test_reconnect_on_retry_deprecated_alias(self):
+        import warnings
+
+        from airflow.exceptions import AirflowProviderDeprecationWarning
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            operator = self._make_operator(reconnect_on_retry=False)
+        assert len(w) == 1
+        assert issubclass(w[0].category, AirflowProviderDeprecationWarning)
+        assert "reconnect_on_retry" in str(w[0].message)
+        assert operator.resume_on_retry is False
+
     def test_resume_on_retry_false_submits_fresh_and_polls(self):
         operator = self._make_operator(resume_on_retry=False)
         operator._hook = self._make_hook(should_track=True)

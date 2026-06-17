@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, cast
 
 import requests
 from tenacity import retry, stop_after_attempt, wait_fixed
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.apache.spark.hooks.spark_submit import _K8S_WAIT_APP_COMPLETION_CONF, SparkSubmitHook
 from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_parent_job_information_into_spark_properties,
@@ -203,7 +205,6 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         deploy_mode: str | None = None,
         use_krb5ccache: bool = False,
         post_submit_commands: list[str] | None = None,
-        resume_on_retry: bool = True,
         track_driver_via_k8s_api: bool = False,
         yarn_track_via_rm_api: bool = False,
         yarn_rm_auth: AuthBase | None = None,
@@ -213,8 +214,16 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         openlineage_inject_transport_info: bool = conf.getboolean(
             "openlineage", "spark_inject_transport_info", fallback=False
         ),
+        reconnect_on_retry: bool | None = None,
         **kwargs: Any,
     ) -> None:
+        if reconnect_on_retry is not None:
+            warnings.warn(
+                "reconnect_on_retry is renamed to resume_on_retry.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs.setdefault("resume_on_retry", reconnect_on_retry)
         super().__init__(**kwargs)
         self.application = application
         self.conf = conf
@@ -252,7 +261,6 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         self._yarn_track_via_rm_api = yarn_track_via_rm_api
         self._yarn_rm_auth = yarn_rm_auth
 
-        self.resume_on_retry = resume_on_retry
         self._track_driver_via_k8s_api = track_driver_via_k8s_api
         self._openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self._openlineage_inject_transport_info = openlineage_inject_transport_info

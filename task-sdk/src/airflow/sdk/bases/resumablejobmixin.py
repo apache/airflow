@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any
 from opentelemetry import trace
 
 from airflow.sdk._shared.observability.metrics import stats
+from airflow.sdk.bases.operator import BaseOperatorMeta
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
@@ -59,10 +60,6 @@ class ResumableJobMixin:
         class MyOperator(ResumableJobMixin, BaseOperator):
             external_id_key = "my_job_id"
 
-            def __init__(self, *, resume_on_retry: bool = True, **kwargs):
-                super().__init__(**kwargs)
-                self.resume_on_retry = resume_on_retry
-
             def execute(self, context):
                 return self.execute_resumable(context)
 
@@ -94,9 +91,13 @@ class ResumableJobMixin:
     # Renaming this on a deployed operator breaks in-flight retries — the old key is already stored.
     external_id_key: str = "remote_job_id"
 
-    # Per-task toggle switch for resumability. When False, execute_resumable() skips all task_state_store interaction
-    # and submits fresh every time. This class attribute is the fallback default.
-    resume_on_retry: bool = True
+    # The mixin is not a BaseOperator subclass, but _apply_defaults is only ever called on concrete
+    # operators that are BaseOperator subclasses. That is a runtime MRO guarantee not visible in the static
+    # type signature here and hence we need the type ignore.
+    @BaseOperatorMeta._apply_defaults  # type: ignore[type-var]
+    def __init__(self, *, resume_on_retry: bool = True, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.resume_on_retry = resume_on_retry
 
     def execute_resumable(self, context: Context) -> Any:
         """

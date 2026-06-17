@@ -120,13 +120,9 @@ Example
     from pydantic import JsonValue
 
 
-    class MyBatchOperator(BaseOperator, ResumableJobMixin):
+    class MyBatchOperator(ResumableJobMixin, BaseOperator):
 
         external_id_key = "batch_job_id"
-
-        def __init__(self, *, resume_on_retry: bool = True, **kwargs):
-            super().__init__(**kwargs)
-            self.resume_on_retry = resume_on_retry
 
         def execute(self, context):
             return self.execute_resumable(context)
@@ -167,8 +163,8 @@ The operator will always submit a fresh job on retry, with no ``task_state_store
 This is useful when the external job is not idempotent and you want Airflow to always submit a
 clean run rather than reconnect to a prior submission.
 
-The default is ``True``. Operators that use this mixin must declare ``resume_on_retry`` as an
-``__init__`` parameter so that ``default_args`` injection and ``.partial()`` work correctly.
+The default is ``True``. ``resume_on_retry`` is owned by the mixin — operators do not need to
+redeclare it. ``default_args`` injection and ``.partial()`` work automatically.
 
 .. _sdk-resumable-job-mixin-external-id-key:
 

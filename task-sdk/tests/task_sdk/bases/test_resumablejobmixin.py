@@ -38,9 +38,8 @@ class ConcreteResumableOperator(ResumableJobMixin, BaseOperator):
 
     external_id_key = "test_job_id"
 
-    def __init__(self, *, resume_on_retry: bool = True, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.resume_on_retry = resume_on_retry
         self.submitted_ids: list[str] = []
         self.polled_ids: list[str] = []
         self._next_id = "job-001"
