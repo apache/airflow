@@ -1221,5 +1221,3 @@ run — is produced for that period:
 
 For complete runnable examples, see
 ``airflow-core/src/airflow/example_dags/example_asset_partition.py``.
-
-.. temporary CI retrigger marker
