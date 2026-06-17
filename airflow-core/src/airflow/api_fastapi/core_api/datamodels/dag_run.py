@@ -30,6 +30,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionRespo
 from airflow.timetables.base import DataInterval
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 
 if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
@@ -111,6 +112,7 @@ class DAGRunResponse(BaseModel):
     last_scheduling_decision: datetime | None
     run_type: DagRunType
     state: DagRunState
+    tags: list[DagTagResponse] | None = Field(validation_alias=AliasPath("dag_model","tags"))
     triggered_by: DagRunTriggeredByType | None
     triggering_user_name: str | None
     conf: dict | None
@@ -159,7 +161,6 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     data_interval_end: AwareDatetime | None = None
     logical_date: AwareDatetime | None
     run_after: datetime | None = Field(default_factory=timezone.utcnow)
-
     conf: dict | None = Field(default_factory=dict)
     note: str | None = None
     partition_key: str | None = None
