@@ -74,6 +74,21 @@ test.describe("Dashboard Metrics Display", () => {
     await expect(homePage.welcomeHeading).toBeVisible();
   });
 
+  test("verify HITL review modal opens from the Required Actions button", async ({
+    homePage,
+    pendingHITLRun,
+  }) => {
+    test.slow();
+
+    await homePage.navigate();
+    await homePage.waitForDashboardLoad();
+
+    await expect(homePage.requiredActionsButton).toBeVisible({ timeout: 30_000 });
+    await homePage.requiredActionsButton.click();
+
+    await homePage.hitlReviewModal.expectOpenWith(pendingHITLRun.dagId);
+  });
+
   test("should update metrics when Dag is triggered", async ({ dagRunCleanup, dagsPage, homePage }) => {
     test.slow();
 
