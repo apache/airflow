@@ -602,6 +602,7 @@ def _handle_clear_run(
             backfill_id=backfill_id,
             dag_run_id=dr.id,
             logical_date=info.logical_date,
+            partition_key=info.partition_key,
             sort_ordinal=sort_ordinal,
         )
     )
