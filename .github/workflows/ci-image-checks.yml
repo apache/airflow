@@ -169,7 +169,9 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
-        run: printf '%s\n' "$PR_TITLE" | ./scripts/ci/prek/check_no_conventional_commit_message.py --from-stdin
+        run: |
+          printf '%s\n' "$PR_TITLE" \
+            | ./scripts/ci/prek/check_no_conventional_commit_message.py --from-stdin
 
   build-docs:
     timeout-minutes: 150
