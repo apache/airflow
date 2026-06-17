@@ -300,8 +300,18 @@ class KubernetesExecutor(BaseExecutor):
                 finally:
                     self.result_queue.task_done()
 
-                for result in self.completed:
+        if self.completed:
+            still_pending: set[KubernetesResults] = set()
+            for result in self.completed:
+                try:
                     self._change_state(result)
+                except Exception:
+                    self.log.exception(
+                        "Exception when attempting to change state of adopted completed pod %s, will retry.",
+                        result,
+                    )
+                    still_pending.add(result)
+            self.completed = still_pending
 
         from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import ResourceVersion
 
@@ -813,11 +823,13 @@ class KubernetesExecutor(BaseExecutor):
                 continue
 
             ti_id = annotations_to_key(pod.metadata.annotations)
+            pod_name = pod.metadata.name
+            self.completed = {result for result in self.completed if result.pod_name != pod_name}
             self.completed.add(
                 KubernetesResults(
                     key=ti_id,
                     state="completed",
-                    pod_name=pod.metadata.name,
+                    pod_name=pod_name,
                     namespace=pod.metadata.namespace,
                     resource_version=pod.metadata.resource_version,
                     failure_details=None,
