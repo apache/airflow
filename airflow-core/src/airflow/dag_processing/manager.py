@@ -720,7 +720,12 @@ class DagFileProcessorManager(LoggingMixin):
         )
         self._callback_to_execute[file_info].append(request)
         self._add_files_to_queue([file_info], mode="front")
-        stats.incr("dag_processing.other_callback_count")
+        team_name = (
+            DagBundleModel.get_team_name(file_info.bundle_name)
+            if conf.getboolean("core", "multi_team")
+            else None
+        )
+        stats.incr("dag_processing.other_callback_count", tags=prune_dict({"team_name": team_name}))
 
     @provide_session
     def get_bundle_state(self, bundle_name: str, *, session: Session = NEW_SESSION) -> BundleState | None:
@@ -1733,7 +1738,7 @@ def process_parse_results(
             last_duration=run_duration,
             run_count=run_count,  # Don't increment for callback-only processing
         )
-        stats.incr("dag_processing.callback_only_count")
+        stats.incr("dag_processing.callback_only_count", tags=prune_dict({"team_name": team_name}))
     else:
         # Actual DAG parsing or import error
         stat = DagFileStat(
