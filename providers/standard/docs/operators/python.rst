@@ -269,7 +269,7 @@ Log level forwarding
 
 Airflow reads subprocess stdout line by line and re-emits each line at the
 log level encoded in its prefix (``DEBUG: …``, ``INFO: …``, ``WARNING: …``,
-``ERROR: …``, ``CRITICAL: …``). Lines without a recognised prefix fall back to
+``ERROR: …``, ``CRITICAL: …``). Lines without a recognized prefix fall back to
 ``INFO``. Multi-line messages such as tracebacks are split and each line is
 forwarded individually.
 
