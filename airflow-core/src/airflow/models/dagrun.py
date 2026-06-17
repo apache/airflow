@@ -1420,6 +1420,7 @@ class DagRun(Base, LoggingMixin):
             TaskInstance as TIDataModel,
             TIRunContext,
         )
+        from airflow.sdk.definitions.context import CallbackMeta, CallbackSource
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
         if relevant_ti:
@@ -1446,6 +1447,7 @@ class DagRun(Base, LoggingMixin):
             }
 
         context["reason"] = reason
+        context["callback"] = CallbackMeta(source=CallbackSource.DAG)
 
         callbacks = dag.on_success_callback if success else dag.on_failure_callback
         if not callbacks:
