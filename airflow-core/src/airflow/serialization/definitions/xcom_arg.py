@@ -22,13 +22,12 @@ from functools import singledispatch
 from typing import TYPE_CHECKING, Any
 
 import attrs
-from sqlalchemy import func, or_, select
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from airflow.models.referencemixin import ReferenceMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
-from airflow.utils.db import exists_query
 from airflow.utils.state import State
 
 __all__ = ["SchedulerXComArg", "deserialize_xcom_arg", "get_task_map_length"]
@@ -162,7 +161,12 @@ def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session) -> int 
     task_id = xcom_arg.operator.task_id
 
     if is_mapped(xcom_arg.operator):
-        unfinished_ti_exists = exists_query(
+        # The map length is only known once every expanded TI has finished; until
+        # then we must report None rather than a partial count. Combine the
+        # "any expanded TI still unfinished?" check and the produced-output count
+        # into a single round-trip instead of issuing them as two sequential
+        # queries -- this is evaluated repeatedly while scheduling mapped tasks.
+        unfinished_tis_exist = exists().where(
             TaskInstance.dag_id == dag_id,
             TaskInstance.run_id == run_id,
             TaskInstance.task_id == task_id,
@@ -173,24 +177,28 @@ def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session) -> int 
                 TaskInstance.state.is_(None),
                 TaskInstance.state.in_(s.value for s in State.unfinished if s is not None),
             ),
-            session=session,
         )
-        if unfinished_ti_exists:
+        mapped_xcom_count = (
+            select(func.count(XComModel.map_index))
+            .where(
+                XComModel.dag_id == dag_id,
+                XComModel.run_id == run_id,
+                XComModel.task_id == task_id,
+                XComModel.map_index >= 0,
+                XComModel.key == XCOM_RETURN_KEY,
+            )
+            .scalar_subquery()
+        )
+        has_unfinished, mapped_length = session.execute(select(unfinished_tis_exist, mapped_xcom_count)).one()
+        if has_unfinished:
             return None  # Not all of the expanded tis are done yet.
-        query = select(func.count(XComModel.map_index)).where(
-            XComModel.dag_id == dag_id,
-            XComModel.run_id == run_id,
-            XComModel.task_id == task_id,
-            XComModel.map_index >= 0,
-            XComModel.key == XCOM_RETURN_KEY,
-        )
-    else:
-        query = select(TaskMap.length).where(
-            TaskMap.dag_id == dag_id,
-            TaskMap.run_id == run_id,
-            TaskMap.task_id == task_id,
-            TaskMap.map_index < 0,
-        )
+        return mapped_length
+    query = select(TaskMap.length).where(
+        TaskMap.dag_id == dag_id,
+        TaskMap.run_id == run_id,
+        TaskMap.task_id == task_id,
+        TaskMap.map_index < 0,
+    )
     return session.scalar(query)
 
 
