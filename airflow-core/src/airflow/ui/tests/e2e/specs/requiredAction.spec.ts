@@ -53,4 +53,15 @@ test.describe("Verify Required Action page", () => {
     await expect(page.locator("th").filter({ hasText: "Response created at" })).toBeVisible();
     await expect(page.locator("th").filter({ hasText: "Response received at" })).toBeVisible();
   });
+
+  test("verify HITL Review drawer opens from clicking a pending action state", async ({
+    pendingHITLRun,
+    requiredActionsPage,
+  }) => {
+    await requiredActionsPage.navigateToPendingRequiredActionsPage();
+
+    await requiredActionsPage.clickReviewDrawerButton(pendingHITLRun.dagId);
+
+    await requiredActionsPage.hitlReviewDrawer.expectOpenWith(pendingHITLRun.dagId);
+  });
 });
