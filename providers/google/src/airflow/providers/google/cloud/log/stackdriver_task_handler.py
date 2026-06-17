@@ -184,6 +184,8 @@ class StackdriverRemoteLogIO(LoggingMixin):
                 if map_index := event.get("map_index"):
                     labels["map_index"] = str(map_index)
 
+            if ti_id := event.get("ti_id"):
+                labels[StackdriverTaskHandler.LABEL_TASK_INSTANCE_ID] = str(ti_id)
             _transport.send(record, str(msg.get("event", "")), resource=self.resource, labels=labels)
             return event
 
