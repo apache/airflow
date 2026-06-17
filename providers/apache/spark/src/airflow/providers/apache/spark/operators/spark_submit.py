@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any, cast
 
 import requests
@@ -55,7 +55,7 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 
-class SparkSubmitResumableBackend(ABC):
+class _SparkSubmitResumableBackend(ABC):
     """Base interface/abstract class for Spark submit resumable backends."""
 
     def __init__(self, operator: SparkSubmitOperator) -> None:
@@ -85,8 +85,22 @@ class SparkSubmitResumableBackend(ABC):
     def on_kill(self) -> None:
         """Handle execution termination/kill signal."""
 
+    def _track_then_run_post_submit_commands(self, track_fn: Callable[[], None]) -> None:
+        """Run ``track_fn`` then always run post-submit commands, regardless of outcome.
 
-class YarnSparkSubmitBackend(SparkSubmitResumableBackend):
+        Shared by backends (YARN, standalone) whose ``poll_until_complete`` needs to
+        invoke ``SparkSubmitHook._run_post_submit_commands`` once tracking finishes,
+        whether it finishes successfully or raises.
+        """
+        hook = self.operator._hook
+        assert hook is not None
+        try:
+            track_fn()
+        finally:
+            hook._run_post_submit_commands()
+
+
+class _YarnSparkSubmitBackend(_SparkSubmitResumableBackend):
     """Resumable backend strategy for YARN cluster mode."""
 
     def submit_job(self, context: Context) -> str:
@@ -120,10 +134,9 @@ class YarnSparkSubmitBackend(SparkSubmitResumableBackend):
     def poll_until_complete(self, external_id: str, context: Context) -> None:
         hook = self.operator._hook
         assert hook is not None
-        try:
-            hook._start_yarn_application_status_tracking(external_id)
-        finally:
-            hook._run_post_submit_commands()
+        self._track_then_run_post_submit_commands(
+            lambda: hook._start_yarn_application_status_tracking(external_id)
+        )
 
     def on_kill(self) -> None:
         hook = self.operator._hook
@@ -134,7 +147,7 @@ class YarnSparkSubmitBackend(SparkSubmitResumableBackend):
             hook.on_kill()
 
 
-class KubernetesSparkSubmitBackend(SparkSubmitResumableBackend):
+class _KubernetesSparkSubmitBackend(_SparkSubmitResumableBackend):
     """Resumable backend strategy for Kubernetes driver-pod tracking."""
 
     def submit_job(self, context: Context) -> str:
@@ -166,7 +179,7 @@ class KubernetesSparkSubmitBackend(SparkSubmitResumableBackend):
         hook.on_kill()
 
 
-class StandaloneSparkSubmitBackend(SparkSubmitResumableBackend):
+class _StandaloneSparkSubmitBackend(_SparkSubmitResumableBackend):
     """Resumable backend strategy for Spark standalone driver-status tracking."""
 
     def submit_job(self, context: Context) -> str:
@@ -220,12 +233,13 @@ class StandaloneSparkSubmitBackend(SparkSubmitResumableBackend):
         assert hook is not None
         self.operator.log.info("Polling driver %s until completion", external_id)
         hook._driver_id = external_id
-        try:
+
+        def _track() -> None:
             hook._start_driver_status_tracking()
             if hook._driver_status != "FINISHED":
                 raise RuntimeError(f"Driver {external_id} exited with status {hook._driver_status}")
-        finally:
-            hook._run_post_submit_commands()
+
+        self._track_then_run_post_submit_commands(_track)
 
     def on_kill(self) -> None:
         hook = self.operator._hook
@@ -414,7 +428,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         self._yarn_queue = yarn_queue
         self._deploy_mode = deploy_mode
         self._hook: SparkSubmitHook | None = None
-        self._cached_resumable_backend: SparkSubmitResumableBackend | None = None
+        self._cached_resumable_backend: _SparkSubmitResumableBackend | None = None
         self.post_submit_commands = post_submit_commands
         self._post_submit_commands = list(post_submit_commands) if post_submit_commands else []
         self._conn_id = conn_id
@@ -471,20 +485,20 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         hook.submit(self.application)
 
     @property
-    def _resumable_backend(self) -> SparkSubmitResumableBackend:
+    def _resumable_backend(self) -> _SparkSubmitResumableBackend:
         if self._cached_resumable_backend is not None:
             return self._cached_resumable_backend
 
         if self._hook is None:
             self._hook = self._get_hook()
 
-        backend: SparkSubmitResumableBackend
+        backend: _SparkSubmitResumableBackend
         if self._hook._is_yarn_cluster_mode:
-            backend = YarnSparkSubmitBackend(self)
+            backend = _YarnSparkSubmitBackend(self)
         elif self._hook._is_kubernetes:
-            backend = KubernetesSparkSubmitBackend(self)
+            backend = _KubernetesSparkSubmitBackend(self)
         else:
-            backend = StandaloneSparkSubmitBackend(self)
+            backend = _StandaloneSparkSubmitBackend(self)
 
         self._cached_resumable_backend = backend
         return backend
