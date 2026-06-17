@@ -360,8 +360,9 @@ def _extract_new_clusters_from_databricks_job(job: dict) -> list[dict]:
     """
     Collect every ``new_cluster`` definition that can carry Spark properties in a Databricks job.
 
-    A ``runs/submit`` payload can define a ``new_cluster`` in three places: at the top level
-    (single-task form), inline on each task (``tasks[].new_cluster``), or as a shared job cluster
+    A ``runs/submit`` payload can define a ``new_cluster`` at the top level (single-task form), inline
+    on each task (``tasks[].new_cluster``), inside a ``for_each_task``'s nested task
+    (``tasks[].for_each_task.task.new_cluster``), or as a shared job cluster
     (``job_clusters[].new_cluster``) referenced by tasks through ``job_cluster_key``. Tasks running on
     an ``existing_cluster_id`` have no ``new_cluster`` to mutate and are skipped.
 
@@ -379,6 +380,13 @@ def _extract_new_clusters_from_databricks_job(job: dict) -> list[dict]:
             new_clusters.extend(
                 item["new_cluster"] for item in job[key] if isinstance(item.get("new_cluster"), dict)
             )
+    if isinstance(job.get("tasks"), list):
+        for task in job["tasks"]:
+            # ``for_each_task`` wraps a nested task that can carry its own ``new_cluster``.
+            for_each = task.get("for_each_task") if isinstance(task, dict) else None
+            nested = for_each.get("task") if isinstance(for_each, dict) else None
+            if isinstance(nested, dict) and isinstance(nested.get("new_cluster"), dict):
+                new_clusters.append(nested["new_cluster"])
     return new_clusters
 
 
