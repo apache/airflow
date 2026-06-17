@@ -794,6 +794,7 @@ DEFAULT_EXTRAS = [
     "mysql",
     "odbc",
     "openlineage",
+    "opensearch",
     "pandas",
     "postgres",
     "redis",
