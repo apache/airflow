@@ -37,7 +37,8 @@ class DatabricksExecutionTrigger(BaseTrigger):
         By default, the trigger will poll every 30 seconds.
     :param retry_limit: The number of times to retry the connection in case of service outages.
     :param retry_delay: Minimum wait in seconds between retryable attempts when using the
-        default retry strategy (exponential backoff). May be a floating point number.
+        default retry strategy. The wait uses exponential backoff (doubling after each
+        failure, capped at ``2 ** retry_limit`` seconds). May be a floating point number.
     :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param run_page_url: The run page url.
     :param repair_run: Repair the databricks run in case of failure.
@@ -140,7 +141,8 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
         By default, the trigger will poll every 30 seconds.
     :param retry_limit: The number of times to retry the connection in case of service outages.
     :param retry_delay: Minimum wait in seconds between retryable attempts when using the
-        default retry strategy (exponential backoff). May be a floating point number.
+        default retry strategy. The wait uses exponential backoff (doubling after each
+        failure, capped at ``2 ** retry_limit`` seconds). May be a floating point number.
     :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param caller: The name of the operator that is calling the hook.
     """
