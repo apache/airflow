@@ -9821,6 +9821,7 @@ class TestSchedulerJob:
         request = mock_send_callback.call_args.args[0]
         assert isinstance(request, DagSkippedIntervalsCallbackRequest)
 
+
 @pytest.mark.need_serialized_dag
 def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
     """
