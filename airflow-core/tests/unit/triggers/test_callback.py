@@ -110,6 +110,29 @@ class TestCallbackTrigger:
         assert success_event.payload[PAYLOAD_BODY_KEY] == callback_return_value
 
     @pytest.mark.asyncio
+    async def test_run_renders_jinja_kwargs(self, mock_import_string):
+        """String kwargs containing Jinja are rendered against the context before the callback is
+        called — matching the synchronous executor path (regression test for the async path
+        previously passing kwargs through verbatim)."""
+        mock_callback = mock.AsyncMock(return_value="ok")
+        mock_import_string.return_value = mock_callback
+
+        trigger = CallbackTrigger(
+            callback_path=TEST_CALLBACK_PATH,
+            callback_kwargs={"rendered": "run={{ dag_run }}", "plain": "no-jinja", "n": 42},
+        )
+        trigger._callback_context = TEST_CALLBACK_CONTEXT  # {"dag_run": "test"}
+
+        trigger_gen = trigger.run()
+        await anext(trigger_gen)  # RUNNING
+        await anext(trigger_gen)  # SUCCESS
+
+        # "{{ dag_run }}" -> "test"; non-jinja string and non-string kwargs pass through untouched.
+        mock_callback.assert_called_once_with(
+            rendered="run=test", plain="no-jinja", n=42, context=TEST_CALLBACK_CONTEXT
+        )
+
+    @pytest.mark.asyncio
     async def test_run_success_with_notifier(self, trigger, mock_import_string):
         """Test trigger handles async notifier classes correctly."""
         mock_import_string.return_value = ExampleAsyncNotifier

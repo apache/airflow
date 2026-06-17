@@ -32,6 +32,7 @@ from airflow._shared.module_loading import (
     load_mangled_dag_module,
     qualname,
 )
+from airflow._shared.template_rendering import render_callback_kwargs
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.callback import CallbackState
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -130,6 +131,13 @@ class CallbackTrigger(BaseTrigger):
             # runtime context over the stored one.
             stored_context = kwargs.pop("context", None)
             context = self._callback_context or stored_context
+
+            # Render Jinja in string kwargs (e.g. ``"{{ dag_run.run_id }}"``) using the same
+            # shared helper as the synchronous executor path, so async and sync callbacks render
+            # identically. Without this the triggerer path passed kwargs through verbatim while the
+            # executor path rendered them — a silent sync/async divergence.
+            if context is not None:
+                kwargs = render_callback_kwargs(kwargs, context)
 
             if accepts_context(callback) and context is not None:
                 result = await callback(**kwargs, context=context)
