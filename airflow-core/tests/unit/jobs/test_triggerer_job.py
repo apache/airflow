@@ -2502,6 +2502,41 @@ def test_handle_failed_triggers_emits_team_name(jobless_supervisor, team_name, e
     mock_incr.assert_called_once_with("triggers.failed", tags=expected_tags)
 
 
+@pytest.mark.parametrize(
+    ("team_name", "expected_tags"),
+    [
+        pytest.param("team_alpha", {"team_name": "team_alpha"}, id="with_team"),
+        pytest.param(None, {}, id="without_team"),
+    ],
+)
+def test_heartbeat_callback_emits_team_name(jobless_supervisor, team_name, expected_tags):
+    jobless_supervisor.team_name = team_name
+
+    with mock.patch("airflow.jobs.triggerer_job_runner.stats.incr") as mock_incr:
+        jobless_supervisor.heartbeat_callback()
+
+    mock_incr.assert_called_once_with("triggerer_heartbeat", 1, 1, tags=expected_tags)
+
+
+@pytest.mark.parametrize(
+    ("team_name", "expected_extra"),
+    [
+        pytest.param("team_alpha", {"team_name": "team_alpha"}, id="with_team"),
+        pytest.param(None, {}, id="without_team"),
+    ],
+)
+def test_emit_metrics_includes_team_name(supervisor_builder, mocker, team_name, expected_extra):
+    supervisor = supervisor_builder()
+    supervisor.team_name = team_name
+    gauge = mocker.patch("airflow.jobs.triggerer_job_runner.stats.gauge")
+
+    supervisor.emit_metrics()
+
+    expected_tags = {"hostname": supervisor.job.hostname, **expected_extra}
+    gauge.assert_any_call("triggers.running", mock.ANY, tags=expected_tags)
+    gauge.assert_any_call("triggerer.capacity_left", mock.ANY, tags=expected_tags)
+
+
 def test_state_sync_carries_and_drains_persist_confirmations(jobless_supervisor):
     """The state-sync response carries pending confirmations once, then None when there are none."""
     jobless_supervisor.persisted_event_seqs.extend([3, 9])
