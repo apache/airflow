@@ -42,11 +42,13 @@ Features
 * ``Allow DESCRIBE/SHOW in common.ai SQLToolset read-only queries (#68102)``
 * ``Support multi-schema introspection in common.ai SQLToolset (#68103)``
 * ``Add token_provider for short-lived MCP auth in common.ai (#68104)``
+* ``Add code mode (Monty sandbox) to common.ai AgentOperator (#68407)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Fix 'LlamaIndexEmbeddingOperator' returning 'vector=None' for every chunk (#68491)``
+* ``Verify durable cached agent steps match the request before replay (#68372)``
 
 Misc
 ~~~~

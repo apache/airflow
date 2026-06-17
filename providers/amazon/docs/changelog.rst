@@ -42,6 +42,11 @@ Bug Fixes
 * ``Fix remote-log providers not satisfying RemoteLogIO upload contract (#68300)``
 * ``Harden S3 sync target paths (#67847)``
 
+Misc
+~~~~
+
+* ``Fix mypy errors for task_instance access in provider triggers (#68685)``
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Version the worker-bound TaskInstance fields in the execution API schema (#68390)``

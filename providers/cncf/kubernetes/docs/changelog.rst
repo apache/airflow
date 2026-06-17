@@ -40,6 +40,7 @@ Misc
 ~~~~
 
 * ``Make pod patching logic explicitly reflect when a pod is retained (#68507)``
+* ``Fix mypy errors for task_instance access in provider triggers (#68685)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

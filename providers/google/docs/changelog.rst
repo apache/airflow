@@ -48,6 +48,7 @@ Misc
 ~~~~
 
 * ``Bump google-cloud-aiplatform to force upgrade of litellm (#66632)``
+* ``Fix mypy errors for task_instance access in provider triggers (#68685)``
 
 Doc-only
 ~~~~~~~~

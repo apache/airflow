@@ -92,6 +92,7 @@ Extra           Dependencies
 ``google``      ``pydantic-ai-slim[google]``
 ``openai``      ``pydantic-ai-slim[openai]``
 ``mcp``         ``pydantic-ai-slim[mcp]``
+``code-mode``   ``pydantic-ai-harness[codemode]>=0.3.0``
 ``skills``      ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=0.11.0``
 ``avro``        ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
 ``parquet``     ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
