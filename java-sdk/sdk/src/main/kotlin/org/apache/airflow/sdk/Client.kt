@@ -79,7 +79,9 @@ class Client internal constructor(
         schema = schema as String?,
         login = login as String?,
         password = password as String?,
-        port = port as Int?,
+        // The msgpack decoder yields Long for wire integers, so convert
+        // numerically instead of casting.
+        port = (port as Number?)?.toInt(),
         extra = extra,
       )
     }

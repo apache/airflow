@@ -31,6 +31,7 @@ from sqlalchemy import ForeignKey, Integer, String, Text, select
 from sqlalchemy.orm import Mapped, mapped_column, reconstructor
 
 from airflow._shared.module_loading import import_string
+from airflow._shared.secrets_backend.base import call_secrets_backend_method
 from airflow._shared.secrets_masker import mask_secret
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
@@ -517,7 +518,9 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             try:
-                conn = secrets_backend.get_connection(conn_id=conn_id, team_name=team_name)
+                conn = call_secrets_backend_method(
+                    secrets_backend.get_connection, team_name=team_name, conn_id=conn_id
+                )
                 if conn:
                     SecretCache.save_connection_uri(conn_id, conn.get_uri(), team_name=team_name)
                     return conn
