@@ -46,7 +46,7 @@ from airflow.models.backfill import (
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import Asset, CronPartitionTimetable, PartitionedAssetTimetable
 from airflow.ti_deps.dep_context import DepContext
-from airflow.timetables.base import DagRunInfo
+from airflow.timetables.base import DagRunInfo, DataInterval
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.strings import get_random_string
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -1324,7 +1324,6 @@ def test_partitioned_backfill_reprocess_failed(dag_maker, session):
 
 def test_handle_clear_run_preserves_partition_key(dag_maker, session):
     """BackfillDagRun created via the clear/reprocess path carries partition_key from info."""
-    from airflow.timetables.base import DataInterval
 
     with dag_maker(schedule="@daily") as dag:
         PythonOperator(task_id="hi", python_callable=print)
