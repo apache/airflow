@@ -783,6 +783,63 @@ class TestUpdateDagParsingResults:
         assert dag_model.last_parse_duration == parse_duration
 
     @patch.object(ParseImportError, "full_file_path")
+    @pytest.mark.usefixtures("clean_db")
+    def test_duplicate_dag_id_from_different_file_is_import_error(
+        self, mock_full_path, testing_dag_bundle, session, dag_import_error_listener
+    ):
+        original_dag = DAG(dag_id="test")
+        original_dag.fileloc = "/files/dags/original.py"
+        original_dag.relative_fileloc = "original.py"
+        update_dag_parsing_results_in_db(
+            "testing",
+            None,
+            [original_dag],
+            {},
+            None,
+            set(),
+            session,
+            files_parsed={("testing", "original.py")},
+        )
+
+        duplicate_dag = DAG(dag_id="test")
+        duplicate_dag.fileloc = "/files/dags/duplicate.py"
+        duplicate_dag.relative_fileloc = "duplicate.py"
+        mock_full_path.return_value = duplicate_dag.relative_fileloc
+        import_errors = {}
+        update_dag_parsing_results_in_db(
+            "testing",
+            None,
+            [duplicate_dag],
+            import_errors,
+            None,
+            set(),
+            session,
+            files_parsed={("testing", "duplicate.py")},
+        )
+
+        dag_model = session.get(DagModel, "test")
+        assert dag_model.fileloc == original_dag.fileloc
+        assert dag_model.relative_fileloc == original_dag.relative_fileloc
+
+        serialized_dag = SerializedDagModel.get("test", session=session)
+        assert serialized_dag.dag.fileloc == original_dag.fileloc
+
+        err = import_errors.get(("testing", duplicate_dag.relative_fileloc))
+        assert "AirflowDagDuplicatedIdException" in err
+        assert duplicate_dag.fileloc in err
+        assert original_dag.fileloc in err
+
+        stored_import_error = session.scalar(
+            select(ParseImportError).where(
+                ParseImportError.bundle_name == "testing",
+                ParseImportError.filename == duplicate_dag.relative_fileloc,
+            )
+        )
+        assert stored_import_error is not None
+        assert stored_import_error.stacktrace == err
+        assert len(dag_import_error_listener.new) == 1
+
+    @patch.object(ParseImportError, "full_file_path")
     @patch.object(SerializedDagModel, "write_dag")
     @pytest.mark.usefixtures("clean_db")
     def test_serialized_dag_errors_are_import_errors(

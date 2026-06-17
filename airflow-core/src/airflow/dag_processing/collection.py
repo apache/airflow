@@ -38,6 +38,7 @@ from sqlalchemy.orm import joinedload, load_only
 from airflow._shared.timezones.timezone import utcnow
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
+from airflow.exceptions import AirflowDagDuplicatedIdException
 from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
@@ -82,6 +83,12 @@ if TYPE_CHECKING:
     AssetT = TypeVar("AssetT", SerializedAsset, SerializedAssetAlias)
 
 log = structlog.get_logger(__name__)
+
+
+def _is_same_dag_file(dag: LazyDeserializedDAG, orm_dag: DagModel, bundle_name: str) -> bool:
+    if dag.relative_fileloc and orm_dag.relative_fileloc:
+        return orm_dag.bundle_name == bundle_name and orm_dag.relative_fileloc == dag.relative_fileloc
+    return orm_dag.fileloc == dag.fileloc
 
 
 def _create_orm_dags(
@@ -472,6 +479,21 @@ def update_dag_parsing_results_in_db(
         If None, will be inferred from dags and import_errors. Passing this explicitly ensures that
         import errors are cleared for files that were parsed but no longer contain DAGs.
     """
+    dags = [LazyDeserializedDAG.from_dag(dag) for dag in dags]
+    dag_op = DagModelOperation(
+        bundle_name=bundle_name,
+        bundle_version=bundle_version,
+        dags={dag.dag_id: dag for dag in dags},
+    )
+    dag_id_collisions = dag_op.find_dag_id_collisions(session=session)
+    if dag_id_collisions:
+        for dag in dags:
+            if error := dag_id_collisions.get(dag.dag_id):
+                import_errors[(bundle_name, dag.relative_fileloc or dag.fileloc)] = (
+                    f"{type(error).__name__}: {error}"
+                )
+        dags = [dag for dag in dags if dag.dag_id not in dag_id_collisions]
+
     # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
     # of any Operational Errors
     # In case of failures, provide_session handles rollback
@@ -557,7 +579,25 @@ class DagModelOperation(NamedTuple):
         )
         return {dm.dag_id: dm for dm in session.scalars(stmt).unique()}
 
+    def find_dag_id_collisions(self, *, session: Session) -> dict[str, AirflowDagDuplicatedIdException]:
+        """Find Dag IDs already used by a different active DAG file."""
+        orm_dags = self.find_orm_dags(session=session)
+        return {
+            dag_id: AirflowDagDuplicatedIdException(
+                dag_id=dag_id,
+                incoming=dag.fileloc,
+                existing=orm_dag.fileloc,
+            )
+            for dag_id, dag in self.dags.items()
+            if (orm_dag := orm_dags.get(dag_id))
+            and not orm_dag.is_stale
+            and not _is_same_dag_file(dag, orm_dag, self.bundle_name)
+        }
+
     def add_dags(self, *, session: Session) -> dict[str, DagModel]:
+        if collisions := self.find_dag_id_collisions(session=session):
+            raise next(iter(collisions.values()))
+
         orm_dags = self.find_orm_dags(session=session)
         orm_dags.update(
             (model.dag_id, model)
