@@ -43,18 +43,18 @@ from airflow.sdk.api.datamodels._generated import (
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
-    AssetStoreResult,
-    ClearAssetStoreByName,
-    ClearAssetStoreByUri,
-    ClearTaskStore,
+    AssetStateStoreResult,
+    ClearAssetStateStoreByName,
+    ClearAssetStateStoreByUri,
+    ClearTaskStateStore,
     ConnectionResult,
     CreateHITLDetailPayload,
     DagResult,
     DagRunResult,
     DagRunStateResult,
-    DeleteAssetStoreByName,
-    DeleteAssetStoreByUri,
-    DeleteTaskStore,
+    DeleteAssetStateStoreByName,
+    DeleteAssetStateStoreByUri,
+    DeleteTaskStateStore,
     DeleteVariable,
     DeleteXCom,
     ErrorResponse,
@@ -63,8 +63,8 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetAssetsByAlias,
-    GetAssetStoreByName,
-    GetAssetStoreByUri,
+    GetAssetStateStoreByName,
+    GetAssetStateStoreByUri,
     GetConnection,
     GetDag,
     GetDagRun,
@@ -76,7 +76,7 @@ from airflow.sdk.execution_time.comms import (
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
     GetTaskStates,
-    GetTaskStore,
+    GetTaskStateStore,
     GetTICount,
     GetVariable,
     GetVariableKeys,
@@ -90,13 +90,13 @@ from airflow.sdk.execution_time.comms import (
     OKResponse,
     PrevSuccessfulDagRunResult,
     PutVariable,
-    SetAssetStoreByName,
-    SetAssetStoreByUri,
-    SetTaskStore,
+    SetAssetStateStoreByName,
+    SetAssetStateStoreByUri,
+    SetTaskStateStore,
     SetXCom,
     TaskBreadcrumbsResult,
     TaskStatesResult,
-    TaskStoreResult,
+    TaskStateStoreResult,
     TriggerDagRun,
     ValidateInletsAndOutlets,
     VariableKeysResult,
@@ -479,106 +479,112 @@ def handle_create_hitl_detail_payload(
     return resp, {"exclude_unset": True}
 
 
-@handles(GetTaskStore)
-def handle_get_task_store(client: Client, msg: GetTaskStore) -> tuple[BaseModel | None, dict[str, bool]]:
-    task_store = client.task_store.get(msg.ti_id, msg.key)
+@handles(GetTaskStateStore)
+def handle_get_task_state_store(
+    client: Client, msg: GetTaskStateStore
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    task_state_store = client.task_state_store.get(msg.ti_id, msg.key)
     resp = (
-        task_store
-        if isinstance(task_store, ErrorResponse)
-        else TaskStoreResult.from_task_store_response(task_store)
+        task_state_store
+        if isinstance(task_state_store, ErrorResponse)
+        else TaskStateStoreResult.from_task_state_store_response(task_state_store)
     )
     return resp, {}
 
 
-@handles(SetTaskStore)
-def handle_set_task_store(client: Client, msg: SetTaskStore) -> tuple[BaseModel | None, dict[str, bool]]:
-    client.task_store.set(msg.ti_id, msg.key, msg.value, expires_at=msg.expires_at)
-    return OKResponse(ok=True), {}
-
-
-@handles(DeleteTaskStore)
-def handle_delete_task_store(
-    client: Client, msg: DeleteTaskStore
+@handles(SetTaskStateStore)
+def handle_set_task_state_store(
+    client: Client, msg: SetTaskStateStore
 ) -> tuple[BaseModel | None, dict[str, bool]]:
-    client.task_store.delete(msg.ti_id, msg.key)
+    client.task_state_store.set(msg.ti_id, msg.key, msg.value, expires_at=msg.expires_at)
     return OKResponse(ok=True), {}
 
 
-@handles(ClearTaskStore)
-def handle_clear_task_store(client: Client, msg: ClearTaskStore) -> tuple[BaseModel | None, dict[str, bool]]:
-    client.task_store.clear(msg.ti_id, all_map_indices=msg.all_map_indices)
-    return OKResponse(ok=True), {}
-
-
-@handles(GetAssetStoreByName)
-def handle_get_asset_store_by_name(
-    client: Client, msg: GetAssetStoreByName
+@handles(DeleteTaskStateStore)
+def handle_delete_task_state_store(
+    client: Client, msg: DeleteTaskStateStore
 ) -> tuple[BaseModel | None, dict[str, bool]]:
-    asset_store = client.asset_store.get(msg.key, name=msg.name)
+    client.task_state_store.delete(msg.ti_id, msg.key)
+    return OKResponse(ok=True), {}
+
+
+@handles(ClearTaskStateStore)
+def handle_clear_task_state_store(
+    client: Client, msg: ClearTaskStateStore
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.task_state_store.clear(msg.ti_id, all_map_indices=msg.all_map_indices)
+    return OKResponse(ok=True), {}
+
+
+@handles(GetAssetStateStoreByName)
+def handle_get_asset_state_store_by_name(
+    client: Client, msg: GetAssetStateStoreByName
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    asset_state_store = client.asset_state_store.get(msg.key, name=msg.name)
     resp = (
-        asset_store
-        if isinstance(asset_store, ErrorResponse)
-        else AssetStoreResult.from_asset_store_response(asset_store)
+        asset_state_store
+        if isinstance(asset_state_store, ErrorResponse)
+        else AssetStateStoreResult.from_asset_state_store_response(asset_state_store)
     )
     return resp, {}
 
 
-@handles(GetAssetStoreByUri)
-def handle_get_asset_store_by_uri(
-    client: Client, msg: GetAssetStoreByUri
+@handles(GetAssetStateStoreByUri)
+def handle_get_asset_state_store_by_uri(
+    client: Client, msg: GetAssetStateStoreByUri
 ) -> tuple[BaseModel | None, dict[str, bool]]:
-    asset_store = client.asset_store.get(msg.key, uri=msg.uri)
+    asset_state_store = client.asset_state_store.get(msg.key, uri=msg.uri)
     resp = (
-        asset_store
-        if isinstance(asset_store, ErrorResponse)
-        else AssetStoreResult.from_asset_store_response(asset_store)
+        asset_state_store
+        if isinstance(asset_state_store, ErrorResponse)
+        else AssetStateStoreResult.from_asset_state_store_response(asset_state_store)
     )
     return resp, {}
 
 
-@handles(SetAssetStoreByName)
-def handle_set_asset_store_by_name(
-    client: Client, msg: SetAssetStoreByName
+@handles(SetAssetStateStoreByName)
+def handle_set_asset_state_store_by_name(
+    client: Client, msg: SetAssetStateStoreByName
 ) -> tuple[BaseModel | None, dict[str, bool]]:
-    client.asset_store.set(msg.key, msg.value, name=msg.name)
+    client.asset_state_store.set(msg.key, msg.value, name=msg.name)
     return OKResponse(ok=True), {}
 
 
-@handles(SetAssetStoreByUri)
-def handle_set_asset_store_by_uri(
-    client: Client, msg: SetAssetStoreByUri
+@handles(SetAssetStateStoreByUri)
+def handle_set_asset_state_store_by_uri(
+    client: Client, msg: SetAssetStateStoreByUri
 ) -> tuple[BaseModel | None, dict[str, bool]]:
-    client.asset_store.set(msg.key, msg.value, uri=msg.uri)
+    client.asset_state_store.set(msg.key, msg.value, uri=msg.uri)
     return OKResponse(ok=True), {}
 
 
-@handles(DeleteAssetStoreByName)
-def handle_delete_asset_store_by_name(
-    client: Client, msg: DeleteAssetStoreByName
+@handles(DeleteAssetStateStoreByName)
+def handle_delete_asset_state_store_by_name(
+    client: Client, msg: DeleteAssetStateStoreByName
 ) -> tuple[BaseModel | None, dict[str, bool]]:
-    client.asset_store.delete(msg.key, name=msg.name)
+    client.asset_state_store.delete(msg.key, name=msg.name)
     return OKResponse(ok=True), {}
 
 
-@handles(DeleteAssetStoreByUri)
-def handle_delete_asset_store_by_uri(
-    client: Client, msg: DeleteAssetStoreByUri
+@handles(DeleteAssetStateStoreByUri)
+def handle_delete_asset_state_store_by_uri(
+    client: Client, msg: DeleteAssetStateStoreByUri
 ) -> tuple[BaseModel | None, dict[str, bool]]:
-    client.asset_store.delete(msg.key, uri=msg.uri)
+    client.asset_state_store.delete(msg.key, uri=msg.uri)
     return OKResponse(ok=True), {}
 
 
-@handles(ClearAssetStoreByName)
-def handle_clear_asset_store_by_name(
-    client: Client, msg: ClearAssetStoreByName
+@handles(ClearAssetStateStoreByName)
+def handle_clear_asset_state_store_by_name(
+    client: Client, msg: ClearAssetStateStoreByName
 ) -> tuple[BaseModel | None, dict[str, bool]]:
-    client.asset_store.clear(name=msg.name)
+    client.asset_state_store.clear(name=msg.name)
     return OKResponse(ok=True), {}
 
 
-@handles(ClearAssetStoreByUri)
-def handle_clear_asset_store_by_uri(
-    client: Client, msg: ClearAssetStoreByUri
+@handles(ClearAssetStateStoreByUri)
+def handle_clear_asset_state_store_by_uri(
+    client: Client, msg: ClearAssetStateStoreByUri
 ) -> tuple[BaseModel | None, dict[str, bool]]:
-    client.asset_store.clear(uri=msg.uri)
+    client.asset_state_store.clear(uri=msg.uri)
     return OKResponse(ok=True), {}
