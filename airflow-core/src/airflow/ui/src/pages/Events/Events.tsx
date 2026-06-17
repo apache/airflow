@@ -73,6 +73,15 @@ const eventsColumn = (
     },
   },
   {
+    accessorKey: "owner_display_name",
+    cell: ({ row: { original } }) => original.owner_display_name?.replace(/ -$/u, ""),
+    enableSorting: false,
+    header: translate("auditLog.columns.userDisplayName"),
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
+  {
     accessorKey: "extra",
     cell: ({ row: { original } }) => {
       if (original.extra !== null) {

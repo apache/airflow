@@ -35,6 +35,7 @@ test.describe("Dag Audit Log", () => {
     await expect(eventsPage.whenColumn).toBeVisible();
     await expect(eventsPage.eventColumn).toBeVisible();
     await expect(eventsPage.ownerColumn).toBeVisible();
+    await expect(eventsPage.ownerDisplayNameColumn).toBeVisible();
     await expect(eventsPage.extraColumn).toBeVisible();
 
     const dagIdColumn = eventsPage.eventsTable.getByRole("columnheader").filter({ hasText: "DAG ID" });
