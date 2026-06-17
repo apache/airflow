@@ -33,8 +33,8 @@ Changelog
 Misc
 ~~~~
 
-* ``refactor: Explicitly added pydantic dependency to http provider as raised by @NBardelot (#68321)``
-* ``Bump aiohttp regarding dependabot warning (#67978)``
+* ``Explicitly add pydantic dependency to the http provider (#68321)``
+* ``Bump aiohttp>=3.14.0 (#67978)``
 
 Doc-only
 ~~~~~~~~

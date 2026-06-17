@@ -38,7 +38,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Upload log with 'put_object' in 's3_task_handler' (#68619)``
-* ``Add missing template_fields to BedrockCreateEvaluationJobOperator (#68310)``
+* ``Add 'evaluation_config', 'inference_config' and 'output_data_config' to BedrockCreateEvaluationJobOperator template_fields (#68310)``
 * ``Fix remote-log providers not satisfying RemoteLogIO upload contract (#68300)``
 * ``Harden S3 sync target paths (#67847)``
 

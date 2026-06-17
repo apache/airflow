@@ -27,24 +27,6 @@
 Changelog
 ---------
 
-4.5.3
-.....
-
-Misc
-~~~~
-
-* ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
-
-Doc-only
-~~~~~~~~
-
-* ``Prepare providers release 2026-05-19 (#67137)``
-* ``Prepare providers release 2026-05-05 (#66424)``
-
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
-   * ``Fix stale system test documentation links (#65071)``
-
 4.5.2
 .....
 

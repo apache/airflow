@@ -35,20 +35,16 @@ Breaking changes
 
 * ``Version the worker-bound TaskInstance fields in the execution API schema (#68390)``
 
-Misc
-~~~~
-
-* ``Bump the edge-ui-package-updates group across 1 directory with 14 updates (#68469)``
-
 Doc-only
 ~~~~~~~~
 
-* ``Fix BackfillDagRun.partition_key type annotation (str, not datetime) (#68432)``
 * ``Fix typo and restore SVG diagram headers (#68435)``
 * ``Fix Typo in EdgeExecutor Architecture diagram (#68401)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix BackfillDagRun.partition_key type annotation (str, not datetime) (#68432)``
+   * ``Bump the edge-ui-package-updates group across 1 directory with 14 updates (#68469)``
 
 3.8.0
 .....

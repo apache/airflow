@@ -33,7 +33,7 @@ Changelog
 Bug Fixes
 ~~~~~~~~~
 
-* ``fix the ftp tls (#67946)``
+* ``Enable the protected data channel in 'FTPSHook' by calling 'prot_p()' after login (#67946)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

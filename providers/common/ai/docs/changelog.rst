@@ -51,17 +51,17 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``Bump vite (#68580)``
 * ``Access AgentRunResult.usage as a property in common.ai logging (#68405)``
-* ``Bump pydantic-ai-slim to resolve dependabot (#68105)``
+* ``Bump pydantic-ai-slim>=1.99.0 (#68105)``
 
 Doc-only
 ~~~~~~~~
 
-* ``docs: Explain the agent tool boundary in common.ai security docs (#68404)``
+* ``Explain the agent tool boundary in common.ai security docs (#68404)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump vite (#68580)``
    * ``Fix common.ai example DAGs failing to parse without the sql extra (#68497)``
    * ``Informatica provider: Add SQL auto-lineage and selective lineage control (#66612)``
    * ``Rename task_store/asset_store to task_state_store/asset_state_store (#68438)``

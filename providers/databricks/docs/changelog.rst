@@ -44,11 +44,11 @@ Changelog
 Misc
 ~~~~
 
-* ``Bump aiohttp regarding dependabot warning (#67978)``
-* ``Add comment hint about pandas 3.0.0 (#67961)``
+* ``Bump aiohttp>=3.14.0 (#67978)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment hint about pandas 3.0.0 (#67961)``
 
 7.16.0
 ......

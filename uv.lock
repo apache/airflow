@@ -3297,7 +3297,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-druid"
-version = "4.5.3"
+version = "4.5.2"
 source = { editable = "providers/apache/druid" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6932,7 +6932,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-papermill"
-version = "3.13.2"
+version = "3.13.1"
 source = { editable = "providers/papermill" }
 dependencies = [
     { name = "apache-airflow" },

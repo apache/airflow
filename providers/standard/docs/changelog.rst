@@ -47,7 +47,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Block retry_policy argument for StubOperator (#68551)``
-* ``fix: Fix Triggered DAG button not visible during queued/running state (#67327)``
+* ``Fix Triggered DAG button not visible during queued/running state (#67327)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
