@@ -259,21 +259,27 @@ class TestPartitionedAssetTimetable:
         assert isinstance(timetable.default_partition_mapper, IdentityMapper)
         assert isinstance(timetable.partition_mapper_config[ser_asset], IdentityMapper)
 
-    def test_decode_partition_date_raises_on_invalid_key(self):
+    @pytest.mark.parametrize(
+        "asset_like",
+        [
+            Asset(name="daily", uri="s3://bucket/daily"),
+            Asset.ref(name="daily"),
+        ],
+    )
+    def test_decode_partition_date_raises_on_invalid_key(self, asset_like):
         timetable = PartitionedAssetTimetable(
-            assets=Asset(name="daily", uri="s3://bucket/daily"),
+            assets=asset_like,
             default_partition_mapper=StartOfDayMapper(),
         )
         with pytest.raises(InvalidPartitionKeyError, match="is invalid for this timetable's mappers"):
             timetable._decode_partition_date("not-a-date")
 
-    def test_decode_partition_date_raises_on_invalid_key_via_asset_ref(self):
+    def test_decode_partition_date_returns_period_start_for_valid_key(self):
         timetable = PartitionedAssetTimetable(
-            assets=Asset.ref(name="daily"),
+            assets=Asset(name="daily", uri="s3://bucket/daily"),
             default_partition_mapper=StartOfDayMapper(),
         )
-        with pytest.raises(InvalidPartitionKeyError, match="is invalid for this timetable's mappers"):
-            timetable._decode_partition_date("not-a-date")
+        assert timetable._decode_partition_date("2025-01-01") == pendulum.datetime(2025, 1, 1, tz="UTC")
 
     def test_partitioned_asset_timetable_resolve_day_bound_returns_midnight_utc(self):
         """PartitionedAssetTimetable has no local timezone; resolve_day_bound uses the base default.
