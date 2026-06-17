@@ -49,10 +49,7 @@ with DAG(
             "row_count": row_count,
             "processed_at": datetime.now(tz=timezone.utc).isoformat(timespec="seconds"),
         }
-
-        task_state_store.set("table", table)
         task_state_store.set("status", "complete")
-        task_state_store.set("row_count", row_count)
         task_state_store.set("result", result)
 
         print(f"[map_index={ti.map_index}] Processed {table}: {row_count} rows")
