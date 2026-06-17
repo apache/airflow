@@ -115,8 +115,8 @@ from airflow.partition_mappers.base import is_rollup
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import ACTIVE_STATES, EXECUTION_STATES
-from airflow.timetables.base import Timetable, DataInterval, compute_rollup_fingerprint
-from airflow.timetables.simple import AssetTriggeredTimetable, PartitionedAssetTimetable
+from airflow.timetables.base import DataInterval, Timetable, compute_rollup_fingerprint
+from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.helpers import prune_dict
