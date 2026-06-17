@@ -763,9 +763,7 @@ class SerializedDAG:
                         raise ValueError(f"VariableInterval '{interval.key}' not found")
                     interval = interval.coerce_to_timedelta(var_row.get_val())
 
-                if isinstance(
-                    deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN
-                ):
+                if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
                     deadline_time = deserialized_deadline_alert.reference.evaluate_with(
                         session=session,
                         interval=interval,
