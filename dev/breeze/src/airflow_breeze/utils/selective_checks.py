@@ -309,6 +309,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^chart/files/",
             r"^scripts/ci/prek/build_kustomize_overlays\.py$",
             r"^dev/breeze/src/airflow_breeze/commands/kubernetes_commands\.py$",
+            r"^dev/breeze/src/airflow_breeze/commands/kubernetes_kustomize_commands\.py$",
             r"^\.github/workflows/kustomize-overlays-tests\.yml$",
         ],
         FileGroupForCi.DOC_FILES: [
