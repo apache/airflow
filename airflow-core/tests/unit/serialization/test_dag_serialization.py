@@ -1566,6 +1566,7 @@ class TestStringifiedDAGs:
             "tasks",
             "has_on_success_callback",
             "has_on_failure_callback",
+            "has_on_skipped_intervals_callback",
             "dag_dependencies",
             "params",
         }
