@@ -1440,6 +1440,143 @@ class TestOpenLineageListenerAirflow3:
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_task_hook_failed_emits_with_defaults_when_emission_policy_misconfigured(
+        self,
+        mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
+        mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
+        mock_debug_facet,
+        mock_debug_mode,
+    ):
+        """on_task_instance_failed must also degrade gracefully on a non-list emission_policy."""
+        listener, task_instance = self._create_listener_and_task_instance()
+        mock_get_airflow_mapped_task_facet.return_value = {}
+        mock_get_user_provided_run_facets.return_value = {}
+        mock_get_airflow_run_facet.return_value = {}
+        mock_get_task_parent_run_facet.return_value = {}
+        mock_debug_facet.return_value = {}
+
+        with conf_vars({("openlineage", "emission_policy"): json.dumps({"not": "a list"})}):
+            listener.on_task_instance_failed(
+                previous_state=None, task_instance=task_instance, error=ValueError("boom")
+            )
+
+        listener.adapter.fail_task.assert_called_once()
+
+    @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_task_hook_success_emits_with_defaults_when_emission_policy_misconfigured(
+        self,
+        mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
+        mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
+        mock_debug_facet,
+        mock_debug_mode,
+    ):
+        """on_task_instance_success must also degrade gracefully on a non-list emission_policy."""
+        listener, task_instance = self._create_listener_and_task_instance()
+        mock_get_airflow_mapped_task_facet.return_value = {}
+        mock_get_user_provided_run_facets.return_value = {}
+        mock_get_airflow_run_facet.return_value = {}
+        mock_get_task_parent_run_facet.return_value = {}
+        mock_debug_facet.return_value = {}
+
+        with conf_vars({("openlineage", "emission_policy"): json.dumps({"not": "a list"})}):
+            listener.on_task_instance_success(None, task_instance)
+
+        listener.adapter.complete_task.assert_called_once()
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_extract_operator_metadata_false_skips_extraction(
+        self,
+        mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
+        mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
+        mock_policy,
+    ):
+        """When extract_operator_metadata=False the listener must skip ExtractorManager and emit bare OperatorLineage."""
+        listener, task_instance = self._create_listener_and_task_instance()
+        mock_get_airflow_mapped_task_facet.return_value = {}
+        mock_get_user_provided_run_facets.return_value = {}
+        mock_get_airflow_run_facet.return_value = {}
+        mock_get_task_parent_run_facet.return_value = {}
+        mock_policy.return_value = EmissionPolicy(
+            emit=True,
+            extract_operator_metadata=False,
+            include_source_code=True,
+            hook_lineage=True,
+            include_full_task_info=False,
+        )
+
+        listener.on_task_instance_running(None, task_instance)
+
+        listener.extractor_manager.extract_metadata.assert_not_called()
+        listener.adapter.start_task.assert_called_once()
+        call_task = listener.adapter.start_task.call_args.kwargs["task"]
+        assert call_task == OperatorLineage()
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_include_full_task_info_true_forwarded_to_get_airflow_run_facet(
+        self,
+        mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
+        mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
+        mock_policy,
+    ):
+        """When include_full_task_info=True the listener must forward that flag to get_airflow_run_facet."""
+        listener, task_instance = self._create_listener_and_task_instance()
+        mock_get_airflow_mapped_task_facet.return_value = {}
+        mock_get_user_provided_run_facets.return_value = {}
+        mock_get_airflow_run_facet.return_value = {}
+        mock_get_task_parent_run_facet.return_value = {}
+        mock_policy.return_value = EmissionPolicy(
+            emit=True,
+            extract_operator_metadata=True,
+            include_source_code=True,
+            hook_lineage=True,
+            include_full_task_info=True,
+        )
+
+        listener.on_task_instance_running(None, task_instance)
+
+        mock_get_airflow_run_facet.assert_called_once()
+        _, call_kwargs = mock_get_airflow_run_facet.call_args
+        assert call_kwargs.get("include_full_task_info") is True
+
+    @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")

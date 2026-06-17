@@ -688,14 +688,9 @@ class TestResolveLineageControlsValidation:
 class TestAuditLogging:
     """Audit-log assertions pin the exact format string, field, context, and source for every call."""
 
-    _CONF_DISABLED = "OpenLineage emission policy: '%s' disabled for %s by %r"
-    _CONF_ENABLED = "OpenLineage emission policy: '%s' enabled for %s by %r"
-    _AUTH_DISABLED = (
-        "OpenLineage emission policy: '%s' disabled for %s "
-        "by manual `extend_global_openlineage_emission_policy` call."
-    )
-    _AUTH_ENABLED = (
-        "OpenLineage emission policy: '%s' enabled for %s "
+    _CONF_FMT = "OpenLineage emission policy: '%s' %s for %s by %r"
+    _AUTH_FMT = (
+        "OpenLineage emission policy: '%s' %s for %s "
         "by manual `extend_global_openlineage_emission_policy` call."
     )
 
@@ -706,8 +701,9 @@ class TestAuditLogging:
             with mock.patch("airflow.providers.openlineage.utils.emission_policy.log") as mock_log:
                 resolve_task_emission_policy(op, "dag", "task")
         mock_log.info.assert_called_once_with(
-            self._CONF_DISABLED,
+            self._CONF_FMT,
             "emit",
+            "disabled",
             "task 'task' in dag 'dag'",
             Rule(scope={}, controls={"emit": False}, match_mode="exact", locked=False),
         )
@@ -719,8 +715,9 @@ class TestAuditLogging:
             with mock.patch("airflow.providers.openlineage.utils.emission_policy.log") as mock_log:
                 resolve_task_emission_policy(op, "dag", "task")
         mock_log.info.assert_called_once_with(
-            self._CONF_DISABLED,
+            self._CONF_FMT,
             "include_source_code",
+            "disabled",
             "task 'task' in dag 'dag'",
             Rule(scope={}, controls={"include_source_code": False}, match_mode="exact", locked=False),
         )
@@ -741,8 +738,9 @@ class TestAuditLogging:
             with mock.patch("airflow.providers.openlineage.utils.emission_policy.log") as mock_log:
                 resolve_task_emission_policy(op, "audit_dag", "t")
         mock_log.info.assert_called_once_with(
-            self._CONF_DISABLED,
+            self._CONF_FMT,
             "extract_operator_metadata",
+            "disabled",
             "task 't' in dag 'audit_dag'",
             Rule(
                 scope={"dag_id": "audit_dag"},
@@ -759,8 +757,9 @@ class TestAuditLogging:
             with mock.patch("airflow.providers.openlineage.utils.emission_policy.log") as mock_log:
                 resolve_dag_emission_policy("my_dag")
         mock_log.info.assert_called_once_with(
-            self._CONF_DISABLED,
+            self._CONF_FMT,
             "emit",
+            "disabled",
             "dag event 'my_dag'",
             Rule(
                 scope={"dag_id": "my_dag"},
@@ -785,8 +784,9 @@ class TestAuditLogging:
                     warnings.simplefilter("ignore", DeprecationWarning)
                     resolve_task_emission_policy(task, "test_se_dag", "t")
         mock_log.info.assert_called_once_with(
-            self._CONF_DISABLED,
+            self._CONF_FMT,
             "emit",
+            "disabled",
             "task 't' in dag 'test_se_dag'",
             Rule(scope={}, controls={"emit": False}, match_mode="exact", locked=False),
         )
@@ -806,8 +806,9 @@ class TestAuditLogging:
                     warnings.simplefilter("ignore", DeprecationWarning)
                     resolve_dag_emission_policy("se_dag2", dag=dag)
         mock_log.info.assert_called_once_with(
-            self._CONF_DISABLED,
+            self._CONF_FMT,
             "emit",
+            "disabled",
             "dag event 'se_dag2'",
             Rule(scope={}, controls={"emit": False}, match_mode="exact", locked=False),
         )
@@ -828,8 +829,9 @@ class TestAuditLogging:
                 cfg = resolve_task_emission_policy(MockOperator(), "my_dag", "task")
         assert cfg.include_source_code is True
         mock_log.info.assert_called_once_with(
-            self._CONF_ENABLED,
+            self._CONF_FMT,
             "include_source_code",
+            "enabled",
             "task 'task' in dag 'my_dag'",
             Rule(
                 scope={"dag_id": "my_dag"},
@@ -863,14 +865,16 @@ class TestAuditLogging:
         mock_log.info.assert_has_calls(
             [
                 mock.call(
-                    self._CONF_DISABLED,
+                    self._CONF_FMT,
                     "include_source_code",
+                    "disabled",
                     "task 'test_task' in dag 'test_dag'",
                     Rule(scope={}, controls={"include_source_code": False}, match_mode="exact", locked=False),
                 ),
                 mock.call(
-                    self._AUTH_ENABLED,
+                    self._AUTH_FMT,
                     "include_source_code",
+                    "enabled",
                     "task 'test_task' in dag 'test_dag'",
                 ),
             ]
@@ -892,8 +896,9 @@ class TestAuditLogging:
 
         assert cfg.include_source_code is False
         mock_log.info.assert_called_once_with(
-            self._CONF_DISABLED,
+            self._CONF_FMT,
             "include_source_code",
+            "disabled",
             "task 'test_task' in dag 'test_dag'",
             Rule(scope={}, controls={"include_source_code": False}, match_mode="exact", locked=False),
         )
@@ -909,8 +914,9 @@ class TestAuditLogging:
             with mock.patch("airflow.providers.openlineage.utils.emission_policy.log") as mock_log:
                 resolve_task_emission_policy(MockOperator(), "dag", "task")
         mock_log.info.assert_called_once_with(
-            self._CONF_ENABLED,
+            self._CONF_FMT,
             "include_source_code",
+            "enabled",
             "task 'task' in dag 'dag'",
             Rule(scope={}, controls={"include_source_code": True}, match_mode="exact", locked=False),
         )
@@ -927,8 +933,9 @@ class TestAuditLogging:
             with mock.patch("airflow.providers.openlineage.utils.emission_policy.log") as mock_log:
                 resolve_task_emission_policy(MockOperator(), "dag", "task")
         mock_log.info.assert_called_once_with(
-            self._CONF_DISABLED,
+            self._CONF_FMT,
             "include_source_code",
+            "disabled",
             "task 'task' in dag 'dag'",
             Rule(scope={}, controls={"include_source_code": False}, match_mode="exact", locked=False),
         )
@@ -947,8 +954,9 @@ class TestAuditLogging:
         assert cfg.include_source_code is True
         assert mock_log.info.call_count == 1
         mock_log.info.assert_called_once_with(
-            self._CONF_ENABLED,
+            self._CONF_FMT,
             "include_source_code",
+            "enabled",
             "task 'task' in dag 'dag'",
             Rule(scope={}, controls={"include_source_code": True}, match_mode="exact", locked=False),
         )
@@ -969,9 +977,13 @@ class TestAuditLogging:
         assert mock_log.info.call_count == 2
         mock_log.info.assert_has_calls(
             [
-                mock.call(self._CONF_DISABLED, "emit", "task 'task' in dag 'dag'", winning_rule),
+                mock.call(self._CONF_FMT, "emit", "disabled", "task 'task' in dag 'dag'", winning_rule),
                 mock.call(
-                    self._CONF_DISABLED, "include_source_code", "task 'task' in dag 'dag'", winning_rule
+                    self._CONF_FMT,
+                    "include_source_code",
+                    "disabled",
+                    "task 'task' in dag 'dag'",
+                    winning_rule,
                 ),
             ]
         )
@@ -983,8 +995,9 @@ class TestAuditLogging:
             with mock.patch("airflow.providers.openlineage.utils.emission_policy.log") as mock_log:
                 resolve_task_emission_policy(MockOperator(), "dag", "task")
         mock_log.info.assert_called_once_with(
-            self._CONF_ENABLED,
+            self._CONF_FMT,
             "include_full_task_info",
+            "enabled",
             "task 'task' in dag 'dag'",
             Rule(scope={}, controls={"include_full_task_info": True}, match_mode="exact", locked=False),
         )
@@ -1004,8 +1017,9 @@ class TestAuditLogging:
 
         assert cfg.include_source_code is False
         mock_log.info.assert_called_once_with(
-            self._AUTH_DISABLED,
+            self._AUTH_FMT,
             "include_source_code",
+            "disabled",
             "task 'test_task' in dag 'test_dag'",
         )
 
@@ -1050,8 +1064,9 @@ class TestAuditLogging:
 
         assert cfg.include_source_code is False
         mock_log.info.assert_called_once_with(
-            self._CONF_DISABLED,
+            self._CONF_FMT,
             "include_source_code",
+            "disabled",
             "task 'test_task' in dag 'test_dag'",
             Rule(scope={}, controls={"include_source_code": False}, match_mode="exact", locked=False),
         )
@@ -1075,8 +1090,9 @@ class TestAuditLogging:
 
         assert cfg.emit is False
         mock_log.info.assert_called_once_with(
-            self._AUTH_DISABLED,
+            self._AUTH_FMT,
             "emit",
+            "disabled",
             "task 'test_task' in dag 'test_dag'",
         )
 
@@ -1102,14 +1118,16 @@ class TestAuditLogging:
         mock_log.info.assert_has_calls(
             [
                 mock.call(
-                    self._CONF_ENABLED,
+                    self._CONF_FMT,
                     "include_source_code",
+                    "enabled",
                     "task 'test_task' in dag 'test_dag'",
                     Rule(scope={}, controls={"include_source_code": True}, match_mode="exact", locked=False),
                 ),
                 mock.call(
-                    self._AUTH_DISABLED,
+                    self._AUTH_FMT,
                     "include_source_code",
+                    "disabled",
                     "task 'test_task' in dag 'test_dag'",
                 ),
             ]
@@ -1162,8 +1180,9 @@ class TestAuditLogging:
         mock_log.info.assert_has_calls(
             [
                 mock.call(
-                    self._CONF_ENABLED,
+                    self._CONF_FMT,
                     "include_source_code",
+                    "enabled",
                     "task 'test_task' in dag 'test_dag'",
                     Rule(
                         scope={"dag_id": "test_dag"},
@@ -1173,8 +1192,9 @@ class TestAuditLogging:
                     ),
                 ),
                 mock.call(
-                    self._AUTH_DISABLED,
+                    self._AUTH_FMT,
                     "include_source_code",
+                    "disabled",
                     "task 'test_task' in dag 'test_dag'",
                 ),
             ]
@@ -1210,16 +1230,20 @@ class TestAuditLogging:
         assert mock_log.info.call_count == 3
         mock_log.info.assert_has_calls(
             [
-                mock.call(self._CONF_DISABLED, "emit", "task 'test_task' in dag 'test_dag'", winning_rule),
                 mock.call(
-                    self._CONF_DISABLED,
+                    self._CONF_FMT, "emit", "disabled", "task 'test_task' in dag 'test_dag'", winning_rule
+                ),
+                mock.call(
+                    self._CONF_FMT,
                     "include_source_code",
+                    "disabled",
                     "task 'test_task' in dag 'test_dag'",
                     winning_rule,
                 ),
                 mock.call(
-                    self._AUTH_ENABLED,
+                    self._AUTH_FMT,
                     "include_source_code",
+                    "enabled",
                     "task 'test_task' in dag 'test_dag'",
                 ),
             ]
@@ -2069,7 +2093,7 @@ class TestLockedField:
         locked_calls = [c for c in mock_log.warning.call_args_list if "has no effect" in c.args[0]]
         assert len(locked_calls) == 1
         assert locked_calls[0].args == (
-            "OpenLineage emission_policy: extend_global_openlineage_emission_policy call for 'emit' (dag event) on %s"
+            "OpenLineage emission_policy: extend_global_openlineage_emission_policy call for 'emit' on %s"
             " has no effect — locked by conf rule at value %r",
             "dag event 'locked_dag_msg_test'",
             False,

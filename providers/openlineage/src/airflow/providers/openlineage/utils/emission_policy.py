@@ -137,7 +137,7 @@ from __future__ import annotations
 import logging
 import re
 import warnings
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
@@ -312,20 +312,13 @@ def _merge_param(obj: object, param_name: str, new_flags: dict[str, bool]) -> No
 
 def _audit_log_conf_field(field: str, value: bool, context: str, source: Rule) -> None:
     """Log the winning conf value for a field whenever any rule touched it."""
-    if value:
-        log.info(
-            "OpenLineage emission policy: '%s' enabled for %s by %r",
-            field,
-            context,
-            source,
-        )
-    else:
-        log.info(
-            "OpenLineage emission policy: '%s' disabled for %s by %r",
-            field,
-            context,
-            source,
-        )
+    log.info(
+        "OpenLineage emission policy: '%s' %s for %s by %r",
+        field,
+        "enabled" if value else "disabled",
+        context,
+        source,
+    )
 
 
 def _audit_log_authoring_updates(
@@ -334,20 +327,13 @@ def _audit_log_authoring_updates(
 ) -> None:
     """Audit-log authoring overrides that actually change the resolved policy value."""
     for field, new_value in field_changes.items():
-        if new_value:
-            log.info(
-                "OpenLineage emission policy: '%s' enabled for %s "
-                "by manual `extend_global_openlineage_emission_policy` call.",
-                field,
-                context,
-            )
-        else:
-            log.info(
-                "OpenLineage emission policy: '%s' disabled for %s "
-                "by manual `extend_global_openlineage_emission_policy` call.",
-                field,
-                context,
-            )
+        log.info(
+            "OpenLineage emission policy: '%s' %s for %s "
+            "by manual `extend_global_openlineage_emission_policy` call.",
+            field,
+            "enabled" if new_value else "disabled",
+            context,
+        )
 
 
 def _parse_rule(rule: object) -> Rule | None:
@@ -520,8 +506,7 @@ def _parse_user_rules() -> tuple[Rule, ...]:
 
     Validation runs here exactly once per config value (``conf.emission_policy()`` is
     itself cached), so task / dag resolution operates on pre-validated :class:`Rule`
-    objects without re-validating on every event. Caching is disabled under pytest
-    (see the ``PYTEST_VERSION`` guard at the top of this module).
+    objects without re-validating on every event.
     """
     return tuple(parsed for raw in _ol_conf.emission_policy() if (parsed := _parse_rule(raw)) is not None)
 
@@ -589,45 +574,49 @@ def _classify_dag_rules(
     return dag_rules, global_rules
 
 
-def _resolve_field_with_source(
-    tiers: list[list[Rule]], field: str, default: bool
+def _walk_tiers(
+    tiers: list[list[Rule]],
+    extract_value: Callable[[dict[str, bool]], bool | None],
+    field_label: str,
+    default: bool,
 ) -> tuple[bool, Rule | None]:
     """
-    Walk priority tiers from most specific to least specific.
+    Walk priority tiers from most-specific to least-specific, last-wins within each tier.
 
-    Within a tier the *last* rule that sets ``field`` (inside its ``controls`` dict)
-    wins. Returns ``(default, None)`` if no rule in any tier specifies the field;
-    the second element is the :class:`Rule` that provided the winning value, or
-    ``None`` when the built-in default was used.
-
-    A WARNING is logged when two rules in the *same* tier set the same field to
-    *different* values — the later rule still wins, but the conflict is surfaced
-    so operators can spot accidental contradictions.
+    *extract_value* maps a rule's ``controls`` dict to ``bool | None``; ``None`` means
+    "this rule does not cover this field".  A contradiction WARNING is emitted when two
+    rules in the same tier produce different non-``None`` values.  Returns
+    ``(default, None)`` when no rule in any tier matches.
     """
     for tier_rules in tiers:
-        # ``None`` means "unset"; control values are always bool (validated at parse time).
         value: bool | None = None
         winning_rule: Rule | None = None
         for rule in tier_rules:
-            controls = rule.controls
-            if field in controls:
-                v = controls[field]
-                if winning_rule is not None and value != v:
+            new_v = extract_value(rule.controls)
+            if new_v is not None:
+                if winning_rule is not None and value != new_v:
                     log.warning(
                         "OpenLineage emission_policy: field '%s' has contradictory values in the same "
                         "priority tier (using last value %r); conflicting rules:"
                         "\n - %r"
                         "\n - %r",
-                        field,
-                        v,
+                        field_label,
+                        new_v,
                         winning_rule,
                         rule,
                     )
-                value = v
+                value = new_v
                 winning_rule = rule
         if value is not None:
             return value, winning_rule
     return default, None
+
+
+def _resolve_field_with_source(
+    tiers: list[list[Rule]], field: str, default: bool
+) -> tuple[bool, Rule | None]:
+    """Walk tiers for a single boolean *field* in ``controls``."""
+    return _walk_tiers(tiers, lambda c: c.get(field), field, default)
 
 
 def _resolve_emit_with_source(
@@ -643,34 +632,13 @@ def _resolve_emit_with_source(
     precedence over the generic ``emit`` shorthand.
     """
     specific_key = EMIT_TASK_EVENTS if scope == "task" else EMIT_DAG_EVENTS
-    for tier_rules in tiers:
-        # ``None`` means "unset"; control values are always bool (validated at parse time).
-        value: bool | None = None
-        winning_rule: Rule | None = None
-        for rule in tier_rules:
-            controls = rule.controls
-            new_v: bool | None = None
-            if specific_key in controls:
-                new_v = controls[specific_key]
-            elif EMIT in controls:
-                new_v = controls[EMIT]
-            if new_v is not None:
-                if winning_rule is not None and value != new_v:
-                    log.warning(
-                        "OpenLineage emission_policy: field 'emit' (%s) has contradictory values in the "
-                        "same priority tier (using last value %r); conflicting rules: "
-                        "\n - %r"
-                        "\n - %r",
-                        scope,
-                        new_v,
-                        winning_rule,
-                        rule,
-                    )
-                value = new_v
-                winning_rule = rule
-        if value is not None:
-            return value, winning_rule
-    return default, None
+
+    def _extract(c: dict[str, bool]) -> bool | None:
+        if specific_key in c:
+            return c[specific_key]
+        return c.get(EMIT)
+
+    return _walk_tiers(tiers, _extract, f"emit ({scope})", default)
 
 
 def _synthesize_legacy_task_rules(
@@ -802,60 +770,66 @@ def _warn_legacy_with_emission_policy(legacy_rules: list[Rule], scope: str) -> N
     )
 
 
+def _compute_locked_fields(
+    rules: list[Rule],
+    emit_key: str,
+    extra_lockable: Sequence[str] = (),
+) -> frozenset[str]:
+    """
+    Return the set of fields locked by *any* rule in *rules* that carries ``locked: true``.
+
+    **Floor-lock semantics**: a field is locked if *any* matching rule marks it locked,
+    regardless of whether that rule wins the value race.
+
+    *emit_key* is the scope-specific emit control (``emit_task_events`` or
+    ``emit_dag_events``); both it and the generic ``emit`` shorthand lock the ``"emit"``
+    policy field.  *extra_lockable* lists additional fields to scan (task-event only).
+    """
+    locked: set[str] = set()
+    for rule in rules:
+        if not rule.locked:
+            continue
+        controls = rule.controls
+        if emit_key in controls or EMIT in controls:
+            locked.add(EMIT)
+        for field in extra_lockable:
+            if field in controls:
+                locked.add(field)
+    return frozenset(locked)
+
+
 def _compute_locked_task_fields(
     task_rules: list[Rule],
     dag_rules: list[Rule],
     operator_rules: list[Rule],
     global_rules: list[Rule],
 ) -> frozenset[str]:
-    """
-    Compute the set of task-event fields that are locked by *any* matching conf rule.
-
-    **Floor-lock semantics**: a field is locked if *any* conf rule that matches the
-    current resolution context carries ``locked: true`` for that field — regardless
-    of whether that rule is the *winning* rule for the field.  This means a global
-    locked rule cannot be silently bypassed by a more-specific (but unlocked) conf
-    rule or by per-task authoring flags.
-
-    ``emit_task_events`` and ``emit`` both map to the ``"emit"`` field in
-    :class:`EmissionPolicy` for task-event decisions.
-    """
-    _locked: set[str] = set()
-    for rule in task_rules + dag_rules + operator_rules + global_rules:
-        if not rule.locked:
-            continue
-        controls = rule.controls
-        if EMIT_TASK_EVENTS in controls or EMIT in controls:
-            _locked.add(EMIT)
-        for field in _LOCKABLE_TASK_FIELDS:
-            if field in controls:
-                _locked.add(field)
-    return frozenset(_locked)
+    """Compute the set of task-event fields locked by any matching conf rule."""
+    return _compute_locked_fields(
+        task_rules + dag_rules + operator_rules + global_rules,
+        EMIT_TASK_EVENTS,
+        _LOCKABLE_TASK_FIELDS,
+    )
 
 
-def _extend_policy_with_task_authoring(
+def _apply_authoring_overrides(
     config: EmissionPolicy,
     locked_fields: frozenset[str],
-    operator: AnyOperator,
+    flags: dict[str, bool],
+    emit_key: str,
     context: str,
+    extra_fields: tuple[str, ...] = (),
 ) -> EmissionPolicy:
     """
-    Apply per-task authoring flags on top of *config*.
+    Core of the authoring-override merge: apply *flags* onto *config*, skipping locked fields.
 
-    Authoring flags are stored on operator objects by
-    :func:`~airflow.providers.openlineage.api.emission_policy.extend_global_openlineage_emission_policy`.
-    Fields listed in *locked_fields* are protected — attempts to override them are
-    logged at INFO level and silently ignored.  prek run``emit_task_events`` in the authoring
-    flags takes precedence over ``emit`` for the task ``emit`` field, mirroring the
-    same precedence used in conf rule resolution.
+    *emit_key* is the scope-specific emit control (``emit_task_events`` for tasks,
+    ``emit_dag_events`` for DAG events).  *extra_fields* lists additional lockable
+    fields that the task path carries but the DAG path does not.
     """
-    flags = _read_param(operator, OL_EMISSION_POLICY_PARAM)
-    if not flags:
-        return config
-
     updates: dict[str, bool] = {}
 
-    effective_emit: bool | None = flags.get(EMIT_TASK_EVENTS, flags.get(EMIT))
+    effective_emit: bool | None = flags.get(emit_key, flags.get(EMIT))
     if effective_emit is not None:
         if EMIT in locked_fields:
             log.warning(
@@ -867,7 +841,7 @@ def _extend_policy_with_task_authoring(
         else:
             updates[EMIT] = effective_emit
 
-    for field in (EXTRACT_OPERATOR_METADATA, INCLUDE_SOURCE_CODE, HOOK_LINEAGE, INCLUDE_FULL_TASK_INFO):
+    for field in extra_fields:
         if field not in flags:
             continue
         if field in locked_fields:
@@ -889,6 +863,35 @@ def _extend_policy_with_task_authoring(
     return replace(config, **changed)
 
 
+def _extend_policy_with_task_authoring(
+    config: EmissionPolicy,
+    locked_fields: frozenset[str],
+    operator: AnyOperator,
+    context: str,
+) -> EmissionPolicy:
+    """
+    Apply per-task authoring flags on top of *config*.
+
+    Authoring flags are stored on operator objects by
+    :func:`~airflow.providers.openlineage.api.emission_policy.extend_global_openlineage_emission_policy`.
+    Fields listed in *locked_fields* are protected — attempts to override them are
+    logged at WARNING level and silently ignored. ``emit_task_events`` in the authoring
+    flags takes precedence over ``emit`` for the task ``emit`` field, mirroring the
+    same precedence used in conf rule resolution.
+    """
+    flags = _read_param(operator, OL_EMISSION_POLICY_PARAM)
+    if not flags:
+        return config
+    return _apply_authoring_overrides(
+        config,
+        locked_fields,
+        flags,
+        EMIT_TASK_EVENTS,
+        context,
+        extra_fields=(EXTRACT_OPERATOR_METADATA, INCLUDE_SOURCE_CODE, HOOK_LINEAGE, INCLUDE_FULL_TASK_INFO),
+    )
+
+
 def _extend_policy_with_dag_authoring(
     config: EmissionPolicy,
     locked_fields: frozenset[str],
@@ -904,27 +907,7 @@ def _extend_policy_with_dag_authoring(
     flags = _read_param(dag, OL_EMISSION_POLICY_PARAM)
     if not flags:
         return config
-
-    updates: dict[str, bool] = {}
-
-    effective_emit: bool | None = flags.get(EMIT_DAG_EVENTS, flags.get(EMIT))
-    if effective_emit is not None:
-        if EMIT in locked_fields:
-            log.warning(
-                "OpenLineage emission_policy: extend_global_openlineage_emission_policy call for 'emit' (dag event) on %s"
-                " has no effect — locked by conf rule at value %r",
-                context,
-                config.emit,
-            )
-        else:
-            updates[EMIT] = effective_emit
-
-    changed = {k: v for k, v in updates.items() if getattr(config, k) != v}
-    if not changed:
-        return config
-
-    _audit_log_authoring_updates(changed, context)
-    return replace(config, **changed)
+    return _apply_authoring_overrides(config, locked_fields, flags, EMIT_DAG_EVENTS, context)
 
 
 def _resolve_task_policy_from_conf_only(
@@ -1009,13 +992,7 @@ def _resolve_dag_policy_from_conf_only(
     if emit_rule is not None:
         _audit_log_conf_field(EMIT, emit, context, emit_rule)
 
-    _locked: set[str] = set()
-    for rule in dag_rules + global_rules:
-        if not rule.locked:
-            continue
-        controls = rule.controls
-        if EMIT_DAG_EVENTS in controls or EMIT in controls:
-            _locked.add(EMIT)
+    locked_fields = _compute_locked_fields(dag_rules + global_rules, EMIT_DAG_EVENTS)
 
     return (
         EmissionPolicy(
@@ -1025,7 +1002,7 @@ def _resolve_dag_policy_from_conf_only(
             hook_lineage=defaults.hook_lineage,
             include_full_task_info=defaults.include_full_task_info,
         ),
-        frozenset(_locked),
+        locked_fields,
     )
 
 
