@@ -22,7 +22,7 @@ from contextlib import AbstractAsyncContextManager
 from json import JSONDecodeError
 from os.path import dirname
 from typing import cast
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from httpx import Response
@@ -535,40 +535,39 @@ class TestKiotaRequestAdapterHook:
             assert isinstance(credentials, AbstractAsyncContextManager)
 
     @pytest.mark.asyncio
-    async def test_send_request_invalidates_cache_and_retries_on_value_error(self):
-        """send_request must drop the cached adapter and re-raise on any exception."""
+    async def test_get_async_conn_rebuilds_adapter_when_http_client_is_closed(self):
+        """get_async_conn evicts and rebuilds the adapter when the cached HTTP client is already closed."""
         with patch_hook():
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
 
-            # Pre-populate the cache with a stale adapter whose transport raises ValueError.
             stale_adapter = Mock(spec=HttpxRequestAdapter)
-            stale_adapter.send_no_response_content_async = Mock(
-                side_effect=ValueError("HTTP transport has already been closed.")
-            )
+            stale_adapter._http_client = Mock(is_closed=True)
             hook.cached_request_adapters[hook.conn_id] = (hook.api_version, stale_adapter)
 
-            with pytest.raises(ValueError, match="HTTP transport has already been closed."):
-                await hook.run(url="users")
+            fresh_adapter = Mock(spec=HttpxRequestAdapter)
+            fresh_adapter._http_client = Mock(is_closed=False)
 
-            # The stale adapter was tried and should have been evicted from the cache.
-            stale_adapter.send_no_response_content_async.assert_called_once()
-            assert hook.conn_id not in hook.cached_request_adapters
+            with patch.object(hook, "_build_request_adapter", return_value=("v1.0", fresh_adapter)):
+                result = await hook.get_async_conn()
+
+            assert result is fresh_adapter
+            assert hook.cached_request_adapters[hook.conn_id] == ("v1.0", fresh_adapter)
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("error_message", ["HTTP transport has already been closed.", "some other error"])
-    async def test_send_request_invalidates_cache_on_any_value_error(self, error_message):
-        """send_request must drop the cached adapter on any ValueError, regardless of the message."""
+    async def test_send_request_invalidates_cache_and_raises_on_any_error(self):
+        """send_request evicts the cached adapter and re-raises on any request error."""
         with patch_hook():
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
 
-            stale_adapter = Mock(spec=HttpxRequestAdapter)
-            stale_adapter.send_no_response_content_async = Mock(side_effect=ValueError(error_message))
-            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, stale_adapter)
+            adapter = Mock(spec=HttpxRequestAdapter)
+            adapter._http_client = Mock(is_closed=False)
+            adapter.send_no_response_content_async = AsyncMock(side_effect=RuntimeError("some error"))
+            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, adapter)
 
-            with pytest.raises(ValueError, match=error_message):
+            with pytest.raises(RuntimeError, match="some error"):
                 await hook.run(url="users")
 
-            stale_adapter.send_no_response_content_async.assert_called_once()
+            adapter.send_no_response_content_async.assert_called_once()
             assert hook.conn_id not in hook.cached_request_adapters
 
 

@@ -364,7 +364,6 @@ class KiotaRequestAdapterHook(BaseHook):
             http_client=http_client,
             base_url=base_url,
         )
-        self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
         return api_version, request_adapter
 
     def get_conn(self) -> RequestAdapter:
@@ -388,8 +387,14 @@ class KiotaRequestAdapterHook(BaseHook):
         if not request_adapter:
             connection = self.get_connection(conn_id=self.conn_id)
             api_version, request_adapter = self._build_request_adapter(connection)
+            self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
         self.api_version = api_version
         return request_adapter
+
+    @staticmethod
+    def _is_http_client_closed(request_adapter: RequestAdapter) -> bool:
+        """Return True when the underlying httpx AsyncClient has been closed."""
+        return cast("HttpxRequestAdapter", request_adapter)._http_client.is_closed
 
     async def get_async_conn(self) -> RequestAdapter:
         """Initiate a new RequestAdapter connection asynchronously."""
@@ -398,9 +403,19 @@ class KiotaRequestAdapterHook(BaseHook):
 
         api_version, request_adapter = self.cached_request_adapters.get(self.conn_id, (None, None))
 
+        if request_adapter and self._is_http_client_closed(request_adapter):
+            self.log.warning(
+                "Cached request adapter for conn_id '%s' has a closed HTTP client. Rebuilding.",
+                self.conn_id,
+            )
+            self.cached_request_adapters.pop(self.conn_id, None)
+            request_adapter = None
+
         if not request_adapter:
             connection = await get_async_connection(conn_id=self.conn_id)
             api_version, request_adapter = self._build_request_adapter(connection)
+            self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
+
         self.api_version = api_version
         return request_adapter
 
