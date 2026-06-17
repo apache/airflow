@@ -539,7 +539,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                         # Close the FD explicitly even if upload raised, otherwise the file
                         # handle leaks for every failed upload.
                         factory.close()
-                        
+
             # Drain the persist confirmations accumulated since the last sync.
             events_persisted: list[int] = []
             while self.persisted_event_seqs:
@@ -556,7 +556,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 workload = self.creating_triggers.popleft()
                 sync.to_create.append(workload)
             self.running_triggers.update(m.id for m in sync.to_create)
-            resp=sync
+            resp = sync
             return
 
         if isinstance(msg, UpdateHITLDetail):
