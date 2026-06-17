@@ -575,6 +575,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         starved_pools = {pool_name for pool_name, stats in pools.items() if stats["open"] <= 0}
 
+        pool_to_team_name: dict[str, str | None] = {}
+        if self._multi_team:
+            pool_to_team_name = Pool.get_name_to_team_name_mapping(list(pools.keys()), session=session)
+
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
         concurrency_map = ConcurrencyMap()
         concurrency_map.load(session=session)
@@ -748,6 +752,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.log.warning("Tasks using non-existent pool '%s' will not be scheduled", pool_name)
                     starved_pools.add(pool_name)
                     continue
+
+                if pool_team := pool_to_team_name.get(pool_name):
+                    dag_team = dag_id_to_team_name.get(task_instance.dag_id)
+                    if dag_team != pool_team:
+                        self.log.debug(
+                            "Not executing %s. Pool '%s' is assigned to team '%s' "
+                            "but task's DAG belongs to team '%s'",
+                            task_instance,
+                            pool_name,
+                            pool_team,
+                            dag_team,
+                        )
+                        starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                        continue
 
                 # Make sure to emit metrics if pool has no starving tasks
                 pool_num_starving_tasks.setdefault(pool_name, 0)

@@ -15,11 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Simple DAG with deferrable operator.
+DAG with a timedelta shorthand schedule (produces DeltaDataIntervalTimetable).
 
 It checks:
-    - that at least two task START events (before and after deferral) are emitted and
-      the try_num remains at 1
+    - timedelta schedule serialization in the airflow dag run facet
+    - timetable dict contains the delta representation
+    - timetable_summary reflects the timedelta value
 """
 
 from __future__ import annotations
@@ -27,31 +28,27 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor
+from airflow.providers.standard.operators.bash import BashOperator
 
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
-DAG_ID = "openlineage_defer_simple_dag"
+DAG_ID = "openlineage_schedule_timedelta_dag"
 
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
-    schedule=None,
+    schedule=timedelta(days=987),
     catchup=False,
     default_args={"retries": 0},
 ) as dag:
-    # Timedelta is compared to the DAGRun start timestamp, which can occur long before a worker picks up the
-    # task. We need to ensure the sensor gets deferred at least once, so setting 180s.
-    wait = TimeDeltaSensor(task_id="wait", delta=timedelta(seconds=180), poke_interval=10, deferrable=True)
+    do_nothing_task = BashOperator(task_id="do_nothing_task", bash_command="exit 0;")
 
     check_events = OpenLineageTestOperator(
-        task_id="check_events",
-        file_path=get_expected_event_file_path(DAG_ID),
-        event_count_assertions={"openlineage_defer_simple_dag.wait.event.start": ">=2"},
+        task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)
     )
 
-    wait >> check_events
+    do_nothing_task >> check_events
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
