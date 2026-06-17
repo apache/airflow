@@ -1524,6 +1524,14 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         *,
         session: Session = NEW_SESSION,
     ) -> None:
+        # Fast path: a task with no outlets and no outlet events has nothing to
+        # register. Returning early avoids the AssetModel lookup below (which
+        # would run with empty IN () clauses) and all downstream work. This is
+        # the common case -- most tasks declare no outlets -- and it sits on the
+        # task-success path that gates scheduling the next task.
+        if not task_outlets and not outlet_events:
+            return
+
         from airflow.serialization.definitions.assets import (
             SerializedAsset,
             SerializedAssetNameRef,
