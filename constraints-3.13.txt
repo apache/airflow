@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-16T05:13:34.732870
+# This constraints file was automatically generated on 2026-06-17T02:01:27.925998
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -282,7 +282,7 @@ decorator==5.3.1
 defusedxml==0.7.1
 deprecation==2.1.0
 dill==0.4.1
-distlib==0.4.2
+distlib==0.4.3
 distro==1.9.0
 dnspython==2.8.0
 docker==7.1.0
@@ -324,9 +324,9 @@ google-api-core==2.31.0
 google-api-python-client==2.197.0
 google-auth-httplib2==0.4.0
 google-auth-oauthlib==1.4.0
-google-auth==2.53.0
+google-auth==2.54.0
 google-cloud-aiplatform==1.148.1
-google-cloud-alloydb==0.10.0
+google-cloud-alloydb==0.11.0
 google-cloud-appengine-logging==1.10.0
 google-cloud-audit-log==0.6.0
 google-cloud-automl==2.20.0
@@ -359,11 +359,11 @@ google-cloud-redis==2.21.0
 google-cloud-resource-manager==1.17.0
 google-cloud-run==0.16.0
 google-cloud-secret-manager==2.29.0
-google-cloud-spanner==3.67.0
+google-cloud-spanner==3.68.0
 google-cloud-speech==2.40.0
 google-cloud-storage-control==1.12.0
 google-cloud-storage-transfer==1.21.0
-google-cloud-storage==3.11.0
+google-cloud-storage==3.12.0
 google-cloud-tasks==2.22.0
 google-cloud-texttospeech==2.36.0
 google-cloud-translate==3.26.0
@@ -451,7 +451,7 @@ limits==5.8.0
 linkify-it-py==2.1.0
 litellm==1.82.6
 lockfile==0.12.2
-logfire-api==4.36.0
+logfire-api==4.37.0
 looker_sdk==26.10.0
 lxml==6.1.1
 lz4==4.4.5
@@ -520,7 +520,7 @@ ordered-set==4.1.0
 orjson==3.11.9
 outcome==1.3.0.post0
 packaging==26.2
-pagerduty==6.2.1
+pagerduty==6.2.2
 pandas-gbq==0.35.0
 pandas-stubs==3.0.3.260530
 pandas==2.3.3
@@ -592,7 +592,7 @@ python-keycloak==7.1.1
 python-ldap==3.4.7
 python-multipart==0.0.32
 python-slugify==8.0.4
-python-telegram-bot==22.7
+python-telegram-bot==22.8
 pytokens==0.4.1
 pytz==2026.2
 pyvespa==1.2.1
@@ -649,7 +649,7 @@ sqlalchemy-spanner==1.19.0
 sqlalchemy_drill==1.1.10
 sqlparse==0.5.5
 stack-data==0.6.3
-starlette==1.3.0
+starlette==1.3.1
 statsd==4.0.1
 std-uritemplate==2.0.10
 structlog==26.1.0
