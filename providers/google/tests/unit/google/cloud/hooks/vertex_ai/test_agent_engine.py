@@ -35,6 +35,7 @@ GCP_PROJECT = "test-project"
 GCP_LOCATION = "us-central1"
 AGENT_ENGINE_ID = "123"
 AGENT_ENGINE_NAME = "projects/test-project/locations/us-central1/reasoningEngines/123"
+OPERATION_NAME = "projects/test-project/locations/us-central1/operations/delete-123"
 CONFIG = {"display_name": "test-agent-engine"}
 QUERY_CONFIG = {"class_method": "query", "input": {"prompt": "hello"}}
 
@@ -229,6 +230,64 @@ class TestAgentEngineHookWithDefaultProjectId:
             config=CONFIG,
         )
         assert result == mock_get_client.return_value.delete.return_value
+
+    @mock.patch(AGENT_ENGINE_STRING.format("google.auth.transport.requests.AuthorizedSession"), autospec=True)
+    def test_get_agent_engine_operation(self, mock_session):
+        self.hook.get_credentials = mock.Mock(return_value=mock.sentinel.credentials, spec=())
+        mock_session.return_value.get.return_value.json.return_value = {"name": OPERATION_NAME, "done": True}
+
+        result = self.hook.get_agent_engine_operation(
+            location=GCP_LOCATION,
+            operation_name=OPERATION_NAME,
+        )
+
+        mock_session.assert_called_once_with(mock.sentinel.credentials)
+        mock_session.return_value.get.assert_called_once_with(
+            f"https://{GCP_LOCATION}-aiplatform.googleapis.com/v1beta1/{OPERATION_NAME}"
+        )
+        mock_session.return_value.get.return_value.raise_for_status.assert_called_once_with()
+        assert result == {"name": OPERATION_NAME, "done": True}
+
+    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_operation"), autospec=True)
+    def test_wait_for_agent_engine_operation_returns_when_done(self, mock_get_operation):
+        mock_get_operation.return_value = {"name": OPERATION_NAME, "done": True}
+
+        self.hook.wait_for_agent_engine_operation(
+            location=GCP_LOCATION,
+            operation_name=OPERATION_NAME,
+        )
+
+        mock_get_operation.assert_called_once_with(
+            self.hook,
+            location=GCP_LOCATION,
+            operation_name=OPERATION_NAME,
+        )
+
+    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_operation"), autospec=True)
+    def test_wait_for_agent_engine_operation_raises_on_error(self, mock_get_operation):
+        mock_get_operation.return_value = {"name": OPERATION_NAME, "done": True, "error": {"message": "boom"}}
+
+        with pytest.raises(RuntimeError, match="Agent Engine operation .* failed"):
+            self.hook.wait_for_agent_engine_operation(
+                location=GCP_LOCATION,
+                operation_name=OPERATION_NAME,
+            )
+
+    @mock.patch(AGENT_ENGINE_STRING.format("time.sleep"), autospec=True)
+    @mock.patch(AGENT_ENGINE_STRING.format("time.monotonic"), autospec=True)
+    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_operation"), autospec=True)
+    def test_wait_for_agent_engine_operation_times_out(self, mock_get_operation, mock_monotonic, mock_sleep):
+        mock_get_operation.return_value = {"name": OPERATION_NAME, "done": False}
+        mock_monotonic.side_effect = [1, 3]
+
+        with pytest.raises(TimeoutError, match="Timed out waiting for Agent Engine operation"):
+            self.hook.wait_for_agent_engine_operation(
+                location=GCP_LOCATION,
+                operation_name=OPERATION_NAME,
+                timeout=1,
+            )
+
+        mock_sleep.assert_not_called()
 
     @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine"), autospec=True)
     def test_is_agent_engine_deleted_returns_false_when_resource_exists(self, mock_get_agent_engine):

@@ -29,6 +29,8 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.cloud.triggers.vertex_ai import AgentEngineDeleteTrigger
 
 if TYPE_CHECKING:
+    from vertexai._genai import types
+
     from airflow.providers.common.compat.sdk import Context
 
 
@@ -44,7 +46,7 @@ def _serialize_value(value: Any) -> Any:
     return value
 
 
-def _serialize_agent_engine(agent_engine: Any) -> dict[str, Any]:
+def _serialize_agent_engine(agent_engine: types.AgentEngine) -> dict[str, Any]:
     api_resource = getattr(agent_engine, "api_resource", None)
     if api_resource is not None:
         return _serialize_value(api_resource)
@@ -78,7 +80,7 @@ class CreateAgentEngineOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         agent: Any | None = None,
-        config: Any | None = None,
+        config: types.AgentEngineConfigOrDict | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -252,7 +254,7 @@ class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         agent_engine_id: str,
-        config: Any,
+        config: types.AgentEngineConfigOrDict,
         agent: Any | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -322,7 +324,7 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
         location: str,
         agent_engine_id: str,
         force: bool | None = None,
-        config: Any | None = None,
+        config: types.DeleteAgentEngineConfigOrDict | None = None,
         wait_for_completion: bool = True,
         poll_interval: float = 30,
         timeout: float | None = None,
@@ -364,6 +366,14 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
         if not self.wait_for_completion:
             return result
 
+        operation_name = getattr(operation, "name", None)
+        if not operation_name:
+            raise RuntimeError("Delete Agent Engine operation did not include an operation name.")
+
+        if getattr(operation, "done", False):
+            self.log.info("Agent Engine %s was deleted.", self.agent_engine_id)
+            return result
+
         if self.deferrable:
             self.defer(
                 trigger=AgentEngineDeleteTrigger(
@@ -374,15 +384,15 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
                     impersonation_chain=self.impersonation_chain,
                     poll_interval=self.poll_interval,
                     timeout=self.timeout,
+                    operation_name=operation_name,
                 ),
                 method_name="execute_complete",
                 kwargs={"operation": result},
             )
 
-        self.hook.wait_for_agent_engine_deleted(
-            project_id=self.project_id,
+        self.hook.wait_for_agent_engine_operation(
             location=self.location,
-            agent_engine_id=self.agent_engine_id,
+            operation_name=operation_name,
             poll_interval=self.poll_interval,
             timeout=self.timeout,
         )

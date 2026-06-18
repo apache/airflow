@@ -141,6 +141,7 @@ class AgentEngineDeleteTrigger(BaseTrigger):
         impersonation_chain: str | Sequence[str] | None = None,
         poll_interval: float = 30,
         timeout: float | None = None,
+        operation_name: str | None = None,
     ):
         super().__init__()
         self.project_id = project_id
@@ -150,6 +151,7 @@ class AgentEngineDeleteTrigger(BaseTrigger):
         self.impersonation_chain = impersonation_chain
         self.poll_interval = poll_interval
         self.timeout = timeout
+        self.operation_name = operation_name
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -162,6 +164,7 @@ class AgentEngineDeleteTrigger(BaseTrigger):
                 "impersonation_chain": self.impersonation_chain,
                 "poll_interval": self.poll_interval,
                 "timeout": self.timeout,
+                "operation_name": self.operation_name,
             },
         )
 
@@ -173,15 +176,33 @@ class AgentEngineDeleteTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
+        if not self.operation_name:
+            yield TriggerEvent(
+                {
+                    "status": "error",
+                    "message": "Delete Agent Engine operation name is required.",
+                    "agent_engine_id": self.agent_engine_id,
+                }
+            )
+            return
+
         start_time = time.monotonic()
         try:
             while True:
-                deleted = await self.async_hook.is_agent_engine_deleted(
-                    project_id=self.project_id,
+                operation = await self.async_hook.get_agent_engine_operation(
                     location=self.location,
-                    agent_engine_id=self.agent_engine_id,
+                    operation_name=self.operation_name,
                 )
-                if deleted:
+                if operation.get("done"):
+                    if operation.get("error"):
+                        yield TriggerEvent(
+                            {
+                                "status": "error",
+                                "message": str(operation["error"]),
+                                "agent_engine_id": self.agent_engine_id,
+                            }
+                        )
+                        return
                     yield TriggerEvent(
                         {
                             "status": "success",
