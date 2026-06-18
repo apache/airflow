@@ -74,6 +74,22 @@ class TestBaseSecretsBackend:
         # we could make this more precise by defining __eq__ method for Connection
         assert sample_conn_1.host.lower() == conn.host
 
+    @mock.patch.dict(
+        "os.environ",
+        {
+            "AIRFLOW_CONN_LEGACY_URI_PORT": "mysql://host:0/",
+            "AIRFLOW_CONN_LEGACY_JSON_PORT": '{"conn_type": "mysql", "host": "host", "port": 0}',
+        },
+    )
+    @pytest.mark.parametrize("conn_id", ["legacy_uri_port", "legacy_json_port"])
+    def test_connection_env_secrets_backend_allows_legacy_invalid_port(self, conn_id):
+        env_secrets_backend = EnvironmentVariablesBackend()
+        env_secrets_backend._set_connection_class(Connection)
+
+        conn = env_secrets_backend.get_connection(conn_id)
+
+        assert conn.port == 0
+
     def test_connection_metastore_secrets_backend(self):
         sample_conn_2 = SampleConn("sample_2", "A")
         with create_session() as session:

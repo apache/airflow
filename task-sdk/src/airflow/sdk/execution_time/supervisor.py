@@ -1179,7 +1179,9 @@ def _fetch_remote_logging_conn(conn_id: str, client: Client) -> Connection | Non
         conn_result = ConnectionResult.from_conn_response(conn)
         from airflow.sdk.definitions.connection import Connection
 
-        result: Connection | None = Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True))
+        result: Connection | None = Connection(
+            **conn_result.model_dump(exclude={"type"}, by_alias=True), _validate_port=False
+        )
         _REMOTE_LOGGING_CONN_CACHE[conn_id] = result
     else:
         result = None

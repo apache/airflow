@@ -62,6 +62,8 @@ log = logging.getLogger(__name__)
 RE_SANITIZE_CONN_ID = re.compile(r"^[\w#!()\-.:/\\]{1,}$")
 # the conn ID max len should be 250
 CONN_ID_MAX_LEN: int = 250
+_MIN_PORT = 1
+_MAX_PORT = 65535
 
 
 def sanitize_conn_id(conn_id: str | None, max_length=CONN_ID_MAX_LEN) -> str | None:
@@ -166,6 +168,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         extra: str | dict | None = None,
         uri: str | None = None,
         team_name: str | None = None,
+        _validate_port: bool = True,
     ):
         super().__init__()
         self.description = description
@@ -178,7 +181,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
                 "You can't mix these two ways to create this object."
             )
         if uri:
-            self._parse_from_uri(uri)
+            self._parse_from_uri(uri, validate_port=_validate_port)
         else:
             if conn_type is not None:
                 self.conn_type = conn_type
@@ -187,7 +190,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
             self.login = login
             self.password = password
             self.schema = schema
-            self.port = port
+            self.port = self._normalize_port(port) if _validate_port else self._coerce_port(port)
             self.extra = extra
 
         if conn_id is not None:
@@ -219,6 +222,32 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
             raise ValueError(f"Encountered non-JSON in `extra` field for connection {conn_id!r}.")
         return None
 
+    @staticmethod
+    def _coerce_port(port: int | str | None) -> int | None:
+        if port is None:
+            return None
+        if isinstance(port, bool):
+            raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+        if isinstance(port, int):
+            return port
+        if isinstance(port, str):
+            try:
+                return int(port)
+            except ValueError:
+                raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.") from None
+        raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+
+    @classmethod
+    def _normalize_port(cls, port: int | str | None) -> int | None:
+        normalized_port = cls._coerce_port(port)
+        if normalized_port is None:
+            return None
+        if not _MIN_PORT <= normalized_port <= _MAX_PORT:
+            raise ValueError(
+                f"Connection port must be between {_MIN_PORT} and {_MAX_PORT}, got {normalized_port}."
+            )
+        return normalized_port
+
     @reconstructor
     def on_db_load(self):
         if self.password:
@@ -233,7 +262,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
             conn_type = conn_type.replace("-", "_")
         return conn_type
 
-    def _parse_from_uri(self, uri: str):
+    def _parse_from_uri(self, uri: str, validate_port: bool = True):
         schemes_count_in_uri = uri.count("://")
         if schemes_count_in_uri > 2:
             raise AirflowException("Invalid connection string.")
@@ -256,7 +285,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         self.schema = unquote(quoted_schema) if quoted_schema else quoted_schema
         self.login = unquote(uri_parts.username) if uri_parts.username else uri_parts.username
         self.password = unquote(uri_parts.password) if uri_parts.password else uri_parts.password
-        self.port = uri_parts.port
+        self.port = self._normalize_port(uri_parts.port) if validate_port else uri_parts.port
         if uri_parts.query:
             query = dict(parse_qsl(uri_parts.query, keep_blank_values=True))
             if self.EXTRA_KEY in query:
@@ -511,7 +540,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         # enabled only if SecretCache.init() has been called first
         try:
             uri = SecretCache.get_connection_uri(conn_id, team_name=team_name)
-            return Connection(conn_id=conn_id, uri=uri)
+            return Connection(conn_id=conn_id, uri=uri, _validate_port=False)
         except SecretCache.NotPresentException:
             pass  # continue business
 
@@ -565,7 +594,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         return conn
 
     @classmethod
-    def from_json(cls, value, conn_id=None) -> Connection:
+    def from_json(cls, value, conn_id=None, validate_port: bool = True) -> Connection:
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
             from airflow.sdk import Connection as TaskSDKConnection
 
@@ -576,7 +605,9 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
                 stacklevel=1,
             )
 
-            return TaskSDKConnection.from_json(value, conn_id=conn_id)  # type: ignore[return-value]
+            return TaskSDKConnection.from_json(  # type: ignore[return-value]
+                value, conn_id=conn_id, validate_port=validate_port
+            )
 
         kwargs = json.loads(value)
         extra = kwargs.pop("extra", None)
@@ -585,13 +616,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         conn_type = kwargs.pop("conn_type", None)
         if conn_type:
             kwargs["conn_type"] = cls._normalize_conn_type(conn_type)
-        port = kwargs.pop("port", None)
-        if port:
-            try:
-                kwargs["port"] = int(port)
-            except ValueError:
-                raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
-        return Connection(conn_id=conn_id, **kwargs)
+        return Connection(conn_id=conn_id, **kwargs, _validate_port=validate_port)
 
     def as_json(self) -> str:
         """Convert Connection to JSON-string object."""
