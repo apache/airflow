@@ -1561,12 +1561,8 @@ class TestKubernetesExecutor:
                     None,
                 )
             }
-            executor.result_queue.put(
-                KubernetesResults(queue_key, None, "queue-pod", "default", "2", None)
-            )
-            executor.result_queue.put(
-                KubernetesResults(queue_key, None, "queue-pod-2", "default", "3", None)
-            )
+            executor.result_queue.put(KubernetesResults(queue_key, None, "queue-pod", "default", "2", None))
+            executor.result_queue.put(KubernetesResults(queue_key, None, "queue-pod-2", "default", "3", None))
 
             executor.sync()
 
@@ -1603,12 +1599,8 @@ class TestKubernetesExecutor:
                     None,
                 )
             }
-            executor.result_queue.put(
-                KubernetesResults(queue_key, None, "queue-pod", "default", "2", None)
-            )
-            executor.result_queue.put(
-                KubernetesResults(queue_key, None, "queue-pod-2", "default", "3", None)
-            )
+            executor.result_queue.put(KubernetesResults(queue_key, None, "queue-pod", "default", "2", None))
+            executor.result_queue.put(KubernetesResults(queue_key, None, "queue-pod-2", "default", "3", None))
 
             executor.sync()
 
