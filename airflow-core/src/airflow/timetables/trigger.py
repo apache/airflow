@@ -21,18 +21,22 @@ import functools
 import math
 import operator
 import time
+from datetime import timedelta
 from types import NoneType
 from typing import TYPE_CHECKING, Any
 
 import structlog
 
-from airflow._shared.timezones.timezone import coerce_datetime, parse_timezone, utcnow
+from airflow._shared.timezones.timezone import coerce_datetime, make_aware, parse_timezone, utcnow
+from airflow.exceptions import InvalidPartitionKeyError
 from airflow.timetables._cron import CronMixin
 from airflow.timetables._delta import DeltaMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 from airflow.utils.strings import get_random_string
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from dateutil.relativedelta import relativedelta
     from pendulum import DateTime
     from pendulum.tz.timezone import FixedTimezone, Timezone
@@ -464,8 +468,76 @@ class CronPartitionTimetable(CronTriggerTimetable):
         partition_key = self._format_key(partition_date)
         return partition_date, partition_key
 
+    def iter_partition_dagrun_infos(
+        self,
+        *,
+        earliest_date: datetime.date,
+        latest_date: datetime.date,
+    ) -> Iterable[DagRunInfo]:
+        """
+        Yield one DagRunInfo per cron tick for calendar days in ``[earliest_date, latest_date]`` (both inclusive).
+
+        Iteration walks directly along the partition_date axis — one cron tick per
+        partition — without any reverse mapping from run_after.  Each tick yields:
+
+        - ``partition_date = current`` (the cron tick itself, as a UTC instant)
+        - ``partition_key`` formatted by :meth:`_format_key` (local-tz label)
+        - ``run_after = partition_date`` (identical to the tick)
+        - ``data_interval = None``
+
+        **Design note — ``run_after := partition_date``.**
+        For ``run_offset != 0`` this differs from the cron run-time a scheduled
+        run would carry; this is intentional.  ``run_after`` is not load-bearing
+        for backfill execution: deduplication is keyed on ``partition_key``, scheduling gates
+        on ``run_after <= now()`` (always satisfied for past partitions), and
+        ordering by ``BackfillDagRun.sort_ordinal`` (``run_after`` is only the
+        final tiebreaker).  Setting ``run_after = partition_date`` is the simplest
+        correct choice and avoids the need for a reverse mapping.
+
+        :param earliest_date: inclusive lower bound calendar date; the UTC window start is
+            ``resolve_day_bound(earliest_date)``, i.e. local midnight of that day.
+        :param latest_date: inclusive upper bound calendar date; the UTC window end is
+            ``resolve_day_bound(latest_date + 1 day)`` (exclusive), so all ticks within
+            ``latest_date``'s local day are included.
+        """
+        earliest_partition_date = self.resolve_day_bound(earliest_date)
+        latest_partition_date = self.resolve_day_bound(latest_date + timedelta(days=1))
+        current = self._align_to_next(earliest_partition_date)
+        while current < latest_partition_date:
+            partition_key = self._format_key(current)
+            yield DagRunInfo(
+                run_after=current,
+                data_interval=None,
+                partition_date=current,
+                partition_key=partition_key,
+            )
+            current = self._get_next(current)
+
     def _format_key(self, partition_date: DateTime) -> str:
-        return partition_date.strftime(self._key_format)
+        # partition_date is a UTC instant; format the key in the timetable timezone so the
+        # key reflects the local partition date the user reasons about (e.g. an Asia/Taipei
+        # midnight partition keys as "...T00:00:00", not the prior UTC day's "...T16:00:00").
+        return partition_date.in_timezone(self._timezone).strftime(self._key_format)
+
+    def _decode_partition_date(self, partition_key: str) -> datetime.datetime:
+        """
+        Decode *partition_key* back to the period-start datetime.
+
+        Parses the key with ``strptime`` using this timetable's ``key_format``
+        and localizes with the timetable's timezone, mirroring the forward
+        direction in :meth:`_format_key`.
+
+        :raises InvalidPartitionKeyError: When *partition_key* does not match
+            the timetable's ``key_format``.
+        """
+        try:
+            naive = datetime.datetime.strptime(partition_key, self._key_format)
+        except ValueError as exc:
+            raise InvalidPartitionKeyError(
+                f"Partition key {partition_key!r} does not match the timetable's "
+                f"key_format {self._key_format!r}: {exc}"
+            ) from exc
+        return make_aware(naive, self._timezone)
 
     def next_dagrun_info_v2(
         self,
@@ -474,8 +546,8 @@ class CronPartitionTimetable(CronTriggerTimetable):
         restriction: TimeRestriction,
     ) -> DagRunInfo | None:
         # todo: AIP-76 add test for this logic
-        # todo: AIP-76 we will have to ensure that the start / end times apply to the partition date ideally,
-        #  rather than just the run after
+        # Scheduler scheduling path: uses next_dagrun_info_v2 to advance run_after one tick
+        # at a time. Backfill iterates partitions directly via timetable.iter_partition_dagrun_infos.
 
         if restriction.catchup:
             if last_dagrun_info is not None:

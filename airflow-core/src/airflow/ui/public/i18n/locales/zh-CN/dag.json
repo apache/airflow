@@ -232,7 +232,7 @@
     "runs": "执行记录",
     "storage": "存储",
     "taskInstances": "任务实例",
-    "taskStore": "任务存储",
+    "taskStateStore": "任务存储",
     "tasks": "任务",
     "xcom": "XCom"
   },
@@ -240,7 +240,7 @@
     "collapseAll": "收起所有任务分组",
     "expandAll": "展开所有任务分组"
   },
-  "taskStore": {
+  "taskStateStore": {
     "add": "新增任务存储",
     "clearAll": {
       "resource": "所有任务存储",

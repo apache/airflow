@@ -42,7 +42,7 @@ class ResumableJobMixin:
     resubmitting a duplicate.
 
     **How it works:** On the first run, after submitting the job, the external ID (driver ID, YARN
-    application ID, etc.) is persisted to ``task_store`` before polling starts. On retry, the mixin
+    application ID, etc.) is persisted to ``task_state_store`` before polling starts. On retry, the mixin
     reads that ID back and reconnects to the already-running job instead of starting a new one.
 
     **What it does not do:** It does not free the worker slot during polling (use deferrable for that),
@@ -52,7 +52,7 @@ class ResumableJobMixin:
     is supported.
 
     Subclasses must implement the methods specific to their external system. The mixin owns
-    only ``execute_resumable()`` and the task_store read/write logic.
+    only ``execute_resumable()`` and the task_state_store read/write logic.
 
     Example::
 
@@ -86,7 +86,7 @@ class ResumableJobMixin:
         # that because ResumableJobMixin does not inherit from it directly.
         log: Logger
 
-    # Key used to store and retrieve the external job ID from task_store across retries.
+    # Key used to store and retrieve the external job ID from task_state_store across retries.
     # Renaming this on a deployed operator breaks in-flight retries — the old key is already stored.
     external_id_key: str = "remote_job_id"
 
@@ -94,7 +94,7 @@ class ResumableJobMixin:
         """
         Core of the resumable execution logic. Call this from execute() when reconnection is supported.
 
-        On initial run: submits the job, persists the external ID to task_store, then polls.
+        On initial run: submits the job, persists the external ID to task_state_store, then polls.
 
         Behaviour on retry:
         - On retry with active job: skips submission, reconnects to the running job.
@@ -102,12 +102,18 @@ class ResumableJobMixin:
         - On retry with failed job: falls through and resubmits fresh.
 
         Known limitation: there is a small window between ``submit_job`` returning and
-        ``task_store.set`` completing. If the worker dies in that gap, the next retry still
+        ``task_state_store.set`` completing. If the worker dies in that gap, the next retry still
         holds the previous (terminal) ID and will resubmit a fresh job rather than reconnecting.
         Closing this window would require atomic "submit + persist", which is not possible across
         an external system boundary.
         """
-        operator_tag = {"operator": type(self).__name__}
+        stats_tags = {"operator": type(self).__name__}
+        # The task is team-scoped in multi-team deployments; surface team_name on the
+        # resumable_job metrics via the running task instance's stats tags (omitted when
+        # not multi-team or the task has no team).
+        ti = context.get("ti")
+        if ti is not None and (team_name := ti.stats_tags.get("team_name")):
+            stats_tags["team_name"] = team_name
         reconnect_to: Any = None
         already_succeeded_id: Any = None
 
@@ -115,17 +121,17 @@ class ResumableJobMixin:
             span.set_attribute("operator", type(self).__name__)
             span.set_attribute("resumable.external_id_key", self.external_id_key)
 
-            task_store = context.get("task_store")
+            task_state_store = context.get("task_state_store")
 
-            if task_store is None:
-                span.set_attribute("resumable.decision", "no_task_store")
+            if task_state_store is None:
+                span.set_attribute("resumable.decision", "no_task_state_store")
                 self.log.warning(
-                    "task_store not available in context, crash recovery is disabled for this run"
+                    "task_state_store not available in context, crash recovery is disabled for this run"
                 )
             else:
-                external_id = task_store.get(self.external_id_key)
+                external_id = task_state_store.get(self.external_id_key)
                 if external_id:
-                    stats.incr("resumable_job.reconnect_attempt", tags=operator_tag)
+                    stats.incr("resumable_job.reconnect_attempt", tags=stats_tags)
 
                     status = self.get_job_status(external_id, context)
 
@@ -135,7 +141,7 @@ class ResumableJobMixin:
                     if self.is_job_active(status):
                         # Job is still running, skip submission and reconnect to it.
                         span.set_attribute("resumable.decision", "reconnect")
-                        stats.incr("resumable_job.reconnect_success", tags=operator_tag)
+                        stats.incr("resumable_job.reconnect_success", tags=stats_tags)
                         self.log.info(
                             "Reconnecting to existing job",
                             external_id_key=self.external_id_key,
@@ -146,7 +152,7 @@ class ResumableJobMixin:
                     elif self.is_job_succeeded(status):
                         # Job already finished successfully, skip polling and return result directly.
                         span.set_attribute("resumable.decision", "already_succeeded")
-                        stats.incr("resumable_job.already_succeeded", tags=operator_tag)
+                        stats.incr("resumable_job.already_succeeded", tags=stats_tags)
                         self.log.info(
                             "Job already completed successfully, skipping resubmission",
                             external_id_key=self.external_id_key,
@@ -156,7 +162,7 @@ class ResumableJobMixin:
                     else:
                         # Job is in a terminal failed state, fall through and submit a new job.
                         span.set_attribute("resumable.decision", "terminal_resubmit")
-                        stats.incr("resumable_job.terminal_resubmit", tags=operator_tag)
+                        stats.incr("resumable_job.terminal_resubmit", tags=stats_tags)
                         self.log.warning(
                             "Prior job in terminal state, resubmitting fresh",
                             external_id_key=self.external_id_key,
@@ -165,7 +171,7 @@ class ResumableJobMixin:
                         )
                 else:
                     span.set_attribute("resumable.decision", "fresh_submit")
-                    stats.incr("resumable_job.fresh_submit", tags=operator_tag)
+                    stats.incr("resumable_job.fresh_submit", tags=stats_tags)
                     self.log.debug(
                         "No stored external ID found; submitting fresh job",
                         external_id_key=self.external_id_key,
@@ -177,8 +183,8 @@ class ResumableJobMixin:
             return self.get_job_result(already_succeeded_id, context)
         external_id = self.submit_job(context)
 
-        if task_store is not None and external_id is not None:
-            task_store.set(self.external_id_key, external_id)
+        if task_state_store is not None and external_id is not None:
+            task_state_store.set(self.external_id_key, external_id)
             self.log.debug(
                 "Persisted external ID to task store",
                 external_id_key=self.external_id_key,
@@ -203,7 +209,7 @@ class ResumableJobMixin:
 
         ``context`` is provided so implementations can use it if needed to implement advanced features such as:
 
-        - cache terminal status to ``task_store`` when the remote resource may be
+        - cache terminal status to ``task_state_store`` when the remote resource may be
           ephemeral (e.g. a K8s driver pod that gets garbage-collected after completion),
         """
         raise NotImplementedError

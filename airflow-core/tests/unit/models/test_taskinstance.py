@@ -4126,3 +4126,41 @@ class TestTaskInstanceStatsTagsTeamName:
         ti._team_name = None
         tags = ti.stats_tags
         assert "team_name" not in tags
+
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param(
+                "my_team",
+                {"dag_id": "test_dag", "task_id": "my_task", "team_name": "my_team", "queue": "default"},
+                id="with_team",
+            ),
+            pytest.param(
+                None,
+                {"dag_id": "test_dag", "task_id": "my_task", "queue": "default"},
+                id="without_team",
+            ),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats.timing")
+    def test_emit_state_change_metric_includes_team_name(
+        self, mock_timing, team_name, expected_tags, dag_maker, session
+    ):
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="my_task")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("my_task", session=session)
+        ti.state = TaskInstanceState.SCHEDULED
+        ti.scheduled_dttm = timezone.utcnow()
+        if team_name:
+            ti._team_name = team_name
+        session.merge(ti)
+        session.flush()
+
+        ti.emit_state_change_metric(TaskInstanceState.QUEUED)
+
+        mock_timing.assert_called_once_with(
+            "task.scheduled_duration",
+            mock.ANY,
+            tags=expected_tags,
+        )

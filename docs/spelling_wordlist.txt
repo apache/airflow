@@ -249,6 +249,7 @@ cli
 ClickHouse
 clickhouse
 clickhousedb
+clickstream
 ClientSecretCredential
 cloudant
 CloudantV
@@ -1147,6 +1148,8 @@ ok
 oklch
 Okta
 okta
+OL
+ol
 Ollama
 onboarded
 onboarding
@@ -1385,6 +1388,7 @@ renderer
 renderers
 renewer
 reparse
+reparsed
 replicaSet
 repo
 repos

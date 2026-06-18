@@ -39,7 +39,6 @@ from airflow.exceptions import (
     AirflowFailException,
     AirflowRescheduleException,
     SerializationError,
-    TaskDeferred,
 )
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
@@ -104,7 +103,6 @@ from airflow.serialization.serialized_objects import (
     LazyDeserializedDAG,
     _has_kubernetes,
 )
-from airflow.triggers.base import BaseTrigger
 from airflow.utils.db import LazySelectSequence
 
 from unit.models import DEFAULT_DATE
@@ -570,42 +568,14 @@ def test_ser_of_asset_event_accessor():
     assert d[Asset(name="yo", uri="test://yo")].extra == {"this": "that", "the": "other"}
 
 
-class MyTrigger(BaseTrigger):
-    def __init__(self, hi):
-        self.hi = hi
-
-    def serialize(self):
-        return "unit.serialization.test_serialized_objects.MyTrigger", {"hi": self.hi}
-
-    async def run(self):
-        yield
-
-
 def test_roundtrip_exceptions():
-    """
-    This is for AIP-44 when we need to send certain non-error exceptions
-    as part of an RPC call e.g. TaskDeferred or AirflowRescheduleException.
-    """
+    """Non-error AirflowExceptions (e.g. AirflowRescheduleException) round-trip through BaseSerialization."""
     some_date = pendulum.now()
     resched_exc = AirflowRescheduleException(reschedule_date=some_date)
     ser = BaseSerialization.serialize(resched_exc)
     deser = BaseSerialization.deserialize(ser)
     assert isinstance(deser, AirflowRescheduleException)
     assert deser.reschedule_date == some_date
-    del ser
-    del deser
-    exc = TaskDeferred(
-        trigger=MyTrigger(hi="yo"),
-        method_name="meth_name",
-        kwargs={"have": "pie"},
-        timeout=timedelta(seconds=30),
-    )
-    ser = BaseSerialization.serialize(exc)
-    deser = BaseSerialization.deserialize(ser)
-    assert deser.trigger.hi == "yo"
-    assert deser.method_name == "meth_name"
-    assert deser.kwargs == {"have": "pie"}
-    assert deser.timeout == timedelta(seconds=30)
 
 
 @pytest.mark.parametrize(
