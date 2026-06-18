@@ -152,7 +152,6 @@ class CronPartitionTimetable(CronTriggerTimetable):
       until the next hour.
 
     # todo: AIP-76 talk about how we can have auto-reprocessing of partitions
-    # todo: AIP-76 we could allow a tuple of integer + time-based
 
     """
 
