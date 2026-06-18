@@ -558,6 +558,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 sync.to_create.append(workload)
             self.running_triggers.update(m.id for m in sync.to_create)
             resp = sync
+            self.send_msg(resp, request_id=req_id, error=None)
             return
 
         if isinstance(msg, UpdateHITLDetail):
