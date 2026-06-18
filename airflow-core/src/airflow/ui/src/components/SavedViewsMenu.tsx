@@ -16,22 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, HStack, Input, Text, VStack } from "@chakra-ui/react";
+import { Box, Button, HStack, Input, Text, VStack } from "@chakra-ui/react";
 import type { SortingState } from "@tanstack/react-table";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
-import { LuBookmark } from "react-icons/lu";
+import { LuBookmark, LuInfo } from "react-icons/lu";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import { IconButton, Popover } from "src/components/ui";
+import DeleteDialog from "src/components/DeleteDialog";
+import { IconButton, Popover, Tooltip } from "src/components/ui";
 import { savedViewsKey, tableSortKey } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
 type SavedView = {
   readonly name: string;
   readonly search: string;
+};
+
+// Query-string param order is not significant, so views are compared by their normalized (sorted) params.
+const normalizeSearch = (value: string) => {
+  const params = new URLSearchParams(value);
+
+  params.sort();
+
+  return params.toString();
 };
 
 // A "view" is the table's current URL query string — filters, search and page size all live there.
@@ -45,24 +55,32 @@ export const SavedViewsMenu = () => {
   const [savedViews, setSavedViews] = useLocalStorage<Array<SavedView>>(savedViewsKey(pathname), []);
   const [name, setName] = useState("");
   const [open, setOpen] = useState(false);
+  const [viewToDelete, setViewToDelete] = useState<string | undefined>(undefined);
+
+  const viewParams = new URLSearchParams(searchParams);
+
+  viewParams.delete(SearchParamsKeys.OFFSET);
+  viewParams.delete(SearchParamsKeys.CURSOR);
+  // The default view (no filters or search applied) has nothing worth persisting — only the URL query
+  // counts, so the bare table page always blocks save even when a default sort sits in localStorage.
+  const hasViewToSave = [...viewParams].length > 0;
+
+  // The active sort lives in the URL when set there, otherwise only in localStorage — bake it in
+  // either way so a restored view orders the table the same as when it was saved.
+  if (viewParams.getAll(SearchParamsKeys.SORT).length === 0) {
+    sorting.forEach(({ desc, id }) => viewParams.append(SearchParamsKeys.SORT, `${desc ? "-" : ""}${id}`));
+  }
+  const search = viewParams.toString();
+
+  // Block saving a setup that is already persisted under another name, and surface which one.
+  const duplicateView = savedViews.find((view) => normalizeSearch(view.search) === normalizeSearch(search));
 
   const handleSave = () => {
     const trimmedName = name.trim();
 
-    if (trimmedName === "") {
+    if (trimmedName === "" || !hasViewToSave || duplicateView !== undefined) {
       return;
     }
-
-    const params = new URLSearchParams(searchParams);
-
-    params.delete(SearchParamsKeys.OFFSET);
-    params.delete(SearchParamsKeys.CURSOR);
-    // The active sort lives in the URL when set there, otherwise only in localStorage — bake it in
-    // either way so a restored view orders the table the same as when it was saved.
-    if (params.getAll(SearchParamsKeys.SORT).length === 0) {
-      sorting.forEach(({ desc, id }) => params.append(SearchParamsKeys.SORT, `${desc ? "-" : ""}${id}`));
-    }
-    const search = params.toString();
 
     setSavedViews((prev) =>
       prev.some((view) => view.name === trimmedName)
@@ -88,24 +106,42 @@ export const SavedViewsMenu = () => {
     setSavedViews((prev) => prev.filter((view) => view.name !== viewName));
   };
 
+  let saveHint: string | undefined;
+
+  if (!hasViewToSave) {
+    saveHint = translate("savedViews.nothingToSave");
+  } else if (duplicateView !== undefined) {
+    saveHint = translate("savedViews.duplicate", { name: duplicateView.name });
+  }
+
   return (
-    <Popover.Root
-      lazyMount
-      onOpenChange={(event) => setOpen(event.open)}
-      open={open}
-      positioning={{ placement: "bottom-start" }}
-      unmountOnExit
-    >
-      <Popover.Trigger asChild>
-        <Button borderRadius="full" colorPalette="gray" data-testid="saved-views-button" variant="outline">
-          <LuBookmark />
-          {translate("savedViews.title")}
-        </Button>
-      </Popover.Trigger>
-      <Popover.Content width="xs">
-        <Popover.Arrow />
-        <Popover.Body>
-          <VStack align="stretch" gap={2}>
+    <>
+      <Popover.Root
+        lazyMount
+        onOpenChange={(event) => setOpen(event.open)}
+        open={open}
+        positioning={{ placement: "bottom-start" }}
+        unmountOnExit
+      >
+        <Popover.Trigger asChild>
+          <Button borderRadius="full" colorPalette="gray" data-testid="saved-views-button" variant="outline">
+            <LuBookmark />
+            {translate("savedViews.title")}
+          </Button>
+        </Popover.Trigger>
+        <Popover.Content width="xs">
+          <Popover.Arrow />
+          <VStack align="stretch" gap={2} p={4}>
+            <HStack gap={1}>
+              <Text fontSize="sm" fontWeight="medium">
+                {translate("savedViews.title")}
+              </Text>
+              <Tooltip content={translate("savedViews.info")}>
+                <Box as="span" color="fg.muted" cursor="pointer">
+                  <LuInfo />
+                </Box>
+              </Tooltip>
+            </HStack>
             <HStack>
               <Input
                 data-testid="saved-view-name"
@@ -117,15 +153,20 @@ export const SavedViewsMenu = () => {
                 }}
                 placeholder={translate("savedViews.namePlaceholder")}
                 size="sm"
+                value={name}
               />
-              <Button
-                data-testid="saved-view-save"
-                disabled={name.trim() === ""}
-                onClick={handleSave}
-                size="sm"
-              >
-                {translate("savedViews.save")}
-              </Button>
+              <Tooltip content={saveHint ?? ""} disabled={saveHint === undefined}>
+                <Box>
+                  <Button
+                    data-testid="saved-view-save"
+                    disabled={!hasViewToSave || name.trim() === "" || duplicateView !== undefined}
+                    onClick={handleSave}
+                    size="sm"
+                  >
+                    {translate("savedViews.save")}
+                  </Button>
+                </Box>
+              </Tooltip>
             </HStack>
             {savedViews.length === 0 ? (
               <Text color="fg.muted" fontSize="sm" py={1}>
@@ -146,7 +187,7 @@ export const SavedViewsMenu = () => {
                   </Button>
                   <IconButton
                     aria-label="Delete view"
-                    onClick={() => deleteView(view.name)}
+                    onClick={() => setViewToDelete(view.name)}
                     size="sm"
                     variant="ghost"
                   >
@@ -156,8 +197,22 @@ export const SavedViewsMenu = () => {
               ))
             )}
           </VStack>
-        </Popover.Body>
-      </Popover.Content>
-    </Popover.Root>
+        </Popover.Content>
+      </Popover.Root>
+      <DeleteDialog
+        isDeleting={false}
+        onClose={() => setViewToDelete(undefined)}
+        onDelete={() => {
+          if (viewToDelete !== undefined) {
+            deleteView(viewToDelete);
+          }
+          setViewToDelete(undefined);
+        }}
+        open={viewToDelete !== undefined}
+        resourceName={viewToDelete ?? ""}
+        title={translate("savedViews.deleteTitle")}
+        warningText={translate("savedViews.deleteWarning")}
+      />
+    </>
   );
 };

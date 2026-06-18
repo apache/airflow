@@ -204,8 +204,13 @@
     "scheduled": "Scheduled"
   },
   "savedViews": {
+    "deleteTitle": "Delete view",
+    "deleteWarning": "Saved views are stored in this browser only.",
+    "duplicate": "The view \"{{name}}\" already saves this exact setup.",
     "empty": "No saved views yet",
+    "info": "Save the current filters and sorting as a named view, then switch back to it anytime. Views are stored in this browser.",
     "namePlaceholder": "View name",
+    "nothingToSave": "Nothing to save on the default view. Apply filters or sorting to save a view.",
     "save": "Save",
     "title": "Views"
   },

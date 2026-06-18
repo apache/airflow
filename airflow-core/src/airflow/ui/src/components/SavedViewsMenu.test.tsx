@@ -76,6 +76,8 @@ describe("SavedViewsMenu", () => {
         { name: "Running runs", search: "state=running&sort=-start_date" },
       ]);
     });
+    // The input is reset to its placeholder so it is clear the view was saved.
+    expect(input).toHaveValue("");
   });
 
   it("does not save a view with a blank name", async () => {
@@ -83,6 +85,18 @@ describe("SavedViewsMenu", () => {
     const input = await openMenu();
 
     fireEvent.change(input, { target: { value: "   " } });
+
+    expect(screen.getByTestId("saved-view-save")).toBeDisabled();
+  });
+
+  it("disables save on the default view, even with a stored sort and a typed name", async () => {
+    // A bare table page keeps a default sort in localStorage but no URL filters — still nothing to save.
+    localStorage.setItem("dags-table-sort", JSON.stringify([{ desc: true, id: "run_after" }]));
+
+    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags"]) });
+    const input = await openMenu();
+
+    fireEvent.change(input, { target: { value: "My view" } });
 
     expect(screen.getByTestId("saved-view-save")).toBeDisabled();
   });
@@ -125,7 +139,7 @@ describe("SavedViewsMenu", () => {
     ]);
   });
 
-  it("deletes a saved view", async () => {
+  it("deletes a saved view after confirming", async () => {
     localStorage.setItem(
       "dags-saved-views",
       JSON.stringify([
@@ -138,13 +152,46 @@ describe("SavedViewsMenu", () => {
     await openMenu();
 
     fireEvent.click(screen.getAllByLabelText("Delete view")[0] as HTMLElement);
+    fireEvent.click(await screen.findByTestId("delete-confirm-button"));
 
     await waitFor(() => {
-      expect(screen.queryByText("Successful runs")).not.toBeInTheDocument();
+      expect(JSON.parse(localStorage.getItem("dags-saved-views") ?? "[]")).toEqual([
+        { name: "Failed runs", search: "state=failed" },
+      ]);
     });
-    expect(screen.getByText("Failed runs")).toBeInTheDocument();
+  });
+
+  it("keeps the saved view when the delete is cancelled", async () => {
+    localStorage.setItem(
+      "dags-saved-views",
+      JSON.stringify([{ name: "Successful runs", search: "state=success" }]),
+    );
+
+    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags"]) });
+    await openMenu();
+
+    fireEvent.click(screen.getByLabelText("Delete view"));
+    fireEvent.click(await screen.findByTestId("delete-cancel-button"));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("delete-confirm-button")).not.toBeInTheDocument();
+    });
     expect(JSON.parse(localStorage.getItem("dags-saved-views") ?? "[]")).toEqual([
-      { name: "Failed runs", search: "state=failed" },
+      { name: "Successful runs", search: "state=success" },
     ]);
+  });
+
+  it("blocks save when the exact setup is already saved under another name", async () => {
+    localStorage.setItem(
+      "dags-saved-views",
+      JSON.stringify([{ name: "Running runs", search: "state=running" }]),
+    );
+
+    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags?state=running"]) });
+    const input = await openMenu();
+
+    fireEvent.change(input, { target: { value: "Another name" } });
+
+    expect(screen.getByTestId("saved-view-save")).toBeDisabled();
   });
 });
