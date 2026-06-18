@@ -19,42 +19,14 @@
 
 package org.apache.airflow.sdk.execution
 
-/**
- * A snapshot of a single log message captured by [LogCapture.drain].
- *
- * This is a public-facing copy of the internal [LogMessage] type, suitable for
- * use in test assertions across Gradle module boundaries.
- */
 data class CapturedLogMessage(
   val level: Level,
-  val loggerName: String,
+  val logger: String,
   val event: String,
   val arguments: Map<String, Any?>,
 )
 
-/**
- * Test utility for inspecting messages that were sent through [Log].
- *
- * When no channel is configured (the normal state during unit tests), [LogSender]
- * buffers every [Log.send] call in memory. [drain] returns those buffered messages
- * and clears the queue so successive calls are independent.
- *
- * Typical usage:
- * ```kotlin
- * @BeforeEach fun setUp() { LogCapture.drain() }  // clear any noise
- *
- * @Test fun `some test`() {
- *     myLogger.info("hello")
- *     val msg = LogCapture.drain().single()
- *     assertEquals(Level.INFO, msg.level)
- * }
- * ```
- */
 object LogCapture {
-  /**
-   * Returns all messages buffered since the last call and clears the internal
-   * queue.
-   */
   fun drain(): List<CapturedLogMessage> =
     buildList {
       var msg = LogSender.messages.poll()
@@ -63,4 +35,9 @@ object LogCapture {
         msg = LogSender.messages.poll()
       }
     }
+
+  fun resetThresholds() {
+    Log.globalThreshold = Level.NOTSET
+    Log.namedThresholds = emptyMap()
+  }
 }

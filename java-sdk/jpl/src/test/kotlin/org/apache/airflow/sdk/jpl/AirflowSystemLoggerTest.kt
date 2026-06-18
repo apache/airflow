@@ -33,6 +33,7 @@ class AirflowSystemLoggerTest {
   @BeforeEach
   fun setUp() {
     logger = AirflowSystemLogger("com.example.Task")
+    LogCapture.resetThresholds()
     LogCapture.drain()
   }
 
@@ -49,7 +50,7 @@ class AirflowSystemLoggerTest {
     cases.forEach { (sysLevel, expected) ->
       LogCapture.drain()
       logger.log(sysLevel, null as ResourceBundle?, "m")
-      val messages = LogCapture.drain().filter { it.loggerName == "com.example.Task" }
+      val messages = LogCapture.drain().filter { it.logger == "com.example.Task" }
       assertEquals(1, messages.size, "Expected exactly one message for System.Logger $sysLevel")
       assertEquals(expected, messages.single().level, "System.Logger $sysLevel should map to SDK $expected")
     }
@@ -58,22 +59,22 @@ class AirflowSystemLoggerTest {
   @Test
   fun `OFF level is not forwarded`() {
     logger.log(System.Logger.Level.OFF, null as ResourceBundle?, "should not appear")
-    assertTrue(LogCapture.drain().none { it.loggerName == "com.example.Task" })
+    assertTrue(LogCapture.drain().none { it.logger == "com.example.Task" })
   }
 
   @Test
   fun `message and logger name are forwarded`() {
     logger.log(System.Logger.Level.INFO, null as ResourceBundle?, "hello")
-    val msg = LogCapture.drain().single { it.loggerName == "com.example.Task" }
+    val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
     assertEquals(Level.INFO, msg.level)
-    assertEquals("com.example.Task", msg.loggerName)
+    assertEquals("com.example.Task", msg.logger)
     assertEquals("hello", msg.event)
   }
 
   @Test
   fun `parameters are added to the map indexed by position`() {
     logger.log(System.Logger.Level.INFO, null as ResourceBundle?, "{0} {1}", "alpha", 42)
-    val msg = LogCapture.drain().single { it.loggerName == "com.example.Task" }
+    val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
     assertEquals("{0} {1}", msg.event)
     assertEquals("alpha", msg.arguments["0"])
     assertEquals(42, msg.arguments["1"])
@@ -83,7 +84,7 @@ class AirflowSystemLoggerTest {
   fun `throwable is stored under the exception key`() {
     val ex = RuntimeException("boom")
     logger.log(System.Logger.Level.ERROR, null as ResourceBundle?, "oops", ex)
-    val msg = LogCapture.drain().single { it.loggerName == "com.example.Task" }
+    val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
     assertTrue(msg.arguments["exception"].toString().contains("boom"))
   }
 
@@ -96,7 +97,7 @@ class AirflowSystemLoggerTest {
         override fun getKeys() = java.util.Collections.enumeration(listOf("greeting"))
       }
     logger.log(System.Logger.Level.INFO, bundle, "greeting")
-    val msg = LogCapture.drain().single { it.loggerName == "com.example.Task" }
+    val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
     assertEquals("hello", msg.event)
   }
 
@@ -109,7 +110,7 @@ class AirflowSystemLoggerTest {
         override fun getKeys() = java.util.Collections.emptyEnumeration<String>()
       }
     logger.log(System.Logger.Level.INFO, bundle, "unknown.key")
-    val msg = LogCapture.drain().single { it.loggerName == "com.example.Task" }
+    val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
     assertEquals("unknown.key", msg.event)
   }
 }

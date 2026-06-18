@@ -46,6 +46,23 @@ enum class Level(
   NOTSET(0),
 }
 
+private object LevelParser {
+  val levels = Level.entries.map { it.toString().uppercase() to it }.toMap()
+
+  fun parse(s: String?) = levels[s?.uppercase()]
+
+  fun parseNamed(s: String?): Map<String, Level> {
+    if (s == null) return emptyMap()
+    return buildMap {
+      s.split(Regex("""[\s,]+""")).forEach {
+        val parts = it.split(Regex("""\s*=\s*"""), 2)
+        val level = parse(parts[1])
+        if (level != null) put(parts[0], level)
+      }
+    }
+  }
+}
+
 /**
  * Public entry point into Airflow's log pipeline.
  *
@@ -55,9 +72,13 @@ enum class Level(
  * Not intended for use by task code.
  */
 object Log {
-  internal var threshold = Level.NOTSET // TODO: Make this configurable at runtime.
+  internal var globalThreshold = LevelParser.parse(System.getenv("AIRFLOW__LOGGING__LOGGING_LEVEL")) ?: Level.INFO
+  internal var namedThresholds = LevelParser.parseNamed(System.getenv("AIRFLOW__LOGGING__NAMESPACE_LEVELS"))
 
-  fun isEnabledForLevel(level: Level) = level.value >= threshold.value
+  fun isEnabledForLevel(
+    level: Level,
+    name: String?,
+  ) = level.value >= (namedThresholds[name] ?: globalThreshold).value
 
   fun send(
     level: Level,
@@ -65,7 +86,7 @@ object Log {
     event: String,
     arguments: Map<String, Any?> = emptyMap(),
   ) {
-    if (!isEnabledForLevel(level)) return
+    if (!isEnabledForLevel(level, logger)) return
     LogSender.send(LogMessage(event, arguments, logger, level))
   }
 
@@ -92,7 +113,7 @@ internal data class LogMessage(
  * use instead of needing to go through a "real" logging provider.
  */
 internal class Logger(
-  val name: String?,
+  val name: String,
 ) {
   constructor(cls: KClass<*>) : this(cls.java.typeName)
 
@@ -111,8 +132,8 @@ internal class Logger(
     event: String,
     arguments: Map<String, Any>,
   ) {
-    if (!Log.isEnabledForLevel(level)) return
-    LogSender.send(LogMessage(event, arguments, name ?: "(java)", level))
+    if (!Log.isEnabledForLevel(level, name)) return
+    LogSender.send(LogMessage(event, arguments, name, level))
   }
 }
 

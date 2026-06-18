@@ -44,7 +44,7 @@ class AirflowJulHandlerTest {
   fun setUp() {
     handler = AirflowJulHandler()
     mockkObject(Log)
-    every { Log.isEnabledForLevel(any()) } returns true
+    every { Log.isEnabledForLevel(any(), any()) } returns true
     every { Log.send(any(), any(), any(), any<MutableMap<String, Any?>.() -> Unit>()) } just runs
   }
 

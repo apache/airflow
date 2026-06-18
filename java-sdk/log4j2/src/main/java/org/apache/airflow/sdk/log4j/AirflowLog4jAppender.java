@@ -59,8 +59,9 @@ public final class AirflowLog4jAppender extends AbstractAppender {
 
   @Override
   public void append(LogEvent event) {
-    Level level = convert(event.getLevel());
-    if (!Log.INSTANCE.isEnabledForLevel(level)) return;
+    var level = convert(event.getLevel());
+    var logger = event.getLoggerName();
+    if (!Log.INSTANCE.isEnabledForLevel(level, logger)) return;
     // Log4J does not really provide a good way to access the underlying unformatted data
     // since it allows vastly different logging mechanisms. We pre-format the message here
     // and only send the exception separately.
@@ -70,7 +71,7 @@ public final class AirflowLog4jAppender extends AbstractAppender {
         thrown != null
             ? Collections.singletonMap("exception", stackTrace(thrown))
             : Collections.emptyMap();
-    Log.INSTANCE.send(level, event.getLoggerName(), message, args);
+    Log.INSTANCE.send(level, logger, message, args);
   }
 
   private static Level convert(org.apache.logging.log4j.Level level) {

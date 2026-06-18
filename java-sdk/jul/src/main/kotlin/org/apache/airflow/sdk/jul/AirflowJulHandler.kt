@@ -58,8 +58,9 @@ class AirflowJulHandler : Handler() {
   override fun publish(record: LogRecord) {
     if (!isLoggable(record)) return
     val level = record.level.convert()
-    if (!Log.isEnabledForLevel(level)) return
-    Log.send(level, record.loggerName ?: "", record.message) {
+    val logger = record.loggerName
+    if (!Log.isEnabledForLevel(level, logger)) return
+    Log.send(level, logger ?: "", record.message) {
       record.parameters?.forEachIndexed { i, v -> put(i.toString(), v) }
       record.thrown?.run { put("exception", stackTraceToString()) }
     }

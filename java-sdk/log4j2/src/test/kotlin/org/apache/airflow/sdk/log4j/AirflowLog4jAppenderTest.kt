@@ -44,7 +44,7 @@ class AirflowLog4jAppenderTest {
   fun setUp() {
     appender = AirflowLog4jAppender.createAppender()
     mockkObject(Log)
-    every { Log.isEnabledForLevel(any()) } returns true
+    every { Log.isEnabledForLevel(any(), any()) } returns true
     every { Log.send(any(), any(), any(), any<Map<String, Any?>>()) } just runs
   }
 

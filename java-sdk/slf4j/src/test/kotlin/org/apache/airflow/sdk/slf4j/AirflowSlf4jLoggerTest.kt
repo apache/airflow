@@ -33,6 +33,7 @@ class AirflowSlf4jLoggerTest {
   @BeforeEach
   fun setUp() {
     logger = AirflowSlf4jLogger("com.example.Task")
+    LogCapture.resetThresholds()
     LogCapture.drain() // discard any messages buffered before this test
   }
 
@@ -55,7 +56,7 @@ class AirflowSlf4jLoggerTest {
         SLevel.WARN -> logger.warn("m")
         SLevel.ERROR -> logger.error("m")
       }
-      val messages = LogCapture.drain().filter { it.loggerName == "com.example.Task" }
+      val messages = LogCapture.drain().filter { it.logger == "com.example.Task" }
       assertEquals(1, messages.size, "Expected exactly one message for SLF4J $slf4jLevel")
       assertEquals(expected, messages.single().level, "SLF4J $slf4jLevel should map to SDK $expected")
     }
@@ -64,16 +65,16 @@ class AirflowSlf4jLoggerTest {
   @Test
   fun `message and logger name are forwarded`() {
     logger.info("hello")
-    val msg = LogCapture.drain().single { it.loggerName == "com.example.Task" }
+    val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
     assertEquals(Level.INFO, msg.level)
-    assertEquals("com.example.Task", msg.loggerName)
+    assertEquals("com.example.Task", msg.logger)
     assertEquals("hello", msg.event)
   }
 
   @Test
   fun `arguments are added to the map indexed by position`() {
     logger.info("{} {}", "alpha", 42 as Any)
-    val msg = LogCapture.drain().single { it.loggerName == "com.example.Task" }
+    val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
     assertEquals("alpha", msg.arguments["0"])
     assertEquals(42, msg.arguments["1"])
   }
@@ -82,7 +83,7 @@ class AirflowSlf4jLoggerTest {
   fun `throwable is stored under the exception key`() {
     val ex = RuntimeException("boom")
     logger.error("oops", ex)
-    val msg = LogCapture.drain().single { it.loggerName == "com.example.Task" }
+    val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
     assertTrue(msg.arguments["exception"].toString().contains("boom"))
   }
 }

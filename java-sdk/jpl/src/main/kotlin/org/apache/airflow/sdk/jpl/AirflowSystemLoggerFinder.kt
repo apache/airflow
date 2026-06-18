@@ -43,7 +43,8 @@ internal class AirflowSystemLogger(
 ) : System.Logger {
   override fun getName(): String = name
 
-  override fun isLoggable(level: System.Logger.Level): Boolean = level != System.Logger.Level.OFF && Log.isEnabledForLevel(level.convert())
+  override fun isLoggable(level: System.Logger.Level): Boolean =
+    level != System.Logger.Level.OFF && Log.isEnabledForLevel(level.convert(), name)
 
   override fun log(
     level: System.Logger.Level,
