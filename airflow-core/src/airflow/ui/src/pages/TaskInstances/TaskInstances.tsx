@@ -51,6 +51,7 @@ import BulkClearTaskInstancesButton from "./BulkClearTaskInstancesButton";
 import BulkDeleteTaskInstancesButton from "./BulkDeleteTaskInstancesButton";
 import BulkMarkTaskInstancesAsButton from "./BulkMarkTaskInstancesAsButton";
 import DeleteTaskInstanceButton from "./DeleteTaskInstanceButton";
+import TaskInstanceNoteButton from "./TaskInstanceNoteButton";
 import { TaskInstancesFilter } from "./TaskInstancesFilter";
 
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
@@ -235,6 +236,7 @@ const taskInstanceColumns = ({
     accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
+        <TaskInstanceNoteButton taskInstance={row.original} />
         <ClearTaskInstanceButton taskInstance={row.original} />
         <MarkTaskInstanceAsButton taskInstance={row.original} />
         <DeleteTaskInstanceButton taskInstance={row.original} />

@@ -2453,7 +2453,8 @@ smtp:
       default: "30"
     smtp_retry_limit:
       description: |
-        Defines the maximum number of times Airflow will attempt to connect to the SMTP server.
+        Defines the number of times Airflow will attempt to connect to the SMTP server after the first
+        attempt.
       version_added: 2.0.0
       type: integer
       example: ~
@@ -2919,6 +2920,17 @@ triggerer:
       type: integer
       example: ~
       default: "1024"
+    shared_stream_ack_timeout:
+      description: |
+        Per-event ack timeout in seconds for shared-stream triggers running in ack mode (triggers that
+        override ``BaseEventTrigger.create_shared_stream_producer``). A subscriber that has not finished
+        processing an event (moved past it and had its derived trigger events confirmed persisted) within
+        this window is force-failed. Other subscribers in the same group are unaffected; once they
+        resolve, the producer advances normally.
+      version_added: 3.3.0
+      type: float
+      example: ~
+      default: "300.0"
 kerberos:
   description: ~
   options:

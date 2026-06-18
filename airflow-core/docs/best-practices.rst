@@ -356,6 +356,16 @@ Running ``ruff`` will produce:
 
 By integrating ``ruff`` into your development workflow, you can proactively address deprecations and maintain code quality, facilitating smoother transitions between Airflow versions.
 
+.. _best_practices/static_type_checking:
+
+Static Type Checking for Dags
+-----------------------------
+
+If you type-check your Dags with ``mypy``, the optional
+`apache-airflow-mypy <https://pypi.org/project/apache-airflow-mypy/>`_ plugins give accurate results for
+Airflow-specific patterns such as typed decorators and operator outputs. See
+:doc:`/howto/static-type-checking` for installation and configuration.
+
 .. _best_practices/dynamic_dag_generation:
 
 Dynamic Dag Generation

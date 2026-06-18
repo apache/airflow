@@ -102,7 +102,7 @@ PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.11.0``
 ``apache-airflow-providers-common-sql``  ``>=1.32.0``
-``clickhouse-connect``                   ``>=0.7.0``
+``clickhouse-connect``                   ``>=1.3.0``
 =======================================  ==================
 
 Cross provider package dependencies

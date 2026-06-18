@@ -142,6 +142,25 @@ def test_render_template_fields_empty_when_no_trigger_kwargs(create_task_instanc
     assert trigger.name == "Hello {{ name }}"
 
 
+class _TriggerWithoutSuperInit(BaseTrigger):
+    """A trigger that does not call super().__init__() — simulates third-party triggers."""
+
+    def __init__(self, queue_url: str):
+        self.queue_url = queue_url
+
+    def serialize(self):
+        return (f"{type(self).__module__}.{type(self).__qualname__}", {"queue_url": self.queue_url})
+
+    async def run(self):
+        yield TriggerEvent({"queue_url": self.queue_url})
+
+
+def test_task_instance_property_works_without_super_init():
+    """task_instance property must return None when subclass skips super().__init__()."""
+    trigger = _TriggerWithoutSuperInit(queue_url="https://sqs.example.com/queue")
+    assert trigger.task_instance is None
+
+
 class _PlainEventTrigger(BaseEventTrigger):
     """A BaseEventTrigger that does not opt into shared streams."""
 
@@ -256,3 +275,13 @@ def test_base_event_trigger_asset_state_store_independent_across_instances():
     b = _PlainEventTrigger(name="b")
     a.asset_state_store = MagicMock()
     assert b.asset_state_store is None
+
+def test_create_shared_stream_producer_raises_by_default():
+    """A subclass that does not override create_shared_stream_producer gets NotImplementedError.
+
+    The manager detects this via MRO inspection and takes the fast path (no
+    resolution bookkeeping). But calling the method directly must still raise,
+    confirming it is not accidentally a no-op on the base class.
+    """
+    with pytest.raises(NotImplementedError, match="create_shared_stream_producer"):
+        _PlainEventTrigger.create_shared_stream_producer({})

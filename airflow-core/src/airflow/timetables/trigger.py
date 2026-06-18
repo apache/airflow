@@ -27,7 +27,8 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
-from airflow._shared.timezones.timezone import coerce_datetime, parse_timezone, utcnow
+from airflow._shared.timezones.timezone import coerce_datetime, make_aware, parse_timezone, utcnow
+from airflow.exceptions import InvalidPartitionKeyError
 from airflow.timetables._cron import CronMixin
 from airflow.timetables._delta import DeltaMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
@@ -517,6 +518,26 @@ class CronPartitionTimetable(CronTriggerTimetable):
         # key reflects the local partition date the user reasons about (e.g. an Asia/Taipei
         # midnight partition keys as "...T00:00:00", not the prior UTC day's "...T16:00:00").
         return partition_date.in_timezone(self._timezone).strftime(self._key_format)
+
+    def _decode_partition_date(self, partition_key: str) -> datetime.datetime:
+        """
+        Decode *partition_key* back to the period-start datetime.
+
+        Parses the key with ``strptime`` using this timetable's ``key_format``
+        and localizes with the timetable's timezone, mirroring the forward
+        direction in :meth:`_format_key`.
+
+        :raises InvalidPartitionKeyError: When *partition_key* does not match
+            the timetable's ``key_format``.
+        """
+        try:
+            naive = datetime.datetime.strptime(partition_key, self._key_format)
+        except ValueError as exc:
+            raise InvalidPartitionKeyError(
+                f"Partition key {partition_key!r} does not match the timetable's "
+                f"key_format {self._key_format!r}: {exc}"
+            ) from exc
+        return make_aware(naive, self._timezone)
 
     def next_dagrun_info_v2(
         self,

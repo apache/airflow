@@ -965,10 +965,27 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
     asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
     partition_keys: set[str] = attrs.field(factory=set)
 
+    # Maximum length mirrors the StringID column width used in the metadata database
+    # (airflow.models.base.ID_LEN = 250).
+    _PARTITION_KEY_MAX_LENGTH: int = 250
+
     def add_partitions(self, keys: str | list[str]) -> None:
-        """Add one or more partition keys to :attr:`partition_keys`."""
+        """
+        Add one or more partition keys to :attr:`partition_keys`.
+
+        :raises ValueError: If any key is empty/whitespace-only or longer than
+            ``_PARTITION_KEY_MAX_LENGTH`` characters.
+        """
         if isinstance(keys, str):
             keys = [keys]
+        for key in keys:
+            if not key.strip():
+                raise ValueError(f"partition_key must not be empty or whitespace-only; got {key!r}.")
+            if len(key) > self._PARTITION_KEY_MAX_LENGTH:
+                raise ValueError(
+                    f"partition_key must be at most {self._PARTITION_KEY_MAX_LENGTH} characters; "
+                    f"got {len(key)}."
+                )
         self.partition_keys.update(keys)
 
     def add(self, asset: Asset | AssetRef, extra: dict[str, JsonValue] | None = None) -> None:
