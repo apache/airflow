@@ -71,9 +71,9 @@ class _AuthManagerState:
     _lock = threading.Lock()
 
 
-def _initialize_task_sdk_stats() -> None:
+def _initialize_api_server_stats() -> None:
     """
-    Initialize the Task SDK ``Stats`` singleton in the API server process.
+    Initialize the ``Stats`` singleton in the API server process.
 
     Initialization is guarded so a metrics misconfiguration can never prevent the API server
     from starting.
@@ -88,15 +88,15 @@ def _initialize_task_sdk_stats() -> None:
         )
     except Exception:
         log.warning(
-            "Failed to initialize Task SDK Stats in the API server; metrics emitted through the "
-            "Task SDK Stats singleton will not be recorded.",
+            "Failed to initialize API server Stats in the API server; metrics emitted through the "
+            "API server Stats singleton will not be recorded.",
             exc_info=True,
         )
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    _initialize_task_sdk_stats()
+    _initialize_api_server_stats()
     async with AsyncExitStack() as stack:
         for route in app.routes:
             if isinstance(route, Mount) and isinstance(route.app, FastAPI):

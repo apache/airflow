@@ -170,13 +170,13 @@ def test_create_auth_manager_thread_safety():
     app_module.purge_cached_app()
 
 
-class TestInitializeTaskSdkStats:
+class TestInitializeApiServerStats:
     """
     Ensure that stats subsystem is properly initialized in API server.
     """
 
-    def test_initializes_task_sdk_stats_with_factory(self):
-        """It initializes the Task SDK Stats singleton using the configured factory."""
+    def test_initializes_api_server_stats_with_factory(self):
+        """It initializes the Stats singleton in the API server using the configured factory."""
         sentinel_factory = object()
         with (
             mock.patch("airflow._shared.observability.metrics.stats") as mock_stats,
@@ -185,7 +185,7 @@ class TestInitializeTaskSdkStats:
                 return_value=sentinel_factory,
             ) as mock_get_factory,
         ):
-            app_module._initialize_task_sdk_stats()
+            app_module._initialize_api_server_stats()
 
             mock_get_factory.assert_called_once_with()
             mock_stats.initialize.assert_called_once()
@@ -193,21 +193,22 @@ class TestInitializeTaskSdkStats:
             assert kwargs["factory"] is sentinel_factory
             assert isinstance(kwargs["export_legacy_names"], bool)
 
-    def test_stats_failure_does_not_block_startup(self, caplog):
+    def test_stats_failure_does_not_block_startup(self):
         """A metrics misconfiguration must not prevent the API server from starting."""
         with (
             mock.patch("airflow._shared.observability.metrics.stats") as mock_stats,
             mock.patch("airflow.observability.metrics.stats_utils.get_stats_factory"),
+            mock.patch("airflow.api_fastapi.app.log") as mock_logger,
         ):
             mock_stats.initialize.side_effect = RuntimeError("boom")
 
             # Must not raise.
-            app_module._initialize_task_sdk_stats()
+            app_module._initialize_api_server_stats()
 
-        assert any("Failed to initialize Task SDK Stats" in rec.message for rec in caplog.records)
+        mock_logger.warning.assert_called_once()
 
     def test_stats_initialized_during_lifespan(self, client):
-        """_initialize_task_sdk_stats must be called as part of the app lifespan, not just defined."""
-        with mock.patch.object(app_module, "_initialize_task_sdk_stats") as mock_init:
+        """_initialize_api_server_stats must be called as part of the app lifespan, not just defined."""
+        with mock.patch.object(app_module, "_initialize_api_server_stats") as mock_init:
             with client():
                 mock_init.assert_called_once()

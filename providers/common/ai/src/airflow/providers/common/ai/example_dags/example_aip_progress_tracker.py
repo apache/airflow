@@ -147,14 +147,14 @@ AIP_REGISTRY: dict[int, dict] = {
     103: {
         "page_id": "406623137",
         "topic": "Task State Management",
-        "search_terms": ["task_store", "asset_store", "state_store", "TaskStoreAccessor"],
+        "search_terms": ["task_state_store", "asset_state_store", "state_store", "TaskStateStoreAccessor"],
         "codebase_paths": [
-            "airflow-core/src/airflow/models/task_store.py",
-            "airflow-core/src/airflow/models/asset_store.py",
+            "airflow-core/src/airflow/models/task_state_store.py",
+            "airflow-core/src/airflow/models/asset_state_store.py",
             "airflow-core/src/airflow/state",
             "shared/state/src/airflow_shared/state",
-            "airflow-core/src/airflow/api_fastapi/execution_api/routes/task_store.py",
-            "airflow-core/src/airflow/api_fastapi/execution_api/routes/asset_store.py",
+            "airflow-core/src/airflow/api_fastapi/execution_api/routes/task_state_store.py",
+            "airflow-core/src/airflow/api_fastapi/execution_api/routes/asset_state_store.py",
         ],
     },
     105: {
