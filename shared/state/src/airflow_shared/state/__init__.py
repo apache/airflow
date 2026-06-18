@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -71,6 +72,44 @@ class AssetScope:
 
 
 StoreScope = TaskScope | AssetScope
+
+
+class AssetStateStoreWriterKind(str, Enum):
+    """
+    Identifies what kind of writer last updated an asset state store entry.
+
+    ``TASK`` — written by a task via the execution API.
+    ``WATCHER`` — written by a ``BaseEventTrigger`` (no task instance).
+    ``API`` — written directly through the Core API (e.g. manual admin write).
+    """
+
+    TASK = "task"
+    WATCHER = "watcher"
+    API = "api"
+
+    def validate_writer_fields(
+        self,
+        dag_id: str | None,
+        run_id: str | None,
+        task_id: str | None,
+        map_index: int | None,
+    ) -> None:
+        task_fields = (dag_id, run_id, task_id, map_index)
+        match self:
+            case AssetStateStoreWriterKind.TASK:
+                if any(f is None for f in task_fields):
+                    raise ValueError(
+                        f"kind='task' requires dag_id, run_id, task_id, and map_index to all be set; "
+                        f"got dag_id={dag_id!r}, run_id={run_id!r}, task_id={task_id!r}, map_index={map_index!r}"
+                    )
+            case AssetStateStoreWriterKind.WATCHER | AssetStateStoreWriterKind.API:
+                if any(f is not None for f in task_fields):
+                    raise ValueError(
+                        f"kind={self.value!r} must not carry task fields; "
+                        f"got dag_id={dag_id!r}, run_id={run_id!r}, task_id={task_id!r}, map_index={map_index!r}"
+                    )
+            case _:
+                raise AssertionError(f"Unhandled AssetStateStoreWriterKind: {self!r}")
 
 
 class BaseStoreBackend(ABC):
@@ -208,65 +247,62 @@ class BaseStoreBackend(ABC):
         ``[state_store] default_retention_days``) and deciding what to delete.
         """
 
-    def serialize_task_store_to_ref(self, *, value: JsonValue, key: str, ti_id: str) -> str:
+    def serialize_task_state_store_to_ref(self, *, value: JsonValue, key: str, scope: TaskScope) -> str:
         """
-        Serialize a task store value before it is sent to the execution API for db persistence.
+        Serialize a task state store value before it is sent to the execution API for db persistence.
 
-        Called by ``TaskStoreAccessor.set()`` on the worker. The return value is what gets
+        Called by ``TaskStateStoreAccessor.set()`` on the worker. The return value is what gets
         stored in the DB — typically a reference path (e.g. an S3 key) rather than the
         actual value. Default: return ``value`` unchanged.
 
         **Important:** return only the raw reference string. The worker framework automatically
         wraps it in ``{"__airflow_state_ref__": "<ref>"}`` before writing to the DB, and strips
-        that wrapper before passing ``stored`` to ``deserialize_task_store_from_ref()``. Do not
+        that wrapper before passing ``stored`` to ``deserialize_task_state_store_from_ref()``. Do not
         wrap the reference yourself.
 
-        The returned reference must be deterministic — given the same ``ti_id`` and ``key`` it
+        The returned reference must be deterministic — given the same ``scope`` and ``key`` it
         must always return the same string. Do not use timestamps or random UUIDs as part of
         the reference, otherwise ``delete()``/``clear()`` cannot reconstruct it and the external
         object will be orphaned. By default, it JSON dumps the value and returns a JSON string.
         """
         return json.dumps(value)
 
-    def deserialize_task_store_from_ref(self, stored: str) -> JsonValue:
+    def deserialize_task_state_store_from_ref(self, stored: str) -> JsonValue:
         """
-        Resolve a stored task store reference back to the actual value.
+        Resolve a stored task state store reference back to the actual value.
 
-        Called by ``TaskStoreAccessor.get()`` after the stored string is retrieved from
+        Called by ``TaskStateStoreAccessor.get()`` after the stored string is retrieved from
         the execution API. By default, it JSON decodes ``stored`` to reverse the default
-        ``serialize_task_store_to_ref`` encoding.
+        ``serialize_task_state_store_to_ref`` encoding.
         """
         return json.loads(stored)
 
-    def serialize_asset_store_to_ref(self, *, value: JsonValue, key: str, asset_ref: str) -> str:
+    def serialize_asset_state_store_to_ref(self, *, value: JsonValue, key: str, scope: AssetScope) -> str:
         """
-        Serialize an asset store value before it is sent to the Execution API for db persistence.
+        Serialize an asset state store value before it is sent to the Execution API for db persistence.
 
-        Called by ``AssetStoreAccessor.set()`` on the worker. The return value is what gets
+        Called by ``AssetStateStoreAccessor.set()`` on the worker. The return value is what gets
         stored in the DB — typically a reference path rather than the actual value.
         Default: return ``value`` unchanged.
 
         **Important:** return only the raw reference string. The worker framework automatically
         wraps it in ``{"__airflow_state_ref__": "<ref>"}`` before writing to the DB, and strips
-        that wrapper before passing ``stored`` to ``deserialize_asset_store_from_ref()``. Do not
+        that wrapper before passing ``stored`` to ``deserialize_asset_state_store_from_ref()``. Do not
         wrap the reference yourself.
 
-        ``asset_ref`` is either the asset name or URI, depending on how the accessor was
-        constructed. It may be a URI string if the task inlet was declared as ``AssetUriRef``.
-
-        The returned reference must be deterministic — given the same ``asset_ref`` and ``key`` it
+        The returned reference must be deterministic — given the same ``scope`` and ``key`` it
         must always return the same string. Do not use timestamps or random UUIDs as part of
         the reference, otherwise ``delete()``/``clear()`` cannot reconstruct it and the external
         object will be orphaned. By default, it JSON dumps the value and returns a JSON string.
         """
         return json.dumps(value)
 
-    def deserialize_asset_store_from_ref(self, stored: str) -> JsonValue:
+    def deserialize_asset_state_store_from_ref(self, stored: str) -> JsonValue:
         """
-        Resolve a stored asset store reference back to the actual value.
+        Resolve a stored asset state store reference back to the actual value.
 
-        Called by ``AssetStoreAccessor.get()`` after the stored string is retrieved from
+        Called by ``AssetStateStoreAccessor.get()`` after the stored string is retrieved from
         the Execution API. By default, it JSON decodes ``stored`` to reverse the default
-        ``serialize_asset_store_to_ref`` encoding.
+        ``serialize_asset_state_store_to_ref`` encoding.
         """
         return json.loads(stored)

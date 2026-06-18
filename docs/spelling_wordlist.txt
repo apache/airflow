@@ -23,6 +23,7 @@ adobjects
 AdsInsights
 adsinsights
 afterall
+agentcore
 agentic
 ai
 aio
@@ -248,6 +249,7 @@ cli
 ClickHouse
 clickhouse
 clickhousedb
+clickstream
 ClientSecretCredential
 cloudant
 CloudantV
@@ -645,6 +647,7 @@ Filesystem
 filesystem
 filesystems
 filetype
+finalStatus
 fips
 firebase
 Firehose
@@ -910,6 +913,7 @@ js
 Json
 json
 jsonl
+JsonValue
 juli
 Jupyter
 jupyter
@@ -1139,10 +1143,13 @@ observability
 od
 odbc
 odps
+OIDC
 ok
 oklch
 Okta
 okta
+OL
+ol
 Ollama
 onboarded
 onboarding
@@ -1381,6 +1388,7 @@ renderer
 renderers
 renewer
 reparse
+reparsed
 replicaSet
 repo
 repos
@@ -1408,6 +1416,7 @@ Roadmap
 roadmap
 roc
 RoleBinding
+rollup
 rom
 romeoandjuliet
 rootcss

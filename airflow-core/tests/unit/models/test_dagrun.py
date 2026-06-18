@@ -20,6 +20,7 @@ from __future__ import annotations
 import datetime
 from collections import defaultdict
 from collections.abc import Mapping
+from contextlib import contextmanager
 from functools import reduce
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -35,6 +36,7 @@ from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
     func,
+    inspect as sa_inspect,
     select,
     update,
 )
@@ -70,12 +72,14 @@ from airflow.settings import get_policy_plugin_manager
 from airflow.task.trigger_rule import TriggerRule
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.session import create_session
+from airflow.utils.sqlalchemy import prohibit_commit
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.mapping import expand_mapped_task
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
 from unit.models import DEFAULT_DATE as _DEFAULT_DATE
@@ -100,7 +104,7 @@ async def empty_callback_for_deadline():
 def dagbag():
     from airflow.dag_processing.dagbag import DagBag
 
-    return DagBag(include_examples=True)
+    return DagBag()
 
 
 @pytest.fixture
@@ -850,7 +854,7 @@ class TestDagRun:
     @pytest.mark.parametrize("state", State.task_states)
     @mock.patch.object(settings, "task_instance_mutation_hook", autospec=True)
     def test_task_instance_mutation_hook(self, mock_hook, dag_maker, session, state):
-        def mutate_task_instance(task_instance):
+        def mutate_task_instance(task_instance, dag_run=None):
             if task_instance.queue == "queue1":
                 task_instance.queue = "queue2"
             else:
@@ -883,7 +887,7 @@ class TestDagRun:
         """
         observed_run_ids = []
 
-        def mutate_task_instance(task_instance):
+        def mutate_task_instance(task_instance, dag_run=None):
             observed_run_ids.append(task_instance.run_id)
             if task_instance.run_id and task_instance.run_id.startswith("manual__"):
                 task_instance.pool = "manual_pool"
@@ -902,6 +906,43 @@ class TestDagRun:
         assert any(rid is not None for rid in observed_run_ids), (
             f"task_instance_mutation_hook was called with run_id=None. Observed run_ids: {observed_run_ids}"
         )
+
+    def test_task_instance_mutation_hook_receives_dag_run(self, dag_maker, session, monkeypatch):
+        """task_instance_mutation_hook can route on dag_run.conf for mapped task instances.
+
+        Exercises the supported dag_run argument end-to-end: a conf-routing hook sets queue based on
+        DagRun.conf, and the routed value persists on every expanded mapped task instance. This is the
+        first-class replacement for reaching the DagRun through unsupported internals.
+        """
+        observed_confs = []
+
+        def mutate_task_instance(task_instance, dag_run=None):
+            observed_confs.append(None if dag_run is None else dag_run.conf)
+            if dag_run is not None and (dag_run.conf or {}).get("route") == "high":
+                task_instance.queue = "high_queue"
+
+        with mock.patch.object(
+            get_policy_plugin_manager().hook, "task_instance_mutation_hook", autospec=True
+        ) as mock_hook:
+            mock_hook.side_effect = mutate_task_instance
+            # Force the non-noop task-creation path so the scheduler invokes the hook with dag_run while
+            # materializing the mapped instances (mocking the hook does not flip the is_noop flag that
+            # import_local_settings would set for a real registered policy).
+            monkeypatch.setattr(settings.task_instance_mutation_hook, "is_noop", False)
+            with dag_maker(dag_id="test_mutation_hook_dag_run", session=session):
+                MockOperator.partial(task_id="mapped").expand(arg2=[1, 2, 3])
+
+            dr = dag_maker.create_dagrun(conf={"route": "high"})
+
+        # The hook saw the run conf (at least once with the routing value), and every expanded mapped
+        # task instance was routed to the conf-selected queue.
+        assert {"route": "high"} in observed_confs
+        queues = session.scalars(
+            select(TI.queue)
+            .where(TI.task_id == "mapped", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
+            .order_by(TI.map_index)
+        ).all()
+        assert queues == ["high_queue", "high_queue", "high_queue"]
 
     @pytest.mark.parametrize(
         ("prev_ti_state", "is_ti_schedulable"),
@@ -1607,6 +1648,259 @@ def test_expand_mapped_task_instance_task_decorator(is_noop, dag_maker, session)
             .order_by(TI.map_index)
         ).all()
         assert indices == [0, 1, 2, 3]
+
+
+def _make_mapped_dag_for_expansion(dag_maker, session, *, dag_id, conf=None):
+    """Build a DAG whose mapped task expands from an upstream task's output and create its DagRun.
+
+    Returns (dag, mapped, dr). Expansion is not performed here -- callers drive it explicitly
+    via expand_mapped_task so they can wrap it in a prohibit_commit guard, mirroring how the
+    scheduler expands mapped tasks inside _schedule_all_dag_runs.
+    """
+    with dag_maker(dag_id=dag_id, session=session, serialized=True) as dag:
+        upstream = BaseOperator(task_id="op1")
+        mapped = MockOperator.partial(task_id="task_2").expand(arg2=upstream.output)
+    dr = dag_maker.create_dagrun(conf=conf or {})
+    return dag, mapped, dr
+
+
+@contextmanager
+def _registered_mutation_hook(hook):
+    """Register hook as the real task_instance_mutation_hook on the policy plugin manager.
+
+    Patching at the plugin-manager level (rather than airflow.settings) ensures both call sites
+    see it: TaskMap.expand_mapped_task resolves the wrapper lazily, while refresh_from_task
+    holds a module-level reference bound at import time.
+    """
+    with mock.patch.object(
+        get_policy_plugin_manager().hook, "task_instance_mutation_hook", autospec=True
+    ) as mock_hook:
+        mock_hook.side_effect = hook
+        yield mock_hook
+
+
+def test_mutation_hook_committing_session_crashes_under_prohibit_commit(dag_maker, session):
+    """A mutation hook that opens a nested committing session crashes mapped expansion under the guard.
+
+    This pins the exact scheduler crash path: during mapped-task expansion (TaskMap.expand_mapped_task)
+    the hook is invoked while the outer session is wrapped in prohibit_commit. A hook that calls the
+    @provide_session-decorated TaskInstance.get_dagrun() with no session argument reuses the
+    guarded scoped session; the create_session() context manager then commits on exit, tripping the
+    before_commit guard with RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!").
+    """
+
+    def naive_hook(task_instance, dag_run=None):
+        # Reads DagRun.conf the unsafe way -- opens a fresh @provide_session session that commits on exit.
+        task_instance.get_dagrun()
+
+    dag, mapped, dr = _make_mapped_dag_for_expansion(
+        dag_maker, session, dag_id="test_mutation_hook_committing_session"
+    )
+
+    with _registered_mutation_hook(naive_hook):
+        with prohibit_commit(session):
+            # The guard fires inside expand_mapped_task when the hook's nested create_session()
+            # commits on exit -- expansion never completes, so there is nothing to guard.commit().
+            with pytest.raises(RuntimeError, match="UNEXPECTED COMMIT"):
+                expand_mapped_task(dag.task_dict[mapped.task_id], dr.run_id, "op1", length=3, session=session)
+
+
+def test_mutation_hook_safe_session_reuse_routes_mapped_tis_under_prohibit_commit(dag_maker, session):
+    """A session-reusing mutation hook survives mapped expansion under the guard and routes every TI.
+
+    Positive counterpart to the crash test. During expansion the hook is invoked both on transient,
+    session-less TaskInstance objects and (after session.merge) on instances attached to the
+    guarded outer session. A safe hook reads DagRun.conf only through the attached session -- a
+    plain SELECT that reuses the outer transaction, never opening a committing create_session()
+    -- so the prohibit_commit guard never fires. The routed queue is then asserted to persist on
+    every expanded mapped TI, closing the gap where existing tests only check that the hook was called.
+
+    Note: task_instance.dag_run is not usable here -- a freshly-built mapped TI has dag_run
+    marked "loaded as None" (see TaskInstance.get_dagrun), so the relationship never lazy-loads.
+    Resolving via the attached session is the discipline a real conf-routing hook must follow.
+    """
+
+    def safe_hook(task_instance, dag_run=None):
+        attached_session = sa_inspect(task_instance).session
+        if attached_session is None:
+            # Transient instance (pre-merge); it will be re-invoked once attached. Nothing safe to do.
+            return
+        dag_run = attached_session.scalar(
+            select(DagRun).where(DagRun.dag_id == task_instance.dag_id, DagRun.run_id == task_instance.run_id)
+        )
+        if dag_run is not None and dag_run.conf.get("route") == "high":
+            task_instance.queue = "high_queue"
+
+    dag, mapped, dr = _make_mapped_dag_for_expansion(
+        dag_maker, session, dag_id="test_mutation_hook_safe_routing", conf={"route": "high"}
+    )
+
+    with _registered_mutation_hook(safe_hook):
+        with prohibit_commit(session) as guard:
+            expand_mapped_task(dag.task_dict[mapped.task_id], dr.run_id, "op1", length=3, session=session)
+            guard.commit()
+
+    queues = session.scalars(
+        select(TI.queue)
+        .where(TI.task_id == mapped.task_id, TI.dag_id == mapped.dag_id, TI.run_id == dr.run_id)
+        .order_by(TI.map_index)
+    ).all()
+    assert queues == ["high_queue", "high_queue", "high_queue"]
+
+
+def test_mutation_hook_deterministic_across_repeated_invocation_during_expansion(dag_maker, session):
+    """A mutation hook may be invoked more than once per TI during expansion; the result must be stable.
+
+    TaskMap.expand_mapped_task invokes the hook on the transient TI and again via refresh_from_task
+    after session.merge, so a given mapped index is mutated multiple times. This asserts both that the
+    re-invocation really happens (at least one index sees >1 call) and that a deterministic hook -- one that
+    sets queue as a pure function of TI identity -- yields the same persisted value regardless of how
+    many times it ran.
+    """
+    call_counts: dict[int, int] = defaultdict(int)
+
+    def deterministic_hook(task_instance, dag_run=None):
+        call_counts[task_instance.map_index] += 1
+        task_instance.queue = f"q_{task_instance.map_index}"
+
+    dag, mapped, dr = _make_mapped_dag_for_expansion(
+        dag_maker, session, dag_id="test_mutation_hook_deterministic"
+    )
+
+    with _registered_mutation_hook(deterministic_hook):
+        with prohibit_commit(session) as guard:
+            expand_mapped_task(dag.task_dict[mapped.task_id], dr.run_id, "op1", length=3, session=session)
+            guard.commit()
+
+    # Re-invocation is real: at least one mapped index was mutated more than once.
+    assert max(call_counts.values()) > 1
+    # Despite repeated invocation, the deterministic hook leaves each TI with a stable, identity-derived queue.
+    rows = session.execute(
+        select(TI.map_index, TI.queue)
+        .where(TI.task_id == mapped.task_id, TI.dag_id == mapped.dag_id, TI.run_id == dr.run_id)
+        .order_by(TI.map_index)
+    ).all()
+    assert rows == [(0, "q_0"), (1, "q_1"), (2, "q_2")]
+
+
+def _make_literal_mapped_dagrun(dag_maker, session, *, dag_id, conf=None):
+    """Build a literal-mapped DAG and its running DagRun, returning (dr, dag_version_id).
+
+    Unlike _make_mapped_dag_for_expansion (which leaves an xcom-mapped task unexpanded so callers
+    can drive TaskMap.expand_mapped_task by hand), this builds a literal .expand([...]) so that
+    create_dagrun materializes the mapped TIs immediately. Callers can then re-invoke the mutation
+    hook on those persisted TIs by calling dr.verify_integrity(...) -- the real scheduler method --
+    inside their own prohibit_commit guard.
+    """
+    with dag_maker(dag_id=dag_id, session=session, serialized=True):
+
+        @task
+        def mapped_task(arg):
+            return arg
+
+        mapped_task.expand(arg=[1, 2, 3])
+    dr = dag_maker.create_dagrun(conf=conf or {})
+    dag_version_id = DagVersion.get_latest_version(dag_id=dr.dag_id, session=session).id
+    return dr, dag_version_id
+
+
+def test_freshly_built_mapped_ti_exposes_dag_run_as_loaded_none(dag_maker, session):
+    """A freshly-built mapped TaskInstance exposes dag_run as loaded-None, not a lazy-load or raise.
+
+    TaskMap.expand_mapped_task constructs each expanded TI with TaskInstance(task, run_id=..., ...)
+    and invokes the mutation hook on it before it is merged into a session. A conf-routing hook that
+    resolves the DagRun by attribute access (the _resolve_dagrun discipline) relies on ti.dag_run
+    returning None here -- without hitting the DB and without raising DetachedInstanceError -- so it
+    can fall through to a non-DB resolution path. This pins that lifecycle fact (documented on
+    TaskInstance.get_dagrun); if a future change made the relationship eager-load or raise on a
+    transient instance, the workaround would silently change behavior and this test would flag it.
+    """
+    with dag_maker(dag_id="test_loaded_none_canary", session=session, serialized=True) as dag:
+        EmptyOperator(task_id="solo")
+    dr = dag_maker.create_dagrun()
+
+    task = dag.task_dict["solo"]
+    ti = TI(
+        task,
+        run_id=dr.run_id,
+        map_index=0,
+        dag_version_id=DagVersion.get_latest_version(dag_id=dr.dag_id, session=session).id,
+    )
+
+    # Transient: not attached to any session, so a real _resolve_dagrun cannot lazy-load via it.
+    assert sa_inspect(ti).session is None
+    # Attribute access returns None rather than raising or emitting a query -- the load-as-None state.
+    assert ti.dag_run is None
+
+
+def test_naive_committing_hook_crashes_on_verify_integrity_under_guard(dag_maker, session):
+    """A committing hook crashes on the real verify_integrity path under the guard, not just the helper.
+
+    The committed expand_mapped_task tests hand-roll the prohibit_commit wrapper. This drives the
+    actual scheduler method dr.verify_integrity(...) -- which re-invokes the mutation hook on every
+    task instance -- inside the guard, proving the guard is genuinely live on the production path. A
+    hook calling the @provide_session-decorated get_dagrun() with no session reuses the guarded scoped
+    session; create_session() commits on exit and trips the before_commit guard.
+    """
+
+    def naive_hook(task_instance, dag_run=None):
+        task_instance.get_dagrun()
+
+    dr, dag_version_id = _make_literal_mapped_dagrun(
+        dag_maker, session, dag_id="test_verify_integrity_naive_hook"
+    )
+
+    with _registered_mutation_hook(naive_hook):
+        with prohibit_commit(session):
+            with pytest.raises(RuntimeError, match="UNEXPECTED COMMIT"):
+                dr.verify_integrity(dag_version_id=dag_version_id, session=session)
+
+
+def test_resolve_dagrun_attribute_access_is_safe_on_verify_integrity_under_guard(dag_maker, session):
+    """An attribute-access conf-routing hook survives the real verify_integrity path under the guard.
+
+    Mirrors the _resolve_dagrun mechanism a conf-routing cluster policy uses: inspect whether dag_run
+    is loaded and whether the TI is attached, then resolve only via ti.dag_run attribute access --
+    never opening a committing create_session(). Driven through dr.verify_integrity(...) under a real
+    prohibit_commit guard, this pins that the attribute-access path is non-committing and non-raising
+    on the production method, which the committed safe_hook test (explicit SELECT on the attached
+    session) does not exercise.
+
+    The if/elif branches deliberately mirror the real (out-of-repo) _resolve_dagrun so they act as a
+    regression anchor: if a future change to ti.dag_run's lazy-load semantics broke the eager-loaded
+    or attached path, attribute access here would raise and the test would catch it.
+    """
+    seen_map_indices = []
+
+    def resolve_dagrun_like_hook(task_instance, dag_run=None):
+        state = sa_inspect(task_instance)
+        if "dag_run" not in state.unloaded:
+            _ = task_instance.dag_run  # eager-loaded: cheap attribute read
+        elif state.session is not None:
+            _ = task_instance.dag_run  # attached: lazy-load via the outer session, no new session
+        # else: transient -> a real _resolve_dagrun walks the stack; nothing to do here.
+        seen_map_indices.append(task_instance.map_index)
+
+    dr, dag_version_id = _make_literal_mapped_dagrun(
+        dag_maker, session, dag_id="test_verify_integrity_resolve_dagrun", conf={"route": "high"}
+    )
+
+    with _registered_mutation_hook(resolve_dagrun_like_hook):
+        with prohibit_commit(session) as guard:
+            dr.verify_integrity(dag_version_id=dag_version_id, session=session)
+            guard.commit()
+
+    # The attribute-access hook ran (without raising or committing) on every persisted mapped TI:
+    # verify_integrity re-invokes it via _check_for_removed_or_restored_tasks, and the expanded TIs
+    # all survive. Any raise inside the hook would have propagated out of verify_integrity and failed
+    # the test directly -- no flag needed.
+    assert sorted(seen_map_indices) == [0, 1, 2]
+    indices = session.scalars(
+        select(TI.map_index)
+        .where(TI.task_id == "mapped_task", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
+        .order_by(TI.map_index)
+    ).all()
+    assert indices == [0, 1, 2]
 
 
 def test_verify_integrity_handles_stale_data_error(dag_maker, session):
@@ -2935,6 +3229,127 @@ def test_mapped_task_rerun_with_different_length_of_args(session, dag_maker, rer
     assert len(success_tis) == rerun_length
 
 
+def test_mapped_task_length_reduction_rerun_downstream_not_deadlocked(session, dag_maker):
+    @task
+    def producer():
+        context = get_current_context()
+        if context["ti"].try_number == 0:
+            return [i for i in range(3)]
+        return [i for i in range(2)]
+
+    @task
+    def work(arg):
+        return arg
+
+    @task
+    def finish(data):
+        return sum(data)
+
+    def _task_ids(tis):
+        return [(ti.task_id, ti.map_index) for ti in tis]
+
+    with dag_maker(session=session):
+        produced = producer()
+        mapped = work.expand(arg=produced)
+        done = finish(produced)
+        mapped >> done
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    # First run with 3 mapped task instances.
+    dag_maker.run_ti("producer", dr)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("work", 0), ("work", 1), ("work", 2)]
+
+    for ti in decision.schedulable_tis:
+        dag_maker.run_ti(ti.task_id, dr, map_index=ti.map_index)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("finish", -1)]
+    dag_maker.run_ti("finish", dr)
+
+    # Clear and rerun with one fewer mapped task instance.
+    clear_task_instances(dr.get_task_instances(session=session), session=session)
+    ti = dr.get_task_instance(task_id="producer", session=session)
+    ti.try_number += 1
+    session.merge(ti)
+
+    dag_maker.run_ti("producer", dr)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("work", 0), ("work", 1)]
+
+    mapped_states = session.execute(
+        select(TI.map_index, TI.state)
+        .where(TI.task_id == "work", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
+        .order_by(TI.map_index)
+    ).all()
+    assert mapped_states == [
+        (0, State.NONE),
+        (1, State.NONE),
+        (2, TaskInstanceState.REMOVED),
+    ]
+
+    for ti in decision.schedulable_tis:
+        dag_maker.run_ti(ti.task_id, dr, map_index=ti.map_index)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("finish", -1)]
+
+    dag_maker.run_ti("finish", dr)
+    finish_ti = dr.get_task_instance(task_id="finish", map_index=-1, session=session)
+    assert finish_ti
+    assert finish_ti.state == TaskInstanceState.SUCCESS
+
+
+def test_rerun_with_upstream_task_removed(session, dag_maker):
+    def _task_ids(tis):
+        return [(ti.task_id, ti.map_index) for ti in tis]
+
+    with dag_maker("test", session=session):
+        upstream_1 = EmptyOperator(task_id="upstream_1")
+        upstream_2 = EmptyOperator(task_id="upstream_2")
+        downstream = EmptyOperator(task_id="downstream")
+        [upstream_1, upstream_2] >> downstream
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    dag_maker.run_ti("upstream_1", dr)
+    dag_maker.run_ti("upstream_2", dr)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("downstream", -1)]
+
+    dag_maker.run_ti("downstream", dr)
+    dr.update_state(session=session)
+    assert dr.state == DagRunState.SUCCESS
+
+    # Rerun with upstream_1 removed
+    with dag_maker("test", session=session, serialized=True) as dag:
+        upstream_2 = EmptyOperator(task_id="upstream_2")
+        downstream = EmptyOperator(task_id="downstream")
+        upstream_2 >> downstream
+
+    latest_version = DagVersion.get_latest_version(dag.dag_id)
+    assert latest_version.version_number == 2
+
+    clear_task_instances(
+        dr.get_task_instances(session=session),
+        session=session,
+        run_on_latest_version=True,
+    )
+
+    upstream_1 = dr.get_task_instance(task_id="upstream_1", map_index=-1, session=session)
+    assert upstream_1.state == TaskInstanceState.REMOVED
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("upstream_2", -1)]
+
+    dag_maker.run_ti("upstream_2", dr)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("downstream", -1)]
+
+    dag_maker.run_ti("downstream", dr)
+    dr.update_state(session=session)
+    assert dr.state == DagRunState.SUCCESS
+
+
 def test_operator_mapped_task_group_receives_value(dag_maker, session):
     with dag_maker(session=session):
 
@@ -3656,6 +4071,53 @@ class TestDagRunHandleDagCallback:
         assert context_received["ti"].dag_id == "test_dag"
         assert context_received["ti"].run_id == dr.run_id
 
+    def test_produce_dag_callback_drops_last_ti_without_dag_version(self, dag_maker, session):
+        """A historical TI with dag_version_id=None must not crash callback construction."""
+        with dag_maker("test_dag", session=session) as dag:
+            BashOperator(task_id="test_task", bash_command="echo 1")
+
+        dr = dag_maker.create_dagrun()
+        dr.dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
+        ti = dr.get_task_instance("test_task")
+        # Simulate a task instance created before the dag_version table existed.
+        ti.dag_version_id = None
+        session.flush()
+
+        callback = dr.produce_dag_callback(dag=dag, success=False, relevant_ti=ti, reason="task_failure")
+
+        assert callback is not None
+        # last_ti is dropped so the non-null UUID datamodel validation never fires.
+        assert callback.context_from_server is not None
+        assert callback.context_from_server.last_ti is None
+
+    def test_execute_dag_callbacks_without_dag_version(self, dag_maker, session):
+        """The execute=True path must also tolerate a TI with dag_version_id=None."""
+        context_received = None
+
+        def on_failure(context):
+            nonlocal context_received
+            context_received = context
+
+        with dag_maker("test_dag", session=session, on_failure_callback=on_failure) as dag:
+            BashOperator(task_id="test_task", bash_command="echo 1")
+
+        dr = dag_maker.create_dagrun()
+        dr.dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
+        ti = dr.get_task_instance("test_task")
+        ti.dag_version_id = None
+        session.flush()
+
+        dag.on_failure_callback = on_failure
+        dag.has_on_failure_callback = True
+
+        dr.produce_dag_callback(dag=dag, success=False, relevant_ti=ti, reason="task_failure", execute=True)
+
+        # Callback still fires with the minimal fallback context (no last_ti template vars).
+        assert context_received is not None
+        assert context_received["reason"] == "task_failure"
+        assert "ti" not in context_received
+        assert context_received["run_id"] == dr.run_id
+
 
 class TestDagRunTracing:
     """Tests for DagRun OpenTelemetry span behavior."""
@@ -3851,3 +4313,33 @@ class TestDagRunTracing:
 
         span = trace.get_current_span(ctx)
         assert get_task_span_detail_level(span) == 2
+
+
+class TestDagRunStatsTagsTeamName:
+    def test_stats_tags_without_team_name(self, dag_maker):
+        """stats_tags should not include team_name when _team_name is not set."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun()
+        tags = dr.stats_tags
+        assert "team_name" not in tags
+        assert tags == {"dag_id": "test_dag", "run_type": "manual"}
+
+    def test_stats_tags_with_team_name(self, dag_maker):
+        """stats_tags should include team_name when _team_name is set."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun()
+        dr._team_name = "my_team"
+        tags = dr.stats_tags
+        assert tags["team_name"] == "my_team"
+        assert tags == {"dag_id": "test_dag", "run_type": "manual", "team_name": "my_team"}
+
+    def test_stats_tags_with_none_team_name(self, dag_maker):
+        """stats_tags should not include team_name when _team_name is None."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun()
+        dr._team_name = None
+        tags = dr.stats_tags
+        assert "team_name" not in tags

@@ -321,7 +321,7 @@
   },
   "apache.livy": {
     "deps": [
-      "aiohttp>=3.9.2",
+      "aiohttp>=3.14.0",
       "apache-airflow-providers-common-compat>=1.12.0",
       "apache-airflow-providers-http>=6.0.1",
       "apache-airflow>=2.11.0"
@@ -486,7 +486,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.32.0",
       "apache-airflow>=2.11.0",
-      "clickhouse-connect>=0.7.0"
+      "clickhouse-connect>=1.3.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -520,8 +520,8 @@
       "asgiref>=3.11.1; python_version >= '3.14'",
       "asgiref>=3.5.2; python_version < '3.14'",
       "cryptography>=44.0.3",
-      "kubernetes>=35.0.0,<36.0.0",
-      "kubernetes_asyncio>=32.0.0,<36.0.0",
+      "kubernetes>=35.0.0,!=36.0.0,<37.0.0",
+      "kubernetes_asyncio>=32.0.0,<37.0.0",
       "urllib3>=2.1.0,!=2.6.0"
     ],
     "devel-deps": [],
@@ -555,7 +555,7 @@
       "apache-airflow-providers-common-compat>=1.14.1",
       "apache-airflow-providers-standard>=1.12.1",
       "apache-airflow>=3.0.0",
-      "pydantic-ai-slim>=1.71.0"
+      "pydantic-ai-slim>=1.99.0"
     ],
     "devel-deps": [
       "langchain>=1.0.0",
@@ -648,7 +648,7 @@
   },
   "databricks": {
     "deps": [
-      "aiohttp>=3.9.2, <4",
+      "aiohttp>=3.14.0, <4",
       "apache-airflow-providers-common-compat>=1.13.0",
       "apache-airflow-providers-common-sql>=1.32.0",
       "apache-airflow>=2.11.0",
@@ -698,7 +698,7 @@
   },
   "dbt.cloud": {
     "deps": [
-      "aiohttp>=3.9.2",
+      "aiohttp>=3.14.0",
       "apache-airflow-providers-common-compat>=1.12.0",
       "apache-airflow-providers-http",
       "apache-airflow>=2.11.0",
@@ -768,7 +768,7 @@
   "edge3": {
     "deps": [
       "aiofiles>=23.2.0",
-      "aiohttp>=3.9.2",
+      "aiohttp>=3.14.0",
       "apache-airflow-providers-common-compat>=1.15.0",
       "apache-airflow>=3.0.0,!=3.1.0",
       "pydantic>=2.11.0",
@@ -1013,6 +1013,7 @@
       "http",
       "microsoft.azure",
       "microsoft.mssql",
+      "mongo",
       "mysql",
       "openlineage",
       "oracle",
@@ -1063,11 +1064,12 @@
   },
   "http": {
     "deps": [
-      "aiohttp>=3.12.14",
+      "aiohttp>=3.14.0",
       "apache-airflow-providers-common-compat>=1.12.0",
       "apache-airflow>=2.11.0",
       "asgiref>=2.3.0; python_version < '3.14'",
       "asgiref>=3.11.1; python_version >= '3.14'",
+      "pydantic>=2.11.0",
       "requests-toolbelt>=1.0.0",
       "requests>=2.32.0,<3"
     ],
@@ -1134,9 +1136,11 @@
     "deps": [
       "apache-airflow-providers-common-compat>=1.12.0",
       "apache-airflow-providers-http>=4.13.2",
-      "apache-airflow>=3.0.0"
+      "apache-airflow>=3.0.0",
+      "sqlglot>=30.0.0"
     ],
     "devel-deps": [
+      "sqlglot>=30.0.0",
       "uuid6>=2024.7.10"
     ],
     "plugins": [
@@ -1147,6 +1151,7 @@
     ],
     "cross-providers-deps": [
       "common.compat",
+      "common.sql",
       "http"
     ],
     "excluded-python-versions": [],
@@ -1253,6 +1258,8 @@
       "amazon",
       "common.compat",
       "common.messaging",
+      "google",
+      "openlineage",
       "oracle",
       "sftp"
     ],
@@ -1744,6 +1751,7 @@
   },
   "slack": {
     "deps": [
+      "aiohttp>=3.14.0",
       "apache-airflow-providers-common-compat>=1.10.1",
       "apache-airflow-providers-common-sql>=1.27.0",
       "apache-airflow>=2.11.0",
@@ -1788,7 +1796,7 @@
       "pyarrow>=18.0.0; python_version >= '3.13' and python_version < '3.14'",
       "pyarrow>=22.0.0; python_version >= '3.14'",
       "setuptools>=80.0.0,<9999",
-      "snowflake-connector-python>=3.16.0",
+      "snowflake-connector-python>=3.17.0",
       "snowflake-snowpark-python>=1.17.0,<9999;python_version<'3.12'",
       "snowflake-snowpark-python>=1.27.0,<9999;python_version>='3.12' and python_version<'3.14'",
       "snowflake-sqlalchemy>=1.7.0"

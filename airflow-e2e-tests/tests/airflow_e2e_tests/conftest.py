@@ -37,10 +37,17 @@ from airflow_e2e_tests.constants import (
     E2E_DAGS_FOLDER,
     E2E_TEST_MODE,
     ELASTICSEARCH_PATH,
+    GO_BUILDER_IMAGE,
+    GO_COMPOSE_PATH,
+    GO_SDK_BIN_PATH,
+    GO_SDK_BUNDLE_NAME,
+    GO_SDK_DAGS_PATH,
+    GO_SDK_EXAMPLE_BUNDLE_PKG,
     JAVA_COMPOSE_PATH,
     JAVA_DOCKERFILE_PATH,
-    JAVA_SDK_DAGS_PATH,
+    JAVA_SDK_EXAMPLE_DAGS_PATH,
     JAVA_SDK_EXAMPLE_LIBS_PATH,
+    JAVA_SDK_MAVEN_CACHE_PATH,
     KAFKA_DIR_PATH,
     LOCALSTACK_PATH,
     LOGS_FOLDER,
@@ -247,14 +254,42 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     Java-capable Airflow worker image, copies the JARs into the temp directory,
     and writes the coordinator configuration.
     """
-    # Build the example bundle inside an ephemeral JDK container so the host
-    # does not need Java installed.
-    #
-    # --user keeps build outputs owned by the current user (not root).
-    # GRADLE_USER_HOME persists the Gradle distribution and dependency cache in
-    # java-sdk/.gradle/ (already gitignored) so the first run downloads once
-    # and subsequent runs skip straight to compilation.
-    # --no-daemon avoids a background JVM that would outlive the container.
+    # * --user keeps build outputs owned by the current user (not root).
+    # * --no-daemon avoids a background JVM that would outlive the container.
+    # * GRADLE_USER_HOME persists the Gradle distribution and dependency cache
+    #   in java-sdk/.gradle/ so subsequent runs skip straight to compilation.
+    # * HOME is set explicitly because --user runs as the host UID which has no
+    #   entry in the container's /etc/passwd; Docker would otherwise inherit the
+    #   image's HOME (/root) which the non-root process cannot write to.
+    # * files/m2 is mounted directly as ~/.m2 so publishToMavenLocal writes
+    #   there without nesting, and its contents are visible on the host.
+    console.print("[yellow]Publishing Java SDK artifacts to local Maven repository...")
+    JAVA_SDK_MAVEN_CACHE_PATH.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--user",
+            f"{os.getuid()}:{os.getgid()}",
+            "-e",
+            "GRADLE_USER_HOME=/repo/java-sdk/.gradle",
+            "-e",
+            "HOME=/workspace-home",
+            "-v",
+            f"{JAVA_SDK_MAVEN_CACHE_PATH}:/workspace-home/.m2",
+            "-v",
+            f"{AIRFLOW_ROOT_PATH}:/repo",
+            "-w",
+            "/repo/java-sdk",
+            "eclipse-temurin:17-jdk",
+            "./gradlew",
+            "publishToMavenLocal",
+            "-PskipSigning=true",
+            "--no-daemon",
+        ],
+        check=True,
+    )
     console.print("[yellow]Building Java SDK example bundle (eclipse-temurin:17-jdk)...")
     subprocess.run(
         [
@@ -265,14 +300,17 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
             f"{os.getuid()}:{os.getgid()}",
             "-e",
             "GRADLE_USER_HOME=/repo/java-sdk/.gradle",
-            # Mount java-sdk/ at /java-sdk (the Gradle root project).
+            "-e",
+            "HOME=/workspace-home",
+            "-v",
+            f"{JAVA_SDK_MAVEN_CACHE_PATH}:/workspace-home/.m2",
             "-v",
             f"{AIRFLOW_ROOT_PATH}:/repo",
             "-w",
-            "/repo/java-sdk",
+            "/repo/java-sdk/example",
             "eclipse-temurin:17-jdk",
-            "./gradlew",
-            ":example:installDist",
+            "../gradlew",
+            "bundle",
             "--no-daemon",
         ],
         check=True,
@@ -287,7 +325,7 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     copytree(JAVA_SDK_EXAMPLE_LIBS_PATH, tmp_dir / "jars")
 
     # Copy the Java SDK example Dag file so Airflow can discover it.
-    copyfile(JAVA_SDK_DAGS_PATH / "java_examples.py", tmp_dir / "dags" / "java_examples.py")
+    copyfile(JAVA_SDK_EXAMPLE_DAGS_PATH / "java_examples.py", tmp_dir / "dags" / "java_examples.py")
 
     # Build a local Docker image that extends DOCKER_IMAGE with a JRE.
     # We do this explicitly so testcontainers' DockerCompose.start() does not
@@ -321,12 +359,126 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     )
     queue_to_coordinator = json.dumps({"java": "java-jdk"})
 
+    # Connection expected by the Java example bundle tasks. The JSON form
+    # covers all connection fields, in particular the port: wire integers
+    # arrive in the JVM as Long and the SDK must map them to Int.
+    test_http_conn = json.dumps(
+        {
+            "conn_type": "http",
+            "login": "user",
+            "password": "pass",
+            "host": "example.com",
+            "port": 1234,
+            "extra": {"param1": "val1", "param2": "val2"},
+        }
+    )
+
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
         # Single-quote the JSON values so Docker Compose reads them literally.
         f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
         f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
-        # Connection and variable expected by the Java example bundle tasks.
+        f"AIRFLOW_CONN_TEST_HTTP='{test_http_conn}'\n"
+        # Variable expected by the Java example bundle tasks.
+        "AIRFLOW_VAR_MY_VARIABLE=test_value\n"
+    )
+    os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+
+
+def _setup_go_sdk_integration(dot_env_file, tmp_dir):
+    """Set up the go_sdk E2E test mode.
+
+    Compiles the Go SDK example bundle into a self-contained executable bundle
+    via the ``airflow-go-pack`` tooling, drops it into the directory the
+    ``ExecutableCoordinator`` scans, copies the Python stub Dag, and writes the
+    coordinator configuration.
+
+    The packed bundle is a statically linked native executable (built with
+    ``CGO_ENABLED=0``), so the stock Airflow worker image can exec it directly
+    without a Go toolchain or any extra runtime installed -- see ``go.yml``.
+    """
+    # Build + pack the example bundle inside an ephemeral Go container so the
+    # host does not need Go installed.
+    #
+    # --user keeps build outputs owned by the current user (not root).
+    # HOME points at a writable, gitignored dir under go-sdk/bin so the Go build
+    # and module caches persist between runs (first run downloads modules once;
+    # subsequent runs skip straight to compilation).
+    # CGO_ENABLED=0 yields a fully static binary that runs on the stock worker.
+    # USER/HOME must be set because the SDK calls user.Current() at init; with
+    # cgo disabled Go's pure-Go resolver reads those env vars instead of libc,
+    # and panics if either is empty (the same vars are set on the worker in
+    # go.yml so the packed binary runs the same way at execution time).
+    # `go tool airflow-go-pack` builds the bundle package, reads its
+    # --airflow-metadata, and appends the source + airflow-metadata.yaml + the
+    # AFBNDL01 trailer, writing a single self-contained executable bundle.
+    go_cache_home = "/repo/go-sdk/bin/.home"
+    bundle_out = f"/repo/go-sdk/bin/{GO_SDK_BUNDLE_NAME}"
+    console.print(f"[yellow]Building Go SDK example bundle ({GO_BUILDER_IMAGE})...")
+    subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--user",
+            f"{os.getuid()}:{os.getgid()}",
+            "-e",
+            f"HOME={go_cache_home}",
+            "-e",
+            "USER=airflow",
+            "-e",
+            "CGO_ENABLED=0",
+            # Mount the repo so the whole go-sdk module (go.mod, tool directive,
+            # example sources) is visible to `go tool`.
+            "-v",
+            f"{AIRFLOW_ROOT_PATH}:/repo",
+            "-w",
+            "/repo/go-sdk",
+            GO_BUILDER_IMAGE,
+            "go",
+            "tool",
+            "airflow-go-pack",
+            "--output",
+            bundle_out,
+            GO_SDK_EXAMPLE_BUNDLE_PKG,
+        ],
+        check=True,
+    )
+
+    # Copy the compose override into the temp directory.
+    copyfile(GO_COMPOSE_PATH, tmp_dir / "go.yml")
+
+    # Place the packed bundle where the compose bind-mount (./go-bundles) exposes
+    # it to the worker at /opt/airflow/go-bundles. The bundle scanner requires
+    # the file to be executable, so preserve the exec bit.
+    go_bundles_dir = tmp_dir / "go-bundles"
+    go_bundles_dir.mkdir()
+    packed_bundle = go_bundles_dir / GO_SDK_BUNDLE_NAME
+    copyfile(GO_SDK_BIN_PATH / GO_SDK_BUNDLE_NAME, packed_bundle)
+    os.chmod(packed_bundle, 0o755)
+
+    # Copy the Go SDK example stub Dag so Airflow can discover and serialize it.
+    copyfile(GO_SDK_DAGS_PATH / "go_examples.py", tmp_dir / "dags" / "go_examples.py")
+
+    # Coordinator registry: maps the logical name "go-sdk" to ExecutableCoordinator,
+    # which scans executables_root for the packed bundle by dag_id.
+    # Queue mapping: routes tasks on the "golang" queue to "go-sdk".
+    coordinator_config = json.dumps(
+        {
+            "go-sdk": {
+                "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
+                "kwargs": {"executables_root": ["/opt/airflow/go-bundles"]},
+            }
+        }
+    )
+    queue_to_coordinator = json.dumps({"golang": "go-sdk"})
+
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        # Single-quote the JSON values so Docker Compose reads them literally.
+        f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
+        f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
+        # Connection and variable read by the Go example bundle tasks.
         "AIRFLOW_CONN_TEST_HTTP=http://test:test@example.com/\n"
         "AIRFLOW_VAR_MY_VARIABLE=test_value\n"
     )
@@ -377,6 +529,9 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     elif E2E_TEST_MODE == "java_sdk":
         compose_file_names.append("java.yml")
         _setup_java_sdk_integration(dot_env_file, tmp_dir)
+    elif E2E_TEST_MODE == "go_sdk":
+        compose_file_names.append("go.yml")
+        _setup_go_sdk_integration(dot_env_file, tmp_dir)
 
     #
     # Please Do not use this Fernet key in any deployments! Please generate your own key.

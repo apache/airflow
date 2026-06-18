@@ -197,7 +197,12 @@ from airflow_breeze.utils.versions import is_pre_release
 from airflow_breeze.utils.virtualenv_utils import create_venv
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
+    from github import Issue, PullRequest
     from packaging.version import Version
+
+    PullRequestOrIssue: TypeAlias = PullRequest.PullRequest | Issue.Issue
 
 argument_provider_distributions = click.argument(
     "provider_distributions",
@@ -268,13 +273,13 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "26.1.1"
-AIRFLOW_UV_VERSION = "0.11.17"
+AIRFLOW_PIP_VERSION = "26.1.2"
+AIRFLOW_UV_VERSION = "0.11.19"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.50"
 RICH_VERSION = "15.0.0"
-PREK_VERSION = "0.4.3"
-HATCH_VERSION = "1.16.5"
+PREK_VERSION = "0.4.4"
+HATCH_VERSION = "1.17.0"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
@@ -804,6 +809,115 @@ def provider_action_summary(description: str, message_type: MessageType, package
         console_print(f"{description}: {len(packages)}\n")
         console_print(f"[{message_type.value}]{' '.join(packages)}")
         console_print()
+
+
+@release_management_group.command(
+    name="classify-provider-changes",
+    help="Classify each provider's unreleased changes with hard-coded, high-confidence rules, "
+    "flagging ambiguous commits as 'needs_llm' for an agent/skill to assess. Outputs JSON - a "
+    "deterministic alternative to the random '--non-interactive' run used purely for discovery.",
+)
+@click.option(
+    "--base-branch",
+    type=str,
+    default="main",
+    help="Base branch to diff the provider changes against.",
+)
+@click.option(
+    "--skip-git-fetch",
+    is_flag=True,
+    help="Skip recreating/fetching the 'apache-https-for-providers' remote; use the local state as-is.",
+)
+@click.option(
+    "--output-file",
+    type=click.Path(dir_okay=False, writable=True, path_type=Path),
+    help="Write the JSON result here instead of stdout (keeps stdout free of progress output).",
+)
+@option_github_repository
+@option_include_not_ready_providers
+@option_include_removed_providers
+@argument_provider_distributions
+@option_verbose
+@option_dry_run
+def classify_provider_changes(
+    base_branch: str,
+    skip_git_fetch: bool,
+    output_file: Path | None,
+    github_repository: str,
+    include_not_ready_providers: bool,
+    include_removed_providers: bool,
+    provider_distributions: tuple[str, ...],
+):
+    import json
+
+    from airflow_breeze.prepare_providers.provider_documentation import (
+        NEEDS_LLM_CLASSIFICATION,
+        _get_all_changes_for_package,
+        classify_change_deterministically,
+    )
+
+    perform_environment_checks()
+    cleanup_python_generated_files()
+    if not provider_distributions:
+        provider_distributions = get_available_distributions(
+            include_removed=include_removed_providers, include_not_ready=include_not_ready_providers
+        )
+    if not skip_git_fetch:
+        run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
+        make_sure_remote_apache_exists_and_fetch(github_repository=github_repository)
+
+    result: dict[str, Any] = {"base_branch": base_branch, "providers": {}}
+    needs_llm_total = 0
+    for provider_id in provider_distributions:
+        try:
+            basic_provider_checks(provider_id)
+            _, list_of_list_of_changes, _ = _get_all_changes_for_package(
+                provider_id,
+                base_branch,
+                reapply_templates_only=False,
+                only_min_version_update=False,
+            )
+        except Exception as e:
+            # Typically a brand-new provider with no prior release tag, or a suspended provider.
+            result["providers"][provider_id] = {
+                "pending": True,
+                "needs_llm": True,
+                "note": f"could not compute diff (new provider or missing release tag): {e}",
+            }
+            continue
+        changes = list_of_list_of_changes[0] if list_of_list_of_changes else []
+        if not changes:
+            continue
+        commits = []
+        for change in changes:
+            classification, reason = classify_change_deterministically(provider_id, change)
+            if classification == NEEDS_LLM_CLASSIFICATION:
+                needs_llm_total += 1
+            commits.append(
+                {
+                    "hash": change.short_hash,
+                    "pr": change.pr,
+                    "subject": change.message_without_backticks,
+                    "classification": classification,
+                    "reason": reason,
+                }
+            )
+        result["providers"][provider_id] = {
+            "current_version": get_provider_details(provider_id).versions[0],
+            "commits": commits,
+        }
+
+    payload = json.dumps(result, indent=2)
+    if output_file:
+        output_file.write_text(payload + "\n")
+        console_print(
+            f"[success]Wrote classification for {len(result['providers'])} provider(s) "
+            f"to {output_file}[/]\n"
+            f"[info]{needs_llm_total} commit(s) flagged 'needs_llm' for LLM assessment.[/]"
+        )
+    else:
+        # Plain stdout (not via the rich console) so the JSON is machine-parsable.
+        print(payload)
 
 
 @release_management_group.command(
@@ -2642,7 +2756,7 @@ def generate_issue_content_providers(
     provider_distributions: list[str],
 ):
     import jinja2
-    from github import Github, Issue, PullRequest, UnknownObjectException
+    from github import Github, UnknownObjectException
 
     class ProviderPRInfo(NamedTuple):
         provider_id: str
@@ -3769,7 +3883,7 @@ SOURCE_API_YAML_PATH = (
     AIRFLOW_ROOT_PATH / "airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
 )
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v2.yaml"
-OPENAPI_GENERATOR_CLI_VER = "7.22.0"
+OPENAPI_GENERATOR_CLI_VER = "7.23.0"
 
 GENERATED_CLIENT_DIRECTORIES_TO_COPY: list[Path] = [
     Path("airflow_client") / "client",
@@ -4468,9 +4582,8 @@ def generate_issue_content(
     is_helm_chart: bool,
     is_airflow_ctl: bool = False,
 ):
-    from github import Github, Issue, PullRequest, UnknownObjectException
+    from github import Github, UnknownObjectException
 
-    PullRequestOrIssue = PullRequest.PullRequest | Issue.Issue
     verbose = get_verbose()
 
     previous = previous_release
@@ -4488,7 +4601,7 @@ def generate_issue_content(
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
     pull_requests: dict[int, PullRequestOrIssue] = {}
-    linked_issues: dict[int, list[Issue.Issue]] = defaultdict(lambda: [])
+    linked_issues: dict[int, list[Issue.Issue]] = defaultdict(list)
     users: dict[int, set[str]] = defaultdict(lambda: set())
     count_prs = limit_pr_count or len(prs)
 

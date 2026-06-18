@@ -23,11 +23,13 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
+from fastapi import HTTPException, status
 from sqlalchemy import delete, select
 
 from airflow.executors.workloads import BundleInfo, ExecuteTask
 from airflow.providers.common.compat.sdk import Stats
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
+from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
 from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueuesBody
 from airflow.providers.edge3.worker_api.routes.jobs import fetch, parse_command, state
@@ -80,6 +82,7 @@ class TestJobsApiRoutes:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self, dag_maker, session: Session):
         session.execute(delete(EdgeJobModel))
+        session.execute(delete(EdgeWorkerModel))
         session.commit()
 
     @patch(f"{Stats.__module__}.Stats.incr")
@@ -135,8 +138,13 @@ class TestJobsApiRoutes:
             assert db_job is not None
             assert db_job.state == TaskInstanceState.SUCCESS
 
-    def test_fetch_filters_by_team_name(self, session: Session):
+    def test_fetch_filters_by_worker_team_name(self, session: Session):
         with create_session() as session:
+            session.add(
+                EdgeWorkerModel(
+                    worker_name="worker1", state=EdgeWorkerState.IDLE, queues=[QUEUE], team_name="team_a"
+                )
+            )
             job_team_a = EdgeJobModel(
                 dag_id="dag_a",
                 task_id="task_a",
@@ -164,15 +172,29 @@ class TestJobsApiRoutes:
             session.add_all([job_team_a, job_team_b])
             session.commit()
 
-            body = WorkerQueuesBody(free_concurrency=1, queues=[QUEUE], team_name="team_a")
+            body = WorkerQueuesBody(free_concurrency=1, queues=[QUEUE], team_name="team_b")
             result = fetch("worker1", body, session)
             assert result is not None
             assert result.dag_id == "dag_a"
             assert result.task_id == "task_a"
 
+    def test_fetch_unknown_worker_raises_404(self, session: Session):
+        body = WorkerQueuesBody(free_concurrency=1, queues=[QUEUE], team_name="team_a")
+
+        with pytest.raises(HTTPException) as exc_info:
+            fetch("unknown-worker", body, session)
+
+        assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
+        assert exc_info.value.detail == "Worker not found"
+
     def test_fetch_without_team_name_returns_any_team(self, session: Session):
-        """When team_name is None, no team filter is applied so any queued job can be returned."""
+        """When a worker has no team_name, no team filter is applied so any queued job can be returned."""
         with create_session() as session:
+            session.add(
+                EdgeWorkerModel(
+                    worker_name="worker1", state=EdgeWorkerState.IDLE, queues=[QUEUE], team_name=None
+                )
+            )
             job_team_a = EdgeJobModel(
                 dag_id="dag_a",
                 task_id="task_a",
