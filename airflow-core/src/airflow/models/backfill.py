@@ -677,34 +677,41 @@ def _create_backfill(
         )
         session.add(br)
         session.commit()
+        backfill_id = br.id
 
-        session.scalars(select(DagModel).where(DagModel.dag_id == dag_id)).one()
+        try:
+            session.scalars(select(DagModel).where(DagModel.dag_id == dag_id)).one()
 
-        dagrun_info_list = _get_info_list(
-            from_date=from_date,
-            to_date=to_date,
-            reverse=reverse,
-            dag=dag,
-        )
-        if not dagrun_info_list:
-            raise RuntimeError(f"No runs to create for Dag {dag_id}")
-
-        first_info = dagrun_info_list[0]
-        if first_info.partition_key:
-            _create_runs_partitioned(
-                br=br,
+            dagrun_info_list = _get_info_list(
+                from_date=from_date,
+                to_date=to_date,
+                reverse=reverse,
                 dag=dag,
-                dagrun_info_list=dagrun_info_list,
-                session=session,
             )
-        else:
-            _create_runs_non_partitioned(
-                br=br,
-                dag=dag,
-                dagrun_info_list=dagrun_info_list,
-                run_on_latest_version=run_on_latest_version,
-                session=session,
-            )
+            if not dagrun_info_list:
+                raise RuntimeError(f"No runs to create for Dag {dag_id}")
+
+            first_info = dagrun_info_list[0]
+            if first_info.partition_key:
+                _create_runs_partitioned(
+                    br=br,
+                    dag=dag,
+                    dagrun_info_list=dagrun_info_list,
+                    session=session,
+                )
+            else:
+                _create_runs_non_partitioned(
+                    br=br,
+                    dag=dag,
+                    dagrun_info_list=dagrun_info_list,
+                    run_on_latest_version=run_on_latest_version,
+                    session=session,
+                )
+        except Exception:
+            session.rollback()
+            session.execute(sa.delete(Backfill).where(Backfill.id == backfill_id))
+            session.commit()
+            raise
     return br
 
 
