@@ -50,11 +50,11 @@ internal class AirflowSystemLogger(
     level: System.Logger.Level,
     bundle: ResourceBundle?,
     msg: String?,
-    thrown: Throwable?,
+    thrown: Throwable,
   ) {
     if (!isLoggable(level)) return
     Log.send(level.convert(), name, bundle.resolve(msg)) {
-      if (thrown != null) this["exception"] = thrown.toString()
+      put("exception", thrown.toString())
     }
   }
 
@@ -62,11 +62,11 @@ internal class AirflowSystemLogger(
     level: System.Logger.Level,
     bundle: ResourceBundle?,
     format: String?,
-    vararg params: Any?,
+    params: Array<out Any?>?,
   ) {
     if (!isLoggable(level)) return
     Log.send(level.convert(), name, bundle.resolve(format)) {
-      params.forEachIndexed { i, v -> this[i.toString()] = v }
+      params?.forEachIndexed { i, v -> put(i.toString(), v) }
     }
   }
 }

@@ -49,7 +49,7 @@ class AirflowSystemLoggerTest {
       )
     cases.forEach { (sysLevel, expected) ->
       LogCapture.drain()
-      logger.log(sysLevel, null as ResourceBundle?, "m")
+      logger.log(sysLevel, null as ResourceBundle?, "m", null as Array<out Any?>?)
       val messages = LogCapture.drain().filter { it.logger == "com.example.Task" }
       assertEquals(1, messages.size, "Expected exactly one message for System.Logger $sysLevel")
       assertEquals(expected, messages.single().level, "System.Logger $sysLevel should map to SDK $expected")
@@ -58,13 +58,13 @@ class AirflowSystemLoggerTest {
 
   @Test
   fun `OFF level is not forwarded`() {
-    logger.log(System.Logger.Level.OFF, null as ResourceBundle?, "should not appear")
+    logger.log(System.Logger.Level.OFF, null as ResourceBundle?, "should not appear", null as Array<out Any?>?)
     assertTrue(LogCapture.drain().none { it.logger == "com.example.Task" })
   }
 
   @Test
   fun `message and logger name are forwarded`() {
-    logger.log(System.Logger.Level.INFO, null as ResourceBundle?, "hello")
+    logger.log(System.Logger.Level.INFO, null as ResourceBundle?, "hello", null)
     val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
     assertEquals(Level.INFO, msg.level)
     assertEquals("com.example.Task", msg.logger)
@@ -72,8 +72,19 @@ class AirflowSystemLoggerTest {
   }
 
   @Test
+  fun `null params array is tolerated (matches JDK default method delegation)`() {
+    // System.Logger.log(Level, String) is a default method that delegates to
+    // log(Level, ResourceBundle, String, Object...) passing (Object[]) null for params.
+    // Kotlin's vararg would null-check and throw; the explicit nullable array must not.
+    logger.log(System.Logger.Level.INFO, null as ResourceBundle?, "hello", null)
+    val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
+    assertEquals("hello", msg.event)
+    assertEquals(emptyMap<String, Any?>(), msg.arguments)
+  }
+
+  @Test
   fun `parameters are added to the map indexed by position`() {
-    logger.log(System.Logger.Level.INFO, null as ResourceBundle?, "{0} {1}", "alpha", 42)
+    logger.log(System.Logger.Level.INFO, null as ResourceBundle?, "{0} {1}", arrayOf<Any?>("alpha", 42))
     val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
     assertEquals("{0} {1}", msg.event)
     assertEquals("alpha", msg.arguments["0"])
@@ -96,7 +107,7 @@ class AirflowSystemLoggerTest {
 
         override fun getKeys() = java.util.Collections.enumeration(listOf("greeting"))
       }
-    logger.log(System.Logger.Level.INFO, bundle, "greeting")
+    logger.log(System.Logger.Level.INFO, bundle, "greeting", null)
     val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
     assertEquals("hello", msg.event)
   }
@@ -109,7 +120,7 @@ class AirflowSystemLoggerTest {
 
         override fun getKeys() = java.util.Collections.emptyEnumeration<String>()
       }
-    logger.log(System.Logger.Level.INFO, bundle, "unknown.key")
+    logger.log(System.Logger.Level.INFO, bundle, "unknown.key", null)
     val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
     assertEquals("unknown.key", msg.event)
   }
