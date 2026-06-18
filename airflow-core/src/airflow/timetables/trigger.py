@@ -544,7 +544,6 @@ class CronPartitionTimetable(CronTriggerTimetable):
         last_dagrun_info: DagRunInfo | None,
         restriction: TimeRestriction,
     ) -> DagRunInfo | None:
-        # todo: AIP-76 add test for this logic
         # Scheduler scheduling path: uses next_dagrun_info_v2 to advance run_after one tick
         # at a time. Backfill iterates partitions directly via timetable.iter_partition_dagrun_infos.
 
