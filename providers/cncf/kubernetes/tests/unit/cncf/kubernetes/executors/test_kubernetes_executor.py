@@ -894,7 +894,7 @@ class TestKubernetesExecutor:
     def test_async_pod_creation_requeues_on_exceeded_quota(
         self, mock_get_kube_client, mock_kubernetes_job_watcher, mock_get_async_client, data_file
     ):
-        """An async-client quota error is converted to the sync ApiException and requeues the task."""
+        """An async-client quota error requeues the task via the shared pod-publish error handler."""
         from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
 
         template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()

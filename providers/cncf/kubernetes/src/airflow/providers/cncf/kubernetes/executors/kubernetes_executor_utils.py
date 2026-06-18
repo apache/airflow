@@ -467,20 +467,6 @@ def _analyze_main_containers(pod_status: k8s.V1PodStatus) -> FailureDetails | No
     return _analyze_containers(container_statuses, "main")
 
 
-def _to_sync_api_exception(async_exc: async_client.exceptions.ApiException) -> ApiException:
-    """
-    Convert a ``kubernetes_asyncio`` ApiException into the sync client's ApiException.
-
-    The KubernetesExecutor's pod-publish error handling matches on
-    ``kubernetes.client.rest.ApiException``; converting lets the concurrent creation path
-    reuse that handling (retry / exceeded-quota / 429 backoff) unchanged.
-    """
-    sync_exc = ApiException(status=async_exc.status, reason=async_exc.reason)
-    sync_exc.body = async_exc.body
-    sync_exc.headers = async_exc.headers
-    return sync_exc
-
-
 class AirflowKubernetesScheduler(LoggingMixin):
     """Airflow Scheduler for Kubernetes."""
 
@@ -702,7 +688,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                     Stats.incr("kubernetes_executor.pod_creation_status", tags={"status": "200"})
                 except async_client.exceptions.ApiException as e:
                     Stats.incr("kubernetes_executor.pod_creation_status", tags={"status": str(e.status)})
-                    raise _to_sync_api_exception(e) from e
+                    raise
                 except Exception:
                     Stats.incr("kubernetes_executor.pod_creation_status", tags={"status": "error"})
                     raise
