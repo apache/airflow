@@ -89,6 +89,30 @@ class TestVariables:
             ),
         )
 
+    def test_var_set_raises_on_error(self, mock_supervisor_comms):
+        """Variable.set() must propagate AirflowRuntimeError so the task fails on a rejected write."""
+        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+        from airflow.sdk.execution_time.comms import ErrorResponse
+
+        mock_supervisor_comms.send.side_effect = AirflowRuntimeError(
+            error=ErrorResponse(error=ErrorType.API_SERVER_ERROR, detail={"message": "forbidden"})
+        )
+
+        with pytest.raises(AirflowRuntimeError):
+            Variable.set(key="forbidden_key", value="v")
+
+    def test_var_delete_raises_on_error(self, mock_supervisor_comms):
+        """Variable.delete() must propagate AirflowRuntimeError so the task fails on a rejected delete."""
+        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+        from airflow.sdk.execution_time.comms import ErrorResponse
+
+        mock_supervisor_comms.send.side_effect = AirflowRuntimeError(
+            error=ErrorResponse(error=ErrorType.API_SERVER_ERROR, detail={"message": "forbidden"})
+        )
+
+        with pytest.raises(AirflowRuntimeError):
+            Variable.delete(key="forbidden_key")
+
 
 class TestVariableKeys:
     @pytest.mark.parametrize(
