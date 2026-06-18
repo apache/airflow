@@ -148,7 +148,11 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         or tool budget. ``None`` (default) means no enforcement.
     :param durable: When ``True``, enables step-level caching of model
         responses and tool results for durable execution.  On retry, cached
-        steps are replayed instead of re-executing.  Default ``False``.
+        steps are replayed instead of re-executing.  Each cached step is
+        verified against the current request before replay: if the prompt,
+        model, settings, tools, or message history changed since the failed
+        attempt, the affected steps re-run live (with a warning) instead of
+        replaying stale results.  Default ``False``.
         Requires ``[common.ai] durable_cache_path`` to be set.
     :param code_mode: When ``True``, wraps the agent's tools in a single
         ``run_code`` tool powered by the Monty sandbox (pydantic-ai-harness
