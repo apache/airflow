@@ -29,6 +29,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from airflow import settings
+from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow.assets.manager import AssetManager
 from airflow.models.asset import (
     AssetAliasModel,
@@ -40,7 +41,9 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
 )
 from airflow.models.dag import DAG, DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.log import Log
+from airflow.models.team import Team
 from airflow.partition_mappers.temporal import FanOutMapper, StartOfWeekMapper
 from airflow.partition_mappers.window import WeekWindow
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -48,7 +51,11 @@ from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_apdr, clear_db_logs, clear_db_pakl
+from tests_common.test_utils.db import (
+    clear_db_apdr,
+    clear_db_logs,
+    clear_db_pakl,
+)
 from unit.listeners import asset_listener
 
 pytestmark = pytest.mark.db_test
@@ -668,6 +675,54 @@ def _make_asset_model(
         for dag_id, teams in (scheduled_dags or {}).items()
     ]
     return model
+
+
+class TestAssetMetricsTeamName:
+    @pytest.mark.parametrize(
+        ("multi_team", "expect_team_tag"),
+        [
+            pytest.param("true", True, id="with_team"),
+            pytest.param("false", False, id="without_team"),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_asset_updates_respects_team_name(
+        self, mock_get_backend, multi_team, expect_team_tag, session, dag_maker
+    ):
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+
+        suffix = "with_team" if expect_team_tag else "without_team"
+
+        team_name = f"team_asset_upd_{suffix}"
+        team = Team(name=team_name)
+        session.add(team)
+        session.flush()
+
+        bundle_name = f"bundle_asset_upd_{suffix}"
+        bundle = DagBundleModel(name=bundle_name)
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        asset_name = f"metric_asset_{suffix}"
+        asset = Asset(uri=f"test://{asset_name}", name=asset_name, group="asset")
+        with dag_maker(dag_id=f"asset_dag_{suffix}", bundle_name=bundle_name, session=session):
+            EmptyOperator(task_id="task1", outlets=[asset])
+
+        ti = mock.MagicMock()
+        ti.dag_id = f"asset_dag_{suffix}"
+        ti.task_id = "task1"
+        ti.run_id = "run1"
+        ti.map_index = -1
+
+        with conf_vars({("core", "multi_team"): multi_team}):
+            AssetManager().register_asset_change(task_instance=ti, asset=asset, session=session)
+
+        if expect_team_tag:
+            mock_stats.incr.assert_any_call("asset.updates", tags={"team_name": team_name})
+        else:
+            mock_stats.incr.assert_any_call("asset.updates")
 
 
 class TestFilterDagsByTeam:
