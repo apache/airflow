@@ -500,11 +500,14 @@ class KubernetesExecutor(BaseExecutor):
         """
         Handle a failure to build or create a worker pod for a task.
 
-        Shared by the sequential and concurrent creation paths. Returns True if pod
-        creation should stop for the remainder of this scheduler loop (Kubernetes rate
-        limit), False otherwise.
+        Shared by the sequential and concurrent creation paths. The sequential path raises
+        the sync client's ApiException and the concurrent path the async client's; both expose
+        the same status/body/reason/headers, so they are handled uniformly. Returns True if pod
+        creation should stop for the remainder of this scheduler loop (Kubernetes rate limit),
+        False otherwise.
         """
         from kubernetes.client.rest import ApiException
+        from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
 
         key = task.key
         if isinstance(e, PodReconciliationError):
@@ -522,7 +525,7 @@ class KubernetesExecutor(BaseExecutor):
             )
             self.fail(key, e)
             return False
-        if isinstance(e, ApiException):
+        if isinstance(e, (ApiException, AsyncApiException)):
             try:
                 if e.body:
                     body = json.loads(e.body)
