@@ -32,6 +32,7 @@ import time
 from collections import Counter, defaultdict
 from contextlib import suppress
 from datetime import datetime, timedelta
+from http import HTTPStatus
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any
 
@@ -540,11 +541,11 @@ class KubernetesExecutor(BaseExecutor):
             can_retry_publish = self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries
             message = body.get("message", "")
             if (
-                (str(e.status) == "403" and "exceeded quota" in message)
-                or (str(e.status) == "409" and "object has been modified" in message)
-                or (str(e.status) == "410" and "too old resource version" in message)
-                or str(e.status) == "500"
-                or str(e.status) == "429"
+                (e.status == HTTPStatus.FORBIDDEN and "exceeded quota" in message)
+                or (e.status == HTTPStatus.CONFLICT and "object has been modified" in message)
+                or (e.status == HTTPStatus.GONE and "too old resource version" in message)
+                or e.status == HTTPStatus.INTERNAL_SERVER_ERROR
+                or e.status == HTTPStatus.TOO_MANY_REQUESTS
             ) and can_retry_publish:
                 self.log.warning(
                     "[Try %s of %s] Kube ApiException for Task: (%s). Reason: %r. Message: %s",
@@ -558,7 +559,7 @@ class KubernetesExecutor(BaseExecutor):
                 self.task_queue.put(task)
                 self.task_publish_retries[key] = retries + 1
 
-                if str(e.status) == "429":
+                if e.status == HTTPStatus.TOO_MANY_REQUESTS:
                     self.create_pods_after = datetime.now() + timedelta(
                         seconds=int(headers.get("Retry-After", "0"))
                     )
