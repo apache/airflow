@@ -39,6 +39,7 @@ from airflowctl.api.datamodels.generated import (
     BulkBodyPoolBody,
     BulkBodyVariableBody,
     BulkResponse,
+    ClearTaskInstancesBody,
     Config,
     ConnectionBody,
     ConnectionCollectionResponse,
@@ -68,6 +69,7 @@ from airflowctl.api.datamodels.generated import (
     ProviderCollectionResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskInstanceCollectionResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -522,7 +524,7 @@ class DagsOperations(BaseOperations):
             raise e
 
     def get_details(self, dag_id: str) -> DAGDetailsResponse | ServerResponseError:
-        """Get a DAG details."""
+        """Get a Dag details."""
         try:
             self.response = self.client.get(f"dags/{dag_id}/details")
             return DAGDetailsResponse.model_validate_json(self.response.content)
@@ -530,11 +532,11 @@ class DagsOperations(BaseOperations):
             raise e
 
     def get_tags(self) -> DAGTagCollectionResponse | ServerResponseError:
-        """Get all DAG tags."""
+        """Get all Dag tags."""
         return super().execute_list(path="dagTags", data_model=DAGTagCollectionResponse)
 
     def list(self) -> DAGCollectionResponse | ServerResponseError:
-        """List DAGs."""
+        """List Dags."""
         return super().execute_list(path="dags", data_model=DAGCollectionResponse)
 
     def update(self, dag_id: str, dag_body: DAGPatchBody) -> DAGResponse | ServerResponseError:
@@ -586,7 +588,7 @@ class DagsOperations(BaseOperations):
     def trigger(
         self, dag_id: str, trigger_dag_run: TriggerDAGRunPostBody
     ) -> DAGRunResponse | ServerResponseError:
-        """Create a dag run."""
+        """Create a Dag run."""
         if trigger_dag_run.conf is None:
             trigger_dag_run.conf = {}
         try:
@@ -613,35 +615,121 @@ class DagRunOperations(BaseOperations):
         self,
         state: str | None = None,
         limit: int = 100,
+        offset: int | None = None,
         start_date: datetime.datetime | None = None,
         end_date: datetime.datetime | None = None,
+        logical_date_gte: datetime.datetime | None = None,
+        logical_date_gt: datetime.datetime | None = None,
+        logical_date_lte: datetime.datetime | None = None,
+        logical_date_lt: datetime.datetime | None = None,
+        partition_date_gte: datetime.datetime | None = None,
+        partition_date_gt: datetime.datetime | None = None,
+        partition_date_lte: datetime.datetime | None = None,
+        partition_date_lt: datetime.datetime | None = None,
+        partition_date_start: datetime.date | None = None,
+        partition_date_end: datetime.date | None = None,
+        order_by: str | None = None,
+        run_id_pattern: str | None = None,
+        partition_key_pattern: str | None = None,
+        partition_key_prefix_pattern: str | None = None,
         dag_id: str | None = None,
     ) -> DAGRunCollectionResponse | ServerResponseError:
         """
-        List dag runs (at most `limit` results).
+        List Dag runs (at most `limit` results).
 
         Args:
-            state: Filter dag runs by state (optional; no filter applied when omitted)
-            start_date: Filter dag runs by start date (optional)
-            end_date: Filter dag runs by end date (optional)
+            state: Filter Dag runs by state (optional; no filter applied when omitted)
+            start_date: Filter Dag runs by start date (optional)
+            end_date: Filter Dag runs by end date (optional)
             limit: Limit the number of results returned
-            dag_id: The DAG ID to filter by. If None, retrieves dag runs for all DAGs (using "~").
+            offset: Offset to start returning results from
+            logical_date_gte: Filter Dag runs with logical date greater than or equal to this value
+            logical_date_gt: Filter Dag runs with logical date greater than this value
+            logical_date_lte: Filter Dag runs with logical date less than or equal to this value
+            logical_date_lt: Filter Dag runs with logical date less than this value
+            partition_date_gte: Filter Dag runs with partition date greater than or equal to this value
+            partition_date_gt: Filter Dag runs with partition date greater than this value
+            partition_date_lte: Filter Dag runs with partition date less than or equal to this value
+            partition_date_lt: Filter Dag runs with partition date less than this value
+            partition_date_start: Filter Dag runs whose partition date is on or after this local day
+            partition_date_end: Filter Dag runs whose partition date is on or before this local day
+            order_by: Field or fields to sort by
+            run_id_pattern: Filter Dag runs by run ID pattern
+            partition_key_pattern: Filter Dag runs by partition key pattern
+            partition_key_prefix_pattern: Filter Dag runs by partition key prefix pattern
+            dag_id: The Dag ID to filter by. If None, retrieves Dag runs for all Dags (using "~").
         """
-        # Use "~" for all DAGs if dag_id is not specified
+        # Use "~" for all Dags if dag_id is not specified.
         if not dag_id:
             dag_id = "~"
 
         params: dict[str, Any] = {"limit": limit}
+        if offset is not None:
+            params["offset"] = offset
         if state is not None:
             params["state"] = str(state)
         if start_date is not None:
             params["start_date"] = start_date.isoformat()
         if end_date is not None:
             params["end_date"] = end_date.isoformat()
+        if logical_date_gte is not None:
+            params["logical_date_gte"] = logical_date_gte.isoformat()
+        if logical_date_gt is not None:
+            params["logical_date_gt"] = logical_date_gt.isoformat()
+        if logical_date_lte is not None:
+            params["logical_date_lte"] = logical_date_lte.isoformat()
+        if logical_date_lt is not None:
+            params["logical_date_lt"] = logical_date_lt.isoformat()
+        if partition_date_gte is not None:
+            params["partition_date_gte"] = partition_date_gte.isoformat()
+        if partition_date_gt is not None:
+            params["partition_date_gt"] = partition_date_gt.isoformat()
+        if partition_date_lte is not None:
+            params["partition_date_lte"] = partition_date_lte.isoformat()
+        if partition_date_lt is not None:
+            params["partition_date_lt"] = partition_date_lt.isoformat()
+        if partition_date_start is not None:
+            params["partition_date_start"] = partition_date_start.isoformat()
+        if partition_date_end is not None:
+            params["partition_date_end"] = partition_date_end.isoformat()
+        if order_by is not None:
+            params["order_by"] = order_by
+        if run_id_pattern is not None:
+            params["run_id_pattern"] = run_id_pattern
+        if partition_key_pattern is not None:
+            params["partition_key_pattern"] = partition_key_pattern
+        if partition_key_prefix_pattern is not None:
+            params["partition_key_prefix_pattern"] = partition_key_prefix_pattern
 
         try:
             self.response = self.client.get(f"/dags/{dag_id}/dagRuns", params=params)
             return DAGRunCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def _clear_task_instances(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        *,
+        dry_run: bool = False,
+        only_failed: bool = False,
+        only_running: bool = False,
+    ) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """Clear task instances for a Dag run."""
+        body = ClearTaskInstancesBody(
+            dag_run_id=dag_run_id,
+            dry_run=dry_run,
+            only_failed=only_failed,
+            only_running=only_running,
+            reset_dag_runs=True,
+        )
+        try:
+            self.response = self.client.post(
+                f"/dags/{dag_id}/clearTaskInstances",
+                json=body.model_dump(mode="json", by_alias=True, exclude_none=True),
+            )
+            return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 
