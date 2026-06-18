@@ -1535,7 +1535,6 @@ class TestDagRun:
 
     @mock.patch.object(Deadline, "prune_deadlines")
     def test_dagrun_deadline_variable_interval_missing_variable_fails(self, _, session, deadline_test_dag):
-
         mock_err = mock.Mock()
         mock_err.error.value = "MISSING_DEADLINE"
         mock_err.detail = "missing deadline"
@@ -4155,10 +4154,23 @@ class TestDagRunTracing:
 
     @pytest.fixture(autouse=True)
     def sdk_tracer_provider(self):
-        """Patch the module-level tracer with one backed by a real SDK provider so spans have valid IDs."""
+        """Patch the module-level tracer with one backed by a real SDK provider so spans have valid IDs.
+
+        Also patch the provider that ``new_dagrun_trace_carrier`` consults so the
+        head-sampling decision is made by a real SDK sampler (default
+        parentbased_always_on -> SAMPLED) rather than the no-op ProxyTracerProvider
+        that is otherwise active in the test process (which would honestly produce
+        an unsampled carrier and suppress emission).
+        """
         provider = TracerProvider()
         real_tracer = provider.get_tracer("airflow.models.dagrun")
-        with mock.patch("airflow.models.dagrun.tracer", real_tracer):
+        with (
+            mock.patch("airflow.models.dagrun.tracer", real_tracer),
+            mock.patch(
+                "airflow._shared.observability.traces.trace.get_tracer_provider",
+                return_value=provider,
+            ),
+        ):
             yield
 
     def test_context_carrier_set_on_init(self, dag_maker):
@@ -4324,6 +4336,34 @@ class TestDagRunTracing:
             assert spans[0].name == f"dag_run.{dr.dag_id}"
         else:
             assert len(spans) == 0
+
+    @pytest.mark.parametrize(
+        ("dag_id", "trace_flag", "expected_spans"),
+        [
+            pytest.param("test_tracing_sampled", "01", 1, id="sampled-carrier-emits"),
+            pytest.param("test_tracing_unsampled", "00", 0, id="unsampled-carrier-skips"),
+        ],
+    )
+    def test_emit_dagrun_span_honors_carrier_sampling(
+        self, dag_id, trace_flag, expected_spans, dag_maker, session
+    ):
+        """A SAMPLED carrier (flag 01) emits the dag_run span; an unsampled carrier (flag 00) is head-sampled out."""
+        in_mem_exporter = InMemorySpanExporter()
+        provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
+        provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
+        test_tracer = provider.get_tracer("test")
+
+        with dag_maker(dag_id, session=session) as dag:
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        dr.dag = dag
+        traceparent = f"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-{trace_flag}"
+        dr.context_carrier = {"traceparent": traceparent}
+
+        with mock.patch("airflow.models.dagrun.tracer", test_tracer):
+            dr._emit_dagrun_span(state=DagRunState.SUCCESS)
+
+        assert len(in_mem_exporter.get_finished_spans()) == expected_spans
 
     @pytest.mark.db_test
     def test_context_carrier_includes_detail_level_from_conf(self, dag_maker):

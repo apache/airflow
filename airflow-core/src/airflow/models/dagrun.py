@@ -1072,6 +1072,16 @@ class DagRun(Base, LoggingMixin):
         ctx = TraceContextTextMapPropagator().extract(self.context_carrier)
         span = trace.get_current_span(context=ctx)
         span_context = span.get_span_context()
+
+        # Skip if the run was head-sampled out. Unlike the task spans, this guard is
+        # required (not just an optimization): the span below is forced to be a root span
+        # (context=context.Context()), so the configured sampler never sees the carrier's
+        # flag. A valid-but-unsampled carrier means head-sampled out; an invalid/empty
+        # carrier (legacy DagRun) recorded no decision, so it falls through and still
+        # emits — prior behavior we may want to reconsider.
+        if span_context.is_valid and not span_context.trace_flags.sampled:
+            return
+
         with override_ids(span_context.trace_id, span_context.span_id):
             attributes: dict[str, str] = {
                 "airflow.dag_id": str(self.dag_id),
