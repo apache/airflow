@@ -103,7 +103,7 @@ func (c *CoordinatorComm) ReadMessage() (IncomingFrame, error) {
 
 // SendRequest writes a request frame (2-element [id, body]) to the supervisor.
 // body is any msgpack-encodable value, normally a genmodels message struct.
-// Concurrent calls are serialised so frames are never interleaved on the wire.
+// Concurrent calls are serialised so frames never interleave on the wire.
 func (c *CoordinatorComm) SendRequest(id int64, body any) error {
 	payload, err := encodeRequest(id, body)
 	if err != nil {
@@ -124,8 +124,8 @@ func (c *CoordinatorComm) SendRequest(id int64, body any) error {
 // *ApiError. If the dispatcher's read loop has terminated, the underlying read
 // error is returned wrapped in ErrDispatcherClosed.
 //
-// On success it returns the raw msgpack bytes of the response body; the caller
-// decodes them into the genmodels result type it expects via decodeBody.
+// On success it returns the response body's raw msgpack bytes; the caller
+// decodes them into its expected genmodels result via decodeBody.
 func (c *CoordinatorComm) Communicate(
 	ctx context.Context,
 	body any,

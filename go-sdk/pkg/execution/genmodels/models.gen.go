@@ -162,9 +162,9 @@ type AssetResult struct {
 	URI string `msgpack:"uri"`
 }
 
-// Response to GetAssetStore; wraps the generated API response for supervisor to
-// worker comms.
-type AssetStoreResult struct {
+// Response to GetAssetStateStore; wraps the generated API response for supervisor
+// to worker comms.
+type AssetStateStoreResult struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 
@@ -214,7 +214,7 @@ type BundleInfo struct {
 	Version interface{} `msgpack:"version,omitempty"`
 }
 
-type ClearAssetStoreByName struct {
+type ClearAssetStateStoreByName struct {
 	// Name corresponds to the JSON schema field "name".
 	Name string `msgpack:"name"`
 
@@ -222,7 +222,7 @@ type ClearAssetStoreByName struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
-type ClearAssetStoreByURI struct {
+type ClearAssetStateStoreByURI struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 
@@ -230,7 +230,7 @@ type ClearAssetStoreByURI struct {
 	URI string `msgpack:"uri"`
 }
 
-type ClearTaskStore struct {
+type ClearTaskStateStore struct {
 	// AllMapIndices corresponds to the JSON schema field "all_map_indices".
 	AllMapIndices bool `msgpack:"all_map_indices,omitempty"`
 
@@ -653,7 +653,7 @@ type DeferTask struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
-type DeleteAssetStoreByName struct {
+type DeleteAssetStateStoreByName struct {
 	// Key corresponds to the JSON schema field "key".
 	Key string `msgpack:"key"`
 
@@ -664,7 +664,7 @@ type DeleteAssetStoreByName struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
-type DeleteAssetStoreByURI struct {
+type DeleteAssetStateStoreByURI struct {
 	// Key corresponds to the JSON schema field "key".
 	Key string `msgpack:"key"`
 
@@ -675,7 +675,7 @@ type DeleteAssetStoreByURI struct {
 	URI string `msgpack:"uri"`
 }
 
-type DeleteTaskStore struct {
+type DeleteTaskStateStore struct {
 	// Key corresponds to the JSON schema field "key".
 	Key string `msgpack:"key"`
 
@@ -833,7 +833,7 @@ type GetAssetEventByAssetAlias struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
-type GetAssetStoreByName struct {
+type GetAssetStateStoreByName struct {
 	// Key corresponds to the JSON schema field "key".
 	Key string `msgpack:"key"`
 
@@ -844,7 +844,7 @@ type GetAssetStoreByName struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
-type GetAssetStoreByURI struct {
+type GetAssetStateStoreByURI struct {
 	// Key corresponds to the JSON schema field "key".
 	Key string `msgpack:"key"`
 
@@ -1018,6 +1018,17 @@ type GetTaskRescheduleStartDate struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+type GetTaskStateStore struct {
+	// Key corresponds to the JSON schema field "key".
+	Key string `msgpack:"key"`
+
+	// TIID corresponds to the JSON schema field "ti_id".
+	TIID string `msgpack:"ti_id"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+}
+
 type GetTaskStates struct {
 	// DagID corresponds to the JSON schema field "dag_id".
 	DagID string `msgpack:"dag_id"`
@@ -1036,17 +1047,6 @@ type GetTaskStates struct {
 
 	// TaskIds corresponds to the JSON schema field "task_ids".
 	TaskIds *TaskIds `msgpack:"task_ids,omitempty"`
-
-	// Type corresponds to the JSON schema field "type".
-	Type string `msgpack:"type,omitempty"`
-}
-
-type GetTaskStore struct {
-	// Key corresponds to the JSON schema field "key".
-	Key string `msgpack:"key"`
-
-	// TIID corresponds to the JSON schema field "ti_id".
-	TIID string `msgpack:"ti_id"`
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
@@ -1396,7 +1396,7 @@ type SentFDs struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
-type SetAssetStoreByName struct {
+type SetAssetStateStoreByName struct {
 	// Key corresponds to the JSON schema field "key".
 	Key string `msgpack:"key"`
 
@@ -1410,7 +1410,7 @@ type SetAssetStoreByName struct {
 	Value JsonValue `msgpack:"value"`
 }
 
-type SetAssetStoreByURI struct {
+type SetAssetStateStoreByURI struct {
 	// Key corresponds to the JSON schema field "key".
 	Key string `msgpack:"key"`
 
@@ -1442,7 +1442,7 @@ type SetRenderedMapIndex struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
-type SetTaskStore struct {
+type SetTaskStateStore struct {
 	// ExpiresAt corresponds to the JSON schema field "expires_at".
 	ExpiresAt interface{} `msgpack:"expires_at"`
 
@@ -1718,6 +1718,16 @@ const TaskStateStateFailed TaskStateState = "failed"
 const TaskStateStateRemoved TaskStateState = "removed"
 const TaskStateStateSkipped TaskStateState = "skipped"
 
+// Response to GetTaskStateStore; wraps the generated API response for supervisor
+// to worker comms.
+type TaskStateStoreResult struct {
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+
+	// Value corresponds to the JSON schema field "value".
+	Value JsonValue `msgpack:"value"`
+}
+
 type TaskStates map[string]interface{}
 
 type TaskStatesResult struct {
@@ -1726,16 +1736,6 @@ type TaskStatesResult struct {
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
-}
-
-// Response to GetTaskStore; wraps the generated API response for supervisor to
-// worker comms.
-type TaskStoreResult struct {
-	// Type corresponds to the JSON schema field "type".
-	Type string `msgpack:"type,omitempty"`
-
-	// Value corresponds to the JSON schema field "value".
-	Value JsonValue `msgpack:"value"`
 }
 
 type TriggerDagRun struct {

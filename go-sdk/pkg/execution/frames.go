@@ -24,6 +24,8 @@ import (
 	"io"
 
 	"github.com/vmihailenco/msgpack/v5"
+
+	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
 // MaxFrameSize is the maximum payload length of a single frame, in bytes.
@@ -34,11 +36,10 @@ const MaxFrameSize = 1<<32 - 1
 // IncomingFrame represents a decoded frame received from the comm socket.
 //
 // Body and Err hold the raw msgpack bytes of the second and (optional) third
-// array elements rather than decoded maps: the concrete shape is determined by
-// the message's "type" discriminator, so callers decode the raw bytes into the
-// matching genmodels type once they know which one to expect. Err is non-nil
-// only for response frames (3-element arrays); it may still encode a msgpack
-// nil, which isNilRaw reports.
+// array elements: the shape depends on the message's "type" discriminator, so
+// callers decode them into the matching genmodels type. Err is set only for
+// response frames (3-element arrays) and may itself encode a msgpack nil, which
+// isNilRaw reports.
 //
 // ID is int64 to match the wire encoding and CoordinatorComm.nextID; narrowing
 // to int would reintroduce wraparound on 32-bit GOARCH.
@@ -49,9 +50,15 @@ type IncomingFrame struct {
 }
 
 // encodeRequest encodes a request frame (2-element msgpack array: [id, body]).
-// body is any msgpack-encodable value; in practice a genmodels message struct
-// whose msgpack tags match the supervisor's wire-schema field names.
+// body is any msgpack-encodable value, in practice a genmodels message struct
+// whose msgpack tags match the wire-schema field names.
+//
+// It runs body through genmodels.EnsureType so the "type" discriminator is
+// stamped from its Go type at this single outbound chokepoint, not by hand at
+// every call site.
 func encodeRequest(id int64, body any) ([]byte, error) {
+	body = genmodels.EnsureType(body)
+
 	var buf bytes.Buffer
 	enc := msgpack.NewEncoder(&buf)
 	enc.UseCompactInts(true)
@@ -128,8 +135,7 @@ func readFrame(r io.Reader) (IncomingFrame, error) {
 }
 
 // decodeFrame decodes a msgpack payload into an IncomingFrame, capturing the
-// body (and optional error) elements as raw msgpack bytes for later typed
-// decoding.
+// body and optional error elements as raw msgpack bytes for later typed decoding.
 func decodeFrame(data []byte) (IncomingFrame, error) {
 	dec := msgpack.NewDecoder(bytes.NewReader(data))
 
@@ -168,9 +174,8 @@ func decodeFrame(data []byte) (IncomingFrame, error) {
 }
 
 // isNilRaw reports whether a raw msgpack element is absent or encodes a msgpack
-// nil (0xc0). A 3-element response frame whose error slot is null decodes to a
-// single-byte nil rather than an empty RawMessage, so both cases mean "no
-// value".
+// nil (0xc0). A null error slot decodes to a single-byte nil rather than an
+// empty RawMessage, so both must count as "no value".
 func isNilRaw(raw msgpack.RawMessage) bool {
 	return len(raw) == 0 || (len(raw) == 1 && raw[0] == 0xc0)
 }

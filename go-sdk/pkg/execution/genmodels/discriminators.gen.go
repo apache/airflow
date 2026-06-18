@@ -16,101 +16,377 @@
 // specific language governing permissions and limitations
 // under the License.
 
-
 package genmodels
 
-// Message-type discriminator constants, generated from the "type" const of each
-// body in the supervisor wire-schema. They are the single source of truth for
-// the values carried in the "type" field, so callers never hand-write wire
-// strings that could drift from the schema.
+// Message-type discriminator constants, generated from each body's "type" const
+// in the supervisor wire-schema: the single source of truth for the "type"
+// field's value, so callers never hand-write strings that could drift.
 const (
-	TypeAssetEventsResult          = "AssetEventsResult"
-	TypeAssetResult                = "AssetResult"
-	TypeAssetStoreResult           = "AssetStoreResult"
-	TypeAssetsByAliasResult        = "AssetsByAliasResult"
-	TypeAwaitInputTask             = "AwaitInputTask"
-	TypeClearAssetStoreByName      = "ClearAssetStoreByName"
-	TypeClearAssetStoreByUri       = "ClearAssetStoreByUri"
-	TypeClearTaskStore             = "ClearTaskStore"
-	TypeConnectionResult           = "ConnectionResult"
-	TypeCreateHITLDetailPayload    = "CreateHITLDetailPayload"
-	TypeDRCount                    = "DRCount"
-	TypeDagCallbackRequest         = "DagCallbackRequest"
-	TypeDagFileParseRequest        = "DagFileParseRequest"
-	TypeDagFileParsingResult       = "DagFileParsingResult"
-	TypeDagResult                  = "DagResult"
-	TypeDagRunResult               = "DagRunResult"
-	TypeDagRunStateResult          = "DagRunStateResult"
-	TypeDeferTask                  = "DeferTask"
-	TypeDeleteAssetStoreByName     = "DeleteAssetStoreByName"
-	TypeDeleteAssetStoreByUri      = "DeleteAssetStoreByUri"
-	TypeDeleteTaskStore            = "DeleteTaskStore"
-	TypeDeleteVariable             = "DeleteVariable"
-	TypeDeleteXCom                 = "DeleteXCom"
-	TypeEmailRequest               = "EmailRequest"
-	TypeErrorResponse              = "ErrorResponse"
-	TypeGetAssetByName             = "GetAssetByName"
-	TypeGetAssetByUri              = "GetAssetByUri"
-	TypeGetAssetEventByAsset       = "GetAssetEventByAsset"
-	TypeGetAssetEventByAssetAlias  = "GetAssetEventByAssetAlias"
-	TypeGetAssetStoreByName        = "GetAssetStoreByName"
-	TypeGetAssetStoreByUri         = "GetAssetStoreByUri"
-	TypeGetAssetsByAlias           = "GetAssetsByAlias"
-	TypeGetConnection              = "GetConnection"
-	TypeGetDRCount                 = "GetDRCount"
-	TypeGetDag                     = "GetDag"
-	TypeGetDagRun                  = "GetDagRun"
-	TypeGetDagRunState             = "GetDagRunState"
-	TypeGetHITLDetailResponse      = "GetHITLDetailResponse"
-	TypeGetPrevSuccessfulDagRun    = "GetPrevSuccessfulDagRun"
-	TypeGetPreviousDagRun          = "GetPreviousDagRun"
-	TypeGetPreviousTI              = "GetPreviousTI"
-	TypeGetTICount                 = "GetTICount"
-	TypeGetTaskBreadcrumbs         = "GetTaskBreadcrumbs"
-	TypeGetTaskRescheduleStartDate = "GetTaskRescheduleStartDate"
-	TypeGetTaskStates              = "GetTaskStates"
-	TypeGetTaskStore               = "GetTaskStore"
-	TypeGetVariable                = "GetVariable"
-	TypeGetVariableKeys            = "GetVariableKeys"
-	TypeGetXCom                    = "GetXCom"
-	TypeGetXComCount               = "GetXComCount"
-	TypeGetXComSequenceItem        = "GetXComSequenceItem"
-	TypeGetXComSequenceSlice       = "GetXComSequenceSlice"
-	TypeHITLDetailRequestResult    = "HITLDetailRequestResult"
-	TypeInactiveAssetsResult       = "InactiveAssetsResult"
-	TypeMaskSecret                 = "MaskSecret"
-	TypeOKResponse                 = "OKResponse"
-	TypePrevSuccessfulDagRunResult = "PrevSuccessfulDagRunResult"
-	TypePreviousDagRunResult       = "PreviousDagRunResult"
-	TypePreviousTIResult           = "PreviousTIResult"
-	TypePutVariable                = "PutVariable"
-	TypeRescheduleTask             = "RescheduleTask"
-	TypeResendLoggingFD            = "ResendLoggingFD"
-	TypeRetryTask                  = "RetryTask"
-	TypeSentFDs                    = "SentFDs"
-	TypeSetAssetStoreByName        = "SetAssetStoreByName"
-	TypeSetAssetStoreByUri         = "SetAssetStoreByUri"
-	TypeSetRenderedFields          = "SetRenderedFields"
-	TypeSetRenderedMapIndex        = "SetRenderedMapIndex"
-	TypeSetTaskStore               = "SetTaskStore"
-	TypeSetXCom                    = "SetXCom"
-	TypeSkipDownstreamTasks        = "SkipDownstreamTasks"
-	TypeStartupDetails             = "StartupDetails"
-	TypeSucceedTask                = "SucceedTask"
-	TypeTICount                    = "TICount"
-	TypeTaskBreadcrumbsResult      = "TaskBreadcrumbsResult"
-	TypeTaskCallbackRequest        = "TaskCallbackRequest"
-	TypeTaskRescheduleStartDate    = "TaskRescheduleStartDate"
-	TypeTaskState                  = "TaskState"
-	TypeTaskStatesResult           = "TaskStatesResult"
-	TypeTaskStoreResult            = "TaskStoreResult"
-	TypeTriggerDagRun              = "TriggerDagRun"
-	TypeUpdateHITLDetail           = "UpdateHITLDetail"
-	TypeValidateInletsAndOutlets   = "ValidateInletsAndOutlets"
-	TypeVariableKeysResult         = "VariableKeysResult"
-	TypeVariableResult             = "VariableResult"
-	TypeXComCountResponse          = "XComCountResponse"
-	TypeXComResult                 = "XComResult"
-	TypeXComSequenceIndexResult    = "XComSequenceIndexResult"
-	TypeXComSequenceSliceResult    = "XComSequenceSliceResult"
+	TypeAssetEventsResult           = "AssetEventsResult"
+	TypeAssetResult                 = "AssetResult"
+	TypeAssetStateStoreResult       = "AssetStateStoreResult"
+	TypeAssetsByAliasResult         = "AssetsByAliasResult"
+	TypeAwaitInputTask              = "AwaitInputTask"
+	TypeClearAssetStateStoreByName  = "ClearAssetStateStoreByName"
+	TypeClearAssetStateStoreByURI   = "ClearAssetStateStoreByUri"
+	TypeClearTaskStateStore         = "ClearTaskStateStore"
+	TypeConnectionResult            = "ConnectionResult"
+	TypeCreateHITLDetailPayload     = "CreateHITLDetailPayload"
+	TypeDRCount                     = "DRCount"
+	TypeDagCallbackRequest          = "DagCallbackRequest"
+	TypeDagFileParseRequest         = "DagFileParseRequest"
+	TypeDagFileParsingResult        = "DagFileParsingResult"
+	TypeDagResult                   = "DagResult"
+	TypeDagRunResult                = "DagRunResult"
+	TypeDagRunStateResult           = "DagRunStateResult"
+	TypeDeferTask                   = "DeferTask"
+	TypeDeleteAssetStateStoreByName = "DeleteAssetStateStoreByName"
+	TypeDeleteAssetStateStoreByURI  = "DeleteAssetStateStoreByUri"
+	TypeDeleteTaskStateStore        = "DeleteTaskStateStore"
+	TypeDeleteVariable              = "DeleteVariable"
+	TypeDeleteXCom                  = "DeleteXCom"
+	TypeEmailRequest                = "EmailRequest"
+	TypeErrorResponse               = "ErrorResponse"
+	TypeGetAssetByName              = "GetAssetByName"
+	TypeGetAssetByURI               = "GetAssetByUri"
+	TypeGetAssetEventByAsset        = "GetAssetEventByAsset"
+	TypeGetAssetEventByAssetAlias   = "GetAssetEventByAssetAlias"
+	TypeGetAssetStateStoreByName    = "GetAssetStateStoreByName"
+	TypeGetAssetStateStoreByURI     = "GetAssetStateStoreByUri"
+	TypeGetAssetsByAlias            = "GetAssetsByAlias"
+	TypeGetConnection               = "GetConnection"
+	TypeGetDRCount                  = "GetDRCount"
+	TypeGetDag                      = "GetDag"
+	TypeGetDagRun                   = "GetDagRun"
+	TypeGetDagRunState              = "GetDagRunState"
+	TypeGetHITLDetailResponse       = "GetHITLDetailResponse"
+	TypeGetPrevSuccessfulDagRun     = "GetPrevSuccessfulDagRun"
+	TypeGetPreviousDagRun           = "GetPreviousDagRun"
+	TypeGetPreviousTI               = "GetPreviousTI"
+	TypeGetTICount                  = "GetTICount"
+	TypeGetTaskBreadcrumbs          = "GetTaskBreadcrumbs"
+	TypeGetTaskRescheduleStartDate  = "GetTaskRescheduleStartDate"
+	TypeGetTaskStateStore           = "GetTaskStateStore"
+	TypeGetTaskStates               = "GetTaskStates"
+	TypeGetVariable                 = "GetVariable"
+	TypeGetVariableKeys             = "GetVariableKeys"
+	TypeGetXCom                     = "GetXCom"
+	TypeGetXComCount                = "GetXComCount"
+	TypeGetXComSequenceItem         = "GetXComSequenceItem"
+	TypeGetXComSequenceSlice        = "GetXComSequenceSlice"
+	TypeHITLDetailRequestResult     = "HITLDetailRequestResult"
+	TypeInactiveAssetsResult        = "InactiveAssetsResult"
+	TypeMaskSecret                  = "MaskSecret"
+	TypeOKResponse                  = "OKResponse"
+	TypePrevSuccessfulDagRunResult  = "PrevSuccessfulDagRunResult"
+	TypePreviousDagRunResult        = "PreviousDagRunResult"
+	TypePreviousTIResult            = "PreviousTIResult"
+	TypePutVariable                 = "PutVariable"
+	TypeRescheduleTask              = "RescheduleTask"
+	TypeResendLoggingFD             = "ResendLoggingFD"
+	TypeRetryTask                   = "RetryTask"
+	TypeSentFDs                     = "SentFDs"
+	TypeSetAssetStateStoreByName    = "SetAssetStateStoreByName"
+	TypeSetAssetStateStoreByURI     = "SetAssetStateStoreByUri"
+	TypeSetRenderedFields           = "SetRenderedFields"
+	TypeSetRenderedMapIndex         = "SetRenderedMapIndex"
+	TypeSetTaskStateStore           = "SetTaskStateStore"
+	TypeSetXCom                     = "SetXCom"
+	TypeSkipDownstreamTasks         = "SkipDownstreamTasks"
+	TypeStartupDetails              = "StartupDetails"
+	TypeSucceedTask                 = "SucceedTask"
+	TypeTICount                     = "TICount"
+	TypeTaskBreadcrumbsResult       = "TaskBreadcrumbsResult"
+	TypeTaskCallbackRequest         = "TaskCallbackRequest"
+	TypeTaskRescheduleStartDate     = "TaskRescheduleStartDate"
+	TypeTaskState                   = "TaskState"
+	TypeTaskStateStoreResult        = "TaskStateStoreResult"
+	TypeTaskStatesResult            = "TaskStatesResult"
+	TypeTriggerDagRun               = "TriggerDagRun"
+	TypeUpdateHITLDetail            = "UpdateHITLDetail"
+	TypeValidateInletsAndOutlets    = "ValidateInletsAndOutlets"
+	TypeVariableKeysResult          = "VariableKeysResult"
+	TypeVariableResult              = "VariableResult"
+	TypeXComCountResponse           = "XComCountResponse"
+	TypeXComResult                  = "XComResult"
+	TypeXComSequenceIndexResult     = "XComSequenceIndexResult"
+	TypeXComSequenceSliceResult     = "XComSequenceSliceResult"
 )
+
+// EnsureType returns m with its "type" discriminator set to the constant bound
+// to its Go type; bodies of an unknown type are returned unchanged. The frame
+// encoder runs every outbound body through it, so the binding lives only here
+// and call sites can't pair the wrong constant with a struct.
+func EnsureType(m any) any {
+	switch b := m.(type) {
+	case AssetEventsResult:
+		b.Type = TypeAssetEventsResult
+		return b
+	case AssetResult:
+		b.Type = TypeAssetResult
+		return b
+	case AssetStateStoreResult:
+		b.Type = TypeAssetStateStoreResult
+		return b
+	case AssetsByAliasResult:
+		b.Type = TypeAssetsByAliasResult
+		return b
+	case AwaitInputTask:
+		b.Type = TypeAwaitInputTask
+		return b
+	case ClearAssetStateStoreByName:
+		b.Type = TypeClearAssetStateStoreByName
+		return b
+	case ClearAssetStateStoreByURI:
+		b.Type = TypeClearAssetStateStoreByURI
+		return b
+	case ClearTaskStateStore:
+		b.Type = TypeClearTaskStateStore
+		return b
+	case ConnectionResult:
+		b.Type = TypeConnectionResult
+		return b
+	case CreateHITLDetailPayload:
+		b.Type = TypeCreateHITLDetailPayload
+		return b
+	case DRCount:
+		b.Type = TypeDRCount
+		return b
+	case DagCallbackRequest:
+		b.Type = TypeDagCallbackRequest
+		return b
+	case DagFileParseRequest:
+		b.Type = TypeDagFileParseRequest
+		return b
+	case DagFileParsingResult:
+		b.Type = TypeDagFileParsingResult
+		return b
+	case DagResult:
+		b.Type = TypeDagResult
+		return b
+	case DagRunResult:
+		b.Type = TypeDagRunResult
+		return b
+	case DagRunStateResult:
+		b.Type = TypeDagRunStateResult
+		return b
+	case DeferTask:
+		b.Type = TypeDeferTask
+		return b
+	case DeleteAssetStateStoreByName:
+		b.Type = TypeDeleteAssetStateStoreByName
+		return b
+	case DeleteAssetStateStoreByURI:
+		b.Type = TypeDeleteAssetStateStoreByURI
+		return b
+	case DeleteTaskStateStore:
+		b.Type = TypeDeleteTaskStateStore
+		return b
+	case DeleteVariable:
+		b.Type = TypeDeleteVariable
+		return b
+	case DeleteXCom:
+		b.Type = TypeDeleteXCom
+		return b
+	case EmailRequest:
+		b.Type = TypeEmailRequest
+		return b
+	case ErrorResponse:
+		b.Type = TypeErrorResponse
+		return b
+	case GetAssetByName:
+		b.Type = TypeGetAssetByName
+		return b
+	case GetAssetByURI:
+		b.Type = TypeGetAssetByURI
+		return b
+	case GetAssetEventByAsset:
+		b.Type = TypeGetAssetEventByAsset
+		return b
+	case GetAssetEventByAssetAlias:
+		b.Type = TypeGetAssetEventByAssetAlias
+		return b
+	case GetAssetStateStoreByName:
+		b.Type = TypeGetAssetStateStoreByName
+		return b
+	case GetAssetStateStoreByURI:
+		b.Type = TypeGetAssetStateStoreByURI
+		return b
+	case GetAssetsByAlias:
+		b.Type = TypeGetAssetsByAlias
+		return b
+	case GetConnection:
+		b.Type = TypeGetConnection
+		return b
+	case GetDRCount:
+		b.Type = TypeGetDRCount
+		return b
+	case GetDag:
+		b.Type = TypeGetDag
+		return b
+	case GetDagRun:
+		b.Type = TypeGetDagRun
+		return b
+	case GetDagRunState:
+		b.Type = TypeGetDagRunState
+		return b
+	case GetHITLDetailResponse:
+		b.Type = TypeGetHITLDetailResponse
+		return b
+	case GetPrevSuccessfulDagRun:
+		b.Type = TypeGetPrevSuccessfulDagRun
+		return b
+	case GetPreviousDagRun:
+		b.Type = TypeGetPreviousDagRun
+		return b
+	case GetPreviousTI:
+		b.Type = TypeGetPreviousTI
+		return b
+	case GetTICount:
+		b.Type = TypeGetTICount
+		return b
+	case GetTaskBreadcrumbs:
+		b.Type = TypeGetTaskBreadcrumbs
+		return b
+	case GetTaskRescheduleStartDate:
+		b.Type = TypeGetTaskRescheduleStartDate
+		return b
+	case GetTaskStateStore:
+		b.Type = TypeGetTaskStateStore
+		return b
+	case GetTaskStates:
+		b.Type = TypeGetTaskStates
+		return b
+	case GetVariable:
+		b.Type = TypeGetVariable
+		return b
+	case GetVariableKeys:
+		b.Type = TypeGetVariableKeys
+		return b
+	case GetXCom:
+		b.Type = TypeGetXCom
+		return b
+	case GetXComCount:
+		b.Type = TypeGetXComCount
+		return b
+	case GetXComSequenceItem:
+		b.Type = TypeGetXComSequenceItem
+		return b
+	case GetXComSequenceSlice:
+		b.Type = TypeGetXComSequenceSlice
+		return b
+	case HITLDetailRequestResult:
+		b.Type = TypeHITLDetailRequestResult
+		return b
+	case InactiveAssetsResult:
+		b.Type = TypeInactiveAssetsResult
+		return b
+	case MaskSecret:
+		b.Type = TypeMaskSecret
+		return b
+	case OKResponse:
+		b.Type = TypeOKResponse
+		return b
+	case PrevSuccessfulDagRunResult:
+		b.Type = TypePrevSuccessfulDagRunResult
+		return b
+	case PreviousDagRunResult:
+		b.Type = TypePreviousDagRunResult
+		return b
+	case PreviousTIResult:
+		b.Type = TypePreviousTIResult
+		return b
+	case PutVariable:
+		b.Type = TypePutVariable
+		return b
+	case RescheduleTask:
+		b.Type = TypeRescheduleTask
+		return b
+	case ResendLoggingFD:
+		b.Type = TypeResendLoggingFD
+		return b
+	case RetryTask:
+		b.Type = TypeRetryTask
+		return b
+	case SentFDs:
+		b.Type = TypeSentFDs
+		return b
+	case SetAssetStateStoreByName:
+		b.Type = TypeSetAssetStateStoreByName
+		return b
+	case SetAssetStateStoreByURI:
+		b.Type = TypeSetAssetStateStoreByURI
+		return b
+	case SetRenderedFields:
+		b.Type = TypeSetRenderedFields
+		return b
+	case SetRenderedMapIndex:
+		b.Type = TypeSetRenderedMapIndex
+		return b
+	case SetTaskStateStore:
+		b.Type = TypeSetTaskStateStore
+		return b
+	case SetXCom:
+		b.Type = TypeSetXCom
+		return b
+	case SkipDownstreamTasks:
+		b.Type = TypeSkipDownstreamTasks
+		return b
+	case StartupDetails:
+		b.Type = TypeStartupDetails
+		return b
+	case SucceedTask:
+		b.Type = TypeSucceedTask
+		return b
+	case TICount:
+		b.Type = TypeTICount
+		return b
+	case TaskBreadcrumbsResult:
+		b.Type = TypeTaskBreadcrumbsResult
+		return b
+	case TaskCallbackRequest:
+		b.Type = TypeTaskCallbackRequest
+		return b
+	case TaskRescheduleStartDate:
+		b.Type = TypeTaskRescheduleStartDate
+		return b
+	case TaskState:
+		b.Type = TypeTaskState
+		return b
+	case TaskStateStoreResult:
+		b.Type = TypeTaskStateStoreResult
+		return b
+	case TaskStatesResult:
+		b.Type = TypeTaskStatesResult
+		return b
+	case TriggerDagRun:
+		b.Type = TypeTriggerDagRun
+		return b
+	case UpdateHITLDetail:
+		b.Type = TypeUpdateHITLDetail
+		return b
+	case ValidateInletsAndOutlets:
+		b.Type = TypeValidateInletsAndOutlets
+		return b
+	case VariableKeysResult:
+		b.Type = TypeVariableKeysResult
+		return b
+	case VariableResult:
+		b.Type = TypeVariableResult
+		return b
+	case XComCountResponse:
+		b.Type = TypeXComCountResponse
+		return b
+	case XComResult:
+		b.Type = TypeXComResult
+		return b
+	case XComSequenceIndexResult:
+		b.Type = TypeXComSequenceIndexResult
+		return b
+	case XComSequenceSliceResult:
+		b.Type = TypeXComSequenceSliceResult
+		return b
+	default:
+		return m
+	}
+}

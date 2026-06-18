@@ -82,7 +82,7 @@ func (c *CoordinatorClient) GetVariable(ctx context.Context, key string) (string
 
 	resp, err := c.comm.Communicate(
 		ctx,
-		genmodels.GetVariable{Type: genmodels.TypeGetVariable, Key: key},
+		genmodels.GetVariable{Key: key},
 	)
 	if err != nil {
 		return "", translateApiError(err, errCodeVariableNotFound, sdk.VariableNotFound, key)
@@ -141,7 +141,7 @@ func (c *CoordinatorClient) GetConnection(
 ) (sdk.Connection, error) {
 	resp, err := c.comm.Communicate(
 		ctx,
-		genmodels.GetConnection{Type: genmodels.TypeGetConnection, ConnID: connID},
+		genmodels.GetConnection{ConnID: connID},
 	)
 	if err != nil {
 		return sdk.Connection{}, translateApiError(
@@ -195,7 +195,6 @@ func (c *CoordinatorClient) GetXCom(
 	_ any,
 ) (any, error) {
 	msg := genmodels.GetXCom{
-		Type:   genmodels.TypeGetXCom,
 		Key:    key,
 		DagID:  dagId,
 		TaskID: taskId,
@@ -226,7 +225,6 @@ func (c *CoordinatorClient) PushXCom(
 	value any,
 ) error {
 	msg := genmodels.SetXCom{
-		Type:   genmodels.TypeSetXCom,
 		Key:    key,
 		Value:  value,
 		DagID:  ti.DagId,

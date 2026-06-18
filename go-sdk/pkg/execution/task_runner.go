@@ -59,7 +59,6 @@ func RunTask(
 			"task_id", details.TI.TaskID,
 		)
 		return genmodels.TaskState{
-			Type:    genmodels.TypeTaskState,
 			State:   genmodels.TaskStateStateRemoved,
 			EndDate: time.Now().UTC(),
 		}
@@ -78,7 +77,6 @@ func RunTask(
 			"error", err,
 		)
 		return genmodels.TaskState{
-			Type:    genmodels.TypeTaskState,
 			State:   genmodels.TaskStateStateFailed,
 			EndDate: time.Now().UTC(),
 		}
@@ -140,9 +138,8 @@ func mapIndexPtr(mapIndex int) *int {
 	return &mapIndex
 }
 
-// executeTask runs the task and handles success, failure, and panics. It
-// returns the terminal message body (genmodels.SucceedTask or
-// genmodels.TaskState) ready to ship as the final response frame.
+// executeTask runs the task, handling success, failure, and panics, and returns
+// the terminal message body to ship as the final response frame.
 func executeTask(
 	ctx context.Context,
 	task bundlev1.Task,
@@ -157,13 +154,11 @@ func executeTask(
 			)
 			if shouldRetry {
 				result = genmodels.RetryTask{
-					Type:        genmodels.TypeRetryTask,
 					EndDate:     time.Now().UTC(),
 					RetryReason: fmt.Sprintf("panic: %v", r),
 				}
 			} else {
 				result = genmodels.TaskState{
-					Type:    genmodels.TypeTaskState,
 					State:   genmodels.TaskStateStateFailed,
 					EndDate: time.Now().UTC(),
 				}
@@ -177,13 +172,11 @@ func executeTask(
 		// UP_FOR_RETRY via RetryTask; otherwise it terminates as FAILED.
 		if shouldRetry {
 			return genmodels.RetryTask{
-				Type:        genmodels.TypeRetryTask,
 				EndDate:     time.Now().UTC(),
 				RetryReason: err.Error(),
 			}
 		}
 		return genmodels.TaskState{
-			Type:    genmodels.TypeTaskState,
 			State:   genmodels.TaskStateStateFailed,
 			EndDate: time.Now().UTC(),
 		}
@@ -194,7 +187,6 @@ func executeTask(
 	// ("Input should be a valid list"). A task that emits no asset events
 	// reports empty collections rather than None.
 	return genmodels.SucceedTask{
-		Type:         genmodels.TypeSucceedTask,
 		EndDate:      time.Now().UTC(),
 		TaskOutlets:  &genmodels.TaskOutlets{},
 		OutletEvents: &genmodels.OutletEvents{},

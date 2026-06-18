@@ -15,22 +15,19 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package genmodels holds the Go data models for the messages exchanged on the
-// coordinator-protocol IPC channel (msgpack-over-socket) between the Airflow
-// supervisor and a Go SDK bundle running in coordinator mode.
+// Package genmodels holds the Go data models for the coordinator-protocol IPC
+// messages (msgpack-over-socket) exchanged between the Airflow supervisor and a
+// Go SDK bundle in coordinator mode.
 //
-// models.gen.go holds the struct types; discriminators.gen.go holds the
-// Type<Name> message-type constants. Both are generated directly from the
-// supervisor wire-schema snapshot owned by the Python Task SDK
-// (task-sdk/src/airflow/sdk/execution_time/schema/schema.json), referenced by
-// relative path from the monorepo. Do not edit either file by hand; change the
-// Pydantic models on the Python side, let the generate-supervisor-schemas-snapshot
-// prek hook regenerate that snapshot, then re-run `go generate ./...` (or
-// `just generate-models`) here.
+// Both files are generated from the supervisor wire-schema snapshot owned by the
+// Python Task SDK (task-sdk/src/airflow/sdk/execution_time/schema/schema.json):
+// models.gen.go holds the struct types, discriminators.gen.go the Type<Name>
+// constants and EnsureType. Don't edit them by hand; change the Pydantic models,
+// let the generate-supervisor-schemas-snapshot prek hook refresh the snapshot,
+// then re-run `just generate-models` (go generate).
 //
-// The first directive runs go-jsonschema; the second runs the local gen tool,
-// which strips go-jsonschema's dead anyOf-branch typedefs from models.gen.go and
-// emits discriminators.gen.go from the schema's "type" consts.
+// go generate runs go-jsonschema, then the local gen tool, which strips
+// go-jsonschema's dead anyOf-branch typedefs and emits discriminators.gen.go.
 package genmodels
 
 //go:generate go run github.com/atombender/go-jsonschema@v0.23.1 --only-models --struct-name-from-title --tags msgpack --capitalization ID --capitalization URI --capitalization TI -p genmodels -o models.gen.go ../../../../task-sdk/src/airflow/sdk/execution_time/schema/schema.json

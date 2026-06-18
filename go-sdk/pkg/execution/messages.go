@@ -27,28 +27,25 @@ import (
 )
 
 // SupervisorSchemaVersion is the dated AIP-72 supervisor wire-schema version
-// this SDK's coordinator protocol is compiled against, in YYYY-MM-DD form. It
-// must match the "api_version" field of the vendored
-// genmodels/schema.json the models are generated from, and is reported in a
-// bundle's airflow-metadata manifest as sdk.supervisor_schema_version so the
-// supervisor can downgrade outbound / upgrade inbound messages to a shape the
-// bundle understands.
+// (YYYY-MM-DD) this SDK's coordinator protocol is compiled against. It must
+// match the "api_version" of the schema the models are generated from, and is
+// reported in a bundle's airflow-metadata manifest as
+// sdk.supervisor_schema_version so the supervisor can down/upgrade messages to
+// a shape the bundle understands.
 const SupervisorSchemaVersion = "2026-06-16"
 
-// The message-type discriminator strings (genmodels.Type*) are generated from
-// the schema's "type" consts in discriminators.gen.go; outbound messages stamp
-// the value and inbound dispatch matches against it, so nothing here hand-writes
-// a wire string that could drift from the schema.
+// The message-type discriminator strings (genmodels.Type*) are generated from the
+// schema's "type" consts in discriminators.gen.go; outbound messages stamp the
+// value and inbound dispatch matches it, so nothing here hand-writes a wire string.
 
-// typeEnvelope peeks only the "type" discriminator out of a raw body, ignoring
-// every other field. msgpack decoding into a struct ignores unknown map keys,
-// so this works against any message body.
+// typeEnvelope peeks only the "type" discriminator from a raw body; msgpack
+// ignores unknown map keys, so it decodes against any message body.
 type typeEnvelope struct {
 	Type string `msgpack:"type"`
 }
 
-// peekBodyType returns the "type" discriminator of a raw msgpack body, or the
-// empty string if the body is nil or carries no type.
+// peekBodyType returns the "type" discriminator of a raw msgpack body, or "" if
+// the body is nil or carries no type.
 func peekBodyType(raw msgpack.RawMessage) string {
 	if isNilRaw(raw) {
 		return ""
@@ -61,8 +58,8 @@ func peekBodyType(raw msgpack.RawMessage) string {
 }
 
 // decodeIncomingBody decodes a raw msgpack body into the concrete genmodels
-// message its "type" discriminator names. It handles the message types that
-// can arrive unsolicited as the supervisor's first frame on the comm socket.
+// message named by its "type" discriminator, for the types that can arrive
+// unsolicited as the supervisor's first frame.
 func decodeIncomingBody(raw msgpack.RawMessage) (any, error) {
 	if isNilRaw(raw) {
 		return nil, nil
@@ -93,7 +90,7 @@ func decodeIncomingBody(raw msgpack.RawMessage) (any, error) {
 }
 
 // decodeBody decodes a raw msgpack response body into dst, a pointer to the
-// genmodels result type the caller expects for the request it sent.
+// genmodels result type the caller expects.
 func decodeBody(raw msgpack.RawMessage, dst any) error {
 	if isNilRaw(raw) {
 		return fmt.Errorf("empty response body")
@@ -101,10 +98,9 @@ func decodeBody(raw msgpack.RawMessage, dst any) error {
 	return msgpack.Unmarshal(raw, dst)
 }
 
-// apiErrorFromFrame returns the supervisor error carried by a response frame,
-// or nil if the frame is not an error reply. The supervisor may surface an
-// error either as the dedicated third element of a 3-tuple frame (frame.Err)
-// or as the body of a 2-tuple frame whose "type" is "ErrorResponse".
+// apiErrorFromFrame returns the supervisor error carried by a frame, or nil if
+// it is not an error reply. An error arrives either as the third element of a
+// 3-tuple frame (frame.Err) or as a 2-tuple body whose "type" is "ErrorResponse".
 func apiErrorFromFrame(f IncomingFrame) *ApiError {
 	var raw msgpack.RawMessage
 	switch {
@@ -131,16 +127,16 @@ func apiErrorFromFrame(f IncomingFrame) *ApiError {
 }
 
 // ifaceString returns the string carried by a nullable schema field decoded as
-// any, or the empty string when the value is nil or not a string.
+// any, or "" when the value is nil or not a string.
 func ifaceString(v any) string {
 	s, _ := v.(string)
 	return s
 }
 
 // ifaceStringPtr preserves the null-vs-empty distinction for a nullable string
-// field decoded as any: nil for a missing/null value, a pointer to the string
-// otherwise. Used for connection credentials, where an explicitly empty value
-// must survive the coordinator hop distinct from "not set".
+// field decoded as any: nil when missing/null, else a pointer to the string.
+// Used for connection credentials, where an explicit "" must stay distinct from
+// "not set".
 func ifaceStringPtr(v any) *string {
 	s, ok := v.(string)
 	if !ok {
@@ -150,8 +146,8 @@ func ifaceStringPtr(v any) *string {
 }
 
 // ifaceTimePtr returns a pointer to the time carried by a nullable date-time
-// field decoded as any, or nil when the value is missing/null. msgpack decodes
-// the supervisor's timestamp extension straight into time.Time.
+// field decoded as any, or nil when missing/null. msgpack decodes the
+// supervisor's timestamp extension straight into time.Time.
 func ifaceTimePtr(v any) *time.Time {
 	t, ok := v.(time.Time)
 	if !ok {
@@ -160,9 +156,8 @@ func ifaceTimePtr(v any) *time.Time {
 	return &t
 }
 
-// ifaceInt converts a numeric value decoded as any (msgpack yields a range of
-// int/uint/float widths) into int, returning def when the value is nil or
-// non-numeric.
+// ifaceInt converts a numeric value decoded as any (msgpack yields various
+// int/uint/float widths) into int, returning def when nil or non-numeric.
 func ifaceInt(v any, def int) int {
 	switch n := v.(type) {
 	case int:

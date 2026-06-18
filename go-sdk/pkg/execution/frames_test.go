@@ -25,6 +25,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vmihailenco/msgpack/v5"
+
+	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
 func TestEncodeRequest(t *testing.T) {
@@ -51,6 +53,32 @@ func TestEncodeRequest(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "GetVariable", decodedBody["type"])
 	assert.Equal(t, "my_var", decodedBody["key"])
+}
+
+// TestEncodeRequestStampsType verifies encodeRequest stamps the "type"
+// discriminator from the body's Go type (via genmodels.EnsureType), so a call
+// site that leaves Type unset — or sets the wrong one — still produces a frame
+// whose discriminator matches the model. This is the guarantee that keeps the
+// type<->model binding from drifting.
+func TestEncodeRequestStampsType(t *testing.T) {
+	t.Run("unset Type is stamped", func(t *testing.T) {
+		data, err := encodeRequest(1, genmodels.GetConnection{ConnID: "c"})
+		require.NoError(t, err)
+		frame, err := decodeFrame(data)
+		require.NoError(t, err)
+		assert.Equal(t, genmodels.TypeGetConnection, peekBodyType(frame.Body))
+	})
+
+	t.Run("wrong Type is corrected", func(t *testing.T) {
+		data, err := encodeRequest(
+			2,
+			genmodels.SetXCom{Type: genmodels.TypeGetConnection, Key: "k"},
+		)
+		require.NoError(t, err)
+		frame, err := decodeFrame(data)
+		require.NoError(t, err)
+		assert.Equal(t, genmodels.TypeSetXCom, peekBodyType(frame.Body))
+	})
 }
 
 func TestWriteAndReadFrame(t *testing.T) {
