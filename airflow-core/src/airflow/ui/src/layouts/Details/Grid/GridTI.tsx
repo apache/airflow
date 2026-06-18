@@ -19,11 +19,16 @@
 import { Badge, Box, Flex } from "@chakra-ui/react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
+import { useTaskInstanceServiceGetTaskInstance } from "openapi/queries";
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { useHover } from "src/context/hover";
 import { buildTaskInstanceUrl } from "src/utils/links";
+
+// Render the lighter shade when there's a note
+const NOTE_GRADIENT =
+  "linear-gradient(45deg, var(--chakra-colors-color-palette-solid) 65%, var(--chakra-colors-color-palette-emphasized) 65%)";
 
 type Props = {
   readonly dagId: string;
@@ -40,6 +45,15 @@ export const GridTI = ({ dagId, instance, isGroup, isMapped, onClick, runId, tas
   const { hoveredTaskId, setHoveredTaskId } = useHover();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const location = useLocation();
+
+  // use this to pull the saved note
+  const { data: fullTaskInstance } = useTaskInstanceServiceGetTaskInstance({
+    dagId,
+    dagRunId: runId,
+    taskId,
+  });
+
+  const hasNote = Boolean(fullTaskInstance?.note);
 
   const [searchParams] = useSearchParams();
 
@@ -107,6 +121,7 @@ export const GridTI = ({ dagId, instance, isGroup, isMapped, onClick, runId, tas
               justifyContent="center"
               minH={0}
               p={0}
+              style={hasNote ? { background: NOTE_GRADIENT } : undefined}
               variant="solid"
               width="14px"
             >
