@@ -38,6 +38,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Use async versions of CertificateCredential and ClientSecretCredential in KiotaRequestAdapterHook (#68375)``
 * ``Fix SAS token authentication in the WASB hook for azure-storage-blob 12.30.0 compatibility (#68490)``
 * ``Fix remote-log providers not satisfying RemoteLogIO upload contract (#68300)``
 * ``Fix coroutine serialization error in PowerBIDatasetRefreshOperator (#63829)``
