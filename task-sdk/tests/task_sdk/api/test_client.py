@@ -925,6 +925,30 @@ class TestVariableOperations:
         result = client.variables.delete(key="test_key")
         assert result == OKResponse(ok=True)
 
+    def test_get_quotes_key_as_single_path_segment(self):
+        """A variable key cannot escape the variables API path onto another endpoint."""
+        requests_seen = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests_seen.append(request)
+            if request.url.path == "/connections/aws_default":
+                return httpx.Response(
+                    status_code=200,
+                    json={"conn_id": "aws_default", "conn_type": "aws", "password": "super-secret"},
+                )
+            return httpx.Response(
+                status_code=404,
+                json={"detail": {"reason": "not_found", "message": "Variable not found"}},
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.variables.get(key="../connections/aws_default")
+
+        assert requests_seen[0].url.raw_path == b"/variables/..%2Fconnections%2Faws_default"
+        assert requests_seen[0].url.path != "/connections/aws_default"
+        assert isinstance(result, ErrorResponse)
+        assert result.error == ErrorType.VARIABLE_NOT_FOUND
+
 
 class TestXCOMOperations:
     """
@@ -1127,6 +1151,33 @@ class TestXCOMOperations:
             mapped_length=3,
         )
         assert result == OKResponse(ok=True)
+
+    def test_get_quotes_identifiers_as_single_path_segments(self):
+        """A dag_id / run_id / task_id cannot escape the xcoms API path."""
+        requests_seen = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests_seen.append(request)
+            return httpx.Response(
+                status_code=404,
+                json={"detail": {"reason": "not_found", "message": "XCom not found"}},
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.xcoms.get(
+            dag_id="x/../../variables/secret_key",
+            run_id="run_id",
+            task_id="task_id",
+            key="key",
+        )
+
+        assert (
+            requests_seen[0].url.raw_path.split(b"?")[0]
+            == b"/xcoms/x%2F..%2F..%2Fvariables%2Fsecret_key/run_id/task_id/key"
+        )
+        assert requests_seen[0].url.path != "/variables/secret_key"
+        assert isinstance(result, XComResponse)
+        assert result.value is None
 
 
 class TestConnectionOperations:
@@ -2118,6 +2169,28 @@ class TestTaskStateOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.task_state_store.clear(ti_id=self.TI_ID)
         assert result == OKResponse(ok=True)
+
+    def test_get_quotes_key_as_single_path_segment(self):
+        """A task store key cannot escape the store/ti API path."""
+        requests_seen = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests_seen.append(request)
+            return httpx.Response(
+                status_code=404,
+                json={"detail": {"reason": "not_found", "message": "not found"}},
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_state_store.get(ti_id=self.TI_ID, key="../../variables/secret_key")
+
+        assert (
+            requests_seen[0].url.raw_path
+            == f"/store/ti/{self.TI_ID}/..%2F..%2Fvariables%2Fsecret_key".encode()
+        )
+        assert requests_seen[0].url.path != "/store/variables/secret_key"
+        assert isinstance(result, ErrorResponse)
+        assert result.error == ErrorType.TASK_STORE_NOT_FOUND
 
 
 class TestAssetStateOperations:
