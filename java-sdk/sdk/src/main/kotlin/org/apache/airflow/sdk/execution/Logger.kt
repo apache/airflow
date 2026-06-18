@@ -118,7 +118,7 @@ internal class Logger(
 
 internal object LogSender {
   private var writer: ByteWriteChannel? = null
-  private val messages: ConcurrentLinkedDeque<LogMessage> = ConcurrentLinkedDeque()
+  internal val messages: ConcurrentLinkedDeque<LogMessage> = ConcurrentLinkedDeque()
 
   fun configure(channel: ByteWriteChannel) {
     writer = channel
