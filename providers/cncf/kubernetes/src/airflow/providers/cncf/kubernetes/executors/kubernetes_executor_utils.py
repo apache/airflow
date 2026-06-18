@@ -52,6 +52,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from kubernetes.client import Configuration, models as k8s
 
 
@@ -646,12 +648,14 @@ class AirflowKubernetesScheduler(LoggingMixin):
             except Exception as e:
                 built.append((job, None, e))
 
-        to_create = [(job, pod) for job, pod, build_err in built if build_err is None and pod is not None]
-        create_errors = self._run_pods_async(to_create) if to_create else []
+        to_create: list[tuple[KubernetesJob, k8s.V1Pod]] = [
+            (job, pod) for job, pod, build_err in built if build_err is None and pod is not None
+        ]
+        create_errors: list[Exception | None] = self._run_pods_async(to_create) if to_create else []
 
         # create_errors aligns 1:1 with to_create (gather preserves order); walk it as we
         # re-emit one (job, error) per built entry, pairing build failures with their own error.
-        create_iter = iter(create_errors)
+        create_iter: Iterator[Exception | None] = iter(create_errors)
         results: list[tuple[KubernetesJob, Exception | None]] = []
         for job, _, build_err in built:
             results.append((job, build_err if build_err is not None else next(create_iter)))
@@ -691,7 +695,9 @@ class AirflowKubernetesScheduler(LoggingMixin):
                     Stats.incr("kubernetes_executor.pod_creation_status", tags={"status": "error"})
                     raise
 
-        outcomes = await asyncio.gather(*(_create(pod) for _, pod in jobs_and_pods), return_exceptions=True)
+        outcomes: list[BaseException | None] = await asyncio.gather(
+            *(_create(pod) for _, pod in jobs_and_pods), return_exceptions=True
+        )
         return [outcome if isinstance(outcome, Exception) else None for outcome in outcomes]
 
     def _close_async_pod_client(self) -> None:

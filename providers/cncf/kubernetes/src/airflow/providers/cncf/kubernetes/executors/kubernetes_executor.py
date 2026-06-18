@@ -329,11 +329,11 @@ class KubernetesExecutor(BaseExecutor):
 
         if TYPE_CHECKING:
             assert self.kube_scheduler
-        created = 0
-        start = time.monotonic()
+        created: int = 0
+        start: float = time.monotonic()
         with contextlib.suppress(Empty):
             for _ in range(self.kube_config.worker_pods_creation_batch_size):
-                task = self.task_queue.get_nowait()
+                task: KubernetesJob = self.task_queue.get_nowait()
                 created += 1
                 try:
                     self.kube_scheduler.run_next(task)
@@ -364,9 +364,9 @@ class KubernetesExecutor(BaseExecutor):
                 jobs.append(self.task_queue.get_nowait())
         if not jobs:
             return
-        start = time.monotonic()
+        start: float = time.monotonic()
         try:
-            results = self.kube_scheduler.run_next_batch(jobs)
+            results: list[tuple[KubernetesJob, Exception | None]] = self.kube_scheduler.run_next_batch(jobs)
         except Exception:
             # Catastrophic failure (e.g. async client setup): keep queue accounting correct
             # by marking every dequeued task done before surfacing the error.
@@ -406,7 +406,7 @@ class KubernetesExecutor(BaseExecutor):
         from kubernetes.client.rest import ApiException
         from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
 
-        key = task.key
+        key: TaskInstanceKey = task.key
         if isinstance(e, PodReconciliationError):
             self.log.exception(
                 "Pod reconciliation failed, likely due to kubernetes library upgrade. "
@@ -423,6 +423,7 @@ class KubernetesExecutor(BaseExecutor):
             self.fail(key, e)
             return False
         if isinstance(e, (ApiException, AsyncApiException)):
+            body: dict[str, Any]
             try:
                 if e.body:
                     body = json.loads(e.body)
@@ -435,11 +436,11 @@ class KubernetesExecutor(BaseExecutor):
                 body = {"message": e.body}
 
             headers = e.headers or {}
-            retries = self.task_publish_retries[key]
+            retries: int = self.task_publish_retries[key]
             # In case of exceeded quota or conflict errors, requeue the task as per the task_publish_max_retries
             # In case of a rate limit, wait and do not create new pods for "Retry-After" seconds
             can_retry_publish = self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries
-            message = body.get("message", "")
+            message: str = body.get("message", "")
             if (
                 (e.status == HTTPStatus.FORBIDDEN and "exceeded quota" in message)
                 or (e.status == HTTPStatus.CONFLICT and "object has been modified" in message)
