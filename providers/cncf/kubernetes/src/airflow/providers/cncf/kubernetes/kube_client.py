@@ -32,6 +32,11 @@ try:
     from kubernetes.client.rest import ApiException
     from kubernetes_asyncio import client as async_client, config as async_config
 
+    from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+        API_TIMEOUT,
+        API_TIMEOUT_OFFSET_SERVER_SIDE,
+    )
+
     has_kubernetes = True
 
     def _get_default_configuration() -> Configuration:
@@ -43,6 +48,56 @@ try:
         configuration = _get_default_configuration()
         configuration.verify_ssl = False
         Configuration.set_default(configuration)
+
+    def _get_request_timeout(timeout_seconds: int | None) -> float:
+        """Get the client-side request timeout."""
+        if timeout_seconds is not None and timeout_seconds > API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE:
+            return timeout_seconds + API_TIMEOUT_OFFSET_SERVER_SIDE
+        return API_TIMEOUT
+
+    class _TimeoutK8sApiClient(client.ApiClient):
+        """
+        Wrapper around kubernetes sync ApiClient to set default timeout.
+
+        When *disable_verify_ssl* is True the TLS certificate check is turned off
+        on the *client_configuration* that is passed (or on a fresh default copy)
+        so that callers do not need to repeat this logic at every call-site.
+        """
+
+        def __init__(
+            self,
+            configuration: client.Configuration | None = None,
+            *,
+            disable_verify_ssl: bool = False,
+        ) -> None:
+            if disable_verify_ssl:
+                if configuration is None:
+                    configuration = client.Configuration.get_default_copy()
+                configuration.verify_ssl = False
+            super().__init__(configuration=configuration)
+
+        def call_api(self, *args, **kwargs):
+            timeout_seconds = kwargs.get("timeout_seconds")  # get server-side timeout
+            kwargs.setdefault(
+                "_request_timeout", _get_request_timeout(timeout_seconds)
+            )  # client-side timeout
+            return super().call_api(*args, **kwargs)
+
+    class _TimeoutAsyncK8sApiClient(async_client.ApiClient):
+        """Wrapper around kubernetes async ApiClient to set default timeout."""
+
+        def __init__(
+            self,
+            configuration: async_client.Configuration | None = None,
+        ) -> None:
+            super().__init__(configuration=configuration)
+
+        async def call_api(self, *args, **kwargs):
+            timeout_seconds = kwargs.get("timeout_seconds")  # server-side timeout
+            kwargs.setdefault(
+                "_request_timeout", _get_request_timeout(timeout_seconds)
+            )  # client-side timeout
+            return await super().call_api(*args, **kwargs)
 
 except ImportError as e:
     # We need an exception class to be able to use it in ``except`` elsewhere
@@ -199,4 +254,4 @@ async def get_async_kube_client(
     if ssl_ca_cert:
         configuration.ssl_ca_cert = ssl_ca_cert
 
-    return async_client.CoreV1Api(async_client.ApiClient(configuration))
+    return async_client.CoreV1Api(_TimeoutAsyncK8sApiClient(configuration))
