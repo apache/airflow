@@ -192,8 +192,9 @@ config:
           (for example on a slow or unreachable lineage backend), the inherited supervisor
           connection can be left in a state that prevents the task from being marked complete,
           leaving it stuck in the ``running`` state. Running emission in a thread avoids forking
-          entirely, so nothing is inherited and the task runner can never be blocked past
-          ``[openlineage] execution_timeout`` by event emission.
+          entirely: no supervisor connection is duplicated, so emission cannot strand the task in
+          the ``running`` state. The task runner waits at most ``[openlineage] execution_timeout``
+          for emission and then proceeds, abandoning a thread that is still running.
 
           Metadata extraction still runs in-process with full access to the task runtime, so
           Operators whose extractors resolve Connections, Variables or XComs continue to work.

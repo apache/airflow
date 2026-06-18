@@ -833,11 +833,12 @@ class OpenLineageListener:
 
         Opt-in alternative to :meth:`_fork_execute`, enabled via
         ``[openlineage] execute_in_thread``. Unlike forking, this never duplicates the
-        task runner process, so the supervisor connection (and every other inherited
-        resource) is left untouched -- a blocked emission can therefore never leave the
-        task stuck in the ``running`` state. Metadata extraction still runs in-process
-        with full access to the task runtime, so Operators whose extractors resolve
-        Connections, Variables or XComs keep working.
+        task runner process, so no supervisor connection is inherited and left in a broken
+        state -- emission therefore cannot strand the task in the ``running`` state. The
+        task runner waits at most ``[openlineage] execution_timeout`` for emission and then
+        proceeds. Metadata extraction still runs in-process with full access to the task
+        runtime, so Operators whose extractors resolve Connections, Variables or XComs keep
+        working.
         """
         thread = threading.Thread(
             target=callable,
@@ -847,10 +848,14 @@ class OpenLineageListener:
         thread.start()
         thread.join(timeout=conf.execution_timeout())
         if thread.is_alive():
-            # Emission is still running. We deliberately do not keep waiting: the thread is
-            # a daemon holding only its own backend connection (never the supervisor socket),
-            # so abandoning it cannot block the task runner or the worker -- it is reaped when
-            # the process exits. This mirrors the fork path terminating an over-running child.
+            # Emission is still running. We deliberately do not keep waiting: the thread is a
+            # daemon, reaped when the process exits. Unlike the fork path -- where parent and
+            # child shared a socket fd with no cross-process locking and could interleave bytes
+            # on the supervisor channel -- this thread reaches the supervisor only through the
+            # shared SUPERVISOR_COMMS threading lock, so it cannot corrupt the protocol. The main
+            # thread may briefly wait on that lock if the abandoned thread is mid-request, but the
+            # wait is bounded by a single round trip. This mirrors the fork path terminating an
+            # over-running child.
             self.log.warning(
                 "OpenLineage %s thread did not finish within execution_timeout=%ss and will be "
                 "abandoned. This has no impact on actual task execution status.",
