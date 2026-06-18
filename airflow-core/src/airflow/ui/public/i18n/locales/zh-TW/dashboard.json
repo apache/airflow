@@ -1,4 +1,16 @@
 {
+  "deadlines": {
+    "pending": {
+      "empty": "沒有即將到期的截止期限",
+      "title": "即將到期"
+    },
+    "recentlyMissed": {
+      "empty": "沒有已逾期的截止期限",
+      "title": "已逾期的截止期限"
+    },
+    "showMore": "顯示更多",
+    "title": "截止期限"
+  },
   "deferredSlotsNotCounted": "未計入配額的延後任務：{{count}}",
   "deferredSlotsNotCountedTooltip": "長條圖中顯示的延後任務會計入資源池配額。長條圖下方顯示的延後任務來自不將延後任務計入配額的資源池。",
   "favorite": {
