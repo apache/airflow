@@ -76,7 +76,6 @@ describe("SavedViewsMenu", () => {
         { name: "Running runs", search: "state=running&sort=-start_date" },
       ]);
     });
-    // The input is reset to its placeholder so it is clear the view was saved.
     expect(input).toHaveValue("");
   });
 
@@ -90,7 +89,6 @@ describe("SavedViewsMenu", () => {
   });
 
   it("disables save on the default view, even with a stored sort and a typed name", async () => {
-    // A bare table page keeps a default sort in localStorage but no URL filters — still nothing to save.
     localStorage.setItem("dags-table-sort", JSON.stringify([{ desc: true, id: "run_after" }]));
 
     render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags"]) });
@@ -131,7 +129,6 @@ describe("SavedViewsMenu", () => {
 
     fireEvent.click(screen.getByText("Successful runs"));
 
-    // The sort is restored to localStorage (where the table reads it), not left in the URL.
     await waitFor(() => {
       expect(screen.getByTestId("location-search")).toHaveTextContent("state=success");
     });
@@ -206,7 +203,6 @@ describe("SavedViewsMenu", () => {
 
     render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags"]) });
 
-    // The default view is restored with its filters in the URL and its sort in localStorage only.
     await waitFor(() => {
       expect(screen.getByTestId("location-search")).toHaveTextContent("state=success");
     });

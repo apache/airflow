@@ -44,6 +44,7 @@ export const FilterBar = ({
   initialValues = defaultInitialValues,
   maxVisibleFilters = 10,
   onFiltersChange,
+  showSavedViews = true,
 }: FilterBarProps) => {
   const { t: translate } = useTranslation(["admin", "common"]);
   const [filters, setFilters] = useState<Array<FilterState>>(() =>
@@ -220,7 +221,7 @@ export const FilterBar = ({
           </Button>
         )}
       </HStack>
-      <SavedViewsMenu />
+      {showSavedViews ? <SavedViewsMenu /> : undefined}
     </Flex>
   );
 };
