@@ -262,7 +262,7 @@ by ``airflow-sdk-bom``. Maven users apply the same artifact IDs following the pa
 ``System.Logger`` (Java Platform Logging)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Java 9's new logging façade ``java.lang.System.Logger`` (JEP 264), commonly abbreviated *JPL*, can be
+Java 9's new logging facade ``java.lang.System.Logger`` (JEP 264), commonly abbreviated *JPL*, can be
 used by libraries without pulling in any third-party API. The ``airflow-sdk-jpl`` artifact registers an
 ``AirflowSystemLoggerFinder`` via ``ServiceLoader``, which routes all ``System.Logger`` calls directly
 to Airflow's task log store.
