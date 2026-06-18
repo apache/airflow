@@ -95,9 +95,9 @@ class ResumableJobMixin:
     # operators that are BaseOperator subclasses. That is a runtime MRO guarantee not visible in the static
     # type signature here and hence we need the type ignore.
     @BaseOperatorMeta._apply_defaults  # type: ignore[type-var]
-    def __init__(self, *, resume_on_retry: bool = True, **kwargs: Any) -> None:
+    def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.resume_on_retry = resume_on_retry
+        self.durable = durable
 
     def execute_resumable(self, context: Context) -> Any:
         """
@@ -116,7 +116,7 @@ class ResumableJobMixin:
         Closing this window would require atomic "submit + persist", which is not possible across
         an external system boundary.
         """
-        if not self.resume_on_retry:
+        if not self.durable:
             external_id = self.submit_job(context)
             self.poll_until_complete(external_id, context)
             return self.get_job_result(external_id, context)

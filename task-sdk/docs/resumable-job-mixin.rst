@@ -150,20 +150,20 @@ Example
 Disabling crash recovery per task
 ----------------------------------
 
-Set ``resume_on_retry=False`` on a task to opt out of crash recovery for that specific instance.
+Set ``durable=False`` on a task to opt out of crash recovery for that specific instance.
 The operator will always submit a fresh job on retry, with no ``task_state_store`` interaction:
 
 .. code-block:: python
 
     run_spark = MyBatchOperator(
         task_id="run_spark",
-        resume_on_retry=False,
+        durable=False,
     )
 
 This is useful when the external job is not idempotent and you want Airflow to always submit a
 clean run rather than reconnect to a prior submission.
 
-The default is ``True``. ``resume_on_retry`` is owned by the mixin — operators do not need to
+The default is ``True``. ``durable`` is owned by the mixin — operators do not need to
 redeclare it. ``default_args`` injection and ``.partial()`` work automatically.
 
 .. _sdk-resumable-job-mixin-external-id-key:

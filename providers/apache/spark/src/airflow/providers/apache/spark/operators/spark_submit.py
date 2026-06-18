@@ -48,6 +48,11 @@ except ImportError:
 
         external_id_key: str = "remote_job_id"
 
+        def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
+            # Accept durable so the kwarg doesn't leak to BaseOperator; crash recovery is a no-op here.
+            super().__init__(**kwargs)
+            self.durable = durable
+
         def execute_resumable(self, context):
             external_id = self.submit_job(context)
             self.poll_until_complete(external_id, context)
@@ -219,11 +224,11 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
     ) -> None:
         if reconnect_on_retry is not None:
             warnings.warn(
-                "reconnect_on_retry is renamed to resume_on_retry.",
+                "reconnect_on_retry is renamed to durable.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            kwargs.setdefault("resume_on_retry", reconnect_on_retry)
+            kwargs.setdefault("durable", reconnect_on_retry)
         super().__init__(**kwargs)
         self.application = application
         self.conf = conf
@@ -284,9 +289,9 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if hook._should_track_driver_via_k8s_api():
             return self.execute_resumable(context)
         if hook._is_yarn_cluster_mode:
-            if self.resume_on_retry and not hook._yarn_track_via_rm_api:
+            if self.durable and not hook._yarn_track_via_rm_api:
                 raise ValueError(
-                    "YARN cluster mode with resume_on_retry=True requires yarn_track_via_rm_api=True. "
+                    "YARN cluster mode with durable=True requires yarn_track_via_rm_api=True. "
                     "The RM REST API is needed to check application status on retry."
                 )
             if hook._yarn_track_via_rm_api:
@@ -312,7 +317,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
                 raise ValueError(
                     "spark.yarn.submit.waitAppCompletion=true cannot be set for cluster mode as it conflicts"
                     "with the need to exit spark-submit immediately to persist the application ID for tracking. "
-                    "Either remove the explicit conf or set resume_on_retry=False."
+                    "Either remove the explicit conf or set durable=False."
                 )
             self._hook._conf["spark.yarn.submit.waitAppCompletion"] = "false"
             self._hook.submit(self.application)
@@ -438,7 +443,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             # Cache only when the pod actually reached Succeeded, the 404/vanished path
             # returns None for cases like: pod deleted by on_kill or garbage collected after failure)
             # and must not be cached, otherwise a retry would see "Succeeded" and skip resubmission.
-            if terminal_phase == "Succeeded" and self.resume_on_retry:
+            if terminal_phase == "Succeeded" and self.durable:
                 if (task_state_store := context.get("task_state_store")) is not None:
                     task_state_store.set(self._K8S_DRIVER_STATUS_KEY, "Succeeded")
             return
