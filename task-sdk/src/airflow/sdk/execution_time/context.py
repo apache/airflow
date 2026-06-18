@@ -178,7 +178,7 @@ def _process_connection_result_conn(conn_result: ReceiveMsgType | None) -> Conne
         assert isinstance(conn_result, ConnectionResult)
 
     # `by_alias=True` is used to convert the `schema` field to `schema_` in the Connection model
-    return Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True))
+    return Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True), _validate_port=False)
 
 
 def _mask_connection_secrets(conn: Connection) -> None:
@@ -227,7 +227,7 @@ def _get_connection(conn_id: str) -> Connection:
         uri = SecretCache.get_connection_uri(conn_id)
         from airflow.sdk.definitions.connection import Connection
 
-        conn = Connection.from_uri(uri, conn_id=conn_id)
+        conn = Connection.from_uri(uri, conn_id=conn_id, validate_port=False)
         _mask_connection_secrets(conn)
         return conn
     except SecretCache.NotPresentException:
@@ -275,7 +275,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
         uri = SecretCache.get_connection_uri(conn_id)
         from airflow.sdk.definitions.connection import Connection
 
-        conn = Connection.from_uri(uri, conn_id=conn_id)
+        conn = Connection.from_uri(uri, conn_id=conn_id, validate_port=False)
         await _amask_connection_secrets(conn)
         return conn
     except SecretCache.NotPresentException:

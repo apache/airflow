@@ -29,6 +29,8 @@ from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException, A
 from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 log = logging.getLogger(__name__)
+_MIN_PORT = 1
+_MAX_PORT = 65535
 
 
 def _parse_netloc_to_hostname(uri_parts):
@@ -49,6 +51,32 @@ def _parse_netloc_to_hostname(uri_parts):
             hostname = hostname.split(":", 1)[0]
         hostname = unquote(hostname)
     return hostname
+
+
+def _coerce_port(port: int | str | None) -> int | None:
+    if port is None:
+        return None
+    if isinstance(port, bool):
+        raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+    if isinstance(port, int):
+        return port
+    if isinstance(port, str):
+        try:
+            return int(port)
+        except ValueError:
+            raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.") from None
+    raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+
+
+def _normalize_port(port: int | str | None) -> int | None:
+    normalized_port = _coerce_port(port)
+    if normalized_port is None:
+        return None
+    if not _MIN_PORT <= normalized_port <= _MAX_PORT:
+        raise ValueError(
+            f"Connection port must be between {_MIN_PORT} and {_MAX_PORT}, got {normalized_port}."
+        )
+    return normalized_port
 
 
 def _prune_dict(val: Any, mode="strict"):
@@ -93,7 +121,7 @@ def _prune_dict(val: Any, mode="strict"):
     return val
 
 
-@attrs.define(slots=False)
+@attrs.define(slots=False, init=False)
 class Connection:
     """
     A connection to an external data source.
@@ -124,7 +152,7 @@ class Connection:
     EXTRA_KEY = "__extra__"
 
     @overload
-    def __init__(self, *, conn_id: str, uri: str) -> None: ...
+    def __init__(self, *, conn_id: str, uri: str, _validate_port: bool = True) -> None: ...
 
     @overload
     def __init__(
@@ -139,9 +167,12 @@ class Connection:
         password: str | None = None,
         port: int | None = None,
         extra: str | None = None,
+        _validate_port: bool = True,
     ) -> None: ...
 
-    def __init__(self, *, conn_id: str, uri: str | None = None, **kwargs) -> None:
+    def __init__(
+        self, *, conn_id: str, uri: str | None = None, _validate_port: bool = True, **kwargs
+    ) -> None:
         if uri is not None and kwargs:
             raise AirflowException(
                 "You must create an object using the URI or individual values "
@@ -149,9 +180,15 @@ class Connection:
                 "You can't mix these two ways to create this object."
             )
         if uri is None:
+            if "port" in kwargs:
+                kwargs["port"] = (
+                    _normalize_port(kwargs["port"]) if _validate_port else _coerce_port(kwargs["port"])
+                )
             self.__attrs_init__(conn_id=conn_id, **kwargs)  # type: ignore[attr-defined]
         else:
-            self.__dict__.update(attrs.asdict(self.from_uri(uri, conn_id=conn_id), recurse=False))
+            self.__dict__.update(
+                attrs.asdict(self.from_uri(uri, conn_id=conn_id, validate_port=_validate_port), recurse=False)
+            )
 
     def get_uri(self) -> str:
         """Generate and return connection in URI format."""
@@ -346,7 +383,7 @@ class Connection:
         return conn
 
     @classmethod
-    def from_json(cls, value, conn_id=None) -> Connection:
+    def from_json(cls, value, conn_id=None, validate_port: bool = True) -> Connection:
         kwargs = json.loads(value)
         extra = kwargs.pop("extra", None)
         if extra:
@@ -354,13 +391,7 @@ class Connection:
         conn_type = kwargs.pop("conn_type", None)
         if conn_type:
             kwargs["conn_type"] = cls._normalize_conn_type(conn_type)
-        port = kwargs.pop("port", None)
-        if port:
-            try:
-                kwargs["port"] = int(port)
-            except ValueError:
-                raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
-        return cls(conn_id=conn_id, **kwargs)
+        return cls(conn_id=conn_id, **kwargs, _validate_port=validate_port)
 
     def as_json(self) -> str:
         """Convert Connection to JSON-string object."""
@@ -369,12 +400,15 @@ class Connection:
         return json.dumps(conn_repr)
 
     @classmethod
-    def from_uri(cls, uri: str, conn_id: str) -> Connection:
+    def from_uri(cls, uri: str, conn_id: str, validate_port: bool = True) -> Connection:
         """
         Create a Connection from a URI string.
 
         :param uri: URI string to parse
         :param conn_id: Connection ID to assign to the connection
+        :param validate_port: When ``False``, skip port range validation so that
+            connections already stored with a now-invalid port (e.g. in a secrets
+            backend) can still be read. Defaults to ``True`` for creation paths.
         :return: Connection object
         """
         schemes_count_in_uri = uri.count("://")
@@ -415,6 +449,7 @@ class Connection:
             password=password,
             port=port,
             extra=extra,
+            _validate_port=validate_port,
         )
 
     @staticmethod

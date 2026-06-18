@@ -19,6 +19,7 @@ from __future__ import annotations
 import inspect
 from abc import ABC
 from collections.abc import Callable
+from typing import Any
 
 
 def _accepts_team_name(method: Callable) -> bool:
@@ -119,15 +120,45 @@ class BaseSecretsBackend(ABC):
         return conn_class
 
     @staticmethod
-    def _deserialize_connection_value(conn_class: type, conn_id: str, value: str):
+    def _call_with_parameter_if_supported(
+        func: Callable, *, parameter_name: str, parameter_value: Any, **kwargs
+    ):
+        try:
+            has_parameter = parameter_name in inspect.signature(func).parameters
+        except (TypeError, ValueError):
+            has_parameter = False
+        if has_parameter:
+            kwargs[parameter_name] = parameter_value
+        return func(**kwargs)
+
+    @classmethod
+    def _deserialize_connection_value(cls, conn_class: type, conn_id: str, value: str):
         value = value.strip()
         if value[0] == "{":
-            return conn_class.from_json(value=value, conn_id=conn_id)  # type: ignore[attr-defined]
+            return cls._call_with_parameter_if_supported(
+                conn_class.from_json,  # type: ignore[attr-defined]
+                parameter_name="validate_port",
+                parameter_value=False,
+                value=value,
+                conn_id=conn_id,
+            )
 
         # TODO: Only sdk has from_uri defined on it. Is it worthwhile developing the core path or not?
         if hasattr(conn_class, "from_uri"):
-            return conn_class.from_uri(conn_id=conn_id, uri=value)
-        return conn_class(conn_id=conn_id, uri=value)
+            return cls._call_with_parameter_if_supported(
+                conn_class.from_uri,
+                parameter_name="validate_port",
+                parameter_value=False,
+                conn_id=conn_id,
+                uri=value,
+            )
+        return cls._call_with_parameter_if_supported(
+            conn_class,
+            parameter_name="_validate_port",
+            parameter_value=False,
+            conn_id=conn_id,
+            uri=value,
+        )
 
     def deserialize_connection(self, conn_id: str, value: str):
         """

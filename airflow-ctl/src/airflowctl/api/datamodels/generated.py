@@ -331,6 +331,10 @@ class ConfigSection(BaseModel):
     options: Annotated[list[ConfigOption], Field(title="Options")]
 
 
+class Port(RootModel[int]):
+    root: Annotated[int, Field(ge=1, le=65535, title="Port")]
+
+
 class TeamName(RootModel[str]):
     root: Annotated[str, Field(max_length=50, title="Team Name")]
 
@@ -349,7 +353,7 @@ class ConnectionBody(BaseModel):
     host: Annotated[str | None, Field(title="Host")] = None
     login: Annotated[str | None, Field(title="Login")] = None
     schema_: Annotated[str | None, Field(alias="schema", title="Schema")] = None
-    port: Annotated[int | None, Field(title="Port")] = None
+    port: Annotated[Port | None, Field(title="Port")] = None
     password: Annotated[str | None, Field(title="Password")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
     team_name: Annotated[TeamName | None, Field(title="Team Name")] = None
@@ -400,7 +404,7 @@ class ConnectionTestRequestBody(BaseModel):
     host: Annotated[str | None, Field(title="Host")] = None
     login: Annotated[str | None, Field(title="Login")] = None
     schema_: Annotated[str | None, Field(alias="schema", title="Schema")] = None
-    port: Annotated[int | None, Field(title="Port")] = None
+    port: Annotated[Port | None, Field(title="Port")] = None
     password: Annotated[str | None, Field(title="Password")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
     team_name: Annotated[TeamName | None, Field(title="Team Name")] = None

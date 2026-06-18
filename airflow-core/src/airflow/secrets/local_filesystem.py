@@ -193,12 +193,12 @@ def _parse_secret_file(file_path: str) -> dict[str, Any]:
     return secrets
 
 
-def _create_connection(conn_id: str, value: Any):
+def _create_connection(conn_id: str, value: Any, validate_port: bool = True):
     """Create a connection based on a URL or JSON object."""
     from airflow.models.connection import Connection
 
     if isinstance(value, str):
-        return Connection(conn_id=conn_id, uri=value)
+        return Connection(conn_id=conn_id, uri=value, _validate_port=validate_port)
     if isinstance(value, dict):
         connection_parameter_names = get_connection_parameter_names() | {"extra_dejson"}
         current_keys = set(value.keys())
@@ -225,7 +225,7 @@ def _create_connection(conn_id: str, value: Any):
                 f"The item has the value: {conn_id}."
             )
         value["conn_id"] = conn_id
-        return Connection(**value)
+        return Connection(**value, _validate_port=validate_port)
     raise AirflowException(
         f"Unexpected value type: {type(value)}. The connection can only be defined using a string or object."
     )
@@ -260,12 +260,15 @@ def load_variables(file_path: str) -> dict[str, Any]:
     return variables
 
 
-def load_connections_dict(file_path: str) -> dict[str, Any]:
+def load_connections_dict(file_path: str, validate_port: bool = True) -> dict[str, Any]:
     """
     Load connection from text file.
 
     ``JSON``, `YAML` and ``.env`` files are supported.
 
+    :param validate_port: When ``False``, skip port range validation so that connection
+        files written before validation existed can still be read by the secrets backend.
+        Creation paths (e.g. ``airflow connections import``) keep the default ``True``.
     :return: A dictionary where the key contains a connection ID and the value contains the connection.
     """
     log.debug("Loading connection")
@@ -278,9 +281,9 @@ def load_connections_dict(file_path: str) -> dict[str, Any]:
                 raise ConnectionNotUnique(f"Found multiple values for {key} in {file_path}.")
 
             for secret_value in secret_values:
-                connection_by_conn_id[key] = _create_connection(key, secret_value)
+                connection_by_conn_id[key] = _create_connection(key, secret_value, validate_port)
         else:
-            connection_by_conn_id[key] = _create_connection(key, secret_values)
+            connection_by_conn_id[key] = _create_connection(key, secret_values, validate_port)
 
     num_conn = len(connection_by_conn_id)
     log.debug("Loaded %d connections", num_conn)
@@ -344,7 +347,7 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
             self.log.debug("The file for connection is not specified. Skipping")
             # The user may not specify any file.
             return {}
-        return load_connections_dict(self.connections_file)
+        return load_connections_dict(self.connections_file, validate_port=False)
 
     @property
     def _local_configs(self) -> dict[str, str]:

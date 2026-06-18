@@ -153,6 +153,17 @@ class TestGetConnection(TestConnectionEndpoint):
         assert body["conn_type"] == TEST_CONN_TYPE
         assert body["team_name"] == testing_team.name
 
+    def test_get_should_return_existing_connection_with_invalid_port(self, test_client, session):
+        session.execute(
+            Connection.__table__.insert().values(conn_id=TEST_CONN_ID, conn_type=TEST_CONN_TYPE, port=0)
+        )
+        session.commit()
+
+        response = test_client.get(f"/connections/{TEST_CONN_ID}")
+
+        assert response.status_code == 200
+        assert response.json()["port"] == 0
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/connections/{TEST_CONN_ID}")
         assert response.status_code == 401
@@ -367,6 +378,15 @@ class TestPostConnection(TestConnectionEndpoint):
                 }
             ]
         }
+
+    @pytest.mark.parametrize("port", [-1, 0, 65536])
+    def test_post_should_respond_422_for_invalid_port(self, test_client, port):
+        response = test_client.post(
+            "/connections",
+            json={"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "port": port},
+        )
+
+        assert response.status_code == 422
 
     @conf_vars({("core", "multi_team"): "False"})
     def test_post_rejects_team_name_when_multi_team_disabled(self, test_client):
@@ -647,6 +667,17 @@ class TestPatchConnection(TestConnectionEndpoint):
         _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None)
 
         assert response.json() == expected_result
+
+    @pytest.mark.parametrize("port", [-1, 0, 65536])
+    def test_patch_should_respond_422_for_invalid_port(self, test_client, port):
+        self.create_connection()
+
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}",
+            json={"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "port": port},
+        )
+
+        assert response.status_code == 422
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_patch_with_team_should_respond_200(self, test_client, testing_team, session):
