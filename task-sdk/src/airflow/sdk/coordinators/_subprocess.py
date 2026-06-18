@@ -41,6 +41,7 @@ import attrs
 import psutil
 import structlog
 
+from airflow.sdk.configuration import conf
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaised, ProcessTracker
 
@@ -301,6 +302,13 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 ],
                 stdout=stdout_w.fileno(),
                 stderr=stderr_w.fileno(),
+                # A language SDK runtime cannot read Airflow's config, so propagate the
+                # resolved task log level via the environment at launch. StartupDetails
+                # arrives too late, the logs might already be produced by then.
+                env={
+                    **os.environ,
+                    "AIRFLOW__LOGGING__LOGGING_LEVEL": conf.get("logging", "logging_level", fallback="INFO"),
+                },
             )
             tracker.track(proc)
             for soc in tracker.untrack(stdout_w, stderr_w):
