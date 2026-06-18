@@ -580,7 +580,7 @@ class DagModelOperation(NamedTuple):
         return {dm.dag_id: dm for dm in session.scalars(stmt).unique()}
 
     def find_dag_id_collisions(self, *, session: Session) -> dict[str, AirflowDagDuplicatedIdException]:
-        """Find Dag IDs already used by a different active DAG file."""
+        """Find Dag IDs already used by a different active Dag file."""
         orm_dags = self.find_orm_dags(session=session)
         return {
             dag_id: AirflowDagDuplicatedIdException(
