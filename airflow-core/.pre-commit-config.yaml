@@ -16,7 +16,7 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.2.0'
+minimum_prek_version: '0.3.4'
 default_language_version:
   python: python3
   node: 22.19.0
@@ -148,6 +148,17 @@ repos:
         language: python
         pass_filenames: true
         files: ^src/airflow/.*\.py$
+      - id: check-http-exception-import-from-fastapi
+        name: Check HTTPException is imported from fastapi
+        entry: ../scripts/ci/prek/check_http_exception_import_from_fastapi.py
+        language: python
+        pass_filenames: true
+        files: >
+          (?x)
+          ^src/airflow/api_fastapi/.*\.py$|
+          ^src/airflow/utils/serve_logs/.*\.py$|
+          ^tests/unit/api_fastapi/.*\.py$|
+          ^tests/unit/utils/test_serve_logs\.py$
       - id: create-missing-init-py-files-tests
         name: Create missing init.py files in tests
         entry: ../scripts/ci/prek/check_init_in_tests.py
@@ -224,7 +235,7 @@ repos:
       - id: mypy-airflow-core
         name: Run mypy for airflow-core
         language: python
-        entry: ../scripts/ci/prek/mypy_local_folder.py airflow-core
+        entry: ../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py airflow-core
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
@@ -256,6 +267,14 @@ repos:
           (?x)
           ^src/airflow/migrations/versions/.*\.py$|
           ^docs/migrations-ref\.rst$
+      - id: migration-round-trip
+        name: Migration round-trip SQLite FK enforcement
+        language: python
+        entry: ../scripts/ci/prek/migration_round_trip.py
+        pass_filenames: false
+        require_serial: true
+        stages: [manual]
+        files: ^src/airflow/migrations/versions/.*\.py$
       - id: check-default-configuration
         name: Check the default configuration
         entry: ../scripts/ci/prek/check_default_configuration.py
@@ -291,7 +310,7 @@ repos:
           ^tests/unit/models/test_variable\.py$
       - id: check-sdk-imports
         name: Check for SDK imports in core files
-        entry: ../scripts/ci/prek/check_sdk_imports.py
+        entry: ../scripts/ci/prek/check_sdk_imports_in_core.py
         language: python
         types: [python]
         files: ^src/airflow/

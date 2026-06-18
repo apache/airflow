@@ -57,6 +57,17 @@ class AirflowNotFoundException(AirflowException):
     status_code = HTTPStatus.NOT_FOUND
 
 
+class AirflowSecretsBackendAccessDenied(PermissionError):
+    """
+    Authoritative deny from a secrets backend; dispatcher must NOT fall through.
+
+    Distinct from a generic ``PermissionError`` (e.g. an incidental filesystem
+    ``OSError``-family raise from inside an unrelated backend) so the
+    secrets-backend dispatcher loops can re-raise only this signal and keep
+    treating other exceptions as "try the next backend".
+    """
+
+
 class AirflowDagCycleException(AirflowException):
     """Raise when there is a cycle in Dag definition."""
 
@@ -80,7 +91,14 @@ class ErrorType(enum.Enum):
     VARIABLE_NOT_FOUND = "VARIABLE_NOT_FOUND"
     XCOM_NOT_FOUND = "XCOM_NOT_FOUND"
     ASSET_NOT_FOUND = "ASSET_NOT_FOUND"
+    TASK_STORE_NOT_FOUND = "TASK_STORE_NOT_FOUND"
+    ASSET_STORE_NOT_FOUND = "ASSET_STORE_NOT_FOUND"
     DAGRUN_ALREADY_EXISTS = "DAGRUN_ALREADY_EXISTS"
+    # Distinct from API_SERVER_ERROR: signals an explicit 401/403 from the
+    # Execution API. Callers like ExecutionAPISecretsBackend treat this as
+    # a deny rather than a "not found" so the secrets-backend dispatcher
+    # does NOT fall through to a less-restrictive backend (e.g. env vars).
+    PERMISSION_DENIED = "PERMISSION_DENIED"
     GENERIC_ERROR = "GENERIC_ERROR"
     API_SERVER_ERROR = "API_SERVER_ERROR"
 
@@ -218,6 +236,48 @@ class TaskDeferred(BaseException):
         return f"<TaskDeferred trigger={self.trigger} method={self.method_name}>"
 
 
+class TaskAwaitingInput(BaseException):
+    """
+    Signal an operator parking the task in awaiting_input state (Human-in-the-loop).
+
+    Raised to signal that the operator wishes to pause until external human input arrives,
+    WITHOUT creating a trigger or involving the triggerer. Resumption is driven by the Core API
+    response handler (or the scheduler timeout sweep) flipping the task instance back to SCHEDULED
+    with ``next_method`` / ``next_kwargs`` intact, after which the worker calls
+    ``resume_execution(method_name, kwargs)``.
+
+    Subclasses ``BaseException`` (like ``TaskDeferred``) so that a user ``except Exception`` in
+    ``execute()`` cannot accidentally swallow the park signal.
+    """
+
+    def __init__(
+        self,
+        *,
+        method_name: str,
+        kwargs: dict[str, Any] | None = None,
+        timeout=None,
+    ):
+        super().__init__()
+        self.method_name = method_name
+        self.kwargs = kwargs
+        self.timeout = timeout
+
+    def serialize(self):
+        cls = self.__class__
+        return (
+            f"{cls.__module__}.{cls.__name__}",
+            (),
+            {
+                "method_name": self.method_name,
+                "kwargs": self.kwargs,
+                "timeout": self.timeout,
+            },
+        )
+
+    def __repr__(self) -> str:
+        return f"<TaskAwaitingInput method={self.method_name}>"
+
+
 class TaskDeferralError(AirflowException):
     """Raised when a task failed during deferral for some reason."""
 
@@ -241,6 +301,7 @@ class DagRunTriggerException(AirflowException):
         dag_run_id: str,
         conf: dict | None,
         logical_date=None,
+        run_after=None,
         reset_dag_run: bool,
         skip_when_already_exists: bool,
         wait_for_completion: bool,
@@ -255,6 +316,7 @@ class DagRunTriggerException(AirflowException):
         self.dag_run_id = dag_run_id
         self.conf = conf
         self.logical_date = logical_date
+        self.run_after = run_after
         self.reset_dag_run = reset_dag_run
         self.skip_when_already_exists = skip_when_already_exists
         self.wait_for_completion = wait_for_completion
@@ -301,7 +363,7 @@ class XComNotFound(AirflowException):
         )
 
 
-class ParamValidationError(AirflowException):
+class ParamValidationError(AirflowException, ValueError):
     """Raise when DAG params is invalid."""
 
 
@@ -328,6 +390,13 @@ class TaskAlreadyInTaskGroup(AirflowException):
 
 class TaskNotFound(AirflowException):
     """Raise when a Task is not available in the system."""
+
+
+class NodeNotFound(TaskNotFound, KeyError):
+    """Raise when attempting to access an invalid node (task or task group) using [] notation."""
+
+    def __str__(self) -> str:
+        return str(self.args[0]) if self.args else ""
 
 
 class TaskAlreadyRunningError(AirflowException):

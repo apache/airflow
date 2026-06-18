@@ -123,6 +123,72 @@ class TestSSHRemoteJobOperator:
         assert isinstance(exc_info.value.trigger, SSHRemoteJobTrigger)
         assert exc_info.value.method_name == "execute_complete"
 
+    def test_execute_forwards_trigger_tuning_params(self):
+        """command_timeout and max_reconnect_attempts must reach the deferred trigger."""
+        self.mock_hook.exec_ssh_client_command.return_value = (0, b"job", b"")
+
+        op = SSHRemoteJobOperator(
+            task_id="test_task",
+            ssh_conn_id="test_conn",
+            command="/path/to/script.sh",
+            remote_os="posix",
+            command_timeout=12.5,
+            max_reconnect_attempts=9,
+        )
+        mock_ti = mock.MagicMock()
+        mock_ti.dag_id, mock_ti.task_id, mock_ti.run_id, mock_ti.try_number = "d", "t", "r", 1
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            op.execute({"ti": mock_ti})
+
+        trigger = exc_info.value.trigger
+        assert trigger.command_timeout == 12.5
+        assert trigger.max_reconnect_attempts == 9
+
+    def test_execute_complete_re_defer_forwards_tuning_params(self):
+        """The re-defer path must also forward the trigger-tuning params."""
+        op = SSHRemoteJobOperator(
+            task_id="test_task",
+            ssh_conn_id="test_conn",
+            command="/path/to/script.sh",
+            command_timeout=7.0,
+            max_reconnect_attempts=4,
+        )
+        event = {
+            "done": False,
+            "status": "running",
+            "job_id": "j",
+            "job_dir": "/tmp/airflow-ssh-jobs/j",
+            "log_file": "/tmp/airflow-ssh-jobs/j/stdout.log",
+            "exit_code_file": "/tmp/airflow-ssh-jobs/j/exit_code",
+            "remote_os": "posix",
+            "log_chunk": "",
+            "log_offset": 0,
+            "exit_code": None,
+        }
+        with pytest.raises(TaskDeferred) as exc_info:
+            op.execute_complete({}, event)
+
+        trigger = exc_info.value.trigger
+        assert trigger.command_timeout == 7.0
+        assert trigger.max_reconnect_attempts == 4
+
+    def test_execute_connect_failure_is_reraised(self):
+        """A connection failure during submit is re-raised unchanged (advisory is log-only)."""
+        self.mock_hook.get_conn.side_effect = OSError("Error reading SSH protocol banner")
+
+        op = SSHRemoteJobOperator(
+            task_id="test_task",
+            ssh_conn_id="test_conn",
+            command="/path/to/script.sh",
+            remote_os="posix",
+        )
+        mock_ti = mock.MagicMock()
+        mock_ti.dag_id, mock_ti.task_id, mock_ti.run_id, mock_ti.try_number = "d", "t", "r", 1
+
+        with pytest.raises(OSError, match="Error reading SSH protocol banner"):
+            op.execute({"ti": mock_ti})
+
     def test_execute_raises_if_no_command(self):
         """Test that execute raises if command is not specified."""
         op = SSHRemoteJobOperator(
@@ -329,3 +395,68 @@ class TestSSHRemoteJobOperator:
 
         # Should not raise even without active job
         op.on_kill()
+
+    def test_execute_uses_single_connection_for_detect_and_submit(self):
+        """OS auto-detection and submission must share one SSH connection (one handshake)."""
+        self.mock_hook.exec_ssh_client_command.side_effect = [
+            (0, b"Linux", b""),  # OS detection
+            (0, b"af_test_dag_test_task_run1_try1_abc123", b""),  # submission
+        ]
+
+        op = SSHRemoteJobOperator(
+            task_id="test_task",
+            ssh_conn_id="test_conn",
+            command="/path/to/script.sh",
+            remote_os="auto",
+        )
+
+        mock_ti = mock.MagicMock()
+        mock_ti.dag_id = "test_dag"
+        mock_ti.task_id = "test_task"
+        mock_ti.run_id = "run1"
+        mock_ti.try_number = 1
+
+        with pytest.raises(TaskDeferred):
+            op.execute({"ti": mock_ti})
+
+        # One handshake for the whole execute(): detection + submit reuse it.
+        self.mock_hook.get_conn.assert_called_once()
+        assert self.mock_hook.exec_ssh_client_command.call_count == 2
+        assert op._detected_os == "posix"
+
+    def test_cleanup_retries_then_succeeds(self):
+        """Cleanup retries on a transient SSH failure and stops once it succeeds."""
+        self.mock_hook.exec_ssh_client_command.side_effect = [
+            Exception("Error reading SSH protocol banner"),
+            (0, b"", b""),
+        ]
+
+        op = SSHRemoteJobOperator(
+            task_id="test_task",
+            ssh_conn_id="test_conn",
+            command="/path/to/script.sh",
+            cleanup_retries=3,
+        )
+
+        with mock.patch("airflow.providers.ssh.operators.ssh_remote_job.time.sleep") as mock_sleep:
+            op._cleanup_remote_job("/tmp/airflow-ssh-jobs/test_job_123", "posix")
+
+        assert self.mock_hook.exec_ssh_client_command.call_count == 2
+        mock_sleep.assert_called_once()
+
+    def test_cleanup_gives_up_after_retries_without_raising(self):
+        """When every cleanup attempt fails the task is not failed; the dir is left in place."""
+        self.mock_hook.exec_ssh_client_command.side_effect = Exception("connection refused")
+
+        op = SSHRemoteJobOperator(
+            task_id="test_task",
+            ssh_conn_id="test_conn",
+            command="/path/to/script.sh",
+            cleanup_retries=3,
+        )
+
+        with mock.patch("airflow.providers.ssh.operators.ssh_remote_job.time.sleep"):
+            # Must not raise even though all attempts fail.
+            op._cleanup_remote_job("/tmp/airflow-ssh-jobs/test_job_123", "posix")
+
+        assert self.mock_hook.exec_ssh_client_command.call_count == 3

@@ -19,108 +19,108 @@
         font-weight: 700;
     }
 
-    .terminal-4223370654-matrix {
+    .terminal-3582101150-matrix {
         font-family: Fira Code, monospace;
         font-size: 20px;
         line-height: 24.4px;
         font-variant-east-asian: full-width;
     }
 
-    .terminal-4223370654-title {
+    .terminal-3582101150-title {
         font-size: 18px;
         font-weight: bold;
         font-family: arial;
     }
 
-    .terminal-4223370654-r1 { fill: #ff8700 }
-.terminal-4223370654-r2 { fill: #c5c8c6 }
-.terminal-4223370654-r3 { fill: #808080 }
-.terminal-4223370654-r4 { fill: #68a0b3 }
+    .terminal-3582101150-r1 { fill: #ff8700 }
+.terminal-3582101150-r2 { fill: #c5c8c6 }
+.terminal-3582101150-r3 { fill: #808080 }
+.terminal-3582101150-r4 { fill: #68a0b3 }
     </style>
 
     <defs>
-    <clipPath id="terminal-4223370654-clip-terminal">
+    <clipPath id="terminal-3582101150-clip-terminal">
       <rect x="0" y="0" width="914.0" height="682.1999999999999" />
     </clipPath>
-    <clipPath id="terminal-4223370654-line-0">
+    <clipPath id="terminal-3582101150-line-0">
     <rect x="0" y="1.5" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-1">
+<clipPath id="terminal-3582101150-line-1">
     <rect x="0" y="25.9" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-2">
+<clipPath id="terminal-3582101150-line-2">
     <rect x="0" y="50.3" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-3">
+<clipPath id="terminal-3582101150-line-3">
     <rect x="0" y="74.7" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-4">
+<clipPath id="terminal-3582101150-line-4">
     <rect x="0" y="99.1" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-5">
+<clipPath id="terminal-3582101150-line-5">
     <rect x="0" y="123.5" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-6">
+<clipPath id="terminal-3582101150-line-6">
     <rect x="0" y="147.9" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-7">
+<clipPath id="terminal-3582101150-line-7">
     <rect x="0" y="172.3" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-8">
+<clipPath id="terminal-3582101150-line-8">
     <rect x="0" y="196.7" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-9">
+<clipPath id="terminal-3582101150-line-9">
     <rect x="0" y="221.1" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-10">
+<clipPath id="terminal-3582101150-line-10">
     <rect x="0" y="245.5" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-11">
+<clipPath id="terminal-3582101150-line-11">
     <rect x="0" y="269.9" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-12">
+<clipPath id="terminal-3582101150-line-12">
     <rect x="0" y="294.3" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-13">
+<clipPath id="terminal-3582101150-line-13">
     <rect x="0" y="318.7" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-14">
+<clipPath id="terminal-3582101150-line-14">
     <rect x="0" y="343.1" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-15">
+<clipPath id="terminal-3582101150-line-15">
     <rect x="0" y="367.5" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-16">
+<clipPath id="terminal-3582101150-line-16">
     <rect x="0" y="391.9" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-17">
+<clipPath id="terminal-3582101150-line-17">
     <rect x="0" y="416.3" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-18">
+<clipPath id="terminal-3582101150-line-18">
     <rect x="0" y="440.7" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-19">
+<clipPath id="terminal-3582101150-line-19">
     <rect x="0" y="465.1" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-20">
+<clipPath id="terminal-3582101150-line-20">
     <rect x="0" y="489.5" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-21">
+<clipPath id="terminal-3582101150-line-21">
     <rect x="0" y="513.9" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-22">
+<clipPath id="terminal-3582101150-line-22">
     <rect x="0" y="538.3" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-23">
+<clipPath id="terminal-3582101150-line-23">
     <rect x="0" y="562.7" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-24">
+<clipPath id="terminal-3582101150-line-24">
     <rect x="0" y="587.1" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-25">
+<clipPath id="terminal-3582101150-line-25">
     <rect x="0" y="611.5" width="915" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-4223370654-line-26">
+<clipPath id="terminal-3582101150-line-26">
     <rect x="0" y="635.9" width="915" height="24.65"/>
             </clipPath>
     </defs>
@@ -132,37 +132,37 @@
             <circle cx="44" cy="0" r="7" fill="#28c840"/>
             </g>
         
-    <g transform="translate(9, 41)" clip-path="url(#terminal-4223370654-clip-terminal)">
+    <g transform="translate(9, 41)" clip-path="url(#terminal-3582101150-clip-terminal)">
     
-    <g class="terminal-4223370654-matrix">
-    <text class="terminal-4223370654-r1" x="0" y="20" textLength="73.2" clip-path="url(#terminal-4223370654-line-0)">Usage:</text><text class="terminal-4223370654-r3" x="85.4" y="20" textLength="207.4" clip-path="url(#terminal-4223370654-line-0)">airflowctl&#160;assets</text><text class="terminal-4223370654-r2" x="292.8" y="20" textLength="24.4" clip-path="url(#terminal-4223370654-line-0)">&#160;[</text><text class="terminal-4223370654-r4" x="317.2" y="20" textLength="24.4" clip-path="url(#terminal-4223370654-line-0)">-h</text><text class="terminal-4223370654-r2" x="341.6" y="20" textLength="24.4" clip-path="url(#terminal-4223370654-line-0)">]&#160;</text><text class="terminal-4223370654-r4" x="366" y="20" textLength="85.4" clip-path="url(#terminal-4223370654-line-0)">COMMAND</text><text class="terminal-4223370654-r4" x="463.6" y="20" textLength="36.6" clip-path="url(#terminal-4223370654-line-0)">...</text><text class="terminal-4223370654-r2" x="915" y="20" textLength="12.2" clip-path="url(#terminal-4223370654-line-0)">
-</text><text class="terminal-4223370654-r2" x="915" y="44.4" textLength="12.2" clip-path="url(#terminal-4223370654-line-1)">
-</text><text class="terminal-4223370654-r2" x="0" y="68.8" textLength="305" clip-path="url(#terminal-4223370654-line-2)">Perform&#160;Assets&#160;operations</text><text class="terminal-4223370654-r2" x="915" y="68.8" textLength="12.2" clip-path="url(#terminal-4223370654-line-2)">
-</text><text class="terminal-4223370654-r2" x="915" y="93.2" textLength="12.2" clip-path="url(#terminal-4223370654-line-3)">
-</text><text class="terminal-4223370654-r1" x="0" y="117.6" textLength="256.2" clip-path="url(#terminal-4223370654-line-4)">Positional&#160;Arguments:</text><text class="terminal-4223370654-r2" x="915" y="117.6" textLength="12.2" clip-path="url(#terminal-4223370654-line-4)">
-</text><text class="terminal-4223370654-r4" x="24.4" y="142" textLength="85.4" clip-path="url(#terminal-4223370654-line-5)">COMMAND</text><text class="terminal-4223370654-r2" x="915" y="142" textLength="12.2" clip-path="url(#terminal-4223370654-line-5)">
-</text><text class="terminal-4223370654-r4" x="48.8" y="166.4" textLength="146.4" clip-path="url(#terminal-4223370654-line-6)">create-event</text><text class="terminal-4223370654-r2" x="292.8" y="166.4" textLength="402.6" clip-path="url(#terminal-4223370654-line-6)">Create&#160;an&#160;event&#160;for&#160;a&#160;given&#160;asset</text><text class="terminal-4223370654-r2" x="915" y="166.4" textLength="12.2" clip-path="url(#terminal-4223370654-line-6)">
-</text><text class="terminal-4223370654-r4" x="48.8" y="190.8" textLength="292.8" clip-path="url(#terminal-4223370654-line-7)">delete-dag-queued-events</text><text class="terminal-4223370654-r2" x="915" y="190.8" textLength="12.2" clip-path="url(#terminal-4223370654-line-7)">
-</text><text class="terminal-4223370654-r2" x="292.8" y="215.2" textLength="561.2" clip-path="url(#terminal-4223370654-line-8)">Delete&#160;all&#160;queued&#160;asset&#160;events&#160;for&#160;a&#160;given&#160;DAG</text><text class="terminal-4223370654-r2" x="915" y="215.2" textLength="12.2" clip-path="url(#terminal-4223370654-line-8)">
-</text><text class="terminal-4223370654-r4" x="48.8" y="239.6" textLength="231.8" clip-path="url(#terminal-4223370654-line-9)">delete-queued-event</text><text class="terminal-4223370654-r2" x="915" y="239.6" textLength="12.2" clip-path="url(#terminal-4223370654-line-9)">
-</text><text class="terminal-4223370654-r2" x="292.8" y="264" textLength="597.8" clip-path="url(#terminal-4223370654-line-10)">Delete&#160;a&#160;specific&#160;queued&#160;asset&#160;event&#160;for&#160;a&#160;given&#160;</text><text class="terminal-4223370654-r2" x="915" y="264" textLength="12.2" clip-path="url(#terminal-4223370654-line-10)">
-</text><text class="terminal-4223370654-r2" x="0" y="288.4" textLength="158.6" clip-path="url(#terminal-4223370654-line-11)">DAG&#160;and&#160;asset</text><text class="terminal-4223370654-r2" x="915" y="288.4" textLength="12.2" clip-path="url(#terminal-4223370654-line-11)">
-</text><text class="terminal-4223370654-r4" x="48.8" y="312.8" textLength="244" clip-path="url(#terminal-4223370654-line-12)">delete-queued-events</text><text class="terminal-4223370654-r2" x="915" y="312.8" textLength="12.2" clip-path="url(#terminal-4223370654-line-12)">
-</text><text class="terminal-4223370654-r2" x="292.8" y="337.2" textLength="512.4" clip-path="url(#terminal-4223370654-line-13)">Delete&#160;all&#160;queued&#160;events&#160;for&#160;a&#160;given&#160;asset</text><text class="terminal-4223370654-r2" x="915" y="337.2" textLength="12.2" clip-path="url(#terminal-4223370654-line-13)">
-</text><text class="terminal-4223370654-r4" x="48.8" y="361.6" textLength="36.6" clip-path="url(#terminal-4223370654-line-14)">get</text><text class="terminal-4223370654-r2" x="292.8" y="361.6" textLength="329.4" clip-path="url(#terminal-4223370654-line-14)">Retrieve&#160;an&#160;asset&#160;by&#160;its&#160;ID</text><text class="terminal-4223370654-r2" x="915" y="361.6" textLength="12.2" clip-path="url(#terminal-4223370654-line-14)">
-</text><text class="terminal-4223370654-r4" x="48.8" y="386" textLength="146.4" clip-path="url(#terminal-4223370654-line-15)">get-by-alias</text><text class="terminal-4223370654-r2" x="292.8" y="386" textLength="366" clip-path="url(#terminal-4223370654-line-15)">Retrieve&#160;an&#160;asset&#160;by&#160;its&#160;alias</text><text class="terminal-4223370654-r2" x="915" y="386" textLength="12.2" clip-path="url(#terminal-4223370654-line-15)">
-</text><text class="terminal-4223370654-r4" x="48.8" y="410.4" textLength="244" clip-path="url(#terminal-4223370654-line-16)">get-dag-queued-event</text><text class="terminal-4223370654-r2" x="915" y="410.4" textLength="12.2" clip-path="url(#terminal-4223370654-line-16)">
-</text><text class="terminal-4223370654-r2" x="292.8" y="434.8" textLength="622.2" clip-path="url(#terminal-4223370654-line-17)">Retrieve&#160;a&#160;specific&#160;queued&#160;asset&#160;event&#160;for&#160;a&#160;given&#160;</text><text class="terminal-4223370654-r2" x="915" y="434.8" textLength="12.2" clip-path="url(#terminal-4223370654-line-17)">
-</text><text class="terminal-4223370654-r2" x="0" y="459.2" textLength="158.6" clip-path="url(#terminal-4223370654-line-18)">DAG&#160;and&#160;asset</text><text class="terminal-4223370654-r2" x="915" y="459.2" textLength="12.2" clip-path="url(#terminal-4223370654-line-18)">
-</text><text class="terminal-4223370654-r4" x="48.8" y="483.6" textLength="256.2" clip-path="url(#terminal-4223370654-line-19)">get-dag-queued-events</text><text class="terminal-4223370654-r2" x="915" y="483.6" textLength="12.2" clip-path="url(#terminal-4223370654-line-19)">
-</text><text class="terminal-4223370654-r2" x="292.8" y="508" textLength="488" clip-path="url(#terminal-4223370654-line-20)">List&#160;queued&#160;asset&#160;events&#160;for&#160;a&#160;given&#160;DAG</text><text class="terminal-4223370654-r2" x="915" y="508" textLength="12.2" clip-path="url(#terminal-4223370654-line-20)">
-</text><text class="terminal-4223370654-r4" x="48.8" y="532.4" textLength="207.4" clip-path="url(#terminal-4223370654-line-21)">get-queued-events</text><text class="terminal-4223370654-r2" x="292.8" y="532.4" textLength="439.2" clip-path="url(#terminal-4223370654-line-21)">List&#160;queued&#160;events&#160;for&#160;a&#160;given&#160;asset</text><text class="terminal-4223370654-r2" x="915" y="532.4" textLength="12.2" clip-path="url(#terminal-4223370654-line-21)">
-</text><text class="terminal-4223370654-r4" x="48.8" y="556.8" textLength="48.8" clip-path="url(#terminal-4223370654-line-22)">list</text><text class="terminal-4223370654-r2" x="292.8" y="556.8" textLength="183" clip-path="url(#terminal-4223370654-line-22)">List&#160;all&#160;assets</text><text class="terminal-4223370654-r2" x="915" y="556.8" textLength="12.2" clip-path="url(#terminal-4223370654-line-22)">
-</text><text class="terminal-4223370654-r4" x="48.8" y="581.2" textLength="158.6" clip-path="url(#terminal-4223370654-line-23)">list-by-alias</text><text class="terminal-4223370654-r2" x="292.8" y="581.2" textLength="268.4" clip-path="url(#terminal-4223370654-line-23)">List&#160;all&#160;asset&#160;aliases</text><text class="terminal-4223370654-r2" x="915" y="581.2" textLength="12.2" clip-path="url(#terminal-4223370654-line-23)">
-</text><text class="terminal-4223370654-r4" x="48.8" y="605.6" textLength="134.2" clip-path="url(#terminal-4223370654-line-24)">materialize</text><text class="terminal-4223370654-r2" x="292.8" y="605.6" textLength="549" clip-path="url(#terminal-4223370654-line-24)">Trigger&#160;materialization&#160;of&#160;an&#160;asset&#160;by&#160;its&#160;ID</text><text class="terminal-4223370654-r2" x="915" y="605.6" textLength="12.2" clip-path="url(#terminal-4223370654-line-24)">
-</text><text class="terminal-4223370654-r2" x="915" y="630" textLength="12.2" clip-path="url(#terminal-4223370654-line-25)">
-</text><text class="terminal-4223370654-r1" x="0" y="654.4" textLength="97.6" clip-path="url(#terminal-4223370654-line-26)">Options:</text><text class="terminal-4223370654-r2" x="915" y="654.4" textLength="12.2" clip-path="url(#terminal-4223370654-line-26)">
-</text><text class="terminal-4223370654-r4" x="24.4" y="678.8" textLength="24.4" clip-path="url(#terminal-4223370654-line-27)">-h</text><text class="terminal-4223370654-r2" x="48.8" y="678.8" textLength="24.4" clip-path="url(#terminal-4223370654-line-27)">,&#160;</text><text class="terminal-4223370654-r4" x="73.2" y="678.8" textLength="73.2" clip-path="url(#terminal-4223370654-line-27)">--help</text><text class="terminal-4223370654-r2" x="292.8" y="678.8" textLength="378.2" clip-path="url(#terminal-4223370654-line-27)">show&#160;this&#160;help&#160;message&#160;and&#160;exit</text><text class="terminal-4223370654-r2" x="915" y="678.8" textLength="12.2" clip-path="url(#terminal-4223370654-line-27)">
+    <g class="terminal-3582101150-matrix">
+    <text class="terminal-3582101150-r1" x="0" y="20" textLength="73.2" clip-path="url(#terminal-3582101150-line-0)">Usage:</text><text class="terminal-3582101150-r3" x="85.4" y="20" textLength="207.4" clip-path="url(#terminal-3582101150-line-0)">airflowctl&#160;assets</text><text class="terminal-3582101150-r2" x="292.8" y="20" textLength="24.4" clip-path="url(#terminal-3582101150-line-0)">&#160;[</text><text class="terminal-3582101150-r4" x="317.2" y="20" textLength="24.4" clip-path="url(#terminal-3582101150-line-0)">-h</text><text class="terminal-3582101150-r2" x="341.6" y="20" textLength="24.4" clip-path="url(#terminal-3582101150-line-0)">]&#160;</text><text class="terminal-3582101150-r4" x="366" y="20" textLength="85.4" clip-path="url(#terminal-3582101150-line-0)">COMMAND</text><text class="terminal-3582101150-r4" x="463.6" y="20" textLength="36.6" clip-path="url(#terminal-3582101150-line-0)">...</text><text class="terminal-3582101150-r2" x="915" y="20" textLength="12.2" clip-path="url(#terminal-3582101150-line-0)">
+</text><text class="terminal-3582101150-r2" x="915" y="44.4" textLength="12.2" clip-path="url(#terminal-3582101150-line-1)">
+</text><text class="terminal-3582101150-r2" x="0" y="68.8" textLength="305" clip-path="url(#terminal-3582101150-line-2)">Perform&#160;Assets&#160;operations</text><text class="terminal-3582101150-r2" x="915" y="68.8" textLength="12.2" clip-path="url(#terminal-3582101150-line-2)">
+</text><text class="terminal-3582101150-r2" x="915" y="93.2" textLength="12.2" clip-path="url(#terminal-3582101150-line-3)">
+</text><text class="terminal-3582101150-r1" x="0" y="117.6" textLength="256.2" clip-path="url(#terminal-3582101150-line-4)">Positional&#160;Arguments:</text><text class="terminal-3582101150-r2" x="915" y="117.6" textLength="12.2" clip-path="url(#terminal-3582101150-line-4)">
+</text><text class="terminal-3582101150-r4" x="24.4" y="142" textLength="85.4" clip-path="url(#terminal-3582101150-line-5)">COMMAND</text><text class="terminal-3582101150-r2" x="915" y="142" textLength="12.2" clip-path="url(#terminal-3582101150-line-5)">
+</text><text class="terminal-3582101150-r4" x="48.8" y="166.4" textLength="146.4" clip-path="url(#terminal-3582101150-line-6)">create-event</text><text class="terminal-3582101150-r2" x="292.8" y="166.4" textLength="402.6" clip-path="url(#terminal-3582101150-line-6)">Create&#160;an&#160;event&#160;for&#160;a&#160;given&#160;asset</text><text class="terminal-3582101150-r2" x="915" y="166.4" textLength="12.2" clip-path="url(#terminal-3582101150-line-6)">
+</text><text class="terminal-3582101150-r4" x="48.8" y="190.8" textLength="292.8" clip-path="url(#terminal-3582101150-line-7)">delete-dag-queued-events</text><text class="terminal-3582101150-r2" x="915" y="190.8" textLength="12.2" clip-path="url(#terminal-3582101150-line-7)">
+</text><text class="terminal-3582101150-r2" x="292.8" y="215.2" textLength="561.2" clip-path="url(#terminal-3582101150-line-8)">Delete&#160;all&#160;queued&#160;asset&#160;events&#160;for&#160;a&#160;given&#160;Dag</text><text class="terminal-3582101150-r2" x="915" y="215.2" textLength="12.2" clip-path="url(#terminal-3582101150-line-8)">
+</text><text class="terminal-3582101150-r4" x="48.8" y="239.6" textLength="231.8" clip-path="url(#terminal-3582101150-line-9)">delete-queued-event</text><text class="terminal-3582101150-r2" x="915" y="239.6" textLength="12.2" clip-path="url(#terminal-3582101150-line-9)">
+</text><text class="terminal-3582101150-r2" x="292.8" y="264" textLength="597.8" clip-path="url(#terminal-3582101150-line-10)">Delete&#160;a&#160;specific&#160;queued&#160;asset&#160;event&#160;for&#160;a&#160;given&#160;</text><text class="terminal-3582101150-r2" x="915" y="264" textLength="12.2" clip-path="url(#terminal-3582101150-line-10)">
+</text><text class="terminal-3582101150-r2" x="0" y="288.4" textLength="158.6" clip-path="url(#terminal-3582101150-line-11)">Dag&#160;and&#160;asset</text><text class="terminal-3582101150-r2" x="915" y="288.4" textLength="12.2" clip-path="url(#terminal-3582101150-line-11)">
+</text><text class="terminal-3582101150-r4" x="48.8" y="312.8" textLength="244" clip-path="url(#terminal-3582101150-line-12)">delete-queued-events</text><text class="terminal-3582101150-r2" x="915" y="312.8" textLength="12.2" clip-path="url(#terminal-3582101150-line-12)">
+</text><text class="terminal-3582101150-r2" x="292.8" y="337.2" textLength="512.4" clip-path="url(#terminal-3582101150-line-13)">Delete&#160;all&#160;queued&#160;events&#160;for&#160;a&#160;given&#160;asset</text><text class="terminal-3582101150-r2" x="915" y="337.2" textLength="12.2" clip-path="url(#terminal-3582101150-line-13)">
+</text><text class="terminal-3582101150-r4" x="48.8" y="361.6" textLength="36.6" clip-path="url(#terminal-3582101150-line-14)">get</text><text class="terminal-3582101150-r2" x="292.8" y="361.6" textLength="329.4" clip-path="url(#terminal-3582101150-line-14)">Retrieve&#160;an&#160;asset&#160;by&#160;its&#160;ID</text><text class="terminal-3582101150-r2" x="915" y="361.6" textLength="12.2" clip-path="url(#terminal-3582101150-line-14)">
+</text><text class="terminal-3582101150-r4" x="48.8" y="386" textLength="146.4" clip-path="url(#terminal-3582101150-line-15)">get-by-alias</text><text class="terminal-3582101150-r2" x="292.8" y="386" textLength="366" clip-path="url(#terminal-3582101150-line-15)">Retrieve&#160;an&#160;asset&#160;by&#160;its&#160;alias</text><text class="terminal-3582101150-r2" x="915" y="386" textLength="12.2" clip-path="url(#terminal-3582101150-line-15)">
+</text><text class="terminal-3582101150-r4" x="48.8" y="410.4" textLength="244" clip-path="url(#terminal-3582101150-line-16)">get-dag-queued-event</text><text class="terminal-3582101150-r2" x="915" y="410.4" textLength="12.2" clip-path="url(#terminal-3582101150-line-16)">
+</text><text class="terminal-3582101150-r2" x="292.8" y="434.8" textLength="622.2" clip-path="url(#terminal-3582101150-line-17)">Retrieve&#160;a&#160;specific&#160;queued&#160;asset&#160;event&#160;for&#160;a&#160;given&#160;</text><text class="terminal-3582101150-r2" x="915" y="434.8" textLength="12.2" clip-path="url(#terminal-3582101150-line-17)">
+</text><text class="terminal-3582101150-r2" x="0" y="459.2" textLength="158.6" clip-path="url(#terminal-3582101150-line-18)">Dag&#160;and&#160;asset</text><text class="terminal-3582101150-r2" x="915" y="459.2" textLength="12.2" clip-path="url(#terminal-3582101150-line-18)">
+</text><text class="terminal-3582101150-r4" x="48.8" y="483.6" textLength="256.2" clip-path="url(#terminal-3582101150-line-19)">get-dag-queued-events</text><text class="terminal-3582101150-r2" x="915" y="483.6" textLength="12.2" clip-path="url(#terminal-3582101150-line-19)">
+</text><text class="terminal-3582101150-r2" x="292.8" y="508" textLength="488" clip-path="url(#terminal-3582101150-line-20)">List&#160;queued&#160;asset&#160;events&#160;for&#160;a&#160;given&#160;Dag</text><text class="terminal-3582101150-r2" x="915" y="508" textLength="12.2" clip-path="url(#terminal-3582101150-line-20)">
+</text><text class="terminal-3582101150-r4" x="48.8" y="532.4" textLength="207.4" clip-path="url(#terminal-3582101150-line-21)">get-queued-events</text><text class="terminal-3582101150-r2" x="292.8" y="532.4" textLength="439.2" clip-path="url(#terminal-3582101150-line-21)">List&#160;queued&#160;events&#160;for&#160;a&#160;given&#160;asset</text><text class="terminal-3582101150-r2" x="915" y="532.4" textLength="12.2" clip-path="url(#terminal-3582101150-line-21)">
+</text><text class="terminal-3582101150-r4" x="48.8" y="556.8" textLength="48.8" clip-path="url(#terminal-3582101150-line-22)">list</text><text class="terminal-3582101150-r2" x="292.8" y="556.8" textLength="183" clip-path="url(#terminal-3582101150-line-22)">List&#160;all&#160;assets</text><text class="terminal-3582101150-r2" x="915" y="556.8" textLength="12.2" clip-path="url(#terminal-3582101150-line-22)">
+</text><text class="terminal-3582101150-r4" x="48.8" y="581.2" textLength="158.6" clip-path="url(#terminal-3582101150-line-23)">list-by-alias</text><text class="terminal-3582101150-r2" x="292.8" y="581.2" textLength="268.4" clip-path="url(#terminal-3582101150-line-23)">List&#160;all&#160;asset&#160;aliases</text><text class="terminal-3582101150-r2" x="915" y="581.2" textLength="12.2" clip-path="url(#terminal-3582101150-line-23)">
+</text><text class="terminal-3582101150-r4" x="48.8" y="605.6" textLength="134.2" clip-path="url(#terminal-3582101150-line-24)">materialize</text><text class="terminal-3582101150-r2" x="292.8" y="605.6" textLength="549" clip-path="url(#terminal-3582101150-line-24)">Trigger&#160;materialization&#160;of&#160;an&#160;asset&#160;by&#160;its&#160;ID</text><text class="terminal-3582101150-r2" x="915" y="605.6" textLength="12.2" clip-path="url(#terminal-3582101150-line-24)">
+</text><text class="terminal-3582101150-r2" x="915" y="630" textLength="12.2" clip-path="url(#terminal-3582101150-line-25)">
+</text><text class="terminal-3582101150-r1" x="0" y="654.4" textLength="97.6" clip-path="url(#terminal-3582101150-line-26)">Options:</text><text class="terminal-3582101150-r2" x="915" y="654.4" textLength="12.2" clip-path="url(#terminal-3582101150-line-26)">
+</text><text class="terminal-3582101150-r4" x="24.4" y="678.8" textLength="24.4" clip-path="url(#terminal-3582101150-line-27)">-h</text><text class="terminal-3582101150-r2" x="48.8" y="678.8" textLength="24.4" clip-path="url(#terminal-3582101150-line-27)">,&#160;</text><text class="terminal-3582101150-r4" x="73.2" y="678.8" textLength="73.2" clip-path="url(#terminal-3582101150-line-27)">--help</text><text class="terminal-3582101150-r2" x="292.8" y="678.8" textLength="378.2" clip-path="url(#terminal-3582101150-line-27)">show&#160;this&#160;help&#160;message&#160;and&#160;exit</text><text class="terminal-3582101150-r2" x="915" y="678.8" textLength="12.2" clip-path="url(#terminal-3582101150-line-27)">
 </text>
     </g>
     </g>

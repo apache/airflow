@@ -86,7 +86,10 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
         """
         if not self._client:
             self._client = Client(
-                project=project_id, credentials=self.get_credentials(), client_info=CLIENT_INFO
+                project=project_id,
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options=self.get_client_options(),
             )
         return self._client
 

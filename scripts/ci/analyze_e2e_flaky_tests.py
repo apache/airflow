@@ -34,7 +34,7 @@ Environment variables (required):
 
 Environment variables (optional):
   MAX_RUNS           - Maximum number of workflow runs to analyze (default: 10)
-  WORKFLOW_NAME      - Workflow file name to query (default: ci-amd-arm.yml)
+  WORKFLOW_NAME      - Workflow file name to query (default: ci-amd.yml)
   BRANCH             - Branch to filter runs (default: main)
   OUTPUT_FILE        - Path for the Slack message output (default: slack-message.json)
   GITHUB_OUTPUT      - Path to GitHub Actions output file
@@ -525,7 +525,7 @@ def write_step_summary(
 def main() -> None:
     repo = os.environ.get("GITHUB_REPOSITORY", "apache/airflow")
     max_runs = int(os.environ.get("MAX_RUNS", "10"))
-    workflow = os.environ.get("WORKFLOW_NAME", "ci-amd-arm.yml")
+    workflow = os.environ.get("WORKFLOW_NAME", "ci-amd.yml")
     branch = os.environ.get("BRANCH", "main")
     output_file = Path(os.environ.get("OUTPUT_FILE", "slack-message.json"))
 

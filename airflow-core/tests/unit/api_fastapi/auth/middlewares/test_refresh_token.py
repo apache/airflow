@@ -123,7 +123,13 @@ class TestJWTRefreshMiddleware:
         call_next = AsyncMock(return_value=Response())
         response = await middleware.dispatch(mock_request, call_next)
 
+        from airflow.api_fastapi.core_api.security import USER_INJECTED_BY_TRUSTED_MIDDLEWARE
+
         assert mock_request.state.user == refreshed_user
+        # JWTRefreshMiddleware must stamp the trust sentinel so `get_user()` accepts
+        # the cached user. Without the marker, the auth dependency falls through
+        # to a fresh JWT validation, defeating the refresh.
+        assert mock_request.state.user_authenticated_via is USER_INJECTED_BY_TRUSTED_MIDDLEWARE
         call_next.assert_called_once_with(mock_request)
         mock_resolve_user_from_token.assert_called_once_with("valid_token")
         mock_auth_manager.refresh_user.assert_called_once_with(user=mock_user)

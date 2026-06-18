@@ -40,6 +40,31 @@ Both flows share the same underlying JWT infrastructure (``JWTGenerator`` and ``
 classes in ``airflow.api_fastapi.auth.tokens``) but differ in audience, token lifetime, subject
 claims, and scope semantics.
 
+.. mermaid::
+
+    flowchart LR
+        subgraph Clients
+            UI[UI / browser]
+            CLI[CLI]
+            EXT[External REST clients]
+        end
+        subgraph Internal["Internal Airflow components"]
+            WORKER[Worker / Task]
+            DFP[Dag File Processor]
+            TRG[Triggerer]
+        end
+        APISVR[API Server]
+        EXECAPI[Execution API]
+        UI -->|JWT cookie / Bearer| APISVR
+        CLI -->|Bearer| APISVR
+        EXT -->|Bearer| APISVR
+        WORKER -->|Bearer<br/>workload &rarr; execution| EXECAPI
+        DFP -. in-process<br/>JWT bypassed .-> EXECAPI
+        TRG -. in-process<br/>JWT bypassed .-> EXECAPI
+
+        classDef internal fill:#bbdefb,stroke:#1565c0,stroke-width:2px,color:#000
+        class WORKER,DFP,TRG internal
+
 
 Signing and Cryptography
 ------------------------
@@ -65,6 +90,39 @@ Airflow supports two mutually exclusive signing modes:
      (local file or remote HTTP/HTTPS URL, polled periodically for updates).
    - The public key derived from the configured private key (automatic fallback when
      ``trusted_jwks_url`` is not set).
+
+.. mermaid::
+
+    flowchart TB
+        subgraph Sym["Symmetric (HS512)"]
+            direction LR
+            S1[Scheduler / API Server]
+            S2[Shared secret<br/>jwt_secret]
+            S3[Token validator]
+            S1 -->|sign| S2 -->|same secret<br/>also validates| S3
+        end
+        subgraph Asym["Asymmetric (RS256 / EdDSA)"]
+            direction LR
+            A1[Scheduler / API Server]
+            A2[Private key<br/>jwt_private_key_path]
+            A3[Public key /<br/>JWKS endpoint]
+            A4[Token validator]
+            A1 -->|sign| A2
+            A2 -. derives or<br/>publishes .-> A3
+            A3 -->|verify only| A4
+        end
+
+        classDef secret fill:#ffcdd2,stroke:#c62828,stroke-width:2px,color:#000
+        classDef pub fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px,color:#000
+        class S2 secret
+        class A2 secret
+        class A3 pub
+
+In asymmetric mode, validators (workers, downstream services) need only the public key — the
+private signing key can be tightly scoped to the issuing components (API Server, Scheduler).
+In symmetric mode, any component that can validate tokens can also forge them, because there
+is only one key. See :ref:`jwt-authentication-and-workload-isolation` for the deployment
+implications.
 
 REST API Authentication Flow
 -----------------------------
@@ -130,6 +188,14 @@ tokens issued to workers.
 Revoked tokens are tracked in the ``revoked_token`` database table by their ``jti`` claim.
 On logout or explicit revocation, the token's ``jti`` and ``exp`` are inserted into this
 table. Expired entries are automatically cleaned up at a cadence of ``2× jwt_expiration_time``.
+
+The ``/auth/logout`` endpoint always invokes ``auth_manager.revoke_token()`` before any
+redirect or cookie deletion. This includes deployments where the configured auth manager
+(for example ``FabAuthManager`` or ``KeycloakAuthManager``) redirects the user to an external
+logout URL — the JWT is invalidated in Airflow's ``revoked_token`` table regardless of what
+the external Identity Provider does with its own session. The ``revoke_token`` call is
+unconditional; auth managers that do not implement server-side revocation can keep the
+default no-op implementation.
 
 Token refresh (REST API)
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -201,16 +267,25 @@ Token structure (Execution API)
 Token scopes (Execution API)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The Execution API defines two token scopes:
+The Execution API defines two token scopes with different lifetimes:
 
 **workload**
-   A restricted scope accepted only on endpoints that explicitly opt in via
-   ``Security(require_auth, scopes=["token:workload"])``. Used for endpoints that
-   manage task state transitions.
+   A token embedded in the workload JSON payload when the Scheduler
+   dispatches a task. The longer lifetime
+   allows tasks to remain valid while waiting in executor queues before execution
+   begins. When a worker calls the ``/run`` endpoint with a ``workload`` token, the
+   server issues a fresh ``execution``-scoped token in the ``Refreshed-API-Token``
+   response header. Lifetime equals ``[scheduler] task_queued_timeout`` (default
+   600 seconds) — the same timeout the scheduler uses to reap queue-starved tasks —
+   so tuning ``task_queued_timeout`` also widens the window a task can wait in a
+   backed-up queue before its workload token expires.
 
 **execution**
-   Accepted by all Execution API endpoints. This is the standard scope for worker
-   communication and allows access
+   A short-lived token (default 10 minutes) accepted by all Execution API endpoints.
+   This is the standard scope for worker communication during task execution. Issued
+   by the server when the worker transitions to running via the ``/run`` endpoint.
+   The ``JWTReissueMiddleware`` refreshes ``execution`` tokens transparently,
+   so the worker maintains access for the duration of the task.
 
 Tokens without a ``scope`` claim default to ``"execution"`` for backwards compatibility.
 
@@ -219,14 +294,50 @@ Token delivery to workers
 
 The token flows through the execution stack as follows:
 
-1. **Scheduler** generates the token and embeds it in the workload JSON payload that it passes to
-   **Executor**.
+1. **Scheduler** generates a ``workload``-scoped token (lifetime equals
+   ``[scheduler] task_queued_timeout``, default 600 seconds) and embeds it in the workload
+   JSON payload that it passes to **Executor**.
 2. The workload JSON is passed to the worker process (via the executor-specific mechanism:
    Celery message, Kubernetes Pod spec, local subprocess arguments, etc.).
 3. The worker's ``execute_workload()`` function reads the workload JSON and extracts the token.
-4. The ``supervise()`` function receives the token and creates an ``httpx.Client`` instance
+4. The ``supervise_task()`` function receives the token and creates an ``httpx.Client`` instance
    with ``BearerAuth(token)`` for all Execution API HTTP requests.
-5. The token is included in the ``Authorization: Bearer <token>`` header of every request.
+5. The worker calls the ``/run`` endpoint with the ``workload``-scoped token to mark the task
+   as running. The server responds with a fresh ``execution``-scoped token in the
+   ``Refreshed-API-Token`` header.
+6. The client's ``_update_auth()`` hook detects the header and transparently updates
+   the ``BearerAuth`` instance to use the new ``execution`` token for all subsequent requests.
+
+.. mermaid::
+
+    sequenceDiagram
+        autonumber
+        participant SCH as Scheduler
+        participant EXE as Executor<br/>(Celery / K8s / Local)
+        participant WRK as Worker
+        participant API as Execution API
+
+        Note over SCH: Task ready to dispatch
+        SCH->>SCH: generate workload token<br/>scope=workload<br/>exp = task_queued_timeout
+        SCH->>EXE: workload JSON<br/>(includes token)
+        Note over EXE: Task waits in queue<br/>(can be minutes)
+        EXE->>WRK: dispatch (workload JSON)
+        WRK->>API: PATCH /run<br/>Bearer: workload token
+        Note over API: validates workload scope<br/>checks TI in QUEUED/RESTARTING<br/>409 if not
+        API-->>WRK: 200 OK<br/>Refreshed-API-Token: execution token<br/>(scope=execution, ~10 min)
+        WRK->>WRK: BearerAuth swaps to<br/>execution token
+        loop For all subsequent calls (heartbeats, XComs, ...)
+            WRK->>API: Bearer: execution token
+            alt token expiring (less than 20% left)
+                API-->>WRK: 200 OK<br/>Refreshed-API-Token: new execution token
+                WRK->>WRK: BearerAuth swaps again
+            end
+        end
+
+Even if a workload token is intercepted in transit, it can only call ``/run``. That endpoint
+rejects re-runs (``409 Conflict`` unless the task instance is in ``QUEUED`` or ``RESTARTING``),
+so the attack surface for the longer-lived token is bounded to "start a task that is already
+queued". All other endpoints require ``scope=execution`` and reject workload tokens.
 
 Token validation (Execution API)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -237,8 +348,16 @@ The ``JWTBearer`` security dependency validates the token once per request:
 2. Performs cryptographic signature validation via ``JWTValidator``.
 3. Verifies standard claims (``exp``, ``iat``, ``aud`` — ``nbf`` and ``iss`` if configured).
 4. Defaults the ``scope`` claim to ``"execution"`` if absent.
-5. Creates a ``TIToken`` object with the task instance ID and claims.
-6. Caches the validated token on the ASGI request scope for the duration of the request.
+5. **Validates the task identity claims against a typed Pydantic schema.** ``TIClaims``
+   (in ``airflow.api_fastapi.execution_api.datamodels.token``) enforces that ``scope`` is one
+   of the declared ``TokenScope`` literals (``"execution"`` or ``"workload"``); ``TIToken``
+   then parses the ``sub`` claim through a ``UUID`` field, which rejects non-UUID values.
+   A token whose ``scope`` is unknown, or whose ``sub`` is not a valid UUID, is rejected with
+   ``403 Forbidden`` even when the cryptographic signature checks pass. ``TIClaims`` keeps
+   ``extra="allow"`` so auth managers can attach additional, deployment-specific claims
+   without modifying the core schema; only the security-critical fields are typed.
+6. Creates a ``TIToken`` object with the task instance ID and validated claims.
+7. Caches the validated token on the ASGI request scope for the duration of the request.
 
 Route-level enforcement is handled by ``require_auth``:
 
@@ -248,10 +367,37 @@ Route-level enforcement is handled by ``require_auth``:
   ``{task_instance_id}`` path parameter, preventing a worker from accessing another task's
   endpoints.
 
+.. mermaid::
+
+    flowchart TD
+        REQ([Incoming request<br/>Authorization: Bearer ...])
+        REQ --> CACHE{Cached on<br/>request.scope?}
+        CACHE -->|yes| RET([Return cached TIToken])
+        CACHE -->|no| SIG[JWTValidator:<br/>verify signature]
+        SIG -->|fail| F1([403 Forbidden])
+        SIG -->|ok| STD[Verify exp / iat / nbf<br/>aud / iss]
+        STD -->|fail| F1
+        STD -->|ok| SCOPE[Default scope to<br/>'execution' if absent]
+        SCOPE --> SCHEMA[TIClaims:<br/>typed Pydantic schema]
+        SCHEMA -->|ValidationError| F1
+        SCHEMA -->|ok| TYP{require_auth:<br/>scope in<br/>route.allowed_token_types?}
+        TYP -->|no| F1
+        TYP -->|yes| SELF{ti:self scope<br/>declared?}
+        SELF -->|no| OK([Return TIToken])
+        SELF -->|yes| MATCH{token.sub ==<br/>task_instance_id?}
+        MATCH -->|no| F1
+        MATCH -->|yes| OK
+
+        classDef fail fill:#ffcdd2,stroke:#c62828,stroke-width:2px,color:#000
+        classDef pass fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px,color:#000
+        class F1 fail
+        class OK,RET pass
+
 Token refresh (Execution API)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The ``JWTReissueMiddleware`` automatically refreshes valid tokens that are approaching expiry:
+The ``JWTReissueMiddleware`` automatically refreshes valid tokens that are approaching
+expiry. The token must be valid at the start of the request for refresh to occur:
 
 1. After each response, the middleware checks the token's remaining validity.
 2. If less than **20%** of the total validity remains (minimum 30 seconds), the server
@@ -260,16 +406,20 @@ The ``JWTReissueMiddleware`` automatically refreshes valid tokens that are appro
 4. The client's ``_update_auth()`` hook detects this header and transparently updates
    the ``BearerAuth`` instance for subsequent requests.
 
-This mechanism ensures long-running tasks do not lose API access due to token expiry,
-without requiring the worker to re-authenticate.
+The middleware only refreshes ``execution``-scoped tokens. ``workload``-scoped tokens are
+sized to span the queued-timeout window and are explicitly skipped by the middleware —
+they are designed to survive executor queue wait times without needing refresh. This
+ensures long-running tasks do not lose API access without requiring the worker to
+re-authenticate.
 
 No token revocation (Execution API)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Execution API tokens are not subject to revocation. They are short-lived (default 10 minutes)
-and automatically refreshed by the ``JWTReissueMiddleware``, so revocation is not part of the
-Execution API security model. Once an Execution API token is issued to a worker, it remains
-valid until it expires.
+Execution API tokens are not subject to revocation. ``execution``-scoped tokens are short-lived
+(default 10 minutes) and automatically refreshed by the ``JWTReissueMiddleware``.
+``workload``-scoped tokens (tracking ``[scheduler] task_queued_timeout``) are not refreshed —
+they expire naturally after their validity period. Revocation is not part of the Execution API
+security model.
 
 
 
@@ -284,11 +434,12 @@ Default timings (Execution API)
      - Default
    * - ``[execution_api] jwt_expiration_time``
      - 600 seconds (10 minutes)
+   * - Workload token lifetime (derived)
+     - ``[scheduler] task_queued_timeout`` (default 600 seconds)
    * - ``[execution_api] jwt_audience``
      - ``urn:airflow.apache.org:task``
    * - Token refresh threshold
-     - 20% of validity remaining (minimum 30 seconds, i.e., at ~120 seconds before expiry
-       with the default 600-second token lifetime)
+     - 20% of validity remaining (minimum 30 seconds)
 
 
 Dag File Processor and Triggerer
@@ -386,7 +537,10 @@ All JWT-related configuration parameters:
      - JWKS endpoint URL or local file path for token validation. Mutually exclusive with ``jwt_secret``.
    * - ``[execution_api] jwt_expiration_time``
      - 600 (10 min)
-     - Execution API token lifetime in seconds.
+     - Execution API ``execution``-scoped token lifetime in seconds.
+   * - ``[scheduler] task_queued_timeout``
+     - 600.0 (10 min)
+     - Queue-starvation timeout. Also sets the ``workload``-scoped token lifetime to the same value.
    * - ``[execution_api] jwt_audience``
      - ``urn:airflow.apache.org:task``
      - Audience claim for Execution API tokens.

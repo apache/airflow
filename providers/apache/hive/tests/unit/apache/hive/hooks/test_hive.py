@@ -35,7 +35,7 @@ from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils import timezone
 
 from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 from unit.apache.hive import (
     BaseMockConnectionCursor,
     InvalidHiveCliHook,
@@ -99,6 +99,7 @@ class TestHiveCliHook:
             "airflow.ctx.dag_owner=airflow",
             "-hiveconf",
             "airflow.ctx.dag_email=test@airflow.com",
+            *(["-hiveconf", "airflow.ctx.team_name="] if AIRFLOW_V_3_3_PLUS else []),
             "-hiveconf",
             "mapreduce.job.queuename=airflow",
             "-hiveconf",

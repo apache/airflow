@@ -1,0 +1,1 @@
+Speed up ``TaskGroup.topological_sort`` across Dag shapes (chain, diamond, layered, reverse-chain); benchmarks show roughly 2-8x faster on large groups.

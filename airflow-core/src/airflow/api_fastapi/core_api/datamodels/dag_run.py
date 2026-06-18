@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, model_validator
 
@@ -35,8 +35,8 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
 
 
-class DAGRunPatchStates(str, Enum):
-    """Enum for DAG Run states when updating a DAG Run."""
+class DagRunMutableStates(str, Enum):
+    """Dag Run states from which the run may be mutated (patched, deleted)."""
 
     QUEUED = DagRunState.QUEUED
     SUCCESS = DagRunState.SUCCESS
@@ -44,25 +44,59 @@ class DAGRunPatchStates(str, Enum):
 
 
 class DAGRunPatchBody(StrictBaseModel):
-    """DAG Run Serializer for PATCH requests."""
+    """Dag Run Serializer for PATCH requests."""
 
-    state: DAGRunPatchStates | None = None
+    state: DagRunMutableStates | None = None
     note: str | None = Field(None, max_length=1000)
 
 
-class DAGRunClearBody(StrictBaseModel):
-    """DAG Run serializer for clear endpoint body."""
+class BulkDAGRunBody(StrictBaseModel):
+    """Request body for bulk operations on Dag Runs."""
+
+    dag_run_id: str
+    dag_id: str | None = None
+    state: DagRunMutableStates | None = None
+    note: str | None = Field(None, max_length=1000)
+
+
+class BaseDAGRunClear(StrictBaseModel):
+    """Shared options for the single-run and bulk Dag Run clear endpoints."""
 
     dry_run: bool = True
     only_failed: bool = False
-    run_on_latest_version: bool = Field(
+    only_new: bool = Field(
         default=False,
-        description="(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.",
+        description="Only queue newly added tasks in the latest Dag version without clearing existing tasks.",
     )
+    run_on_latest_version: bool | None = Field(
+        default=None,
+        description="(Experimental) Run on the latest bundle version of the Dag after clearing. "
+        "If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, "
+        "then the ``[core] rerun_with_latest_version`` config option, "
+        "and finally ``False``.",
+    )
+    note: str | None = Field(default=None, max_length=1000)
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_only_new_only_failed_mutually_exclusive(cls, data: Any) -> Any:
+        if data.get("only_new") and data.get("only_failed"):
+            raise ValueError("only_new and only_failed are mutually exclusive")
+        return data
+
+
+class DAGRunClearBody(BaseDAGRunClear):
+    """Dag Run serializer for clear endpoint body."""
+
+
+class BulkDAGRunClearBody(BaseDAGRunClear):
+    """Request body for the bulk clear Dag Runs endpoint."""
+
+    dag_runs: list[BulkDAGRunBody] = Field(min_length=1)
 
 
 class DAGRunResponse(BaseModel):
-    """DAG Run serializer for responses."""
+    """Dag Run serializer for responses."""
 
     dag_run_id: str = Field(validation_alias="run_id")
     dag_id: str
@@ -88,14 +122,37 @@ class DAGRunResponse(BaseModel):
 
 
 class DAGRunCollectionResponse(BaseModel):
-    """DAG Run Collection serializer for responses."""
+    """
+    Dag Run collection response supporting both offset and cursor pagination.
+
+    A single flat model is used instead of a discriminated union
+    (``Annotated[Offset | Cursor, Field(discriminator=...)]``) because
+    the OpenAPI ``oneOf`` + ``discriminator`` construct is not handled
+    correctly by ``@hey-api/openapi-ts`` / ``@7nohe/openapi-react-query-codegen``:
+    return types degrade to ``unknown`` in JSDoc and can produce
+    incorrect TypeScript types (see hey-api/openapi-ts#1613, #3270).
+    """
 
     dag_runs: Iterable[DAGRunResponse]
-    total_entries: int
+    total_entries: int | None = Field(
+        default=None,
+        description="Total number of matching items. Populated for offset pagination, "
+        "``null`` when using cursor pagination.",
+    )
+    next_cursor: str | None = Field(
+        default=None,
+        description="Token pointing to the next page. Populated for cursor pagination, "
+        "``null`` when using offset pagination or when there is no next page.",
+    )
+    previous_cursor: str | None = Field(
+        default=None,
+        description="Token pointing to the previous page. Populated for cursor pagination, "
+        "``null`` when using offset pagination or when on the first page.",
+    )
 
 
 class TriggerDAGRunPostBody(StrictBaseModel):
-    """Trigger DAG Run Serializer for POST body."""
+    """Trigger Dag Run Serializer for POST body."""
 
     dag_run_id: str | None = None
     data_interval_start: AwareDatetime | None = None
@@ -116,6 +173,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
         return self
 
     def validate_context(self, dag: SerializedDAG) -> dict:
+        dag.validate_partition_key(self.partition_key)
         coerced_logical_date = timezone.coerce_datetime(self.logical_date)
         run_after = self.run_after or timezone.utcnow()
         data_interval = None
@@ -133,6 +191,9 @@ class TriggerDAGRunPostBody(StrictBaseModel):
             run_after=timezone.coerce_datetime(run_after),
             data_interval=data_interval,
         )
+
+        partition_date = dag.timetable.resolve_partition_date(self.partition_key)
+
         return {
             "run_id": run_id,
             "logical_date": coerced_logical_date,
@@ -141,11 +202,12 @@ class TriggerDAGRunPostBody(StrictBaseModel):
             "conf": self.conf,
             "note": self.note,
             "partition_key": self.partition_key,
+            "partition_date": partition_date,
         }
 
 
 class DAGRunsBatchBody(StrictBaseModel):
-    """List DAG Runs body for batch endpoint."""
+    """List Dag Runs body for batch endpoint."""
 
     order_by: str | None = None
     page_offset: NonNegativeInt = 0

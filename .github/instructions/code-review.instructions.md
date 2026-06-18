@@ -2,6 +2,8 @@
 applyTo: "**"
 excludeAgent: "coding-agent"
 ---
+<!-- SPDX-License-Identifier: Apache-2.0
+     https://www.apache.org/licenses/LICENSE-2.0 -->
 
 # Airflow Code Review Instructions
 
@@ -30,10 +32,11 @@ Use these rules when reviewing pull requests to the Apache Airflow repository.
 - **Flag any `@lru_cache(maxsize=None)`.** This creates an unbounded cache — every unique argument set is cached forever. Note: `@lru_cache()` without arguments defaults to `maxsize=128` and is fine.
 - **Flag any heavy import** (e.g., `kubernetes.client`) in multi-process code paths that is not behind a `TYPE_CHECKING` guard.
 - **Flag any file, connection, or session opened without a context manager or `try/finally`.**
+- **Flag any new `raise AirflowException` usage.** The community is reducing direct `AirflowException` usage, not increasing it; new ones are not allowed (enforced by the `check-no-new-airflow-exceptions` prek hook) — prefer Python's standard exceptions (`ValueError`, `TypeError`, `OSError`), or a dedicated class in the appropriate `exceptions.py`. **The one exception is a pure relocation: an already-existing `AirflowException` moved verbatim during a refactor (e.g. code moved between files) is not a new usage — do not flag it, but confirm the diff removes the identical raise elsewhere and leaves it otherwise unchanged.** **Do not suggest changing specific exceptions back to `AirflowException`.**
 
 ## Testing Requirements
 
-- **Flag any new public method or behavior without corresponding tests.** Tests must cover success, failure, and edge cases.
+- **Flag any changed or added behaviour without a corresponding test, and flag tests that a reviewer cannot fail by reverting the PR's change.** The target is exactly 100% coverage of what the PR changes — no more, no less. Tests for pre-existing logic or standard-library/third-party functions are padding; missing tests for changed behaviour are gaps. Exception: deliberate behaviour or integration tests may cross those boundaries by design.
 - **Flag any `unittest.TestCase` subclass.** Use pytest patterns instead.
 - **Flag any `mock.Mock()` or `mock.MagicMock()` without `spec` or `autospec`.** Unspec'd mocks silently accept any attribute access, hiding real bugs.
 - **Flag any `time.sleep` or `datetime.now()` in tests.** Use `time_machine` for time-dependent tests.
@@ -62,7 +65,7 @@ Flag these patterns that indicate low-quality AI-generated contributions:
 - **Description doesn't match code**: PR description describes something different from what the code actually does.
 - **No evidence of testing**: Claims of fixes without test evidence, or author admitting they cannot run the test suite.
 - **Over-engineered solutions**: Adding caching layers, complex locking, or benchmark scripts for problems that don't exist or are misunderstood.
-- **Narrating comments**: Comments that restate what the next line does (e.g., `# Add the item to the list` before `list.append(item)`).
+- **Narrating or redundant comments**: Comments that restate what the next line does (e.g., `# Add the item to the list` before `list.append(item)`); multi-line prose explaining a one-line change; the same rationale repeated at several sites; or explanatory comments on tests whose names already convey intent. Comments should explain *why* when it is non-obvious, not narrate *what*. Flag over-commenting as noise to be trimmed.
 - **Empty PR descriptions**: PRs with just the template filled in and no actual description of the changes.
 
 ## Quality Signals to Check

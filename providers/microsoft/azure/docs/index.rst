@@ -84,7 +84,7 @@ apache-airflow-providers-microsoft-azure package
 `Microsoft Azure <https://azure.microsoft.com/>`__
 
 
-Release: 13.1.1
+Release: 13.4.0
 
 Provider package
 ----------------
@@ -104,13 +104,13 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==========================================  ===========================
+==========================================  ===================
 PIP package                                 Version required
-==========================================  ===========================
+==========================================  ===================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
 ``adlfs``                                   ``>=2023.10.0``
-``azure-batch``                             ``>=8.0.0``
+``azure-batch``                             ``<15.0.0,>=8.0.0``
 ``azure-cosmos``                            ``>=4.6.0``
 ``azure-mgmt-cosmosdb``                     ``>=3.0.0``
 ``azure-datalake-store``                    ``>=0.0.45``
@@ -125,7 +125,7 @@ PIP package                                 Version required
 ``azure-synapse-spark``                     ``>=0.2.0``
 ``azure-synapse-artifacts``                 ``>=0.17.0``
 ``azure-storage-file-datalake``             ``>=12.9.1``
-``azure-kusto-data``                        ``>=4.1.0,!=4.6.0,!=5.0.0``
+``azure-kusto-data``                        ``>=4.1.0,!=5.0.0``
 ``azure-mgmt-datafactory``                  ``>=2.0.0``
 ``azure-mgmt-containerregistry``            ``>=8.0.0``
 ``azure-mgmt-compute``                      ``>=33.0.0``
@@ -138,7 +138,7 @@ PIP package                                 Version required
 ``microsoft-kiota-abstractions``            ``>=1.9.4,<2.0.0``
 ``microsoft-kiota-authentication-azure``    ``>=1.9.4,<2.0.0``
 ``msal-extensions``                         ``>=1.3.0``
-==========================================  ===========================
+==========================================  ===================
 
 Cross provider package dependencies
 -----------------------------------
@@ -159,6 +159,8 @@ Dependent package                                                               
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                      ``amazon``
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_        ``common.compat``
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
+`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                      ``google``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_            ``openlineage``
 `apache-airflow-providers-oracle <https://airflow.apache.org/docs/apache-airflow-providers-oracle>`_                      ``oracle``
 `apache-airflow-providers-sftp <https://airflow.apache.org/docs/apache-airflow-providers-sftp>`_                          ``sftp``
 ========================================================================================================================  ====================
@@ -169,5 +171,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-azure 13.1.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-13.1.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-13.1.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-13.1.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-azure 13.1.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-13.1.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-13.1.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-13.1.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 13.4.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-13.4.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-13.4.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-13.4.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 13.4.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-13.4.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-13.4.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-13.4.0-py3-none-any.whl.sha512>`__)

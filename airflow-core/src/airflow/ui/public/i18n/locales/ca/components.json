@@ -10,9 +10,12 @@
     "maxRuns": "Màxim d'execucions actives",
     "missingAndErroredRuns": "Execucions absents i amb errors",
     "missingRuns": "Execucions absents",
+    "overrideExistingParams": "Substituir paràmetres en les execucions existents",
     "permissionDenied": "Execució de prova fallida: l'usuari no té permís per crear reompliments.",
     "reprocessBehavior": "Comportament de reprocessament",
     "run": "Executar reompliment",
+    "scheduleNotBackfillable": "La programació d'aquest Dag no permet reompliments",
+    "schedulerPriorityHint": "Les execucions de Dag de reompliment s'ordenen després de les execucions de Dag que no són de reompliment en cada cicle del programador. Les execucions de reompliment poden romandre en cua més temps si hi ha altres execucions que no són de reompliment.",
     "selectDescription": "Executar aquest Dag per a un interval de dates",
     "selectLabel": "Reompliment",
     "title": "Execució de reompliment",
@@ -71,6 +74,7 @@
     "files_other": "{{count}} fitxers"
   },
   "flexibleForm": {
+    "durationPlaceholder": "Introduïu la durada en format ISO 8601",
     "placeholder": "Seleccionar valor",
     "placeholderArray": "Escriu cada cadena en una nova línia",
     "placeholderExamples": "Comença a escriure per veure opcions",
@@ -78,6 +82,7 @@
     "validationErrorArrayNotArray": "El valor ha de ser un array.",
     "validationErrorArrayNotNumbers": "Tots els elements de l'array han de ser números.",
     "validationErrorArrayNotObject": "Tots els elements de l'array han de ser objectes.",
+    "validationErrorDuration": "Format de durada ISO 8601 no vàlid",
     "validationErrorRequired": "Aquest camp és obligatori"
   },
   "graph": {
@@ -91,7 +96,8 @@
     "otherDagRuns": "+Altres execucions de Dag",
     "taskCount_one": "{{count}} Tasca",
     "taskCount_other": "{{count}} Tasques",
-    "taskGroup": "Grup de tasques"
+    "taskGroup": "Grup de tasques",
+    "zoomToTask": "Zoom a la tasca seleccionada"
   },
   "limitedList": "+{{count}} més",
   "limitedList.allItems": "Tots els {{count}} elements:",

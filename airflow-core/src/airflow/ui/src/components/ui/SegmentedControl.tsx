@@ -53,7 +53,6 @@ const SegmentedControl = ({ defaultValues, multiple = false, onChange, options }
       borderColor="border.emphasized"
       borderRadius={8}
       borderWidth={1}
-      colorPalette="brand"
       mb={3}
       p={1}
     >

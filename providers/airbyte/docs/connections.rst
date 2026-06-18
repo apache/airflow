@@ -19,30 +19,45 @@
 
 Airbyte Connection
 ==================
-The Airbyte connection type use the Airbyte API Python SDK to authenticate to the server.
+The Airbyte connection type uses the Airbyte API Python SDK to communicate with the server.
 
-Host(required)
-    The full qualified host domain to connect to the Airbyte server.
-    If you are using Airbyte Cloud: ``https://api.airbyte.com/v1/``
-    If you are using Airbyte OSS: ``http://localhost:8000/api/public/v1/``
+Authentication is **optional**: when Client ID and Client Secret are provided, the hook
+authenticates via OAuth2 Client Credentials (required for Airbyte Cloud and Enterprise).
+When they are omitted, the hook connects without authentication, which is suitable for
+Airbyte OSS deployments that do not have auth enabled.
+
+Host (required)
+    The fully qualified host URL of the Airbyte server.
+
+    * Airbyte Cloud: ``https://api.airbyte.com/v1/``
+    * Airbyte OSS (with auth): ``http://localhost:8000/api/public/v1/``
+    * Airbyte OSS (without auth): ``http://localhost:8000/api/v1/``
+
     Be aware: If you're changing the API path, you must update the value accordingly.
 
 Token URL (optional)
-    The prefix for URL used to create the access token.
-    If you are using Airbyte Cloud: ``v1/applications/token`` (default value)
-    If you are using Airbyte OSS: ``/api/public/v1/applications/token```
+    The prefix for the URL used to create the access token. Only used when
+    Client ID and Client Secret are provided.
+
+    * Airbyte Cloud: ``v1/applications/token`` (default value)
+    * Airbyte OSS: ``/api/public/v1/applications/token``
+
     Be aware: If you're changing the API path, you must update the value accordingly.
 
-Client ID (required)
-    The Client ID to connect to the Airbyte server.
-    You can find this information in the Settings / Applications page in Airbyte UI.
+Client ID (optional)
+    The Client ID for OAuth2 authentication.
+    Required for Airbyte Cloud and Enterprise deployments.
+    You can find this in Settings > Applications in the Airbyte UI.
+    Leave blank for Airbyte OSS deployments without auth enabled.
 
-Client Secret (required)
-    The Client Secret to connect to the Airbyte server.
-    You can find this information in the Settings / Applications page in Airbyte UI.
+Client Secret (optional)
+    The Client Secret for OAuth2 authentication.
+    Required for Airbyte Cloud and Enterprise deployments.
+    You can find this in Settings > Applications in the Airbyte UI.
+    Leave blank for Airbyte OSS deployments without auth enabled.
 
 Extra (optional)
-    Specify custom proxies in json format.
+    Specify custom proxies in JSON format.
     Following default requests parameters are taken into account:
 
     * ``proxies``

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Callable
 from unittest import mock
 
@@ -117,10 +118,8 @@ class TestKubernetesDecoratorsBase:
         self.mock_fetch_logs = mock.patch(f"{POD_MANAGER_CLASS}.fetch_requested_container_logs").start()
         self.mock_fetch_logs.return_value = "logs"
 
-        try:
+        with contextlib.suppress(Exception):
             yield
-        except Exception:
-            pass
         mock.patch.stopall()
 
     def teardown_method(self):

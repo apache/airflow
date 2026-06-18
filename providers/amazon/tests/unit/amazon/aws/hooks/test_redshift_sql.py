@@ -297,6 +297,18 @@ class TestRedshiftSQLHookConn:
                 {},
                 "1.2.3.4",
             ),
+            # test with AWS China region endpoint (provisioned cluster)
+            (
+                "cluster_identifier_from_host.id.cn-north-1.redshift.amazonaws.com.cn",
+                {"iam": True},
+                "cluster_identifier_from_host.cn-north-1",
+            ),
+            # test with AWS China region endpoint (serverless)
+            (
+                "workgroup-name.account-id.cn-northwest-1.redshift-serverless.amazonaws.com.cn",
+                {"iam": True},
+                "workgroup-name.cn-northwest-1",
+            ),
         ],
     )
     def test_get_openlineage_redshift_authority_part(

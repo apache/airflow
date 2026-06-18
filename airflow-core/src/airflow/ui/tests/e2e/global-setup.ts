@@ -22,7 +22,7 @@ import path from "node:path";
 
 import { AUTH_FILE, testConfig } from "../../playwright.config";
 import { LoginPage } from "./pages/LoginPage";
-import { waitForDagReady } from "./utils/test-helpers";
+import { waitForDagReady } from "./utils/api/dag-runs";
 
 const browsers = { chromium, firefox, webkit };
 
@@ -31,7 +31,7 @@ const browsers = { chromium, firefox, webkit };
  */
 async function globalSetup(config: FullConfig) {
   const [firstProject] = config.projects as [FullConfig["projects"][number]];
-  const baseURL = firstProject.use.baseURL ?? "http://localhost:28080";
+  const baseURL = firstProject.use.baseURL ?? testConfig.connection.baseUrl;
   const { password, username } = testConfig.credentials;
   const browserName = firstProject.name as keyof typeof browsers;
   const browserType = browsers[browserName];

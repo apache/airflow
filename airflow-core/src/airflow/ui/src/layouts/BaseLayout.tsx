@@ -25,11 +25,11 @@ import { usePluginServiceGetPlugins } from "openapi/queries";
 import type { ReactAppResponse } from "openapi/requests/types.gen";
 import { ReactPlugin } from "src/pages/ReactPlugin";
 import { useConfig } from "src/queries/useConfig";
+import { DocumentTitleProvider } from "src/utils";
 
 import { Nav } from "./Nav";
 
 export const BaseLayout = ({ children }: PropsWithChildren) => {
-  const instanceName = useConfig("instance_name");
   const { i18n } = useTranslation();
   const { data: pluginData } = usePluginServiceGetPlugins();
   const theme = useConfig("theme") as unknown as { icon?: string; icon_dark_mode?: string } | undefined;
@@ -38,10 +38,6 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
     pluginData?.plugins
       .flatMap((plugin) => plugin.react_apps)
       .filter((reactApp: ReactAppResponse) => reactApp.destination === "base") ?? [];
-
-  if (typeof instanceName === "string") {
-    document.title = instanceName;
-  }
 
   useEffect(() => {
     const html = document.documentElement;
@@ -103,25 +99,27 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
 
   return (
     <LocaleProvider locale={i18n.language || "en"}>
-      <Box display="flex" flexDirection="column" h="100vh">
-        <Nav />
-        <Box
-          _ltr={{ ml: 16 }}
-          _rtl={{ mr: 16 }}
-          data-testid="main-content"
-          display="flex"
-          flex={1}
-          flexDirection="column"
-          minH={0}
-          overflowY="auto"
-          p={3}
-        >
-          {baseReactPlugins.map((plugin) => (
-            <ReactPlugin key={plugin.name} reactApp={plugin} />
-          ))}
-          {children ?? <Outlet />}
+      <DocumentTitleProvider>
+        <Box display="flex" flexDirection="column" h="100vh">
+          <Nav />
+          <Box
+            _ltr={{ ml: 16 }}
+            _rtl={{ mr: 16 }}
+            data-testid="main-content"
+            display="flex"
+            flex={1}
+            flexDirection="column"
+            minH={0}
+            overflow="auto"
+            p={3}
+          >
+            {baseReactPlugins.map((plugin) => (
+              <ReactPlugin key={plugin.name} reactApp={plugin} />
+            ))}
+            {children ?? <Outlet />}
+          </Box>
         </Box>
-      </Box>
+      </DocumentTitleProvider>
     </LocaleProvider>
   );
 };

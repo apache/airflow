@@ -105,7 +105,7 @@ class TestDagEndpoint:
 
     @pytest.fixture(autouse=True)
     @provide_session
-    def setup(self, dag_maker, session=None) -> None:
+    def setup(self, dag_maker, *, session=None) -> None:
         self._clear_db()
 
         with dag_maker(
@@ -207,6 +207,25 @@ class TestDagTags(TestDagEndpoint):
                 200,
                 ["tag_1", "tag_2"],
                 2,
+            ),
+            # tag_name_prefix_pattern counterpart
+            (
+                {"tag_name_prefix_pattern": "invalid"},
+                200,
+                [],
+                0,
+            ),
+            (
+                {"tag_name_prefix_pattern": "tag"},
+                200,
+                ["tag_1", "tag_2"],
+                2,
+            ),
+            (
+                {"tag_name_prefix_pattern": "~"},
+                200,
+                ["example", "tag_1", "tag_2"],
+                3,
             ),
             # test order_by
             (

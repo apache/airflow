@@ -10,10 +10,12 @@
     "maxRuns": "Max Active Runs",
     "missingAndErroredRuns": "Missing and Errored Runs",
     "missingRuns": "Missing Runs",
+    "overrideExistingParams": "Override parameters on existing runs",
     "permissionDenied": "Dry Run Failed: User does not have permission to create backfills.",
     "reprocessBehavior": "Reprocess Behavior",
     "run": "Run Backfill",
     "scheduleNotBackfillable": "This Dag's schedule does not support backfills",
+    "schedulerPriorityHint": "Backfill Dag runs are ordered after non-backfill Dag runs in each scheduler cycle. Backfill runs may remain queued longer if other non-backfill runs are present.",
     "selectDescription": "Run this Dag for a range of dates",
     "selectLabel": "Backfill",
     "title": "Run Backfill",
@@ -71,6 +73,7 @@
     "files_other": "{{count}} files"
   },
   "flexibleForm": {
+    "durationPlaceholder": "Enter Duration in ISO 8601 format",
     "placeholder": "Select Value",
     "placeholderArray": "Enter each string on a new line",
     "placeholderExamples": "Start typing to see options",
@@ -78,6 +81,7 @@
     "validationErrorArrayNotArray": "Value must be an array.",
     "validationErrorArrayNotNumbers": "All elements in the array must be numbers.",
     "validationErrorArrayNotObject": "All elements in the array must be objects.",
+    "validationErrorDuration": "Invalid ISO 8601 duration format",
     "validationErrorRequired": "This field is required"
   },
   "graph": {
@@ -91,7 +95,8 @@
     "otherDagRuns": "+Other Dag Runs",
     "taskCount_one": "{{count}} Task",
     "taskCount_other": "{{count}} Tasks",
-    "taskGroup": "Task Group"
+    "taskGroup": "Task Group",
+    "zoomToTask": "Zoom to selected task"
   },
   "limitedList": "+{{count}} more",
   "limitedList.allItems": "All {{count}} items:",

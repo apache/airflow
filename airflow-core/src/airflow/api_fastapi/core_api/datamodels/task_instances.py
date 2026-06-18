@@ -25,9 +25,11 @@ from pydantic import (
     AliasPath,
     AwareDatetime,
     BeforeValidator,
+    Discriminator,
     Field,
     NonNegativeInt,
     StringConstraints,
+    Tag,
     ValidationError,
     field_validator,
     model_validator,
@@ -38,6 +40,13 @@ from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionRespo
 from airflow.api_fastapi.core_api.datamodels.job import JobResponse
 from airflow.api_fastapi.core_api.datamodels.trigger import TriggerResponse
 from airflow.utils.state import TaskInstanceState
+
+
+class NewTaskResponse(BaseModel):
+    """Lightweight response for new tasks that don't have TaskInstances yet."""
+
+    task_id: str
+    task_display_name: str
 
 
 class TaskInstanceResponse(BaseModel):
@@ -110,6 +119,28 @@ class TaskInstanceCollectionResponse(BaseModel):
         description="Token pointing to the previous page. Populated for cursor pagination, "
         "``null`` when using offset pagination or when on the first page.",
     )
+
+
+def _task_instance_discriminator(v: Any) -> str:
+    """Discriminate between TaskInstanceResponse and NewTaskResponse in the union."""
+    if isinstance(v, NewTaskResponse):
+        return "new"
+    if isinstance(v, dict):
+        return "new" if "id" not in v else "full"
+    # ORM objects and TaskInstanceResponse instances
+    return "full"
+
+
+class ClearTaskInstanceCollectionResponse(BaseModel):
+    """Response for clear dag run dry run, which may contain new tasks without full TaskInstance data."""
+
+    task_instances: Iterable[
+        Annotated[
+            Annotated[TaskInstanceResponse, Tag("full")] | Annotated[NewTaskResponse, Tag("new")],
+            Discriminator(_task_instance_discriminator),
+        ]
+    ]
+    total_entries: int
 
 
 class TaskDependencyResponse(BaseModel):
@@ -185,10 +216,13 @@ class ClearTaskInstancesBody(StrictBaseModel):
     include_downstream: bool = False
     include_future: bool = False
     include_past: bool = False
-    run_on_latest_version: bool = Field(
-        default=False,
+    run_on_latest_version: bool | None = Field(
+        default=None,
         description="(Experimental) Run on the latest bundle version of the dag after "
-        "clearing the task instances.",
+        "clearing the task instances. "
+        "If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, "
+        "then the ``[core] rerun_with_latest_version`` config option, "
+        "and finally ``False`` (the historical default for clear/rerun).",
     )
     prevent_running_task: bool = False
     note: Annotated[str, StringConstraints(max_length=1000)] | None = None
@@ -214,7 +248,7 @@ class ClearTaskInstancesBody(StrictBaseModel):
 
 
 class PatchTaskInstanceBody(StrictBaseModel):
-    """Request body for Clear Task Instances endpoint."""
+    """Request body for patching task instance state."""
 
     new_state: TaskInstanceState | None = None
     note: Annotated[str, StringConstraints(max_length=1000)] | None = None

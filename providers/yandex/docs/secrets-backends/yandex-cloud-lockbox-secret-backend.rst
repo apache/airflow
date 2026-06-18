@@ -251,6 +251,48 @@ To check the variable is correctly read from the Lockbox Secret Backend, you can
     $ airflow variables get my_variable
     some_secret_data
 
+Multi-team lookup
+-----------------
+
+In multi-team mode, this backend looks for team-scoped secret names first and falls back to the
+global secret name when a team-scoped secret is not found.
+
+To use this mode, keep the backend configured as usual and create team-scoped secrets by inserting
+the team name between the configured prefix and the secret identifier, separated from the secret
+identifier by a doubled separator.
+
+For example, with this configuration:
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend
+    backend_kwargs = {"connections_prefix": "airflow/connections", "variables_prefix": "airflow/variables"}
+
+the backend expects team-scoped secrets to be stored under paths such as
+``airflow/connections/<team_name>//<conn_id>`` or ``airflow/variables/<team_name>//<key>``.
+
+For connections:
+
+* Team-scoped: ``{connections_prefix}/{team_name}//{conn_id}``
+* Global fallback: ``{connections_prefix}/{conn_id}``
+
+For variables:
+
+* Team-scoped: ``{variables_prefix}/{team_name}//{key}``
+* Global fallback: ``{variables_prefix}/{key}``
+
+For example, with ``connections_prefix="airflow/connections"``, ``team_name="team_a"``, and
+``conn_id="my_db"``, the backend looks up ``airflow/connections/team_a//my_db`` before falling back
+to ``airflow/connections/my_db``.
+
+This means you can provide both:
+
+* a team-specific secret such as ``airflow/connections/team_a//my_db``
+* an optional global default secret such as ``airflow/connections/my_db``
+
+If no ``team_name`` is provided, only the global secret path is used.
+
 Storing and retrieving configs
 ------------------------------
 

@@ -17,10 +17,10 @@
  under the License.
 */}}
 
-################################
+############################
 ## Airflow Flower Deployment
-#################################
-{{- if and .Values.flower.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+############################
+{{- if and .Values.flower.enabled (contains "CeleryExecutor" .Values.executor) }}
 {{- $nodeSelector := or .Values.flower.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.flower.affinity .Values.affinity }}
 {{- $tolerations := or .Values.flower.tolerations .Values.tolerations }}
@@ -79,6 +79,7 @@ spec:
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       serviceAccountName: {{ include "flower.serviceAccountName" . }}
+      enableServiceLinks: {{ .Values.enableServiceLinks }}
       {{- if .Values.flower.priorityClassName }}
       priorityClassName: {{ .Values.flower.priorityClassName }}
       {{- end }}
@@ -103,7 +104,7 @@ spec:
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
-              {{- toYaml .Values.volumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.volumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if .Values.flower.extraVolumeMounts }}
               {{- tpl (toYaml .Values.flower.extraVolumeMounts) . | nindent 12 }}
@@ -171,7 +172,7 @@ spec:
           configMap:
             name: {{ template "airflow_config" . }}
         {{- if .Values.volumes }}
-          {{- toYaml .Values.volumes | nindent 8 }}
+          {{- tpl (toYaml .Values.volumes) . | nindent 8 }}
         {{- end }}
         {{- if .Values.flower.extraVolumes }}
           {{- tpl (toYaml .Values.flower.extraVolumes) . | nindent 8 }}

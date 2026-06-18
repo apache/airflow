@@ -123,9 +123,9 @@ class JWTBearer(HTTPBearer):
 
         try:
             claims = await validator.avalidated_claims(creds.credentials, dict(self.required_claims))
-        except Exception as err:
-            log.warning("Failed to validate JWT", exc_info=True, token=creds.credentials)
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Invalid auth token: {err}")
+        except Exception:
+            log.warning("Failed to validate JWT", exc_info=True)
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid auth token")
 
         claims.setdefault("scope", "execution")
 
@@ -189,6 +189,13 @@ async def require_auth(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Token subject does not match task instance ID",
             )
+    elif "ct:self" in security_scopes.scopes:
+        ct_self_id = str(request.path_params["connection_test_id"])
+        if str(token.id) != ct_self_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Token subject does not match connection test ID",
+            )
 
     return token
 
@@ -233,18 +240,37 @@ async def get_team_name_dep(token=CurrentTIToken) -> str | None:
     if not conf.getboolean("core", "multi_team"):
         return None
 
+    from airflow.utils.session import create_session_async
+
+    async with create_session_async() as session:
+        return await session.scalar(_team_name_for_ti_stmt(token.id))
+
+
+def get_team_name_for_ti(ti_id, session) -> str | None:
+    """
+    Return the team name associated to the task (if any), using a sync session.
+
+    Sync counterpart to :func:`get_team_name_dep` for callers that already hold a
+    SQLAlchemy session (e.g., the ``ti_run`` endpoint). No-op when multi-team is disabled.
+    """
+    from airflow.configuration import conf
+
+    if not conf.getboolean("core", "multi_team"):
+        return None
+    return session.scalar(_team_name_for_ti_stmt(ti_id))
+
+
+def _team_name_for_ti_stmt(ti_id):
+    """Build the select statement resolving ``TaskInstance.id -> Team.name``."""
     from airflow.models import DagModel, TaskInstance
     from airflow.models.dagbundle import DagBundleModel
     from airflow.models.team import Team
-    from airflow.utils.session import create_session_async
 
-    stmt = (
+    return (
         select(Team.name)
         .select_from(TaskInstance)
         .join(DagModel, DagModel.dag_id == TaskInstance.dag_id)
         .join(DagBundleModel, DagBundleModel.name == DagModel.bundle_name)
         .join(DagBundleModel.teams)
-        .where(TaskInstance.id == token.id)
+        .where(TaskInstance.id == ti_id)
     )
-    async with create_session_async() as session:
-        return await session.scalar(stmt)

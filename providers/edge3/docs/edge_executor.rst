@@ -89,9 +89,18 @@ each worker only picks up jobs assigned to its team.
 
     airflow edge worker --team-name team_a -q queue1,queue2
 
-When ``--team-name`` is omitted, the worker operates without team isolation — the
+When ``--team-name`` is omitted, the worker operates as a default-team worker — the
 same behavior as a single-team deployment. Existing workers continue to work without
 any changes.
+
+.. note::
+
+    ``--team-name`` is an experimental UI/REST API-level hint. The Execution API
+    does not currently enforce team-based access boundaries — workloads from
+    different teams share the same Execution API, JWT signing keys, and access to
+    connections, variables, and XComs. See
+    :doc:`apache-airflow:security/workload` (section "No team-level isolation in
+    Execution API") for the full security boundary discussion.
 
 **Per-team configuration overrides:**
 
@@ -159,6 +168,39 @@ Here is an example setting pool_slots for a task:
             print_stuff()
 
         task_with_template()
+
+
+.. _edge_executor:execute_callback:
+
+Support ExecuteCallback in Worker
+---------------------------------
+
+In addition to executing tasks, the EdgeExecutor can also dispatch executor-level
+callbacks (``ExecuteCallback`` workloads, e.g. deadline callbacks) to edge workers.
+When the scheduler hands an ``ExecuteCallback`` to ``EdgeExecutor.queue_workload``,
+it is enqueued into the same job queue (``EdgeJobModel``) that is used for task
+workloads, so an edge worker picks it up alongside regular tasks without any
+additional configuration.
+
+Callback jobs share the ``EdgeJobModel`` table with task jobs. They are
+distinguished by reserved values in the identifier columns:
+
+- ``dag_id`` is set to the constant tag ``ExecuteCallback``.
+- ``task_id`` is set to the callback key (the callback ID).
+- ``run_id`` is set to ``ExecuteCallback-<callback_key>``.
+- ``map_index`` is fixed to ``-1`` and ``try_number`` to ``0``.
+
+When the worker fetches such a job through the worker API, the command payload is
+deserialized back into an ``ExecuteCallback`` workload (instead of an
+``ExecuteTask``) based on these identifiers. On Airflow 3.3+, the worker executes
+both task and callback workloads via ``BaseExecutor.run_workload`` (or the
+``airflow.sdk.execution_time.execute_workload`` entrypoint when using the subprocess path).
+
+.. note::
+
+    This feature is only active on Airflow 3.3 or newer. On earlier Airflow versions
+    the EdgeExecutor only handles ``ExecuteTask`` workloads and any
+    ``ExecuteCallback`` will be rejected with a ``TypeError``.
 
 Current Limitations Edge Executor
 ---------------------------------

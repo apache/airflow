@@ -18,7 +18,7 @@
  */
 
 /**
- * Asset data fixture — triggers asset_produces_1 DAG and waits for success.
+ * Asset data fixture — triggers asset_produces_1 Dag and waits for success.
  */
 import { test as base } from "tests/e2e/fixtures";
 import {
@@ -26,7 +26,7 @@ import {
   safeCleanupDagRun,
   waitForDagReady,
   waitForDagRunStatus,
-} from "tests/e2e/utils/test-helpers";
+} from "tests/e2e/utils/api/dag-runs";
 
 export type AssetData = {
   dagId: string;

@@ -27,7 +27,7 @@ from airflow.models.dagwarning import DagWarningType
 
 
 class DAGWarningResponse(BaseModel):
-    """DAG Warning serializer for responses."""
+    """Dag Warning serializer for responses."""
 
     dag_id: str
     warning_type: DagWarningType
@@ -37,7 +37,7 @@ class DAGWarningResponse(BaseModel):
 
 
 class DAGWarningCollectionResponse(BaseModel):
-    """DAG warning collection serializer for responses."""
+    """Dag warning collection serializer for responses."""
 
     dag_warnings: Iterable[DAGWarningResponse]
     total_entries: int

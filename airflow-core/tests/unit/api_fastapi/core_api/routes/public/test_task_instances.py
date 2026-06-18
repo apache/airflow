@@ -29,7 +29,9 @@ import pendulum
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import delete, func, select, update
+from sqlalchemy.orm import joinedload
 
+from airflow._shared.state import TaskScope
 from airflow._shared.timezones.timezone import datetime
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -40,18 +42,20 @@ from airflow.models import DagModel, DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
+from airflow.models.task_state_store import TaskStateStoreModel
+from airflow.models.taskinstance import uuid7
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
-from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import BaseOperator, TaskGroup
+from airflow.sdk import BaseOperator
+from airflow.state.metastore import MetastoreBackend
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_task_instance_note
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, count_queries
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_runs,
@@ -197,7 +201,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response_data == {
             "dag_id": "example_python_operator",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -355,7 +359,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response_data == {
             "dag_id": "example_python_operator",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -419,7 +423,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response_data == {
             "dag_id": "example_python_operator",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -475,7 +479,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response.json() == {
             "dag_id": "example_python_operator",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -595,7 +599,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
             assert response_data == {
                 "dag_id": "example_python_operator",
                 "dag_version": {
-                    "bundle_name": "dags-folder",
+                    "bundle_name": "apache-airflow-providers-standard-example-dags",
                     "bundle_url": None,
                     "bundle_version": None,
                     "created_at": response_data["dag_version"]["created_at"],
@@ -732,7 +736,7 @@ class TestGetMappedTaskInstances:
                 session.add(ti)
 
             DagBundlesManager().sync_bundles_to_db()
-            dagbag = DagBag(os.devnull, include_examples=False)
+            dagbag = DagBag(os.devnull)
             dagbag.dags = {dag_id: dag_maker.dag}
             sync_bag_to_db(dagbag, "dags-folder", None)
             session.flush()
@@ -747,20 +751,6 @@ class TestGetMappedTaskInstances:
             dags={
                 "mapped_tis": {
                     "success": 3,
-                    "failed": 0,
-                    "running": 0,
-                },
-            },
-        )
-
-    @pytest.fixture
-    def one_task_with_single_mapped_ti(self, dag_maker, session):
-        self.create_dag_runs_with_mapped_tasks(
-            dag_maker,
-            session,
-            dags={
-                "mapped_tis": {
-                    "success": 1,
                     "failed": 0,
                     "running": 0,
                 },
@@ -852,6 +842,14 @@ class TestGetMappedTaskInstances:
             ({"order_by": "-logical_date", "limit": 100}, list(range(109, 9, -1))),
             ({"order_by": "data_interval_start", "limit": 100}, list(range(100))),
             ({"order_by": "-data_interval_start", "limit": 100}, list(range(109, 9, -1))),
+            # Compound sort (_rendered_map_index ASC, map_index ASC): all TIs have NULL
+            # _rendered_map_index in this fixture so they all tie on the first key and
+            # are ordered by map_index integer — 0, 1, 2, ..., 99 (not lexicographic).
+            ({"order_by": "rendered_map_index", "limit": 100}, list(range(100))),
+            (
+                {"order_by": "-rendered_map_index", "limit": 100},
+                list(range(109, 9, -1)),
+            ),
         ],
     )
     def test_mapped_instances_order(
@@ -871,37 +869,146 @@ class TestGetMappedTaskInstances:
         assert len(body["task_instances"]) == min(params["limit"], conf.getint("api", "maximum_page_limit"))
         assert expected_map_indexes == [ti["map_index"] for ti in body["task_instances"]]
 
-    # Ordering of nulls values is DB specific.
-    @pytest.mark.backend("sqlite")
     @pytest.mark.parametrize(
-        ("params", "expected_map_indexes"),
+        ("filter_param", "value", "expected_map_indexes"),
         [
-            ({"order_by": "rendered_map_index", "limit": 108}, list(range(1, 109))),  # Asc
-            ({"order_by": "-rendered_map_index", "limit": 100}, [0] + list(range(11, 110)[::-1])),  # Desc
+            # Prefix match (index-friendly).
+            ("rendered_map_index_prefix_pattern", "table_", [0, 1]),
+            ("rendered_map_index_prefix_pattern", "metrics", [2, 3]),
+            ("rendered_map_index_prefix_pattern", "nope", []),
+            # Fallback to str(map_index) when _rendered_map_index is NULL.
+            # Prefix "10" matches "10" and "100".."109".
+            ("rendered_map_index_prefix_pattern", "10", [10, *range(100, 110)]),
+            # Substring match (advanced).
+            ("rendered_map_index_pattern", "table_orders", [0]),
+            ("rendered_map_index_pattern", "table_orders|metrics_daily", [0, 2]),
+            ("rendered_map_index_pattern", "_users", [1]),
+            ("rendered_map_index_pattern", "nope", []),
         ],
     )
-    @conf_vars({("api", "maximum_page_limit"): "110"})
-    def test_rendered_map_index_order(
-        self, test_client, session, params, expected_map_indexes, one_task_with_many_mapped_tis
+    def test_rendered_map_index_filter(
+        self,
+        test_client,
+        session,
+        one_task_with_many_mapped_tis,
+        filter_param,
+        value,
+        expected_map_indexes,
     ):
-        ti = session.scalars(
-            select(TaskInstance).where(TaskInstance.task_id == "task_2", TaskInstance.map_index == 0)
-        ).first()
-
-        ti._rendered_map_index = "a"
-
+        rendered_by_map_index = {
+            0: "table_orders",
+            1: "table_users",
+            2: "metrics_daily",
+            3: "metrics_hourly",
+        }
+        for map_index, rendered in rendered_by_map_index.items():
+            ti = session.scalars(
+                select(TaskInstance).where(
+                    TaskInstance.task_id == "task_2", TaskInstance.map_index == map_index
+                )
+            ).first()
+            ti._rendered_map_index = rendered
         session.commit()
 
-        with assert_queries_count(4):
-            response = test_client.get(
-                "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
-                params=params,
-            )
+        response = test_client.get(
+            "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+            params={filter_param: value, "order_by": "map_index"},
+        )
         assert response.status_code == 200
         body = response.json()
-        assert body["total_entries"] == 110
-        assert len(body["task_instances"]) == params["limit"]
-        assert expected_map_indexes == [ti["map_index"] for ti in body["task_instances"]]
+        assert body["total_entries"] == len(expected_map_indexes)
+        assert [ti["map_index"] for ti in body["task_instances"]] == expected_map_indexes
+
+    def test_rendered_map_index_order_without_template_numeric(self, test_client, session, dag_maker):
+        """map_index values beyond 9 must sort numerically, not lexicographically.
+
+        Without the compound sort the SQL expression falls back to
+        CAST(map_index AS String), producing "0","1","10","11","2"... instead
+        of 0, 1, 2, ..., 10, 11.
+        """
+        self.create_dag_runs_with_mapped_tasks(
+            dag_maker,
+            session,
+            dags={"numeric_order_dag": {"success": 12, "failed": 0, "running": 0}},
+        )
+
+        response = test_client.get(
+            "/dags/numeric_order_dag/dagRuns/run_numeric_order_dag/taskInstances/task_2/listMapped",
+            params={"order_by": "rendered_map_index", "limit": 20},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        # Numeric order: 0, 1, 2, ..., 11.
+        # Lexicographic order would be: 0, 1, 10, 11, 2, 3, 4, 5, 6, 7, 8, 9.
+        assert [ti["map_index"] for ti in body["task_instances"]] == list(range(12))
+
+    def test_rendered_map_index_order_with_template(self, test_client, session, one_task_with_mapped_tis):
+        """Custom map_index_template labels must be sorted alphabetically."""
+        # one_task_with_mapped_tis creates 3 TIs: map_index 0, 1, 2.
+        labels = {0: "zebra", 1: "apple", 2: "mango"}
+        for map_index, label in labels.items():
+            ti = session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.task_id == "task_2",
+                    TaskInstance.map_index == map_index,
+                )
+            )
+            ti._rendered_map_index = label
+        session.commit()
+
+        response = test_client.get(
+            "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+            params={"order_by": "rendered_map_index"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        # Alphabetical order: "apple" (1), "mango" (2), "zebra" (0).
+        assert [ti["map_index"] for ti in body["task_instances"]] == [1, 2, 0]
+        assert [ti["rendered_map_index"] for ti in body["task_instances"]] == [
+            "apple",
+            "mango",
+            "zebra",
+        ]
+
+    def test_rendered_map_index_order_stable_regardless_of_uuid_order(self, test_client, session, dag_maker):
+        """
+        Results must be ordered by integer map_index regardless of UUID insertion order.
+
+        The compound sort ([_rendered_map_index, map_index]) makes the integer
+        map_index the effective tiebreaker when no map_index_template is set.
+        This verifies that even when UUIDs are assigned out of map_index order
+        (as happens during retries), the response is still sorted 0, 1, 2, ...
+        """
+        self.create_dag_runs_with_mapped_tasks(
+            dag_maker,
+            session,
+            dags={"retry_dag": {"success": 5, "failed": 0, "running": 0}},
+        )
+
+        # Assign newer (larger) UUIDs to map_index 1 and 3, simulating retry
+        # ordering where some TIs received their UUIDs after others.  The sort
+        # result must still follow integer map_index order, not UUID order.
+        for map_index in [1, 3]:
+            session.execute(
+                update(TaskInstance)
+                .where(
+                    TaskInstance.dag_id == "retry_dag",
+                    TaskInstance.task_id == "task_2",
+                    TaskInstance.map_index == map_index,
+                )
+                .values(id=uuid7())
+            )
+        session.commit()
+
+        response = test_client.get(
+            "/dags/retry_dag/dagRuns/run_retry_dag/taskInstances/task_2/listMapped",
+            params={"order_by": "rendered_map_index", "limit": 50},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        # All 5 TIs must be on the first page in map_index order.
+        assert body["total_entries"] == 5
+        assert [ti["map_index"] for ti in body["task_instances"]] == [0, 1, 2, 3, 4]
 
     def test_with_date(self, test_client, one_task_with_mapped_tis):
         response = test_client.get(
@@ -1228,6 +1335,19 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
+                    {"pool": "test_pool_1"},
+                    {"pool": "test_pool_2"},
+                    {"pool": "test_pool_3"},
+                ],
+                True,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"pool_name_prefix_pattern": "test_pool"},
+                3,
+                3,
+                id="test pool_name_prefix_pattern filter",
+            ),
+            pytest.param(
+                [
                     {"queue": "test_queue_1"},
                     {"queue": "test_queue_2"},
                     {"queue": "test_queue_3"},
@@ -1269,6 +1389,21 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
+                    {"queue": "test_queue_1"},
+                    {"queue": "test_queue_2"},
+                    {"queue": "test_queue_3"},
+                    {"queue": "other_queue_3"},
+                    {"queue": "other_queue_3"},
+                ],
+                True,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"queue_name_prefix_pattern": "test"},
+                3,
+                3,
+                id="test queue_name_prefix_pattern filter",
+            ),
+            pytest.param(
+                [
                     {"executor": "test_exec_1"},
                     {"executor": "test_exec_2"},
                     {"executor": "test_exec_3"},
@@ -1305,6 +1440,19 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 2,
                 3,
                 id="test task_display_name_pattern filter",
+            ),
+            pytest.param(
+                [
+                    {"_task_display_property_value": "task_name_1"},
+                    {"_task_display_property_value": "task_name_2"},
+                    {"_task_display_property_value": "task_not_match_name_3"},
+                ],
+                True,
+                ("/dags/~/dagRuns/~/taskInstances"),
+                {"task_display_name_prefix_pattern": "task_name"},
+                2,
+                3,
+                id="test task_display_name_prefix_pattern filter",
             ),
             pytest.param(
                 "task_group_test",
@@ -1412,6 +1560,21 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
+                    {"custom_operator_name": "CustomFirstOperator"},
+                    {"custom_operator_name": "CustomSecondOperator"},
+                    {"custom_operator_name": "SecondOperator"},
+                    {"custom_operator_name": "ThirdOperator"},
+                    {"custom_operator_name": "ThirdOperator"},
+                ],
+                True,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"operator_name_prefix_pattern": "Custom"},
+                2,
+                3,
+                id="test operator_name_prefix_pattern filter",
+            ),
+            pytest.param(
+                [
                     {"map_index": 0},
                     {"map_index": 1},
                     {"map_index": 2},
@@ -1430,6 +1593,34 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
+                    {"map_index": 0, "_rendered_map_index": "table_orders"},
+                    {"map_index": 1, "_rendered_map_index": "table_users"},
+                    {"map_index": 2, "_rendered_map_index": None},
+                    {"map_index": 3, "_rendered_map_index": None},
+                ],
+                True,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"rendered_map_index_prefix_pattern": "table_"},
+                2,
+                3,
+                id="test rendered_map_index_prefix_pattern filter",
+            ),
+            pytest.param(
+                [
+                    {"map_index": 0, "_rendered_map_index": "table_orders"},
+                    {"map_index": 1, "_rendered_map_index": "table_users"},
+                    {"map_index": 2, "_rendered_map_index": None},
+                    {"map_index": 3, "_rendered_map_index": None},
+                ],
+                True,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"rendered_map_index_pattern": "_users|table_orders"},
+                2,
+                3,
+                id="test rendered_map_index_pattern filter",
+            ),
+            pytest.param(
+                [
                     {},
                 ],
                 True,
@@ -1439,6 +1630,17 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 # the create_task_instances method
                 3,
                 id="test run_id_pattern filter",
+            ),
+            pytest.param(
+                [
+                    {},
+                ],
+                True,
+                ("/dags/~/dagRuns/~/taskInstances"),
+                {"run_id_prefix_pattern": "TEST_DAG_"},
+                1,
+                3,
+                id="test run_id_prefix_pattern filter",
             ),
             pytest.param(
                 "dag_id_pattern_test",  # Special marker for multi-DAG test
@@ -1475,6 +1677,42 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 0,
                 3,
                 id="test dag_id_pattern no match",
+            ),
+            pytest.param(
+                "dag_id_pattern_test",
+                False,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"dag_id_prefix_pattern": "example_python_operator"},
+                14,
+                3,
+                id="test dag_id_prefix_pattern exact match",
+            ),
+            pytest.param(
+                "dag_id_pattern_test",
+                False,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"dag_id_prefix_pattern": "example_"},
+                22,
+                3,
+                id="test dag_id_prefix_pattern prefix",
+            ),
+            pytest.param(
+                "dag_id_pattern_test",
+                False,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"dag_id_prefix_pattern": "example_skip"},
+                8,
+                3,
+                id="test dag_id_prefix_pattern specific prefix",
+            ),
+            pytest.param(
+                "dag_id_pattern_test",
+                False,
+                "/dags/~/dagRuns/~/taskInstances",
+                {"dag_id_prefix_pattern": "nonexistent"},
+                0,
+                3,
+                id="test dag_id_prefix_pattern no match",
             ),
         ],
     )
@@ -1682,6 +1920,33 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert len(field_desc) == ti_count
         assert field_asc == list(reversed(field_desc))
 
+    @pytest.mark.parametrize(
+        ("order_by", "expected_map_indexes"),
+        [
+            # All four TIs have explicit labels so alphabetical order is
+            # consistent across databases (no NULL ordering differences).
+            # Labels: "analytics"(3), "events"(2), "table_orders"(0), "table_users"(1)
+            ("rendered_map_index", [3, 2, 0, 1]),
+            ("-rendered_map_index", [1, 0, 2, 3]),
+        ],
+    )
+    def test_should_respond_200_for_rendered_map_index_order(
+        self, test_client, session, order_by, expected_map_indexes
+    ):
+        self.create_task_instances(
+            session,
+            update_extras=True,
+            task_instances=[
+                {"map_index": 0, "_rendered_map_index": "table_orders"},
+                {"map_index": 1, "_rendered_map_index": "table_users"},
+                {"map_index": 2, "_rendered_map_index": "events"},
+                {"map_index": 3, "_rendered_map_index": "analytics"},
+            ],
+        )
+        response = test_client.get("/dags/~/dagRuns/~/taskInstances", params={"order_by": order_by})
+        assert response.status_code == 200
+        assert [ti["map_index"] for ti in response.json()["task_instances"]] == expected_map_indexes
+
     def test_should_respond_200_for_pagination(self, test_client, session):
         dag_id = "example_python_operator"
         self.create_task_instances(
@@ -1848,46 +2113,46 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 400
 
-    def test_task_group_filter_uses_run_version_not_latest(self, test_client, dag_maker, session):
+    def test_cursor_pagination_order_by_run_after_roundtrips(self, test_client, session):
         """
-        Task group lookup should use the DAG version from the run, not the latest version.
+        Sorting by ``run_after`` (a column-form ``to_replace`` backed by an association proxy)
+        must not raise a 500 when ``has_next=true``.  Regression for
+        https://github.com/apache/airflow/issues/67970.
 
-        When a task group is renamed between versions, clicking on a historical run's
-        task group in the grid should still resolve correctly against the version
-        that run was created with — not the latest version where the group may have
-        a different name, i.e serialized_dag might not have that taskgroup anymore.
+        Verify the full cursor round-trip: the first page must include a ``next_cursor``,
+        and following that cursor must return the remaining TIs without overlap.
         """
-        dag_id = "test_tg_version"
-
-        # Version 1: task group named "process_data"
-        with dag_maker(dag_id, session=session):
-            with TaskGroup(group_id="process_data"):
-                EmptyOperator(task_id="step_1")
-        dag_maker.create_dagrun(run_id="run_v1")
-        session.commit()
-
-        # Version 2: task group renamed to "process_data_v2"
-        with dag_maker(dag_id, session=session):
-            with TaskGroup(group_id="process_data_v2"):
-                EmptyOperator(task_id="step_1")
-        session.commit()
-
-        # The run was created with v1 which had "process_data".
-        # Querying with the old group name must succeed.
-        response = test_client.get(
-            f"/dags/{dag_id}/dagRuns/run_v1/taskInstances",
-            params={"task_group_id": "process_data"},
+        dag_id = "example_python_operator"
+        total_tis = 5
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(total_tis)
+            ],
+            dag_id=dag_id,
         )
-        assert response.status_code == 200, response.json()
-        assert response.json()["total_entries"] == 1
-        assert response.json()["task_instances"][0]["task_id"] == "process_data.step_1"
-
-        # The new group name should NOT be found in the old run's version.
-        response = test_client.get(
-            f"/dags/{dag_id}/dagRuns/run_v1/taskInstances",
-            params={"task_group_id": "process_data_v2"},
+        # First page — limit < total so next_cursor must be present
+        response1 = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances",
+            params={"limit": 3, "order_by": ["-run_after"], "cursor": ""},
         )
-        assert response.status_code == 404
+        assert response1.status_code == 200, response1.json()
+        body1 = response1.json()
+        assert len(body1["task_instances"]) == 3
+        next_cursor = body1["next_cursor"]
+        assert next_cursor is not None, "next_cursor must be present when more rows exist"
+
+        # Second page — follow the cursor; must not 500 and must return remaining TIs
+        response2 = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances",
+            params={"limit": 10, "order_by": ["-run_after"], "cursor": next_cursor},
+        )
+        assert response2.status_code == 200, response2.json()
+        body2 = response2.json()
+        ids1 = {ti["id"] for ti in body1["task_instances"]}
+        ids2 = {ti["id"] for ti in body2["task_instances"]}
+        assert ids1.isdisjoint(ids2), "Pages must not overlap"
+        assert len(ids1) + len(ids2) == total_tis
 
 
 class TestGetTaskDependencies(TestTaskInstanceEndpoint):
@@ -2365,7 +2630,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -2411,7 +2676,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -2488,7 +2753,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
                 "dag_version": {
-                    "bundle_name": "dags-folder",
+                    "bundle_name": "apache-airflow-providers-standard-example-dags",
                     "bundle_url": None,
                     "bundle_version": None,
                     "created_at": response_data["dag_version"]["created_at"],
@@ -2560,7 +2825,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -2607,7 +2872,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -3413,7 +3678,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "dag_id": "example_python_operator",
                 "dag_display_name": "example_python_operator",
                 "dag_version": {
-                    "bundle_name": "dags-folder",
+                    "bundle_name": "apache-airflow-providers-standard-example-dags",
                     "bundle_url": None,
                     "bundle_version": None,
                     "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -3905,7 +4170,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "unixname": getuser(),
                     "dag_run_id": "TEST_DAG_RUN_ID",
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -3942,7 +4207,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "unixname": getuser(),
                     "dag_run_id": "TEST_DAG_RUN_ID",
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][1]["dag_version"]["created_at"],
@@ -4013,7 +4278,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "unixname": getuser(),
                     "dag_run_id": "TEST_DAG_RUN_ID",
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -4096,7 +4361,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "unixname": getuser(),
                         "dag_run_id": "TEST_DAG_RUN_ID",
                         "dag_version": {
-                            "bundle_name": "dags-folder",
+                            "bundle_name": "apache-airflow-providers-standard-example-dags",
                             "bundle_url": None,
                             "bundle_version": None,
                             "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -4133,7 +4398,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "unixname": getuser(),
                         "dag_run_id": "TEST_DAG_RUN_ID",
                         "dag_version": {
-                            "bundle_name": "dags-folder",
+                            "bundle_name": "apache-airflow-providers-standard-example-dags",
                             "bundle_url": None,
                             "bundle_version": None,
                             "created_at": response_data["task_instances"][1]["dag_version"]["created_at"],
@@ -4335,7 +4600,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -4542,7 +4807,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 404
         assert response.json() == {
-            "detail": "Task 'non_existent_task' not found in DAG 'example_python_operator'"
+            "detail": "Task 'non_existent_task' not found in Dag 'example_python_operator'"
         }
 
     def test_should_raise_404_not_found_dag(self, test_client):
@@ -4611,7 +4876,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                             "dag_id": "example_python_operator",
                             "dag_display_name": "example_python_operator",
                             "dag_version": {
-                                "bundle_name": "dags-folder",
+                                "bundle_name": "apache-airflow-providers-standard-example-dags",
                                 "bundle_url": None,
                                 "bundle_version": None,
                                 "created_at": mock.ANY,
@@ -4749,7 +5014,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -4812,7 +5077,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -4893,7 +5158,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         "dag_id": self.DAG_ID,
                         "dag_display_name": self.DAG_DISPLAY_NAME,
                         "dag_version": {
-                            "bundle_name": "dags-folder",
+                            "bundle_name": "apache-airflow-providers-standard-example-dags",
                             "bundle_url": None,
                             "bundle_version": None,
                             "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -4976,7 +5241,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "dag_id": self.DAG_ID,
                 "dag_display_name": self.DAG_DISPLAY_NAME,
                 "dag_version": {
-                    "bundle_name": "dags-folder",
+                    "bundle_name": "apache-airflow-providers-standard-example-dags",
                     "bundle_url": None,
                     "bundle_version": None,
                     "created_at": response_ti["dag_version"]["created_at"],
@@ -5056,6 +5321,85 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response.status_code == 409
         assert "Task id print_the_context is already in success state" in response.text
 
+    @pytest.mark.db_test
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_patch_task_instance_to_success_clears_task_state(self, test_client, session):
+        """When clear_on_success=True, task_state rows are deleted after manual mark-as-success."""
+        self.create_task_instances(session)
+        ti = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.task_id == self.TASK_ID,
+                TaskInstance.run_id == self.RUN_ID,
+            )
+        ).one()
+
+        backend = MetastoreBackend()
+        scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
+        backend.set(scope, "job_id", "app_1234", session=session)
+        session.commit()
+
+        assert session.scalars(
+            select(TaskStateStoreModel).where(TaskStateStoreModel.task_id == self.TASK_ID)
+        ).all()
+
+        test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
+
+        session.expire_all()
+        assert not session.scalars(
+            select(TaskStateStoreModel).where(TaskStateStoreModel.task_id == self.TASK_ID)
+        ).all()
+
+    @pytest.mark.db_test
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_patch_task_instance_to_failed_does_not_clear_task_state(self, test_client, session):
+        """Task state rows are preserved when manually marking a TI as FAILED."""
+        self.create_task_instances(session)
+        ti = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.task_id == self.TASK_ID,
+                TaskInstance.run_id == self.RUN_ID,
+            )
+        ).one()
+
+        backend = MetastoreBackend()
+        scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
+        backend.set(scope, "job_id", "app_1234", session=session)
+        session.commit()
+
+        test_client.patch(self.ENDPOINT_URL, json={"new_state": "failed"})
+
+        session.expire_all()
+        assert session.scalars(
+            select(TaskStateStoreModel).where(TaskStateStoreModel.task_id == self.TASK_ID)
+        ).all()
+
+    @pytest.mark.db_test
+    @conf_vars({("state_store", "clear_on_success"): "False"})
+    def test_patch_task_instance_to_success_skips_clear_when_config_disabled(self, test_client, session):
+        """Task state rows are preserved on manual mark-as-success when clear_on_success=False."""
+        self.create_task_instances(session)
+        ti = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.task_id == self.TASK_ID,
+                TaskInstance.run_id == self.RUN_ID,
+            )
+        ).one()
+
+        backend = MetastoreBackend()
+        scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
+        backend.set(scope, "job_id", "app_1234", session=session)
+        session.commit()
+
+        test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
+
+        session.expire_all()
+        assert session.scalars(
+            select(TaskStateStoreModel).where(TaskStateStoreModel.task_id == self.TASK_ID)
+        ).all()
+
 
 class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
     ENDPOINT_URL = "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
@@ -5092,7 +5436,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -5311,7 +5655,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 404
         assert response.json() == {
-            "detail": "Task 'non_existent_task' not found in DAG 'example_python_operator'"
+            "detail": "Task 'non_existent_task' not found in Dag 'example_python_operator'"
         }
 
     def test_should_raise_404_not_found_dag(self, test_client):
@@ -5380,7 +5724,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "dag_id": "example_python_operator",
                             "dag_display_name": "example_python_operator",
                             "dag_version": {
-                                "bundle_name": "dags-folder",
+                                "bundle_name": "apache-airflow-providers-standard-example-dags",
                                 "bundle_url": None,
                                 "bundle_version": None,
                                 "created_at": mock.ANY,
@@ -6466,6 +6810,46 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
             }
         ]
 
+    @pytest.mark.parametrize("task_count", [5, 10, 20])
+    def test_bulk_delete_query_count_scales_linearly_with_task_count(self, test_client, session, task_count):
+        # Regression guard for the N+1 fix in BulkTaskInstanceService.handle_bulk_delete:
+        # each extra task instance must add exactly QUERIES_PER_TASK_INSTANCE query (its DELETE),
+        # not 2 (DELETE + re-SELECT). A regression that re-queries inside the loop would make
+        # each run strictly exceed BASE_QUERY_COUNT + task_count * QUERIES_PER_TASK_INSTANCE.
+        QUERIES_PER_TASK_INSTANCE = 1
+        BASE_QUERY_COUNT = 4
+
+        self.create_task_instances(
+            session,
+            task_instances=[{"state": State.RUNNING, "map_indexes": tuple(range(task_count))}],
+        )
+        request_body = {
+            "actions": [
+                {
+                    "action": "delete",
+                    "entities": [
+                        {"task_id": self.TASK_ID, "map_index": map_index} for map_index in range(task_count)
+                    ],
+                    "action_on_non_existence": "fail",
+                }
+            ]
+        }
+
+        with count_queries() as result:
+            response = test_client.patch(self.ENDPOINT_URL, json=request_body)
+
+        assert response.status_code == 200
+        assert len(response.json()["delete"]["success"]) == task_count
+
+        query_count = sum(result.values())
+        expected_query_count = BASE_QUERY_COUNT + task_count * QUERIES_PER_TASK_INSTANCE
+        assert query_count == expected_query_count, (
+            f"Bulk-delete query count {query_count} does not match expected {expected_query_count} "
+            f"for {task_count} task instances. "
+            f"A regression that re-queries each task instance would give "
+            f"~{BASE_QUERY_COUNT + task_count * 2} queries instead."
+        )
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(self.ENDPOINT_URL, json={})
         assert response.status_code == 401
@@ -6477,3 +6861,567 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     def test_should_respond_422(self, test_client):
         response = test_client.patch(self.ENDPOINT_URL, json={})
         assert response.status_code == 422
+
+
+class TestPatchTaskGroup(TestTaskInstanceEndpoint):
+    DAG_ID = "example_task_group"
+    RUN_ID = "TEST_DAG_RUN_ID"
+    GROUP_ID = "section_1"
+    BASE_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskGroupInstances"
+    ENDPOINT_URL = f"{BASE_URL}/{GROUP_ID}"
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_group_state")
+    def test_patch_task_group_success(self, mock_set_tg_state, test_client, session):
+        """Test that patching a task group sets state for all tasks in the group."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        tis = (
+            session.scalars(
+                select(TaskInstance)
+                .options(joinedload(TaskInstance.rendered_task_instance_fields))
+                .where(
+                    TaskInstance.dag_id == self.DAG_ID,
+                    TaskInstance.run_id == self.RUN_ID,
+                    TaskInstance.task_id.in_(["section_1.task_1", "section_1.task_2", "section_1.task_3"]),
+                )
+            )
+            .unique()
+            .all()
+        )
+
+        mock_set_tg_state.return_value = list(tis)
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        assert mock_set_tg_state.call_count == 1
+        call_kwargs = mock_set_tg_state.call_args.kwargs
+        assert call_kwargs["group_id"] == self.GROUP_ID
+        assert call_kwargs["state"] == "success"
+        assert response_data["total_entries"] == 3
+        response_task_ids = sorted(ti["task_id"] for ti in response_data["task_instances"])
+        assert response_task_ids == ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+        for ti in response_data["task_instances"]:
+            assert ti["dag_id"] == self.DAG_ID
+            assert ti["dag_run_id"] == self.RUN_ID
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_group_state")
+    def test_patch_task_group_failed_state(self, mock_set_tg_state, test_client, session):
+        """Test that patching a task group with failed state works."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        tis = (
+            session.scalars(
+                select(TaskInstance)
+                .options(joinedload(TaskInstance.rendered_task_instance_fields))
+                .where(
+                    TaskInstance.dag_id == self.DAG_ID,
+                    TaskInstance.run_id == self.RUN_ID,
+                    TaskInstance.task_id.in_(["section_1.task_1", "section_1.task_2", "section_1.task_3"]),
+                )
+            )
+            .unique()
+            .all()
+        )
+
+        mock_set_tg_state.return_value = list(tis)
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "failed"},
+        )
+        assert response.status_code == 200
+        call_kwargs = mock_set_tg_state.call_args.kwargs
+        assert call_kwargs["state"] == "failed"
+        response_data = response.json()
+        assert response_data["total_entries"] == 3
+        response_task_ids = sorted(ti["task_id"] for ti in response_data["task_instances"])
+        assert response_task_ids == ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+        for ti in response_data["task_instances"]:
+            assert ti["dag_id"] == self.DAG_ID
+            assert ti["dag_run_id"] == self.RUN_ID
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_group_state")
+    def test_patch_task_group_nested(self, mock_set_tg_state, test_client, session):
+        """Test that patching a nested task group includes tasks from inner groups."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        tis = (
+            session.scalars(
+                select(TaskInstance)
+                .options(joinedload(TaskInstance.rendered_task_instance_fields))
+                .where(
+                    TaskInstance.dag_id == self.DAG_ID,
+                    TaskInstance.run_id == self.RUN_ID,
+                )
+            )
+            .unique()
+            .all()
+        )
+
+        mock_set_tg_state.return_value = list(tis)
+
+        # section_2 contains task_1, and inner_section_2 which contains task_2, task_3, task_4
+        url = f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskGroupInstances/section_2"
+        response = test_client.patch(
+            url,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 200
+        assert mock_set_tg_state.call_count == 1
+        call_kwargs = mock_set_tg_state.call_args.kwargs
+        assert call_kwargs["group_id"] == "section_2"
+
+    def test_patch_task_group_not_found(self, test_client, session):
+        """Test that requesting a non-existent task group returns 404."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        url = f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskGroupInstances/nonexistent_group"
+        response = test_client.patch(
+            url,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 404
+        assert "nonexistent_group" in response.json()["detail"]
+
+    def test_patch_task_group_invalid_state(self, test_client, session):
+        """Test that an invalid new_state returns 422."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "invalid_state"},
+        )
+        assert response.status_code == 422
+
+    def test_patch_task_group_dag_not_found(self, test_client, session):
+        """Test that requesting a non-existent DAG returns 404."""
+        url = f"/dags/nonexistent_dag/dagRuns/{self.RUN_ID}/taskGroupInstances/{self.GROUP_ID}"
+        response = test_client.patch(
+            url,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 404
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
+        assert response.status_code == 403
+
+    def test_query_count_does_not_scale_with_task_group_size(self, test_client, session):
+        """Test that query count does not grow excessively with task group size."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        url_section_1 = f"{self.BASE_URL}/section_1"
+        url_section_2 = f"{self.BASE_URL}/section_2"
+
+        # --- section_1 (3 tasks) ---
+        with count_queries() as result_section_1:
+            response = test_client.patch(url_section_1, json={"new_state": "success"})
+        assert response.status_code == 200
+
+        # Reset TI states so the next call has work to do
+        for ti in session.scalars(
+            select(TaskInstance).where(TaskInstance.dag_id == self.DAG_ID, TaskInstance.run_id == self.RUN_ID)
+        ):
+            ti.state = State.RUNNING
+        session.commit()
+
+        # --- section_2 (4 tasks including nested inner_section_2) ---
+        with count_queries() as result_section_2:
+            response = test_client.patch(url_section_2, json={"new_state": "success"})
+        assert response.status_code == 200
+
+        count_section_1 = sum(result_section_1.values())
+        count_section_2 = sum(result_section_2.values())
+        per_task_overhead = count_section_2 - count_section_1
+        assert per_task_overhead <= 2, (
+            f"Adding one task should add at most a few queries for per-TI state updates, "
+            f"got {per_task_overhead} (section_1={count_section_1}, section_2={count_section_2})"
+        )
+
+    def test_patch_task_group_updates_ti_states_in_db(self, test_client, session):
+        """Test that patching a task group actually updates task instance states in the database."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        group_task_ids = ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+
+        # Verify all TIs in the group start as RUNNING
+        tis_before = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(group_task_ids),
+            )
+        ).all()
+        assert all(ti.state == State.RUNNING for ti in tis_before)
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 200
+
+        # Verify states were actually updated in the database
+        session.expire_all()
+        tis_after = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(group_task_ids),
+            )
+        ).all()
+        assert len(tis_after) == 3
+        for ti in tis_after:
+            assert ti.state == TaskInstanceState.SUCCESS, (
+                f"Expected {ti.task_id} to be SUCCESS, got {ti.state}"
+            )
+
+    def test_include_downstream_affects_downstream_tis(self, test_client, session):
+        """Test that include_downstream=True also sets state on downstream task instances."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        # section_1 is upstream of section_2 and end
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success", "include_downstream": True},
+        )
+        assert response.status_code == 200
+
+        session.expire_all()
+        # section_2 tasks and end are downstream of section_1 and should be affected
+        downstream_task_ids = [
+            "section_2.task_1",
+            "section_2.inner_section_2.task_2",
+            "section_2.inner_section_2.task_3",
+            "section_2.inner_section_2.task_4",
+            "end",
+        ]
+        downstream_tis = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(downstream_task_ids),
+            )
+        ).all()
+        assert len(downstream_tis) > 0
+        for ti in downstream_tis:
+            assert ti.state == TaskInstanceState.SUCCESS, (
+                f"Expected downstream {ti.task_id} to be SUCCESS, got {ti.state}"
+            )
+
+    def test_include_upstream_affects_upstream_tis(self, test_client, session):
+        """Test that include_upstream=True also sets state on upstream task instances."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        # section_1 is downstream of start
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success", "include_upstream": True},
+        )
+        assert response.status_code == 200
+
+        session.expire_all()
+        start_ti = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id == "start",
+            )
+        )
+        assert start_ti is not None
+        assert start_ti.state == TaskInstanceState.SUCCESS, (
+            f"Expected upstream 'start' to be SUCCESS, got {start_ti.state}"
+        )
+
+    def test_clears_failed_downstream_tasks(self, test_client, session):
+        """Test that setting a group to success clears failed downstream tasks."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        # Put downstream tasks in failed/upstream_failed state
+        downstream_task_ids = [
+            "section_2.task_1",
+            "section_2.inner_section_2.task_2",
+            "section_2.inner_section_2.task_3",
+            "section_2.inner_section_2.task_4",
+        ]
+        session.execute(
+            update(TaskInstance)
+            .where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(downstream_task_ids),
+            )
+            .values(state=TaskInstanceState.UPSTREAM_FAILED)
+        )
+        session.commit()
+
+        # Set section_1 to success — should clear downstream failed tasks
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 200
+
+        session.expire_all()
+        downstream_tis = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(downstream_task_ids),
+            )
+        ).all()
+        for ti in downstream_tis:
+            assert ti.state != TaskInstanceState.UPSTREAM_FAILED, (
+                f"Expected {ti.task_id} to be cleared from upstream_failed, got {ti.state}"
+            )
+
+    def test_409_when_all_tis_already_in_target_state(self, test_client, session):
+        """Test that 409 is returned when all TIs are already in the target state."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        group_task_ids = ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+        session.execute(
+            update(TaskInstance)
+            .where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(group_task_ids),
+            )
+            .values(state=TaskInstanceState.SUCCESS)
+        )
+        session.commit()
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 409
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_group_state")
+    def test_includes_upstream_downstream_parameters(self, mock_set_tg_state, test_client, session):
+        """Test that include_upstream and include_downstream parameters are passed through."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        tis = (
+            session.scalars(
+                select(TaskInstance)
+                .options(joinedload(TaskInstance.rendered_task_instance_fields))
+                .where(
+                    TaskInstance.dag_id == self.DAG_ID,
+                    TaskInstance.run_id == self.RUN_ID,
+                    TaskInstance.task_id.in_(["section_1.task_1", "section_1.task_2", "section_1.task_3"]),
+                )
+            )
+            .unique()
+            .all()
+        )
+
+        mock_set_tg_state.return_value = list(tis[:1])
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "new_state": "success",
+                "include_upstream": True,
+                "include_downstream": True,
+                "include_future": True,
+                "include_past": True,
+            },
+        )
+        assert response.status_code == 200
+
+        # Verify the parameters were passed to set_task_group_state
+        call_kwargs = mock_set_tg_state.call_args.kwargs
+        assert call_kwargs["upstream"] is True
+        assert call_kwargs["downstream"] is True
+        assert call_kwargs["future"] is True
+        assert call_kwargs["past"] is True
+
+    def test_patch_task_group_note_only(self, test_client, session):
+        """Test that patching only the note updates notes for all TIs in the group without changing state."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        group_task_ids = ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+        note_value = "group note"
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            params={"update_mask": "note"},
+            json={"note": note_value},
+        )
+        assert response.status_code == 200, response.text
+        response_data = response.json()
+        assert response_data["total_entries"] == 3
+        response_task_ids = sorted(ti["task_id"] for ti in response_data["task_instances"])
+        assert response_task_ids == group_task_ids
+        for ti in response_data["task_instances"]:
+            assert ti["note"] == note_value
+
+        tis_after = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(group_task_ids),
+            )
+        ).all()
+        for ti in tis_after:
+            assert ti.state == State.RUNNING
+            _check_task_instance_note(session, ti.id, {"content": note_value, "user_id": "test"})
+
+    def test_patch_task_group_state_and_note(self, test_client, session):
+        """Test that patching both new_state and note applies both, including reflecting the note in the response."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        group_task_ids = ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+        note_value = "marking task group as failed"
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "failed", "note": note_value},
+        )
+        assert response.status_code == 200, response.text
+        response_data = response.json()
+        assert response_data["total_entries"] == 3
+        response_task_ids = sorted(ti["task_id"] for ti in response_data["task_instances"])
+        assert response_task_ids == group_task_ids
+        for ti in response_data["task_instances"]:
+            assert ti["state"] == TaskInstanceState.FAILED
+            assert ti["note"] == note_value
+
+        session.expire_all()
+        tis_after = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(group_task_ids),
+            )
+        ).all()
+        for ti in tis_after:
+            assert ti.state == TaskInstanceState.FAILED
+            _check_task_instance_note(session, ti.id, {"content": note_value, "user_id": "test"})
+
+
+class TestPatchTaskGroupDryRun(TestTaskInstanceEndpoint):
+    DAG_ID = "example_task_group"
+    RUN_ID = "TEST_DAG_RUN_ID"
+    GROUP_ID = "section_1"
+    BASE_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskGroupInstances"
+    ENDPOINT_URL = f"{BASE_URL}/{GROUP_ID}/dry_run"
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_group_state")
+    def test_dry_run_returns_affected_tis_without_committing(self, mock_set_tg_state, test_client, session):
+        """Test that dry run returns TIs that would be affected without committing."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        tis = (
+            session.scalars(
+                select(TaskInstance)
+                .options(joinedload(TaskInstance.rendered_task_instance_fields))
+                .where(
+                    TaskInstance.dag_id == self.DAG_ID,
+                    TaskInstance.run_id == self.RUN_ID,
+                    TaskInstance.task_id.in_(["section_1.task_1", "section_1.task_2", "section_1.task_3"]),
+                )
+            )
+            .unique()
+            .all()
+        )
+
+        mock_set_tg_state.return_value = list(tis)
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 200
+        assert mock_set_tg_state.call_count == 1
+        # Verify commit=False was passed for dry run
+        call_kwargs = mock_set_tg_state.call_args.kwargs
+        assert call_kwargs["commit"] is False
+
+    def test_dry_run_query_count_does_not_scale(self, test_client, session):
+        """Test that dry_run query count does not grow excessively with task group size."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        url_section_1 = f"{self.BASE_URL}/section_1/dry_run"
+        url_section_2 = f"{self.BASE_URL}/section_2/dry_run"
+
+        # --- section_1 (3 tasks) ---
+        with count_queries() as result_section_1:
+            response = test_client.patch(url_section_1, json={"new_state": "success"})
+        assert response.status_code == 200
+
+        # --- section_2 (4 tasks including nested inner_section_2) ---
+        with count_queries() as result_section_2:
+            response = test_client.patch(url_section_2, json={"new_state": "success"})
+        assert response.status_code == 200
+
+        count_section_1 = sum(result_section_1.values())
+        count_section_2 = sum(result_section_2.values())
+        per_task_overhead = count_section_2 - count_section_1
+        assert per_task_overhead <= 2, (
+            f"Adding one task should add at most a few queries for per-TI state updates, "
+            f"got {per_task_overhead} (section_1={count_section_1}, section_2={count_section_2})"
+        )
+
+    def test_dry_run_does_not_update_ti_states_in_db(self, test_client, session):
+        """Test that dry run does not actually modify task instance states in the database."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        group_task_ids = ["section_1.task_1", "section_1.task_2", "section_1.task_3"]
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 200
+
+        # Verify states were NOT changed in the database
+        session.expire_all()
+        tis_after = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id.in_(group_task_ids),
+            )
+        ).all()
+        for ti in tis_after:
+            assert ti.state == State.RUNNING, (
+                f"Expected {ti.task_id} to remain RUNNING after dry run, got {ti.state}"
+            )
+
+    def test_dry_run_task_group_not_found(self, test_client, session):
+        """Test that requesting a non-existent task group returns 404."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        url = f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskGroupInstances/nonexistent_group/dry_run"
+        response = test_client.patch(
+            url,
+            json={"new_state": "success"},
+        )
+        assert response.status_code == 404
+
+    def test_dry_run_invalid_state(self, test_client, session):
+        """Test that an invalid new_state returns 422."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "invalid_state"},
+        )
+        assert response.status_code == 422
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
+        assert response.status_code == 403

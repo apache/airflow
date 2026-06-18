@@ -17,19 +17,23 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from contextlib import AsyncExitStack
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import attrs
 import svcs
 from cadwyn import (
     Cadwyn,
+    current_dependency_solver,
 )
-from fastapi import FastAPI, Request, Response
+from fastapi import Depends, FastAPI, Request, Response
 from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
+from opentelemetry import context as otel_context, propagate as otel_propagate
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from airflow.api_fastapi.auth.tokens import (
@@ -41,7 +45,6 @@ from airflow.api_fastapi.auth.tokens import (
 
 if TYPE_CHECKING:
     import httpx
-    from fastapi.routing import APIRoute
 
 import structlog
 from structlog.contextvars import bind_contextvars
@@ -129,8 +132,6 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
 
 class JWTReissueMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        from airflow.configuration import conf
-
         response: Response = await call_next(request)
 
         refreshed_token: str | None = None
@@ -142,9 +143,15 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
                     validator: JWTValidator = await services.aget(JWTValidator)
                     claims = await validator.avalidated_claims(token, {})
 
+                    # Workload tokens are long-lived and meant to survive queue
+                    # wait times so avoid refreshing them. If avalidated_claims
+                    # raises for a workload token, the outer except handles it.
+                    if claims.get("scope") == "workload":
+                        return response
+
                     now = int(time.time())
-                    validity = conf.getint("execution_api", "jwt_expiration_time")
-                    refresh_when_less_than = max(int(validity * 0.20), 30)
+                    token_lifetime = int(claims.get("exp", 0)) - int(claims.get("iat", 0))
+                    refresh_when_less_than = max(int(token_lifetime * 0.20), 30)
                     valid_left = int(claims.get("exp", 0)) - now
                     if valid_left <= refresh_when_less_than:
                         generator: JWTGenerator = await services.aget(JWTGenerator)
@@ -164,7 +171,7 @@ class CadwynWithOpenAPICustomization(Cadwyn):
     # Workaround lack of customzation https://github.com/zmievsa/cadwyn/issues/255
     async def openapi_jsons(self, req: Request) -> JSONResponse:
         resp = await super().openapi_jsons(req)
-        open_apischema = json.loads(resp.body)
+        open_apischema = json.loads(cast("bytes", resp.body))
         open_apischema = self.customize_openapi(open_apischema)
 
         resp.body = resp.render(open_apischema)
@@ -232,10 +239,52 @@ class CadwynWithOpenAPICustomization(Cadwyn):
         return openapi_schema
 
 
+async def _extract_w3c_trace_context(
+    request: Request,
+    dependency_solver=Depends(current_dependency_solver),
+):
+    # Cadwyn solves dependencies twice (the real request, then again to migrate the
+    # request body). Only act in the real "fastapi" pass so we attach/detach exactly
+    # once, in the context the endpoint runs in.
+    if dependency_solver != "fastapi":
+        yield
+        return
+    ctx = otel_propagate.extract(request.headers)
+    attached_in = asyncio.current_task()
+    token = otel_context.attach(ctx)
+    try:
+        yield
+    finally:
+        if asyncio.current_task() is attached_in:
+            otel_context.detach(token)
+
+
+def _inject_trace_context_dep(routes, mode: str) -> None:
+    dep = Depends(_extract_w3c_trace_context)
+    for route in routes:
+        if not isinstance(route, APIRoute):
+            continue
+        # Idempotent: create_task_execution_api_app() runs more than once per process
+        # (cached_app + InProcessExecutionAPI), and execution_api_router is shared
+        # module state, so strip any prior injection first.
+        route.dependencies[:] = [
+            d for d in route.dependencies if getattr(d, "dependency", None) is not _extract_w3c_trace_context
+        ]
+        match mode:
+            case "unsafe-always":
+                route.dependencies.insert(0, dep)
+            case "only-authenticated":
+                from airflow.api_fastapi.execution_api.security import require_auth
+
+                if any(getattr(d, "dependency", None) is require_auth for d in route.dependencies):
+                    route.dependencies.append(dep)
+
+
 def create_task_execution_api_app() -> FastAPI:
     """Create FastAPI app for task execution API."""
     from airflow.api_fastapi.execution_api.routes import execution_api_router
     from airflow.api_fastapi.execution_api.versions import bundle
+    from airflow.configuration import conf
 
     def custom_generate_unique_id(route: APIRoute):
         # This is called only if the route doesn't provide an explicit operation ID
@@ -255,6 +304,9 @@ def create_task_execution_api_app() -> FastAPI:
     # Add correlation-id middleware for request tracing
     app.add_middleware(CorrelationIdMiddleware)
     app.add_middleware(JWTReissueMiddleware)
+
+    mode = conf.get("execution_api", "otel_trace_propagation", fallback="only-authenticated")
+    _inject_trace_context_dep(execution_api_router.routes, mode)
 
     app.generate_and_include_versioned_routers(execution_api_router)
 
@@ -312,7 +364,6 @@ class InProcessExecutionAPI:
     def app(self):
         if not self._app:
             from airflow.api_fastapi.common.dagbag import create_dag_bag
-            from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
             from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
             from airflow.api_fastapi.execution_api.routes.variables import has_variable_access

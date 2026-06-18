@@ -42,6 +42,7 @@ RELEASE_PROVIDERS_COMMANDS: dict[str, str | list[str]] = {
     "name": "Providers release commands",
     "commands": [
         "prepare-provider-documentation",
+        "classify-provider-changes",
         "update-providers-next-version",
         "prepare-provider-distributions",
         "install-provider-distributions",
@@ -66,6 +67,13 @@ RELEASE_AIRFLOW_CTL_COMMANDS: dict[str, str | list[str]] = {
         "prepare-airflow-ctl-distributions",
         "generate-issue-content-airflow-ctl",
         "generate-airflowctl-changelog",
+    ],
+}
+
+RELEASE_MYPY_COMMANDS: dict[str, str | list[str]] = {
+    "name": "Apache Airflow Mypy release commands",
+    "commands": [
+        "prepare-mypy-distributions",
     ],
 }
 
@@ -111,6 +119,16 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         }
     ],
     "breeze release-management prepare-airflow-ctl-distributions": [
+        {
+            "name": "Package flags",
+            "options": [
+                "--distribution-format",
+                "--version-suffix",
+                "--use-local-hatch",
+            ],
+        }
+    ],
+    "breeze release-management prepare-mypy-distributions": [
         {
             "name": "Package flags",
             "options": [
@@ -246,6 +264,24 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--clean-tags",
                 "--release-date",
+            ],
+        },
+    ],
+    "breeze release-management classify-provider-changes": [
+        {
+            "name": "Classification options",
+            "options": [
+                "--base-branch",
+                "--skip-git-fetch",
+                "--github-repository",
+                "--output-file",
+            ],
+        },
+        {
+            "name": "Select non-regular providers",
+            "options": [
+                "--include-not-ready-providers",
+                "--include-removed-providers",
             ],
         },
     ],
@@ -440,6 +476,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--excluded-pr-list",
                 "--github-token",
                 "--only-available-in-dist",
+                "--output-file",
             ],
         }
     ],

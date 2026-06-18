@@ -35,7 +35,7 @@ from moto import mock_aws
 
 from airflow.models import Connection
 from airflow.providers.amazon.aws.assets.s3 import Asset
-from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
+from airflow.providers.amazon.aws.exceptions import S3HookPathTraversalError, S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.s3 import (
     NO_ACL,
     S3Hook,
@@ -99,6 +99,29 @@ class TestAwsS3Hook:
     def test_transfer_config_args_invalid(self, transfer_config_args):
         with pytest.raises(TypeError, match="transfer_config_args expected dict, got .*"):
             S3Hook(transfer_config_args=transfer_config_args)
+
+    @pytest.mark.parametrize(
+        ("transfer_config_args", "service_config"),
+        [
+            pytest.param(
+                {"use_threads": False},
+                {"transfer_config_args": {"use_threads": True}},
+                id="override_transfer_config_args",
+            ),
+            pytest.param(None, {"use_threads": True}, id="service_config_args"),
+        ],
+    )
+    def test_transfer_config_args_from_service_config(self, transfer_config_args, service_config):
+        conn = Connection(
+            conn_id="s3_conn",
+            conn_type="aws",
+            extra={
+                "service_config": {"s3": service_config},
+            },
+        )
+        with mock.patch.dict("os.environ", values={f"AIRFLOW_CONN_{conn.conn_id.upper()}": conn.get_uri()}):
+            hook = S3Hook(aws_conn_id=conn.conn_id, transfer_config_args=transfer_config_args)
+            assert hook.transfer_config.use_threads is True
 
     @pytest.mark.parametrize(
         ("url", "expected"),
@@ -1952,6 +1975,17 @@ class TestAwsS3Hook:
         assert "S3 object last modified" in logs_string
         assert "local file last modified" in logs_string
         assert "Downloaded dag_04.py to" in logs_string
+
+    def test_sync_to_local_dir_rejects_key_path_traversal(self, s3_bucket, s3_client, tmp_path):
+        s3_client.put_object(Bucket=s3_bucket, Key="dags/../../outside.py", Body=b"test data")
+
+        sync_local_dir = tmp_path / "s3_sync_dir"
+        hook = S3Hook()
+
+        with pytest.raises(S3HookPathTraversalError, match="resolves outside local directory"):
+            hook.sync_to_local_dir(bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="dags/")
+
+        assert not (tmp_path / "outside.py").exists()
 
 
 @pytest.mark.parametrize(

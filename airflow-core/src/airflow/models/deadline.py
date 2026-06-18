@@ -29,14 +29,16 @@ from sqlalchemy import Boolean, ForeignKey, Index, Integer, Uuid, and_, func, in
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
+from airflow.configuration import conf
 from airflow.models.base import Base
 from airflow.models.callback import (
     Callback,
     ExecutorCallback,
     TriggererCallback,
 )
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
@@ -129,6 +131,7 @@ class Deadline(Base):
         dagrun_id: int,
         deadline_alert_id: UUID | None,
         dag_id: str | None = None,
+        bundle_name: str | None = None,
     ):
         super().__init__()
         self.deadline_time = deadline_time
@@ -137,6 +140,7 @@ class Deadline(Base):
         self.callback = Callback.create_from_sdk_def(
             callback_def=callback, prefix=CALLBACK_METRICS_PREFIX, dag_id=dag_id
         )
+        self.callback.bundle_name = bundle_name
         self.deadline_alert_id = deadline_alert_id
 
     def __repr__(self):
@@ -171,6 +175,7 @@ class Deadline(Base):
         :param session: Session to use.
         """
         from airflow.models import DagRun  # Avoids circular import
+        from airflow.models.dag import DagModel
 
         # Assemble the filter conditions.
         filter_conditions = [column == value for column, value in conditions.items()]
@@ -197,9 +202,16 @@ class Deadline(Base):
             if dagrun.end_date is not None and dagrun.end_date <= deadline.deadline_time:
                 # If the DagRun finished before the Deadline:
                 session.delete(deadline)
-                Stats.incr(
+                team_name = (
+                    DagModel.get_team_name(dagrun.dag_id, session=session)
+                    if conf.getboolean("core", "multi_team")
+                    else None
+                )
+                stats.incr(
                     "deadline_alerts.deadline_not_missed",
-                    tags={"dag_id": dagrun.dag_id, "dagrun_id": dagrun.run_id},
+                    tags=prune_dict(
+                        {"dag_id": dagrun.dag_id, "dagrun_id": dagrun.run_id, "team_name": team_name}
+                    ),
                 )
                 deleted_count += 1
                 dagruns_to_refresh.add(dagrun)
@@ -215,6 +227,7 @@ class Deadline(Base):
 
     def handle_miss(self, session: Session):
         """Handle a missed deadline by queueing the callback."""
+        from airflow.models.dag import DagModel  # Avoids circular import
 
         def get_simple_context():
             from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
@@ -240,7 +253,7 @@ class Deadline(Base):
                 "context": get_simple_context()
             }
 
-            self.callback.queue()
+            self.callback.queue(session=session)
             session.add(self.callback)
             session.flush()
 
@@ -263,9 +276,17 @@ class Deadline(Base):
 
         self.missed = True
         session.add(self)
-        Stats.incr(
+
+        team_name = (
+            DagModel.get_team_name(self.dagrun.dag_id, session=session)
+            if conf.getboolean("core", "multi_team")
+            else None
+        )
+        stats.incr(
             "deadline_alerts.deadline_missed",
-            tags={"dag_id": self.dagrun.dag_id, "dagrun_id": self.dagrun.run_id},
+            tags=prune_dict(
+                {"dag_id": self.dagrun.dag_id, "dagrun_id": self.dagrun.run_id, "team_name": team_name}
+            ),
         )
 
 
@@ -490,7 +511,7 @@ DeadlineReferenceType = ReferenceModels.BaseDeadlineReference
 
 
 @provide_session
-def _fetch_from_db(model_reference: Mapped, session=None, **conditions) -> datetime | None:
+def _fetch_from_db(model_reference: Mapped, *, session=None, **conditions) -> datetime | None:
     """
     Fetch a datetime value from the database using the provided model reference and filtering conditions.
 

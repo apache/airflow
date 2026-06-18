@@ -30,6 +30,21 @@ if TYPE_CHECKING:
 log = structlog.getLogger(__name__)
 
 
+def _format_url_host(host: str | None) -> str | None:
+    """
+    Bracket IPv6 host literals for embedding in a URL authority.
+
+    Per RFC 3986 §3.2.2, IPv6 hosts in a URI must be enclosed in square
+    brackets so the ``:`` separators do not conflict with the ``host:port``
+    delimiter. Hostnames, IPv4 literals, and already-bracketed v6 literals
+    are returned unchanged. ``None`` is passed through so existing
+    error-logging paths keep their shape.
+    """
+    if host is not None and ":" in host and not host.startswith("["):
+        return f"[{host}]"
+    return host
+
+
 def get_otel_data_exporter(
     *,
     otel_env_config: OtelEnvConfig,
@@ -48,13 +63,25 @@ def get_otel_data_exporter(
 
     # If the protocol env var isn't set, then it will be None,
     # and it will default to an http/protobuf exporter.
+    # The grpc and http variants are incompatible types to mypy but functionally interchangeable here.
+    OTLPMetricExporter: type
+    OTLPSpanExporter: type
     if env_endpoint and env_exporter_protocol == "grpc":
-        from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
-        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+        from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (
+            OTLPMetricExporter,  # type: ignore[no-redef]
+        )
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+            OTLPSpanExporter,  # type: ignore[no-redef]
+        )
     else:
-        from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
-        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+        from opentelemetry.exporter.otlp.proto.http.metric_exporter import (
+            OTLPMetricExporter,  # type: ignore[no-redef]
+        )
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+            OTLPSpanExporter,  # type: ignore[no-redef]
+        )
 
+    exporter: SpanExporter | MetricExporter
     if env_endpoint:
         if host is not None and port is not None:
             log.warning(
@@ -94,7 +121,7 @@ def get_otel_data_exporter(
 
         endpoint_suffix = "traces" if otel_env_config.data_type == OtelDataType.TRACES else "metrics"
 
-        endpoint_str = f"{protocol}://{host}:{port}/v1/{endpoint_suffix}"
+        endpoint_str = f"{protocol}://{_format_url_host(host)}:{port}/v1/{endpoint_suffix}"
         if otel_env_config.data_type == OtelDataType.TRACES:
             exporter = OTLPSpanExporter(endpoint=endpoint_str)
         else:

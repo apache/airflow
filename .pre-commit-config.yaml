@@ -31,7 +31,7 @@ repos:
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: 8c02ba71e7e9c5c90d85f05b676523cb8fd897c6  # frozen: v2.4.0
+    rev: d77825acdc8ca194308680fa4f8385ae5bb61cb4  # frozen: v2.4.1
     hooks:
       - id: doctoc
         name: Add TOC for Markdown and RST files
@@ -62,6 +62,9 @@ repos:
         exclude: |
           (?x)
           ^\.github/|
+          ^java-sdk/gradlew$|
+          ^java-sdk/gradlew\.bat$|
+          ^java-sdk/gradle/|
           ^scripts/ci/license-templates/
         args:
           - --comment-style
@@ -165,6 +168,7 @@ repos:
           (?x)
           ^\.github/.*\.md$|
           ^\.claude/|
+          ^\.agents/|
           ^(?:.*/)?AGENTS\.md$|
           ^(?:.*/)?CLAUDE\.md$|
           ^(?:.*/)?SKILL\.md$|
@@ -176,19 +180,21 @@ repos:
           - "||"
           - --license-filepath
           - scripts/ci/license-templates/SHORT_LICENSE.md
+          - --detect-license-in-X-top-lines
+          - '30'
           - --fuzzy-match-generates-todo
         files:
           (?x)
           ^\.github/.*\.md$|
           ^\.claude/|
+          ^\.agents/|
           ^(?:.*/)?AGENTS\.md$|
           ^(?:.*/)?CLAUDE\.md$|
           ^(?:.*/)?SKILL\.md$
         exclude:
           (?x)
           ^scripts/ci/license-templates/|
-          ^\.github/instructions/|
-          ^\.github/skills/airflow-translations/SKILL\.md$
+          ^\.agents/skills/magpie-setup/
       - id: insert-license
         name: Add license for all other files
         args:
@@ -218,6 +224,13 @@ repos:
         entry: ./scripts/ci/prek/check_min_python_version.py
         language: python
         require_serial: true
+      - id: update-notice-year
+        name: Update NOTICE files to current year (manual)
+        entry: ./scripts/ci/prek/update_notice_year.py
+        stages: ['manual']
+        language: python
+        pass_filenames: false
+        require_serial: true
       - id: check-notice-files
         name: Check NOTICE files for current year and ASF references
         entry: ./scripts/ci/prek/check_notice_files.py
@@ -234,6 +247,64 @@ repos:
           ^task-sdk/src/airflow/sdk/__init__\.py$|
           ^pyproject\.toml$
         pass_filenames: false
+        require_serial: true
+      - id: check-ci-workflows-in-sync
+        name: Check ci-arm.yml and ci-amd.yml stay in sync
+        entry: ./scripts/ci/prek/check_ci_workflows_in_sync.py
+        language: python
+        files: ^\.github/workflows/ci-(arm|amd)\.yml$
+        pass_filenames: false
+        require_serial: true
+      - id: check-java-sdk-version-in-sync
+        name: Check Java SDK JDK version is consistent across build files
+        entry: ./scripts/ci/prek/check_java_sdk_version_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^\.github/workflows/ci-(arm|amd)\.yml$|
+          ^\.github/workflows/codeql-analysis\.yml$|
+          ^java-sdk/buildSrc/src/main/kotlin/airflow-jvm-conventions\.gradle\.kts$|
+          ^scripts/docker/install_os_dependencies\.sh$|
+          ^Dockerfile$|
+          ^Dockerfile\.ci$
+        pass_filenames: false
+        require_serial: true
+      - id: check-partition-mapper-defaults-in-sync
+        name: Check partition-mapper core/SDK sync (FanOutMapper table + SegmentWindow/FixedKeyMapper)
+        entry: ./scripts/ci/prek/check_partition_mapper_defaults_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/partition_mappers/temporal\.py$|
+          ^airflow-core/src/airflow/partition_mappers/window\.py$|
+          ^airflow-core/src/airflow/partition_mappers/fixed_key\.py$|
+          ^task-sdk/src/airflow/sdk/definitions/partition_mappers/temporal\.py$|
+          ^task-sdk/src/airflow/sdk/definitions/partition_mappers/window\.py$|
+          ^task-sdk/src/airflow/sdk/definitions/partition_mappers/fixed_key\.py$
+        pass_filenames: false
+        require_serial: true
+      - id: check-window-in-sync
+        name: Check Window definitions stay in sync (core/SDK)
+        entry: ./scripts/ci/prek/check_window_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/partition_mappers/window\.py$|
+          ^task-sdk/src/airflow/sdk/definitions/partition_mappers/window\.py$
+        pass_filenames: false
+        require_serial: true
+      - id: sync-uv-min-version-markers
+        name: Sync `# sync-uv-min-version` markers with [tool.uv] required-version
+        entry: ./scripts/ci/prek/sync_uv_min_version_markers.py
+        language: python
+        # Hook reads pyproject.toml itself; the file list selects places that may carry
+        # the `# sync-uv-min-version` marker. Any new test/file using the marker should
+        # be added here.
+        files: >
+          (?x)
+          ^pyproject\.toml$|
+          ^dev/breeze/src/airflow_breeze/utils/check_release_files\.py$|
+          ^dev/breeze/tests/test_environment_check\.py$
         require_serial: true
       - id: check-distribution-gitignore
         name: Check distribution .gitignore files have *.iml
@@ -273,6 +344,9 @@ repos:
         alias: blacken-docs
         additional_dependencies:
          - 'black==26.1.0'
+        exclude: >
+          (?x)
+          ^\.agents/skills/aip-user-stories
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
     hooks:
@@ -330,7 +404,8 @@ repos:
           ^.*airflow\.template\.yaml$|
           ^.*init_git_sync\.template\.yaml$|
           ^chart/(?:templates|files)/.*\.yaml$|
-          ^helm-tests/tests/chart_utils/keda.sh_scaledobjects\.yaml$|
+          ^chart/tests/chart_utils/keda.sh_scaledobjects\.yaml$|
+          ^chart/tests/chart_utils/gateway.networking.k8s.io_httproutes\.yaml$|
           .*/v1.*\.yaml$|
           ^.*openapi.*\.yaml$|
           ^\.pre-commit-config\.yaml$|
@@ -369,14 +444,15 @@ repos:
           ^.*pnpm-lock\.yaml$|
           .*/dist/.*|
           ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
-          ^\.github/skills/airflow-translations/|
+          ^\.agents/skills/airflow-translations/|
+          ^\.agents/skills/magpie-setup/|
           ^scripts/docker/keys/.*\.asc$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: 0703f40666c15722d5402120b1bbd61bc3503772  # frozen: v1.24.0
+    rev: 9257c6050c0261b8c57e712f632dc4a8010109a9  # frozen: v1.25.2
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -384,6 +460,37 @@ repos:
         files: ^\.github/workflows/.*$|^\.github/actions/.*$
         require_serial: true
         entry: zizmor
+  - repo: https://github.com/lycheeverse/lychee
+    rev: 2bba271688c1abb1503097a064e6c3bc1d1b6a9b  # frozen: lychee-lib-v0.24.2
+    hooks:
+      # Use the upstream `lychee-docker` variant rather than the script-based
+      # `lychee` hook because the prebuilt lychee binaries that the script
+      # downloads are linked against newer glibc than ubuntu-22.04 runners
+      # ship with (`GLIBC_2.38` / `GLIBC_2.39` not found at runtime). The
+      # docker variant runs the official `lycheeverse/lychee` image, which
+      # bundles its own libc and is portable across runners.
+      - id: lychee-docker
+        name: Check internal Markdown links with lychee (offline mode)
+        description: >-
+          Validate intra-repo links in Markdown files (relative paths, anchors,
+          and fragments) without making any HTTP requests. Auto-generated client
+          docs are excluded because they are regenerated from OpenAPI specs.
+        types: [markdown]
+        args:
+          - --offline
+          - --no-progress
+          - --root-dir
+          - .
+          - --include-fragments
+        exclude: |
+          (?x)
+          ^clients/python/|
+          ^.*/openapi-gen/|
+          ^.*/node_modules/|
+          ^\.build/|
+          ^generated/|
+          ^\.apache-magpie-overrides/|
+          ^\.agents/skills/magpie-setup/
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimize the number of passes that must happen to apply some of the changes
@@ -398,7 +505,13 @@ repos:
         entry: ./scripts/ci/prek/check_shared_distributions_structure.py
         language: python
         pass_filenames: false
-        files: ^shared/.*$
+        files: >
+          (?x)
+          ^shared/.*$|
+          ^.*/pyproject\.toml$|
+          ^.*/_shared/.*$|
+          ^airflow-core/.*\.py$|
+          ^task-sdk/.*\.py$
       - id: check-shared-distributions-usage
         name: Check shared distributions usage
         entry: ./scripts/ci/prek/check_shared_distributions_usage.py
@@ -449,7 +562,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.10']
+        additional_dependencies: ['ruff==0.15.16']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -589,6 +702,7 @@ repos:
           ^README\.md$|
           ^pyproject\.toml$|
           ^generated/PYPI_README\.md$|
+          ^airflow-core/src/airflow/ui/public/i18n/README\.md$|
           ^airflow-core/docs/.*commits\.rst$|
           ^airflow-core/newsfragments/41368\.significant\.rst$|
           ^airflow-core/newsfragments/41761.significant\.rst$|
@@ -608,9 +722,14 @@ repos:
           ^providers/common/ai/src/airflow/providers/common/ai/plugins/www/pnpm-lock\.yaml$|
           ^airflow-core/src/airflow/ui/public/i18n/locales/de/README\.md$|
           ^airflow-core/src/airflow/ui/src/i18n/config\.ts$|
+          ^\.agents/skills/airflow-translations/|
+          ^\.agents/skills/magpie-setup/|
           ^airflow-core/src/airflow/utils/db\.py$|
           ^airflow-core/src/airflow/utils/trigger_rule\.py$|
           ^airflow-core/tests/|
+          ^java-sdk/gradlew$|
+          ^java-sdk/gradlew\.bat$|
+          ^java-sdk/gradle|
           ^task-sdk/tests/|
           ^.*changelog\.(rst|txt)$|
           ^.*CHANGELOG\.(rst|txt)$|
@@ -626,7 +745,7 @@ repos:
           .*/dist/.*|
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store\.rst$|
           git|
-          ^helm-tests/tests/chart_utils/helm_template_generator\.py$|
+          ^chart/tests/chart_utils/helm_template_generator\.py$|
           package-lock\.json$|
           ^.*\.(png|gif|jp[e]?g|svg|tgz|lock|woff2?)$|
           ^\.pre-commit-config\.yaml$|
@@ -643,6 +762,7 @@ repos:
           ^providers/apache/kafka/docs/connections/kafka\.rst$|
           ^providers/apache/spark/docs/decorators/pyspark\.rst$|
           ^providers/apache/spark/docs/connections/spark-submit.rst$|
+          ^providers/apache/spark/docs/operators\.rst$|
           ^providers/apache/spark/src/airflow/providers/apache/spark/decorators/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/hooks/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/operators/|
@@ -744,6 +864,12 @@ repos:
         entry: "default_args\\s*=\\s*{\\s*(\"|')start_date(\"|')|(\"|')start_date(\"|'):"
         files: \.*example_dags.*\.py$
         pass_filenames: true
+      - id: check-example-dag-tags
+        name: Check example DAGs carry the "example" tag
+        entry: ./scripts/ci/prek/check_example_dag_tags.py
+        language: python
+        files: ^.*/example_dags/.*\.py$
+        pass_filenames: true
       - id: check-apache-license-rat
         name: Check if licenses are OK for Apache
         entry: ./scripts/ci/prek/check_license.py
@@ -805,8 +931,19 @@ repos:
         files: >
           (?x)
           ^airflow-core/src/airflow/ui/public/i18n/locales/en/.*\.json$|
-          ^\.github/skills/airflow-translations/SKILL\.md$
+          ^\.agents/skills/airflow-translations/SKILL\.md$
         pass_filenames: false
+      - id: generate-agent-skills
+        name: Sync AGENTS.md commands from contributing docs
+        entry: ./scripts/ci/prek/generate_agent_skills.py
+        language: python
+        files: >
+          (?x)
+          ^contributing-docs/.*\.rst$|
+          ^AGENTS\.md$|
+          ^scripts/ci/prek/generate_agent_skills\.py$
+        pass_filenames: false
+        additional_dependencies: ['pyyaml', 'rich>=13.6.0']
       - id: update-pyproject-toml
         name: Update Airflow's meta-package pyproject.toml
         language: python
@@ -820,7 +957,7 @@ repos:
         pass_filenames: false
         require_serial: true
       - id: check-excluded-provider-markers
-        name: Check excluded-provider python_version markers in pyproject.toml
+        name: Check excluded-provider python_version and platform markers in pyproject.toml
         language: python
         entry: ./scripts/ci/prek/check_excluded_provider_markers.py
         files: >
@@ -856,6 +993,17 @@ repos:
         language: python
         files: ^README\.md$
         pass_filenames: false
+      - id: sync-provider-readme
+        name: Sync provider README.rst Requirements table with pyproject.toml
+        description: |
+          Provider README.rst files are regenerated from pyproject.toml at distribution-build
+          time. Between releases, dependency bumps in pyproject.toml do not propagate to the
+          committed README, leading to drift. This hook re-renders the Requirements table from
+          the current pyproject.toml whenever the latter changes.
+        entry: ./scripts/ci/prek/sync_provider_readme.py
+        language: python
+        files: ^providers/.*/pyproject\.toml$
+        pass_filenames: true
       - id: lint-markdown
         name: Run markdownlint
         description: Checks the style of Markdown files.
@@ -863,6 +1011,10 @@ repos:
         language: node
         types: [markdown]
         files: \.(md|mdown|markdown)$
+        exclude: |
+          (?x)
+          ^\.apache-magpie-overrides/|
+          ^\.agents/skills/magpie-setup/
         additional_dependencies: ['markdownlint-cli@0.38.0']
       - id: lint-json-schema
         name: Lint JSON Schema files
@@ -992,6 +1144,18 @@ repos:
         language: python
         pass_filenames: true
         files: ^(airflow-core|airflow-ctl|task-sdk|providers|shared)/.*\.py$
+      - id: check-no-new-provide-session-positional
+        name: Check that no new @provide_session functions declare `session` positionally
+        entry: ./scripts/ci/prek/check_provide_session_kwargs.py
+        language: python
+        pass_filenames: true
+        files: ^(airflow-core|providers)/.*\.py$|^scripts/ci/prek/known_provide_session_positional\.txt$|^scripts/ci/prek/check_provide_session_kwargs\.py$
+      - id: check-no-new-airflow-core-utils-modules
+        name: Check that no new modules are added under airflow-core/src/airflow/utils
+        entry: ./scripts/ci/prek/check_no_new_airflow_core_utils_modules.py
+        language: python
+        pass_filenames: false
+        files: ^airflow-core/src/airflow/utils/[^/]+$|^scripts/ci/prek/known_airflow_core_utils_modules\.txt$|^scripts/ci/prek/check_no_new_airflow_core_utils_modules\.py$
       - id: bandit
         name: bandit
         description: "Bandit is a tool for finding common security issues in Python code"
@@ -1031,19 +1195,27 @@ repos:
           ^uv\.lock$
         pass_filenames: false
         require_serial: true
-      - id: mypy-dev
-        name: Run mypy for dev
-        language: python
-        entry: ./scripts/ci/prek/mypy_local_folder.py dev scripts
-        pass_filenames: false
-        files: ^.*\.py$
-        require_serial: true
       - id: mypy-devel-common
         name: Run mypy for devel-common
         language: python
-        entry: ./scripts/ci/prek/mypy_local_folder.py devel-common
+        entry: ./scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py devel-common
         pass_filenames: false
         files: ^.*\.py$
+        require_serial: true
+      - id: check-shared-mypy-hooks
+        name: Every shared/<dist> has a mypy-shared-<dist> prek hook
+        language: python
+        entry: ./scripts/ci/prek/check_shared_mypy_hooks.py
+        pass_filenames: false
+        files: ^shared/.*|^scripts/ci/prek/check_shared_mypy_hooks\.py$
+        require_serial: true
+      - id: check-migration-patterns
+        name: Check migration files for anti-patterns (MIG001/MIG002/MIG003)
+        entry: ./scripts/ci/prek/check_migration_patterns.py
+        language: python
+        pass_filenames: true
+        files: ^airflow-core/src/airflow/migrations/versions/.*\.py$
+        additional_dependencies: [rich>=13.6.0]
         require_serial: true
       ## ADD MOST PREK HOOK ABOVE THAT LINE
       # The below prek hooks are those requiring CI image to be built
@@ -1060,6 +1232,20 @@ repos:
         language: python
         pass_filenames: true
         files: ^airflow-core/src/airflow/api_fastapi/execution_api/(datamodels|versions)/.*\.py$
+        require_serial: true
+      - id: generate-supervisor-schemas-snapshot
+        name: Regenerate supervisor schema snapshot
+        entry: ./scripts/ci/prek/generate_supervisor_schemas_snapshot.py
+        language: python
+        pass_filenames: false
+        files: ^(task-sdk/src/airflow/sdk/execution_time/(comms\.py|schema/.*\.py)|airflow-core/src/airflow/dag_processing/processor\.py)$
+        require_serial: true
+      - id: check-supervisor-schemas-versions
+        name: Check supervisor schema changes have corresponding version updates
+        entry: ./scripts/ci/prek/check_supervisor_schemas_versions.py
+        language: python
+        pass_filenames: true
+        files: ^(task-sdk/src/airflow/sdk/execution_time/(comms\.py|schema/.*\.py)|airflow-core/src/airflow/dag_processing/processor\.py)$
         require_serial: true
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client
@@ -1087,3 +1273,17 @@ repos:
         language: python
         files: .*test.*\.py$
         pass_filenames: true
+      - id: ktlint
+        name: Run ktlint format
+        description: "Use ktlint (via Gradle) to format Kotlin and Java files"
+        entry: ./java-sdk/gradlew -p ./java-sdk ktlintFormat
+        language: system
+        pass_filenames: false
+        files: ^java-sdk/.*$
+      - id: spotless
+        name: Run spotless apply
+        description: "Use spotless (via Gradle) to format Java files"
+        entry: ./java-sdk/gradlew -p ./java-sdk spotlessApply
+        language: system
+        pass_filenames: false
+        files: ^java-sdk/.*\.java$

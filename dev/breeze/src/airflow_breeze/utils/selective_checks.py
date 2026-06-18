@@ -52,6 +52,7 @@ from airflow_breeze.global_constants import (
     PUBLIC_ARM_RUNNERS,
     RUNNERS_TYPE_CROSS_MAPPING,
     TESTABLE_CORE_INTEGRATIONS,
+    TESTABLE_PROVIDERS_INTEGRATION_OWNERS,
     TESTABLE_PROVIDERS_INTEGRATIONS,
     GithubEvents,
     SelectiveAirflowCtlTestType,
@@ -88,7 +89,6 @@ LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
-ALLOW_TRANSACTION_CHANGE_LABEL = "allow translation change"
 ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL = "allow provider dependency bump"
 SKIP_COMMON_COMPAT_CHECK_LABEL = "skip common compat check"
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
@@ -96,9 +96,6 @@ ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
     "Providers[-amazon,google,standard] Providers[amazon] Providers[google] Providers[standard]"
 )
-
-# Set to True to enter a translation freeze period. Set to False to exit a translation freeze period.
-FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED = False
 
 
 class FileGroupForCi(Enum):
@@ -120,6 +117,7 @@ class FileGroupForCi(Enum):
     TASK_SDK_FILES = auto()
     TASK_SDK_INTEGRATION_TEST_FILES = auto()
     GO_SDK_FILES = auto()
+    JAVA_SDK_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
     AIRFLOW_CTL_INTEGRATION_TEST_FILES = auto()
     BREEZE_INTEGRATION_TEST_FILES = auto()
@@ -127,6 +125,9 @@ class FileGroupForCi(Enum):
     REMOTE_LOGGING_E2E_S3_FILES = auto()
     REMOTE_LOGGING_E2E_ELASTICSEARCH_FILES = auto()
     REMOTE_LOGGING_E2E_OPENSEARCH_FILES = auto()
+    EVENT_DRIVEN_E2E_FILES = auto()
+    JAVA_SDK_E2E_FILES = auto()
+    GO_SDK_E2E_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -136,14 +137,21 @@ class FileGroupForCi(Enum):
     ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES = auto()
     ALL_DEV_PYTHON_FILES = auto()
     ALL_DEVEL_COMMON_PYTHON_FILES = auto()
+    ALL_SCRIPTS_PYTHON_FILES = auto()
+    ALL_HELM_TESTS_PYTHON_FILES = auto()
+    ALL_AIRFLOW_E2E_TESTS_PYTHON_FILES = auto()
+    ALL_DOCKER_TESTS_PYTHON_FILES = auto()
+    ALL_KUBERNETES_TESTS_PYTHON_FILES = auto()
     ALL_PROVIDER_YAML_FILES = auto()
     TESTS_UTILS_FILES = auto()
     ASSET_FILES = auto()
     UNIT_TEST_FILES = auto()
     DEVEL_TOML_FILES = auto()
-    UI_ENGLISH_TRANSLATION_FILES = auto()
     SCRIPTS_FILES = auto()
     UV_LOCK_FILE = auto()
+    KERBEROS_FILES = auto()
+    OTEL_FILES = auto()
+    CELERY_FILES = auto()
 
 
 class AllProvidersSentinel:
@@ -171,6 +179,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^Dockerfile",
             r"^scripts/ci/docker-compose",
             r"^scripts/ci/kubernetes",
+            r"^scripts/ci/prek",
             r"^scripts/docker",
             r"^scripts/in_container",
             r"^generated/provider_dependencies.json$",
@@ -203,16 +212,58 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/remote_log_opensearch_tests/.*",
             r"^providers/opensearch/.*",
         ],
+        FileGroupForCi.EVENT_DRIVEN_E2E_FILES: [
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/event_driven_tests/.*",
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/dags/example_event_driven\.py$",
+            r"^airflow-e2e-tests/docker/kafka/.*",
+            r"^airflow-e2e-tests/docker/kafka\.yml$",
+            r"^providers/apache/kafka/.*",
+            r"^providers/common/messaging/.*",
+        ],
+        FileGroupForCi.JAVA_SDK_E2E_FILES: [
+            r"^java-sdk/.*",
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/java_sdk_tests/.*",
+            r"^airflow-e2e-tests/docker/java\.yml$",
+            r"^airflow-e2e-tests/docker/Dockerfile\.java$",
+            r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
+            r"^task-sdk/src/airflow/sdk/coordinators/java/.*",
+        ],
+        FileGroupForCi.GO_SDK_E2E_FILES: [
+            r"^go-sdk/.*",
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/go_sdk_tests/.*",
+            r"^airflow-e2e-tests/docker/go\.yml$",
+            r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
+            r"^task-sdk/src/airflow/sdk/coordinators/executable/.*",
+        ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
-            r"^airflow-core/src/airflow/.*\.py",
-            r"^providers/.*\.py",
-            r"^pyproject.toml",
-            r"^hatch_build.py",
+            # Production Python source the runtime ships — excludes tests, docs,
+            # dev tooling, and generated files within those trees. Used by
+            # `run_python_scans` (SAST/SCA target) to decide whether the security
+            # scans need to run.
+            #
+            # `example_dags/` are illustrative, not shipped runtime code, so they
+            # are excluded from the SAST target. They are still selected for their
+            # own tests via the broader `ALL_AIRFLOW_PYTHON_FILES` /
+            # `ALL_PROVIDERS_PYTHON_FILES` groups, so excluding them here only
+            # affects the SAST target, not test selection. The `(?:.*/)?` covers
+            # both airflow-core's top-level `airflow/example_dags/` and the nested
+            # `providers/<name>/.../example_dags/` layout.
+            r"^airflow-core/src/airflow/(?!(?:.*/)?example_dags/)(?!.*/(?:openapi-gen|i18n/locales)/).*\.py$",
+            r"^task-sdk/src/airflow/(?!.*_generated\.py$).*\.py$",
+            r"^airflow-ctl/src/airflowctl/(?!.*generated\.py$).*\.py$",
+            r"^providers/(?:[^/]+/)+src/(?!(?:.*/)?example_dags/).*\.py$",
+            r"^shared/[^/]+/src/.*\.py$",
+            r"^pyproject\.toml$",
+            r"^hatch_build\.py$",
         ],
         FileGroupForCi.JAVASCRIPT_PRODUCTION_FILES: [
-            r"^airflow-core/src/airflow/.*\.[jt]sx?",
-            r"^airflow-core/src/airflow/.*\.lock",
-            r"^airflow-core/src/airflow/ui/.*\.yaml$",
+            # Exclude the openapi-gen tree and translation bundles — those are
+            # generated / data files that ride under the same prefixes but
+            # carry no behavioral risk and would otherwise distort the
+            # production-code line-count gate.
+            r"^airflow-core/src/airflow/(?!.*/(?:openapi-gen|i18n/locales)/).*\.[jt]sx?$",
+            r"^airflow-core/src/airflow/.*\.lock$",
+            r"^airflow-core/src/airflow/ui/(?!.*/(?:openapi-gen|i18n/locales)/).*\.yaml$",
             r"^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/.*\.yaml$",
         ],
         FileGroupForCi.API_FILES: [
@@ -235,7 +286,6 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^chart",
             r"^airflow-core/src/airflow/kubernetes",
             r"^airflow-core/tests/unit/kubernetes",
-            r"^helm-tests",
         ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
@@ -298,6 +348,21 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.ALL_DEVEL_COMMON_PYTHON_FILES: [
             r"^devel-common/.*\.py$",
         ],
+        FileGroupForCi.ALL_SCRIPTS_PYTHON_FILES: [
+            r"^scripts/.*\.py$",
+        ],
+        FileGroupForCi.ALL_HELM_TESTS_PYTHON_FILES: [
+            r"^chart/tests/.*\.py$",
+        ],
+        FileGroupForCi.ALL_AIRFLOW_E2E_TESTS_PYTHON_FILES: [
+            r"^airflow-e2e-tests/.*\.py$",
+        ],
+        FileGroupForCi.ALL_DOCKER_TESTS_PYTHON_FILES: [
+            r"^docker-tests/.*\.py$",
+        ],
+        FileGroupForCi.ALL_KUBERNETES_TESTS_PYTHON_FILES: [
+            r"^kubernetes-tests/.*\.py$",
+        ],
         FileGroupForCi.ALL_SOURCE_FILES: [
             r"^.pre-commit-config.yaml$",
             r"^airflow-core/src/.*",
@@ -312,7 +377,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^task-sdk/tests/.*",
             r"^devel-common/src/.*",
             r"^devel-common/tests/.*",
-            r"^helm-tests/tests/.*",
+            r"^chart/tests/.*",
             r"^kubernetes-tests/tests/.*",
             r"^docker-tests/tests/.*",
         ],
@@ -342,6 +407,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.GO_SDK_FILES: [
             r"^go-sdk/.*\.go$",
         ],
+        FileGroupForCi.JAVA_SDK_FILES: [
+            r"^java-sdk/",
+        ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
             r"^airflow-core/src/airflow/models/assets/",
@@ -365,9 +433,6 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.DEVEL_TOML_FILES: [
             r"^devel-common/pyproject\.toml$",
         ],
-        FileGroupForCi.UI_ENGLISH_TRANSLATION_FILES: [
-            r"^airflow-core/src/airflow/ui/public/i18n/locales/en/.*\.json$",
-        ],
         FileGroupForCi.SCRIPTS_FILES: [
             r"^scripts/ci/.*\.py$",
             r"^scripts/cov/.*\.py$",
@@ -377,8 +442,30 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.UV_LOCK_FILE: [
             r"^uv\.lock$",
         ],
+        FileGroupForCi.KERBEROS_FILES: [
+            r"^airflow-core/src/airflow/security/kerberos\.py$",
+            r"^airflow-core/src/airflow/cli/commands/kerberos_command\.py$",
+        ],
+        FileGroupForCi.OTEL_FILES: [
+            r"^airflow-core/src/airflow/observability/.*",
+            r"^shared/observability/src/airflow_shared/observability/.*",
+            r"^airflow-core/src/airflow/utils/span_status\.py$",
+        ],
+        FileGroupForCi.CELERY_FILES: [
+            # Core executor sources - redis is celery's broker/result backend, so the
+            # core "redis" integration is exercised when the executor framework changes.
+            r"^airflow-core/src/airflow/executors/.*",
+        ],
     }
 )
+
+# Maps each testable core integration to the file group whose change should trigger it.
+# "redis" maps to celery/core-executor sources (redis is celery's broker/result backend).
+TESTABLE_CORE_INTEGRATION_FILE_GROUPS = {
+    "kerberos": FileGroupForCi.KERBEROS_FILES,
+    "otel": FileGroupForCi.OTEL_FILES,
+    "redis": FileGroupForCi.CELERY_FILES,
+}
 
 PYTHON_OPERATOR_FILES = [
     r"^providers/tests/standard/operators/test_python.py",
@@ -640,10 +727,21 @@ class SelectiveChecks:
             console_print("[warning]Running full set of tests because env files changed[/]")
             return True
         if self._matching_files(
-            FileGroupForCi.API_FILES,
+            FileGroupForCi.API_CODEGEN_FILES,
             CI_FILE_GROUP_MATCHES,
         ):
-            console_print("[warning]Running full set of tests because api files changed[/]")
+            # Only the API *contract* changing (the generated OpenAPI spec, or the
+            # client generator) ripples broadly — to the UI codegen, the generated
+            # clients, and every consumer — so it warrants the full matrix. Plain
+            # API source/test edits that leave the committed spec untouched do not:
+            # a prek hook regenerates and verifies the spec, so an unchanged spec
+            # reliably means an unchanged contract. Those edits still run the `API`
+            # test type and the `fab` provider (via `run_api_tests`); they just no
+            # longer drag in the whole provider matrix.
+            console_print(
+                "[warning]Running full set of tests because the API contract "
+                "(generated OpenAPI spec / client generator) changed[/]"
+            )
             return True
         if self._matching_files(
             FileGroupForCi.GIT_PROVIDER_FILES,
@@ -671,82 +769,12 @@ class SelectiveChecks:
         ):
             console_print("[warning]Running full set of tests because tests/utils changed[/]")
             return True
-        if self._is_large_enough_pr():
-            return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
             console_print(
                 "[warning]Full tests needed because "
                 f"label '{FULL_TESTS_NEEDED_LABEL}' is in  {self._pr_labels}[/]"
             )
             return True
-        return False
-
-    def _is_large_enough_pr(self) -> bool:
-        """
-        Check if PR is large enough to run full tests.
-
-        The heuristics are based on number of files changed and total lines changed,
-        while excluding generated files which can be ignored.
-        """
-        FILE_THRESHOLD = 25
-        LINE_THRESHOLD = 500
-
-        if not self._files:
-            return False
-
-        exclude_patterns = [
-            r"/newsfragments/",
-            r"^uv\.lock$",
-            r"pnpm-lock\.yaml$",
-            r"package-lock\.json$",
-        ]
-
-        relevant_files = [
-            f for f in self._files if not any(re.search(pattern, f) for pattern in exclude_patterns)
-        ]
-
-        files_changed = len(relevant_files)
-        if files_changed >= FILE_THRESHOLD:
-            console_print(
-                f"[warning]Running full set of tests because PR touches {files_changed} files "
-                f"(≥25 threshold)[/]"
-            )
-            return True
-
-        if not self._commit_ref:
-            console_print("[warning]Cannot determine if PR is big enough, skipping the check[/]")
-            return False
-
-        try:
-            result = run_command(
-                ["git", "diff", "--numstat", f"{self._commit_ref}^...{self._commit_ref}"] + relevant_files,
-                capture_output=True,
-                text=True,
-                cwd=AIRFLOW_ROOT_PATH,
-                check=False,
-            )
-
-            if result.returncode == 0:
-                total_lines = 0
-                for line in result.stdout.strip().split("\n"):
-                    if line:
-                        parts = line.split("\t")
-                        if len(parts) >= 2:
-                            try:
-                                additions = int(parts[0])
-                                deletions = int(parts[1])
-                                total_lines += additions + deletions
-                            except ValueError:
-                                pass
-                if total_lines >= LINE_THRESHOLD:
-                    console_print(
-                        f"[warning]Running full set of tests because PR changes {total_lines} lines "
-                        f"in {files_changed} files[/]"
-                    )
-                    return True
-        except Exception:
-            pass
-
         return False
 
     @cached_property
@@ -962,6 +990,18 @@ class SelectiveChecks:
         )
 
     @cached_property
+    def run_event_driven_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.EVENT_DRIVEN_E2E_FILES)
+
+    @cached_property
+    def run_java_sdk_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.JAVA_SDK_E2E_FILES)
+
+    @cached_property
+    def run_go_sdk_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.GO_SDK_E2E_FILES)
+
+    @cached_property
     def run_amazon_tests(self) -> bool:
         if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
@@ -983,6 +1023,10 @@ class SelectiveChecks:
     @cached_property
     def run_go_sdk_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.GO_SDK_FILES)
+
+    @cached_property
+    def run_java_sdk_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.JAVA_SDK_FILES)
 
     @cached_property
     def run_airflow_ctl_tests(self) -> bool:
@@ -1072,6 +1116,9 @@ class SelectiveChecks:
             or self.run_remote_logging_s3_e2e_tests
             or self.run_remote_logging_elasticsearch_e2e_tests
             or self.run_remote_logging_opensearch_e2e_tests
+            or self.run_event_driven_e2e_tests
+            or self.run_java_sdk_e2e_tests
+            or self.run_go_sdk_e2e_tests
             or self.run_ui_e2e_tests
         )
 
@@ -1252,6 +1299,53 @@ class SelectiveChecks:
         return json.dumps(_get_test_list_as_json(list_of_list_of_types))
 
     @cached_property
+    def _platform_excluded_providers(self) -> set[str]:
+        """Provider ids that opt out of the current ``self.platform`` via provider.yaml.
+
+        Mirrors the ``excluded-python-versions`` mechanism but keyed by Docker platform
+        string (e.g. ``linux/arm64``) so providers whose native dependencies are unavailable
+        on a given architecture can be removed from the test matrix at planning time.
+        """
+        excluded: set[str] = set()
+        for provider_id, provider_info in get_provider_dependencies().items():
+            if self.platform in provider_info.get("excluded-platforms", []):
+                excluded.add(provider_id)
+        return excluded
+
+    def _filter_platform_excluded_test_types(self, current_test_types: set[str]) -> None:
+        """Rewrite ``Providers[...]`` entries in-place to honor ``excluded-platforms``.
+
+        Handles three shapes produced upstream:
+
+        * ``Providers[foo]`` — dropped entirely when ``foo`` is excluded.
+        * ``Providers[a,foo,b]`` — rewritten to ``Providers[a,b]``; dropped if empty.
+        * ``Providers[-amazon,celery,google,standard]`` (negative, "all except") —
+          excluded providers are appended to the negation so they remain skipped.
+        """
+        excluded = self._platform_excluded_providers
+        if not excluded:
+            return
+        for original in tuple(current_test_types):
+            if not original.startswith("Providers[") or not original.endswith("]"):
+                continue
+            inner = original[len("Providers[") : -1]
+            if inner.startswith("-"):
+                negated = [p for p in inner[1:].split(",") if p]
+                additions = sorted(p for p in excluded if p not in negated)
+                if not additions:
+                    continue
+                current_test_types.remove(original)
+                current_test_types.add(f"Providers[-{','.join(sorted(negated + additions))}]")
+                continue
+            providers_in = [p for p in inner.split(",") if p]
+            kept = [p for p in providers_in if p not in excluded]
+            if kept == providers_in:
+                continue
+            current_test_types.remove(original)
+            if kept:
+                current_test_types.add(f"Providers[{','.join(kept)}]")
+
+    @cached_property
     def providers_test_types_list_as_strings_in_json(self) -> str:
         if not self.run_unit_tests:
             return "[]"
@@ -1267,6 +1361,7 @@ class SelectiveChecks:
                     test_types_to_remove.add(test_type)
             current_test_types = current_test_types - test_types_to_remove
         self._extract_long_provider_tests(current_test_types)
+        self._filter_platform_excluded_test_types(current_test_types)
         return json.dumps(_get_test_list_as_json([sorted(current_test_types)]))
 
     def _get_individual_providers_list(self):
@@ -1276,6 +1371,7 @@ class SelectiveChecks:
             current_test_types.update(
                 {f"Providers[{provider}]" for provider in get_available_distributions(include_not_ready=True)}
             )
+        self._filter_platform_excluded_test_types(current_test_types)
         return current_test_types
 
     @cached_property
@@ -1466,6 +1562,11 @@ class SelectiveChecks:
             CI_FILE_GROUP_MATCHES,
         ):
             prek_hooks_to_skip.add("lint-helm-chart")
+        if not self._matching_files(FileGroupForCi.JAVA_SDK_FILES, CI_FILE_GROUP_MATCHES):
+            # ktlint runs the java-sdk Gradle wrapper, which downloads the Gradle distribution
+            # on a cold cache. Skip it when no java-sdk files changed so unrelated PRs do not
+            # depend on that (intermittently failing) download.
+            prek_hooks_to_skip.add("ktlint")
         if not (
             self._matching_files(
                 FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES, CI_FILE_GROUP_MATCHES
@@ -1486,12 +1587,42 @@ class SelectiveChecks:
                 prek_hooks_to_skip.add("mypy-airflow-core")
             if not self._matching_files(FileGroupForCi.ALL_DEV_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
                 prek_hooks_to_skip.add("mypy-dev")
+            if not self._matching_files(FileGroupForCi.ALL_SCRIPTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
+                prek_hooks_to_skip.add("mypy-scripts")
             if not self._matching_files(FileGroupForCi.TASK_SDK_FILES, CI_FILE_GROUP_MATCHES):
                 prek_hooks_to_skip.add("mypy-task-sdk")
             if not self._matching_files(FileGroupForCi.ALL_DEVEL_COMMON_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
                 prek_hooks_to_skip.add("mypy-devel-common")
             if not self._matching_files(FileGroupForCi.ALL_AIRFLOW_CTL_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
                 prek_hooks_to_skip.add("mypy-airflow-ctl")
+            if not self._matching_files(
+                FileGroupForCi.AIRFLOW_CTL_INTEGRATION_TEST_FILES, CI_FILE_GROUP_MATCHES
+            ):
+                prek_hooks_to_skip.add("mypy-airflow-ctl-tests")
+            if not self._matching_files(FileGroupForCi.ALL_HELM_TESTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
+                prek_hooks_to_skip.add("mypy-helm-tests")
+            if not self._matching_files(
+                FileGroupForCi.ALL_AIRFLOW_E2E_TESTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES
+            ):
+                prek_hooks_to_skip.add("mypy-airflow-e2e-tests")
+            if not self._matching_files(
+                FileGroupForCi.TASK_SDK_INTEGRATION_TEST_FILES, CI_FILE_GROUP_MATCHES
+            ):
+                prek_hooks_to_skip.add("mypy-task-sdk-integration-tests")
+            if not self._matching_files(FileGroupForCi.ALL_DOCKER_TESTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
+                prek_hooks_to_skip.add("mypy-docker-tests")
+            if not self._matching_files(
+                FileGroupForCi.ALL_KUBERNETES_TESTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES
+            ):
+                prek_hooks_to_skip.add("mypy-kubernetes-tests")
+            # One mypy-shared-<dist> hook per shared/<dist> workspace member; each is only
+            # kept when that distribution's own files changed.
+            for dist in sorted(
+                p.name for p in (AIRFLOW_ROOT_PATH / "shared").iterdir() if (p / "pyproject.toml").exists()
+            ):
+                pattern = re.compile(rf"^shared/{re.escape(dist)}/.*\.py$")
+                if not any(pattern.match(f) for f in self._files):
+                    prek_hooks_to_skip.add(f"mypy-shared-{dist}")
         return ",".join(sorted(prek_hooks_to_skip))
 
     @cached_property
@@ -1551,6 +1682,12 @@ class SelectiveChecks:
     def get_job_label(self, event_type: str, branch: str):
         import requests  # type: ignore[import-untyped]
 
+        # The main CI is now split into ci-arm.yml and ci-amd.yml; the old
+        # ci-amd-arm.yml file no longer exists. This lookup is dormant for the
+        # main pipeline (which hardcodes runner-type per wrapper) and only
+        # remains here for the `is_disabled_integration` code path that still
+        # reads `runner_type`. The API call against a missing workflow returns
+        # nothing and the caller falls back to PUBLIC_AMD_RUNNERS.
         job_name = "Basic tests"
         workflow_name = "ci-amd-arm.yml"
         headers = {"Accept": "application/vnd.github.v3+json"}
@@ -1662,21 +1799,41 @@ class SelectiveChecks:
     def testable_core_integrations(self) -> list[str]:
         if not self.run_unit_tests:
             return []
-        return [
-            integration
-            for integration in TESTABLE_CORE_INTEGRATIONS
-            if not self._is_disabled_integration(integration)
-        ]
+        if self.full_tests_needed or self._is_canary_run():
+            # All tests are running - exercise every core integration.
+            selected = list(TESTABLE_CORE_INTEGRATIONS)
+        else:
+            # Otherwise only run a core integration when its corresponding core sources changed.
+            selected = [
+                integration
+                for integration in TESTABLE_CORE_INTEGRATIONS
+                if self._should_be_run(TESTABLE_CORE_INTEGRATION_FILE_GROUPS[integration])
+            ]
+        return [integration for integration in selected if not self._is_disabled_integration(integration)]
 
     @cached_property
     def testable_providers_integrations(self) -> list[str]:
         if not self.run_unit_tests:
             return []
-        return [
-            integration
-            for integration in TESTABLE_PROVIDERS_INTEGRATIONS
-            if not self._is_disabled_integration(integration)
-        ]
+        if self.full_tests_needed or self._is_canary_run():
+            # All tests are running - exercise every provider integration.
+            selected = list(TESTABLE_PROVIDERS_INTEGRATIONS)
+        else:
+            # Otherwise only run a provider integration when its owning provider is affected.
+            affected_providers = self._find_all_providers_affected(include_docs=False)
+            if isinstance(affected_providers, AllProvidersSentinel):
+                selected = list(TESTABLE_PROVIDERS_INTEGRATIONS)
+            elif affected_providers:
+                affected_set = set(affected_providers)
+                selected = [
+                    integration
+                    for integration in TESTABLE_PROVIDERS_INTEGRATIONS
+                    if TESTABLE_PROVIDERS_INTEGRATION_OWNERS.get(integration) in affected_set
+                ]
+            else:
+                # No providers affected by the change.
+                selected = []
+        return [integration for integration in selected if not self._is_disabled_integration(integration)]
 
     @cached_property
     def is_committer_build(self):
@@ -1758,36 +1915,13 @@ class SelectiveChecks:
         return json.dumps([file.name for file in (AIRFLOW_ROOT_PATH / "shared").iterdir() if file.is_dir()])
 
     @cached_property
-    def ui_english_translation_changed(self) -> bool:
-        _translation_changed = bool(
-            self._matching_files(
-                FileGroupForCi.UI_ENGLISH_TRANSLATION_FILES,
-                CI_FILE_GROUP_MATCHES,
-            )
-        )
-        if FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED and _translation_changed and not self._is_canary_run():
-            if ALLOW_TRANSACTION_CHANGE_LABEL in self._pr_labels:
-                console_print(
-                    "[warning]The 'allow translation change' label is set and English "
-                    "translation files changed. Bypassing the freeze period."
-                )
-                return True
-            console_print(
-                "[error]English translation changed but we are in a period of translation"
-                "freeze and label to allow it ('allow translation change') is not set"
-            )
-            console_print()
-            console_print(
-                "[warning]To allow translation change, please set the label "
-                "'allow translation change' on the PR, but this has to be communicated "
-                "and agreed to at the #i18n channel in slack"
-            )
-            sys.exit(1)
-        return _translation_changed
-
-    @cached_property
     def provider_dependency_bump(self) -> bool:
         """Check for apache-airflow-providers dependency bumps in pyproject.toml files."""
+        # Only enforce on PRs targeting main. On release branches (e.g. v3-X-test)
+        # cherry-picks routinely bump provider dependency lower bounds, and the
+        # override label is meant for that flow on main.
+        if self._default_branch != "main":
+            return False
         pyproject_files = self._matching_files(
             FileGroupForCi.ALL_PYPROJECT_TOML_FILES,
             CI_FILE_GROUP_MATCHES,
@@ -2014,6 +2148,11 @@ class SelectiveChecks:
         comment for their common-compat dependency.
         """
         if self._github_event != GithubEvents.PULL_REQUEST:
+            return False
+        # Only enforce on PRs targeting main. On release branches (e.g. v3-X-test)
+        # cherry-picked common.compat changes don't follow the '# use next version'
+        # convention, and the override label is meant for that flow on main.
+        if self._default_branch != "main":
             return False
 
         if not self._has_common_compat_changed():

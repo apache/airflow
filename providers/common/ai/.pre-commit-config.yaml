@@ -16,7 +16,7 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.3.2'
+minimum_prek_version: '0.3.4'
 default_language_version:
   python: python3
   node: 22.19.0
@@ -47,3 +47,12 @@ repos:
         entry: ../../../scripts/ci/prek/compile_provider_assets.py ai
         pass_filenames: false
         additional_dependencies: ['pnpm@10.25.0']
+      - id: check-http-exception-import-from-fastapi
+        name: Check HTTPException is imported from fastapi
+        entry: ../../../scripts/ci/prek/check_http_exception_import_from_fastapi.py
+        language: python
+        pass_filenames: true
+        files: >
+          (?x)
+          ^src/airflow/providers/common/ai/plugins/.*\.py$|
+          ^tests/unit/common/ai/plugins/.*\.py$
