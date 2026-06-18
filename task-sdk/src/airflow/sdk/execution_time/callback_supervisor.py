@@ -25,7 +25,7 @@ import time
 from importlib import import_module
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Protocol
+from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Protocol
 from uuid import UUID
 
 import attrs
@@ -178,6 +178,7 @@ class CallbackSubprocess(WatchedSubprocess):
     ``Connection.get()`` and ``Variable.get()`` via the supervisor's API client.
     """
 
+    _msg_union: ClassVar[Any] = CallbackToSupervisor
     decoder: ClassVar[TypeAdapter[CallbackToSupervisor]] = TypeAdapter(CallbackToSupervisor)
 
     @classmethod

@@ -23,7 +23,7 @@ import os
 import traceback
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal
+from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal
 
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
@@ -530,6 +530,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
     in core Airflow.
     """
 
+    _msg_union: ClassVar[Any] = ToManager
     logger_filehandle: BinaryIO
     parsing_result: DagFileParsingResult | None = None
     decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)

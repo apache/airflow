@@ -437,6 +437,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     rather than silently zombieing the supervisor.
     """
 
+    _msg_union: ClassVar[Any] = ToTriggerSupervisor
     job: Job | None = None
     capacity: int
     queues: set[str] | None = None

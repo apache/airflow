@@ -540,7 +540,7 @@ class WatchedSubprocess:
     socket handling, process monitoring, and request handling.
     """
 
-    _msg_union: ClassVar[type]  # subclasses override
+    _msg_union: ClassVar[Any] = ToSupervisor  # subclasses override
 
     @classmethod
     @functools.cache
@@ -889,7 +889,11 @@ class WatchedSubprocess:
     def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
         if type(msg) not in self._allowed_msg_types():
             log.error("Unhandled request", msg=msg)
-            self.send_msg(None, request_id=req_id, error=ErrorResponse(error=ErrorType.UNKNOWN_REQUEST, detail={"type": type(msg).__name__}))
+            self.send_msg(
+                None,
+                request_id=req_id,
+                error=ErrorResponse(error=ErrorType.API_SERVER_ERROR, detail={"type": type(msg).__name__}),
+            )
             return
         resp, dump_opts = get_handler(type(msg))(self.client, msg)
         self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
