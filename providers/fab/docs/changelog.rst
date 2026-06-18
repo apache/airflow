@@ -32,6 +32,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix fab deserialize user session leak (#68100)``
 * ``Import ldap.filter in security_manager override (#68226)``
 * ``Add defensive validation for LDAP search filter configuration (#67630)``
 
