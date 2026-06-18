@@ -43,13 +43,13 @@ class AssetTriggeredTimetable(BaseTimetable):
     """
 
     asset_condition: BaseAsset = attrs.field(alias="assets")
+    batch_asset_events: bool = True
 
 
 @attrs.define
 class PartitionedAssetTimetable(AssetTriggeredTimetable):
     """Asset-driven timetable that listens for partitioned assets."""
 
-    asset_condition: BaseAsset = attrs.field(alias="assets")
     partition_mapper_config: dict[BaseAsset, PartitionMapper] = attrs.field(factory=dict)
     default_partition_mapper: PartitionMapper = IdentityMapper()
 

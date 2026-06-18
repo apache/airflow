@@ -419,3 +419,29 @@ AssetTimetable Integration
 You can schedule Dags based on both asset events and time-based schedules using ``AssetOrTimeSchedule``. This allows you to create workflows when a Dag needs both to be triggered by data updates and run periodically according to a fixed timetable.
 
 For more detailed information on ``AssetOrTimeSchedule``, refer to the corresponding section in :ref:`AssetOrTimeSchedule <asset-timetable-section>`.
+
+
+Controlling DagRun creation per asset event
+---------------------------------------------
+
+.. versionadded:: 3.3.0
+
+By default, when multiple asset events arrive for the same Dag between
+scheduler ticks, they are batched into a single DagRun. Set
+``batch_asset_events=False`` on the timetable to create one DagRun per
+individual event instead.
+
+.. code-block:: python
+
+    from airflow.sdk import DAG, Asset
+    from airflow.timetables.simple import AssetTriggeredTimetable
+
+    # Each update to "data-file" produces its own DagRun
+    with DAG(
+        dag_id="per-event-consumer",
+        schedule=AssetTriggeredTimetable(
+            assets=Asset("s3://bucket/data-file"),
+            batch_asset_events=False,
+        ),
+    ):
+        ...
