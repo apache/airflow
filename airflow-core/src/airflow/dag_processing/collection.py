@@ -32,9 +32,9 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
 from sqlalchemy import delete, func, insert, select, tuple_, update
-from sqlalchemy.exc import DBAPIError
-from sqlalchemy.orm.exc import StaleDataError
+from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import joinedload, load_only
+from sqlalchemy.orm.exc import StaleDataError
 
 from airflow._shared.timezones.timezone import utcnow
 from airflow.assets.manager import asset_manager
