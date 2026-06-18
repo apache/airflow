@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import urllib3.util
 
@@ -76,7 +77,7 @@ try:
                 configuration.verify_ssl = False
             super().__init__(configuration=configuration)
 
-        def call_api(self, *args, **kwargs):
+        def call_api(self, *args: Any, **kwargs: Any) -> Any:
             timeout_seconds = kwargs.get("timeout_seconds")  # get server-side timeout
             kwargs.setdefault(
                 "_request_timeout", _get_request_timeout(timeout_seconds)
@@ -92,7 +93,7 @@ try:
         ) -> None:
             super().__init__(configuration=configuration)
 
-        async def call_api(self, *args, **kwargs):
+        async def call_api(self, *args: Any, **kwargs: Any) -> Any:
             timeout_seconds = kwargs.get("timeout_seconds")  # server-side timeout
             kwargs.setdefault(
                 "_request_timeout", _get_request_timeout(timeout_seconds)
