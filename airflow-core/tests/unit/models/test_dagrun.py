@@ -4118,6 +4118,37 @@ class TestDagRunHandleDagCallback:
         assert "ti" not in context_received
         assert context_received["run_id"] == dr.run_id
 
+    @pytest.mark.parametrize(
+        ("multi_team", "team_name", "expected_tags"),
+        [
+            pytest.param(
+                "true", "team_alpha", {"dag_id": "test_dag", "team_name": "team_alpha"}, id="with_team"
+            ),
+            pytest.param("false", None, {"dag_id": "test_dag"}, id="without_team"),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats.incr")
+    def test_callback_exception_team_name_tag(
+        self, mock_incr, multi_team, team_name, expected_tags, dag_maker, session
+    ):
+        def failing_callback(context):
+            raise RuntimeError("boom")
+
+        with dag_maker("test_dag", session=session, on_failure_callback=failing_callback) as dag:
+            BashOperator(task_id="test_task", bash_command="echo 1")
+
+        dr = dag_maker.create_dagrun()
+        dag.on_failure_callback = failing_callback
+        dag.has_on_failure_callback = True
+
+        with (
+            conf_vars({("core", "multi_team"): multi_team}),
+            mock.patch("airflow.models.dag.DagModel.get_team_name", return_value=team_name),
+        ):
+            dr.execute_dag_callbacks(dag, success=False)
+
+        mock_incr.assert_any_call("dag.callback_exceptions", tags=expected_tags)
+
 
 class TestDagRunTracing:
     """Tests for DagRun OpenTelemetry span behavior."""
