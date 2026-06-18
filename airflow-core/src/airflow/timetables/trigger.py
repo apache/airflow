@@ -460,8 +460,8 @@ class CronPartitionTimetable(CronTriggerTimetable):
         return partition_date
 
     def _get_partition_info(self, run_date: DateTime) -> tuple[DateTime, str]:
-        # todo: AIP-76 it does not make sense that we would infer partition info from run date
-        #  in general, because they might not be 1-1
+        # Partition info is inferred from the run date here; this is only correct when run date and
+        # partition are 1-1, which is not guaranteed for every offset.
         partition_date = self._get_partition_date(run_date=run_date)
         partition_key = self._format_key(partition_date)
         return partition_date, partition_key
