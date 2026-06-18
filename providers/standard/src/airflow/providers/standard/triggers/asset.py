@@ -67,7 +67,7 @@ class AssetPartitionTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Poll until the requested asset partition event exists."""
-        from airflow.sdk.execution_time.comms import ErrorResponse, GetAssetEventByAsset
+        from airflow.sdk.execution_time.comms import AssetEventsResult, ErrorResponse, GetAssetEventByAsset
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         while True:
@@ -88,7 +88,15 @@ class AssetPartitionTrigger(BaseTrigger):
                     }
                 )
                 return
-            if response and response.asset_events:
+            if not isinstance(response, AssetEventsResult):
+                yield TriggerEvent(
+                    {
+                        "status": "error",
+                        "message": f"Unexpected response from supervisor: {type(response).__name__}",
+                    }
+                )
+                return
+            if response.asset_events:
                 yield TriggerEvent({"status": "success"})
                 return
             await asyncio.sleep(self.poke_interval)

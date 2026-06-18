@@ -21,7 +21,7 @@ import datetime
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
+from airflow.providers.common.compat.sdk import AirflowFailException, BaseSensorOperator, conf
 from airflow.providers.standard.triggers.asset import AssetPartitionTrigger
 
 if TYPE_CHECKING:
@@ -55,7 +55,7 @@ class AssetPartitionSensor(BaseSensorOperator):
 
     def poke(self, context: Context) -> bool:
         from airflow.sdk.exceptions import AirflowRuntimeError
-        from airflow.sdk.execution_time.comms import ErrorResponse, GetAssetEventByAsset
+        from airflow.sdk.execution_time.comms import AssetEventsResult, ErrorResponse, GetAssetEventByAsset
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         self.log.info("Poking for asset event: asset=%s, partition_key=%s", self.asset, self.partition_key)
@@ -70,7 +70,9 @@ class AssetPartitionSensor(BaseSensorOperator):
         )
         if isinstance(response, ErrorResponse):
             raise AirflowRuntimeError(response)
-        return bool(response and response.asset_events)
+        if not isinstance(response, AssetEventsResult):
+            raise TypeError(f"Unexpected response from supervisor: {type(response).__name__}")
+        return bool(response.asset_events)
 
     def execute(self, context: Context) -> None:
         if not self.deferrable:
@@ -98,4 +100,4 @@ class AssetPartitionSensor(BaseSensorOperator):
             )
             return
         message = event.get("message") if event else "Trigger completed without an event"
-        raise AirflowException(message)
+        raise AirflowFailException(message)

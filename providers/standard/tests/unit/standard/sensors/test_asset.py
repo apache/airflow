@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.common.compat.sdk import AirflowException, Asset, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowFailException, Asset, TaskDeferred
 from airflow.providers.standard.sensors.asset import AssetPartitionSensor
 from airflow.providers.standard.triggers.asset import AssetPartitionTrigger
 from airflow.sdk import timezone
@@ -98,6 +98,20 @@ class TestAssetPartitionSensor:
         with pytest.raises(AirflowRuntimeError):
             sensor.poke({})
 
+    def test_poke_raises_for_unexpected_supervisor_response(self, monkeypatch):
+        comms = mock.Mock()
+        comms.send.return_value = object()
+        monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", comms, raising=False)
+
+        sensor = AssetPartitionSensor(
+            task_id="wait_orders",
+            asset=Asset(name="orders", uri="s3://warehouse/orders"),
+            partition_key="2024-01-01",
+        )
+
+        with pytest.raises(TypeError, match="Unexpected response from supervisor"):
+            sensor.poke({})
+
     def test_execute_defers_when_partition_event_is_missing(self, monkeypatch):
         comms = mock.Mock()
         comms.send.return_value = AssetEventsResult(asset_events=[])
@@ -125,5 +139,5 @@ class TestAssetPartitionSensor:
             partition_key="2024-01-01",
         )
 
-        with pytest.raises(AirflowException, match="failed"):
+        with pytest.raises(AirflowFailException, match="failed"):
             sensor.execute_complete({}, {"status": "error", "message": "failed"})

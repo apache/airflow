@@ -1782,6 +1782,18 @@
           ],
           "title": "Uri"
         },
+        "partition_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key"
+        },
         "after": {
           "anyOf": [
             {
@@ -1844,6 +1856,18 @@
         "alias_name": {
           "title": "Alias Name",
           "type": "string"
+        },
+        "partition_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key"
         },
         "after": {
           "anyOf": [

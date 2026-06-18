@@ -99,3 +99,19 @@ class TestAssetPartitionTrigger:
         assert await trigger.run().__anext__() == TriggerEvent(
             {"status": "error", "message": "ASSET_NOT_FOUND: None"}
         )
+
+    @pytest.mark.asyncio
+    async def test_run_yields_error_for_unexpected_supervisor_response(self, monkeypatch):
+        comms = mock.Mock()
+        comms.asend = mock.AsyncMock(return_value=object())
+        monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", comms, raising=False)
+        trigger = AssetPartitionTrigger(
+            asset_name="orders",
+            asset_uri="s3://warehouse/orders",
+            partition_key="2024-01-01",
+            poke_interval=0,
+        )
+
+        assert await trigger.run().__anext__() == TriggerEvent(
+            {"status": "error", "message": "Unexpected response from supervisor: object"}
+        )
