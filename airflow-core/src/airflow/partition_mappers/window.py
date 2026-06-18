@@ -22,6 +22,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import attrs
+
 from airflow._shared.timezones.timezone import make_aware, utc
 
 if TYPE_CHECKING:
@@ -204,19 +205,21 @@ class DayWindow(Window):
         ``+ timedelta(hours=1)`` is unambiguous) and each instant is converted back to *tz*.
         This yields 23 members on spring-forward days, 25 on fall-back days, and 24 otherwise.
         """
-        if direction is Window.Direction.BACKWARD:
-            start = period_start - timedelta(days=1)
-            end = period_start
-        else:
-            start = period_start
-            end = period_start + timedelta(days=1)
+        start = period_start - timedelta(days=1) if direction is Window.Direction.BACKWARD else period_start
+        end = period_start if direction is Window.Direction.BACKWARD else period_start + timedelta(days=1)
         start_utc = make_aware(start, tz).astimezone(utc)
         end_utc = make_aware(end, tz).astimezone(utc)
         hours: list[datetime] = []
-        current = start_utc
-        while current < end_utc:
-            hours.append(current.astimezone(tz))
-            current += timedelta(hours=1)
+        if direction is Window.Direction.BACKWARD:
+            current = start_utc + timedelta(hours=1)
+            while current <= end_utc:
+                hours.append(current.astimezone(tz))
+                current += timedelta(hours=1)
+        else:
+            current = start_utc
+            while current < end_utc:
+                hours.append(current.astimezone(tz))
+                current += timedelta(hours=1)
         return hours
 
 
@@ -331,9 +334,7 @@ class SegmentWindow(Window):
 
     _segments: frozenset[str] = attrs.field(converter=_convert_segments)
 
-    def to_upstream(
-        self, decoded_downstream: Any, tz: tzinfo | None = None
-    ) -> frozenset[str]:
+    def to_upstream(self, decoded_downstream: Any, tz: tzinfo | None = None) -> frozenset[str]:
         """Return the full declared segment set, ignoring the downstream anchor."""
         return self._segments
 

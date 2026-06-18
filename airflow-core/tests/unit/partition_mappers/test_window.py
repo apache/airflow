@@ -114,6 +114,29 @@ class TestDayWindow:
         )
         assert len(mapper.to_upstream("2024-03-10")) == 24
 
+    def test_day_window_backward_spring_forward_local_tz_includes_anchor(self):
+        """Backward local-timezone day windows mirror forward semantics and still skip the DST gap."""
+        mapper = RollupMapper(
+            upstream_mapper=StartOfDayMapper(timezone="America/New_York", input_format="%Y-%m-%dT%H"),
+            window=DayWindow(direction=Window.Direction.BACKWARD),
+        )
+        upstream_keys = mapper.to_upstream("2024-03-11")
+        assert len(upstream_keys) == 23
+        assert "2024-03-10T00" not in upstream_keys
+        assert "2024-03-10T02" not in upstream_keys
+        assert "2024-03-11T00" in upstream_keys
+
+    def test_day_window_backward_fall_back_local_tz_includes_anchor(self):
+        """Backward local-timezone day windows exclude the prior day's anchor and include this one."""
+        mapper = RollupMapper(
+            upstream_mapper=StartOfDayMapper(timezone="America/New_York", input_format="%Y-%m-%dT%H"),
+            window=DayWindow(direction=Window.Direction.BACKWARD),
+        )
+        upstream_keys = mapper.to_upstream("2024-11-04")
+        assert len(upstream_keys) == 24
+        assert "2024-11-03T00" not in upstream_keys
+        assert "2024-11-04T00" in upstream_keys
+
 
 class TestWeekWindow:
     def test_yields_seven_daily_period_starts(self):
