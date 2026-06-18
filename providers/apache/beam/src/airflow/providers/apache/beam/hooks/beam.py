@@ -124,7 +124,8 @@ def process_fd(
     fd,
     log: Logger,
     process_line_callback: Callable[[str], None] | None = None,
-    is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+    *,
+    read_all_available: bool = False,
 ):
     """
     Print output to logs.
@@ -134,6 +135,8 @@ def process_fd(
     :param process_line_callback: Optional callback which can be used to process
         stdout and stderr to detect job id.
     :param log: logger.
+    :param read_all_available: If ``True``, read and process all currently buffered lines
+        until EOF. If ``False``, process a single line and return.
     """
     if fd not in (proc.stdout, proc.stderr):
         raise AirflowException("No data in stderr or in stdout.")
@@ -141,13 +144,21 @@ def process_fd(
     fd_to_log = {proc.stderr: log.warning, proc.stdout: log.info}
     func_log = fd_to_log[fd]
 
-    for line_raw in iter(fd.readline, b""):
+    if read_all_available:
+        line_iter = iter(fd.readline, b"")
+    else:
+        line_raw = fd.readline()
+        line_iter = iter((line_raw,)) if line_raw else iter(())
+
+    for line_raw in line_iter:
         line = line_raw.decode()
         if process_line_callback:
             process_line_callback(line)
         func_log(line.rstrip("\n"))
-        if is_dataflow_job_id_exist_callback and is_dataflow_job_id_exist_callback():
-            return
+
+
+def _should_return_early(callback: Callable[[], bool] | None) -> bool:
+    return bool(callback and callback())
 
 
 def run_beam_command(
@@ -180,23 +191,27 @@ def run_beam_command(
     log.info("Start waiting for Apache Beam process to complete.")
     reads = [proc.stderr, proc.stdout]
     while True:
+        if _should_return_early(is_dataflow_job_id_exist_callback):
+            return
+
         # Wait for at least one available fd.
         readable_fds, _, _ = select.select(reads, [], [], 5)
-        if readable_fds is None:
-            log.info("Waiting for Apache Beam process to complete.")
-            continue
 
         for readable_fd in readable_fds:
-            process_fd(proc, readable_fd, log, process_line_callback, is_dataflow_job_id_exist_callback)
-            if is_dataflow_job_id_exist_callback and is_dataflow_job_id_exist_callback():
+            process_fd(proc, readable_fd, log, process_line_callback)
+
+            if _should_return_early(is_dataflow_job_id_exist_callback):
                 return
+
+        if _should_return_early(is_dataflow_job_id_exist_callback):
+            return
 
         if proc.poll() is not None:
             break
 
     # Corner case: check if more output was created between the last read and the process termination
     for readable_fd in reads:
-        process_fd(proc, readable_fd, log, process_line_callback, is_dataflow_job_id_exist_callback)
+        process_fd(proc, readable_fd, log, process_line_callback, read_all_available=True)
 
     log.info("Process exited with return code: %s", proc.returncode)
 

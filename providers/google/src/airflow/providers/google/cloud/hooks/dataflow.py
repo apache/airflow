@@ -1247,6 +1247,40 @@ class DataflowHook(GoogleBaseHook):
         return jobs_controller.fetch_job_autoscaling_events_by_id(job_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def get_job_id_by_name(
+        self,
+        job_name: str,
+        location: str,
+        project_id: str,
+    ) -> str | None:
+        """
+        Return the Dataflow job ID for the most-recently submitted job whose name starts with *job_name*.
+
+        This mirrors the fallback performed by the synchronous ``wait_for_done`` path when the
+        Beam launcher's stdout does not contain the ``Created job with id: [...]`` line — e.g.
+        because the pipeline did not configure INFO-level logging and the Beam SDK's job-id log
+        line was therefore filtered out before it could be captured by ``JOB_ID_PATTERN``.
+
+        :param job_name: Job name prefix to search for (compared case-insensitively).
+        :param location: GCP region the job was submitted to.
+        :param project_id: GCP project ID.
+        :return: The job ID of the matched job, or ``None`` if no matching job was found.
+        """
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=project_id,
+            name=job_name,
+            location=location,
+            poll_sleep=self.poll_sleep,
+            num_retries=self.num_retries,
+        )
+        jobs = jobs_controller._fetch_jobs_by_prefix_name(job_name.lower())
+        if not jobs:
+            return None
+        # Return the most recently created job (last in the list returned by the API).
+        return jobs[-1]["id"]
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def wait_for_done(
         self,
         job_name: str,

@@ -405,19 +405,11 @@ class TestBeamRunner:
 
         mock_proc.stderr = fake_stderr_fd
         mock_proc.stdout = fake_stdout_fd
-        fake_stderr_fd.readline.side_effect = [
-            b"apache-beam-stderr-1",
-            b"apache-beam-stderr-2",
-            StopIteration,
-            b"apache-beam-stderr-3",
-            StopIteration,
-            b"apache-beam-other-stderr",
-        ]
-        fake_stdout_fd.readline.side_effect = [b"apache-beam-stdout", StopIteration]
+        fake_stderr_fd.readline.side_effect = [b"apache-beam-stderr-1", b""]
+        fake_stdout_fd.readline.side_effect = [b"apache-beam-stdout", b""]
         mock_select.side_effect = [
-            ([fake_stderr_fd], None, None),
-            (None, None, None),
-            ([fake_stderr_fd], None, None),
+            ([fake_stderr_fd, fake_stdout_fd], None, None),
+            ([], None, None),
         ]
         mock_proc.poll.side_effect = [None, True]
         mock_proc.returncode = 1
@@ -436,9 +428,30 @@ class TestBeamRunner:
 
         warn_messages = [rt[2] for rt in caplog.record_tuples if rt[0] == logger_name and rt[1] == 30]
         assert "apache-beam-stderr-1" in warn_messages
-        assert "apache-beam-stderr-2" in warn_messages
-        assert "apache-beam-stderr-3" in warn_messages
-        assert "apache-beam-other-stderr" in warn_messages
+
+    @mock.patch("subprocess.Popen")
+    @mock.patch("select.select", return_value=([], None, None))
+    def test_beam_returns_when_job_id_is_resolved_without_output(self, mock_select, mock_popen):
+        logger_name = "fake-beam-resolved-job-id-logger"
+        fake_logger = logging.getLogger(logger_name)
+
+        cmd = ["fake", "cmd"]
+        mock_proc = MagicMock(name="FakeProc")
+        mock_proc.stderr = MagicMock(name="FakeStderr")
+        mock_proc.stdout = MagicMock(name="FakeStdout")
+        mock_proc.poll.return_value = None
+        mock_popen.return_value = mock_proc
+        is_dataflow_job_id_exist_callback = MagicMock(side_effect=[False, True])
+
+        run_beam_command(
+            cmd,
+            fake_logger,
+            is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
+        )
+
+        mock_select.assert_called_once_with([mock_proc.stderr, mock_proc.stdout], [], [], 5)
+        mock_proc.poll.assert_not_called()
+        assert is_dataflow_job_id_exist_callback.call_count == 2
 
 
 class TestBeamOptionsToArgs:

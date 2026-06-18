@@ -154,7 +154,27 @@ class BeamDataflowMixin(metaclass=ABCMeta):
 
     def __is_dataflow_job_id_exist_callback(self) -> Callable[[], bool]:
         def is_dataflow_job_id_exist() -> bool:
-            return True if self.dataflow_job_id else False
+            if self.dataflow_job_id:
+                return True
+
+            if not self.dataflow_hook:
+                return False
+
+            resolved_job_id = self.dataflow_hook.get_job_id_by_name(
+                job_name=self.dataflow_job_name,
+                location=self.dataflow_config.location or DEFAULT_DATAFLOW_LOCATION,
+                project_id=self.dataflow_config.project_id,
+            )
+            if not resolved_job_id:
+                return False
+
+            self.dataflow_job_id = resolved_job_id
+            self.log.info(
+                "Resolved Dataflow job ID %s by name prefix '%s' while waiting for the launcher output.",
+                resolved_job_id,
+                self.dataflow_job_name,
+            )
+            return True
 
         return is_dataflow_job_id_exist
 
@@ -468,6 +488,31 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         )
 
         if self.deferrable:
+            if not self.dataflow_job_id:
+                # The Beam launcher's stdout did not contain the job-id line (e.g. the pipeline did
+                # not configure INFO-level logging so the Beam SDK's "Created job with id: [...]" line
+                # was never emitted). Resolve the ID via the Dataflow API before deferring so the
+                # trigger has a valid job_id to poll — matching the fallback already used by
+                # wait_for_done() in the synchronous path.
+                resolved_id = self.dataflow_hook.get_job_id_by_name(
+                    job_name=self.dataflow_job_name,
+                    location=location,
+                    project_id=self.dataflow_config.project_id,
+                )
+                if resolved_id:
+                    self.dataflow_job_id = resolved_id
+                    self.log.info(
+                        "Resolved Dataflow job ID %s by name prefix '%s' "
+                        "(job-id line was absent from launcher stdout).",
+                        resolved_id,
+                        self.dataflow_job_name,
+                    )
+                else:
+                    self.log.warning(
+                        "Could not resolve a Dataflow job ID for name prefix '%s'. "
+                        "Deferring without a job ID; the trigger may fail.",
+                        self.dataflow_job_name,
+                    )
             trigger_args = {
                 "job_id": self.dataflow_job_id,
                 "project_id": self.dataflow_config.project_id,
@@ -662,6 +707,28 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                     project_id=self.dataflow_config.project_id,
                 )
                 if self.deferrable:
+                    if not self.dataflow_job_id:
+                        # Same stdout-scraping fallback as BeamRunPythonPipelineOperator: resolve
+                        # by name when the Beam launcher produced no job-id line.
+                        resolved_id = self.dataflow_hook.get_job_id_by_name(
+                            job_name=self.dataflow_job_name,
+                            location=self.dataflow_config.location,
+                            project_id=self.dataflow_config.project_id,
+                        )
+                        if resolved_id:
+                            self.dataflow_job_id = resolved_id
+                            self.log.info(
+                                "Resolved Dataflow job ID %s by name prefix '%s' "
+                                "(job-id line was absent from launcher stdout).",
+                                resolved_id,
+                                self.dataflow_job_name,
+                            )
+                        else:
+                            self.log.warning(
+                                "Could not resolve a Dataflow job ID for name prefix '%s'. "
+                                "Deferring without a job ID; the trigger may fail.",
+                                self.dataflow_job_name,
+                            )
                     trigger_args = {
                         "job_id": self.dataflow_job_id,
                         "project_id": self.dataflow_config.project_id,

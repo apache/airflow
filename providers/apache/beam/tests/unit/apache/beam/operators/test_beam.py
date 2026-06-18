@@ -1067,6 +1067,44 @@ class TestBeamRunPythonPipelineOperatorAsync:
         op.on_kill()
         dataflow_cancel_job.assert_not_called()
 
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    def test_exec_dataflow_runner_defers_with_resolved_job_id_when_stdout_missing(
+        self, dataflow_hook_mock, gcs_hook_mock, beam_hook_mock, persist_mock
+    ):
+        """Regression test for #68279: when the Beam launcher's stdout contains no job-id line
+        (e.g. the pipeline suppresses INFO logging), the deferrable path must resolve the job
+        ID from the Dataflow API by name before deferring instead of deferring with job_id=None.
+        """
+        resolved_job_id = "resolved-job-id-from-api"
+        dataflow_hook_mock.return_value.get_job_id_by_name.return_value = resolved_job_id
+
+        dataflow_config = DataflowConfiguration(project_id=TEST_PROJECT)
+        op = BeamRunPythonPipelineOperator(
+            runner="DataflowRunner",
+            dataflow_config=dataflow_config,
+            **self.default_op_kwargs,
+        )
+        beam_hook_mock.return_value.start_python_pipeline.side_effect = lambda **kwargs: kwargs[
+            "is_dataflow_job_id_exist_callback"
+        ]()
+        # Simulate launcher producing no job-id line: dataflow_job_id stays None.
+        assert op.dataflow_job_id is None
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            op.execute_on_dataflow(context=mock.MagicMock())
+
+        dataflow_hook_mock.return_value.get_job_id_by_name.assert_called_once()
+        persist_mock.assert_called_once_with(
+            context=mock.ANY,
+            region=dataflow_config.location,
+            job_id=resolved_job_id,
+            project_id=dataflow_config.project_id,
+        )
+        assert exc_info.value.trigger.job_id == resolved_job_id
+
 
 class TestBeamRunJavaPipelineOperatorAsync:
     @pytest.fixture(autouse=True)
@@ -1183,3 +1221,41 @@ class TestBeamRunJavaPipelineOperatorAsync:
             op.execute(mock.MagicMock())
         op.on_kill()
         dataflow_cancel_job.assert_not_called()
+
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    def test_exec_dataflow_runner_defers_with_resolved_job_id_when_stdout_missing(
+        self, dataflow_hook_mock, gcs_hook_mock, beam_hook_mock, persist_mock
+    ):
+        """Regression test for #68279: when the Beam launcher's stdout contains no job-id line,
+        the deferrable Java path must resolve the job ID from the Dataflow API before deferring.
+        """
+        resolved_job_id = "resolved-java-job-id-from-api"
+        dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
+        dataflow_hook_mock.return_value.get_job_id_by_name.return_value = resolved_job_id
+
+        dataflow_config = DataflowConfiguration(project_id=TEST_PROJECT)
+        op = BeamRunJavaPipelineOperator(
+            runner="DataflowRunner",
+            dataflow_config=dataflow_config,
+            **self.default_op_kwargs,
+        )
+        beam_hook_mock.return_value.start_java_pipeline.side_effect = lambda **kwargs: kwargs[
+            "is_dataflow_job_id_exist_callback"
+        ]()
+        # Simulate no job-id captured from stdout.
+        assert op.dataflow_job_id is None
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            op.execute_on_dataflow(context=mock.MagicMock())
+
+        dataflow_hook_mock.return_value.get_job_id_by_name.assert_called_once()
+        persist_mock.assert_called_once_with(
+            context=mock.ANY,
+            region=dataflow_config.location,
+            job_id=resolved_job_id,
+            project_id=dataflow_config.project_id,
+        )
+        assert exc_info.value.trigger.job_id == resolved_job_id
