@@ -17,13 +17,9 @@
 
 from __future__ import annotations
 
-import functools
 import sys
-import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING, TypeVar
-
-from airflow.exceptions import RemovedInAirflow4Warning
 
 # Placeholder for masking sensitive values in CLI output
 SENSITIVE_PLACEHOLDER = "***"
@@ -42,27 +38,28 @@ F = TypeVar("F", bound=Callable[..., object])
 
 def deprecated_for_airflowctl(replacement: str) -> Callable[[F], F]:
     """
-    Mark an ``airflow`` CLI command as deprecated in favour of an ``airflowctl`` equivalent.
+    Mark an ``airflow`` CLI command as migrated to its ``airflowctl`` equivalent.
 
-    These commands now reach Airflow through the API server via the ``airflowctl`` client. They
-    are kept for backwards compatibility but will be removed in a future Airflow release; users
-    should switch to ``airflowctl`` directly.
+    The decorated command now reaches Airflow through the API server via the ``airflowctl``
+    client. It is intentionally kept in the ``airflow`` CLI as a supported entry point, so it
+    emits **no user-facing deprecation warning** at runtime. Instead, the migration is recorded
+    for maintainers: a note is appended to the command's docstring and the equivalent
+    ``airflowctl`` command is stored on the ``_migrated_to_airflowctl`` attribute (the migration
+    registry test in ``test_command_deprecations.py`` reads it).
 
     :param replacement: The equivalent ``airflowctl`` command, e.g. ``airflowctl dags trigger``.
     """
 
     def decorator(func: F) -> F:
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            warnings.warn(
-                f"This `airflow` CLI command is deprecated and will be removed in a future "
-                f"Airflow release. Use `{replacement}` instead.",
-                RemovedInAirflow4Warning,
-                stacklevel=2,
-            )
-            return func(*args, **kwargs)
-
-        return wrapper  # type: ignore[return-value]
+        maintainer_note = (
+            "\n\n.. note::\n\n"
+            "   **Maintainers:** this command has been migrated to the ``airflowctl`` HTTP API "
+            "client and now reaches Airflow through the API server. The equivalent ``airflowctl`` "
+            f"command is ``{replacement}``."
+        )
+        func.__doc__ = (func.__doc__ or "") + maintainer_note
+        func._migrated_to_airflowctl = replacement  # type: ignore[attr-defined]
+        return func
 
     return decorator
 
