@@ -1,0 +1,1 @@
+A failed backfill creation no longer leaves an orphaned backfill record that blocks all future backfills for the dag. If creating the backfill runs fails, the backfill is now rolled back so it can be retried.
