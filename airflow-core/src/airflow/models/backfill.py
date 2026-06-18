@@ -383,7 +383,6 @@ def _create_backfill_dag_run_non_partitioned(
                 session.add(
                     BackfillDagRun(
                         backfill_id=backfill_id,
-                        dag_run_id=dr.id,
                         logical_date=info.logical_date,
                         partition_key=info.partition_key,
                         exception_reason=non_create_reason,
@@ -416,7 +415,6 @@ def _create_backfill_dag_run_non_partitioned(
                 session.add(
                     BackfillDagRun(
                         backfill_id=backfill_id,
-                        dag_run_id=dr.id,
                         logical_date=info.logical_date,
                         partition_key=info.partition_key,
                         exception_reason=BackfillDagRunExceptionReason.IN_FLIGHT,
@@ -460,12 +458,10 @@ def _create_backfill_dag_run_non_partitioned(
                 logical_date=info.logical_date,
             )
             nested.rollback()
-            latest_dr = session.scalar(_get_latest_dag_run_row_query(dag_id=dag.dag_id, info=info))
 
             session.add(
                 BackfillDagRun(
                     backfill_id=backfill_id,
-                    dag_run_id=latest_dr.id if latest_dr else None,
                     logical_date=info.logical_date,
                     partition_key=info.partition_key,
                     exception_reason=BackfillDagRunExceptionReason.IN_FLIGHT,
@@ -493,7 +489,6 @@ def _create_backfill_dag_run_partitioned(
             session.add(
                 BackfillDagRun(
                     backfill_id=backfill_id,
-                    dag_run_id=dr.id,
                     logical_date=info.logical_date,
                     partition_key=info.partition_key,
                     exception_reason=non_create_reason,

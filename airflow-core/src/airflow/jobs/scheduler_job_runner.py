@@ -2368,12 +2368,30 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     or_(
                         and_(
                             BackfillDagRun.dag_run_id.is_(None),
-                            or_(
-                                BackfillDagRun.exception_reason.is_(None),
-                                BackfillDagRun.exception_reason == BackfillDagRunExceptionReason.IN_FLIGHT,
-                            ),
+                            BackfillDagRun.exception_reason.is_(None),
                         ),
                         DagRun.state.in_(State.unfinished_dr_states),
+                        and_(
+                            BackfillDagRun.dag_run_id.is_(None),
+                            BackfillDagRun.exception_reason == BackfillDagRunExceptionReason.IN_FLIGHT,
+                            exists(
+                                select(DagRun.id).where(
+                                    DagRun.dag_id == Backfill.dag_id,
+                                    DagRun.state.in_(State.unfinished_dr_states),
+                                    or_(
+                                        and_(
+                                            BackfillDagRun.logical_date.is_not(None),
+                                            DagRun.logical_date == BackfillDagRun.logical_date,
+                                        ),
+                                        and_(
+                                            BackfillDagRun.logical_date.is_(None),
+                                            BackfillDagRun.partition_key.is_not(None),
+                                            DagRun.partition_key == BackfillDagRun.partition_key,
+                                        ),
+                                    ),
+                                )
+                            ),
+                        ),
                     ),
                 )
             ),
