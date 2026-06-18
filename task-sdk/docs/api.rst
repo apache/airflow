@@ -241,11 +241,17 @@ Partition Mapper
 
 .. autoapiclass:: airflow.sdk.RollupMapper
 
+.. autoapiclass:: airflow.sdk.WaitForAll
+
+.. autoapiclass:: airflow.sdk.MinimumCount
+
 .. autoapiclass:: airflow.sdk.ProductMapper
 
 .. autoapiclass:: airflow.sdk.AllowedKeyMapper
 
 .. autoapiclass:: airflow.sdk.FanOutMapper
+
+.. autoapiclass:: airflow.sdk.FixedKeyMapper
 
 Rollup Windows
 ~~~~~~~~~~~~~~
@@ -263,6 +269,8 @@ Rollup Windows
 .. autoapiclass:: airflow.sdk.QuarterWindow
 
 .. autoapiclass:: airflow.sdk.YearWindow
+
+.. autoapiclass:: airflow.sdk.SegmentWindow
 
 I/O Helpers
 -----------
@@ -284,6 +292,10 @@ See :doc:`apache-airflow:authoring-and-scheduling/language-sdks/index` for a con
 .. rubric:: JVM
 
 .. autoapiclass:: airflow.sdk.coordinators.java.JavaCoordinator
+
+.. rubric:: Native executable (e.g. Go)
+
+.. autoapiclass:: airflow.sdk.coordinators.executable.ExecutableCoordinator
 
 Execution Time Components
 -------------------------

@@ -34,7 +34,7 @@ from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateRespo
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.security import CurrentTIToken
-from airflow.exceptions import DagNotPartitionedError, DagRunAlreadyExists
+from airflow.exceptions import DagNotPartitionedError, DagRunAlreadyExists, InvalidPartitionKeyError
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DagRunModel
 from airflow.models.taskinstance import TaskInstance
@@ -158,6 +158,11 @@ def trigger_dag_run(
             status.HTTP_400_BAD_REQUEST,
             detail={"reason": "not_partitioned", "message": str(e)},
         )
+    except InvalidPartitionKeyError as e:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail={"reason": "invalid_partition_key", "message": str(e)},
+        ) from e
 
 
 @router.post(

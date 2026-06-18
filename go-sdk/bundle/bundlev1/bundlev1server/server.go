@@ -89,6 +89,9 @@ func (s serveConfigFunc) ApplyServeOpt(in *ServerConfig) error {
 	return s(in)
 }
 
+// ServerConfig holds settings that ServeOpt values apply before the bundle
+// server starts. It is currently empty; it exists so options can be added later
+// without changing Serve's signature.
 type ServerConfig struct{}
 
 // serveMode tags the protocol the binary will speak this run.
