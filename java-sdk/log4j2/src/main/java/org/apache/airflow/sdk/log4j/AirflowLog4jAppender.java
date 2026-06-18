@@ -33,6 +33,7 @@ import org.apache.logging.log4j.core.appender.AbstractAppender;
 import org.apache.logging.log4j.core.config.Property;
 import org.apache.logging.log4j.core.config.plugins.Plugin;
 import org.apache.logging.log4j.core.config.plugins.PluginFactory;
+import org.apache.logging.log4j.spi.StandardLevel;
 
 /**
  * A Log4j {@link Appender} to route logs to Airflow.
@@ -74,11 +75,11 @@ public final class AirflowLog4jAppender extends AbstractAppender {
 
   private static Level convert(org.apache.logging.log4j.Level level) {
     var v = level.intLevel();
-    if (v < org.apache.logging.log4j.Level.ERROR.intLevel()) return Level.CRITICAL;
-    if (v < org.apache.logging.log4j.Level.WARN.intLevel()) return Level.ERROR;
-    if (v < org.apache.logging.log4j.Level.INFO.intLevel()) return Level.WARNING;
-    if (v < org.apache.logging.log4j.Level.DEBUG.intLevel()) return Level.INFO;
-    if (v < org.apache.logging.log4j.Level.TRACE.intLevel()) return Level.DEBUG;
+    if (v < StandardLevel.ERROR.intLevel()) return Level.CRITICAL;
+    if (v < StandardLevel.WARN.intLevel()) return Level.ERROR;
+    if (v < StandardLevel.INFO.intLevel()) return Level.WARNING;
+    if (v < StandardLevel.DEBUG.intLevel()) return Level.INFO;
+    if (v < StandardLevel.TRACE.intLevel()) return Level.DEBUG;
     return Level.NOTSET;
   }
 

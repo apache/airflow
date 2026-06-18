@@ -61,6 +61,7 @@ dependencies {
     api("org.slf4j:slf4j-api:$slf4jVersion")
     implementation(project(":sdk"))
     testImplementation(kotlin("test"))
+    testImplementation(testFixtures(project(":sdk")))
 }
 
 java {

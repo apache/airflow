@@ -23,24 +23,40 @@ plugins {
     id("airflow-publish")
 }
 
-val log4jVersion: String by project
+val mockkVersion: String by project
 
+// We are intentionally separating compileOnly and testImplementation for
+// "org.apache.logging.log4j:log4j-core:2.26.0" so it's not pulled at
+// runtime when it's unnecessary.
+@Suppress("GradleDependencyAddedMultipleTimes")
 dependencies {
-    annotationProcessor("org.apache.logging.log4j:log4j-core:$log4jVersion")
-    api("org.apache.logging.log4j:log4j-api:$log4jVersion")
-    compileOnly("org.apache.logging.log4j:log4j-core:$log4jVersion")
+    annotationProcessor("org.apache.logging.log4j:log4j-core:2.26.0")
+    api("org.apache.logging.log4j:log4j-api:2.26.0")
+    compileOnly("org.apache.logging.log4j:log4j-core:2.26.0")
     implementation(project(":sdk"))
 
     testImplementation(kotlin("test"))
-    testImplementation("org.apache.logging.log4j:log4j-core:$log4jVersion")
+    testImplementation("io.mockk:mockk:$mockkVersion")
+    testImplementation("io.mockk:mockk-agent:$mockkVersion")
+    testImplementation("org.apache.logging.log4j:log4j-core:2.26.0")
 }
 
 java {
     withSourcesJar() // Required by Maven Central.
 }
 
+tasks.withType<JavaCompile> {
+    options.compilerArgs.addAll(
+        listOf(
+            "-Alog4j.graalvm.groupId=org.apache.airflow",
+            "-Alog4j.graalvm.artifactId=airflow-sdk-log4j2",
+        ),
+    )
+}
+
 tasks.withType<Test> {
     useJUnitPlatform()
+    jvmArgs("-Djdk.attach.allowAttachSelf=true")
 }
 
 publishing {

@@ -23,9 +23,13 @@ plugins {
     id("airflow-publish")
 }
 
+val mockkVersion: String by project
+
 dependencies {
     implementation(project(":sdk"))
     testImplementation(kotlin("test"))
+    testImplementation("io.mockk:mockk:$mockkVersion")
+    testImplementation("io.mockk:mockk-agent:$mockkVersion")
 }
 
 java {
@@ -34,6 +38,7 @@ java {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    jvmArgs("-Djdk.attach.allowAttachSelf=true")
 }
 
 publishing {
