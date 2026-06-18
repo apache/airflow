@@ -677,27 +677,27 @@ class AirflowKubernetesScheduler(LoggingMixin):
                 built.append((job, None, e))
 
         to_create = [(job, pod) for job, pod, build_err in built if build_err is None and pod is not None]
-        create_errors: dict[int, Exception | None] = {}
-        if to_create:
-            create_errors = self._run_pods_async(to_create)
+        create_errors = self._run_pods_async(to_create) if to_create else []
 
-        return [
-            (job, build_err if build_err is not None else create_errors.get(id(job)))
-            for job, _, build_err in built
-        ]
+        # create_errors aligns positionally with to_create (gather preserves order), which in
+        # turn preserves the order of the successfully-built entries; advance that iterator as
+        # we re-emit one (job, error) per built entry.
+        create_iter = iter(create_errors)
+        results: list[tuple[KubernetesJob, Exception | None]] = []
+        for job, _, build_err in built:
+            results.append((job, build_err if build_err is not None else next(create_iter)))
+        return results
 
-    def _run_pods_async(
-        self, jobs_and_pods: list[tuple[KubernetesJob, k8s.V1Pod]]
-    ) -> dict[int, Exception | None]:
-        """Create the given pods concurrently on a dedicated event loop; return per-job error (or None)."""
+    def _run_pods_async(self, jobs_and_pods: list[tuple[KubernetesJob, k8s.V1Pod]]) -> list[Exception | None]:
+        """Create the given pods concurrently on a dedicated event loop; one error (or None) per pod, in order."""
         if self._async_loop is None:
             self._async_loop = asyncio.new_event_loop()
         return self._async_loop.run_until_complete(self._create_pods_async(jobs_and_pods))
 
     async def _create_pods_async(
         self, jobs_and_pods: list[tuple[KubernetesJob, k8s.V1Pod]]
-    ) -> dict[int, Exception | None]:
-        """Issue create_namespaced_pod calls concurrently, bounded by a semaphore."""
+    ) -> list[Exception | None]:
+        """Issue create_namespaced_pod calls concurrently, bounded by a semaphore; one result per pod, in order."""
         if self._async_pod_client is None:
             self._async_pod_client = await get_async_kube_client()
         api = self._async_pod_client
@@ -723,10 +723,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                     raise
 
         outcomes = await asyncio.gather(*(_create(pod) for _, pod in jobs_and_pods), return_exceptions=True)
-        return {
-            id(job): (outcome if isinstance(outcome, Exception) else None)
-            for (job, _), outcome in zip(jobs_and_pods, outcomes)
-        }
+        return [outcome if isinstance(outcome, Exception) else None for outcome in outcomes]
 
     def _close_async_pod_client(self) -> None:
         """Close the async pod client and its event loop, if they were created."""
