@@ -2371,6 +2371,32 @@ paths:
         schema:
           type: string
           title: Dag Id
+      - name: partition_date_start
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          description: Inclusive lower bound of the partition_date window, interpreted
+            as a local calendar day in the Dag's timetable timezone.
+          title: Partition Date Start
+        description: Inclusive lower bound of the partition_date window, interpreted
+          as a local calendar day in the Dag's timetable timezone.
+      - name: partition_date_end
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          description: Inclusive upper bound of the partition_date window, interpreted
+            as a local calendar day in the Dag's timetable timezone.
+          title: Partition Date End
+        description: Inclusive upper bound of the partition_date window, interpreted
+          as a local calendar day in the Dag's timetable timezone.
       - name: cursor
         in: query
         required: false
@@ -2660,15 +2686,15 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, state,
-            dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at,
-            conf, duration, dag_run_id`'
+            dag_id, run_id, logical_date, partition_date, run_after, start_date, end_date,
+            updated_at, conf, duration, dag_run_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, state, dag_id,
-          run_id, logical_date, run_after, start_date, end_date, updated_at, conf,
-          duration, dag_run_id`'
+          run_id, logical_date, partition_date, run_after, start_date, end_date, updated_at,
+          conf, duration, dag_run_id`'
       - name: run_id_pattern
         in: query
         required: false
