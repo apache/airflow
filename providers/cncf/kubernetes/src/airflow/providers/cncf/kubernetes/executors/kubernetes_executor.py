@@ -114,7 +114,7 @@ class KubernetesExecutor(BaseExecutor):
         self.task_publish_max_retries = self.conf.getint(
             "kubernetes_executor", "task_publish_max_retries", fallback=0
         )
-        self.completed: set[KubernetesResults] = set()
+        self.completed: dict[tuple[str, str], KubernetesResults] = {}
         self.create_pods_after: datetime | None = None
 
     def _list_pods(self, query_kwargs):
@@ -301,8 +301,8 @@ class KubernetesExecutor(BaseExecutor):
                     self.result_queue.task_done()
 
         if self.completed:
-            still_pending: set[KubernetesResults] = set()
-            for result in self.completed:
+            still_pending: dict[tuple[str, str], KubernetesResults] = {}
+            for pod_key, result in self.completed.items():
                 try:
                     self._change_state(result)
                 except Exception:
@@ -310,7 +310,7 @@ class KubernetesExecutor(BaseExecutor):
                         "Exception when attempting to change state of adopted completed pod %s, will retry.",
                         result,
                     )
-                    still_pending.add(result)
+                    still_pending[pod_key] = result
             self.completed = still_pending
 
         from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import ResourceVersion
@@ -824,16 +824,14 @@ class KubernetesExecutor(BaseExecutor):
 
             ti_id = annotations_to_key(pod.metadata.annotations)
             pod_name = pod.metadata.name
-            self.completed = {result for result in self.completed if result.pod_name != pod_name}
-            self.completed.add(
-                KubernetesResults(
-                    key=ti_id,
-                    state="completed",
-                    pod_name=pod_name,
-                    namespace=pod.metadata.namespace,
-                    resource_version=pod.metadata.resource_version,
-                    failure_details=None,
-                )
+            namespace = pod.metadata.namespace
+            self.completed[(namespace, pod_name)] = KubernetesResults(
+                key=ti_id,
+                state="completed",
+                pod_name=pod_name,
+                namespace=namespace,
+                resource_version=pod.metadata.resource_version,
+                failure_details=None,
             )
 
     def _flush_task_queue(self) -> None:
