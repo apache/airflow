@@ -19,9 +19,11 @@ from __future__ import annotations
 import atexit
 import datetime
 import logging
+import os
 import random
 import warnings
 from collections.abc import Callable
+from importlib.metadata import entry_points
 from typing import TYPE_CHECKING
 
 from opentelemetry import metrics
@@ -33,9 +35,8 @@ from opentelemetry.sdk.metrics._internal.export import (
 from opentelemetry.sdk.metrics.view import ExponentialBucketHistogramAggregation, View
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
-from ..common import get_otel_data_exporter
+from ..common import _format_url_host, _resolve_otlp_protocol
 from ..exceptions import InvalidStatsNameException
-from ..otel_env_config import load_metrics_env_config
 from .protocols import Timer
 from .validators import (
     OTEL_NAME_MAX_LENGTH,
@@ -47,6 +48,7 @@ from .validators import (
 
 if TYPE_CHECKING:
     from opentelemetry.metrics import Instrument
+    from opentelemetry.sdk.metrics._internal.export import MetricExporter
     from opentelemetry.util.types import Attributes
 
     from .protocols import DeltaType
@@ -435,70 +437,130 @@ def atexit_register_metrics_flush():
     atexit.register(flush_otel_metrics)
 
 
-def get_otel_logger(
+def _get_backcompat_config(
+    *,
+    host: str | None,
+    port: str | None,
+    ssl_active: bool,
+    service: str | None,
+    interval_ms: str | None,
+) -> tuple[str | None, float | None, Resource | None]:
+    resource = None
+    if service and not os.environ.get("OTEL_SERVICE_NAME") and not os.environ.get("OTEL_RESOURCE_ATTRIBUTES"):
+        resource = Resource.create(attributes={SERVICE_NAME: service})
+
+    endpoint = None
+    if (
+        host
+        and port
+        and not os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
+        and not os.environ.get("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")
+    ):
+        scheme = "https" if ssl_active else "http"
+        endpoint = f"{scheme}://{_format_url_host(host)}:{port}/v1/metrics"
+
+    parsed_interval_ms: float | None = None
+    if interval_ms and not os.environ.get("OTEL_METRIC_EXPORT_INTERVAL"):
+        try:
+            parsed_interval_ms = float(interval_ms)
+        except (TypeError, ValueError):
+            log.warning("Invalid metrics.otel_interval_milliseconds value: %r; ignoring.", interval_ms)
+
+    return endpoint, parsed_interval_ms, resource
+
+
+def _load_exporter_from_env() -> MetricExporter:
+    """
+    Pick a metric exporter per the OTel SDK environment-variable spec.
+
+    ``OTEL_METRICS_EXPORTER`` selects the backend (``otlp`` default; ``console``
+    for debugging; ``prometheus`` or custom values are looked up via entry
+    points). For ``otlp``, ``OTEL_EXPORTER_OTLP_METRICS_PROTOCOL`` then
+    ``OTEL_EXPORTER_OTLP_PROTOCOL`` selects the transport: ``http/protobuf``
+    (default) or ``grpc``.
+
+    See:
+      https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#exporter-selection
+      https://opentelemetry.io/docs/specs/otel/protocol/exporter/#specify-protocol
+    """
+    exporter_name = os.environ.get("OTEL_METRICS_EXPORTER", "otlp")
+    if exporter_name == "otlp":
+        protocol = _resolve_otlp_protocol("OTEL_EXPORTER_OTLP_METRICS_PROTOCOL")
+        if protocol == "http/protobuf":
+            from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+
+            return OTLPMetricExporter()
+        if protocol == "grpc":
+            from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (  # type: ignore[assignment]
+                OTLPMetricExporter,
+            )
+
+            return OTLPMetricExporter()
+        raise ValueError(f"Unsupported OTLP protocol {protocol!r}; expected 'grpc' or 'http/protobuf'.")
+    eps = entry_points(group="opentelemetry_metrics_exporter", name=exporter_name)
+    ep = next(iter(eps), None)
+    if ep is None:
+        raise RuntimeError(
+            f"No metric exporter found for OTEL_METRICS_EXPORTER={exporter_name!r}. "
+            f"Available: {[e.name for e in entry_points(group='opentelemetry_metrics_exporter')]}"
+        )
+    return ep.load()()
+
+
+def configure_otel(
     *,
     host: str | None = None,
-    port: int | None = None,
-    prefix: str | None = None,
+    port: str | None = None,
     ssl_active: bool = False,
-    conf_interval: float | None = None,
+    service: str | None = None,
+    interval_ms: str | None = None,
     debug: bool = False,
-    service_name: str | None = None,
-    metrics_allow_list: str | None = None,
-    metrics_block_list: str | None = None,
+    prefix: str = DEFAULT_METRIC_NAME_PREFIX,
+    allow_list: str | None = None,
+    block_list: str | None = None,
     stat_name_handler: Callable[[str], str] | None = None,
     statsd_influxdb_enabled: bool = False,
 ) -> SafeOtelLogger:
-    """
-    Build and return a :class:`SafeOtelLogger` backed by a configured :class:`MeterProvider`.
-
-    Histogram instruments (used for ``timing()`` / ``timer()`` metrics) are aggregated with
-    :class:`~opentelemetry.sdk.metrics.view.ExponentialBucketHistogramAggregation`
-    so that bucket boundaries adapt automatically to the observed data range.  This avoids
-    the need to hand-tune explicit bucket boundaries for metrics that span very different
-    scales (milliseconds to hours).
-    """
-    otel_env_config = load_metrics_env_config()
-
-    effective_service_name: str = otel_env_config.service_name or service_name or "airflow"
-    effective_prefix: str = prefix or DEFAULT_METRIC_NAME_PREFIX
-    resource = Resource.create(attributes={SERVICE_NAME: effective_service_name})
-
-    # https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader
-    interval = otel_env_config.interval_ms or conf_interval
-
-    metric_exporter = get_otel_data_exporter(
-        otel_env_config=otel_env_config,
+    backcompat_endpoint, backcompat_interval_ms, resource = _get_backcompat_config(
         host=host,
         port=port,
         ssl_active=ssl_active,
+        service=service,
+        interval_ms=interval_ms,
     )
 
-    readers = [
+    if backcompat_endpoint:
+        os.environ["OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"] = backcompat_endpoint
+    if backcompat_interval_ms is not None:
+        os.environ["OTEL_METRIC_EXPORT_INTERVAL"] = str(int(backcompat_interval_ms))
+
+    interval_str = os.environ.get("OTEL_METRIC_EXPORT_INTERVAL")
+    final_interval_ms = float(interval_str) if interval_str else None
+
+    debug_on = debug or os.environ.get("OTEL_METRICS_EXPORTER") == "console"
+
+    readers: list[PeriodicExportingMetricReader] = [
         PeriodicExportingMetricReader(
-            exporter=metric_exporter,  # type: ignore[arg-type]
-            export_interval_millis=interval,  # type: ignore[arg-type]
+            exporter=_load_exporter_from_env(),  # type: ignore[arg-type]
+            export_interval_millis=final_interval_ms,  # type: ignore[arg-type]
         )
     ]
-
-    if otel_env_config.exporter:
-        debug = otel_env_config.exporter == "console"
-
-    if debug:
-        export_to_console = PeriodicExportingMetricReader(
-            ConsoleMetricExporter(),
-            export_interval_millis=interval,
+    if debug_on:
+        readers.append(
+            PeriodicExportingMetricReader(
+                ConsoleMetricExporter(),
+                export_interval_millis=final_interval_ms,  # type: ignore[arg-type]
+            )
         )
-        readers.append(export_to_console)
 
     # Reset the OTel SDK's Once() guard so set_meter_provider() can succeed.
-    # This is necessary when get_otel_logger() is called after a process fork:
-    # the parent's _METER_PROVIDER_SET_ONCE._done = True is inherited by the child,
-    # causing set_meter_provider() to silently fail with "Overriding of current
-    # MeterProvider is not allowed". The child then uses the parent's stale provider
-    # whose PeriodicExportingMetricReader thread is dead after fork.
-    # On first call (no fork), _done is already False so this is a no-op.
-    # See: https://github.com/apache/airflow/issues/64690
+    # This is necessary when configure_otel() is called after a process fork:
+    # the parent's _METER_PROVIDER_SET_ONCE._done = True is inherited by the
+    # child, causing set_meter_provider() to silently fail with "Overriding of
+    # current MeterProvider is not allowed". The child then uses the parent's
+    # stale provider whose PeriodicExportingMetricReader thread is dead after
+    # fork. On first call (no fork), _done is already False so this is a
+    # no-op. See: https://github.com/apache/airflow/issues/64690
     try:
         import opentelemetry.metrics._internal as _metrics_internal
 
@@ -524,8 +586,10 @@ def get_otel_logger(
     # Register a hook that flushes any in-memory metrics at shutdown.
     atexit_register_metrics_flush()
 
-    validator = get_validator(metrics_allow_list, metrics_block_list)
-
     return SafeOtelLogger(
-        metrics.get_meter_provider(), effective_prefix, validator, stat_name_handler, statsd_influxdb_enabled
+        metrics.get_meter_provider(),
+        prefix,
+        get_validator(allow_list, block_list),
+        stat_name_handler,
+        statsd_influxdb_enabled,
     )

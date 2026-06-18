@@ -26,28 +26,16 @@ if TYPE_CHECKING:
 
 
 def get_otel_logger() -> SafeOtelLogger:
-    # The config values have been deprecated and therefore,
-    # if the user hasn't added them to the config, the default values won't be used.
-    # A fallback is needed to avoid an exception.
-    port = None
-    if conf.has_option("metrics", "otel_port"):
-        port = conf.getint("metrics", "otel_port")
-
-    conf_interval = None
-    if conf.has_option("metrics", "otel_interval_milliseconds"):
-        conf_interval = conf.getfloat("metrics", "otel_interval_milliseconds")
-
-    return otel_logger.get_otel_logger(
-        host=conf.get("metrics", "otel_host", fallback=None),  # ex: "breeze-otel-collector"
-        port=port,  # ex: 4318
-        prefix=conf.get("metrics", "otel_prefix", fallback=None),  # ex: "airflow"
+    return otel_logger.configure_otel(
+        host=conf.get("metrics", "otel_host", fallback=None),
+        port=conf.get("metrics", "otel_port", fallback=None),
         ssl_active=conf.getboolean("metrics", "otel_ssl_active", fallback=False),
-        # PeriodicExportingMetricReader will default to an interval of 60000 millis.
-        conf_interval=conf_interval,  # ex: 30000
+        service=conf.get("metrics", "otel_service", fallback=None),
+        interval_ms=conf.get("metrics", "otel_interval_milliseconds", fallback=None),
         debug=conf.getboolean("metrics", "otel_debugging_on", fallback=False),
-        service_name=conf.get("metrics", "otel_service", fallback=None),
-        metrics_allow_list=conf.get("metrics", "metrics_allow_list", fallback=None),
-        metrics_block_list=conf.get("metrics", "metrics_block_list", fallback=None),
+        prefix=conf.get("metrics", "otel_prefix", fallback="airflow"),
+        allow_list=conf.get("metrics", "metrics_allow_list", fallback=None),
+        block_list=conf.get("metrics", "metrics_block_list", fallback=None),
         stat_name_handler=conf.getimport("metrics", "stat_name_handler", fallback=None),
         statsd_influxdb_enabled=conf.getboolean("metrics", "statsd_influxdb_enabled", fallback=False),
     )
