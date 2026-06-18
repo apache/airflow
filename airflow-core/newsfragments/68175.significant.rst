@@ -1,16 +1,8 @@
-Airflow CLI commands are moving to talk to the API server
+``airflow.api.client`` is replaced by the ``airflowctl`` client
 
-The CLI is being migrated to reach Airflow through the API server (via the ``airflowctl``
-client) instead of the metadata database directly. Migrated so far: ``dags trigger``,
-``dags delete``, ``pools`` (list/get/set/delete/import/export), and ``assets materialize``;
-this fragment is updated as more commands migrate rather than adding new ones.
-
-These commands now require a reachable API server and mint a short-lived token in memory
-(set ``AIRFLOW_CLI_TOKEN`` for auth managers that cannot mint locally, or for remote servers).
-``airflow.api.client`` is removed — use ``airflow.cli.api_client.get_cli_api_client``.
-
-Each migrated command emits a ``RemovedInAirflow4Warning`` and will be removed in a future
-Airflow release; use the equivalent ``airflowctl`` command instead.
+The legacy ``airflow.api.client`` module is removed. The ``airflow`` CLI now reaches the API
+server through the same typed client that ``airflowctl`` uses. Replace any use of
+``airflow.api.client`` with ``airflow.cli.api_client.get_cli_api_client``.
 
 * Types of change
 
