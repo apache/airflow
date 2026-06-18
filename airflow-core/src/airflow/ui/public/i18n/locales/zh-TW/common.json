@@ -223,8 +223,8 @@
     "roles": "角色",
     "users": "使用者"
   },
-  "selected": "已選取",
   "selectLanguage": "選擇語言",
+  "selected": "已選取",
   "showDetailsPanel": "顯示詳細資訊",
   "signedInAs": "登入身分：",
   "source": {
