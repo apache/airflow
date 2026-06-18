@@ -2410,7 +2410,6 @@ REQUEST_TEST_CASES = [
             "triggering_user_name": None,
             "type": "DagRunResult",
             "note": None,
-            "bundle_version": None,
             "team_name": None,
         },
         client_mock=ClientMock(
@@ -2463,7 +2462,6 @@ REQUEST_TEST_CASES = [
                 "conf": None,
                 "triggering_user_name": None,
                 "note": None,
-                "bundle_version": None,
                 "team_name": None,
             },
             "type": "PreviousDagRunResult",

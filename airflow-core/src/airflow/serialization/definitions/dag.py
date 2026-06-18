@@ -660,7 +660,7 @@ class SerializedDAG:
         # version's param schema (not the live dag's), so callers get the right errors.
         if bundle_version is not None:
             if self.disable_bundle_versioning:
-                raise ValueError(f"DAG '{self.dag_id}' does not support bundle versioning")
+                raise ValueError(f"DAG with dag_id: '{self.dag_id}' does not support bundle versioning")
             if dag_version is None:
                 dag_version = DagVersion.get_latest_version(
                     self.dag_id, bundle_version=bundle_version, load_serialized_dag=True, session=session

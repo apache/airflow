@@ -2780,7 +2780,7 @@ class TestTriggerDagRun:
             session=session,
         ) as dag1:
             EmptyOperator(task_id="task_1")
-        sync_dag_to_db(dag1, bundle_name=bundle_name)
+        sync_dag_to_db(dag1, bundle_name=bundle_name, bundle_version="v1")
 
         with dag_maker(
             dag_id=dag_id,
@@ -2790,7 +2790,7 @@ class TestTriggerDagRun:
         ) as dag2:
             EmptyOperator(task_id="task_1")
             EmptyOperator(task_id="task_2")
-        sync_dag_to_db(dag2, bundle_name=bundle_name)
+        sync_dag_to_db(dag2, bundle_name=bundle_name, bundle_version="v2")
 
         response = test_client.post(
             f"/dags/{dag_id}/dagRuns", json={"logical_date": "2024-01-01T00:00:00Z", "bundle_version": "v1"}
@@ -2849,7 +2849,7 @@ class TestTriggerDagRun:
             params={"env": Param("staging", type="string", enum=["staging", "prod"])},
         ) as dag1:
             EmptyOperator(task_id="task_1")
-        sync_dag_to_db(dag1, bundle_name=bundle_name)
+        sync_dag_to_db(dag1, bundle_name=bundle_name, bundle_version="v1")
 
         with dag_maker(
             dag_id=dag_id,
@@ -2859,7 +2859,7 @@ class TestTriggerDagRun:
             params={"env": Param("dev", type="string", enum=["dev", "staging", "prod"])},
         ) as dag2:
             EmptyOperator(task_id="task_1")
-        sync_dag_to_db(dag2, bundle_name=bundle_name)
+        sync_dag_to_db(dag2, bundle_name=bundle_name, bundle_version="v2")
 
         # "dev" is valid for v2 but not for v1's enum — triggering v1 should reject it.
         response = test_client.post(
