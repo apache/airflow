@@ -47,6 +47,7 @@ Doc-only
    * ``[main] Upgrade important CI environment (#68163)``
    * ``Bump stylelint (#68347)``
    * ``Bump prettier (#68576)``
+   * ``Bump eslint (#68681)``
    * ``Load example DAGs from providers via ProvidersManager (continuation of #57320) (#66161)``
 
 3.6.5
