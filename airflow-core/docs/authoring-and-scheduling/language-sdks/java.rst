@@ -244,26 +244,41 @@ is the conventional pattern regardless of which logging framework you choose:
 
 .. code-block:: java
 
-    import org.slf4j.Logger;
-    import org.slf4j.LoggerFactory;
+    private static final System.Logger log =
+        System.getLogger(SalesPipeline.class.getName());
 
-    @Builder.Dag(id = "sales_pipeline")
-    public class SalesPipeline {
-
-        private static final Logger log = LoggerFactory.getLogger(SalesPipeline.class);
-
-        @Builder.Task(id = "extract")
-        public long extract(Client client) {
-            log.info("Starting extraction");
-            // ...
-            log.debug("Extracted {} records", recordCount);
-            return recordCount;
-        }
+    @Builder.Task(id = "extract")
+    public long extract(Client client) {
+        log.log(System.Logger.Level.INFO, "Starting extraction");
+        return recordCount;
     }
 
 The Gradle snippets below show the dependency declarations; all Airflow artifact versions are managed
 by ``airflow-sdk-bom``. Maven users apply the same artifact IDs following the pattern in
 :ref:`java-sdk/build/maven`.
+
+.. _java-sdk/logging/jpl:
+
+``System.Logger`` (Java Platform Logging)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Java 9's new logging façade ``java.lang.System.Logger`` (JEP 264), commonly abbreviated *JPL*, can be
+used by libraries without pulling in any third-party API. The ``airflow-sdk-jpl`` artifact registers an
+``AirflowSystemLoggerFinder`` via ``ServiceLoader``, which routes all ``System.Logger`` calls directly
+to Airflow's task log store.
+
+.. code-block:: groovy
+
+    implementation("org.apache.airflow:airflow-sdk-jpl:${version}")
+
+No configuration file or startup call is required. The ``ServiceLoader`` mechanism discovers the
+provider automatically as long as the JAR is on the classpath.
+
+.. note::
+
+    Do not add a second ``System.LoggerFinder`` implementation alongside
+    ``airflow-sdk-jpl``. The JVM selects one finder via ``ServiceLoader``; having
+    multiple providers on the classpath leads to unpredictable behaviour.
 
 .. _java-sdk/logging/slf4j:
 
@@ -365,9 +380,6 @@ Several commonly used logging APIs are covered without a dedicated Airflow artif
 
 * **Logback** is itself an SLF4J binding. Replace ``logback-classic`` with ``airflow-sdk-slf4j``
   and no changes are needed in your task code.
-* **``System.Logger``** (JEP 264) is routed to SLF4J by adding
-  ``org.slf4j:slf4j-jdk-platform-logging`` (requires SLF4J 2.0.9+) alongside
-  ``airflow-sdk-slf4j``.
 * **Apache Commons Logging (JCL)** can be bridged to SLF4J via ``org.slf4j:jcl-over-slf4j`` or
   to Log4j 2 via ``org.apache.logging.log4j:log4j-jcl``.
 
