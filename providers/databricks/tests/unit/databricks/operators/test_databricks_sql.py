@@ -29,8 +29,8 @@ from databricks.sql.types import Row
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.databricks.operators.databricks_sql import (
     DatabricksSqlOperator,
-    _get_airflow_query_tags,
 )
+from airflow.providers.databricks.utils.query_tags import get_airflow_query_tags as _get_airflow_query_tags
 
 DATE = "2017-04-20"
 TASK_ID = "databricks-sql-operator"
