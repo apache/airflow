@@ -300,7 +300,7 @@ class BaseEventTrigger(BaseTrigger):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        # Injected by the triggerer before run() is called; mirrors how trigger_id is set
+        # Injected by the triggerer before run() is called
         self.asset_state_store: AssetStateStoreAccessors | None = None
 
     @staticmethod

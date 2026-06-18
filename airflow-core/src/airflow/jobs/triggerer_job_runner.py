@@ -779,7 +779,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         render_log_fname: Callable[..., str],
         session: Session,
     ) -> workloads.RunTrigger | None:
-        # Pass the "watched" Assets through for downstream use in BaseEventTrigger
         if trigger.task_instance is None:
             watched_assets: dict[str, str] | None = None
 
