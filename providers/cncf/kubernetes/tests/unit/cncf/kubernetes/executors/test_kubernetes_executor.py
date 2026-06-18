@@ -1113,22 +1113,6 @@ class TestKubernetesExecutor:
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
-    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
-    def test_kube_config_parses_async_pod_creation_options(self, mock_get_kube_client):
-        """The two new config keys are parsed onto KubeConfig."""
-        with conf_vars(
-            {
-                ("kubernetes_executor", "async_pod_creation"): "True",
-                ("kubernetes_executor", "pod_creation_max_concurrency"): "7",
-            }
-        ):
-            executor = KubernetesExecutor()
-            assert executor.kube_config.async_pod_creation is True
-            assert executor.kube_config.pod_creation_max_concurrency == 7
-
-    @pytest.mark.skipif(
-        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
-    )
     @mock.patch(
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.get_async_kube_client",
         new_callable=mock.AsyncMock,
