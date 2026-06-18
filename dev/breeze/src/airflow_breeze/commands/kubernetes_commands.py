@@ -2450,3 +2450,384 @@ def deploy_cluster(
     )
     if return_code != 0:
         sys.exit(return_code)
+
+
+# ---------------------------------------------------------------------------
+# lang-SDK (Go + Java) coordinator system test on KubernetesExecutor.
+# Assets live under kubernetes-tests/lang_sdk/. See that directory's README.md.
+# ---------------------------------------------------------------------------
+LANG_SDK_PATH = AIRFLOW_ROOT_PATH / "kubernetes-tests" / "lang_sdk"
+LANG_SDK_GO_BUNDLE_PKG = "./example/k8s_combined"
+LANG_SDK_GO_BUNDLE_NAME = "lang_sdk_combined"
+LANG_SDK_JAVA_EXAMPLE_PATH = AIRFLOW_ROOT_PATH / "java-sdk" / "k8s-example"
+LANG_SDK_GO_SDK_PATH = AIRFLOW_ROOT_PATH / "go-sdk"
+# Build the artifacts inside ephemeral toolchain containers so the host needs
+# neither Go nor a JDK installed (mirrors the airflow-e2e-tests conftest).
+LANG_SDK_GO_BUILDER_IMAGE = os.environ.get("GO_BUILDER_IMAGE", "golang:1.24-alpine")
+LANG_SDK_JAVA_BUILDER_IMAGE = "eclipse-temurin:17-jdk"
+LANG_SDK_MAVEN_CACHE_PATH = AIRFLOW_ROOT_PATH / "files" / "m2"
+# The Java queue needs a JRE the JavaCoordinator can exec; the Go queue runs on
+# the plain prod image. Building the Java worker image as a separate tag (prod +
+# JRE, see Dockerfile.java) lets each coordinator route its queue to a distinct
+# pod_template_file base image.
+LANG_SDK_JAVA_WORKER_IMAGE = "lang-sdk-java-worker:latest"
+LANG_SDK_JAVA_DOCKERFILE = LANG_SDK_PATH / "Dockerfile.java"
+LANG_SDK_AWS_CONN_URI = (
+    "aws://test:test@/?region_name=us-east-1&"
+    "endpoint_url=http%3A%2F%2Flocalstack.airflow.svc.cluster.local%3A4566"
+)
+
+
+def _lang_sdk_build_artifacts(staging: Path, output: Output | None) -> None:
+    """Build the Go bundle and Java jar into ``staging/{go,java}-artifacts``.
+
+    Both toolchains run inside ephemeral Docker containers so the host does not
+    need Go or a JDK; each builds into a gitignored dir under the repo and the
+    result is copied into the staging dir.
+    """
+    go_dir = staging / "go-artifacts"
+    java_dir = staging / "java-artifacts"
+    go_dir.mkdir(parents=True, exist_ok=True)
+    java_dir.mkdir(parents=True, exist_ok=True)
+
+    uid_gid = f"{os.getuid()}:{os.getgid()}"
+
+    # CGO_ENABLED=0 yields a fully static binary that runs on the stock worker.
+    # USER/HOME must be set because the SDK calls user.Current() at init; with
+    # cgo disabled Go's pure-Go resolver reads those env vars and panics if
+    # either is empty. HOME points at a writable, gitignored dir under go-sdk/bin
+    # so the Go build and module caches persist between runs.
+    get_console(output=output).print(f"[info]Building Go bundle in {LANG_SDK_GO_BUILDER_IMAGE}")
+    run_command(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--user",
+            uid_gid,
+            "-e",
+            "HOME=/repo/go-sdk/bin/.home",
+            "-e",
+            "USER=airflow",
+            "-e",
+            "CGO_ENABLED=0",
+            "-v",
+            f"{AIRFLOW_ROOT_PATH}:/repo",
+            "-w",
+            "/repo/go-sdk",
+            LANG_SDK_GO_BUILDER_IMAGE,
+            "go",
+            "tool",
+            "airflow-go-pack",
+            "--output",
+            f"/repo/go-sdk/bin/{LANG_SDK_GO_BUNDLE_NAME}",
+            LANG_SDK_GO_BUNDLE_PKG,
+        ],
+        output=output,
+        check=True,
+    )
+    shutil.copy(LANG_SDK_GO_SDK_PATH / "bin" / LANG_SDK_GO_BUNDLE_NAME, go_dir / LANG_SDK_GO_BUNDLE_NAME)
+
+    # The k8s-example resolves the SDK plugin and libraries from mavenLocal(),
+    # so publish them first, then build the bundle. --user keeps build outputs
+    # owned by the host user; HOME is set explicitly because that UID has no
+    # /etc/passwd entry; GRADLE_USER_HOME and the mounted ~/.m2 persist the
+    # Gradle distribution and dependency caches between runs.
+    LANG_SDK_MAVEN_CACHE_PATH.mkdir(parents=True, exist_ok=True)
+    java_docker_prefix = [
+        "docker",
+        "run",
+        "--rm",
+        "--user",
+        uid_gid,
+        "-e",
+        "GRADLE_USER_HOME=/repo/java-sdk/.gradle",
+        "-e",
+        "HOME=/workspace-home",
+        "-v",
+        f"{LANG_SDK_MAVEN_CACHE_PATH}:/workspace-home/.m2",
+        "-v",
+        f"{AIRFLOW_ROOT_PATH}:/repo",
+    ]
+    get_console(output=output).print("[info]Publishing Java SDK artifacts to local Maven repository")
+    run_command(
+        [
+            *java_docker_prefix,
+            "-w",
+            "/repo/java-sdk",
+            LANG_SDK_JAVA_BUILDER_IMAGE,
+            "./gradlew",
+            "publishToMavenLocal",
+            "-PskipSigning=true",
+            "--no-daemon",
+            "--console=plain",
+        ],
+        output=output,
+        check=True,
+    )
+    get_console(output=output).print(f"[info]Building Java jar in {LANG_SDK_JAVA_BUILDER_IMAGE}")
+    run_command(
+        [
+            *java_docker_prefix,
+            "-w",
+            "/repo/java-sdk/k8s-example",
+            LANG_SDK_JAVA_BUILDER_IMAGE,
+            "../gradlew",
+            "bundle",
+            "--no-daemon",
+            "--console=plain",
+        ],
+        output=output,
+        check=True,
+    )
+    jars = list((LANG_SDK_JAVA_EXAMPLE_PATH / "build" / "bundle").glob("*.jar"))
+    if not jars:
+        get_console(output=output).print("[error]No jar produced by the Java bundle build")
+        sys.exit(1)
+    shutil.copy(jars[0], java_dir / jars[0].name)
+
+
+def _lang_sdk_kubectl(
+    args: list[str], python: str, kubernetes_version: str, output: Output | None, check=True
+):
+    return run_command_with_k8s_env(
+        ["kubectl", *args],
+        python=python,
+        kubernetes_version=kubernetes_version,
+        output=output,
+        check=check,
+    )
+
+
+def _lang_sdk_deploy_localstack(python: str, kubernetes_version: str, output: Output | None) -> None:
+    get_console(output=output).print("[info]Deploying localstack (S3) into the airflow namespace")
+    _lang_sdk_kubectl(
+        ["apply", "-f", str(LANG_SDK_PATH / "manifests" / "localstack.yaml")],
+        python,
+        kubernetes_version,
+        output,
+    )
+    _lang_sdk_kubectl(
+        ["rollout", "status", "deployment/localstack", "-n", HELM_AIRFLOW_NAMESPACE, "--timeout=180s"],
+        python,
+        kubernetes_version,
+        output,
+    )
+
+
+def _lang_sdk_upload_artifacts(
+    staging: Path, python: str, kubernetes_version: str, output: Output | None
+) -> None:
+    """Copy artifacts + stub Dag into the localstack pod and create/fill S3 buckets via awslocal."""
+    pod = run_command_with_k8s_env(
+        [
+            "kubectl",
+            "get",
+            "pod",
+            "-n",
+            HELM_AIRFLOW_NAMESPACE,
+            "-l",
+            "app=localstack",
+            "-o",
+            "jsonpath={.items[0].metadata.name}",
+        ],
+        python=python,
+        kubernetes_version=kubernetes_version,
+        output=output,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+
+    go_bundle = staging / "go-artifacts" / "lang_sdk_combined"
+    java_jar = next((staging / "java-artifacts").glob("*.jar"))
+    stub_dag = LANG_SDK_PATH / "dags" / "lang_sdk_combined.py"
+
+    for src, dest in (
+        (go_bundle, "/tmp/go_bundle"),
+        (java_jar, "/tmp/app.jar"),
+        (stub_dag, "/tmp/lang_sdk_combined.py"),
+    ):
+        _lang_sdk_kubectl(
+            ["cp", str(src), f"{HELM_AIRFLOW_NAMESPACE}/{pod}:{dest}"], python, kubernetes_version, output
+        )
+
+    for bucket in ("go-artifacts", "java-artifacts", "dags"):
+        _lang_sdk_kubectl(
+            ["exec", "-n", HELM_AIRFLOW_NAMESPACE, pod, "--", "awslocal", "s3", "mb", f"s3://{bucket}"],
+            python,
+            kubernetes_version,
+            output,
+            check=False,
+        )
+    uploads = (
+        ("/tmp/go_bundle", "s3://go-artifacts/lang_sdk_combined"),
+        ("/tmp/app.jar", "s3://java-artifacts/app.jar"),
+        ("/tmp/lang_sdk_combined.py", "s3://dags/lang_sdk_combined.py"),
+    )
+    for src, dest in uploads:
+        _lang_sdk_kubectl(
+            ["exec", "-n", HELM_AIRFLOW_NAMESPACE, pod, "--", "awslocal", "s3", "cp", src, dest],
+            python,
+            kubernetes_version,
+            output,
+        )
+
+
+def _lang_sdk_apply_configmaps_and_secret(
+    python: str, kubernetes_version: str, go_image: str, java_image: str, output: Output | None
+) -> None:
+    with tempfile.TemporaryDirectory(prefix="lang_sdk_pt_") as tmp:
+        rendered = Path(tmp)
+        for name in ("lang_sdk_golang.yaml", "lang_sdk_java.yaml"):
+            text = (LANG_SDK_PATH / "pod_templates" / name).read_text()
+            text = text.replace("__LANG_SDK_GO_IMAGE__", go_image).replace(
+                "__LANG_SDK_JAVA_IMAGE__", java_image
+            )
+            (rendered / name).write_text(text)
+        # Idempotent configmap/secret application via `--dry-run | apply`.
+        for cm_args in (
+            ["create", "configmap", "lang-sdk-pod-templates", f"--from-file={rendered}"],
+            [
+                "create",
+                "configmap",
+                "lang-sdk-scripts",
+                f"--from-file={LANG_SDK_PATH / 'stage_artifacts.py'}",
+            ],
+            [
+                "create",
+                "secret",
+                "generic",
+                "lang-sdk-aws-conn",
+                f"--from-literal=uri={LANG_SDK_AWS_CONN_URI}",
+            ],
+        ):
+            manifest = run_command_with_k8s_env(
+                ["kubectl", *cm_args, "-n", HELM_AIRFLOW_NAMESPACE, "--dry-run=client", "-o", "yaml"],
+                python=python,
+                kubernetes_version=kubernetes_version,
+                output=output,
+                capture_output=True,
+                check=True,
+            ).stdout
+            run_command_with_k8s_env(
+                ["kubectl", "apply", "-n", HELM_AIRFLOW_NAMESPACE, "-f", "-"],
+                python=python,
+                kubernetes_version=kubernetes_version,
+                output=output,
+                input=manifest,
+                check=True,
+            )
+
+
+def _lang_sdk_build_java_worker_image(
+    base_image: str, python: str, kubernetes_version: str, output: Output | None
+) -> str:
+    """Build the prod+JRE Java worker image and load it into the kind cluster.
+
+    Returns the local image tag the Java pod template should reference.
+    """
+    get_console(output=output).print(
+        f"[info]Building Java worker image {LANG_SDK_JAVA_WORKER_IMAGE} (JRE on top of {base_image})"
+    )
+    run_command(
+        [
+            "docker",
+            "build",
+            "--build-arg",
+            f"BASE_IMAGE={base_image}",
+            "-t",
+            LANG_SDK_JAVA_WORKER_IMAGE,
+            "-f",
+            str(LANG_SDK_JAVA_DOCKERFILE),
+            str(LANG_SDK_PATH),
+        ],
+        output=output,
+        check=True,
+    )
+    cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    get_console(output=output).print(f"[info]Loading {LANG_SDK_JAVA_WORKER_IMAGE} into {cluster_name}")
+    run_command_with_k8s_env(
+        ["kind", "load", "docker-image", "--name", cluster_name, LANG_SDK_JAVA_WORKER_IMAGE],
+        python=python,
+        kubernetes_version=kubernetes_version,
+        output=output,
+        check=True,
+    )
+    return LANG_SDK_JAVA_WORKER_IMAGE
+
+
+def _lang_sdk_deploy_airflow(python: str, kubernetes_version: str, output: Output | None) -> None:
+    params = BuildProdParams(python=python)
+    image = params.airflow_image_kubernetes
+    get_console(output=output).print("[info]Upgrading airflow Helm release with lang-SDK values")
+    run_command_with_k8s_env(
+        [
+            "helm",
+            "upgrade",
+            "--install",
+            "airflow",
+            os.fspath(CHART_PATH),
+            "--kube-context",
+            get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version),
+            "--namespace",
+            HELM_AIRFLOW_NAMESPACE,
+            "--set",
+            f"defaultAirflowRepository={image}",
+            "--set",
+            "defaultAirflowTag=latest",
+            "-f",
+            str(LANG_SDK_PATH / "config" / "values.yaml"),
+            "--timeout",
+            "20m0s",
+            "--wait",
+        ],
+        python=python,
+        kubernetes_version=kubernetes_version,
+        output=output,
+        check=True,
+    )
+
+
+@kubernetes_group.command(
+    name="setup-lang-sdk-test",
+    help="Provision the lang-SDK (Go + Java) coordinator system test on an already-deployed "
+    "KubernetesExecutor cluster: build artifacts, build + load the Java worker image, deploy "
+    "localstack S3, upload artifacts + stub Dag, create config, and upgrade the Helm release. "
+    "Run the test afterwards with `breeze k8s tests --executor KubernetesExecutor "
+    "-- -k test_lang_sdk_combined_dag_succeeds`.",
+)
+@option_python
+@option_kubernetes_version
+@click.option(
+    "--go-image",
+    help="Image for the Go (ExecutableCoordinator) worker pod. Defaults to the k8s image.",
+)
+@click.option(
+    "--java-image",
+    help="Image for the Java (JavaCoordinator) worker pod. Must include a JRE. Defaults to building "
+    "the prod image plus a headless JRE (Dockerfile.java) and loading it into the kind cluster.",
+)
+@option_verbose
+@option_dry_run
+def setup_lang_sdk_test(python: str, kubernetes_version: str, go_image: str | None, java_image: str | None):
+    result = sync_virtualenv(force_venv_setup=False)
+    if result.returncode != 0:
+        sys.exit(result.returncode)
+    make_sure_kubernetes_tools_are_installed()
+    default_image = f"{BuildProdParams(python=python).airflow_image_kubernetes}:latest"
+    go_image = go_image or default_image
+    if not java_image:
+        java_image = _lang_sdk_build_java_worker_image(go_image, python, kubernetes_version, output=None)
+    with tempfile.TemporaryDirectory(prefix="lang_sdk_artifacts_") as tmp:
+        _lang_sdk_build_artifacts(Path(tmp), output=None)
+        _lang_sdk_deploy_localstack(python, kubernetes_version, output=None)
+        _lang_sdk_upload_artifacts(Path(tmp), python, kubernetes_version, output=None)
+    _lang_sdk_apply_configmaps_and_secret(python, kubernetes_version, go_image, java_image, output=None)
+    _lang_sdk_deploy_airflow(python, kubernetes_version, output=None)
+    console_print(
+        "\n[success]lang-SDK test environment is ready.[/]\n"
+        "[info]Run the test with:\n"
+        "  breeze k8s tests --executor KubernetesExecutor "
+        "-- -k test_lang_sdk_combined_dag_succeeds\n"
+    )
