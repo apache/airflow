@@ -277,6 +277,7 @@ def test_base_event_trigger_asset_state_store_independent_across_instances():
     a.asset_state_store = create_autospec(AssetStateStoreAccessors, instance=True)
     assert b.asset_state_store is None
 
+
 def test_create_shared_stream_producer_raises_by_default():
     """A subclass that does not override create_shared_stream_producer gets NotImplementedError.
 
