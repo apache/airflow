@@ -405,13 +405,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         credentials, project_id = self.get_credentials_and_project_id()
 
-        return read_gbq(
-            sql,
-            project_id=project_id,
-            dialect=dialect,
-            credentials=credentials,
-            **kwargs,
-        )
+        return read_gbq(sql, project_id=project_id, dialect=dialect, credentials=credentials, **kwargs)
 
     def _get_polars_df(self, sql, parameters=None, dialect=None, **kwargs) -> pl.DataFrame:
         try:
