@@ -735,7 +735,7 @@ class TasksOperations(BaseOperations):
         dag_id: str,
         body: ClearTaskInstancesBody,
     ) -> TaskInstanceCollectionResponse | ServerResponseError:
-        """Clear task instances for a DAG."""
+        """Clear task instances for a Dag."""
         try:
             self.response = self.client.post(
                 f"dags/{dag_id}/clearTaskInstances",
