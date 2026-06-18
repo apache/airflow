@@ -71,7 +71,7 @@ dagrun:
   list: "List Dag runs, optionally filtered by state and date range"
 
 tasks:
-  clear: "Clear task instances for a DAG"
+  clear: "Clear task instances for a Dag"
 
 jobs:
   list: "List scheduler, triggerer, and other Airflow jobs"
