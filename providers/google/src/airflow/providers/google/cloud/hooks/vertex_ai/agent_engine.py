@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any
 import google.auth.transport.requests
 from asgiref.sync import sync_to_async
 from google.genai._api_client import HttpOptions
-from google.genai.errors import ClientError
 from vertexai import Client
 
 from airflow.providers.google.common.hooks.base_google import (
@@ -209,20 +208,6 @@ class AgentEngineHook(GoogleBaseHook):
         name = self.build_agent_engine_name(project_id, location, agent_engine_id)
         return client.delete(name=name, force=force, config=config)
 
-    def is_agent_engine_deleted(self, project_id: str, location: str, agent_engine_id: str) -> bool:
-        """Return whether an Agent Engine no longer exists."""
-        try:
-            self.get_agent_engine(
-                project_id=project_id,
-                location=location,
-                agent_engine_id=agent_engine_id,
-            )
-        except ClientError as err:
-            if getattr(err, "code", None) == 404:
-                return True
-            raise
-        return False
-
     def get_agent_engine_operation(self, location: str, operation_name: str) -> dict[str, Any]:
         """Return a Vertex AI Agent Engine long-running operation."""
         url = (
@@ -280,15 +265,6 @@ class AgentEngineAsyncHook(GoogleBaseAsyncHook):
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
             **kwargs,
-        )
-
-    async def is_agent_engine_deleted(self, project_id: str, location: str, agent_engine_id: str) -> bool:
-        """Return whether an Agent Engine no longer exists."""
-        sync_hook = await self.get_sync_hook()
-        return await sync_to_async(sync_hook.is_agent_engine_deleted)(
-            project_id=project_id,
-            location=location,
-            agent_engine_id=agent_engine_id,
         )
 
     async def get_agent_engine_operation(self, location: str, operation_name: str) -> dict[str, Any]:

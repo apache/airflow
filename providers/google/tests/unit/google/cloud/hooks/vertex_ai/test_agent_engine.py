@@ -21,7 +21,6 @@ import json
 from unittest import mock
 
 import pytest
-from google.genai.errors import ClientError
 
 from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineHook
 
@@ -288,56 +287,3 @@ class TestAgentEngineHookWithDefaultProjectId:
             )
 
         mock_sleep.assert_not_called()
-
-    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine"), autospec=True)
-    def test_is_agent_engine_deleted_returns_false_when_resource_exists(self, mock_get_agent_engine):
-        assert not self.hook.is_agent_engine_deleted(
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            agent_engine_id=AGENT_ENGINE_ID,
-        )
-        mock_get_agent_engine.assert_called_once_with(
-            self.hook,
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            agent_engine_id=AGENT_ENGINE_ID,
-        )
-
-    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine"), autospec=True)
-    def test_is_agent_engine_deleted_returns_true_on_404(self, mock_get_agent_engine):
-        mock_get_agent_engine.side_effect = ClientError(code=404, response_json={"error": "not found"})
-
-        assert self.hook.is_agent_engine_deleted(
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            agent_engine_id=AGENT_ENGINE_ID,
-        )
-
-    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine"), autospec=True)
-    def test_is_agent_engine_deleted_reraises_non_404(self, mock_get_agent_engine):
-        mock_get_agent_engine.side_effect = ClientError(code=500, response_json={"error": "server error"})
-
-        with pytest.raises(ClientError) as err:
-            self.hook.is_agent_engine_deleted(
-                project_id=GCP_PROJECT,
-                location=GCP_LOCATION,
-                agent_engine_id=AGENT_ENGINE_ID,
-            )
-
-        assert err.value.code == 500
-
-    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine"), autospec=True)
-    def test_is_agent_engine_deleted_reraises_non_404_with_404_in_message(self, mock_get_agent_engine):
-        mock_get_agent_engine.side_effect = ClientError(
-            code=500,
-            response_json={"error": "server error for resource 404"},
-        )
-
-        with pytest.raises(ClientError) as err:
-            self.hook.is_agent_engine_deleted(
-                project_id=GCP_PROJECT,
-                location=GCP_LOCATION,
-                agent_engine_id=AGENT_ENGINE_ID,
-            )
-
-        assert err.value.code == 500
