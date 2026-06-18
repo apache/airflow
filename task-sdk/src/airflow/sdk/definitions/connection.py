@@ -54,18 +54,20 @@ def _parse_netloc_to_hostname(uri_parts):
 
 
 def _coerce_port(port: int | str | None) -> int | None:
-    if port is None:
-        return None
-    if isinstance(port, bool):
-        raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
-    if isinstance(port, int):
-        return port
-    if isinstance(port, str):
-        try:
-            return int(port)
-        except ValueError:
-            raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.") from None
-    raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+    match port:
+        case None:
+            return None
+        case bool():
+            raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+        case int():
+            return port
+        case str():
+            try:
+                return int(port)
+            except ValueError:
+                raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.") from None
+        case _:
+            raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
 
 
 def _normalize_port(port: int | str | None) -> int | None:

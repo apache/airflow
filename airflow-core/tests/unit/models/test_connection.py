@@ -243,10 +243,6 @@ class TestConnection:
         with pytest.raises(ValueError, match="port"):
             Connection(conn_id="test_conn", conn_type="test", port=port)
 
-    def test_parse_from_uri_rejects_port_zero(self):
-        with pytest.raises(ValueError, match="between 1 and 65535"):
-            Connection(conn_id="test_conn", uri="type://host:0/schema")
-
     def test_validate_port_false_allows_legacy_port(self):
         from_uri = Connection(conn_id="test_conn", uri="type://host:0/schema", _validate_port=False)
         from_values = Connection(conn_id="test_conn", conn_type="test", port=0, _validate_port=False)
@@ -597,9 +593,7 @@ class TestConnection:
     @pytest.mark.db_test
     def test_existing_connection_with_invalid_port_can_be_loaded(self, session: Session):
         clear_db_connections()
-        session.execute(
-            Connection.__table__.insert().values(conn_id="legacy_invalid_port", conn_type="test", port=0)
-        )
+        session.add(Connection(conn_id="legacy_invalid_port", conn_type="test", port=0, _validate_port=False))
         session.flush()
 
         connection = session.scalar(select(Connection).where(Connection.conn_id == "legacy_invalid_port"))

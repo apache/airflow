@@ -826,7 +826,7 @@ def _parse_from_uri(uri: str):
 def _connection_from_uri(uri: str):
     if AIRFLOW_V_3_1_PLUS:
         return Connection(conn_id="test_conn_id", **_parse_from_uri(uri))
-    return Connection(uri=uri)  # type: ignore[call-arg]
+    return Connection(conn_id="test_cloud_sql_conn", uri=uri)
 
 
 class TestCloudSqlDatabaseHook:
