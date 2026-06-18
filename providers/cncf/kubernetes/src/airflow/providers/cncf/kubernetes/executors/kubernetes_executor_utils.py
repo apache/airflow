@@ -586,8 +586,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         Build the worker pod request object for a job.
 
         Performs no API calls. May raise ``PodMutationHookException`` or
-        ``PodReconciliationError`` from the pod-mutation hook / pod reconciliation, matching
-        the build step of the original ``run_next``.
+        ``PodReconciliationError`` from the pod-mutation hook / reconciliation.
         """
         key = next_job.key
         command = next_job.command
@@ -665,9 +664,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
         to_create = [(job, pod) for job, pod, build_err in built if build_err is None and pod is not None]
         create_errors = self._run_pods_async(to_create) if to_create else []
 
-        # create_errors aligns positionally with to_create (gather preserves order), which in
-        # turn preserves the order of the successfully-built entries; advance that iterator as
-        # we re-emit one (job, error) per built entry.
+        # create_errors aligns 1:1 with to_create (gather preserves order); walk it as we
+        # re-emit one (job, error) per built entry, pairing build failures with their own error.
         create_iter = iter(create_errors)
         results: list[tuple[KubernetesJob, Exception | None]] = []
         for job, _, build_err in built:

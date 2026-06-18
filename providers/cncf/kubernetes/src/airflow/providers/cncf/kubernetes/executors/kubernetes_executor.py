@@ -497,10 +497,10 @@ class KubernetesExecutor(BaseExecutor):
         """
         Dequeue a batch and create worker pods concurrently via the async client.
 
-        Unlike the sequential path, the whole batch is submitted before any response is
-        seen, so a mid-batch 429 cannot prevent the already in-flight requests; the burst is
-        instead bounded by ``pod_creation_max_concurrency``, and a 429 still suppresses
-        creation on the next scheduler loop via ``create_pods_after``.
+        The whole batch is in flight before any response returns, so (unlike the sequential
+        path) a mid-batch 429 cannot stop the burst — it is bounded only by
+        ``pod_creation_max_concurrency``, and a 429 still suppresses the next loop via
+        ``create_pods_after``.
         """
         if TYPE_CHECKING:
             assert self.kube_scheduler
@@ -531,12 +531,10 @@ class KubernetesExecutor(BaseExecutor):
 
     def _record_pod_creation_batch(self, count: int, duration_seconds: float) -> None:
         """
-        Emit per-scheduler-loop pod-creation batch metrics.
+        Emit per-scheduler-loop pod-creation batch metrics (duration and size).
 
-        Emitted by both the sequential and concurrent paths with the same metric names so a
-        before/after comparison (``async_pod_creation`` off vs on) measures the same thing:
-        how long the scheduler loop spends creating one batch of worker pods, and how many
-        pods that batch contained.
+        Both creation paths emit these under the same names, so an ``async_pod_creation``
+        off-vs-on comparison measures the same thing.
         """
         Stats.timing("kubernetes_executor.pod_creation_batch_duration", timedelta(seconds=duration_seconds))
         Stats.gauge("kubernetes_executor.pod_creation_batch_size", count)
