@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-17T11:23:26.902160
+# This constraints file was automatically generated on 2026-06-18T21:13:03.661583
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -305,7 +305,7 @@ fastavro==1.12.2
 fastcore==1.13.3
 fastjsonschema==2.21.2
 fastuuid==0.14.0
-filelock==3.29.3
+filelock==3.29.4
 flask-appbuilder==5.2.1
 flask-babel==4.0.0
 flower==2.0.1
@@ -697,7 +697,7 @@ uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==21.4.3
+virtualenv==21.5.0
 watchfiles==1.2.0
 watchtower==3.4.0
 wcwidth==0.8.1
