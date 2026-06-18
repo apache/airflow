@@ -533,3 +533,39 @@ with DAG(
         print(f"Minimum region partitions received. Partition: {dag_run.partition_key}")
 
     aggregate_available_regions()
+
+
+# --- Segment fan-out: one upstream event scatters across the segment set -----
+# The 1→N mirror of ``segment_region_stats_rollup``: a single upstream event
+# fans OUT to one downstream run per declared region. ``SegmentWindow`` has no
+# default-table entry, so an explicit ``downstream_mapper`` is required.
+
+with DAG(
+    dag_id="scatter_live_region_to_segments",
+    schedule=PartitionedAssetTimetable(
+        assets=Asset.ref(name="live_region_player_stats"),
+        default_partition_mapper=FanOutMapper(
+            upstream_mapper=IdentityMapper(),
+            window=SegmentWindow(["us", "eu", "apac"]),
+            downstream_mapper=IdentityMapper(),  # required: SegmentWindow has no default-table entry
+        ),
+    ),
+    catchup=False,
+    tags=["example", "player-stats", "fan-out", "segment"],
+):
+    """
+    Categorical fan-out: scatter one upstream event across a fixed segment set.
+
+    One ``live_region_player_stats`` event fans out to one downstream run per
+    declared region (``us``, ``eu``, ``apac``) — the 1→N counterpart to the
+    segment rollup above.
+    """
+
+    @task
+    def process_region_segment(dag_run=None):
+        """Process one region segment produced by the fan-out."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(dag_run.partition_key)
+
+    process_region_segment()
