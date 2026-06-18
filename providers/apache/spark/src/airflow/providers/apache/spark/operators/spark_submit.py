@@ -146,6 +146,9 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         omitted, Kerberos-enabled Spark connections with both ``keytab`` and
         ``principal`` configured use ``requests-kerberos`` automatically.
         Defaults to ``None`` (no auth for non-Kerberos connections).
+    :param durable: When ``True`` (the default), the external job ID is persisted to task state
+        store before polling begins so that a worker crash and retry reconnects to the existing job
+        instead of submitting a fresh one. Set to ``False`` to always submit a new job on retry.
     """
 
     # Generic key used across all Spark deployment modes (standalone driver ID,
