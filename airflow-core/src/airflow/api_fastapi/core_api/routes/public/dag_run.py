@@ -659,6 +659,7 @@ def trigger_dag_run(
             state=DagRunState.QUEUED,
             partition_key=params["partition_key"],
             bundle_version=body.bundle_version,
+            partition_date=params["partition_date"],
             session=session,
         )
 

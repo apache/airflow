@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,22 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# Note: Any AirflowException raised is expected to cause the TaskInstance
-#       to be marked in an ERROR state
-"""Exceptions used by Databricks Provider."""
-
 from __future__ import annotations
 
-from airflow.providers.common.compat.sdk import AirflowException
+from unittest.mock import patch
+
+from airflow.providers.common.ai.utils import tool_definition
+from airflow.providers.common.ai.utils.tool_definition import return_schema_kwargs
 
 
-class DatabricksSqlExecutionError(AirflowException):
-    """Raised when there is an error in sql execution."""
+def test_returns_kwarg_when_supported():
+    with patch.object(tool_definition, "_SUPPORTS_RETURN_SCHEMA", True):
+        assert return_schema_kwargs({"type": "string"}) == {"return_schema": {"type": "string"}}
 
 
-class DatabricksSqlExecutionTimeout(DatabricksSqlExecutionError):
-    """Raised when a sql execution times out."""
-
-
-class DatabricksOperatorPayloadError(AirflowException):
-    """Raised when a Databricks operator payload is invalid."""
+def test_returns_empty_when_unsupported():
+    with patch.object(tool_definition, "_SUPPORTS_RETURN_SCHEMA", False):
+        assert return_schema_kwargs({"type": "string"}) == {}

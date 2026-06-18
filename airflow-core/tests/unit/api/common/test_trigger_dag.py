@@ -16,12 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import pytest
 from sqlalchemy import select
 
 from airflow.api.common.trigger_dag import trigger_dag
+from airflow.exceptions import InvalidPartitionKeyError
 from airflow.models import DagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.timetables.simple import PartitionAtRuntime
+from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import (
@@ -81,6 +86,69 @@ def test_trigger_dag_with_custom_run_type(dag_maker, session):
     )
 
     assert dag_run.run_type == DagRunType.ASSET_MATERIALIZATION
+
+
+def test_trigger_dag_populates_partition_date_for_cron_partition_timetable(dag_maker, session):
+    """Manually triggering a CronPartitionTimetable Dag with a partition_key populates partition_date."""
+    with dag_maker(
+        session=session,
+        dag_id="TEST_CRON_PARTITION_DAG",
+        schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+    ):
+        EmptyOperator(task_id="mytask")
+    session.commit()
+
+    dag_run = trigger_dag(
+        dag_id="TEST_CRON_PARTITION_DAG",
+        triggered_by=DagRunTriggeredByType.REST_API,
+        partition_key="2025-06-01T00:00:00",
+        session=session,
+    )
+
+    assert dag_run is not None
+    assert dag_run.partition_key == "2025-06-01T00:00:00"
+    assert dag_run.partition_date == datetime(2025, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+
+
+def test_trigger_dag_raises_invalid_partition_key_for_cron_partition_timetable(dag_maker, session):
+    """A malformed partition_key for CronPartitionTimetable raises InvalidPartitionKeyError."""
+    with dag_maker(
+        session=session,
+        dag_id="TEST_CRON_PARTITION_BAD_KEY",
+        schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+    ):
+        EmptyOperator(task_id="mytask")
+    session.commit()
+
+    with pytest.raises(InvalidPartitionKeyError, match="does not match"):
+        trigger_dag(
+            dag_id="TEST_CRON_PARTITION_BAD_KEY",
+            triggered_by=DagRunTriggeredByType.REST_API,
+            partition_key="not-a-valid-date",
+            session=session,
+        )
+
+
+def test_trigger_dag_partition_at_runtime_leaves_partition_date_none(dag_maker, session):
+    """PartitionAtRuntime Dags accept arbitrary keys; partition_date stays None."""
+    with dag_maker(
+        session=session,
+        dag_id="TEST_PARTITION_AT_RUNTIME",
+        schedule=PartitionAtRuntime(),
+    ):
+        EmptyOperator(task_id="mytask")
+    session.commit()
+
+    dag_run = trigger_dag(
+        dag_id="TEST_PARTITION_AT_RUNTIME",
+        triggered_by=DagRunTriggeredByType.REST_API,
+        partition_key="arbitrary-runtime-key",
+        session=session,
+    )
+
+    assert dag_run is not None
+    assert dag_run.partition_key == "arbitrary-runtime-key"
+    assert dag_run.partition_date is None
 
 
 def test_trigger_dag_operator_denied_when_only_manual_allowed(dag_maker, session):
