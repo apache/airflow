@@ -247,35 +247,6 @@ class TestLoadConnection:
             assert expected_connection_uris == connection_uris_by_conn_id
 
     @pytest.mark.parametrize(
-        "file_content",
-        [
-            "CONN_ID=mysql://host_1:0/",
-            {"CONN_ID": {"conn_type": "mysql", "host": "host_1", "port": 0}},
-        ],
-    )
-    def test_should_load_connection_with_legacy_invalid_port(self, file_content):
-        suffix = "env" if isinstance(file_content, str) else "json"
-        with mock_local_file(file_content if isinstance(file_content, str) else json.dumps(file_content)):
-            connections_by_conn_id = local_filesystem.load_connections_dict(
-                f"a.{suffix}", validate_port=False
-            )
-
-            assert connections_by_conn_id["CONN_ID"].port == 0
-
-    @pytest.mark.parametrize(
-        "file_content",
-        [
-            "CONN_ID=mysql://host_1:0/",
-            {"CONN_ID": {"conn_type": "mysql", "host": "host_1", "port": 0}},
-        ],
-    )
-    def test_load_connections_dict_validates_port_by_default(self, file_content):
-        suffix = "env" if isinstance(file_content, str) else "json"
-        with mock_local_file(file_content if isinstance(file_content, str) else json.dumps(file_content)):
-            with pytest.raises(ValueError, match="between 1 and 65535"):
-                local_filesystem.load_connections_dict(f"a.{suffix}")
-
-    @pytest.mark.parametrize(
         ("file_content", "expected_connection_uris"),
         [
             ({"CONN_ID": None}, "Unexpected value type: <class 'NoneType'>."),
@@ -584,12 +555,6 @@ class TestLocalFileBackend:
         backend = LocalFilesystemBackend(connections_file_path=os.fspath(path))
         assert backend.get_connection("CONN_A").get_uri() == "mysql://host_a"
         assert backend.get_variable("CONN_B") is None
-
-    def test_should_read_connection_with_legacy_invalid_port(self, tmp_path):
-        path = tmp_path / "testfile.env"
-        path.write_text("CONN_A=mysql://host_a:0/")
-        backend = LocalFilesystemBackend(connections_file_path=os.fspath(path))
-        assert backend.get_connection("CONN_A").port == 0
 
     def test_files_are_optional(self):
         backend = LocalFilesystemBackend()

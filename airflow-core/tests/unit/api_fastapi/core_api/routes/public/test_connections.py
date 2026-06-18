@@ -154,9 +154,7 @@ class TestGetConnection(TestConnectionEndpoint):
         assert body["team_name"] == testing_team.name
 
     def test_get_should_return_existing_connection_with_invalid_port(self, test_client, session):
-        session.execute(
-            Connection.__table__.insert().values(conn_id=TEST_CONN_ID, conn_type=TEST_CONN_TYPE, port=0)
-        )
+        session.add(Connection(conn_id=TEST_CONN_ID, conn_type=TEST_CONN_TYPE, port=0, _validate_port=False))
         session.commit()
 
         response = test_client.get(f"/connections/{TEST_CONN_ID}")
