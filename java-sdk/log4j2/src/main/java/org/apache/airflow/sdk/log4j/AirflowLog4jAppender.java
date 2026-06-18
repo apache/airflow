@@ -1,0 +1,90 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.airflow.sdk.log4j;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.Collections;
+import java.util.Map;
+import org.apache.airflow.sdk.execution.Level;
+import org.apache.airflow.sdk.execution.Log;
+import org.apache.logging.log4j.core.Appender;
+import org.apache.logging.log4j.core.Core;
+import org.apache.logging.log4j.core.Filter;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.config.Property;
+import org.apache.logging.log4j.core.config.plugins.Plugin;
+import org.apache.logging.log4j.core.config.plugins.PluginFactory;
+
+/**
+ * A Log4j {@link Appender} to route logs to Airflow.
+ *
+ * <p>This class is not called explicitly. An annotation processor reads the
+ * class (since it's annotated with {@link Plugin}) and generates information
+ * needed by Log4J.
+ */
+@Plugin(
+    name = "AirflowAppender",
+    category = Core.CATEGORY_NAME,
+    elementType = Appender.ELEMENT_TYPE)
+public final class AirflowLog4jAppender extends AbstractAppender {
+
+  private AirflowLog4jAppender(String name, Filter filter) {
+    super(name, filter, null, true, Property.EMPTY_ARRAY);
+  }
+
+  @PluginFactory
+  public static AirflowLog4jAppender createAppender() {
+    return new AirflowLog4jAppender("AirflowAppender", null);
+  }
+
+  @Override
+  public void append(LogEvent event) {
+    Level level = convert(event.getLevel());
+    if (!Log.INSTANCE.isEnabledForLevel(level)) return;
+    // Log4J does not really provide a good way to access the underlying unformatted data
+    // since it allows vastly different logging mechanisms. We pre-format the message here
+    // and only send the exception separately.
+    String message = event.getMessage().getFormattedMessage();
+    Throwable thrown = event.getThrown();
+    Map<String, Object> args =
+        thrown != null
+            ? Collections.singletonMap("exception", stackTrace(thrown))
+            : Collections.emptyMap();
+    Log.INSTANCE.send(level, event.getLoggerName(), message, args);
+  }
+
+  private static Level convert(org.apache.logging.log4j.Level level) {
+    var v = level.intLevel();
+    if (v < org.apache.logging.log4j.Level.ERROR.intLevel()) return Level.CRITICAL;
+    if (v < org.apache.logging.log4j.Level.WARN.intLevel()) return Level.ERROR;
+    if (v < org.apache.logging.log4j.Level.INFO.intLevel()) return Level.WARNING;
+    if (v < org.apache.logging.log4j.Level.DEBUG.intLevel()) return Level.INFO;
+    if (v < org.apache.logging.log4j.Level.TRACE.intLevel()) return Level.DEBUG;
+    return Level.NOTSET;
+  }
+
+  private static String stackTrace(Throwable t) {
+    var sw = new StringWriter();
+    t.printStackTrace(new PrintWriter(sw));
+    return sw.toString();
+  }
+}

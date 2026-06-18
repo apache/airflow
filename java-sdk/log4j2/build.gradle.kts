@@ -18,32 +18,39 @@
  */
 
 plugins {
-    `java-platform`
+    `java-library`
+    id("airflow-jvm-conventions")
     id("airflow-publish")
 }
 
-val projectVersion: String by project
-val airflowSupervisorSchemaVersion: String by project
+val log4jVersion: String by project
 
 dependencies {
-    constraints {
-        api("org.apache.airflow:airflow-sdk:$projectVersion")
-        api("org.apache.airflow:airflow-sdk-jul:$projectVersion")
-        api("org.apache.airflow:airflow-sdk-log4j2:$projectVersion")
-        api("org.apache.airflow:airflow-sdk-processor:${projectVersion}")
-        api("org.apache.airflow:airflow-sdk-slf4j:$projectVersion")
-    }
+    annotationProcessor("org.apache.logging.log4j:log4j-core:$log4jVersion")
+    api("org.apache.logging.log4j:log4j-api:$log4jVersion")
+    compileOnly("org.apache.logging.log4j:log4j-core:$log4jVersion")
+    implementation(project(":sdk"))
+
+    testImplementation(kotlin("test"))
+    testImplementation("org.apache.logging.log4j:log4j-core:$log4jVersion")
+}
+
+java {
+    withSourcesJar() // Required by Maven Central.
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }
 
 publishing {
     publications {
-        create<MavenPublication>("mavenBom") {
-            artifactId = "airflow-sdk-bom"
-            from(components["javaPlatform"])
+        create<MavenPublication>("mavenJava") {
+            artifactId = "airflow-sdk-log4j2"
+            from(components["java"])
             pom {
-                name = "Apache Airflow Java SDK BOM"
-                description = "Bill of Materials for the Apache Airflow Java SDK."
-                properties.put("airflow.supervisor.schema.version", airflowSupervisorSchemaVersion)
+                name = "Apache Airflow Java SDK Log4j 2 Appender"
+                description = "Routes Log4j 2 log calls from task code through the SDK to Airflow's task log store."
             }
         }
     }
