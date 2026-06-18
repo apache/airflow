@@ -525,12 +525,24 @@ class DagRunOperations(BaseOperations):
         self,
         state: str | None = None,
         limit: int = 100,
+        offset: int | None = None,
         start_date: datetime.datetime | None = None,
         end_date: datetime.datetime | None = None,
         dag_id: str | None = None,
         logical_date_gte: datetime.datetime | None = None,
+        logical_date_gt: datetime.datetime | None = None,
         logical_date_lte: datetime.datetime | None = None,
+        logical_date_lt: datetime.datetime | None = None,
+        partition_date_gte: datetime.datetime | None = None,
+        partition_date_gt: datetime.datetime | None = None,
+        partition_date_lte: datetime.datetime | None = None,
+        partition_date_lt: datetime.datetime | None = None,
+        partition_date_start: datetime.date | None = None,
+        partition_date_end: datetime.date | None = None,
         order_by: str | None = None,
+        run_id_pattern: str | None = None,
+        partition_key_pattern: str | None = None,
+        partition_key_prefix_pattern: str | None = None,
         *,
         suppress_error_log: bool = False,
     ) -> DAGRunCollectionResponse | ServerResponseError:
@@ -542,10 +554,22 @@ class DagRunOperations(BaseOperations):
             start_date: Filter Dag runs by start date (optional)
             end_date: Filter Dag runs by end date (optional)
             limit: Limit the number of results returned
+            offset: Offset to start returning results from
             dag_id: The Dag ID to filter by. If None, retrieves Dag runs for all Dags (using "~").
             logical_date_gte: Filter Dag runs with a logical date greater than or equal to this value.
+            logical_date_gt: Filter Dag runs with a logical date greater than this value.
             logical_date_lte: Filter Dag runs with a logical date less than or equal to this value.
+            logical_date_lt: Filter Dag runs with a logical date less than this value.
+            partition_date_gte: Filter Dag runs with a partition date greater than or equal to this value.
+            partition_date_gt: Filter Dag runs with a partition date greater than this value.
+            partition_date_lte: Filter Dag runs with a partition date less than or equal to this value.
+            partition_date_lt: Filter Dag runs with a partition date less than this value.
+            partition_date_start: Filter Dag runs whose partition date is on or after this local day.
+            partition_date_end: Filter Dag runs whose partition date is on or before this local day.
             order_by: Order the results by the specified field.
+            run_id_pattern: Filter Dag runs by run ID pattern.
+            partition_key_pattern: Filter Dag runs by partition key pattern.
+            partition_key_prefix_pattern: Filter Dag runs by partition key prefix pattern.
             suppress_error_log: Skip client-side error logging, for callers handling the error themselves.
         """
         # Use "~" for all Dags if dag_id is not specified
@@ -554,12 +578,24 @@ class DagRunOperations(BaseOperations):
 
         params = _build_query_params(
             limit=limit,
+            offset=offset,
             state=str(state) if state is not None else None,
             start_date=start_date,
             end_date=end_date,
             logical_date_gte=logical_date_gte,
+            logical_date_gt=logical_date_gt,
             logical_date_lte=logical_date_lte,
+            logical_date_lt=logical_date_lt,
+            partition_date_gte=partition_date_gte,
+            partition_date_gt=partition_date_gt,
+            partition_date_lte=partition_date_lte,
+            partition_date_lt=partition_date_lt,
+            partition_date_start=partition_date_start,
+            partition_date_end=partition_date_end,
             order_by=order_by,
+            run_id_pattern=run_id_pattern,
+            partition_key_pattern=partition_key_pattern,
+            partition_key_prefix_pattern=partition_key_prefix_pattern,
         )
 
         self.response = self.client.get(
@@ -568,6 +604,29 @@ class DagRunOperations(BaseOperations):
             extensions={"airflowctl_suppress_error_log": suppress_error_log},
         )
         return DAGRunCollectionResponse.model_validate_json(self.response.content)
+
+    def _clear_task_instances(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        *,
+        dry_run: bool = False,
+        only_failed: bool = False,
+        only_running: bool = False,
+    ) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """Clear task instances for a Dag run."""
+        body = ClearTaskInstancesBody(
+            dag_run_id=dag_run_id,
+            dry_run=dry_run,
+            only_failed=only_failed,
+            only_running=only_running,
+            reset_dag_runs=True,
+        )
+        self.response = self.client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json=body.model_dump(mode="json", by_alias=True, exclude_none=True),
+        )
+        return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
 
     def delete(self, dag_id: str, dag_run_id: str) -> str | ServerResponseError:
         """Delete a Dag run."""

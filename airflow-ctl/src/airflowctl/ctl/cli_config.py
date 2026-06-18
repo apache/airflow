@@ -306,6 +306,51 @@ ARG_LOGICAL_DATE = Arg(
     help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
 )
 
+ARG_DAG_RUN_ID = Arg(
+    flags=("--run-id",),
+    type=str,
+    help="The Dag run ID to clear",
+)
+ARG_DAG_PARTITION_KEY = Arg(
+    flags=("--partition-key",),
+    type=str,
+    help="The Dag run partition key to clear",
+)
+ARG_DAG_PARTITION_DATE_START = Arg(
+    flags=("--partition-date-start",),
+    type=str,
+    help=(
+        "Inclusive lower bound of the partition_date window, interpreted as a local calendar "
+        "day in the Dag's timetable timezone. Any time-of-day component is ignored."
+    ),
+)
+ARG_DAG_PARTITION_DATE_END = Arg(
+    flags=("--partition-date-end",),
+    type=str,
+    help=(
+        "Inclusive upper bound of the partition_date window, interpreted as a local calendar "
+        "day in the Dag's timetable timezone. Any time-of-day component is ignored."
+    ),
+)
+ARG_DAG_CLEAR_ONLY_FAILED = Arg(
+    flags=("-f", "--only-failed"),
+    default=False,
+    action="store_true",
+    help="Only clear failed task instances",
+)
+ARG_DAG_CLEAR_ONLY_RUNNING = Arg(
+    flags=("-r", "--only-running"),
+    default=False,
+    action="store_true",
+    help="Only clear running task instances",
+)
+ARG_DAG_CLEAR_YES = Arg(
+    flags=("-y", "--yes"),
+    default=False,
+    action="store_true",
+    help="Do not prompt to confirm clearing task instances",
+)
+
 ARG_ACTION_ON_EXISTING_KEY = Arg(
     flags=("-a", "--action-on-existing-key"),
     type=str,
@@ -536,6 +581,7 @@ class CommandFactory:
             "dict",
             "tuple",
             "set",
+            "datetime.date",
             "datetime.datetime",
         }
         # Handle Optional types (e.g., "datetime.datetime | None", "str | None")
@@ -566,6 +612,7 @@ class CommandFactory:
             "dict": json_dict_type,
             "tuple": tuple,
             "set": set,
+            "datetime.date": datetime.date,
             "datetime.datetime": datetime.datetime,
             "dict[str, typing.Any]": json_dict_type,
         }
@@ -1027,6 +1074,21 @@ CONNECTION_COMMANDS = (
 )
 
 DAG_COMMANDS = (
+    ActionCommand(
+        name="clear",
+        help="Clear task instances for Dag runs selected by run ID, partition key, or partition date",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.clear"),
+        args=(
+            ARG_DAG_ID,
+            ARG_DAG_RUN_ID,
+            ARG_DAG_PARTITION_KEY,
+            ARG_DAG_PARTITION_DATE_START,
+            ARG_DAG_PARTITION_DATE_END,
+            ARG_DAG_CLEAR_ONLY_FAILED,
+            ARG_DAG_CLEAR_ONLY_RUNNING,
+            ARG_DAG_CLEAR_YES,
+        ),
+    ),
     ActionCommand(
         name="next-execution",
         help="Show the next scheduled execution time for a Dag",
