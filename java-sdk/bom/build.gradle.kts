@@ -29,6 +29,7 @@ dependencies {
     constraints {
         api("org.apache.airflow:airflow-sdk:$projectVersion")
         api("org.apache.airflow:airflow-sdk-processor:$projectVersion")
+        api("org.apache.airflow:airflow-sdk-slf4j:$projectVersion")
     }
 }
 

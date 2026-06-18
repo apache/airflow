@@ -34,46 +34,85 @@ import java.util.concurrent.ConcurrentLinkedDeque
 import kotlin.reflect.KClass
 import kotlin.time.Clock
 
-enum class Level { ERROR, DEBUG, }
+// Adapted from Python logging.
+enum class Level(
+  val value: Short,
+) {
+  CRITICAL(50),
+  ERROR(40),
+  WARNING(30),
+  INFO(20),
+  DEBUG(10),
+  NOTSET(0),
+}
+
+/**
+ * Public entry point into Airflow's log pipeline.
+ *
+ * This is useful for Java-side logging providers such as [java.util.logging]
+ * and SLF4J to integrate logs they receive into Airflow.
+ *
+ * Not intended for use by task code.
+ */
+object Log {
+  internal var threshold = Level.NOTSET // TODO: Make this configurable at runtime.
+
+  fun isEnabledForLevel(level: Level) = level.value >= threshold.value
+
+  fun send(
+    level: Level,
+    logger: String,
+    event: String,
+    arguments: Map<String, Any?> = emptyMap(),
+  ) {
+    if (!isEnabledForLevel(level)) return
+    LogSender.send(LogMessage(event, arguments, logger, level))
+  }
+
+  fun send(
+    level: Level,
+    logger: String,
+    event: String,
+    buildArguments: MutableMap<String, Any?>.() -> Unit,
+  ) = send(level, logger, event, buildMap(buildArguments))
+}
 
 internal data class LogMessage(
   val event: String,
-  val arguments: Map<String, Any>,
-  val logger: Logger,
+  val arguments: Map<String, Any?>,
+  val logger: String,
   val level: Level,
   val timestamp: LocalDateTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
 )
 
+/**
+ * Logger used by task scaffolding.
+ *
+ * This is a thin wrapper around [LogSender] that our own code can
+ * use instead of needing to go through a "real" logging provider.
+ */
 internal class Logger(
-  cls: KClass<*>,
+  val name: String?,
 ) {
-  val name: String? = cls.java.typeName
-
-  // TODO: Actually implement level filtering.
-  @Suppress("UNUSED_PARAMETER")
-  fun isEnabledForLevel(level: Level): Boolean = true
+  constructor(cls: KClass<*>) : this(cls.java.typeName)
 
   fun debug(
     message: String,
     arguments: Map<String, Any> = emptyMap(),
-  ) {
-    log(Level.DEBUG, message, arguments)
-  }
+  ) = log(Level.DEBUG, message, arguments)
 
   fun error(
     message: String,
     arguments: Map<String, Any> = emptyMap(),
-  ) {
-    log(Level.ERROR, message, arguments)
-  }
+  ) = log(Level.ERROR, message, arguments)
 
   private fun log(
     level: Level,
     event: String,
     arguments: Map<String, Any>,
   ) {
-    if (!isEnabledForLevel(level)) return
-    LogSender.send(LogMessage(event, arguments, this, level))
+    if (!Log.isEnabledForLevel(level)) return
+    LogSender.send(LogMessage(event, arguments, name ?: "(java)", level))
   }
 }
 
@@ -106,7 +145,7 @@ internal object LogSender {
     val map = message.arguments.toMutableMap()
     map["event"] = message.event
     map["level"] = message.level.name.lowercase()
-    map["logger"] = message.logger.name ?: "(java)"
+    map["logger"] = message.logger
     map["timestamp"] = message.timestamp
     // TODO: Can this be done asynchronously instead?
     runBlocking { writer.writeString("${map.toJsonElement()}\n") }

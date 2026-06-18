@@ -22,4 +22,4 @@ plugins {
 }
 
 rootProject.name = "airflow-java-sdk"
-include("bom", "plugin", "processor", "sdk")
+include("bom", "plugin", "processor", "sdk", "slf4j")
