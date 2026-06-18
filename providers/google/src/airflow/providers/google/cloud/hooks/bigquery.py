@@ -30,7 +30,6 @@ from collections.abc import Iterable, Mapping, Sequence
 from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal, NoReturn, cast, overload
-
 from urllib.parse import urlparse
 
 import google_auth_httplib2
