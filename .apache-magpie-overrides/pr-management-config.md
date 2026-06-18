@@ -1,0 +1,84 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+ -->
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [Apache Airflow — pr-management-triage configuration](#apache-airflow--pr-management-triage-configuration)
+  - [Identifiers](#identifiers)
+  - [Project-specific labels](#project-specific-labels)
+  - [Grace windows](#grace-windows)
+  - [Feedback delivery](#feedback-delivery)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+<!-- SPDX-License-Identifier: Apache-2.0
+     https://www.apache.org/licenses/LICENSE-2.0 -->
+
+# Apache Airflow — pr-management-triage configuration
+
+This file is the **per-project configuration** for the
+[`pr-management-triage`](../../.claude/skills/pr-management-triage/SKILL.md) skill.
+It contains the concrete values for the Apache Airflow project.
+New adopters should copy this file into their own
+`<project-config>/pr-management-config.md` and replace every
+Airflow-specific value with their project's equivalents.
+
+## Identifiers
+
+| Key | Value | Used by |
+|---|---|---|
+| `committers_team` | `apache/airflow-committers` | `classify-and-act.md` row F5b — team-mention detection. Used to recognise PR comments that `@`-mention the project's committers as a maintainer-to-maintainer ping. |
+| `area_label_prefix` | `area:` | `classify-and-act.md`, `pr-management-stats` — area-label grouping. |
+
+## Project-specific labels
+
+Labels the skill applies or watches for. Each row maps a generic
+**framework concept** to whatever label string the adopter uses.
+If the project doesn't have a given concept, leave the value blank
+and the skill will skip that row of decision-table actions.
+
+| Concept | Label | Notes |
+|---|---|---|
+| `ready_for_maintainer_review` | `ready for maintainer review` | Applied by the `mark-ready` action; used by `pr-management-code-review` as a default selector. |
+| `quality_violations_close` | `closed because of multiple quality violations` | Applied when a PR is closed for failing the project's PR quality criteria after multiple opportunities to fix. |
+| `suspicious_changes` | `suspicious changes detected` | Applied to first-time-contributor workflow approvals where the diff looks suspicious (binary blobs, unrelated CI changes, etc.). |
+| `work_in_progress` | | Airflow does not use a dedicated WIP label; the skill relies on draft status instead. |
+
+## Grace windows
+
+Tunable thresholds. These values were calibrated for Airflow's
+contributor traffic (~50–100 open PRs, triage sweep every 1–2
+days).
+
+| Concept | Default | Project value |
+|---|---|---|
+| Stale-draft close threshold (triaged) | 7 days | 7 days |
+| Stale-draft close threshold (untriaged) | 14 days | 14 days |
+| Inactive-open → draft threshold | 28 days | 28 days |
+| Stale-review-ping cooldown | 7 days | 7 days |
+| Stale-workflow-approval threshold | 28 days | 28 days |
+| Stale-Copilot-review threshold | 7 days | 7 days |
+
+## Feedback delivery
+
+| Key | Value | Notes |
+|---|---|---|
+| `triage_feedback_channel` | `pr-body` | Deterministic quality-violation feedback for the `draft`, `comment` (deterministic-flag), and `close` actions is **folded into the PR description** as a managed marker block rather than posted as a comment. Editing a PR body does not notify subscribers, so the maintainer mailbox stays quiet (the [denoise rationale](../../skills/pr-management-triage/rationale.md#why-fold-feedback-into-the-pr-body-denoise)). Pings, `request-author-confirmation`, security-language, suspicious-changes, and stale-sweep messages always post a comment regardless — their purpose *is* to notify a human. Set to `comment` to revert to the legacy notifying-comment behaviour for all violation feedback. |

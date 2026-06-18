@@ -39,9 +39,13 @@ export const DagDeadlines = ({ dagId }: DagDeadlinesProps) => {
   const { t: translate } = useTranslation("dag");
   const [modalOpen, setModalOpen] = useState(false);
 
-  const { data, error, isLoading } = useDeadlines({ dagId, limit: LIMIT });
-
   const { data: alertData } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId, limit: 100 });
+
+  const { data, error, isLoading } = useDeadlines({
+    dagId,
+    enabled: (alertData?.total_entries ?? 0) > 0,
+    limit: LIMIT,
+  });
 
   const alertMap = new Map<string, DeadlineAlertResponse>();
 

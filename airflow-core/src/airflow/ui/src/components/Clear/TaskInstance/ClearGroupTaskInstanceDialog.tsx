@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, Flex, Heading, VStack } from "@chakra-ui/react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 import { useParams } from "react-router-dom";
@@ -25,6 +25,7 @@ import { useParams } from "react-router-dom";
 import { useDagServiceGetDagDetails, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
+import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
@@ -57,9 +58,6 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
-  const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
-  const userToggledRunOnLatestRef = useRef(false);
-
   const [note, setNote] = useState<string | null>(null);
 
   const { data: dagDetails } = useDagServiceGetDagDetails({
@@ -79,6 +77,21 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   );
 
   const groupTaskIds = groupTaskInstances?.task_instances.map((ti) => ti.task_id) ?? [];
+
+  const { dagVersionsDiffer, shouldShowRunOnLatestOption } = getRunOnLatestVersionState({
+    latestBundleVersion: dagDetails?.bundle_version,
+    latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
+    selectedDagVersionNumber: taskInstance.dag_version_number,
+    // Fall back to legacy heuristic when grid summary has no version (older API).
+    useLatestBundleVersionAsFallback: true,
+  });
+
+  // dagVersionsDiffer becomes the fallback so the historical "auto-check when versions
+  // differ" heuristic still applies when neither DAG-level nor global config is set.
+  const { setValue: setRunOnLatestVersion, value: runOnLatestVersion } = useRerunWithLatestVersion({
+    dagLevelConfig: dagDetails?.rerun_with_latest_version,
+    fallback: dagVersionsDiffer,
+  });
 
   const refetchInterval = useAutoRefresh({ dagId });
 
@@ -109,24 +122,8 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
     total_entries: 0,
   };
 
-  const { dagVersionsDiffer, shouldShowRunOnLatestOption } = getRunOnLatestVersionState({
-    latestBundleVersion: dagDetails?.bundle_version,
-    latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
-    selectedDagVersionNumber: taskInstance.dag_version_number,
-    // Fall back to legacy heuristic when grid summary has no version (older API).
-    useLatestBundleVersionAsFallback: true,
-  });
-
-  useEffect(() => {
-    if (!open) {
-      userToggledRunOnLatestRef.current = false;
-    } else if (!userToggledRunOnLatestRef.current) {
-      setRunOnLatestVersion(dagVersionsDiffer);
-    }
-  }, [open, dagVersionsDiffer]);
-
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open}>
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
@@ -184,16 +181,12 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
             {shouldShowRunOnLatestOption ? (
               <Checkbox
                 checked={runOnLatestVersion}
-                onCheckedChange={(event) => {
-                  userToggledRunOnLatestRef.current = true;
-                  setRunOnLatestVersion(Boolean(event.checked));
-                }}
+                onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
               >
                 {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
               </Checkbox>
             ) : undefined}
             <Button
-              colorPalette="brand"
               disabled={affectedTasks.total_entries === 0 || groupTaskIds.length === 0}
               loading={isPending}
               onClick={() => {

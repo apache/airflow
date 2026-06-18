@@ -129,25 +129,21 @@ with DAG(
 
     # [START get_operation_state]
     get_operation = CloudDatastoreGetOperationOperator(
-        task_id="get_operation",
-        # verbose form: "{{ task_instance.xcom_pull('export_task')['name'] }}"
-        name=export_task.output["name"],
+        task_id="get_operation", name="{{ task_instance.xcom_pull('export_task')['name'] }}"
     )
     # [END get_operation_state]
 
     # [START delete_operation]
     delete_export_operation = CloudDatastoreDeleteOperationOperator(
         task_id="delete_export_operation",
-        # verbose form: "{{ task_instance.xcom_pull('export_task')['name'] }}"
-        name=export_task.output["name"],
+        name="{{ task_instance.xcom_pull('export_task')['name'] }}",
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END delete_operation]
 
     delete_import_operation = CloudDatastoreDeleteOperationOperator(
         task_id="delete_import_operation",
-        # verbose form: "{{ task_instance.xcom_pull('import_task')['name'] }}"
-        name=import_task.output["name"],
+        name="{{ task_instance.xcom_pull('import_task')['name'] }}",
         trigger_rule=TriggerRule.ALL_DONE,
     )
 

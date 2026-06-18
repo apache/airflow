@@ -19,7 +19,9 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.providers.amazon.aws.operators.glue_catalog import (
+    GlueCatalogBatchDeletePartitionOperator,
     GlueCatalogCreateDatabaseOperator,
+    GlueCatalogCreatePartitionOperator,
     GlueCatalogCreateTableOperator,
     GlueCatalogDeleteDatabaseOperator,
     GlueCatalogDeleteTableOperator,
@@ -74,6 +76,7 @@ with DAG(
             "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
             "SerdeInfo": {"SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"},
         },
+        "PartitionKeys": [{"Name": "dt", "Type": "string"}],
         "TableType": "EXTERNAL_TABLE",
     }
 
@@ -85,6 +88,34 @@ with DAG(
         table_input=table_input,
     )
     # [END howto_operator_glue_catalog_create_table]
+
+    # [START howto_operator_glue_catalog_create_partition]
+    create_partition = GlueCatalogCreatePartitionOperator(
+        task_id="create_partition",
+        database_name=db_name,
+        table_name=table_name,
+        partition_input={
+            "Values": ["2024-01-01"],
+            "StorageDescriptor": {
+                "Columns": [{"Name": "id", "Type": "int"}],
+                "Location": "s3://test-bucket/dt=2024-01-01/",
+                "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
+                "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+                "SerdeInfo": {"SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"},
+            },
+        },
+    )
+    # [END howto_operator_glue_catalog_create_partition]
+
+    # [START howto_operator_glue_catalog_batch_delete_partition]
+    batch_delete_partition = GlueCatalogBatchDeletePartitionOperator(
+        task_id="batch_delete_partition",
+        database_name=db_name,
+        table_name=table_name,
+        partitions_to_delete=[{"Values": ["2024-01-01"]}],
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_glue_catalog_batch_delete_partition]
 
     # [START howto_operator_glue_catalog_delete_table]
     delete_table = GlueCatalogDeleteTableOperator(
@@ -99,6 +130,8 @@ with DAG(
         test_context,
         create_database,
         create_table,
+        create_partition,
+        batch_delete_partition,
         delete_table,
         delete_database,
     )

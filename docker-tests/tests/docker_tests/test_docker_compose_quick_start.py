@@ -105,7 +105,9 @@ def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory,
         docker_version = run_command(["docker", "version"], return_output=True)
 
     console.print("[yellow] Shutting down previous instances of quick-start docker compose")
-    compose = DockerClient(compose_project_name="quick-start", compose_project_directory=tmp_dir).compose
+    compose = DockerClient(
+        compose_project_name="breeze-quick-start", compose_project_directory=tmp_dir
+    ).compose
     compose.down(remove_orphans=True, volumes=True, quiet=True)
     try:
         console.print("[yellow] Starting docker compose")
@@ -152,6 +154,33 @@ def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory,
             console.print()
             quoted_command = map(shlex.quote, map(str, compose.docker_compose_cmd))
             console.print(" ".join(quoted_command))
+
+
+def test_airflow_uid_default_in_chown(tmp_path_factory, monkeypatch):
+    tmp_dir = tmp_path_factory.mktemp("airflow-uid-default")
+    compose_file_path = (
+        AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "howto" / "docker-compose" / "docker-compose.yaml"
+    )
+    copyfile(compose_file_path, tmp_dir / "docker-compose.yaml")
+    (tmp_dir / ".env").touch()
+    monkeypatch.delenv("AIRFLOW_UID", raising=False)
+
+    try:
+        docker.compose.version()
+    except DockerException:
+        pytest.skip("`docker compose` not available. Make sure compose plugin is installed")
+
+    compose = DockerClient(compose_project_directory=tmp_dir).compose
+    rendered = compose.config(return_json=True)
+
+    init_cmd = rendered["services"]["airflow-init"]["command"]  # type: ignore[index]
+    if isinstance(init_cmd, list):
+        init_cmd = "\n".join(str(part) for part in init_cmd)
+
+    assert 'chown -R "50000:0" /opt/airflow/' in init_cmd, init_cmd
+    assert 'chown -v -R "50000:0" /opt/airflow/{logs,dags,plugins,config}' in init_cmd, init_cmd
+    assert 'chown -R ":0" /opt/airflow/' not in init_cmd, init_cmd
+    assert 'chown -v -R ":0" /opt/airflow/{logs,dags,plugins,config}' not in init_cmd, init_cmd
 
 
 def print_diagnostics(compose: DockerClient, compose_version: str, docker_version: str):

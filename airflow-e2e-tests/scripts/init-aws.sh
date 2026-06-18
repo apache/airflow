@@ -16,6 +16,26 @@
 # specific language governing permissions and limitations
 # under the License.
 
-aws --endpoint-url=http://localstack:4566 s3 mb s3://test-airflow-logs
-aws --endpoint-url=http://localstack:4566 s3 mb s3://test-xcom-objectstorage-backend
-aws --endpoint-url=http://localstack:4566 s3 ls
+set -euo pipefail
+
+# This script runs as a LocalStack READY init hook *inside* the localstack
+# container, so it must reach the gateway over loopback (localhost), not via the
+# docker compose service name "localstack" — the service-name endpoint is not
+# reliably resolvable/connectable from within the container at the READY stage
+# and intermittently caused "Could not connect to the endpoint URL" failures,
+# leaving the buckets uncreated and remote-logging tests failing with NoSuchBucket.
+endpoint_url="http://localhost:4566"
+
+# The READY hook fires when LocalStack reports ready, but guard against a
+# transient gateway delay so bucket creation never silently fails.
+for _ in $(seq 1 30); do
+  if aws --endpoint-url="${endpoint_url}" s3 ls >/dev/null 2>&1; then
+    break
+  fi
+  echo "Waiting for LocalStack S3 gateway at ${endpoint_url} ..."
+  sleep 1
+done
+
+aws --endpoint-url="${endpoint_url}" s3 mb s3://test-airflow-logs
+aws --endpoint-url="${endpoint_url}" s3 mb s3://test-xcom-objectstorage-backend
+aws --endpoint-url="${endpoint_url}" s3 ls

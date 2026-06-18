@@ -276,7 +276,7 @@ class ShellParams:
 
     @cached_property
     def airflow_version_for_production_image(self):
-        cmd = ["docker", "run", "--entrypoint", "/bin/bash", f"{self.airflow_image_name}"]
+        cmd = ["docker", "run", "--rm", "--entrypoint", "/bin/bash", f"{self.airflow_image_name}"]
         cmd.extend(["-c", 'echo "${AIRFLOW_VERSION}"'])
         output = run_command(cmd, capture_output=True, text=True)
         return output.stdout.strip() if output.stdout else "UNKNOWN_VERSION"

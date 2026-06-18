@@ -725,6 +725,7 @@ def test_persist_parsing_result_calls_update_db():
             manager,
             bundle_name="test-bundle",
             bundle_version="v1",
+            version_data=None,
             parsing_result=parsing_result,
             run_duration=1.5,
             relative_fileloc="dags/test.py",
@@ -1943,10 +1944,12 @@ class TestDagProcessingMessageTypes:
         dag_processor_types = get_type_names(ToDagProcessor)
 
         in_supervisor_but_not_in_manager = {
+            "AwaitInputTask",
             "DeferTask",
             "DeleteXCom",
             "GetAssetByName",
             "GetAssetByUri",
+            "GetAssetsByAlias",
             "GetAssetEventByAsset",
             "GetAssetEventByAssetAlias",
             "GetDagRun",
@@ -1971,10 +1974,24 @@ class TestDagProcessingMessageTypes:
             "UpdateHITLDetail",
             "GetHITLDetailResponse",
             "SetRenderedMapIndex",
+            # AIP-103 task/asset store — Dag processor has no task execution context.
+            "GetTaskStateStore",
+            "SetTaskStateStore",
+            "DeleteTaskStateStore",
+            "ClearTaskStateStore",
+            "GetAssetStateStoreByName",
+            "GetAssetStateStoreByUri",
+            "SetAssetStateStoreByName",
+            "SetAssetStateStoreByUri",
+            "DeleteAssetStateStoreByName",
+            "DeleteAssetStateStoreByUri",
+            "ClearAssetStateStoreByName",
+            "ClearAssetStateStoreByUri",
         }
 
         in_task_runner_but_not_in_dag_processing_process = {
             "AssetResult",
+            "AssetsByAliasResult",
             "AssetEventsResult",
             "DagResult",
             "DagRunResult",
@@ -1989,6 +2006,9 @@ class TestDagProcessingMessageTypes:
             "InactiveAssetsResult",
             "CreateHITLDetailPayload",
             "HITLDetailRequestResult",
+            # AIP-103 task/asset store results — worker-only responses to the above messages.
+            "TaskStateStoreResult",
+            "AssetStateStoreResult",
         }
 
         supervisor_diff = supervisor_types - manager_types - in_supervisor_but_not_in_manager
@@ -2056,8 +2076,8 @@ class TestDagFileProcessorProcess:
         from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 
         with patch.object(WatchedSubprocess, "_create_log_forwarder") as mock_base:
-            proc._create_log_forwarder((), "task.stdout")
-        mock_base.assert_called_once_with((), "dag_processor.stdout", logging.INFO)
+            proc._create_log_forwarder((), "task.stdout", data=b"")
+        mock_base.assert_called_once_with((), "dag_processor.stdout", data=b"", log_level=logging.INFO)
 
     def test_handle_request_get_connection_masks_password_and_extra(self, proc):
         proc.client.connections.get.return_value = ConnectionResponse(
@@ -2129,3 +2149,80 @@ class TestDagFileProcessorProcess:
             "value": "super-secret-value",
             "type": "VariableResult",
         }
+
+
+class TestMultiTeamCallbackMetrics:
+    """Tests for team_name tag on dag.callback_exceptions in multi-team mode."""
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @patch("airflow.dag_processing.processor.DagModel.get_team_name", return_value="team_alpha")
+    @patch("airflow.dag_processing.processor.stats.incr")
+    def test_callback_exception_includes_team_name(self, mock_incr, mock_get_team_name, spy_agency):
+        def failing_callback(context):
+            raise RuntimeError("boom")
+
+        with DAG(dag_id="test_dag", on_failure_callback=failing_callback) as dag:
+            BaseOperator(task_id="test_task")
+
+        @spy_agency.spy_for(DagBag.collect_dags, owner=DagBag)
+        def fake_collect_dags(self, *args, **kwargs):
+            self.dags[dag.dag_id] = dag
+
+        dagbag = DagBag()
+        dagbag.collect_dags()
+
+        request = DagCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            is_failure_callback=True,
+            msg="Test failure",
+        )
+
+        log = structlog.get_logger()
+        _execute_dag_callbacks(dagbag, request, log)
+
+        mock_incr.assert_called_once_with(
+            "dag.callback_exceptions",
+            tags={"dag_id": "test_dag", "team_name": "team_alpha"},
+        )
+
+    @conf_vars({("core", "multi_team"): "false"})
+    @patch("airflow.dag_processing.processor.DagModel.get_team_name")
+    @patch("airflow.dag_processing.processor.stats.incr")
+    def test_callback_exception_omits_team_name_when_not_multi_team(
+        self, mock_incr, mock_get_team_name, spy_agency
+    ):
+        def failing_callback(context):
+            raise RuntimeError("boom")
+
+        with DAG(dag_id="test_dag", on_failure_callback=failing_callback) as dag:
+            BaseOperator(task_id="test_task")
+
+        @spy_agency.spy_for(DagBag.collect_dags, owner=DagBag)
+        def fake_collect_dags(self, *args, **kwargs):
+            self.dags[dag.dag_id] = dag
+
+        dagbag = DagBag()
+        dagbag.collect_dags()
+
+        request = DagCallbackRequest(
+            filepath="test.py",
+            dag_id="test_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            is_failure_callback=True,
+            msg="Test failure",
+        )
+
+        log = structlog.get_logger()
+        _execute_dag_callbacks(dagbag, request, log)
+
+        mock_get_team_name.assert_not_called()
+        mock_incr.assert_called_once_with(
+            "dag.callback_exceptions",
+            tags={"dag_id": "test_dag"},
+        )

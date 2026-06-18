@@ -24,6 +24,7 @@ from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
@@ -270,3 +271,136 @@ class GlueCatalogDeleteTableOperator(AwsBaseOperator[AwsBaseHook]):
         )
         self.hook.conn.delete_table(**kwargs)
         self.log.info("Deleted table %s", self.table_name)
+
+
+class GlueCatalogCreatePartitionOperator(AwsBaseOperator[AwsBaseHook]):
+    """
+    Create a partition in an AWS Glue Data Catalog table.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GlueCatalogCreatePartitionOperator`
+
+    :param database_name: The name of the database. (templated)
+    :param table_name: The name of the table. (templated)
+    :param partition_input: The ``PartitionInput`` dict defining the partition. (templated)
+    :param catalog_id: The ID of the Data Catalog. Defaults to the account ID. (templated)
+    :param if_exists: Behavior when the partition already exists.
+        ``"fail"`` raises an error, ``"skip"`` logs and returns.
+    """
+
+    aws_hook_class = AwsBaseHook
+    template_fields: tuple[str, ...] = (
+        *AwsBaseOperator.template_fields,
+        "database_name",
+        "table_name",
+        "catalog_id",
+    )
+    template_fields_renderers = {"partition_input": "json"}
+
+    def __init__(
+        self,
+        *,
+        database_name: str,
+        table_name: str,
+        partition_input: dict[str, Any],
+        catalog_id: str | None = None,
+        if_exists: Literal["fail", "skip"] = "skip",
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.database_name = database_name
+        self.table_name = table_name
+        self.partition_input = partition_input
+        self.catalog_id = catalog_id
+        self.if_exists = if_exists
+
+    @property
+    def _hook_parameters(self) -> dict[str, Any]:
+        return {**super()._hook_parameters, "client_type": "glue"}
+
+    def execute(self, context: Context) -> None:
+        self.log.info("Creating partition in table %s.%s", self.database_name, self.table_name)
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "DatabaseName": self.database_name,
+                "TableName": self.table_name,
+                "PartitionInput": self.partition_input,
+                "CatalogId": self.catalog_id,
+            }
+        )
+        try:
+            self.hook.conn.create_partition(**kwargs)
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "AlreadyExistsException" and self.if_exists == "skip":
+                self.log.info("Partition already exists, skipping.")
+            else:
+                raise
+        self.log.info("Partition created.")
+
+
+class GlueCatalogBatchDeletePartitionOperator(AwsBaseOperator[AwsBaseHook]):
+    """
+    Delete one or more partitions from an AWS Glue Data Catalog table.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GlueCatalogBatchDeletePartitionOperator`
+
+    :param database_name: The name of the database. (templated)
+    :param table_name: The name of the table. (templated)
+    :param partitions_to_delete: List of partition value dicts to delete. (templated)
+    :param catalog_id: The ID of the Data Catalog. Defaults to the account ID. (templated)
+    """
+
+    aws_hook_class = AwsBaseHook
+    template_fields: tuple[str, ...] = aws_template_fields(
+        "database_name", "table_name", "catalog_id", "partitions_to_delete"
+    )
+
+    def __init__(
+        self,
+        *,
+        database_name: str,
+        table_name: str,
+        partitions_to_delete: list[dict[str, list[str]]],
+        catalog_id: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.database_name = database_name
+        self.table_name = table_name
+        self.partitions_to_delete = partitions_to_delete
+        self.catalog_id = catalog_id
+
+    @property
+    def _hook_parameters(self) -> dict[str, Any]:
+        return {**super()._hook_parameters, "client_type": "glue"}
+
+    def execute(self, context: Context) -> list[dict[str, Any]]:
+        self.log.info(
+            "Deleting %d partitions from %s.%s",
+            len(self.partitions_to_delete),
+            self.database_name,
+            self.table_name,
+        )
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "DatabaseName": self.database_name,
+                "TableName": self.table_name,
+                "PartitionsToDelete": self.partitions_to_delete,
+                "CatalogId": self.catalog_id,
+            }
+        )
+        response = self.hook.conn.batch_delete_partition(**kwargs)
+        errors = response.get("Errors", [])
+        if errors:
+            # EntityNotFoundException is expected for idempotent deletes
+            real_errors = [
+                e for e in errors if e.get("ErrorDetail", {}).get("ErrorCode") != "EntityNotFoundException"
+            ]
+            if real_errors:
+                raise RuntimeError(f"Failed to delete {len(real_errors)} partition(s): {real_errors}")
+            self.log.info("Some partitions not found (already deleted), continuing.")
+        self.log.info("Batch delete partitions complete.")
+        return errors

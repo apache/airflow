@@ -182,6 +182,20 @@ class GKEOperatorMixin:
     def ssl_ca_cert(self) -> str:
         return self.cluster_info[1]
 
+    def _get_resource_name_and_namespace(
+        self, *, resource: Any, resource_type: str
+    ) -> tuple[str, str] | None:
+        metadata = getattr(resource, "metadata", None)
+        resource_name = getattr(metadata, "name", None)
+        namespace = getattr(metadata, "namespace", None)
+        if not resource_name or not namespace:
+            self.log.debug(  # type: ignore[attr-defined]
+                "Skipping Kubernetes %s extra link persistence because metadata is incomplete.",
+                resource_type,
+            )
+            return None
+        return resource_name, namespace
+
 
 class GKEDeleteClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
     """
@@ -757,6 +771,26 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
         if self.config_file:
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
 
+    def _persist_pod_link(self, *, context: Context, pod: k8s.V1Pod | None) -> None:
+        metadata = self._get_resource_name_and_namespace(resource=pod, resource_type="Pod")
+        if metadata is None:
+            return
+
+        pod_name, namespace = metadata
+        KubernetesEnginePodLink.persist(
+            context=context,
+            project_id=self.project_id,
+            location=self.location,
+            cluster_name=self.cluster_name,
+            namespace=namespace,
+            pod_name=pod_name,
+        )
+
+    def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context: Context) -> k8s.V1Pod:
+        pod = super().get_or_create_pod(pod_request_obj=pod_request_obj, context=context)
+        self._persist_pod_link(context=context, pod=pod)
+        return pod
+
     def invoke_defer_method(
         self, last_log_time: DateTime | None = None, context: Context | None = None
     ) -> None:
@@ -862,26 +896,52 @@ class GKEStartJobOperator(GKEOperatorMixin, KubernetesJobOperator):
         self.use_internal_ip = use_internal_ip
         self.use_dns_endpoint = use_dns_endpoint
         self.impersonation_chain = impersonation_chain
+        self._job_link_context: Context | None = None
 
         # There is no need to manage the kube_config file, as it will be generated automatically.
         # All Kubernetes parameters (except config_file) are also valid for the GKEStartJobOperator.
         if self.config_file:
             raise AirflowException("config_file is not an allowed parameter for the GKEStartJobOperator.")
 
+    def _persist_job_link(self, *, context: Context, job: k8s.V1Job | None) -> None:
+        metadata = self._get_resource_name_and_namespace(resource=job, resource_type="Job")
+        if metadata is None:
+            return
+
+        job_name, namespace = metadata
+        KubernetesEngineJobLink.persist(
+            context=context,
+            project_id=self.project_id,
+            location=self.location,
+            cluster_name=self.cluster_name,
+            namespace=namespace,
+            job_name=job_name,
+        )
+
+    def create_job(self, job_request_obj: k8s.V1Job) -> k8s.V1Job:
+        job = super().create_job(job_request_obj=job_request_obj)
+        if self._job_link_context is not None:
+            self._persist_job_link(context=self._job_link_context, job=job)
+        return job
+
     def execute(self, context: Context):
         """Execute process of creating Job."""
-        if self.deferrable:
-            kubernetes_provider = ProvidersManager().providers["apache-airflow-providers-cncf-kubernetes"]
-            kubernetes_provider_name = kubernetes_provider.data["package-name"]
-            kubernetes_provider_version = kubernetes_provider.version
-            min_version = "8.0.1"
-            if parse_version(kubernetes_provider_version) <= parse_version(min_version):
-                raise AirflowException(
-                    "You are trying to use `GKEStartJobOperator` in deferrable mode with the provider "
-                    f"package {kubernetes_provider_name}=={kubernetes_provider_version} which doesn't "
-                    f"support this feature. Please upgrade it to version higher than {min_version}."
-                )
-        return super().execute(context)
+        self._job_link_context = context
+        try:
+            if self.deferrable:
+                kubernetes_provider = ProvidersManager().providers["apache-airflow-providers-cncf-kubernetes"]
+                kubernetes_provider_name = kubernetes_provider.data["package-name"]
+                kubernetes_provider_version = kubernetes_provider.version
+                min_version = "8.0.1"
+                if parse_version(kubernetes_provider_version) <= parse_version(min_version):
+                    raise AirflowException(
+                        "You are trying to use `GKEStartJobOperator` in deferrable mode with the provider "
+                        f"package {kubernetes_provider_name}=={kubernetes_provider_version} which doesn't "
+                        f"support this feature. Please upgrade it to version higher than {min_version}."
+                    )
+            return super().execute(context)
+        finally:
+            self._job_link_context = None
 
     def execute_deferrable(self):
         self.defer(

@@ -81,7 +81,7 @@ services:
       - OTEL_METRIC_EXPORT_INTERVAL=30000
       - AIRFLOW__METRICS__OTEL_ON=True
       - AIRFLOW__TRACES__OTEL_ON=True
-      - AIRFLOW__TRACES__OTEL_TASK_LOG_EVENT=True
+      - AIRFLOW__TRACES__OTEL_TASK_LOG_EVENT=True  # todo: deprecate
 
     depends_on:
       - otel-collector

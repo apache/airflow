@@ -27,13 +27,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from airflow.providers.common.compat.sdk import AirflowNotFoundException
 from airflow.providers.google.cloud.log.gcs_task_handler import GCSRemoteLogIO, GCSTaskHandler
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_2_PLUS
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -190,17 +191,23 @@ class TestGCSRemoteLogIO:
         result = gcs_remote_log_io.write(new_log_content, remote_log_location)
 
         # verify
-        assert result == upload_success
-
-        # verify the content that was uploaded
-        if upload_success:
-            call_args = mock_blob.from_string.return_value.upload_from_string.call_args
-            if call_args:
-                uploaded_content = call_args[0][0]
-                if old_log_exists and not old_log_read_error:
-                    assert uploaded_content == f"{old_log_content}\n{new_log_content}"
-                else:
-                    assert uploaded_content == new_log_content
+        # If reading the existing blob failed for a reason other than "not found", the
+        # handler now fails closed (returns False without uploading) rather than overwriting
+        # the existing blob with only the new content. The 404 case still proceeds to upload.
+        if old_log_read_error is not None:
+            assert result is False
+            mock_blob.from_string.return_value.upload_from_string.assert_not_called()
+        else:
+            assert result == upload_success
+            # verify the content that was uploaded
+            if upload_success:
+                call_args = mock_blob.from_string.return_value.upload_from_string.call_args
+                if call_args:
+                    uploaded_content = call_args[0][0]
+                    if old_log_exists:
+                        assert uploaded_content == f"{old_log_content}\n{new_log_content}"
+                    else:
+                        assert uploaded_content == new_log_content
 
     @pytest.mark.parametrize(
         "is_stream_method",
@@ -369,7 +376,14 @@ class TestGCSTaskHandler:
 
         mock_blob.from_string.assert_called_once_with(expected_gs_uri, mock_client.return_value)
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_2_2_PLUS:
+            logs = list(logs)
+            assert logs[0].event == "::group::Log message source details"
+            assert logs[1].event == expected_gs_uri
+            assert logs[2].event == "::endgroup::"
+            assert logs[3].event == "CONTENT"
+            assert metadata == {"end_of_log": True, "log_pos": 1}
+        elif AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
             assert logs[0].sources == [expected_gs_uri]
@@ -400,7 +414,14 @@ class TestGCSTaskHandler:
         log, metadata = self.gcs_task_handler._read(ti, self.ti.try_number)
         expected_gs_uri = f"gs://bucket/{blob_name}"
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_2_2_PLUS:
+            log = list(log)
+            assert log[0].event == "::group::Log message source details"
+            assert log[1].event == expected_gs_uri
+            assert log[2].event == f"{self.gcs_task_handler.local_base}/1.log"
+            assert log[3].event == "::endgroup::"
+            assert metadata == {"end_of_log": True, "log_pos": 0}
+        elif AIRFLOW_V_3_0_PLUS:
             log = list(log)
             assert log[0].event == "::group::Log message source details"
             assert log[0].sources == [
@@ -526,18 +547,14 @@ class TestGCSTaskHandler:
         )
         self.gcs_task_handler.close()
 
-        mock_blob.from_string.assert_has_calls(
-            [
-                mock.call("gs://bucket/remote/log/location/1.log", mock_client.return_value),
-                mock.call().download_as_bytes(),
-                mock.call("gs://bucket/remote/log/location/1.log", mock_client.return_value),
-                mock.call().upload_from_string(
-                    "MESSAGE\n",
-                    content_type="text/plain",
-                ),
-            ],
-            any_order=False,
+        # Fail-closed contract: when reading the existing blob fails for a reason other than
+        # "object does not exist", the handler must not overwrite the remote log with only
+        # the new content. Expect the read attempt but no upload.
+        mock_blob.from_string.assert_called_once_with(
+            "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )
+        mock_blob.from_string.return_value.download_as_bytes.assert_called_once()
+        mock_blob.from_string.return_value.upload_from_string.assert_not_called()
 
     @pytest.mark.parametrize(
         ("delete_local_copy", "expected_existence_of_local_copy"),
@@ -582,3 +599,49 @@ class TestGCSTaskHandler:
             gcs_log_folder="gs://bucket/remote/log/location",
             filename_template=None,
         )
+
+
+class TestGCSRemoteLogIOMisconfiguredConn:
+    """A misconfigured ``remote_log_conn_id`` must surface as a warning.
+
+    Silently swallowing the ``AirflowNotFoundException`` lets an operator believe they had
+    configured a specific service-account key for log uploads when in fact Application
+    Default Credentials are being used — a security-control failure that should be visible.
+    """
+
+    @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.GCSHook")
+    def test_hook_warns_when_remote_log_conn_id_missing(self, mock_hook, caplog):
+        mock_hook.side_effect = AirflowNotFoundException("conn 'nonexistent' not found")
+        remote_io = GCSRemoteLogIO(
+            remote_base="gs://bucket/remote/log/location",
+            base_log_folder="/tmp/airflow-test-logs",
+            delete_local_copy=False,
+        )
+
+        with conf_vars({("logging", "remote_log_conn_id"): "nonexistent"}):
+            with caplog.at_level(logging.WARNING):
+                assert remote_io.hook is None
+
+        warnings_emitted = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert any("nonexistent" in r.getMessage() for r in warnings_emitted), (
+            "expected a warning mentioning the misconfigured conn_id, got: "
+            f"{[r.getMessage() for r in warnings_emitted]}"
+        )
+
+    @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.GCSHook")
+    def test_hook_silent_when_no_remote_log_conn_id_configured(self, mock_hook, caplog):
+        """No ``remote_log_conn_id`` set → silent fall-through to ADC; no warning."""
+        remote_io = GCSRemoteLogIO(
+            remote_base="gs://bucket/remote/log/location",
+            base_log_folder="/tmp/airflow-test-logs",
+            delete_local_copy=False,
+        )
+
+        with conf_vars({("logging", "remote_log_conn_id"): ""}):
+            with caplog.at_level(logging.WARNING):
+                assert remote_io.hook is None
+
+        assert not any(
+            "remote_log_conn_id" in r.getMessage() for r in caplog.records if r.levelno == logging.WARNING
+        )
+        mock_hook.assert_not_called()

@@ -15,7 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example of the LatestOnlyOperator"""
+"""### LatestOnlyOperator
+
+Example DAG demonstrating the LatestOnlyOperator.
+
+The LatestOnlyOperator skips downstream tasks for all DAG runs except the
+most recent scheduled run. This is useful when downstream work should only run
+for the latest interval, such as refreshing a dashboard or publishing a current
+snapshot.
+
+See also:
+https://airflow.apache.org/docs/apache-airflow-providers-standard/stable/operators/latest_only.html
+"""
 
 from __future__ import annotations
 
@@ -30,7 +41,8 @@ with DAG(
     schedule=datetime.timedelta(hours=4),
     start_date=datetime.datetime(2021, 1, 1),
     catchup=False,
-    tags=["example2", "example3"],
+    tags=["example", "example2", "example3"],
+    doc_md=__doc__,
 ) as dag:
     # [START howto_operator_latest_only]
     latest_only = LatestOnlyOperator(task_id="latest_only")

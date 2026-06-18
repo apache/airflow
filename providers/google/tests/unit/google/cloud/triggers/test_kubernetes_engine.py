@@ -270,7 +270,7 @@ class TestGKEStartPodTrigger:
 
         generator = trigger.run()
         await generator.asend(None)
-        assert "Waiting until 60s to get the POD scheduled..." in caplog.text
+        assert "Waiting up to 60s to get the POD scheduled..." in caplog.text
 
     @pytest.mark.parametrize(
         ("container_state", "expected_state"),

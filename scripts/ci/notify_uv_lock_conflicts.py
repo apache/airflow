@@ -145,8 +145,11 @@ class Stats:
 
 class GitHubGraphQL:
     def __init__(self, token: str) -> None:
+        # NOTE: do not use `base_url=GRAPHQL_URL` — httpx normalises base_url to
+        # end with `/`, so a relative POST to `""` resolves to
+        # https://api.github.com/graphql/ (trailing slash), which GitHub
+        # rejects with 404. Pass the full URL to .post() directly instead.
         self._http = httpx.Client(
-            base_url=GRAPHQL_URL,
             headers={
                 "Authorization": f"Bearer {token}",
                 "Accept": "application/vnd.github+json",
@@ -161,7 +164,7 @@ class GitHubGraphQL:
         self._http.close()
 
     def call(self, query: str, variables: dict[str, Any]) -> dict[str, Any]:
-        r = self._http.post("", json={"query": query, "variables": variables})
+        r = self._http.post(GRAPHQL_URL, json={"query": query, "variables": variables})
         r.raise_for_status()
         data = r.json()
         if "errors" in data:

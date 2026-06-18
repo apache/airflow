@@ -82,3 +82,31 @@ To delete a table from an AWS Glue Data Catalog database, use
     :dedent: 4
     :start-after: [START howto_operator_glue_catalog_delete_table]
     :end-before: [END howto_operator_glue_catalog_delete_table]
+
+.. _howto/operator:GlueCatalogCreatePartitionOperator:
+
+Create a Partition
+------------------
+
+To create a partition in an AWS Glue Data Catalog table, use
+:class:`~airflow.providers.amazon.aws.operators.glue_catalog.GlueCatalogCreatePartitionOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_glue_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_glue_catalog_create_partition]
+    :end-before: [END howto_operator_glue_catalog_create_partition]
+
+.. _howto/operator:GlueCatalogBatchDeletePartitionOperator:
+
+Batch Delete Partitions
+-----------------------
+
+To delete one or more partitions from an AWS Glue Data Catalog table, use
+:class:`~airflow.providers.amazon.aws.operators.glue_catalog.GlueCatalogBatchDeletePartitionOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_glue_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_glue_catalog_batch_delete_partition]
+    :end-before: [END howto_operator_glue_catalog_batch_delete_partition]

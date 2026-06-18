@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
@@ -23,19 +24,33 @@ import pytest
 from pydantic import BaseModel
 from pydantic_ai.usage import UsageLimits
 
-from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink
+from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink, _build_code_mode
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+try:
+    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
+except ImportError:
+    _CORE_WALKER = False
+
+requires_typed_xcom = pytest.mark.skipif(
+    not _CORE_WALKER,
+    reason="Requires a core with the worker-side deserialization-class walk.",
+)
+
+
+class Summary(BaseModel):
+    text: str
+    score: float = 0.0
 
 
 def _make_mock_run_result(output):
     """Create a mock AgentRunResult compatible with log_run_summary."""
     mock_result = MagicMock()
     mock_result.output = output
-    mock_result.usage.return_value = MagicMock(
-        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
-    )
+    mock_result.usage = MagicMock(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
     mock_result.response = MagicMock(model_name="test-model")
     mock_result.all_messages.return_value = []
     return mock_result
@@ -194,13 +209,85 @@ class TestAgentOperatorExecute:
         assert create_call[1]["model_settings"] == {"temperature": 0}
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_code_mode_default_off_no_capabilities(self, mock_hook_cls):
+        """code_mode defaults to False, so no capabilities are injected."""
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent("ok")
+
+        op = AgentOperator(task_id="t", prompt="hi", llm_conn_id="my_llm", toolsets=[MagicMock()])
+        op.execute(context=MagicMock())
+
+        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
+        assert "capabilities" not in create_call[1]
+
+    @patch("airflow.providers.common.ai.operators.agent._build_code_mode", return_value="CM")
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_code_mode_injects_capability(self, mock_hook_cls, mock_build):
+        """code_mode=True appends a CodeMode capability passed to create_agent."""
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent("ok")
+
+        op = AgentOperator(
+            task_id="t", prompt="hi", llm_conn_id="my_llm", toolsets=[MagicMock()], code_mode=True
+        )
+        op.execute(context=MagicMock())
+
+        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
+        assert create_call[1]["capabilities"] == ["CM"]
+        mock_build.assert_called_once()
+
+    @patch("airflow.providers.common.ai.operators.agent._build_code_mode", return_value="CM")
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_code_mode_appends_to_existing_capabilities(self, mock_hook_cls, mock_build):
+        """A user-supplied capability via agent_params is preserved alongside CodeMode."""
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent("ok")
+
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="my_llm",
+            code_mode=True,
+            agent_params={"capabilities": ["existing"]},
+        )
+        op.execute(context=MagicMock())
+
+        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
+        assert create_call[1]["capabilities"] == ["existing", "CM"]
+
+    def test_build_code_mode_missing_harness_raises(self):
+        """_build_code_mode raises the optional-feature error when harness is absent."""
+        with patch.dict(sys.modules, {"pydantic_ai_harness": None}):
+            with pytest.raises(AirflowOptionalProviderFeatureException, match="code-mode"):
+                _build_code_mode()
+
+    def test_build_code_mode_reraises_unrelated_import_error(self):
+        """A broken transitive import inside the harness is re-raised, not masked as 'extra missing'."""
+        real_import = __import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "pydantic_ai_harness":
+                raise ModuleNotFoundError("No module named 'a_broken_dep'", name="a_broken_dep")
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=fake_import):
+            with pytest.raises(ModuleNotFoundError, match="a_broken_dep"):
+                _build_code_mode()
+
+    @patch("airflow.providers.common.ai.operators.agent._build_code_mode")
+    def test_code_mode_not_built_at_init(self, mock_build):
+        """code_mode is serialization-safe: the CodeMode capability is built lazily in
+        _build_agent, never at construction time (so nothing non-serializable is stored)."""
+        op = AgentOperator(task_id="t", prompt="hi", llm_conn_id="my_llm", code_mode=True)
+        mock_build.assert_not_called()
+        assert op.code_mode is True
+
+    def test_durable_and_code_mode_rejected(self):
+        """durable and code_mode cannot be combined (durable replay assumes stable step order)."""
+        with pytest.raises(ValueError, match="durable=True and code_mode=True"):
+            AgentOperator(task_id="t", prompt="hi", llm_conn_id="my_llm", durable=True, code_mode=True)
+
+    @requires_typed_xcom
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_structured_output(self, mock_hook_cls):
-        """Structured output via BaseModel is serialized with model_dump."""
-
-        class Summary(BaseModel):
-            text: str
-            score: float
-
+        """Structured output keeps the Pydantic instance so downstream tasks can type-hint it."""
         mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
             Summary(text="Great", score=0.95)
         )
@@ -213,7 +300,13 @@ class TestAgentOperatorExecute:
         )
         result = op.execute(context=MagicMock())
 
-        assert result == {"text": "Great", "score": 0.95}
+        assert isinstance(result, Summary)
+        assert result.text == "Great"
+        assert result.score == 0.95
+
+    def test_declares_output_type_for_deserialization(self):
+        """Declares ``output_type`` so the worker-side DAG walk registers it for deserialization."""
+        assert "output_type" in AgentOperator.deserialization_allowed_class_fields
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_with_model_id(self, mock_hook_cls):
@@ -258,18 +351,14 @@ class TestAgentOperatorExecute:
         assert result == "Approved output"
         mock_run_hitl.assert_called_once_with(op, context, "Initial output", message_history=msg_history)
 
+    @requires_typed_xcom
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
     )
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_with_hitl_deserializes_base_model_to_dict(self, mock_hook_cls, mock_run_hitl):
-        """When enable_hitl_review=True and output_type is BaseModel, execute deserializes JSON to dict."""
-
-        class Summary(BaseModel):
-            text: str
-            score: float
-
+    def test_execute_with_hitl_rehydrates_base_model(self, mock_hook_cls, mock_run_hitl):
+        """When enable_hitl_review=True and output_type is BaseModel, execute returns the model instance."""
         mock_result = _make_mock_run_result(Summary(text="Approved summary", score=0.9))
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = mock_result
@@ -288,7 +377,9 @@ class TestAgentOperatorExecute:
         context = MagicMock()
         result = op.execute(context=context)
 
-        assert result == {"text": "Approved summary", "score": 0.9}
+        assert isinstance(result, Summary)
+        assert result.text == "Approved summary"
+        assert result.score == 0.9
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
@@ -423,10 +514,6 @@ class TestAgentOperatorRegenerateWithFeedback:
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_regenerate_with_feedback_serializes_base_model_output(self, mock_hook_cls):
         """regenerate_with_feedback returns JSON string for BaseModel output."""
-
-        class Summary(BaseModel):
-            text: str
-
         mock_result = _make_mock_run_result(Summary(text="Revised"))
         mock_result.all_messages.return_value = []
         mock_agent = MagicMock(spec=["run_sync"])
@@ -444,7 +531,7 @@ class TestAgentOperatorRegenerateWithFeedback:
             message_history=[],
         )
 
-        assert output == '{"text":"Revised"}'
+        assert output == '{"text":"Revised","score":0.0}'
 
 
 class TestAgentOperatorDurable:
@@ -503,3 +590,30 @@ class TestAgentOperatorDurable:
 
         # run_sync called directly, no override
         mock_agent.run_sync.assert_called_once_with("test", usage_limits=None)
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+)
+class TestAgentOperatorMultimodalPromptGuard:
+    """AgentOperator.execute raises before agent.run_sync when enable_hitl_review=True
+    and self.prompt is not a string -- covering direct construction and the native
+    template rendering escape (where a string template renders to a Sequence)."""
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_rejects_sequence_prompt_with_hitl_review(self, mock_hook_cls):
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(
+            task_id="t",
+            prompt="placeholder",
+            llm_conn_id="c",
+            enable_hitl_review=True,
+        )
+        op.prompt = ["x", object()]  # simulate post-template-render value
+
+        with pytest.raises(TypeError, match="enable_hitl_review=True"):
+            op.execute(context=MagicMock())
+
+        mock_agent.run_sync.assert_not_called()

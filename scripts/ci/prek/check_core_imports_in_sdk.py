@@ -25,44 +25,24 @@
 from __future__ import annotations
 
 import argparse
-import ast
 import sys
 from pathlib import Path
 
-from common_prek_utils import console
+from common_prek_utils import find_import_violations, report_import_violations
+
+NOCHECK_CODE = "SDK002"
 
 
 def check_file_for_core_imports(file_path: Path) -> list[tuple[int, str]]:
     """Check file for airflow-core imports (anything except airflow.sdk). Returns list of (line_num, import_statement)."""
-    try:
-        source = file_path.read_text(encoding="utf-8")
-        tree = ast.parse(source, filename=str(file_path))
-    except (OSError, UnicodeDecodeError, SyntaxError):
-        return []
-
-    mismatches = []
-
-    for node in ast.walk(tree):
-        # for `from airflow.x import y` statements
-        if isinstance(node, ast.ImportFrom):
-            if (
-                node.module
-                and node.module.startswith("airflow.")
-                and not node.module.startswith("airflow.sdk")
-            ):
-                import_names = ", ".join(alias.name for alias in node.names)
-                statement = f"from {node.module} import {import_names}"
-                mismatches.append((node.lineno, statement))
-        # for `import airflow.x` statements
-        elif isinstance(node, ast.Import):
-            for alias in node.names:
-                if alias.name.startswith("airflow.") and not alias.name.startswith("airflow.sdk"):
-                    statement = f"import {alias.name}"
-                    if alias.asname:
-                        statement += f" as {alias.asname}"
-                    mismatches.append((node.lineno, statement))
-
-    return mismatches
+    return find_import_violations(
+        file_path,
+        is_violating_module=lambda module: (
+            module.startswith("airflow.") and not module.startswith("airflow.sdk")
+        ),
+        nocheck_code=NOCHECK_CODE,
+        check_plain_imports=True,
+    )
 
 
 def main():
@@ -73,20 +53,12 @@ def main():
     if not args.files:
         return
 
-    total_violations = 0
-
-    for file_path in [Path(f) for f in args.files]:
-        mismatches = check_file_for_core_imports(file_path)
-        if mismatches:
-            console.print(f"[red]{file_path}[/red]:")
-            for line_num, statement in mismatches:
-                console.print(f"  [yellow]Line {line_num}[/yellow]: {statement}")
-            total_violations += len(mismatches)
-
-    if total_violations:
-        console.print()
-        console.print(f"[red]Found {total_violations} core import(s) in task-sdk files[/red]")
-        sys.exit(1)
+    report_import_violations(
+        args.files,
+        check_func=check_file_for_core_imports,
+        violation_label="core import(s) in task-sdk files",
+        nocheck_code=NOCHECK_CODE,
+    )
 
 
 if __name__ == "__main__":

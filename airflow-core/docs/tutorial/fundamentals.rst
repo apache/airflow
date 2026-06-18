@@ -20,7 +20,7 @@
 
 Airflow 101: Building Your First Workflow
 =========================================
-Welcome to world of Apache Airflow! In this tutorial, we'll guide you through the essential concepts of Airflow, helping
+Welcome to the world of Apache Airflow! In this tutorial, we'll guide you through the essential concepts of Airflow, helping
 you understand how to write your first Dag. Whether you're familiar with Python or just starting out, we'll make the
 journey enjoyable and straightforward.
 
@@ -74,7 +74,7 @@ parameters in a dictionary. The latter approach is usually more efficient and cl
 
 |
 
-If you want to dive deeper into the parameters of the BaseOperator, take a look at the documentation for
+If you want to dive deeper into the parameters of the ``BaseOperator``, take a look at the documentation for
 :py:class:`airflow.sdk.BaseOperator` documentation.
 
 Creating a Dag
@@ -100,7 +100,7 @@ focus on the ``BashOperator`` to execute some simple bash commands.
 Defining Tasks
 --------------
 To use an operator, you must instantiate it as a task. Tasks dictate how the operator will perform its work within the
-Dag's context. In the example below, we instantiate the BashOperator twice to run two different bash scripts. The
+Dag's context. In the example below, we instantiate the ``BashOperator`` twice to run two different bash scripts. The
 ``task_id`` serves as a unique identifier for each task.
 
 .. exampleinclude:: /../src/airflow/example_dags/tutorial.py
@@ -262,9 +262,9 @@ You can test specific task instances for a designated *logical date*. This simul
 a particular date and time.
 
 .. note::
-  Notice that the scheduler runs your task *for* a specific date and time, not necessarily *at* that date or time.
+  Notice that the Scheduler runs your task *for* a specific date and time, not necessarily *at* that date or time.
   The *logical date* is the timestamp that a Dag run is **named after**, and it typically corresponds to the **end**
-  of the time period your workflow is operating on — or the time at which the Dag run was manually triggered.
+  of the time period your workflow is operating on - or the time at which the Dag run was manually triggered.
 
   Airflow uses this logical date to organize and track each run; it's how you refer to a specific execution in the UI,
   logs, and code. When triggering a Dag via the UI or API, you can supply your own logical date to run the workflow
