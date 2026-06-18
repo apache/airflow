@@ -44,10 +44,18 @@ func TestDecodeStartupDetails(t *testing.T) {
 		},
 		"start_date":         "2024-01-15T10:30:00Z",
 		"sentry_integration": "",
+		// The supervisor nests the scheduling timestamps under dag_run, matching
+		// task-sdk's TIRunContext / DagRun schema.
 		"ti_context": map[string]any{
-			"logical_date":        "2024-01-15T00:00:00Z",
-			"data_interval_start": "2024-01-14T00:00:00Z",
-			"data_interval_end":   "2024-01-15T00:00:00Z",
+			"dag_run": map[string]any{
+				"dag_id":              "tutorial_dag",
+				"run_id":              "manual__2024-01-15",
+				"logical_date":        "2024-01-15T00:00:00Z",
+				"data_interval_start": "2024-01-14T00:00:00Z",
+				"data_interval_end":   "2024-01-15T00:00:00Z",
+			},
+			"max_tries":    int64(3),
+			"should_retry": true,
 		},
 	}
 
@@ -63,7 +71,22 @@ func TestDecodeStartupDetails(t *testing.T) {
 	assert.Equal(t, "dags/tutorial.go", details.DagRelPath)
 	assert.Equal(t, "example_dags", details.BundleInfo.Name)
 	assert.Equal(t, "1.0.0", details.BundleInfo.Version)
-	assert.NotNil(t, details.TIContext.LogicalDate)
+	require.NotNil(t, details.TIContext.LogicalDate)
+	assert.Equal(t, time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC), *details.TIContext.LogicalDate)
+	require.NotNil(t, details.TIContext.DataIntervalStart)
+	assert.Equal(
+		t,
+		time.Date(2024, 1, 14, 0, 0, 0, 0, time.UTC),
+		*details.TIContext.DataIntervalStart,
+	)
+	require.NotNil(t, details.TIContext.DataIntervalEnd)
+	assert.Equal(
+		t,
+		time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+		*details.TIContext.DataIntervalEnd,
+	)
+	assert.Equal(t, 3, details.TIContext.MaxTries)
+	assert.True(t, details.TIContext.ShouldRetry)
 }
 
 func TestDecodeStartupDetails_MalformedStartDate(t *testing.T) {
@@ -93,7 +116,9 @@ func TestDecodeStartupDetails_MalformedTIRunContext(t *testing.T) {
 			"try_number": int64(1),
 		},
 		"ti_context": map[string]any{
-			"logical_date": "garbage",
+			"dag_run": map[string]any{
+				"logical_date": "garbage",
+			},
 		},
 	}
 	_, err := decodeStartupDetails(m)
@@ -395,6 +420,15 @@ func TestTaskStateMsgToMap_PreservesSubsecondPrecision(t *testing.T) {
 	msg := TaskStateMsg{State: TaskStateFailed, EndDate: endDate}
 	m := msg.toMap()
 	assert.Equal(t, "2024-01-15T10:30:00.123456789Z", m["end_date"])
+}
+
+func TestRetryTaskMsgToMap(t *testing.T) {
+	endDate := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+	msg := RetryTaskMsg{EndDate: endDate, Reason: "test error"}
+	m := msg.toMap()
+	assert.Equal(t, "RetryTask", m["type"])
+	assert.Equal(t, "test error", m["retry_reason"])
+	assert.Equal(t, "2024-01-15T10:30:00Z", m["end_date"])
 }
 
 func TestTaskStateConstants_WireValues(t *testing.T) {

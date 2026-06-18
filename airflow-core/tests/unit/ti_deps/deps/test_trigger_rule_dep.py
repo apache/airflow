@@ -620,12 +620,18 @@ class TestTriggerRuleDep:
         )
         _test_trigger_rule(ti=ti, session=session, flag_upstream_failed=flag_upstream_failed)
 
-    @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
+    @pytest.mark.parametrize(
+        ("flag_upstream_failed", "expected_ti_state", "expected_reason"),
+        [
+            (True, SKIPPED, "requires at least one upstream task success"),
+            (False, None, "requires at least one upstream task success"),
+        ],
+    )
     def test_none_failed_min_one_success_tr_skipped(
-        self, session, get_task_instance, flag_upstream_failed, expected_ti_state
+        self, session, get_task_instance, flag_upstream_failed, expected_ti_state, expected_reason
     ):
         """
-        None failed min one success trigger rule success with all skipped
+        None failed min one success trigger rule with all skipped upstreams
         """
         ti = get_task_instance(
             TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
@@ -642,6 +648,7 @@ class TestTriggerRuleDep:
             session=session,
             flag_upstream_failed=flag_upstream_failed,
             expected_ti_state=expected_ti_state,
+            expected_reason=expected_reason,
         )
 
     @pytest.mark.parametrize(
@@ -1507,6 +1514,141 @@ class TestTriggerRuleDep:
         )
         monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
 
+        _test_trigger_rule(ti=ti, session=session, flag_upstream_failed=flag_upstream_failed)
+
+    @pytest.mark.flaky(reruns=5)
+    @pytest.mark.parametrize(
+        ("flag_upstream_failed", "expected_ti_state"),
+        [(True, UPSTREAM_FAILED), (False, None)],
+    )
+    def test_mapped_task_upstream_all_removed_with_none_failed_min_one_success_trigger_rule(
+        self,
+        monkeypatch,
+        session,
+        get_mapped_task_dagrun,
+        flag_upstream_failed,
+        expected_ti_state,
+    ):
+        """
+        Test NONE_FAILED_MIN_ONE_SUCCESS trigger rule with all mapped upstream tasks removed.
+        """
+        dr, task, _ = get_mapped_task_dagrun(
+            trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
+            state=REMOVED,
+        )
+
+        # ti with removed upstream ti
+        ti = dr.get_task_instance(task_id="do_something_else", map_index=3, session=session)
+        ti.task = task
+
+        upstream_states = _UpstreamTIStates(
+            success=0,
+            skipped=0,
+            failed=0,
+            removed=5,
+            upstream_failed=0,
+            done=5,
+            skipped_setup=0,
+            success_setup=0,
+        )
+        monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
+
+        _test_trigger_rule(
+            ti=ti,
+            session=session,
+            flag_upstream_failed=flag_upstream_failed,
+            expected_reason="requires at least one upstream task success",
+            expected_ti_state=expected_ti_state,
+        )
+
+    @pytest.mark.parametrize("flag_upstream_failed", [True, False])
+    @pytest.mark.parametrize(
+        ("trigger_rule", "upstream_states"),
+        [
+            (
+                TriggerRule.ALL_SUCCESS,
+                _UpstreamTIStates(
+                    success=3,
+                    skipped=0,
+                    failed=0,
+                    upstream_failed=0,
+                    removed=2,
+                    done=5,
+                    skipped_setup=0,
+                    success_setup=0,
+                ),
+            ),
+            (
+                TriggerRule.ALL_FAILED,
+                _UpstreamTIStates(
+                    success=0,
+                    skipped=0,
+                    failed=3,
+                    upstream_failed=0,
+                    removed=2,
+                    done=5,
+                    skipped_setup=0,
+                    success_setup=0,
+                ),
+            ),
+            (
+                TriggerRule.NONE_FAILED,
+                _UpstreamTIStates(
+                    success=3,
+                    skipped=0,
+                    failed=0,
+                    upstream_failed=0,
+                    removed=2,
+                    done=5,
+                    skipped_setup=0,
+                    success_setup=0,
+                ),
+            ),
+            (
+                TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
+                _UpstreamTIStates(
+                    success=3,
+                    skipped=0,
+                    failed=0,
+                    upstream_failed=0,
+                    removed=2,
+                    done=5,
+                    skipped_setup=0,
+                    success_setup=0,
+                ),
+            ),
+            (
+                TriggerRule.ALL_DONE_MIN_ONE_SUCCESS,
+                _UpstreamTIStates(
+                    success=3,
+                    skipped=0,
+                    failed=0,
+                    upstream_failed=0,
+                    removed=2,
+                    done=5,
+                    skipped_setup=0,
+                    success_setup=0,
+                ),
+            ),
+        ],
+    )
+    def test_non_mapped_task_ignores_removed_upstream_tis(
+        self,
+        monkeypatch,
+        session,
+        get_task_instance,
+        flag_upstream_failed,
+        trigger_rule,
+        upstream_states,
+    ):
+        """
+        Non-mapped trigger-rule checks should exclude removed upstream task instances.
+        """
+        ti = get_task_instance(
+            trigger_rule,
+            normal_tasks=["upstream_1", "upstream_2", "upstream_3", "upstream_4", "upstream_5"],
+        )
+        monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
         _test_trigger_rule(ti=ti, session=session, flag_upstream_failed=flag_upstream_failed)
 
 

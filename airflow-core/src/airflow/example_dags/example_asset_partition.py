@@ -25,16 +25,24 @@ from airflow.sdk import (
     Asset,
     CronPartitionTimetable,
     DayWindow,
+    FanOutMapper,
+    FixedKeyMapper,
     IdentityMapper,
+    MinimumCount,
     MonthWindow,
     PartitionAtRuntime,
     PartitionedAssetTimetable,
     ProductMapper,
     RollupMapper,
+    SegmentWindow,
     StartOfDayMapper,
     StartOfHourMapper,
     StartOfMonthMapper,
+    StartOfWeekMapper,
     StartOfYearMapper,
+    WaitForAll,
+    WeekWindow,
+    Window,
     asset,
     task,
 )
@@ -301,6 +309,10 @@ with DAG(
         default_partition_mapper=RollupMapper(
             upstream_mapper=StartOfDayMapper(),
             window=DayWindow(),
+            # Explicit default wait policy: hold the run until all 24 hourly
+            # partitions arrive. Identical to omitting wait_policy entirely; shown
+            # here as the counterpart to the early-firing MinimumCount example below.
+            wait_policy=WaitForAll(),
         ),
     ),
     catchup=False,
@@ -357,3 +369,167 @@ with DAG(
         print(f"All daily partitions received. Month: {dag_run.partition_key}")
 
     summarise_team_a_month()
+
+
+# --- Fan-out: one weekly upstream → seven daily downstream Dag runs ----------
+
+weekly_model_artifact = Asset(uri="file://artifacts/models/weekly.bin", name="weekly_model_artifact")
+
+
+with DAG(
+    dag_id="train_weekly_model",
+    schedule=CronPartitionTimetable("0 0 * * 1", timezone="UTC"),
+    catchup=False,
+    tags=["example", "model", "training"],
+):
+    """Train a weekly model artifact every Monday at 00:00 UTC."""
+
+    @task(outlets=[weekly_model_artifact])
+    def train_model():
+        """Materialize the model artifact for the current weekly partition."""
+        pass
+
+    train_model()
+
+
+with DAG(
+    dag_id="daily_inference",
+    schedule=PartitionedAssetTimetable(
+        assets=weekly_model_artifact,
+        # FanOutMapper composes upstream_mapper + window + (optional) downstream_mapper.
+        # WeekWindow.to_upstream() yields seven daily datetimes inside one week,
+        # and the default downstream_mapper for WeekWindow is StartOfDayMapper, so
+        # a weekly upstream key fans out to seven ``%Y-%m-%d`` downstream keys.
+        default_partition_mapper=FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(),
+            window=WeekWindow(),
+            # Safety cap on how many downstream keys one upstream event may create.
+            # WeekWindow has exactly seven members, so max_downstream_keys=7 sits at
+            # the boundary and never blocks. A smaller value would skip queuing the
+            # runs for that event and record a "partition fan-out exceeded" audit log
+            # entry instead. Omitting it falls back to the global
+            # ``[scheduler] partition_mapper_max_downstream_keys`` (default 1000).
+            max_downstream_keys=7,
+        ),
+    ),
+    catchup=False,
+    tags=["example", "model", "inference"],
+):
+    """Run daily inference, fanning the weekly model artifact out to one Dag run per day."""
+
+    @task
+    def run_inference(dag_run=None):
+        """Run inference for one daily partition derived from the weekly model."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(dag_run.partition_key)
+
+    run_inference()
+
+
+# --- Fan-out over a trailing window (Window.Direction.BACKWARD) --------------
+# ``daily_inference`` above fans the weekly artifact FORWARD: the seven days
+# *starting* at the upstream key. The same artifact can drive a trailing window —
+# the seven days *ending* at the key — e.g. to score the week leading up to a
+# model release. Direction is the only difference between the two Dags.
+
+with DAG(
+    dag_id="trailing_week_inference",
+    schedule=PartitionedAssetTimetable(
+        assets=weekly_model_artifact,
+        default_partition_mapper=FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(),
+            # BACKWARD yields the trailing period ending at the upstream key — the
+            # mirror of the default FORWARD that daily_inference uses.
+            window=WeekWindow(direction=Window.Direction.BACKWARD),
+        ),
+    ),
+    catchup=False,
+    tags=["example", "model", "inference"],
+):
+    """Run inference over the trailing week: the seven days ending at the weekly key."""
+
+    @task
+    def run_trailing_inference(dag_run=None):
+        """Run inference for one daily partition in the trailing week."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(dag_run.partition_key)
+
+    run_trailing_inference()
+
+
+# --- Segment (categorical) rollup -------------------------------------------
+# ``multi_region_player_stats`` (defined above) emits one partition per region
+# (``us``, ``eu``, ``apac``) from a single run.  The Dag below holds a downstream
+# run until every declared region key has arrived.
+
+with DAG(
+    dag_id="segment_region_stats_rollup",
+    schedule=PartitionedAssetTimetable(
+        assets=Asset.ref(name="multi_region_player_stats"),
+        default_partition_mapper=RollupMapper(
+            upstream_mapper=FixedKeyMapper("all_regions"),
+            window=SegmentWindow(["us", "eu", "apac"]),
+        ),
+    ),
+    catchup=False,
+    tags=["example", "player-stats", "rollup", "segment"],
+):
+    """
+    Categorical rollup: hold until all three region partitions arrive.
+
+    ``RollupMapper(upstream_mapper=FixedKeyMapper("all_regions"), window=SegmentWindow([...]))``
+    declares the fixed set of region keys required for one downstream run and collapses every
+    region key onto a single ``all_regions`` partition, so the three region events accumulate
+    into one downstream run.  The run is held until ``us``, ``eu``, and ``apac`` have all
+    arrived from ``multi_region_player_stats``; partial arrivals remain pending in the
+    next-run-assets view so operators can track progress.
+    """
+
+    @task
+    def aggregate_all_regions(dag_run=None):
+        """Produce the cross-region summary once every region partition has arrived."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(f"All region partitions received. Partition: {dag_run.partition_key}")
+
+    aggregate_all_regions()
+
+
+# --- Segment rollup with an early-fire wait policy (MinimumCount) ------------
+# ``segment_region_stats_rollup`` above waits for all three regions (WaitForAll).
+# This sibling fires as soon as any two of the three have arrived, tolerating one
+# slow or missing region rather than holding the downstream run indefinitely.
+
+with DAG(
+    dag_id="segment_region_stats_early_rollup",
+    schedule=PartitionedAssetTimetable(
+        assets=Asset.ref(name="multi_region_player_stats"),
+        default_partition_mapper=RollupMapper(
+            upstream_mapper=FixedKeyMapper("all_regions"),
+            window=SegmentWindow(["us", "eu", "apac"]),
+            # Fire once at least two of the three declared regions have arrived.
+            # MinimumCount(-1) ("at most one missing") is equivalent for this window.
+            wait_policy=MinimumCount(2),
+        ),
+    ),
+    catchup=False,
+    tags=["example", "player-stats", "rollup", "segment"],
+):
+    """
+    Categorical rollup that fires early.
+
+    Produces the cross-region summary once two of the three regions have arrived
+    instead of waiting for all of them — the early-firing counterpart to
+    ``segment_region_stats_rollup``.
+    """
+
+    @task
+    def aggregate_available_regions(dag_run=None):
+        """Produce the cross-region summary once the minimum region count is met."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(f"Minimum region partitions received. Partition: {dag_run.partition_key}")
+
+    aggregate_available_regions()
