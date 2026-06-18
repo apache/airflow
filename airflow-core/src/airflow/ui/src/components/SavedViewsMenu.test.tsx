@@ -131,9 +131,11 @@ describe("SavedViewsMenu", () => {
 
     fireEvent.click(screen.getByText("Successful runs"));
 
+    // The sort is restored to localStorage (where the table reads it), not left in the URL.
     await waitFor(() => {
-      expect(screen.getByTestId("location-search")).toHaveTextContent("state=success&sort=-run_after");
+      expect(screen.getByTestId("location-search")).toHaveTextContent("state=success");
     });
+    expect(screen.getByTestId("location-search")).not.toHaveTextContent("sort");
     expect(JSON.parse(localStorage.getItem("dags-table-sort") ?? "[]")).toEqual([
       { desc: true, id: "run_after" },
     ]);
@@ -193,5 +195,92 @@ describe("SavedViewsMenu", () => {
     fireEvent.change(input, { target: { value: "Another name" } });
 
     expect(screen.getByTestId("saved-view-save")).toBeDisabled();
+  });
+
+  it("restores the default view automatically on a bare page load", async () => {
+    localStorage.setItem(
+      "dags-saved-views",
+      JSON.stringify([{ name: "Successful runs", search: "state=success&sort=-run_after" }]),
+    );
+    localStorage.setItem("dags-saved-views-default", JSON.stringify("Successful runs"));
+
+    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags"]) });
+
+    // The default view is restored with its filters in the URL and its sort in localStorage only.
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search")).toHaveTextContent("state=success");
+    });
+    expect(screen.getByTestId("location-search")).not.toHaveTextContent("sort");
+    expect(JSON.parse(localStorage.getItem("dags-table-sort") ?? "[]")).toEqual([
+      { desc: true, id: "run_after" },
+    ]);
+  });
+
+  it("restores the default view even when only a leftover sort is in the URL", async () => {
+    localStorage.setItem(
+      "dags-saved-views",
+      JSON.stringify([{ name: "Successful runs", search: "state=success" }]),
+    );
+    localStorage.setItem("dags-saved-views-default", JSON.stringify("Successful runs"));
+
+    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags?sort=-run_after"]) });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search")).toHaveTextContent("state=success");
+    });
+  });
+
+  it("does not restore the default view when the page already has filters", async () => {
+    localStorage.setItem(
+      "dags-saved-views",
+      JSON.stringify([{ name: "Successful runs", search: "state=success" }]),
+    );
+    localStorage.setItem("dags-saved-views-default", JSON.stringify("Successful runs"));
+
+    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags?state=running"]) });
+    await openMenu();
+
+    expect(screen.getByTestId("location-search")).toHaveTextContent("state=running");
+    expect(screen.getByTestId("location-search")).not.toHaveTextContent("state=success");
+  });
+
+  it("toggles a view as the default and back", async () => {
+    localStorage.setItem(
+      "dags-saved-views",
+      JSON.stringify([{ name: "Successful runs", search: "state=success" }]),
+    );
+
+    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags"]) });
+    await openMenu();
+
+    fireEvent.click(screen.getByLabelText("savedViews.setDefault"));
+    await waitFor(() => {
+      expect(JSON.parse(localStorage.getItem("dags-saved-views-default") ?? "null")).toBe("Successful runs");
+    });
+
+    fireEvent.click(screen.getByLabelText("savedViews.unsetDefault"));
+    await waitFor(() => {
+      expect(JSON.parse(localStorage.getItem("dags-saved-views-default") ?? "null")).toBeNull();
+    });
+  });
+
+  it("clears the stored default when the default view is deleted", async () => {
+    localStorage.setItem(
+      "dags-saved-views",
+      JSON.stringify([{ name: "Successful runs", search: "state=success" }]),
+    );
+    localStorage.setItem("dags-saved-views-default", JSON.stringify("Successful runs"));
+
+    // A non-bare URL so the default isn't auto-restored before we delete it.
+    render(<SavedViewsMenu />, { wrapper: createWrapper(["/dags?state=running"]) });
+    await openMenu();
+
+    fireEvent.click(screen.getByLabelText("Delete view"));
+    fireEvent.click(await screen.findByTestId("delete-confirm-button"));
+
+    await waitFor(() => {
+      expect(JSON.parse(localStorage.getItem("dags-saved-views") ?? "[]")).toEqual([]);
+    });
+    expect(JSON.parse(localStorage.getItem("dags-saved-views-default") ?? "null")).toBeNull();
   });
 });

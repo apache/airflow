@@ -18,16 +18,17 @@
  */
 import { Box, Button, HStack, Input, Text, VStack } from "@chakra-ui/react";
 import type { SortingState } from "@tanstack/react-table";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 import { LuBookmark, LuInfo } from "react-icons/lu";
+import { MdOutlinePushPin, MdPushPin } from "react-icons/md";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import DeleteDialog from "src/components/DeleteDialog";
 import { IconButton, Popover, Tooltip } from "src/components/ui";
-import { savedViewsKey, tableSortKey } from "src/constants/localStorage";
+import { savedViewsDefaultKey, savedViewsKey, tableSortKey } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
 type SavedView = {
@@ -53,6 +54,10 @@ export const SavedViewsMenu = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [sorting, setSorting] = useLocalStorage<SortingState>(tableSortKey(pathname), []);
   const [savedViews, setSavedViews] = useLocalStorage<Array<SavedView>>(savedViewsKey(pathname), []);
+  const [defaultViewName, setDefaultViewName] = useLocalStorage<string | null>(
+    savedViewsDefaultKey(pathname),
+    null,
+  );
   const [name, setName] = useState("");
   const [open, setOpen] = useState(false);
   const [viewToDelete, setViewToDelete] = useState<string | undefined>(undefined);
@@ -98,13 +103,40 @@ export const SavedViewsMenu = () => {
         .getAll(SearchParamsKeys.SORT)
         .map((sort) => ({ desc: sort.startsWith("-"), id: sort.replace("-", "") })),
     );
+    // The sort lives in localStorage like the rest of the app expects — keep it out of the URL, or it
+    // lingers as a `sort` query param after filters are cleared/reset (reset clears filters, not sort).
+    params.delete(SearchParamsKeys.SORT);
     setSearchParams(params);
     setOpen(false);
   };
 
   const deleteView = (viewName: string) => {
     setSavedViews((prev) => prev.filter((view) => view.name !== viewName));
+    setDefaultViewName((previous) => (previous === viewName ? null : previous));
   };
+
+  const toggleDefault = (viewName: string) => {
+    setDefaultViewName((previous) => (previous === viewName ? null : viewName));
+  };
+
+  // Restore the default view when arriving on a page with no filters, so navigation lands on it
+  // automatically. The decision keys off filters only — pagination and a leftover sort don't count —
+  // so it isn't entangled with the table's sort handling. Keyed on pathname: we deliberately don't
+  // re-run on the user's later edits or clears, and we never override filters from a deep link.
+  useEffect(() => {
+    const target =
+      defaultViewName === null ? undefined : savedViews.find((view) => view.name === defaultViewName);
+    const filters = new URLSearchParams(searchParams);
+
+    filters.delete(SearchParamsKeys.OFFSET);
+    filters.delete(SearchParamsKeys.CURSOR);
+    filters.delete(SearchParamsKeys.SORT);
+
+    if (target !== undefined && [...filters].length === 0) {
+      applyView(target);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   let saveHint: string | undefined;
 
@@ -113,6 +145,14 @@ export const SavedViewsMenu = () => {
   } else if (duplicateView !== undefined) {
     saveHint = translate("savedViews.duplicate", { name: duplicateView.name });
   }
+
+  const infoContent = (
+    <VStack alignItems="start" gap={2} maxW="260px">
+      <Text fontSize="xs">{translate("savedViews.info.save")}</Text>
+      <Text fontSize="xs">{translate("savedViews.info.default")}</Text>
+      <Text fontSize="xs">{translate("savedViews.info.storage")}</Text>
+    </VStack>
+  );
 
   return (
     <>
@@ -136,7 +176,7 @@ export const SavedViewsMenu = () => {
               <Text fontSize="sm" fontWeight="medium">
                 {translate("savedViews.title")}
               </Text>
-              <Tooltip content={translate("savedViews.info")}>
+              <Tooltip content={infoContent}>
                 <Box as="span" color="fg.muted" cursor="pointer">
                   <LuInfo />
                 </Box>
@@ -185,6 +225,18 @@ export const SavedViewsMenu = () => {
                   >
                     <Text truncate>{view.name}</Text>
                   </Button>
+                  <IconButton
+                    label={
+                      defaultViewName === view.name
+                        ? translate("savedViews.unsetDefault")
+                        : translate("savedViews.setDefault")
+                    }
+                    onClick={() => toggleDefault(view.name)}
+                    size="sm"
+                    variant="ghost"
+                  >
+                    {defaultViewName === view.name ? <MdPushPin /> : <MdOutlinePushPin />}
+                  </IconButton>
                   <IconButton
                     aria-label="Delete view"
                     onClick={() => setViewToDelete(view.name)}
