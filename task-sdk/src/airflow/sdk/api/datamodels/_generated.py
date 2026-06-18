@@ -78,6 +78,37 @@ class ConnectionResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
+class ConnectionTestConnectionResponse(BaseModel):
+    """
+    Connection data returned to workers from a test request.
+    """
+
+    conn_id: Annotated[str, Field(title="Conn Id")]
+    conn_type: Annotated[str, Field(title="Conn Type")]
+    host: Annotated[str | None, Field(title="Host")] = None
+    login: Annotated[str | None, Field(title="Login")] = None
+    password: Annotated[str | None, Field(title="Password")] = None
+    schema_: Annotated[str | None, Field(alias="schema", title="Schema")] = None
+    port: Annotated[int | None, Field(title="Port")] = None
+    extra: Annotated[str | None, Field(title="Extra")] = None
+
+
+class ResultMessage(RootModel[str]):
+    root: Annotated[str, Field(max_length=2000, title="Result Message")]
+
+
+class ConnectionTestState(str, Enum):
+    """
+    All possible states of a connection test.
+    """
+
+    PENDING = "pending"
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
 class DagResponse(BaseModel):
     """
     Schema for DAG response.
@@ -184,6 +215,7 @@ class IntermediateTIState(str, Enum):
     UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     DEFERRED = "deferred"
+    AWAITING_INPUT = "awaiting_input"
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):
@@ -212,6 +244,21 @@ class PreviousTIResponse(BaseModel):
     try_number: Annotated[int, Field(title="Try Number")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
     duration: Annotated[float | None, Field(title="Duration")] = None
+
+
+class TIAwaitingInputStatePayload(BaseModel):
+    """
+    Schema for parking a TaskInstance in an awaiting_input state (Human-in-the-loop, no trigger).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: Annotated[Literal["awaiting_input"] | None, Field(title="State")] = "awaiting_input"
+    timeout: Annotated[timedelta | None, Field(title="Timeout")] = None
+    next_method: Annotated[str, Field(title="Next Method")]
+    next_kwargs: Annotated[dict[str, JsonValue] | None, Field(title="Next Kwargs")] = None
+    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
 class TIDeferredStatePayload(BaseModel):
@@ -351,19 +398,12 @@ class TaskInstanceState(str, Enum):
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
     DEFERRED = "deferred"
+    AWAITING_INPUT = "awaiting_input"
 
 
-class TaskStatesResponse(BaseModel):
+class TaskStateStorePutBody(BaseModel):
     """
-    Response for task states with run_id, task and state.
-    """
-
-    task_states: Annotated[dict[str, Any], Field(title="Task States")]
-
-
-class TaskStorePutBody(BaseModel):
-    """
-    Request body for setting a task store value.
+    Request body for setting a task state store value.
     """
 
     model_config = ConfigDict(
@@ -373,15 +413,23 @@ class TaskStorePutBody(BaseModel):
     expires_at: Annotated[AwareDatetime | None, Field(title="Expires At")] = None
 
 
-class TaskStoreResponse(BaseModel):
+class TaskStateStoreResponse(BaseModel):
     """
-    Task store value returned to a worker.
+    Task state store value returned to a worker.
     """
 
     model_config = ConfigDict(
         extra="forbid",
     )
     value: JsonValue
+
+
+class TaskStatesResponse(BaseModel):
+    """
+    Response for task states with run_id, task and state.
+    """
+
+    task_states: Annotated[dict[str, Any], Field(title="Task States")]
 
 
 class TerminalStateNonSuccess(str, Enum):
@@ -512,6 +560,7 @@ class TaskInstance(BaseModel):
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
     hostname: Annotated[str | None, Field(title="Hostname")] = None
     context_carrier: Annotated[dict[str, Any] | None, Field(title="Context Carrier")] = None
+    queue: Annotated[str | None, Field(title="Queue")] = "default"
 
 
 class BundleInfo(BaseModel):
@@ -582,9 +631,20 @@ class AssetResponse(BaseModel):
     extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
 
 
-class AssetStorePutBody(BaseModel):
+class AssetStateStorePutBody(BaseModel):
     """
-    Request body for setting an asset store value.
+    Request body for setting an asset state store value.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
+
+
+class AssetStateStoreResponse(BaseModel):
+    """
+    Asset state store value returned to a worker.
     """
 
     model_config = ConfigDict(
@@ -593,15 +653,16 @@ class AssetStorePutBody(BaseModel):
     value: JsonValue
 
 
-class AssetStoreResponse(BaseModel):
+class ConnectionTestResultBody(BaseModel):
     """
-    Asset store value returned to a worker.
+    Result a worker reports back for a connection test.
     """
 
     model_config = ConfigDict(
         extra="forbid",
     )
-    value: JsonValue
+    state: ConnectionTestState
+    result_message: Annotated[ResultMessage | None, Field(title="Result Message")] = None
 
 
 class HITLDetailRequest(BaseModel):

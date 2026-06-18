@@ -106,7 +106,7 @@ from airflow.task.priority_strategy import (
     validate_and_load_priority_weight_strategy,
 )
 from airflow.timetables.base import DagRunInfo, Timetable
-from airflow.triggers.base import BaseTrigger, StartTriggerArgs
+from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.db import LazySelectSequence
 
@@ -114,9 +114,9 @@ if TYPE_CHECKING:
     from inspect import Parameter
 
     from kubernetes.client import models as k8s  # noqa: TC004
+    from kubernetes.client.api_client import ApiClient  # noqa: TC004
 
     from airflow.models.expandinput import SchedulerExpandInput
-    from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator  # noqa: TC004
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.definitions._internal.node import DAGNode as SDKDAGNode
     from airflow.sdk.types import Operator as SdkOperator
@@ -470,7 +470,6 @@ class BaseSerialization:
         :meta private:
         """
         from airflow.sdk.definitions._internal.types import is_arg_set
-        from airflow.sdk.exceptions import TaskDeferred
 
         if not is_arg_set(var):
             return cls._encode(None, type_=DAT.ARG_NOT_SET)
@@ -494,7 +493,7 @@ class BaseSerialization:
             and _has_kubernetes(attempt_import=True)
             and isinstance(var, k8s.V1Pod)
         ):
-            json_pod = PodGenerator.serialize_pod(var)
+            json_pod = ApiClient().sanitize_for_serialization(var)
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, OutletEventAccessors):
             return cls._encode(
@@ -535,7 +534,7 @@ class BaseSerialization:
                 var._asdict(),
                 type_=DAT.TASK_INSTANCE_KEY,
             )
-        elif isinstance(var, (AirflowException, TaskDeferred)) and hasattr(var, "serialize"):
+        elif isinstance(var, AirflowException) and hasattr(var, "serialize"):
             exc_cls_name, args, kwargs = var.serialize()
             return cls._encode(
                 cls.serialize(
@@ -555,14 +554,6 @@ class BaseSerialization:
                     strict=strict,
                 ),
                 type_=DAT.BASE_EXC_SER,
-            )
-        elif isinstance(var, BaseTrigger):
-            return cls._encode(
-                cls.serialize(
-                    var.serialize(),
-                    strict=strict,
-                ),
-                type_=DAT.BASE_TRIGGER,
             )
         elif callable(var):
             return str(get_python_source(var))
@@ -650,9 +641,10 @@ class BaseSerialization:
             if not _has_kubernetes(attempt_import=True):
                 raise RuntimeError(
                     "Cannot deserialize POD objects without kubernetes libraries. "
-                    "Please install the cncf.kubernetes provider."
+                    "Please install the `kubernetes` package."
                 )
-            pod = PodGenerator.deserialize_model_dict(var)
+            # kubernetes-client does not expose a public dict->model API; see https://github.com/kubernetes-client/python/issues/977.
+            pod = ApiClient()._ApiClient__deserialize_model(var, k8s.V1Pod)
             return pod
         elif type_ == DAT.TIMEDELTA:
             return datetime.timedelta(seconds=var)
@@ -671,10 +663,6 @@ class BaseSerialization:
             else:
                 exc_cls = import_string(f"builtins.{exc_cls_name}")
             return exc_cls(*args, **kwargs)
-        elif type_ == DAT.BASE_TRIGGER:
-            tr_cls_name, kwargs = cls.deserialize(var)
-            tr_cls = import_string(tr_cls_name)
-            return tr_cls(**kwargs)
         elif type_ == DAT.SET:
             return {cls.deserialize(v) for v in var}
         elif type_ == DAT.TUPLE:
@@ -2187,11 +2175,10 @@ def _has_kubernetes(attempt_import: bool = False) -> bool:
     # Loading kube modules is expensive, so delay it until the last moment
     try:
         from kubernetes.client import models as k8s
-
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+        from kubernetes.client.api_client import ApiClient
 
         globals()["k8s"] = k8s
-        globals()["PodGenerator"] = PodGenerator
+        globals()["ApiClient"] = ApiClient
         return True
     except ImportError:
         return False

@@ -45,7 +45,7 @@ if AIRFLOW_V_3_2_PLUS:
 else:
     TeamDetails = None  # type: ignore[assignment,misc]
 from airflow.api_fastapi.common.types import MenuItem
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 
 try:
     from airflow.providers.common.compat.sdk import AirflowException
@@ -121,6 +121,25 @@ def _clear_filter_cache():
 
 
 class TestKeycloakAuthManager:
+    @patch.object(KeycloakAuthManager, "get_keycloak_client")
+    def test_get_cli_user(self, mock_get_keycloak_client, auth_manager):
+        # client_credentials (service account) flow returns an access token and no refresh token.
+        mock_get_keycloak_client.return_value.token.return_value = {"access_token": "svc-token"}
+
+        user = auth_manager.get_cli_user()
+
+        assert user.get_id() == "airflow-cli"
+        assert user.access_token == "svc-token"
+        assert user.refresh_token is None
+        mock_get_keycloak_client.return_value.token.assert_called_once_with(grant_type="client_credentials")
+
+    @patch.object(KeycloakAuthManager, "get_keycloak_client")
+    def test_get_cli_user_raises_when_credentials_unusable(self, mock_get_keycloak_client, auth_manager):
+        mock_get_keycloak_client.return_value.token.side_effect = Exception("boom")
+
+        with pytest.raises(AirflowConfigException, match="AIRFLOW_CLI_TOKEN"):
+            auth_manager.get_cli_user()
+
     def test_deserialize_user(self, auth_manager):
         result = auth_manager.deserialize_user(
             {

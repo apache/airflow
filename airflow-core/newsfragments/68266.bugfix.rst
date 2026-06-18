@@ -1,0 +1,1 @@
+Asset-triggered partitioned Dag runs now set ``partition_date`` when the consumer's partition mapper is temporal (directly, or wrapped in ``RollupMapper`` / ``FanOutMapper`` / ``ChainMapper``). Non-temporal mappers leave ``partition_date`` unset.

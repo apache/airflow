@@ -814,6 +814,9 @@ class TestElasticsearchRemoteLogIO:
         assert log_source_info == []
         assert f"*** Log {log_id} not found in Elasticsearch" in log_messages[0]
 
+    def test_upload_returns_early_when_ti_is_none(self, tmp_json_file):
+        self.elasticsearch_io.upload(tmp_json_file, ti=None)
+
 
 class TestFormatErrorDetail:
     def test_returns_none_for_empty(self):

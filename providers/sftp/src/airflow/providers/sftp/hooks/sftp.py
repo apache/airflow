@@ -384,6 +384,25 @@ class SFTPHook(SSHHook):
         """
         self.conn.remove(path)  # type: ignore[arg-type, union-attr]
 
+    @staticmethod
+    def _validate_within_directory(base_dir: str, candidate: str) -> str:
+        """
+        Ensure ``candidate`` resolves to a path inside ``base_dir``.
+
+        Directory-entry names are returned by the remote SFTP server and may
+        contain ``..`` components; joining them into the local destination path
+        could otherwise write outside it. Containment is verified before any
+        local write or ``mkdir``.
+        """
+        base_real = os.path.realpath(base_dir)
+        candidate_real = os.path.realpath(candidate)
+        if candidate_real != base_real and os.path.commonpath([base_real, candidate_real]) != base_real:
+            raise ValueError(
+                f"Refusing to write outside the destination directory: "
+                f"{candidate!r} resolves outside {base_dir!r}"
+            )
+        return candidate
+
     def retrieve_directory(self, remote_full_path: str, local_full_path: str, prefetch: bool = True) -> None:
         """
         Transfer the remote directory to a local location.
@@ -400,10 +419,14 @@ class SFTPHook(SSHHook):
         Path(local_full_path).mkdir(parents=True)
         files, dirs, _ = self.get_tree_map(remote_full_path)
         for dir_path in dirs:
-            new_local_path = os.path.join(local_full_path, os.path.relpath(dir_path, remote_full_path))
+            new_local_path = self._validate_within_directory(
+                local_full_path, os.path.join(local_full_path, os.path.relpath(dir_path, remote_full_path))
+            )
             Path(new_local_path).mkdir(parents=True, exist_ok=True)
         for file_path in files:
-            new_local_path = os.path.join(local_full_path, os.path.relpath(file_path, remote_full_path))
+            new_local_path = self._validate_within_directory(
+                local_full_path, os.path.join(local_full_path, os.path.relpath(file_path, remote_full_path))
+            )
             self.retrieve_file(file_path, new_local_path, prefetch)
 
     def retrieve_directory_concurrently(
@@ -438,12 +461,18 @@ class SFTPHook(SSHHook):
             new_local_file_paths, remote_file_paths = [], []
             files, dirs, _ = self.get_tree_map(remote_full_path)
             for dir_path in dirs:
-                new_local_path = os.path.join(local_full_path, os.path.relpath(dir_path, remote_full_path))
+                new_local_path = self._validate_within_directory(
+                    local_full_path,
+                    os.path.join(local_full_path, os.path.relpath(dir_path, remote_full_path)),
+                )
                 Path(new_local_path).mkdir(parents=True, exist_ok=True)
             for file in files:
                 remote_file_paths.append(file)
                 new_local_file_paths.append(
-                    os.path.join(local_full_path, os.path.relpath(file, remote_full_path))
+                    self._validate_within_directory(
+                        local_full_path,
+                        os.path.join(local_full_path, os.path.relpath(file, remote_full_path)),
+                    )
                 )
         remote_file_chunks = [remote_file_paths[i::workers] for i in range(workers)]
         local_file_chunks = [new_local_file_paths[i::workers] for i in range(workers)]

@@ -91,9 +91,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
-                title: Response Next Run Assets
+                $ref: '#/components/schemas/NextRunAssetsResponse'
         '422':
           description: Validation Error
           content:
@@ -342,7 +340,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -350,7 +348,7 @@ paths:
             \ possible."
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -387,7 +385,7 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
@@ -395,7 +393,7 @@ paths:
             \ when possible."
           title: Dag Display Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -1223,14 +1221,14 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
             \ tables. Prefer the equivalent ``triggering_user`` parameter when possible."
           title: Triggering User
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -1396,14 +1394,14 @@ paths:
           - type: string
           - type: 'null'
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
+            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
             \ expressions are **not** supported. \n\n**Performance note:** this full-match\
             \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
             \ the database from using B-tree indexes, which can be very slow on large\
             \ tables. Prefer the equivalent ``triggering_user`` parameter when possible."
           title: Triggering User
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
+          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported. \n\n**Performance note:** this full-match pattern\
           \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
           \ from using B-tree indexes, which can be very slow on large tables. Prefer\
@@ -1886,6 +1884,11 @@ components:
           - sensor
           - trigger
           title: Type
+        team:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team
       type: object
       required:
       - id
@@ -3144,6 +3147,7 @@ components:
       - Config
       - Connections
       - Dags
+      - Deadlines
       - Docs
       - Jobs
       - Plugins
@@ -3171,6 +3175,85 @@ components:
       - extra_menu_items
       title: MenuItemCollectionResponse
       description: Menu Item Collection serializer for responses.
+    NextRunAssetEventResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        uri:
+          type: string
+          title: Uri
+        last_update:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Update
+        received_count:
+          type: integer
+          title: Received Count
+          default: 0
+        required_count:
+          type: integer
+          title: Required Count
+          default: 1
+        received_keys:
+          items:
+            type: string
+          type: array
+          title: Received Keys
+        required_keys:
+          items:
+            type: string
+          type: array
+          title: Required Keys
+        is_rollup:
+          type: boolean
+          title: Is Rollup
+          default: false
+        mapper_error:
+          type: boolean
+          title: Mapper Error
+          default: false
+        asset_inactive:
+          type: boolean
+          title: Asset Inactive
+          default: false
+      type: object
+      required:
+      - id
+      - name
+      - uri
+      title: NextRunAssetEventResponse
+      description: One asset event in the ``next_run_assets`` payload.
+    NextRunAssetsResponse:
+      properties:
+        asset_expression:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Asset Expression
+        events:
+          items:
+            $ref: '#/components/schemas/NextRunAssetEventResponse'
+          type: array
+          title: Events
+        pending_partition_count:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Pending Partition Count
+      type: object
+      required:
+      - events
+      title: NextRunAssetsResponse
+      description: Response for the ``next_run_assets`` endpoint.
     NodeResponse:
       properties:
         id:
@@ -3193,6 +3276,11 @@ components:
           - sensor
           - trigger
           title: Type
+        team:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team
         children:
           anyOf:
           - items:
@@ -3254,12 +3342,44 @@ components:
         received:
           type: boolean
           title: Received
+        received_count:
+          type: integer
+          title: Received Count
+        required_count:
+          type: integer
+          title: Required Count
+        received_keys:
+          items:
+            type: string
+          type: array
+          title: Received Keys
+        required_keys:
+          items:
+            type: string
+          type: array
+          title: Required Keys
+        is_rollup:
+          type: boolean
+          title: Is Rollup
+          default: false
+        mapper_error:
+          type: boolean
+          title: Mapper Error
+          default: false
+        asset_inactive:
+          type: boolean
+          title: Asset Inactive
+          default: false
       type: object
       required:
       - asset_id
       - asset_name
       - asset_uri
       - received
+      - received_count
+      - required_count
+      - received_keys
+      - required_keys
       title: PartitionedDagRunAssetResponse
       description: Asset info within a partitioned Dag run detail.
     PartitionedDagRunCollectionResponse:
@@ -3648,6 +3768,7 @@ components:
       - upstream_failed
       - skipped
       - deferred
+      - awaiting_input
       title: TaskInstanceState
       description: 'All possible states that a Task Instance can be in.
 
@@ -3694,6 +3815,9 @@ components:
         deferred:
           type: integer
           title: Deferred
+        awaiting_input:
+          type: integer
+          title: Awaiting Input
       type: object
       required:
       - no_status
@@ -3709,6 +3833,7 @@ components:
       - upstream_failed
       - skipped
       - deferred
+      - awaiting_input
       title: TaskInstanceStateCount
       description: TaskInstance serializer for responses.
     TeamCollectionResponse:
@@ -3859,6 +3984,7 @@ components:
         kwargs:
           type: string
           title: Kwargs
+          deprecated: true
         created_date:
           type: string
           format: date-time

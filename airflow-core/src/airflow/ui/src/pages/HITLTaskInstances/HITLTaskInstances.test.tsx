@@ -149,6 +149,33 @@ describe("HITLTaskInstances – mapIndex URL param handling (#66428)", () => {
 });
 
 // ---------------------------------------------------------------------------
+// State filter: pending required-action rows park in either "deferred" (pre-3.3)
+// or "awaiting_input" (from 3.3). Filtering on unreceived responses must request
+// both states, otherwise awaiting_input rows are hidden from the listing.
+// ---------------------------------------------------------------------------
+describe("HITLTaskInstances – pending state filter", () => {
+  it("requests both deferred and awaiting_input when filtering for unreceived responses", () => {
+    mockSearchParams = new URLSearchParams("response_received=false");
+
+    render(<HITLTaskInstances />, { wrapper: Wrapper });
+
+    const args = lastListingCall()?.[0] as { state?: Array<string> } | undefined;
+
+    expect(args?.state).toEqual(["deferred", "awaiting_input"]);
+  });
+
+  it("does not send a state filter when not filtering for unreceived responses", () => {
+    mockSearchParams = new URLSearchParams();
+
+    render(<HITLTaskInstances />, { wrapper: Wrapper });
+
+    const args = lastListingCall()?.[0] as { state?: Array<string> } | undefined;
+
+    expect(args?.state).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Refetch predicate — the API serializes `responded_at` as JSON `null`, not an
 // omitted field, so `=== undefined` never matched and the page never polled
 // for new pending actions.
@@ -189,6 +216,28 @@ describe("HITLTaskInstances – auto-refresh predicate", () => {
             {
               responded_at: null,
               task_instance: { state: "deferred" },
+            },
+          ],
+        },
+      },
+    });
+
+    expect(result).toBe(5000);
+  });
+
+  it("triggers refetch when an awaiting_input row has responded_at: null", () => {
+    mockSearchParams = new URLSearchParams();
+
+    render(<HITLTaskInstances />, { wrapper: Wrapper });
+
+    const refetchInterval = getRefetchInterval();
+    const result = refetchInterval({
+      state: {
+        data: {
+          hitl_details: [
+            {
+              responded_at: null,
+              task_instance: { state: "awaiting_input" },
             },
           ],
         },

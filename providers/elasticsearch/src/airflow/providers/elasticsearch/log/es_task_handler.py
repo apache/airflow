@@ -691,8 +691,11 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
             ["@timestamp", *TASK_LOG_FIELDS, self.host_field, self.offset_field, *extra_fields]
         )
 
-    def upload(self, path: os.PathLike | str, ti: RuntimeTI):
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI | None = None) -> None:
         """Write the log to ElasticSearch."""
+        if ti is None:
+            return
+
         path = Path(path)
 
         if path.is_absolute():

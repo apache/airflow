@@ -47,6 +47,20 @@ class PartitionedDagRunAssetResponse(BaseModel):
     asset_name: str
     asset_uri: str
     received: bool
+    received_count: int
+    required_count: int
+    received_keys: list[str]
+    required_keys: list[str]
+    is_rollup: bool = False
+    mapper_error: bool = False
+    """True when the rollup mapper raised; the asset is not-yet-satisfied and
+    counts / keys are placeholders. The scheduler holds the Dag run for this
+    asset — UIs should surface this state rather than treating it as "waiting"."""
+    asset_inactive: bool = False
+    """True when the upstream asset has been deactivated (orphaned — no Dag
+    declares it any more). The scheduler freezes partition evaluation for any
+    APDR depending on this asset; the UI should surface this state rather
+    than treating it as "waiting"."""
 
 
 class PartitionedDagRunDetailResponse(BaseModel):
