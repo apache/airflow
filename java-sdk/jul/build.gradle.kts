@@ -18,8 +18,33 @@
  */
 
 plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention").version("0.10.0")
+    `java-library`
+    id("airflow-jvm-conventions")
+    id("airflow-publish")
 }
 
-rootProject.name = "airflow-java-sdk"
-include("bom", "jul", "plugin", "processor", "sdk", "slf4j")
+dependencies {
+    implementation(project(":sdk"))
+    testImplementation(kotlin("test"))
+}
+
+java {
+    withSourcesJar() // Required by Maven Central.
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("mavenJava") {
+            artifactId = "airflow-sdk-jul"
+            from(components["java"])
+            pom {
+                name = "Apache Airflow Java SDK java.util.Logging Handler"
+                description = "Routes java.util.Logging calls from task code through the SDK to Airflow's task log store."
+            }
+        }
+    }
+}
