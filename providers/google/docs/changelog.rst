@@ -49,6 +49,7 @@ Misc
 
 * ``Bump google-cloud-aiplatform to force upgrade of litellm (#66632)``
 * ``Fix mypy errors for task_instance access in provider triggers (#68685)``
+* ``Add Ray constraints for Python 3.14 in Google provider (#68710)``
 
 Doc-only
 ~~~~~~~~
