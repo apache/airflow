@@ -41,6 +41,11 @@ Changelog
    to a Python-dict-literal string (what classic Jinja produces when rendering a dict pulled from
    XCom), in addition to a mapping or a JSON string.
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Databricks operators with templated json payloads (#68519)``
+
 Misc
 ~~~~
 
