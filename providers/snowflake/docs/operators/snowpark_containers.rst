@@ -46,14 +46,8 @@ To use this operator, you must do a few things:
 
   * :doc:`Setup a Snowflake Connection </connections/snowflake>`.
 
-  * Create a `compute pool <https://docs.snowflake.com/en/sql-reference/sql/create-compute-pool>`__
-    in your Snowflake account.
-
-  * Push a container image to a
-    `Snowflake image repository <https://docs.snowflake.com/en/developer-guide/snowpark-container-services/working-with-registry-repository>`__
-    and prepare a
-    `service specification <https://docs.snowflake.com/en/developer-guide/snowpark-container-services/specification-reference>`__
-    uploaded to a stage.
+  * Create the necessary resources in your Snowflake account. See the
+    `Snowpark Container Services documentation <https://docs.snowflake.com/en/developer-guide/snowpark-container-services/overview>`__.
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
