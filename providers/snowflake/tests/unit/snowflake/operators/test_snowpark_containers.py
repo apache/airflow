@@ -112,8 +112,8 @@ class TestSnowparkContainerJobOperator:
         mock_hook = mock_hook_cls.return_value
         mock_hook.run.return_value = ["Started Snowpark Container Services Job 'TEST_JOB'."]
         op = _make_operator()
-        op._submit_job()
-        assert op.job_name == JOB_NAME
+        result = op._submit_job()
+        assert result == JOB_NAME
 
     @pytest.mark.parametrize(
         "status",
@@ -217,6 +217,20 @@ class TestSnowparkContainerJobOperator:
         mock_error.assert_called_once()
 
     @mock.patch(MOCK_HOOK_PATH)
+    def test_submit_job_raises_on_malformed_response(self, mock_hook_cls):
+        mock_hook = mock_hook_cls.return_value
+        mock_hook.run.return_value = ["unexpected response"]
+        op = _make_operator()
+        with pytest.raises(IndexError):
+            op._submit_job()
+
+    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job", return_value=None)
+    def test_execute_raises_when_job_name_not_returned(self, mock_submit):
+        op = _make_operator()
+        with pytest.raises(RuntimeError, match="Job name was not returned"):
+            op.execute(context=None)
+
+    @mock.patch(MOCK_HOOK_PATH)
     def test_execute_no_wait(self, mock_hook_cls):
         mock_hook = mock_hook_cls.return_value
         mock_hook.run.return_value = ["Started Snowpark Container Services Job 'TEST_JOB'."]
@@ -228,10 +242,9 @@ class TestSnowparkContainerJobOperator:
     @mock.patch(MOCK_HOOK_PATH)
     @mock.patch.object(SnowparkContainerJobOperator, "_log_container_output")
     @mock.patch.object(SnowparkContainerJobOperator, "_poll_for_status", return_value="DONE")
-    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job")
+    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job", return_value=JOB_NAME)
     def test_execute_wait_success(self, mock_submit, mock_poll, mock_log, mock_hook_cls):
         op = _make_operator()
-        op.job_name = JOB_NAME
         result = op.execute(context=None)
         mock_submit.assert_called_once()
         mock_poll.assert_called_once()
@@ -241,32 +254,29 @@ class TestSnowparkContainerJobOperator:
     @mock.patch(MOCK_HOOK_PATH)
     @mock.patch.object(SnowparkContainerJobOperator, "_log_container_output")
     @mock.patch.object(SnowparkContainerJobOperator, "_poll_for_status", return_value="FAILED")
-    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job")
+    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job", return_value=JOB_NAME)
     def test_execute_wait_failure_raises(self, mock_submit, mock_poll, mock_log, mock_hook_cls):
         op = _make_operator()
-        op.job_name = JOB_NAME
         with pytest.raises(RuntimeError, match="FAILED"):
             op.execute(context=None)
         mock_log.assert_called_once_with("FAILED")
 
     @mock.patch.object(SnowparkContainerJobOperator, "_log_container_output")
     @mock.patch.object(SnowparkContainerJobOperator, "_poll_for_status", return_value="DONE")
-    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job")
+    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job", return_value=JOB_NAME)
     @mock.patch(MOCK_HOOK_PATH)
     def test_execute_drops_service_on_completion(self, mock_hook_cls, mock_submit, mock_poll, mock_log):
         mock_hook = mock_hook_cls.return_value
         op = _make_operator(drop_on_completion=True)
-        op.job_name = JOB_NAME
         op.execute(context=None)
         mock_hook.run.assert_called_once_with(f"DROP SERVICE IF EXISTS {JOB_NAME}")
 
     @mock.patch.object(SnowparkContainerJobOperator, "_log_container_output")
     @mock.patch.object(SnowparkContainerJobOperator, "_poll_for_status", return_value="DONE")
-    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job")
+    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job", return_value=JOB_NAME)
     @mock.patch(MOCK_HOOK_PATH)
     def test_execute_skips_drop_when_disabled(self, mock_hook_cls, mock_submit, mock_poll, mock_log):
         mock_hook = mock_hook_cls.return_value
         op = _make_operator(drop_on_completion=False)
-        op.job_name = JOB_NAME
         op.execute(context=None)
         mock_hook.run.assert_not_called()

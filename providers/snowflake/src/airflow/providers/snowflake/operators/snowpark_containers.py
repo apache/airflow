@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Sequence
+from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -28,6 +29,39 @@ from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
+
+
+class SnowparkContainerJobStatus(str, Enum):
+    """Statuses of a Snowpark Container Services."""
+
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    CANCELLING = "CANCELLING"
+    SUSPENDING = "SUSPENDING"
+    DELETING = "DELETING"
+    DONE = "DONE"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    INTERNAL_ERROR = "INTERNAL_ERROR"
+
+
+TERMINAL_STATUSES: frozenset[SnowparkContainerJobStatus] = frozenset(
+    {
+        SnowparkContainerJobStatus.DONE,
+        SnowparkContainerJobStatus.FAILED,
+        SnowparkContainerJobStatus.CANCELLED,
+        SnowparkContainerJobStatus.INTERNAL_ERROR,
+    }
+)
+NON_TERMINAL_STATUSES: frozenset[SnowparkContainerJobStatus] = frozenset(
+    {
+        SnowparkContainerJobStatus.PENDING,
+        SnowparkContainerJobStatus.RUNNING,
+        SnowparkContainerJobStatus.CANCELLING,
+        SnowparkContainerJobStatus.SUSPENDING,
+        SnowparkContainerJobStatus.DELETING,
+    }
+)
 
 
 class SnowparkContainerJobOperator(BaseOperator):
@@ -126,6 +160,7 @@ class SnowparkContainerJobOperator(BaseOperator):
         self.schema = schema
         self.role = role
         self.warehouse = warehouse
+        # Set after the job is submitted, parsed from the job submission response.
         self.job_name: str | None = None
 
         if self.spec_text and (self.spec or self.spec_stage):
@@ -163,19 +198,20 @@ class SnowparkContainerJobOperator(BaseOperator):
         """Run a single statement that returns one row via fetch_one_handler."""
         return self._hook.run(sql, handler=fetch_one_handler, return_dictionaries=return_dictionaries)
 
-    def _submit_job(self) -> None:
-        """Submit the job and store the job name on the instance."""
+    def _submit_job(self) -> str:
+        """Submit the job and return the name."""
         response = self._run_one(self._build_sql())
-        self.job_name = response[0].split("'")[1]
+        job_name = response[0].split("'")[1]
+        return job_name
 
     def _poll_for_status(self) -> str:
         """Poll until the job reaches a terminal state."""
         while True:
             response = self._run_one(f"DESCRIBE SERVICE {self.job_name}", return_dictionaries=True)
             status = response.get("status")
-            if status in ("DONE", "FAILED", "CANCELLED", "INTERNAL_ERROR"):
+            if status in TERMINAL_STATUSES:
                 return status
-            if status not in ("PENDING", "RUNNING", "CANCELLING", "SUSPENDING", "DELETING"):
+            if status not in NON_TERMINAL_STATUSES:
                 raise RuntimeError(f"Job {self.job_name} returned unexpected status: {status}")
             time.sleep(self.poll_interval)
 
@@ -186,7 +222,7 @@ class SnowparkContainerJobOperator(BaseOperator):
             response = self._run_one(sql)[0]
             if not response:
                 continue
-            if status != "DONE":
+            if status != SnowparkContainerJobStatus.DONE:
                 self.log.error("Logs for instance_id %d:\n%s", instance_id, response)
             else:
                 self.log.info("Logs for instance_id %d:\n%s", instance_id, response)
@@ -201,14 +237,14 @@ class SnowparkContainerJobOperator(BaseOperator):
 
     def execute(self, context: Context) -> str:
         """Submit and optionally wait for a Snowpark Container Services job."""
-        self._submit_job()
+        self.job_name = self._submit_job()
         if not self.job_name:
             raise RuntimeError("Job name was not returned")
         if not self.wait_for_completion:
             return self.job_name
         status = self._poll_for_status()
         self._log_container_output(status)
-        if status != "DONE":
+        if status != SnowparkContainerJobStatus.DONE:
             raise RuntimeError(f"Job '{self.job_name}' finished with status: {status}")
         if self.drop_on_completion:
             self._hook.run(f"DROP SERVICE IF EXISTS {self.job_name}")
