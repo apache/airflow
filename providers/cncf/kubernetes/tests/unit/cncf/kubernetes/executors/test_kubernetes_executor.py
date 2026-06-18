@@ -1726,6 +1726,30 @@ class TestKubernetesExecutor:
             "Reading from k8s pod logs failed: error_fetching_pod_log",
         ]
 
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_get_task_log_without_executor_instantiation(
+        self, mock_get_kube_client, create_task_instance_of_operator
+    ):
+        """Verify get_task_log works via classmethod without creating multiprocessing.Manager."""
+        mock_kube_client = mock_get_kube_client.return_value
+        mock_kube_client.read_namespaced_pod_log.return_value = [b"log_line_1", b"log_line_2"]
+        mock_pod = mock.Mock()
+        mock_pod.metadata.name = "test-pod"
+        mock_kube_client.list_namespaced_pod.return_value.items = [mock_pod]
+
+        ti = create_task_instance_of_operator(EmptyOperator, dag_id="test_dag", task_id="test_task")
+
+        # Call the static method directly without creating an executor instance
+        messages, logs = KubernetesExecutor._get_task_log_static(ti=ti, try_number=1)
+
+        assert messages == [
+            "Attempting to fetch logs from pod  through kube API",
+            "Found logs through kube API",
+        ]
+        assert logs[0] == "log_line_1\nlog_line_2"
+        mock_kube_client.read_namespaced_pod_log.assert_called_once()
+
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Airflow 3.2+ prefers new configuration")
     def test_sentry_integration(self):
         assert not KubernetesExecutor.sentry_integration

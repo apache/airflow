@@ -573,6 +573,21 @@ class FileTaskHandler(logging.Handler):
         if executor is not None:
             return executor.get_task_log
 
+        # Load executor class without instantiating to check if it has a static log method
+        try:
+            if executor_name == self.DEFAULT_EXECUTOR_KEY:
+                executor_cls, _ = ExecutorLoader.import_default_executor_cls()
+            else:
+                executor_name_obj = ExecutorLoader.lookup_executor_name_by_str(executor_name)
+                executor_cls, _ = ExecutorLoader.import_executor_cls(executor_name_obj)
+
+            # Check if executor has a static log method to avoid instantiation leak
+            if hasattr(executor_cls, "_get_task_log_static"):
+                return executor_cls._get_task_log_static
+        except Exception:
+            # Fall back to instantiation if static method lookup fails
+            pass
+
         if executor_name == self.DEFAULT_EXECUTOR_KEY:
             self.executor_instances[executor_name] = ExecutorLoader.get_default_executor()
         else:

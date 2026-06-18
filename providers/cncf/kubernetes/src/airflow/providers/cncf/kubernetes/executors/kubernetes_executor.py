@@ -509,7 +509,28 @@ class KubernetesExecutor(BaseExecutor):
                 namespace = pod_override.metadata.namespace
         return namespace or self.conf.get("kubernetes_executor", "namespace")
 
+    @classmethod
+    def _get_pod_namespace_for_log(cls, ti: TaskInstance) -> str:
+        """Get pod namespace for log reading without requiring executor instance."""
+        pod_override = (ti.executor_config or {}).get("pod_override")
+        namespace = None
+        with suppress(Exception):
+            if pod_override is not None:
+                namespace = pod_override.metadata.namespace
+        return namespace or conf.get("kubernetes_executor", "namespace")
+
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
+        """Fetch task log from running Kubernetes pod (instance method for backward compatibility)."""
+        return self.__class__._get_task_log_static(ti, try_number)
+
+    @classmethod
+    def _get_task_log_static(cls, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
+        """
+        Fetch task log from running Kubernetes pod without requiring executor instantiation.
+
+        This method does not create a multiprocessing.Manager, avoiding the memory leak
+        that occurs when the API server reads logs from running tasks.
+        """
         messages = []
         log = []
         try:
@@ -527,7 +548,7 @@ class KubernetesExecutor(BaseExecutor):
                 run_id=ti.run_id,
                 airflow_worker=ti.queued_by_job_id,
             )
-            namespace = self._get_pod_namespace(ti)
+            namespace = cls._get_pod_namespace_for_log(ti)
             pod_list = client.list_namespaced_pod(
                 namespace=namespace,
                 label_selector=selector,
@@ -541,7 +562,7 @@ class KubernetesExecutor(BaseExecutor):
                 namespace=namespace,
                 container="base",
                 follow=False,
-                tail_lines=self.RUNNING_POD_LOG_LINES,
+                tail_lines=cls.RUNNING_POD_LOG_LINES,
                 _preload_content=False,
             )
             for line in res:

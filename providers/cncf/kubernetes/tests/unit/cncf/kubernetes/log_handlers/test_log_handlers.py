@@ -74,12 +74,12 @@ class TestFileTaskLogHandler:
         self.clean_up()
 
     @mock.patch(
-        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.get_task_log"
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._get_task_log_static"
     )
     @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS])
     @pytest.mark.usefixtures("clean_executor_loader")
     def test__read_for_k8s_executor(self, mock_k8s_get_task_log, create_task_instance, state):
-        """Test for k8s executor, the log is read from get_task_log method"""
+        """Test for k8s executor, the log is read from _get_task_log_static method"""
         mock_k8s_get_task_log.return_value = ([], [])
         executor_name = "KubernetesExecutor"
         ti = create_task_instance(

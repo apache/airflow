@@ -291,7 +291,14 @@ class TestFileTaskLogHandler:
         else:
             path_to_executor_class = executors_mapping.get(executor_name)
 
-        with patch(f"{path_to_executor_class}.get_task_log", return_value=([], [])) as mock_get_task_log:
+        from importlib import import_module
+
+        module_path, class_name = path_to_executor_class.rsplit(".", 1)
+        mod = import_module(module_path)
+        cls = getattr(mod, class_name)
+        method_to_patch = "_get_task_log_static" if hasattr(cls, "_get_task_log_static") else "get_task_log"
+
+        with patch(f"{path_to_executor_class}.{method_to_patch}", return_value=([], [])) as mock_get_task_log:
             mock_get_task_log.return_value = ([], [])
             ti = create_task_instance(
                 dag_id="dag_for_testing_multiple_executors",
@@ -328,13 +335,17 @@ class TestFileTaskLogHandler:
             os.remove(log_filename)
             mock_get_task_log.assert_called_once()
 
-            if executor_name is None:
-                mock_get_default_executor.assert_called_once()
-                # will be called in `ExecutorLoader.get_default_executor` method
-                mock_load_executor.assert_called_once_with(default_executor_name)
-            else:
+            if method_to_patch == "_get_task_log_static":
                 mock_get_default_executor.assert_not_called()
-                mock_load_executor.assert_called_once_with(executor_name)
+                mock_load_executor.assert_not_called()
+            else:
+                if executor_name is None:
+                    mock_get_default_executor.assert_called_once()
+                    # will be called in `ExecutorLoader.get_default_executor` method
+                    mock_load_executor.assert_called_once_with(default_executor_name)
+                else:
+                    mock_get_default_executor.assert_not_called()
+                    mock_load_executor.assert_called_once_with(executor_name)
 
     def test_file_task_handler_running(self, dag_maker):
         def task_callable(ti):
