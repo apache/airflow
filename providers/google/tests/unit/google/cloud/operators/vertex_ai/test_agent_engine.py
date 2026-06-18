@@ -47,6 +47,8 @@ OPERATION = {"name": "operations/delete-123", "done": False}
 class FakeModel:
     def __init__(self, payload):
         self.payload = payload
+        for key, value in payload.items():
+            setattr(self, key, value)
 
     def model_dump(self, mode="json"):
         return self.payload
@@ -198,7 +200,7 @@ class TestDeleteAgentEngineOperator:
             force=True,
             config=CONFIG,
         )
-        mock_hook.return_value.wait_for_agent_engine_deleted.assert_not_called()
+        mock_hook.return_value.wait_for_agent_engine_operation.assert_not_called()
         assert result == OPERATION
 
     @mock.patch(AGENT_ENGINE_PATH.format("AgentEngineHook"), autospec=True)
@@ -218,14 +220,32 @@ class TestDeleteAgentEngineOperator:
 
         result = op.execute(context=context)
 
-        mock_hook.return_value.wait_for_agent_engine_deleted.assert_called_once_with(
-            project_id=GCP_PROJECT,
+        mock_hook.return_value.wait_for_agent_engine_operation.assert_called_once_with(
             location=GCP_LOCATION,
-            agent_engine_id=AGENT_ENGINE_ID,
+            operation_name=OPERATION["name"],
             poll_interval=1,
             timeout=60,
         )
         assert result == OPERATION
+
+    @mock.patch(AGENT_ENGINE_PATH.format("AgentEngineHook"), autospec=True)
+    def test_execute_does_not_wait_when_delete_operation_is_done(self, mock_hook, context):
+        operation = {"name": "operations/delete-123", "done": True}
+        mock_hook.return_value.delete_agent_engine.return_value = FakeModel(operation)
+        op = DeleteAgentEngineOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            agent_engine_id=AGENT_ENGINE_ID,
+            wait_for_completion=True,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        result = op.execute(context=context)
+
+        mock_hook.return_value.wait_for_agent_engine_operation.assert_not_called()
+        assert result == operation
 
     @mock.patch(AGENT_ENGINE_PATH.format("AgentEngineDeleteTrigger"), autospec=True)
     @mock.patch(AGENT_ENGINE_PATH.format("AgentEngineHook"), autospec=True)
@@ -255,6 +275,7 @@ class TestDeleteAgentEngineOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
             poll_interval=1,
             timeout=60,
+            operation_name=OPERATION["name"],
         )
         assert exc.value.kwargs == {"operation": OPERATION}
 

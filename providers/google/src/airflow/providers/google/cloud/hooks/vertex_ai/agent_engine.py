@@ -24,6 +24,7 @@ import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+import google.auth.transport.requests
 from asgiref.sync import sync_to_async
 from google.genai._api_client import HttpOptions
 from google.genai.errors import ClientError
@@ -72,7 +73,7 @@ class AgentEngineHook(GoogleBaseHook):
         self,
         location: str,
         agent: Any | None = None,
-        config: Any | None = None,
+        config: types.AgentEngineConfigOrDict | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> types.AgentEngine:
         """
@@ -166,7 +167,7 @@ class AgentEngineHook(GoogleBaseHook):
         self,
         location: str,
         agent_engine_id: str,
-        config: Any,
+        config: types.AgentEngineConfigOrDict,
         agent: Any | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> types.AgentEngine:
@@ -190,7 +191,7 @@ class AgentEngineHook(GoogleBaseHook):
         location: str,
         agent_engine_id: str,
         force: bool | None = None,
-        config: Any | None = None,
+        config: types.DeleteAgentEngineConfigOrDict | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> types.DeleteAgentEngineOperation:
         """
@@ -222,34 +223,45 @@ class AgentEngineHook(GoogleBaseHook):
             raise
         return False
 
-    def wait_for_agent_engine_deleted(
+    def get_agent_engine_operation(self, location: str, operation_name: str) -> dict[str, Any]:
+        """Return a Vertex AI Agent Engine long-running operation."""
+        url = (
+            operation_name
+            if operation_name.startswith("http")
+            else f"https://{location}-aiplatform.googleapis.com/v1beta1/{operation_name}"
+        )
+        session = google.auth.transport.requests.AuthorizedSession(self.get_credentials())
+        response = session.get(url)
+        response.raise_for_status()
+        return response.json()
+
+    def wait_for_agent_engine_operation(
         self,
-        project_id: str,
         location: str,
-        agent_engine_id: str,
+        operation_name: str,
         poll_interval: float = 30,
         timeout: float | None = None,
     ) -> None:
         """
-        Wait until an Agent Engine no longer exists.
+        Wait until an Agent Engine operation completes.
 
-        :param project_id: The ID of the Google Cloud project that the service belongs to.
         :param location: The ID of the Google Cloud location that the service belongs to.
-        :param agent_engine_id: The Agent Engine ID.
+        :param operation_name: The Agent Engine operation name.
         :param poll_interval: Time, in seconds, to wait between checks.
         :param timeout: Optional timeout, in seconds.
         """
         start_time = time.monotonic()
         while True:
-            if self.is_agent_engine_deleted(
-                project_id=project_id,
-                location=location,
-                agent_engine_id=agent_engine_id,
-            ):
+            operation = self.get_agent_engine_operation(location=location, operation_name=operation_name)
+            if operation.get("done"):
+                if operation.get("error"):
+                    raise RuntimeError(
+                        f"Agent Engine operation {operation_name} failed: {operation['error']}"
+                    )
                 return
             if timeout is not None and time.monotonic() - start_time > timeout:
-                raise TimeoutError(f"Timed out waiting for Agent Engine {agent_engine_id} to be deleted")
-            self.log.info("Waiting for Agent Engine %s to be deleted.", agent_engine_id)
+                raise TimeoutError(f"Timed out waiting for Agent Engine operation {operation_name}")
+            self.log.info("Waiting for Agent Engine operation %s to complete.", operation_name)
             time.sleep(poll_interval)
 
 
@@ -277,4 +289,12 @@ class AgentEngineAsyncHook(GoogleBaseAsyncHook):
             project_id=project_id,
             location=location,
             agent_engine_id=agent_engine_id,
+        )
+
+    async def get_agent_engine_operation(self, location: str, operation_name: str) -> dict[str, Any]:
+        """Return a Vertex AI Agent Engine long-running operation."""
+        sync_hook = await self.get_sync_hook()
+        return await sync_to_async(sync_hook.get_agent_engine_operation)(
+            location=location,
+            operation_name=operation_name,
         )

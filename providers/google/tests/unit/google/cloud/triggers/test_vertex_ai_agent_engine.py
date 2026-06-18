@@ -29,6 +29,7 @@ GCP_LOCATION = "us-central1"
 GCP_CONN_ID = "test-conn"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 AGENT_ENGINE_ID = "123"
+OPERATION_NAME = "projects/test-project/locations/us-central1/operations/delete-123"
 
 
 @pytest.fixture
@@ -41,6 +42,7 @@ def delete_trigger():
         impersonation_chain=IMPERSONATION_CHAIN,
         poll_interval=1,
         timeout=60,
+        operation_name=OPERATION_NAME,
     )
 
 
@@ -56,20 +58,20 @@ class TestAgentEngineDeleteTrigger:
                 "impersonation_chain": IMPERSONATION_CHAIN,
                 "poll_interval": 1,
                 "timeout": 60,
+                "operation_name": OPERATION_NAME,
             },
         )
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineAsyncHook", autospec=True)
     async def test_run_loop_return_success_event(self, mock_hook, delete_trigger):
-        mock_hook.return_value.is_agent_engine_deleted.return_value = True
+        mock_hook.return_value.get_agent_engine_operation.return_value = {"done": True}
 
         event = await delete_trigger.run().asend(None)
 
-        mock_hook.return_value.is_agent_engine_deleted.assert_called_once_with(
-            project_id=GCP_PROJECT,
+        mock_hook.return_value.get_agent_engine_operation.assert_called_once_with(
             location=GCP_LOCATION,
-            agent_engine_id=AGENT_ENGINE_ID,
+            operation_name=OPERATION_NAME,
         )
         assert event == TriggerEvent(
             {
@@ -84,7 +86,7 @@ class TestAgentEngineDeleteTrigger:
     @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineAsyncHook", autospec=True)
     async def test_run_loop_return_timeout_event(self, mock_hook, mock_sleep, delete_trigger):
         delete_trigger.timeout = -1
-        mock_hook.return_value.is_agent_engine_deleted.return_value = False
+        mock_hook.return_value.get_agent_engine_operation.return_value = {"done": False}
 
         event = await delete_trigger.run().asend(None)
 
@@ -100,7 +102,7 @@ class TestAgentEngineDeleteTrigger:
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineAsyncHook", autospec=True)
     async def test_run_loop_return_error_event(self, mock_hook, delete_trigger):
-        mock_hook.return_value.is_agent_engine_deleted.side_effect = RuntimeError("boom")
+        mock_hook.return_value.get_agent_engine_operation.side_effect = RuntimeError("boom")
 
         event = await delete_trigger.run().asend(None)
 
@@ -108,6 +110,24 @@ class TestAgentEngineDeleteTrigger:
             {
                 "status": "error",
                 "message": "boom",
+                "agent_engine_id": AGENT_ENGINE_ID,
+            }
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineAsyncHook", autospec=True)
+    async def test_run_loop_return_operation_error_event(self, mock_hook, delete_trigger):
+        mock_hook.return_value.get_agent_engine_operation.return_value = {
+            "done": True,
+            "error": {"message": "boom"},
+        }
+
+        event = await delete_trigger.run().asend(None)
+
+        assert event == TriggerEvent(
+            {
+                "status": "error",
+                "message": "{'message': 'boom'}",
                 "agent_engine_id": AGENT_ENGINE_ID,
             }
         )
