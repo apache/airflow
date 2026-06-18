@@ -151,6 +151,9 @@ class RuntimeTaskInstanceProtocol(Protocol):
     @property
     def mark_success_url(self) -> str: ...
 
+    @property
+    def stats_tags(self) -> dict[str, str]: ...
+
     def xcom_pull(
         self,
         task_ids: str | Iterable[str] | None = None,

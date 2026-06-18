@@ -2011,6 +2011,62 @@ class TestTIUpdateState:
         session.refresh(ti)
         assert ti.state == State.SUCCESS
 
+    def test_ti_update_state_same_state_is_idempotent(self, client, session, create_task_instance):
+        """Test that setting a TI to its current state is treated as an idempotent no-op."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_same_state_is_idempotent",
+            state=State.SUCCESS,
+            session=session,
+            start_date=DEFAULT_START_DATE,
+        )
+        ti.end_date = DEFAULT_END_DATE
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": timezone.parse("2024-10-31T13:00:00Z").isoformat(),
+            },
+        )
+        assert response.status_code == 200
+        assert response.content == b""
+
+        session.refresh(ti)
+        assert ti.state == State.SUCCESS
+        assert ti.end_date == DEFAULT_END_DATE
+
+    def test_ti_update_state_terminal_state_mismatch_returns_conflict(
+        self, client, session, create_task_instance
+    ):
+        """A completed TI cannot be updated to a different state."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_terminal_state_mismatch_returns_conflict",
+            state=State.SUCCESS,
+            session=session,
+            start_date=DEFAULT_START_DATE,
+        )
+        ti.end_date = DEFAULT_END_DATE
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "failed",
+                "end_date": timezone.parse("2024-10-31T13:00:00Z").isoformat(),
+            },
+        )
+        assert response.status_code == 409
+        assert response.json()["detail"] == {
+            "reason": "invalid_state",
+            "message": "TI was not in the running state so it cannot be updated",
+            "previous_state": State.SUCCESS,
+        }
+
+        session.refresh(ti)
+        assert ti.state == State.SUCCESS
+        assert ti.end_date == DEFAULT_END_DATE
+
     def test_ti_update_state_to_failed_without_fail_fast(self, client, session, dag_maker):
         """Test that SerializedDAG is NOT loaded when fail_fast=False (default)."""
         with dag_maker(dag_id="test_dag_no_fail_fast", serialized=True):
@@ -4188,3 +4244,19 @@ class TestEmitTaskSpan:
 
         _emit_task_span(ti, TaskInstanceState.SUCCESS)
         assert len(self.exporter.get_finished_spans()) == 0
+
+    @pytest.mark.parametrize(
+        ("trace_flag", "expected_spans"),
+        [
+            pytest.param("01", 1, id="sampled-carrier-emits"),
+            pytest.param("00", 0, id="unsampled-carrier-skips"),
+        ],
+    )
+    def test_emit_task_span_honors_dagrun_carrier_sampling(self, trace_flag, expected_spans):
+        """A SAMPLED dag_run carrier (flag 01) emits the task span; an unsampled one (flag 00) is head-sampled out."""
+        ti = self._make_ti()
+        ti.dag_run.context_carrier = {
+            "traceparent": f"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-{trace_flag}"
+        }
+        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+        assert len(self.exporter.get_finished_spans()) == expected_spans

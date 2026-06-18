@@ -17,11 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from collections.abc import Sequence
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 
 import google.cloud.exceptions
-from google.api_core.exceptions import AlreadyExists
+from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
+from google.cloud import logging as gcp_logging
 from google.cloud.run_v2 import Job, Service
 
 from airflow.providers.common.compat.sdk import AirflowException, conf
@@ -35,6 +38,8 @@ if TYPE_CHECKING:
     from google.cloud.run_v2.types import Execution
 
     from airflow.providers.common.compat.sdk import Context
+
+FAILED_EXECUTION_LOG_FETCH_DELAY_SECONDS = 1
 
 
 class CloudRunCreateJobOperator(GoogleCloudBaseOperator):
@@ -302,6 +307,16 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
     :param transport: Optional. The transport to use for API requests. Can be 'rest' or 'grpc'.
         If set to None, a transport is chosen automatically. Use 'rest' if gRPC is not available
         or fails in your environment (e.g., Docker containers with certain network configurations).
+    :param verbose: If True, container ``stdout``/``stderr`` from the Cloud Run job execution
+        is fetched from Cloud Logging once the execution finishes and forwarded into the
+        Airflow task log. Logs are also forwarded when the execution fails so that the
+        container output remains visible for debugging. Requires the service account used by
+        ``gcp_conn_id`` to have ``roles/logging.viewer`` on the project. Each task instance
+        issues at least one Cloud Logging Read API request (more if the execution produces
+        enough log entries to paginate). Failed executions wait briefly before fetching logs
+        to catch late-arriving log entries. Requests count against the project-wide quota of
+        60 read requests per minute (see https://cloud.google.com/logging/quotas#api-limits).
+        Default: ``False``.
     """
 
     operator_extra_links = (CloudRunJobLoggingLink(),)
@@ -330,6 +345,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         transport: Literal["rest", "grpc"] | None = None,
+        verbose: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -344,15 +360,11 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         self.deferrable = deferrable
         self.use_regional_endpoint = use_regional_endpoint
         self.transport = transport
+        self.verbose = verbose
         self.operation: operation.Operation | None = None
 
     def execute(self, context: Context):
-        hook: CloudRunHook = CloudRunHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-            transport=self.transport,
-        )
-        self.operation = hook.execute_job(
+        self.operation = self.hook.execute_job(
             region=self.region,
             project_id=self.project_id,
             job_name=self.job_name,
@@ -371,8 +383,12 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
 
         if not self.deferrable:
             result: Execution = self._wait_for_operation(self.operation)
+            if self.verbose and result.name:
+                if self._has_execution_failed(result):
+                    time.sleep(FAILED_EXECUTION_LOG_FETCH_DELAY_SECONDS)
+                self._log_container_output(result.name.rsplit("/", 1)[-1])
             self._fail_if_execution_failed(result)
-            job = hook.get_job(
+            job = self.hook.get_job(
                 job_name=result.job,
                 region=self.region,
                 project_id=self.project_id,
@@ -401,25 +417,75 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
             raise AirflowException("Operation timed out")
 
         if status == RunJobStatus.FAIL.value:
+            if self.verbose and event.get("execution_name"):
+                time.sleep(FAILED_EXECUTION_LOG_FETCH_DELAY_SECONDS)
+                self._log_container_output(event["execution_name"])
             error_code = event["operation_error_code"]
             error_message = event["operation_error_message"]
             raise AirflowException(
                 f"Operation failed with error code [{error_code}] and error message [{error_message}]"
             )
 
-        hook: CloudRunHook = CloudRunHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-            transport=self.transport,
-        )
+        if self.verbose and event.get("execution_name"):
+            self._log_container_output(event["execution_name"])
 
-        job = hook.get_job(
+        job = self.hook.get_job(
             job_name=event["job_name"],
             region=self.region,
             project_id=self.project_id,
             use_regional_endpoint=self.use_regional_endpoint,
         )
         return Job.to_dict(job)
+
+    @cached_property
+    def hook(self) -> CloudRunHook:
+        return CloudRunHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+            transport=self.transport,
+        )
+
+    def _log_container_output(self, execution_name: str) -> None:
+        """Forward Cloud Run container logs for ``execution_name`` into the Airflow task log."""
+        log_filter = (
+            'resource.type="cloud_run_job" '
+            f'resource.labels.job_name="{self.job_name}" '
+            f'resource.labels.location="{self.region}" '
+            f'labels."run.googleapis.com/execution_name"="{execution_name}" '
+            'NOT logName:"cloudaudit.googleapis.com"'
+        )
+        try:
+            client = gcp_logging.Client(
+                project=self.project_id,
+                credentials=self.hook.get_credentials(),
+            )
+            for entry in client.list_entries(filter_=log_filter, order_by=gcp_logging.ASCENDING):
+                payload = entry.payload
+                if isinstance(payload, str):
+                    self.log.info(payload)
+                else:
+                    self.log.info("%s", payload)
+        except GoogleAPICallError as exc:
+            self.log.warning(
+                "Could not fetch container logs from Cloud Logging (execution=%s): %s. "
+                "Task result is unaffected.",
+                execution_name,
+                exc,
+            )
+
+    def _log_container_output_for_operation(self, operation: operation.Operation) -> None:
+        """Forward container logs using the execution metadata on a Cloud Run operation."""
+        if execution_name := self._get_execution_name_from_operation(operation):
+            time.sleep(FAILED_EXECUTION_LOG_FETCH_DELAY_SECONDS)
+            self._log_container_output(execution_name)
+
+    @staticmethod
+    def _get_execution_name_from_operation(operation: operation.Operation) -> str | None:
+        metadata = getattr(operation, "metadata", None)
+        execution_full_name = getattr(metadata, "name", None)
+        if isinstance(execution_full_name, str) and execution_full_name:
+            return execution_full_name.rsplit("/", 1)[-1]
+        return None
 
     def _fail_if_execution_failed(self, execution: Execution):
         task_count = execution.task_count
@@ -432,10 +498,19 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         if failed_count > 0:
             raise AirflowException("Some tasks failed execution")
 
+    @staticmethod
+    def _has_execution_failed(execution: Execution) -> bool:
+        return (
+            execution.failed_count > 0
+            or execution.succeeded_count + execution.failed_count != execution.task_count
+        )
+
     def _wait_for_operation(self, operation: operation.Operation):
         try:
             return operation.result(timeout=self.timeout_seconds)
         except Exception:
+            if self.verbose:
+                self._log_container_output_for_operation(operation)
             error = operation.exception(timeout=self.timeout_seconds)
             raise AirflowException(error)
 

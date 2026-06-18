@@ -44,7 +44,7 @@ from airflow.models.asset import (
 )
 from airflow.models.log import Log
 from airflow.timetables.base import compute_rollup_fingerprint
-from airflow.utils.helpers import is_container
+from airflow.utils.helpers import is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
 
@@ -397,7 +397,12 @@ class AssetManager(LoggingMixin):
             )
         )
 
-        stats.incr("asset.updates")
+        team_name = None
+        if task_instance and conf.getboolean("core", "multi_team"):
+            from airflow.models.dag import DagModel
+
+            team_name = DagModel.get_team_name(task_instance.dag_id, session=session)
+        stats.incr("asset.updates", tags=prune_dict({"team_name": team_name}))
 
         dags_to_queue = (
             dags_to_queue_from_asset | dags_to_queue_from_asset_alias | dags_to_queue_from_asset_ref
@@ -405,7 +410,6 @@ class AssetManager(LoggingMixin):
 
         if conf.getboolean("core", "multi_team"):
             if task_instance:
-                team_name = DagModel.get_team_name(task_instance.dag_id, session=session)
                 resolved_source_teams = {team_name} if team_name else set()
                 # Resolve consumer-team filtering from the outlet reference
                 outlet_ref = session.scalar(

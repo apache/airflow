@@ -90,6 +90,31 @@ class HITLReviewLink(BaseOperatorLink):
         )
 
 
+def _build_code_mode() -> Any:
+    """
+    Return a pydantic-ai-harness ``CodeMode`` capability, or raise if not installed.
+
+    Kept here (not a module-level import) because ``pydantic-ai-harness`` is an
+    optional dependency behind the ``code-mode`` extra; importing it eagerly
+    would break installs that don't enable the extra.
+    """
+    try:
+        from pydantic_ai_harness import CodeMode
+    except ImportError as e:
+        # Only report "extra not installed" when pydantic-ai-harness itself is
+        # missing. A failure deeper in its import chain (a broken or missing
+        # transitive dependency) is a different problem -- re-raise it as-is so
+        # the real error isn't masked by a misleading "install the extra" message.
+        missing = e.name or ""
+        if missing == "pydantic_ai_harness" or missing.startswith("pydantic_ai_harness."):
+            raise AirflowOptionalProviderFeatureException(
+                "code_mode=True requires the 'code-mode' extra. Install it with "
+                '`pip install "apache-airflow-providers-common-ai[code-mode]"`.'
+            ) from e
+        raise
+    return CodeMode()
+
+
 class AgentOperator(BaseOperator, HITLReviewMixin):
     """
     Run a pydantic-ai Agent with tools and multi-turn reasoning.
@@ -123,8 +148,24 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         or tool budget. ``None`` (default) means no enforcement.
     :param durable: When ``True``, enables step-level caching of model
         responses and tool results for durable execution.  On retry, cached
-        steps are replayed instead of re-executing.  Default ``False``.
+        steps are replayed instead of re-executing.  Each cached step is
+        verified against the current request before replay: if the prompt,
+        model, settings, tools, or message history changed since the failed
+        attempt, the affected steps re-run live (with a warning) instead of
+        replaying stale results.  Default ``False``.
         Requires ``[common.ai] durable_cache_path`` to be set.
+    :param code_mode: When ``True``, wraps the agent's tools in a single
+        ``run_code`` tool powered by the Monty sandbox (pydantic-ai-harness
+        ``CodeMode``). Instead of one model round-trip per tool call, the model
+        writes Python that calls the tools as functions, with loops and
+        ``asyncio.gather``, in one turn. The generated code runs in Monty's
+        deny-by-default sandbox; the tools it calls still run in the worker, so
+        ``code_mode`` does not widen what the tools can reach -- it only changes
+        how the model invokes them. Requires the ``code-mode`` extra
+        (``pip install "apache-airflow-providers-common-ai[code-mode]"``).
+        Cannot be combined with ``durable=True`` (durable replay assumes a
+        stable per-step call order that code mode does not guarantee).
+        Default ``False``.
 
     **HITL Review parameters** (requires the ``hitl_review`` plugin):
 
@@ -175,6 +216,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         agent_params: dict[str, Any] | None = None,
         usage_limits: UsageLimits | None = None,
         durable: bool = False,
+        code_mode: bool = False,
         # Agent feedback parameters
         enable_hitl_review: bool = False,
         max_hitl_iterations: int = 5,
@@ -200,9 +242,19 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.usage_limits = usage_limits
 
         self.durable = durable
+        self.code_mode = code_mode
 
         if durable and enable_hitl_review:
             raise ValueError("durable=True and enable_hitl_review=True cannot be used together.")
+
+        if durable and code_mode:
+            # Durable replay caches individual model/tool steps via CachingModel /
+            # CachingToolset and a shared step counter that assumes a stable call
+            # order across runs. Code mode collapses tools into one ``run_code``
+            # tool and lets the model emit arbitrary Python, so step counts and
+            # ordering can differ between the original run and a retry, breaking
+            # replay. Reject the combination rather than silently mis-replaying.
+            raise ValueError("durable=True and code_mode=True cannot be used together.")
 
         self.enable_hitl_review = enable_hitl_review
         self.max_hitl_iterations = max_hitl_iterations
@@ -234,6 +286,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             if self.enable_tool_logging:
                 toolsets = wrap_toolsets_for_logging(toolsets, self.log)
             extra_kwargs["toolsets"] = toolsets
+        if self.code_mode:
+            capabilities = list(extra_kwargs.get("capabilities") or [])
+            capabilities.append(_build_code_mode())
+            extra_kwargs["capabilities"] = capabilities
         return self.llm_hook.create_agent(
             output_type=self.output_type,
             instructions=self.system_prompt,

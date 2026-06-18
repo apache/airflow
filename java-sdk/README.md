@@ -129,6 +129,9 @@ rm -rf ~/.m2/repository/org/apache/airflow/  # Start clean.
 # The airflow-sdk runtime.
 less ~/.m2/repository/org/apache/airflow/airflow-sdk/*/airflow-sdk-*.pom
 
+# The bill of materials of airflow-sdk
+less ~/.m2/repository/org/apache/airflow/airflow-sdk-bom/*/*.pom
+
 # The annotation processor for the builder pattern.
 less ~/.m2/repository/org/apache/airflow/airflow-sdk-processor/*/airflow-sdk-*.pom
 
@@ -148,6 +151,7 @@ To test the full publish flow without touching ASF infrastructure, override the
 repository URL to a local directory
 
 ```bash
+rm -rf /tmp/local-maven-repo  # Start clean.
 ./gradlew publish -PmavenUrl=file:///tmp/local-maven-repo -PskipSigning=true
 ls /tmp/local-maven-repo/org/apache/airflow/
 # This should contain the same components in ~/.m2 as inspected in the previous step.
@@ -180,6 +184,14 @@ newlines, which does not work well in a Gradle properties file.
 *NOTE:* You can also use the following environment variables to provide the
 credentials instead: `ASF_NEXUS_USERNAME`, `ASF_NEXUS_PASSWORD`, `SIGNING_KEY`,
 and `SIGNING_PASSWORD`. This is especially useful on e.g. CI.
+
+### Verify the upload
+
+Verify all artifacts have been released correctly to the
+[ASF Nexus server](https://repository.apache.org/#nexus-search;quick~org.apache.airflow).
+
+Check *Updated by* (should be your ID), *Uploaded Date*, and *Last Modified*.
+
 
 ## Technical Details
 

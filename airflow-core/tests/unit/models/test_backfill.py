@@ -41,11 +41,12 @@ from airflow.models.backfill import (
     _create_backfill,
     _do_dry_run,
     _get_latest_dag_run_row_query,
+    _handle_clear_run,
 )
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import Asset, CronPartitionTimetable, PartitionedAssetTimetable
 from airflow.ti_deps.dep_context import DepContext
-from airflow.timetables.base import DagRunInfo
+from airflow.timetables.base import DagRunInfo, DataInterval
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.strings import get_random_string
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -1259,3 +1260,118 @@ def test_backfill_partitioned_offset_zero_behavior_unchanged(dag_maker, session)
         str(pendulum.instance(x.partition_date).in_timezone("Asia/Taipei").date()) for x in dag_runs
     ]
     assert partition_date_labels == ["2026-02-18", "2026-02-19", "2026-02-20"]
+
+
+def test_partitioned_backfill_reprocess_failed(dag_maker, session):
+    """Partitioned backfill with reprocess_behavior=FAILED creates a new run, keeping the failed one.
+
+    Unlike non-partitioned Dags (which clear and re-queue), partitioned backfills create a
+    fresh run alongside the existing failed one. The prior run is kept as a historical record;
+    the new backfill run becomes the active one (latest start_date wins in deduplication).
+    """
+    with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei")) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    # Determine the UTC partition_date for the 2026-02-18 Asia/Taipei partition.
+    info = next(
+        i for i in dag.iter_dagrun_infos_between(pendulum.parse("2026-02-18"), pendulum.parse("2026-02-18"))
+    )
+    expected_partition_date = info.partition_date
+
+    # Simulate a previously-scheduled run that failed.
+    dag_maker.create_dagrun(
+        run_id="scheduled__2026-02-18",
+        logical_date=None,
+        run_type="scheduled",
+        state=DagRunState.FAILED,
+        partition_key=info.partition_key,
+        partition_date=expected_partition_date,
+        session=session,
+    )
+    session.commit()
+
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2026-02-18"),
+        to_date=pendulum.parse("2026-02-18"),
+        max_active_runs=1,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf={},
+        reprocess_behavior=ReprocessBehavior.FAILED,
+    )
+
+    session.expunge_all()
+
+    all_runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag.dag_id)).all()
+    # Two runs: original failed run kept as historical record + new backfill run.
+    assert len(all_runs) == 2
+
+    failed_run = next(r for r in all_runs if r.run_id == "scheduled__2026-02-18")
+    assert failed_run.state == DagRunState.FAILED
+
+    backfill_run = next(r for r in all_runs if r.run_id != "scheduled__2026-02-18")
+    assert backfill_run.state == DagRunState.QUEUED
+    assert backfill_run.run_type == DagRunType.BACKFILL_JOB
+    assert backfill_run.partition_date == expected_partition_date
+
+    # BackfillDagRun links to the new run, not the historical failed one.
+    bdr = session.scalar(select(BackfillDagRun).where(BackfillDagRun.backfill_id == b.id))
+    assert bdr is not None
+    assert bdr.dag_run_id == backfill_run.id
+    assert bdr.partition_key == info.partition_key
+
+
+def test_handle_clear_run_preserves_partition_key(dag_maker, session):
+    """BackfillDagRun created via the clear/reprocess path carries partition_key from info."""
+
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    logical_date = timezone.parse("2026-01-10")
+    dr = dag_maker.create_dagrun(
+        run_id="scheduled_2026-01-10",
+        logical_date=logical_date,
+        session=session,
+        state="failed",
+    )
+    session.commit()
+
+    # Create a Backfill row so the foreign-key constraint is satisfied.
+    backfill = Backfill(
+        dag_id=dag.dag_id,
+        from_date=logical_date,
+        to_date=logical_date,
+        dag_run_conf=None,
+        max_active_runs=1,
+        reprocess_behavior=ReprocessBehavior.FAILED,
+    )
+    session.add(backfill)
+    session.flush()
+
+    partition_key = "2026-01-10T00:00:00"
+    info = DagRunInfo(
+        run_after=logical_date,
+        data_interval=DataInterval(logical_date, logical_date),
+        partition_key=partition_key,
+        partition_date=None,
+    )
+
+    _handle_clear_run(
+        session=session,
+        dag=dag,
+        dr=dr,
+        info=info,
+        backfill_id=backfill.id,
+        sort_ordinal=1,
+    )
+    session.flush()
+
+    bdr = session.scalar(
+        select(BackfillDagRun).where(
+            BackfillDagRun.backfill_id == backfill.id,
+            BackfillDagRun.dag_run_id == dr.id,
+        )
+    )
+    assert bdr is not None
+    assert bdr.partition_key == partition_key
