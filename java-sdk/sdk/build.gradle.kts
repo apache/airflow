@@ -52,6 +52,10 @@ dependencies {
     implementation("org.msgpack:msgpack-core:0.9.11")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.11")
 
+    // Exposed as api: the SDK ships the SLF4J binding, so consumers should not
+    // pull in (and conflict with) a different slf4j-api version.
+    api("org.slf4j:slf4j-api:2.0.17")
+
     testImplementation(kotlin("test"))
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }
