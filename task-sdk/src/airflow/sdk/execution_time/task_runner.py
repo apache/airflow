@@ -448,6 +448,8 @@ class RuntimeTaskInstance(TaskInstance):
             task_ids = [self.task_id]
         elif isinstance(task_ids, str):
             task_ids = [task_ids]
+        else:
+            task_ids = list(task_ids)
 
         if not is_arg_set(map_indexes):
             map_indexes_iterable: Iterable[int | None] | ArgNotSet = NOTSET
