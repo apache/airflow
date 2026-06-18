@@ -179,9 +179,12 @@
   "note": {
     "add": "Add a note",
     "dagRun": "Dag Run Note",
+    "edit": "Edit note",
     "label": "Note",
     "placeholder": "Add a note...",
-    "taskInstance": "Task Instance Note"
+    "preview": "Preview",
+    "taskInstance": "Task Instance Note",
+    "write": "Write"
   },
   "overallStatus": "Overall Status",
   "partitionedDagRun_one": "Partitioned Dag Run",

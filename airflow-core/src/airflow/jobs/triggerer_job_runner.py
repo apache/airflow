@@ -110,7 +110,7 @@ from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.serialization.serialized_objects import DagSerialization
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, DiscrimatedTriggerEvent, TriggerEvent
 from airflow.triggers.shared_stream import SharedStreamManager
-from airflow.utils.helpers import log_filename_template_renderer
+from airflow.utils.helpers import log_filename_template_renderer, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session, provide_session
 
@@ -679,7 +679,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         perform_heartbeat(self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True)
 
     def heartbeat_callback(self, session: Session | None = None) -> None:
-        stats.incr("triggerer_heartbeat", 1, 1)
+        stats.incr("triggerer_heartbeat", 1, 1, tags=prune_dict({"team_name": self.team_name}))
 
     def load_triggers(self) -> None:
         """Assign triggers to this triggerer and update the runner with the IDs it should run."""
@@ -710,7 +710,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if entry.persist_seq is not None:
                 self.persisted_event_seqs.append(entry.persist_seq)
             # Emit stat event
-            stats.incr("triggers.succeeded")
+            stats.incr("triggers.succeeded", tags=prune_dict({"team_name": self.team_name}))
 
     def on_trigger_event(self, trigger_id: int, event: TriggerEvent) -> None:
         """Record that a trigger fired an event."""
@@ -731,7 +731,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             trigger_id, exc = self.failed_triggers.popleft()
             self.on_trigger_failure(trigger_id=trigger_id, exc=exc)
             # Emit stat event
-            stats.incr("triggers.failed")
+            stats.incr("triggers.failed", tags=prune_dict({"team_name": self.team_name}))
 
     def on_trigger_failure(self, trigger_id: int, exc: list[str] | None) -> None:
         """Record that a trigger failed."""
@@ -753,7 +753,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 "TriggerRunnerSupervisor.metric_tags() requires a Job with a hostname; "
                 "subclasses without a metadata-DB Job must override this method."
             )
-        return {"hostname": hostname}
+        return prune_dict({"hostname": hostname, "team_name": self.team_name})
 
     def emit_metrics(self):
         tags = self.metric_tags()

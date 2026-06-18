@@ -37,6 +37,7 @@ import {
   waitForDagReady,
   waitForDagRunStatus,
 } from "../utils/api/dag-runs";
+import { setupPendingHITLFlowViaAPI } from "../utils/api/hitl";
 import { uniqueRunId } from "../utils/shared";
 import { test as base } from "./pom";
 
@@ -54,11 +55,18 @@ export type SuccessAndFailedRunsData = {
   successRun: DagRunFixtureData;
 };
 
+export type HITLRunFixtureData = {
+  dagId: string;
+  runId: string;
+};
+
 export type DataWorkerFixtures = {
   /** Ensures the default test Dag is parsed and ready. Worker-scoped, no cleanup needed. */
   dagReady: string;
   /** A Dag run triggered via scheduler and completed. Worker-scoped with auto-cleanup. */
   executedDagRun: DagRunFixtureData;
+  /** A pending HITL Dag run. Worker-scoped with auto-cleanup. */
+  pendingHITLRun: HITLRunFixtureData;
   /** Two Dag runs: one success, one failed. Worker-scoped with auto-cleanup. */
   successAndFailedRuns: SuccessAndFailedRunsData;
   /** A Dag run in "success" state (API-only, no scheduler). Worker-scoped with auto-cleanup. */
@@ -144,6 +152,24 @@ export const test = base.extend<DataTestFixtures, DataWorkerFixtures>({
       }
     },
     { scope: "worker", timeout: 180_000 },
+  ],
+
+  pendingHITLRun: [
+    async ({ authenticatedRequest }, use) => {
+      const dagId = testConfig.testDag.hitlId;
+      let runId: string | undefined;
+
+      try {
+        runId = await setupPendingHITLFlowViaAPI(authenticatedRequest, dagId);
+
+        await use({ dagId, runId });
+      } finally {
+        if (runId !== undefined) {
+          await safeCleanupDagRun(authenticatedRequest, dagId, runId);
+        }
+      }
+    },
+    { scope: "worker", timeout: 120_000 },
   ],
 
   successAndFailedRuns: [

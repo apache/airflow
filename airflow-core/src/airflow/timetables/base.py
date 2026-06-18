@@ -292,6 +292,45 @@ class Timetable(Protocol):
             datetime.datetime(day.year, day.month, day.day, tzinfo=datetime.timezone.utc)
         )
 
+    def resolve_partition_date(self, partition_key: str | None) -> datetime.datetime | None:
+        """
+        Decode *partition_key* into the period-start datetime it represents.
+
+        Returns the timezone-aware datetime that was used to format *partition_key*
+        when the timetable originally created the run, or ``None`` when no temporal
+        meaning can be derived from the key. ``None`` is returned without decoding
+        when *partition_key* is ``None``, when this timetable is not ``partitioned``,
+        or when it defers partition selection to runtime (``partitioned_at_runtime``).
+
+        Partitioned timetables whose keys carry a temporal structure override
+        :meth:`_decode_partition_date`:
+
+        - :class:`~airflow.timetables.trigger.CronPartitionTimetable` parses the
+          key with ``strptime`` using its ``key_format`` and localizes with its
+          timezone.
+        - :class:`~airflow.timetables.simple.PartitionedAssetTimetable` delegates
+          to each asset's partition mapper; when the mappers agree on the same
+          instant it is returned, otherwise ``None`` is returned.
+
+        :param partition_key: The partition key string to decode, or ``None``.
+        :returns: The period-start datetime, or ``None`` if not resolvable.
+        :raises InvalidPartitionKeyError: When *partition_key* is syntactically
+            invalid for this timetable's key format (e.g. ``strptime`` fails).
+        """
+        if partition_key is None or not self.partitioned or self.partitioned_at_runtime:
+            return None
+        return self._decode_partition_date(partition_key)
+
+    def _decode_partition_date(self, partition_key: str) -> datetime.datetime | None:
+        """
+        Decode a non-empty *partition_key* into its period-start datetime.
+
+        Called by :meth:`resolve_partition_date` only after the partitioned-state
+        guards pass. The default returns ``None``; partitioned timetables whose
+        keys carry temporal structure override this.
+        """
+        return None
+
     @property
     def partition_mapper_info(self) -> list[PartitionMapperInfo]:
         """
