@@ -17,32 +17,36 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
+import warnings
 
 from airflow.cli.utils import deprecated_for_airflowctl
-from airflow.exceptions import RemovedInAirflow4Warning
 
 
 class TestDeprecatedForAirflowctl:
-    def test_emits_warning_naming_replacement(self):
+    def test_records_replacement_without_emitting_a_user_warning(self):
         @deprecated_for_airflowctl("airflowctl dags trigger")
         def command(args):
             return "result"
 
-        with pytest.warns(RemovedInAirflow4Warning, match="airflowctl dags trigger"):
+        # Calling the command emits nothing to users (any warning would become an error here).
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
             result = command(args=None)
 
-        # The wrapped command still runs and returns its value.
         assert result == "result"
+        # The replacement is recorded for maintainers, not shown to users.
+        assert command._migrated_to_airflowctl == "airflowctl dags trigger"
+        assert "airflowctl dags trigger" in command.__doc__
 
-    def test_passes_through_args_and_preserves_metadata(self):
+    def test_passes_through_args_and_appends_maintainer_note(self):
         @deprecated_for_airflowctl("airflowctl pools create")
         def command(a, b, *, c):
             """Original docstring."""
             return (a, b, c)
 
-        with pytest.warns(RemovedInAirflow4Warning):
-            assert command(1, 2, c=3) == (1, 2, 3)
-
+        assert command(1, 2, c=3) == (1, 2, 3)
+        # The decorator returns the original function untouched apart from the metadata it records.
         assert command.__name__ == "command"
-        assert command.__doc__ == "Original docstring."
+        assert command.__doc__.startswith("Original docstring.")
+        assert "airflowctl pools create" in command.__doc__
+        assert command._migrated_to_airflowctl == "airflowctl pools create"
