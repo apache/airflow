@@ -408,3 +408,28 @@ class TestPluginsManager:
         with mock.patch("airflow.plugins_manager._load_plugins_from_plugin_directory", return_value=([], [])):
             plugins = plugins_manager._get_plugins()[0]
         assert len(plugins) == 6
+
+
+class TestWindowPluginRegistration:
+    """``windows`` plugin attribute surfaces via ``get_windows_plugins()``."""
+
+    def test_windows_attribute_surfaces_via_getter(self):
+        from airflow import plugins_manager
+        from airflow.partition_mappers.window import Window
+
+        class MyCustomWindow(Window):
+            name = "test_window_plugin"
+
+            def to_upstream(self, decoded_downstream):
+                return [decoded_downstream]
+
+        class MyWindowPlugin(AirflowPlugin):
+            name = "test_window_plugin"
+            windows = [MyCustomWindow]
+
+        with mock_plugin_manager(plugins=[MyWindowPlugin()]):
+            plugins_manager.get_windows_plugins.cache_clear()
+            registered = plugins_manager.get_windows_plugins()
+
+        assert qualname(MyCustomWindow) in registered
+        assert registered[qualname(MyCustomWindow)] is MyCustomWindow
