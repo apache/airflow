@@ -139,20 +139,25 @@ class Server(
    */
   suspend fun serveAsync(bundle: Bundle) =
     coroutineScope {
-      launch {
-        aSocket(SelectorManager(Dispatchers.IO)).tcp().connect(comm).use { socket ->
-          logger.debug("Connected comm", mapOf("addr" to comm))
-          CoordinatorComm(
-            bundle,
-            socket.openReadChannel(),
-            socket.openWriteChannel(autoFlush = true),
-          ).startProcessing()
+      val commJob =
+        launch {
+          aSocket(SelectorManager(Dispatchers.IO)).tcp().connect(comm).use { socket ->
+            logger.debug("Connected comm", mapOf("addr" to comm))
+            CoordinatorComm(
+              bundle,
+              socket.openReadChannel(),
+              socket.openWriteChannel(autoFlush = true),
+            ).startProcessing()
+          }
         }
-      }
       launch {
         aSocket(SelectorManager(Dispatchers.IO)).tcp().connect(logs).use { socket ->
           logger.debug("Connected logs", mapOf("addr" to logs))
           LogSender.configure(socket.openWriteChannel(autoFlush = true))
+          // Keep the logs socket open for the whole task run; otherwise `use`
+          // closes it the moment configure() returns and every task log is
+          // buffered and dropped when the process exits.
+          commJob.join()
         }
       }
     }
