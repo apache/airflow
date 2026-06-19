@@ -771,6 +771,20 @@ class TestPopenActivitySubprocessStart:
         env = popen_mock.call_args.kwargs["env"]
         assert env["AIRFLOW__LOGGING__LOGGING_LEVEL"] == "DEBUG"
 
+    @conf_vars({("logging", "namespace_levels"): "sqlalchemy=INFO, botocore=WARNING"})
+    def test_namespace_levels_passed_to_subprocess_env(self, mock_client):
+        """Per-logger levels are propagated verbatim for the runtime to parse."""
+        _, popen_mock, _ = self._start_with_mocks(mock_client, command=["/bin/true"])
+        env = popen_mock.call_args.kwargs["env"]
+        assert env["AIRFLOW__LOGGING__NAMESPACE_LEVELS"] == "sqlalchemy=INFO, botocore=WARNING"
+
+    @conf_vars({("logging", "namespace_levels"): ""})
+    def test_namespace_levels_omitted_when_unset(self, mock_client):
+        """An empty value has no pairs to parse, so the variable is left out."""
+        _, popen_mock, _ = self._start_with_mocks(mock_client, command=["/bin/true"])
+        env = popen_mock.call_args.kwargs["env"]
+        assert "AIRFLOW__LOGGING__NAMESPACE_LEVELS" not in env
+
     def test_register_pipe_readers_called_with_four_sockets(self, mock_client):
         """Both socketpair read-ends and both TCP sockets must be registered, with a data kwarg."""
         with (

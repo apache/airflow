@@ -294,6 +294,16 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             stdout_r, stdout_w = tracker.track(*socket.socketpair())
             stderr_r, stderr_w = tracker.track(*socket.socketpair())
 
+            # A language SDK runtime cannot read Airflow's config, so propagate the
+            # resolved log levels via the environment at launch. StartupDetails
+            # arrives too late, the logs might already be produced by then.
+            env = {
+                **os.environ,
+                "AIRFLOW__LOGGING__LOGGING_LEVEL": conf.get("logging", "logging_level", fallback="INFO"),
+            }
+            if namespace_levels := conf.get("logging", "namespace_levels", fallback=None):
+                env["AIRFLOW__LOGGING__NAMESPACE_LEVELS"] = namespace_levels
+
             proc = subprocess.Popen(
                 [
                     *command,
@@ -302,13 +312,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 ],
                 stdout=stdout_w.fileno(),
                 stderr=stderr_w.fileno(),
-                # A language SDK runtime cannot read Airflow's config, so propagate the
-                # resolved task log level via the environment at launch. StartupDetails
-                # arrives too late, the logs might already be produced by then.
-                env={
-                    **os.environ,
-                    "AIRFLOW__LOGGING__LOGGING_LEVEL": conf.get("logging", "logging_level", fallback="INFO"),
-                },
+                env=env,
             )
             tracker.track(proc)
             for soc in tracker.untrack(stdout_w, stderr_w):

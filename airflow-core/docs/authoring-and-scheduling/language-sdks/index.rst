@@ -77,6 +77,11 @@ The execution model has three moving parts.
    worker to identify the workload, executes the task, and communicates through the coordinator as a proxy
    back to the worker process.
 
+   A runtime cannot read Airflow's configuration, so the coordinator passes the resolved logging
+   configuration through the environment at launch: ``AIRFLOW__LOGGING__LOGGING_LEVEL`` (the root level)
+   and, when set, ``AIRFLOW__LOGGING__NAMESPACE_LEVELS`` (per-logger ``<logger>=<level>`` pairs, separated
+   by whitespace or commas). Each SDK is responsible for reading these and filtering its own logs.
+
 .. _language-sdks/stub-tasks:
 
 Stub tasks
