@@ -55,7 +55,7 @@ const getColumns = ({
 }: ColumnsProps): Array<ColumnDef<TaskStateStoreResponse>> => [
   {
     accessorKey: "key",
-    cell: ({ row: { original } }) => <Text>{original.key}</Text>,
+    cell: ({ row: { original } }) => <Text wordBreak="break-all">{original.key}</Text>,
     header: translate("common:key"),
   },
   {
