@@ -47,8 +47,12 @@ To get an Agent Engine you can use
     :start-after: [START how_to_cloud_vertex_ai_get_agent_engine_operator]
     :end-before: [END how_to_cloud_vertex_ai_get_agent_engine_operator]
 
-To query an Agent Engine you can use
+To run a query job on an Agent Engine you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.QueryAgentEngineOperator`.
+The operator uses the public ``run_query_job`` SDK method. The ``config`` parameter
+is required and must include ``query`` and ``output_gcs_uri``. The SDK writes query
+input and output through Google Cloud Storage and the operator returns the serialized
+query job result metadata, including the job name and GCS URIs.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_agent_engine.py
     :language: python

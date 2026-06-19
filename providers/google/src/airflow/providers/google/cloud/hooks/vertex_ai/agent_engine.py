@@ -109,7 +109,7 @@ class AgentEngineHook(GoogleBaseHook):
         self,
         location: str,
         agent_engine_id: str,
-        config: types.RunQueryJobAgentEngineConfigOrDict | None = None,
+        config: types.RunQueryJobAgentEngineConfigOrDict,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> types.RunQueryJobResult:
         """
@@ -117,7 +117,7 @@ class AgentEngineHook(GoogleBaseHook):
 
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param agent_engine_id: Required. The Agent Engine ID.
-        :param config: Optional. Configuration for the query job (``query``, ``output_gcs_uri``).
+        :param config: Required. Configuration for the query job (``query``, ``output_gcs_uri``).
         :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
             configured in the connection.
         """
