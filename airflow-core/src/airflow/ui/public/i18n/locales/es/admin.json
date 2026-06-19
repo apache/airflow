@@ -86,7 +86,7 @@
   },
   "jobs": {
     "columns": {
-      "executorClass": "Clase del Executor",
+      "executorClass": "Clase de Executor",
       "hostname": "Nombre de Host",
       "id": "ID",
       "jobType": "Tipo de Trabajo",
