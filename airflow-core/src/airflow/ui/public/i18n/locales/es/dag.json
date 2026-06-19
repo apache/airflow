@@ -236,7 +236,7 @@
     "runs": "Ejecuciones",
     "storage": "Almacenamiento",
     "taskInstances": "Instancias de Tarea",
-    "taskStateStore": "Almacén de Estado de Tarea",
+    "taskStateStore": "Almacenamiento de Estado de Tarea",
     "tasks": "Tareas",
     "xcom": "XCom"
   },
@@ -245,16 +245,16 @@
     "expandAll": "Expandir todos los grupos de tareas"
   },
   "taskStateStore": {
-    "add": "Agregar Almacén de Estado de Tarea",
+    "add": "Agregar Almacenamiento de Estado de Tarea",
     "clearAll": {
-      "resource": "todo el almacén de estado de tarea",
-      "title": "Limpiar Todo el Almacén de Estado de Tarea",
-      "warning": "Se borrará todo el almacén de estado de tarea. Las tareas que usan este almacén para hacer seguimiento de trabajo externo no podrán reanudarlo sin volver a ejecutarse desde cero."
+      "resource": "todo el almacenamiento de estado de tarea",
+      "title": "Limpiar Todo el Almacenamiento de Estado de Tarea",
+      "warning": "Se borrará todo el almacenamiento de estado de tarea. Las tareas que usan este almacenamiento para hacer seguimiento de trabajo externo no podrán reanudarlo sin volver a ejecutarse desde cero."
     },
-    "delete": "Eliminar Almacén de Estado de Tarea",
+    "delete": "Eliminar Almacenamiento de Estado de Tarea",
     "deleteWarning": "La tarea perderá esta memoria persistente. Si la tarea usa esta clave para hacer seguimiento de trabajo externo (p. ej., un ID de trabajo externo), no podrá reanudarlo.",
-    "edit": "Editar Almacén de Estado de Tarea",
-    "emptyStore": "El almacén de estado de tarea almacena valores que persisten entre reintentos. Los workers pueden escribir en el almacén de estado de tarea mediante el Task SDK.",
+    "edit": "Editar Almacenamiento de Estado de Tarea",
+    "emptyStore": "El almacenamiento de estado de tarea almacena valores que persisten entre reintentos. Los workers pueden escribir en el almacenamiento de estado de tarea mediante el Task SDK.",
     "expiresAt": {
       "column": "Expira en",
       "custom": "Personalizado",
@@ -262,6 +262,6 @@
       "label": "Expiración",
       "never": "Nunca"
     },
-    "title": "Almacén de Estado de Tarea"
+    "title": "Almacenamiento de Estado de Tarea"
   }
 }
