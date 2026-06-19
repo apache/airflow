@@ -126,6 +126,65 @@ class AgentEngineHook(GoogleBaseHook):
         return client.run_query_job(name=name, config=config)
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def check_query_agent_engine_job(
+        self,
+        location: str,
+        operation_name: str,
+        config: types.CheckQueryJobAgentEngineConfigOrDict | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+    ) -> types.CheckQueryJobResult:
+        """
+        Check a query job on an Agent Engine.
+
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param operation_name: Required. The query job operation name.
+        :param config: Optional. Configuration for checking the query job.
+        :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
+            configured in the connection.
+        """
+        client = self.get_agent_engine_client(project_id=project_id, location=location)
+        return client.check_query_job(name=operation_name, config=config)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def wait_for_query_agent_engine_job(
+        self,
+        location: str,
+        operation_name: str,
+        config: types.CheckQueryJobAgentEngineConfigOrDict | None = None,
+        poll_interval: float = 30,
+        timeout: float | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+    ) -> types.CheckQueryJobResult:
+        """
+        Wait until an Agent Engine query job completes.
+
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param operation_name: Required. The query job operation name.
+        :param config: Optional. Configuration for checking the query job.
+        :param poll_interval: Time, in seconds, to wait between checks.
+        :param timeout: Optional timeout, in seconds.
+        :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
+            configured in the connection.
+        """
+        start_time = time.monotonic()
+        while True:
+            query_job = self.check_query_agent_engine_job(
+                project_id=project_id,
+                location=location,
+                operation_name=operation_name,
+                config=config,
+            )
+            status = getattr(query_job, "status", None)
+            if status == "SUCCESS":
+                return query_job
+            if status == "FAILED":
+                raise RuntimeError(f"Agent Engine query job {operation_name} failed.")
+            if timeout is not None and time.monotonic() - start_time > timeout:
+                raise TimeoutError(f"Timed out waiting for Agent Engine query job {operation_name}")
+            self.log.info("Waiting for Agent Engine query job %s to complete.", operation_name)
+            time.sleep(poll_interval)
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_agent_engine(
         self,
         location: str,
@@ -237,4 +296,20 @@ class AgentEngineAsyncHook(GoogleBaseAsyncHook):
         return await sync_to_async(sync_hook.get_agent_engine_operation)(
             location=location,
             operation_name=operation_name,
+        )
+
+    async def check_query_agent_engine_job(
+        self,
+        location: str,
+        operation_name: str,
+        config: types.CheckQueryJobAgentEngineConfigOrDict | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+    ) -> types.CheckQueryJobResult:
+        """Check a query job on an Agent Engine."""
+        sync_hook = await self.get_sync_hook()
+        return await sync_to_async(sync_hook.check_query_agent_engine_job)(
+            project_id=project_id,
+            location=location,
+            operation_name=operation_name,
+            config=config,
         )

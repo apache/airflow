@@ -34,8 +34,10 @@ GCP_LOCATION = "us-central1"
 AGENT_ENGINE_ID = "123"
 AGENT_ENGINE_NAME = "projects/test-project/locations/us-central1/reasoningEngines/123"
 OPERATION_NAME = "projects/test-project/locations/us-central1/operations/delete-123"
+QUERY_OPERATION_NAME = "projects/test-project/locations/us-central1/operations/query-123"
 CONFIG = {"display_name": "test-agent-engine"}
 QUERY_CONFIG = {"query": "hello", "output_gcs_uri": "gs://test-bucket/query-output/"}
+CHECK_QUERY_CONFIG = {"retrieve_result": True}
 
 
 class TestAgentEngineHookWithDefaultProjectId:
@@ -98,6 +100,73 @@ class TestAgentEngineHookWithDefaultProjectId:
             config=QUERY_CONFIG,
         )
         assert result == mock_get_client.return_value.run_query_job.return_value
+
+    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
+    def test_check_query_agent_engine_job(self, mock_get_client):
+        result = self.hook.check_query_agent_engine_job(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            operation_name=QUERY_OPERATION_NAME,
+            config=CHECK_QUERY_CONFIG,
+        )
+
+        mock_get_client.return_value.check_query_job.assert_called_once_with(
+            name=QUERY_OPERATION_NAME,
+            config=CHECK_QUERY_CONFIG,
+        )
+        assert result == mock_get_client.return_value.check_query_job.return_value
+
+    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.check_query_agent_engine_job"), autospec=True)
+    def test_wait_for_query_agent_engine_job_returns_when_successful(self, mock_check_query_job):
+        mock_check_query_job.return_value.status = "SUCCESS"
+
+        result = self.hook.wait_for_query_agent_engine_job(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            operation_name=QUERY_OPERATION_NAME,
+            config=CHECK_QUERY_CONFIG,
+        )
+
+        mock_check_query_job.assert_called_once_with(
+            self.hook,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            operation_name=QUERY_OPERATION_NAME,
+            config=CHECK_QUERY_CONFIG,
+        )
+        assert result == mock_check_query_job.return_value
+
+    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.check_query_agent_engine_job"), autospec=True)
+    def test_wait_for_query_agent_engine_job_raises_on_failed_status(self, mock_check_query_job):
+        mock_check_query_job.return_value.status = "FAILED"
+
+        with pytest.raises(RuntimeError, match="Agent Engine query job .* failed"):
+            self.hook.wait_for_query_agent_engine_job(
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                operation_name=QUERY_OPERATION_NAME,
+                config=CHECK_QUERY_CONFIG,
+            )
+
+    @mock.patch(AGENT_ENGINE_STRING.format("time.sleep"), autospec=True)
+    @mock.patch(AGENT_ENGINE_STRING.format("time.monotonic"), autospec=True)
+    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.check_query_agent_engine_job"), autospec=True)
+    def test_wait_for_query_agent_engine_job_times_out(
+        self, mock_check_query_job, mock_monotonic, mock_sleep
+    ):
+        mock_check_query_job.return_value.status = "RUNNING"
+        mock_monotonic.side_effect = [1, 3]
+
+        with pytest.raises(TimeoutError, match="Timed out waiting for Agent Engine query job"):
+            self.hook.wait_for_query_agent_engine_job(
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                operation_name=QUERY_OPERATION_NAME,
+                config=CHECK_QUERY_CONFIG,
+                timeout=1,
+            )
+
+        mock_sleep.assert_not_called()
 
     @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
     def test_update_agent_engine(self, mock_get_client):

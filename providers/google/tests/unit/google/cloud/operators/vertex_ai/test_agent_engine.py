@@ -23,6 +23,7 @@ import pytest
 
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.google.cloud.operators.vertex_ai.agent_engine import (
+    CheckQueryAgentEngineOperator,
     CreateAgentEngineOperator,
     DeleteAgentEngineOperator,
     GetAgentEngineOperator,
@@ -41,7 +42,9 @@ AGENT_ENGINE_ID = "123"
 AGENT_ENGINE_NAME = "projects/test-project/locations/us-central1/reasoningEngines/123"
 CONFIG = {"display_name": "test-agent-engine"}
 QUERY_CONFIG = {"query": "hello", "output_gcs_uri": "gs://test-bucket/query-output/"}
+CHECK_QUERY_CONFIG = {"retrieve_result": True}
 OPERATION = {"name": "operations/delete-123", "done": False}
+QUERY_OPERATION_NAME = "operations/query-123"
 
 
 class FakeModel:
@@ -149,6 +152,121 @@ class TestQueryAgentEngineOperator:
             config=QUERY_CONFIG,
         )
         assert result == result_payload
+
+
+class TestCheckQueryAgentEngineOperator:
+    @mock.patch(AGENT_ENGINE_PATH.format("AgentEngineHook"), autospec=True)
+    def test_execute(self, mock_hook, context):
+        result_payload = {
+            "operation_name": QUERY_OPERATION_NAME,
+            "output_gcs_uri": "gs://test-bucket/query-output/output.json",
+            "status": "SUCCESS",
+            "result": "done",
+        }
+        mock_hook.return_value.wait_for_query_agent_engine_job.return_value = FakeModel(result_payload)
+        op = CheckQueryAgentEngineOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            operation_name=QUERY_OPERATION_NAME,
+            config=CHECK_QUERY_CONFIG,
+            poll_interval=1,
+            timeout=60,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        result = op.execute(context=context)
+
+        mock_hook.return_value.wait_for_query_agent_engine_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            operation_name=QUERY_OPERATION_NAME,
+            config=CHECK_QUERY_CONFIG,
+            poll_interval=1,
+            timeout=60,
+        )
+        assert result == result_payload
+
+    @mock.patch(AGENT_ENGINE_PATH.format("AgentEngineQueryJobTrigger"), autospec=True)
+    @mock.patch(AGENT_ENGINE_PATH.format("AgentEngineHook"), autospec=True)
+    def test_execute_deferrable(self, mock_hook, mock_trigger, context):
+        op = CheckQueryAgentEngineOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            operation_name=QUERY_OPERATION_NAME,
+            config=CHECK_QUERY_CONFIG,
+            poll_interval=1,
+            timeout=60,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred):
+            op.execute(context=context)
+
+        mock_hook.return_value.wait_for_query_agent_engine_job.assert_not_called()
+        mock_trigger.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            operation_name=QUERY_OPERATION_NAME,
+            config=CHECK_QUERY_CONFIG,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            poll_interval=1,
+            timeout=60,
+        )
+
+    def test_execute_complete_success(self, context):
+        op = CheckQueryAgentEngineOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            operation_name=QUERY_OPERATION_NAME,
+        )
+        query_job = {"operation_name": QUERY_OPERATION_NAME, "status": "SUCCESS"}
+
+        result = op.execute_complete(
+            context=context,
+            event={"status": "success", "message": "done", "query_job": query_job},
+        )
+
+        assert result == query_job
+
+    def test_execute_complete_error(self, context):
+        op = CheckQueryAgentEngineOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            operation_name=QUERY_OPERATION_NAME,
+        )
+
+        with pytest.raises(RuntimeError, match="boom"):
+            op.execute_complete(context=context, event={"status": "error", "message": "boom"})
+
+    def test_execute_complete_timeout(self, context):
+        op = CheckQueryAgentEngineOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            operation_name=QUERY_OPERATION_NAME,
+        )
+
+        with pytest.raises(TimeoutError, match="timed out"):
+            op.execute_complete(context=context, event={"status": "timeout", "message": "timed out"})
+
+    def test_execute_complete_without_event(self, context):
+        op = CheckQueryAgentEngineOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            operation_name=QUERY_OPERATION_NAME,
+        )
+
+        with pytest.raises(RuntimeError, match="No event received in trigger callback"):
+            op.execute_complete(context=context)
 
 
 class TestUpdateAgentEngineOperator:

@@ -21,7 +21,10 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.google.cloud.triggers.vertex_ai import AgentEngineDeleteTrigger
+from airflow.providers.google.cloud.triggers.vertex_ai import (
+    AgentEngineDeleteTrigger,
+    AgentEngineQueryJobTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 GCP_PROJECT = "test-project"
@@ -30,6 +33,18 @@ GCP_CONN_ID = "test-conn"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 AGENT_ENGINE_ID = "123"
 OPERATION_NAME = "projects/test-project/locations/us-central1/operations/delete-123"
+QUERY_OPERATION_NAME = "projects/test-project/locations/us-central1/operations/query-123"
+CHECK_QUERY_CONFIG = {"retrieve_result": True}
+
+
+class FakeModel:
+    def __init__(self, payload):
+        self.payload = payload
+        for key, value in payload.items():
+            setattr(self, key, value)
+
+    def model_dump(self, mode="json"):
+        return self.payload
 
 
 @pytest.fixture
@@ -43,6 +58,20 @@ def delete_trigger():
         poll_interval=1,
         timeout=60,
         operation_name=OPERATION_NAME,
+    )
+
+
+@pytest.fixture
+def query_job_trigger():
+    return AgentEngineQueryJobTrigger(
+        project_id=GCP_PROJECT,
+        location=GCP_LOCATION,
+        operation_name=QUERY_OPERATION_NAME,
+        config=CHECK_QUERY_CONFIG,
+        gcp_conn_id=GCP_CONN_ID,
+        impersonation_chain=IMPERSONATION_CHAIN,
+        poll_interval=1,
+        timeout=60,
     )
 
 
@@ -129,5 +158,98 @@ class TestAgentEngineDeleteTrigger:
                 "status": "error",
                 "message": "{'message': 'boom'}",
                 "agent_engine_id": AGENT_ENGINE_ID,
+            }
+        )
+
+
+class TestAgentEngineQueryJobTrigger:
+    def test_serialize(self, query_job_trigger):
+        assert query_job_trigger.serialize() == (
+            "airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineQueryJobTrigger",
+            {
+                "project_id": GCP_PROJECT,
+                "location": GCP_LOCATION,
+                "operation_name": QUERY_OPERATION_NAME,
+                "config": CHECK_QUERY_CONFIG,
+                "gcp_conn_id": GCP_CONN_ID,
+                "impersonation_chain": IMPERSONATION_CHAIN,
+                "poll_interval": 1,
+                "timeout": 60,
+            },
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineAsyncHook", autospec=True)
+    async def test_run_loop_return_success_event(self, mock_hook, query_job_trigger):
+        query_job = {
+            "operation_name": QUERY_OPERATION_NAME,
+            "output_gcs_uri": "gs://test-bucket/query-output/output.json",
+            "status": "SUCCESS",
+            "result": "done",
+        }
+        mock_hook.return_value.check_query_agent_engine_job.return_value = FakeModel(query_job)
+
+        event = await query_job_trigger.run().asend(None)
+
+        mock_hook.return_value.check_query_agent_engine_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            operation_name=QUERY_OPERATION_NAME,
+            config=CHECK_QUERY_CONFIG,
+        )
+        assert event == TriggerEvent(
+            {
+                "status": "success",
+                "message": "Agent Engine query job completed",
+                "query_job": query_job,
+            }
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineAsyncHook", autospec=True)
+    async def test_run_loop_return_failed_event(self, mock_hook, query_job_trigger):
+        query_job = {"operation_name": QUERY_OPERATION_NAME, "status": "FAILED"}
+        mock_hook.return_value.check_query_agent_engine_job.return_value = FakeModel(query_job)
+
+        event = await query_job_trigger.run().asend(None)
+
+        assert event == TriggerEvent(
+            {
+                "status": "error",
+                "message": f"Agent Engine query job {QUERY_OPERATION_NAME} failed.",
+                "query_job": query_job,
+            }
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.asyncio.sleep", autospec=True)
+    @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineAsyncHook", autospec=True)
+    async def test_run_loop_return_timeout_event(self, mock_hook, mock_sleep, query_job_trigger):
+        query_job_trigger.timeout = -1
+        mock_hook.return_value.check_query_agent_engine_job.return_value = FakeModel({"status": "RUNNING"})
+
+        event = await query_job_trigger.run().asend(None)
+
+        mock_sleep.assert_not_called()
+        assert event == TriggerEvent(
+            {
+                "status": "timeout",
+                "message": f"Timed out waiting for Agent Engine query job {QUERY_OPERATION_NAME}",
+                "operation_name": QUERY_OPERATION_NAME,
+            }
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineAsyncHook", autospec=True)
+    async def test_run_loop_return_error_event(self, mock_hook, query_job_trigger):
+        mock_hook.return_value.check_query_agent_engine_job.side_effect = RuntimeError("boom")
+
+        event = await query_job_trigger.run().asend(None)
+
+        assert event == TriggerEvent(
+            {
+                "status": "error",
+                "message": "boom",
+                "operation_name": QUERY_OPERATION_NAME,
             }
         )
