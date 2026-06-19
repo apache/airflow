@@ -5072,7 +5072,7 @@ class TestSchedulerJob:
                 bash_command="exit 1",
                 retries=1,
             )
-        dag_maker.dag_model.calculate_dagrun_date_fields(dag, last_automated_run=None)
+        dag_maker.dag_model.calculate_dagrun_date_fields(dag, reference_run=None)
 
         @provide_session
         def do_schedule(*, session: Session = NEW_SESSION):
