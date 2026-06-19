@@ -116,7 +116,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.1.0": "cc92b33c6709",
     "3.1.8": "509b94a1042d",
     "3.2.0": "1d6611b6ab7c",
-    "3.3.0": "a7f3b2c1d4e5",
+    "3.3.0": "9ff64e1c35d3",
 }
 
 # Prefix used to identify tables holding data moved during migration.
@@ -173,7 +173,7 @@ def timeout_with_traceback(seconds, message="Operation timed out"):
 
 
 @provide_session
-def merge_conn(conn: Connection, session: Session = NEW_SESSION):
+def merge_conn(conn: Connection, *, session: Session = NEW_SESSION):
     """Add new Connection."""
     if not session.scalar(select(1).where(conn.__class__.conn_id == conn.conn_id)):
         session.add(conn)
@@ -181,7 +181,7 @@ def merge_conn(conn: Connection, session: Session = NEW_SESSION):
 
 
 @provide_session
-def add_default_pool_if_not_exists(session: Session = NEW_SESSION):
+def add_default_pool_if_not_exists(*, session: Session = NEW_SESSION):
     """Add default pool if it does not exist."""
     from airflow.models.pool import Pool
 
@@ -197,12 +197,12 @@ def add_default_pool_if_not_exists(session: Session = NEW_SESSION):
 
 
 @provide_session
-def create_default_connections(session: Session = NEW_SESSION):
+def create_default_connections(*, session: Session = NEW_SESSION):
     """Create default Airflow connections."""
     conns = get_default_connections()
 
     for c in conns:
-        merge_conn(c, session)
+        merge_conn(c, session=session)
 
 
 def get_default_connections():
@@ -654,8 +654,7 @@ class AutocommitEngineForMySQL:
     """
 
     def __init__(self):
-        conn_str = settings.get_sql_alchemy_conn()
-        self.is_mysql = conn_str and conn_str.lower().startswith("mysql")
+        self.is_mysql = settings.SQL_ALCHEMY_CONN and settings.SQL_ALCHEMY_CONN.lower().startswith("mysql")
         self.original_prepare_engine_args = None
 
     def __enter__(self):
@@ -837,7 +836,7 @@ def _single_connection_pool() -> Generator[None, None, None]:
 
 
 @provide_session
-def initdb(session: Session = NEW_SESSION, use_migration_files: bool = False):
+def initdb(*, session: Session = NEW_SESSION, use_migration_files: bool = False):
     """
     Initialize Airflow database.
 
@@ -880,7 +879,7 @@ def _get_alembic_config():
     else:
         config = Config(os.path.join(package_dir, alembic_file))
     config.set_main_option("script_location", directory.replace("%", "%%"))
-    config.set_main_option("sqlalchemy.url", settings.get_sql_alchemy_conn().replace("%", "%%"))
+    config.set_main_option("sqlalchemy.url", settings.SQL_ALCHEMY_CONN.replace("%", "%%"))
     return config
 
 
@@ -1105,7 +1104,7 @@ def reflect_tables(tables: list[MappedClassProtocol | str] | None, session):
 
 
 @provide_session
-def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
+def _check_migration_errors(*, session: Session = NEW_SESSION) -> Iterable[str]:
     """:session: session of the sqlalchemy."""
     check_functions: Iterable[Callable[..., Iterable[str]]] = ()
     for check_fn in check_functions:
@@ -1245,6 +1244,9 @@ def upgradedb(
     if from_revision and not show_sql_only:
         raise AirflowException("`from_revision` only supported with `sql_only=True`.")
 
+    if not settings.SQL_ALCHEMY_CONN:
+        raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set. This is a critical assertion.")
+
     from alembic import command
 
     import_all_models()
@@ -1332,7 +1334,7 @@ def _resetdb_default(session: Session) -> None:
 
 
 @provide_session
-def resetdb(session: Session = NEW_SESSION, skip_init: bool = False, use_migration_files: bool = False):
+def resetdb(*, session: Session = NEW_SESSION, skip_init: bool = False, use_migration_files: bool = False):
     """
     Clear out the database.
 
@@ -1380,6 +1382,9 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
             "applying a downgrade (instead of just generating sql), we always "
             "downgrade from current revision."
         )
+
+    if not settings.SQL_ALCHEMY_CONN:
+        raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set.")
 
     # alembic adds significant import time, so we import it lazily
     from alembic import command
@@ -1516,7 +1521,7 @@ def drop_airflow_moved_tables(connection):
 
 
 @provide_session
-def check(session: Session = NEW_SESSION):
+def check(*, session: Session = NEW_SESSION):
     """
     Check if the database works.
 

@@ -64,6 +64,14 @@ To learn about various roles and communication channels in the Airflow project:
 * `How to communicate <02_how_to_communicate.rst>`__
   describes how to communicate with the community and how to get help.
 
+* `Code of Conduct <../CODE_OF_CONDUCT.md>`__ states the behaviour
+  the project expects from everyone, and the
+  `Community escalation process <../COMMUNITY_ESCALATION.md>`__
+  describes what happens when Code of Conduct breaches, spamming, or
+  other sustained disruptive behaviour cannot be resolved through
+  normal review and mentoring — and how to appeal a decision via
+  ``private@airflow.apache.org``.
+
 * `How to contribute <04_how_to_contribute.rst>`__ describes the various ways of how you can contribute to Airflow.
 
 To learn how to setup your environment for development and how to develop and test code:
@@ -101,6 +109,18 @@ and how to contribute to the providers:
 
 * `Provider distributions <12_provider_distributions.rst>`__ describes the providers and how they
   are used in Airflow.
+
+
+Developing Charts
+..................
+
+If you are working on the Airflow Helm chart, this guide explains where a
+change belongs (chart, Kustomize overlay, or out entirely) and the conventions
+that govern the chart's parameter surface:
+
+* `Developing the Helm Chart <29_helm_chart_development.rst>`__ — decision tree
+  for chart vs Kustomize routing, component reference, authoring conventions,
+  and the quality bar for overlays.
 
 
 Airflow Deep Dive

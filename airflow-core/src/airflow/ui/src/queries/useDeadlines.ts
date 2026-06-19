@@ -27,7 +27,7 @@ type UseDeadlinesParams = {
 };
 
 export const useDeadlines = ({ dagId, enabled, limit, offset = 0 }: UseDeadlinesParams) => {
-  const refetchInterval = useAutoRefresh({ dagId });
+  const refetchInterval = useAutoRefresh({ checkPendingRuns: true, dagId });
 
   return useDeadlinesServiceGetDeadlines(
     {

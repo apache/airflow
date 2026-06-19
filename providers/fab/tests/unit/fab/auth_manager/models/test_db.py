@@ -32,8 +32,6 @@ from airflow.utils.db import (
     compare_type,
 )
 
-from tests_common.test_utils.config import conf_vars
-
 pytestmark = [pytest.mark.db_test]
 try:
     from airflow.providers.fab.auth_manager.models.db import FABDBManager
@@ -111,11 +109,14 @@ try:
             actual = mock_om.call_args.kwargs["revision"]
             assert actual == "abc"
 
-        @conf_vars({("database", "sql_alchemy_conn"): "sqlite:////tmp/fab-test.db"})
         @mock.patch.object(FABDBManager, "get_current_revision")
         def test_sqlite_offline_upgrade_raises_with_revision(self, mock_gcr, session):
-            with pytest.raises(SystemExit, match="Offline migration not supported for SQLite"):
-                FABDBManager(session).upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
+            with mock.patch(
+                "airflow.providers.fab.auth_manager.models.db.settings.SQL_ALCHEMY_CONN",
+                "sqlite:////tmp/fab-test.db",
+            ):
+                with pytest.raises(SystemExit, match="Offline migration not supported for SQLite"):
+                    FABDBManager(session).upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
 
         @mock.patch("alembic.command.upgrade")
         @mock.patch.object(FABDBManager, "create_db_from_orm")

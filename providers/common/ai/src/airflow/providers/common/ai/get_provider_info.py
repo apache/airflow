@@ -37,6 +37,7 @@ def get_provider_info():
                     "/docs/apache-airflow-providers-common-ai/operators/llm_branch.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_sql.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_schema_compare.rst",
+                    "/docs/apache-airflow-providers-common-ai/operators/document_loader.rst",
                 ],
                 "tags": ["ai"],
             },
@@ -50,6 +51,20 @@ def get_provider_info():
                 "external-doc-url": "https://modelcontextprotocol.io/",
                 "tags": ["ai"],
             },
+            {
+                "integration-name": "LangChain",
+                "external-doc-url": "https://python.langchain.com/",
+                "tags": ["ai"],
+            },
+            {
+                "integration-name": "LlamaIndex",
+                "external-doc-url": "https://docs.llamaindex.ai/",
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-common-ai/operators/llamaindex_embedding.rst",
+                    "/docs/apache-airflow-providers-common-ai/operators/llamaindex_retrieval.rst",
+                ],
+                "tags": ["ai"],
+            },
         ],
         "hooks": [
             {
@@ -57,6 +72,14 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.common.ai.hooks.pydantic_ai"],
             },
             {"integration-name": "MCP Server", "python-modules": ["airflow.providers.common.ai.hooks.mcp"]},
+            {
+                "integration-name": "LangChain",
+                "python-modules": ["airflow.providers.common.ai.hooks.langchain"],
+            },
+            {
+                "integration-name": "LlamaIndex",
+                "python-modules": ["airflow.providers.common.ai.hooks.llamaindex"],
+            },
         ],
         "plugins": [
             {
@@ -74,7 +97,21 @@ def get_provider_info():
                         "type": "string",
                         "example": "file:///tmp/airflow_durable_cache",
                         "default": "",
-                    }
+                    },
+                    "otel_export_enabled": {
+                        "description": "Attach pydantic-ai OpenTelemetry instrumentation to agents created by\nthis provider and emit GenAI spans (agent run, model call, tool call,\ntoken usage) for ``AgentOperator`` / ``@task.agent`` / ``@task.llm``\nand the other LLM operators.\n\nSpans are emitted through Airflow's existing OpenTelemetry exporter,\nconfigured under ``[traces]`` / the standard ``OTEL_EXPORTER_OTLP_*``\nenvironment variables, and nest under the task span so they are\nattributable to the originating DAG run and task instance. The\nprovider does not configure an exporter of its own: if core tracing\n(``[traces] otel_on``) is not enabled in the worker process, no spans\nare emitted. Off by default so installing the provider never starts\nshipping spans without opt-in.\n",
+                        "version_added": "0.4.0",
+                        "type": "boolean",
+                        "example": "True",
+                        "default": "False",
+                    },
+                    "capture_content": {
+                        "description": "Capture prompt, completion, and tool-call content on the emitted\nGenAI spans (``gen_ai.input.messages`` / ``gen_ai.output.messages``).\n\nOff by default: only token counts, model id, latency, tool names, and\nfinish reason are recorded, never message text. Turning this on exports\nmodel inputs and outputs to your tracing backend without redaction. Airflow's\nsecret masking applies to logs and rendered template fields, not to\nOpenTelemetry span attributes, so it does not scrub this content.\nEnable it only for debugging in a trusted environment. Has no effect\nunless ``otel_export_enabled`` is ``True``.\n",
+                        "version_added": "0.4.0",
+                        "type": "boolean",
+                        "example": "False",
+                        "default": "False",
+                    },
                 },
             }
         },
@@ -254,6 +291,55 @@ def get_provider_info():
                     },
                 },
             },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.langchain.LangChainHook",
+                "hook-name": "LangChain",
+                "connection-type": "langchain",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login"],
+                    "relabeling": {"password": "API Key"},
+                    "placeholders": {
+                        "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)"
+                    },
+                },
+                "conn-fields": {
+                    "model": {
+                        "label": "Chat Model",
+                        "description": "Chat model in provider:name format dispatched via langchain.chat_models.init_chat_model (e.g. openai:gpt-4o, anthropic:claude-3-7-sonnet).\n",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "embed_model": {
+                        "label": "Embedding Model",
+                        "description": "Embedding model in provider:name format dispatched via langchain.embeddings.init_embeddings (e.g. openai:text-embedding-3-small, cohere:embed-english-v3.0).\n",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook",
+                "hook-name": "LlamaIndex",
+                "connection-type": "llamaindex",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login"],
+                    "relabeling": {"password": "API Key"},
+                    "placeholders": {
+                        "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
+                        "extra": '{"embed_model": "text-embedding-3-small", "llm_model": "gpt-4o"}',
+                    },
+                },
+                "conn-fields": {
+                    "embed_model": {
+                        "label": "Embedding Model",
+                        "description": "Default LlamaIndex embedding model name (e.g. text-embedding-3-small). The OpenAI default; for other vendors pass a pre-built BaseEmbedding instance to the operator.\n",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "llm_model": {
+                        "label": "LLM Model",
+                        "description": "Default LlamaIndex LLM model name (e.g. gpt-4o). The OpenAI default; for other vendors pass a pre-built LLM instance to the operator.\n",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
         ],
         "operators": [
             {
@@ -265,6 +351,9 @@ def get_provider_info():
                     "airflow.providers.common.ai.operators.llm_branch",
                     "airflow.providers.common.ai.operators.llm_sql",
                     "airflow.providers.common.ai.operators.llm_schema_compare",
+                    "airflow.providers.common.ai.operators.document_loader",
+                    "airflow.providers.common.ai.operators.llamaindex_embedding",
+                    "airflow.providers.common.ai.operators.llamaindex_retrieval",
                 ],
             }
         ],

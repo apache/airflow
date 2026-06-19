@@ -107,6 +107,14 @@ class InvalidBackfillDate(AirflowException):
     """
 
 
+class InvalidBackfillDateRange(AirflowException):
+    """
+    Raised when from_date is after to_date in a backfill request.
+
+    :meta private:
+    """
+
+
 class InvalidBackfillConf(AirflowException):
     """
     Raised when the provided ``dag_run_conf`` fails validation against the DAG's params.
@@ -202,7 +210,7 @@ class BackfillDagRun(Base):
     dag_run_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     exception_reason: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     logical_date: Mapped[datetime] = mapped_column(UtcDateTime, nullable=True)
-    partition_key: Mapped[datetime] = mapped_column(StringID(), nullable=True)
+    partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     sort_ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
 
     backfill = relationship("Backfill", back_populates="backfill_dag_run_associations")
@@ -238,8 +246,14 @@ def _get_latest_dag_run_row_query(*, dag_id: str, info: DagRunInfo):
     from airflow.models import DagRun
 
     stmt = select(DagRun).where(DagRun.dag_id == dag_id)
-    if info.partition_key is not None:
-        stmt = stmt.where(DagRun.partition_key == info.partition_key)
+    if info.partition_date is not None:
+        # Filter the runs whose partition_date matches (the UTC instant of the partition
+        # tick), not the partition_key string. partition_date is the canonical, format-
+        # independent identity of a partition: a scheduled run and a backfill run for the
+        # same tick always agree on it, even if partition_key is later formatted differently
+        # (e.g. relabelled in the timetable timezone). Filtering by the string would let a
+        # backfill create duplicate runs whenever the key format changed.
+        stmt = stmt.where(DagRun.partition_date == info.partition_date)
     if info.logical_date is not None:
         stmt = stmt.where(DagRun.logical_date == info.logical_date)
     stmt = stmt.order_by(DagRun.start_date.is_(None), DagRun.start_date.desc())
@@ -266,6 +280,16 @@ def _validate_backfill_params(
     reprocess_behavior: ReprocessBehavior | None,
     dag_run_conf: dict | None = None,
 ) -> None:
+
+    if from_date > to_date:
+        raise InvalidBackfillDateRange(
+            f"from_date ({from_date.isoformat()}) must not be after to_date ({to_date.isoformat()})."
+        )
+
+    current_time = timezone.utcnow()
+    if from_date >= current_time and to_date >= current_time:
+        raise InvalidBackfillDate("Backfill cannot be executed for future dates.")
+
     depends_on_past = any(x.depends_on_past for x in dag.tasks)
     if depends_on_past:
         if reverse is True:
@@ -277,9 +301,6 @@ def _validate_backfill_params(
                 "Dag has tasks for which depends_on_past=True. "
                 "You must set reprocess behavior to reprocess completed or reprocess failed."
             )
-    current_time = timezone.utcnow()
-    if from_date >= current_time and to_date >= current_time:
-        raise InvalidBackfillDate("Backfill cannot be executed for future dates.")
     if dag_run_conf is not None:
         try:
             dag.params.deep_merge(dag_run_conf).validate()
@@ -311,14 +332,21 @@ def _do_dry_run(
     if dag.allowed_run_types is not None and DagRunType.BACKFILL_JOB not in dag.allowed_run_types:
         raise DagRunTypeNotAllowed(f"Dag with dag_id: '{dag_id}' does not allow backfill runs")
 
-    _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior, dag_run_conf)
-
+    _validate_backfill_params(
+        dag,
+        reverse,
+        from_date,
+        to_date,
+        reprocess_behavior,
+        dag_run_conf,
+    )
     dagrun_info_list = _get_info_list(
         dag=dag,
         from_date=from_date,
         to_date=to_date,
         reverse=reverse,
     )
+
     for info in dagrun_info_list:
         if TYPE_CHECKING:
             assert info.logical_date
@@ -456,10 +484,6 @@ def _create_backfill_dag_run_partitioned(
     triggering_user_name: str | None,
     session: Session,
 ) -> None:
-    # Partitioned backfills don't currently reprocess existing runs — if a run exists
-    # for this partition, it's recorded as skipped via exception_reason rather than
-    # cleared and re-queued. As a result, this function never calls ``_handle_clear_run``
-    # and therefore doesn't need to forward ``dag_run_conf`` for the reprocess path.
     stmt = _get_latest_dag_run_row_query(dag_id=dag.dag_id, info=info)
     dr = session.scalar(stmt)
     if dr:
@@ -479,6 +503,11 @@ def _create_backfill_dag_run_partitioned(
                 "Skipping dag run creation.", non_create_reason=non_create_reason, backfill_id=backfill_id
             )
             return
+
+    # reprocess_behavior allows a retry: create a new run alongside the existing
+    # one rather than clearing it. The prior run is kept as a historical record;
+    # _get_latest_dag_run_row_query picks the newest run by start_date, so the
+    # new backfill run becomes the active one going forward.
     dr = dag.create_dagrun(
         run_id=dag.timetable.generate_run_id(
             run_type=DagRunType.BACKFILL_JOB,
@@ -519,10 +548,11 @@ def _get_info_list(
     dag: SerializedDAG,
 ) -> list[DagRunInfo]:
     infos = dag.iter_dagrun_infos_between(from_date, to_date)
-    now = timezone.utcnow()
-    dagrun_info_list = [
-        x for x in infos if x.partition_key or (x.data_interval and x.data_interval.end < now)
-    ]
+    if not dag.timetable.partitioned:
+        now = timezone.utcnow()
+        dagrun_info_list = [x for x in infos if x.data_interval and x.data_interval.end < now]
+    else:
+        dagrun_info_list = list(infos)
     if reverse:
         dagrun_info_list = list(reversed(dagrun_info_list))
     return dagrun_info_list
@@ -572,6 +602,7 @@ def _handle_clear_run(
             backfill_id=backfill_id,
             dag_run_id=dr.id,
             logical_date=info.logical_date,
+            partition_key=info.partition_key,
             sort_ordinal=sort_ordinal,
         )
     )
@@ -625,7 +656,14 @@ def _create_backfill(
                 f"There can be only one running backfill per Dag."
             )
 
-        _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior, dag_run_conf)
+        _validate_backfill_params(
+            dag,
+            reverse,
+            from_date,
+            to_date,
+            reprocess_behavior,
+            dag_run_conf,
+        )
 
         br = Backfill(
             dag_id=dag_id,

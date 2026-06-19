@@ -445,12 +445,20 @@ class SecretsMasker(logging.Filter):
             # Determine if we should treat this as sensitive
             is_sensitive = force_sensitive or (name is not None and self.should_hide_value_for_key(name))
 
+            v1_env_var_name = None
+            if isinstance(new_item, dict) and _is_v1_env_var(old_item):
+                # redact(V1EnvVar) returns a dict, so merge against the old object's serialized shape.
+                old_item = old_item.to_dict()
+                v1_env_var_name = old_item.get("name")
+
             if isinstance(new_item, dict) and isinstance(old_item, dict):
                 merged = {}
                 for key in new_item.keys():
                     if key in old_item:
                         # For dicts, pass the key as name unless we're in sensitive mode
                         child_name = None if is_sensitive else key
+                        if key == "value" and v1_env_var_name:
+                            child_name = v1_env_var_name
                         merged[key] = self._merge(
                             new_item[key],
                             old_item[key],
@@ -569,7 +577,8 @@ class SecretsMasker(logging.Filter):
         """
         if isinstance(name, str) and self.hide_sensitive_var_conn_fields:
             name = name.strip().lower()
-            return any(s in name for s in self.sensitive_variables_fields)
+            normalized = re.sub(r"\W+", "_", name)
+            return any(s in normalized for s in self.sensitive_variables_fields)
         return False
 
     def add_mask(self, secret: JsonValue, name: str | None = None):

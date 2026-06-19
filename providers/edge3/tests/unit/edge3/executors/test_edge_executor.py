@@ -19,22 +19,30 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime, timedelta
+from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock, patch
+from uuid import uuid4
 
 import pytest
 import time_machine
 from sqlalchemy import delete, select
 
+from airflow.executors.workloads import BundleInfo, ExecuteTask
 from airflow.providers.common.compat.sdk import Stats, TaskInstanceKey, conf, timezone
 from airflow.providers.edge3.executors.edge_executor import EdgeExecutor
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
+from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.executors.workloads import CallbackFetchMethod, ExecuteCallback, TaskInstanceDTO
+    from airflow.executors.workloads.callback import CallbackDTO
 
 pytestmark = pytest.mark.db_test
 
@@ -559,3 +567,128 @@ class TestEdgeExecutorMultiTeam:
         with create_session() as session:
             remaining_jobs = session.scalars(select(EdgeJobModel)).all()
             assert len(remaining_jobs) == 2
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="ExecuteTypeBody union requires Airflow 3.3+")
+class TestQueueWorkload:
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        with create_session() as session:
+            session.execute(delete(EdgeJobModel))
+            session.commit()
+
+    def _make_execute_task(self) -> ExecuteTask:
+        ti = TaskInstanceDTO(
+            id=uuid4(),
+            dag_version_id=uuid4(),
+            task_id="test_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            try_number=1,
+            map_index=-1,
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
+        )
+        return ExecuteTask(
+            ti=ti,
+            dag_rel_path=Path("test_dag.py"),
+            token="test_token",
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            log_path="test.log",
+        )
+
+    def test_queue_workload_execute_task(self):
+        executor = EdgeExecutor()
+        workload = self._make_execute_task()
+
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+
+        with create_session() as session:
+            job = session.scalar(select(EdgeJobModel))
+            assert job is not None
+            assert job.dag_id == "test_dag"
+            assert job.task_id == "test_task"
+            assert job.run_id == "test_run"
+            assert job.state == TaskInstanceState.QUEUED
+            assert '"type":"ExecuteTask"' in job.command or '"type": "ExecuteTask"' in job.command
+
+    def test_queue_workload_execute_task_existing_job(self):
+        executor = EdgeExecutor()
+        workload = self._make_execute_task()
+
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+
+        with create_session() as session:
+            jobs = session.scalars(select(EdgeJobModel)).all()
+            assert len(jobs) == 1
+            assert jobs[0].state == TaskInstanceState.QUEUED
+
+    def test_queue_workload_execute_callback(self):
+        executor = EdgeExecutor()
+        id = str(uuid4())
+        callback_data = CallbackDTO(
+            id=id,
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={
+                "path": "builtins.dict",
+                "kwargs": {"a": 1, "b": 2, "c": 3},
+            },
+        )
+        workload = ExecuteCallback(
+            callback=callback_data,
+            dag_rel_path=Path("test.py"),
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            token="test_token",
+            log_path="test.log",
+        )
+
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+
+        with create_session() as session:
+            job = session.scalar(select(EdgeJobModel))
+            assert job is not None
+            assert job.dag_id == EXECUTE_CALLBACK_TAG
+            assert job.task_id == id
+            assert job.run_id == f"{EXECUTE_CALLBACK_TAG}-{id}"
+            assert job.state == TaskInstanceState.QUEUED
+            assert '"type":"ExecuteCallback"' in job.command or '"type": "ExecuteCallback"' in job.command
+
+    def test_queue_workload_execute_callback_existing_job(self):
+        executor = EdgeExecutor()
+        callback_data = CallbackDTO(
+            id=str(uuid4()),
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={
+                "path": "builtins.dict",
+                "kwargs": {"a": 1, "b": 2, "c": 3},
+            },
+        )
+        workload = ExecuteCallback(
+            callback=callback_data,
+            dag_rel_path=Path("test.py"),
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            token="test_token",
+            log_path="test.log",
+        )
+
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+
+        with create_session() as session:
+            jobs = session.scalars(select(EdgeJobModel)).all()
+            assert len(jobs) == 1
+            assert jobs[0].state == TaskInstanceState.QUEUED
+
+    def test_queue_workload_unknown_type_raises(self):
+        executor = EdgeExecutor()
+        with create_session() as session:
+            with pytest.raises(TypeError, match="Don't know how to queue workload"):
+                executor.queue_workload(MagicMock(spec=[]), session=session)

@@ -26,6 +26,11 @@ This means that communication plays a big role in it, and this chapter is all ab
 
 In our communication, everyone is expected to follow the `ASF Code of Conduct <https://www.apache.org/foundation/policies/conduct>`_.
 
+When repeated Code of Conduct breaches, spamming of project channels, or other sustained disruptive
+behaviour cannot be resolved through normal review and mentoring, the project applies the
+`Community escalation process <../COMMUNITY_ESCALATION.md>`_. Affected contributors can appeal
+any decision taken under that process by emailing the PMC at ``private@airflow.apache.org``.
+
 .. contents:: Table of Contents
    :depth: 2
    :local:
@@ -44,7 +49,7 @@ You can join the channels via links at the `Airflow Community page <https://airf
    * general issues, asking community for opinion
    * discussing proposals
    * voting
-* The `Airflow CWiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home?src=breadcrumbs>`_ for:
+* The `Airflow CWiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Wiki?src=breadcrumbs>`_ for:
    * detailed discussions on big proposals (Airflow Improvement Proposals also name AIPs)
 * GitHub `Pull Requests (PRs) <https://github.com/apache/airflow/pulls>`_ for:
    * discussing implementation details of PRs

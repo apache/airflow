@@ -27,6 +27,41 @@
 Changelog
 ---------
 
+5.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add incremental refresh support to 'TableauOperator' (#67340)``
+
+Misc
+~~~~
+
+* ``Remove exclusion of yanked version dependencies from providers (#66857)``
+
+Doc-only
+~~~~~~~~
+
+* ``Auto-sync provider README.rst Requirements with pyproject.toml (#67669)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+5.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix TableauOperator tasks.run AttributeError (#66682)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Fix stale system test documentation links (#65071)``
+
 5.4.0
 .....
 
