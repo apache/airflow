@@ -727,19 +727,33 @@ async def test_create_triggers_asset_state_store_none_when_no_watched_assets(
 @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
 async def test_create_triggers_skips_asset_state_store_for_non_event_trigger(mock_get_classpath, session):
     """asset_state_store injection is skipped for plain BaseTrigger (non-BaseEventTrigger) instances."""
-    mock_get_classpath.return_value = SuccessTrigger
+    injected_instances: list[BaseTrigger] = []
+
+    class PlainTrigger(BaseTrigger):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            injected_instances.append(self)
+
+        def serialize(self):
+            return (f"{type(self).__module__}.{type(self).__qualname__}", {})
+
+        async def run(self):
+            yield TriggerEvent("done")
+
+    mock_get_classpath.return_value = PlainTrigger
 
     runner = TriggerRunner()
     runner.to_create.append(
         workloads.RunTrigger.model_construct(
-            id=12, ti=None, classpath="airflow.triggers.testing.SuccessTrigger", encrypted_kwargs="{}"
+            id=12, ti=None, classpath="fake.PlainTrigger", encrypted_kwargs="{}"
         )
     )
 
     await runner.create_triggers()
 
     assert 12 in runner.triggers
-    assert not hasattr(runner.triggers[12]["task"], "asset_state_store")
+    assert len(injected_instances) == 1
+    assert not hasattr(injected_instances[0], "asset_state_store")
 
     runner.triggers[12]["task"].cancel()
     await runner.cleanup_finished_triggers()
