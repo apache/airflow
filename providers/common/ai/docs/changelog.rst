@@ -43,6 +43,7 @@ Features
 * ``Support multi-schema introspection in common.ai SQLToolset (#68103)``
 * ``Add token_provider for short-lived MCP auth in common.ai (#68104)``
 * ``Add code mode (Monty sandbox) to common.ai AgentOperator (#68407)``
+* ``Add 'message_history' to 'AgentOperator' for multi-turn agent sessions (#68648)``
 
 Bug Fixes
 ~~~~~~~~~
