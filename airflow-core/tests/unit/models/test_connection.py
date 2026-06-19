@@ -540,3 +540,20 @@ class TestConnection:
             "test_conn2": None,
         }
         clear_db_connections()
+
+    @pytest.mark.parametrize(
+        "port, expected_error",
+        [
+            (-1, "The `port` must be between 0 and 65535, but got -1."),
+            (65536, "The `port` must be between 0 and 65535, but got 65536."),
+            ("invalid", "Expected integer value for `port`, but got 'invalid' instead."),
+        ]
+    )
+    def test_port_validation_raises_error(self, port, expected_error):
+        with pytest.raises(ValueError, match=re.escape(expected_error)):
+            Connection(conn_id="test_port", conn_type="http", port=port)
+
+    @pytest.mark.parametrize("port", [0, 80, 65535, None])
+    def test_port_validation_success(self, port):
+        conn = Connection(conn_id="test_port", conn_type="http", port=port)
+        assert conn.port == port

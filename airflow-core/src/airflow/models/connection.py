@@ -28,7 +28,7 @@ from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import ForeignKey, Integer, String, Text, select
-from sqlalchemy.orm import Mapped, mapped_column, reconstructor
+from sqlalchemy.orm import Mapped, mapped_column, reconstructor, validates
 
 from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_backend.base import call_secrets_backend_method
@@ -152,6 +152,17 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         ForeignKey("team.name", ondelete="SET NULL"),
         nullable=True,
     )
+
+    @validates("port")
+    def validate_port(self, key, port):
+        if port is not None:
+            try:
+                port = int(port)
+            except ValueError:
+                raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+            if not (0 <= port <= 65535):
+                raise ValueError(f"The `port` must be between 0 and 65535, but got {port!r}.")
+        return port
 
     def __init__(
         self,

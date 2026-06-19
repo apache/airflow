@@ -225,6 +225,23 @@ class TestConnections:
         connection.extra = '{"auth": {"type": "oauth"}, "headers": {"User-Agent": "Airflow"}}'
         assert connection.extra_dejson == {"auth": {"type": "oauth"}, "headers": {"User-Agent": "Airflow"}}
 
+    @pytest.mark.parametrize(
+        "port, expected_error",
+        [
+            (-1, "The `port` must be between 0 and 65535, but got -1."),
+            (65536, "The `port` must be between 0 and 65535, but got 65536."),
+            ("invalid", "Expected integer value for `port`, but got 'invalid' instead."),
+        ]
+    )
+    def test_port_validation_raises_error(self, port, expected_error):
+        with pytest.raises(ValueError, match=expected_error):
+            Connection(conn_id="test_port", port=port)
+
+    @pytest.mark.parametrize("port", [0, 80, 65535, None])
+    def test_port_validation_success(self, port):
+        conn = Connection(conn_id="test_port", port=port)
+        assert conn.port == port
+
 
 class TestConnectionsFromSecrets:
     def test_get_connection_secrets_backend(self, mock_supervisor_comms, tmp_path):

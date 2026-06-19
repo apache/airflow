@@ -93,6 +93,16 @@ def _prune_dict(val: Any, mode="strict"):
     return val
 
 
+def validate_port(instance, attribute, value):
+    if value is not None:
+        try:
+            val = int(value)
+        except ValueError:
+            raise ValueError(f"Expected integer value for `port`, but got {value!r} instead.")
+        if not (0 <= val <= 65535):
+            raise ValueError(f"The `port` must be between 0 and 65535, but got {value!r}.")
+
+
 @attrs.define(slots=False)
 class Connection:
     """
@@ -118,7 +128,7 @@ class Connection:
     schema: str | None = None
     login: str | None = None
     password: str | None = None
-    port: int | None = None
+    port: int | None = attrs.field(default=None, validator=validate_port)
     extra: str | None = None
 
     EXTRA_KEY = "__extra__"
