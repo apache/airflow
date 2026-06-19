@@ -17,9 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 from opentelemetry import context, trace
 from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace.sampling import (
     ALWAYS_OFF,
     ALWAYS_ON,
@@ -29,10 +33,12 @@ from opentelemetry.sdk.trace.sampling import (
 from opentelemetry.trace import NonRecordingSpan, SpanContext, TraceFlags, TraceState
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
+from airflow_shared.observability import traces as traces_module
 from airflow_shared.observability.traces import (
     DEFAULT_TASK_SPAN_DETAIL_LEVEL,
     TASK_SPAN_DETAIL_LEVEL_KEY,
     build_trace_state_entries,
+    cli_span,
     get_task_span_detail_level,
     new_dagrun_trace_carrier,
 )
@@ -360,3 +366,86 @@ class TestGetTaskSpanDetailLevel:
 
         span = trace.get_current_span(ctx)
         assert get_task_span_detail_level(span) == 3
+
+
+@pytest.fixture
+def in_memory_tracer():
+    """Install a real tracer provider with an in-memory exporter for assertion."""
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    tracer = provider.get_tracer("test")
+    with mock.patch.object(trace, "get_tracer", return_value=tracer):
+        yield exporter
+
+
+class TestCliSpan:
+    def test_no_span_without_traceparent(self, in_memory_tracer):
+        # No inbound TRACEPARENT: the helper is a no-op and emits no stray root span.
+        with cli_span("cli.dags.test", attributes={"airflow.dag_id": "demo"}, environ={}) as span:
+            assert span is None
+        assert len(in_memory_tracer.get_finished_spans()) == 0
+
+    def test_extracts_parent_from_traceparent(self, in_memory_tracer):
+        # W3C traceparent: 00-<trace-id>-<span-id>-<flags>, all lowercase hex.
+        trace_id_hex = "0af7651916cd43dd8448eb211c80319c"
+        span_id_hex = "b7ad6b7169203331"
+        traceparent = f"00-{trace_id_hex}-{span_id_hex}-01"
+        with cli_span(
+            "cli.tasks.test",
+            attributes={"airflow.dag_id": "demo"},
+            environ={"TRACEPARENT": traceparent},
+        ):
+            pass
+        spans = in_memory_tracer.get_finished_spans()
+        assert len(spans) == 1
+        span = spans[0]
+        assert span.parent is not None
+        # The injected parent context should be linked: same trace id, child span id matches header.
+        assert format(span.context.trace_id, "032x") == trace_id_hex
+        assert format(span.parent.span_id, "016x") == span_id_hex
+
+    def test_propagates_tracestate(self, in_memory_tracer):
+        traceparent = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+        with cli_span(
+            "cli.tasks.test",
+            environ={"TRACEPARENT": traceparent, "TRACESTATE": "vendor=value"},
+        ):
+            pass
+        spans = in_memory_tracer.get_finished_spans()
+        assert len(spans) == 1
+        # tracestate is preserved on the child span's context
+        assert spans[0].context.trace_state.to_header() == "vendor=value"
+
+    def test_ignores_malformed_traceparent(self, in_memory_tracer):
+        with cli_span(
+            "cli.tasks.test",
+            environ={"TRACEPARENT": "garbage"},
+        ):
+            pass
+        spans = in_memory_tracer.get_finished_spans()
+        assert len(spans) == 1
+        # Falls back to root span since the propagator rejects the malformed header.
+        assert spans[0].parent is None
+
+    def test_default_environ_uses_os_environ(self, in_memory_tracer, monkeypatch):
+        trace_id_hex = "0af7651916cd43dd8448eb211c80319c"
+        span_id_hex = "b7ad6b7169203331"
+        monkeypatch.setenv("TRACEPARENT", f"00-{trace_id_hex}-{span_id_hex}-01")
+        with cli_span("cli.dags.trigger"):
+            pass
+        spans = in_memory_tracer.get_finished_spans()
+        assert len(spans) == 1
+        assert format(spans[0].context.trace_id, "032x") == trace_id_hex
+
+    def test_helper_safe_when_otel_disabled(self):
+        # No mock here: default global tracer provider may be no-op, but the
+        # helper must not raise and must execute the body.
+        called = False
+        with cli_span("cli.dags.trigger", environ={}):
+            called = True
+        assert called
+
+    def test_module_exports(self):
+        """Public helper is exposed on the module."""
+        assert hasattr(traces_module, "cli_span")
