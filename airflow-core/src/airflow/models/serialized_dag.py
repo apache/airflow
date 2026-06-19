@@ -642,6 +642,7 @@ class SerializedDagModel(Base):
         dag_version = _prefetched.dag_version
 
         name_updated = False
+        reused_deadline_data: dict[str, dict] | None = None
         if dag.data.get("dag", {}).get("deadline"):
             # Try to reuse existing deadline UUIDs if the deadline definitions haven't changed.
             # This preserves the hash and avoids unnecessary SerializedDagModel recreations.
@@ -673,6 +674,7 @@ class SerializedDagModel(Base):
                         )
                     name_updated = bool(name_updates)
                     dag.data["dag"]["deadline"] = existing_deadline_uuids
+                    reused_deadline_data = deadline_uuid_mapping
                     deadline_uuid_mapping = {}
                 else:
                     # At least one deadline has changed, generate new UUIDs and update the hash.
@@ -774,6 +776,21 @@ class SerializedDagModel(Base):
         log.debug("Writing Serialized DAG: %s to the DB", dag.dag_id)
         new_serialized_dag.dag_version = dagv
         session.add(new_serialized_dag)
+
+        if not deadline_uuid_mapping and reused_deadline_data:
+            new_mapping = {str(uuid6.uuid7()): data for data in reused_deadline_data.values()}
+            sd_data = new_serialized_dag.data
+            sd_data["dag"]["deadline"] = list(new_mapping.keys())
+            dag_data_json = json.dumps(sd_data, sort_keys=True).encode("utf-8")
+            if _COMPRESS_SERIALIZED_DAGS:
+                new_serialized_dag._data = None
+                new_serialized_dag._data_compressed = zlib.compress(dag_data_json)
+            else:
+                new_serialized_dag._data = sd_data
+                new_serialized_dag._data_compressed = None
+            new_serialized_dag.dag_hash = cls.hash(sd_data)
+            deadline_uuid_mapping = new_mapping
+
         cls._create_deadline_alert_records(new_serialized_dag, deadline_uuid_mapping)
         log.debug("DAG: %s written to the DB", dag.dag_id)
         DagCode.write_code(dagv, dag.fileloc, session=session)
