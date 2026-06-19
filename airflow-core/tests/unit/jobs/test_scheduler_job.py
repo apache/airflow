@@ -5667,6 +5667,67 @@ class TestSchedulerJob:
         assert created_run.data_interval_end is None
         assert created_run.creating_job_id == scheduler_job.id
 
+    @pytest.mark.parametrize(
+        ("multi_team", "expect_team_tag"),
+        [
+            pytest.param("true", True, id="with_team"),
+            pytest.param("false", False, id="without_team"),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_asset_triggered_dagruns_respects_team_name(
+        self, mock_get_backend, multi_team, expect_team_tag, session, dag_maker
+    ):
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+
+        suffix = "with_team" if expect_team_tag else "without_team"
+
+        team_name = f"team_asset_trig_{suffix}"
+        team = Team(name=team_name)
+        session.add(team)
+        session.flush()
+
+        bundle_name = f"bundle_asset_trig_{suffix}"
+        bundle = DagBundleModel(name=bundle_name)
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.commit()
+
+        asset_name = f"test_team_asset_{suffix}"
+        asset = Asset(uri=f"test://{asset_name}", name=asset_name, group="test_group")
+        with dag_maker(dag_id=f"producer_{suffix}", bundle_name=bundle_name, session=session):
+            BashOperator(task_id="task", bash_command="echo 1", outlets=[asset])
+        dr = dag_maker.create_dagrun()
+
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+        event = AssetEvent(
+            asset_id=asset_id,
+            source_task_id="task",
+            source_dag_id=dr.dag_id,
+            source_run_id=dr.run_id,
+            source_map_index=-1,
+        )
+        session.add(event)
+
+        with dag_maker(
+            dag_id=f"consumer_{suffix}", schedule=[asset], bundle_name=bundle_name, session=session
+        ):
+            pass
+
+        session.add(AssetDagRunQueue(asset_id=asset_id, target_dag_id=f"consumer_{suffix}"))
+        session.flush()
+
+        with conf_vars({("core", "multi_team"): multi_team}):
+            scheduler_job = Job()
+            self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+            self.job_runner._create_dagruns_for_dags(session, session)
+
+        if expect_team_tag:
+            mock_stats.incr.assert_any_call("asset.triggered_dagruns", tags={"team_name": team_name})
+        else:
+            mock_stats.incr.assert_any_call("asset.triggered_dagruns")
+
     @pytest.mark.need_serialized_dag
     @pytest.mark.parametrize(
         ("disable", "enable"),
