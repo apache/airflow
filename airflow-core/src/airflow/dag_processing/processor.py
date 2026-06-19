@@ -409,8 +409,6 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
 def _execute_dag_skipped_intervals_callback(
     dagbag: DagBag, request: DagSkippedIntervalsCallbackRequest, log: FilteringBoundLogger
 ) -> None:
-    from airflow._shared.timezones import timezone
-    from airflow.timetables.base import DataInterval
 
     dag, _ = _get_dag_with_task(dagbag, request.dag_id)
     callbacks = dag.on_skipped_intervals_callback
@@ -419,14 +417,12 @@ def _execute_dag_skipped_intervals_callback(
         return
 
     callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
-    skipped_intervals = [
-        DataInterval(start=timezone.coerce_datetime(start), end=timezone.coerce_datetime(end))
-        for start, end in request.skipped_intervals
-    ]
+    summary = request.to_summary()
     context: Context = {  # type: ignore[typeddict-unknown-key]
         "dag": dag,
         "reason": "skipped_intervals",
-        "skipped_intervals": skipped_intervals,
+        "skipped_interval_count": summary.skipped_interval_count,
+        "skipped_range": summary.skipped_range,
     }
 
     for callback in callbacks:

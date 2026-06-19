@@ -54,7 +54,7 @@ from airflow.serialization.decoders import decode_deadline_alert
 from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
+from airflow.timetables.base import DagRunInfo, DataInterval, SkippedIntervalsSummary, TimeRestriction
 from airflow.utils.helpers import prune_dict
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -520,6 +520,41 @@ class SerializedDAG:
                 last_dagrun_info=info,
                 dag_id=self.dag_id,
             )
+
+    def summarize_skipped_intervals_between(
+        self,
+        prev_interval_end: datetime.datetime,
+        new_interval_start: datetime.datetime,
+    ) -> SkippedIntervalsSummary | None:
+        """
+        Summarize intervals skipped between two automated Dag run boundaries.
+
+        Returns ``None`` when there is no schedulable gap or the timetable cannot
+        count skipped intervals in constant time.
+        """
+        if prev_interval_end >= new_interval_start:
+            return None
+
+        from airflow._shared.timezones import timezone
+
+        prev_end = timezone.coerce_datetime(prev_interval_end)
+        new_start = timezone.coerce_datetime(new_interval_start)
+        count_fn = getattr(self.timetable, "count_skipped_intervals_between", None)
+        if count_fn is None:
+            return None
+
+        try:
+            count = count_fn(prev_end, new_start)
+        except NotImplementedError:
+            return None
+
+        if count <= 0:
+            return None
+
+        return SkippedIntervalsSummary(
+            skipped_interval_count=count,
+            skipped_range=DataInterval(start=prev_end, end=new_start),
+        )
 
     @provide_session
     def get_concurrency_reached(self, *, session=NEW_SESSION) -> bool:

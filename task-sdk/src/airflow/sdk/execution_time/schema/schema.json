@@ -1424,23 +1424,24 @@
           "title": "Dag Id",
           "type": "string"
         },
-        "skipped_intervals": {
-          "items": {
-            "maxItems": 2,
-            "minItems": 2,
-            "prefixItems": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "format": "date-time",
-                "type": "string"
-              }
-            ],
-            "type": "array"
-          },
-          "title": "Skipped Intervals",
+        "skipped_interval_count": {
+          "title": "Skipped Interval Count",
+          "type": "integer"
+        },
+        "skipped_range": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "format": "date-time",
+              "type": "string"
+            }
+          ],
+          "title": "Skipped Range",
           "type": "array"
         },
         "type": {
@@ -1455,7 +1456,8 @@
         "bundle_name",
         "bundle_version",
         "dag_id",
-        "skipped_intervals"
+        "skipped_interval_count",
+        "skipped_range"
       ],
       "title": "DagSkippedIntervalsCallbackRequest",
       "type": "object"

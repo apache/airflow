@@ -38,6 +38,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.models import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+from airflow.timetables.base import DataInterval, SkippedIntervalsSummary
 from airflow.utils.state import State, TaskInstanceState
 
 pytestmark = pytest.mark.db_test
@@ -378,18 +379,22 @@ class TestDagSkippedIntervalsCallbackRequest:
     def test_to_json_roundtrip(self):
         interval_start = timezone.datetime(2024, 1, 1)
         interval_end = timezone.datetime(2024, 1, 2)
-        request = DagSkippedIntervalsCallbackRequest(
+        summary = SkippedIntervalsSummary(
+            skipped_interval_count=1,
+            skipped_range=DataInterval(start=interval_start, end=interval_end),
+        )
+        request = DagSkippedIntervalsCallbackRequest.from_summary(
             filepath="test.py",
             dag_id="test_dag",
             bundle_name="testing",
             bundle_version="v1",
-            skipped_intervals=[(interval_start, interval_end)],
+            summary=summary,
         )
 
         result = DagSkippedIntervalsCallbackRequest.from_json(request.to_json())
 
         assert result == request
-        assert result.skipped_intervals == [(interval_start, interval_end)]
+        assert result.to_summary() == summary
 
     def test_callback_request_union_with_skipped_intervals(self):
         interval_start = timezone.datetime(2024, 1, 1)
@@ -400,9 +405,8 @@ class TestDagSkippedIntervalsCallbackRequest:
             "dag_id": "test_dag",
             "bundle_name": "testing",
             "bundle_version": "v1",
-            "skipped_intervals": [
-                [interval_start.isoformat(), interval_end.isoformat()],
-            ],
+            "skipped_interval_count": 1,
+            "skipped_range": [interval_start.isoformat(), interval_end.isoformat()],
         }
 
         adapter = TypeAdapter(CallbackRequest)
@@ -410,7 +414,7 @@ class TestDagSkippedIntervalsCallbackRequest:
 
         assert isinstance(callback_request, DagSkippedIntervalsCallbackRequest)
         assert callback_request.dag_id == "test_dag"
-        assert len(callback_request.skipped_intervals) == 1
+        assert callback_request.skipped_interval_count == 1
 
 
 class TestEmailRequest:
