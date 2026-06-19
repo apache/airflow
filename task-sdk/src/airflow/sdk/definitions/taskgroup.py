@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import copy
 import re
+import warnings
 import weakref
 from collections import deque
 from collections.abc import Generator, Iterator, Sequence
@@ -29,6 +30,7 @@ from typing import TYPE_CHECKING, Any
 import attrs
 
 from airflow.sdk import TriggerRule
+from airflow.sdk._shared.dagnode.ui_color import is_chakra_color_token
 from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
 from airflow.sdk.exceptions import (
     AirflowDagCycleException,
@@ -74,6 +76,22 @@ def _default_dag(instance: TaskGroup):
 # Mypy does not like a lambda for some reason. An explicit annotated function makes it happy.
 def _validate_group_id(instance, attribute, value: str) -> None:
     validate_group_key(value)
+
+
+def _warn_non_token_ui_color(instance, attribute, value: str) -> None:
+    """
+    Warn when ``ui_color``/``ui_fgcolor`` is overridden with a non Chakra color token.
+
+    Only Chakra palette tokens like ``blue.500`` are rendered by the UI graph; other values
+    (the legacy default, raw hex, CSS names) are ignored.
+    """
+    if value != attribute.default and not is_chakra_color_token(value):
+        warnings.warn(
+            f"TaskGroup {attribute.name} value {value!r} is not a Chakra color token (e.g. 'blue.500') "
+            f"and will be ignored in the UI graph.",
+            UserWarning,
+            stacklevel=3,
+        )
 
 
 def _convert_doc_md(doc_md: str | None) -> str | None:
@@ -149,8 +167,14 @@ class TaskGroup(DAGNode):
         on_setattr=attrs.setters.frozen,
     )
 
-    ui_color: str = attrs.field(default="CornflowerBlue", validator=attrs.validators.instance_of(str))
-    ui_fgcolor: str = attrs.field(default="#000", validator=attrs.validators.instance_of(str))
+    ui_color: str = attrs.field(
+        default="CornflowerBlue",
+        validator=[attrs.validators.instance_of(str), _warn_non_token_ui_color],
+    )
+    ui_fgcolor: str = attrs.field(
+        default="#000",
+        validator=[attrs.validators.instance_of(str), _warn_non_token_ui_color],
+    )
 
     add_suffix_on_collision: bool = False
 
