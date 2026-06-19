@@ -73,9 +73,6 @@ if TYPE_CHECKING:
     )
 
 
-log = logging.getLogger(__name__)
-
-
 class KubernetesExecutor(BaseExecutor):
     """Executor for Kubernetes."""
 
@@ -201,8 +198,7 @@ class KubernetesExecutor(BaseExecutor):
             scheduler_job_id=self.scheduler_job_id,
         )
 
-    @staticmethod
-    def _coordinator_extra(queue: str | None) -> dict[str, Any] | None:
+    def _coordinator_extra(self, queue: str | None) -> dict[str, Any] | None:
         """
         Return the ``extra`` mapping a coordinator declares for *queue*, if any.
 
@@ -224,15 +220,14 @@ class KubernetesExecutor(BaseExecutor):
         try:
             return get_coordinator_manager().extra_for_queue(queue)
         except (AirflowConfigException, ValueError):
-            log.warning(
+            self.log.warning(
                 "Ignoring coordinator config for queue %s: invalid [sdk] coordinator config",
                 queue,
                 exc_info=True,
             )
             return None
 
-    @staticmethod
-    def _coordinator_pod_template_file(queue: str | None) -> str | None:
+    def _coordinator_pod_template_file(self, queue: str | None) -> str | None:
         """
         Return the pod template a coordinator declares for *queue*, if any.
 
@@ -240,13 +235,11 @@ class KubernetesExecutor(BaseExecutor):
         queue_to_coordinator``) launch its worker pod from a coordinator-specific
         template — for example an image carrying the JVM for a Java coordinator.
         """
-        extra = KubernetesExecutor._coordinator_extra(queue)
-        if extra is not None:
+        if (extra := self._coordinator_extra(queue)) is not None:
             return extra.get("pod_template_file", None)
         return None
 
-    @staticmethod
-    def _coordinator_kube_image(queue: str | None) -> str | None:
+    def _coordinator_kube_image(self, queue: str | None) -> str | None:
         """
         Return the worker base image a coordinator declares for *queue*, if any.
 
@@ -257,13 +250,10 @@ class KubernetesExecutor(BaseExecutor):
         (e.g. a JRE-bearing image for a Java coordinator); both are required to
         compose an override, otherwise the executor default applies.
         """
-        extra = KubernetesExecutor._coordinator_extra(queue)
-        if not extra:
+        if (extra := self._coordinator_extra(queue)) is None:
             return None
-        repository = extra.get("worker_container_repository")
-        tag = extra.get("worker_container_tag")
-        if repository and tag:
-            return f"{repository}:{tag}"
+        if (repo := extra.get("worker_container_repository")) and (tag := extra.get("worker_container_tag")):
+            return f"{repo}:{tag}"
         return None
 
     def execute_async(
@@ -306,8 +296,7 @@ class KubernetesExecutor(BaseExecutor):
 
         # The base image is not carried by a pod template, so a coordinator routes
         # its worker base image separately (e.g. a JRE image for a Java queue).
-        coordinator_kube_image = self._coordinator_kube_image(queue)
-        if coordinator_kube_image is not None:
+        if (coordinator_kube_image := self._coordinator_kube_image(queue)) is not None:
             self.log.debug(
                 "Using coordinator-declared base image %s for task %s in queue %s",
                 coordinator_kube_image,
