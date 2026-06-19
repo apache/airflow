@@ -21,13 +21,21 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.standard.triggers.asset import AssetPartitionTrigger
-from airflow.sdk import timezone
-from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
-from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time import task_runner
-from airflow.sdk.execution_time.comms import AssetEventsResult, ErrorResponse, GetAssetEventByAsset
-from airflow.triggers.base import TriggerEvent
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+pytestmark = pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS,
+    reason="Asset partition trigger tests require Airflow 3.1+ Task SDK supervisor comms",
+)
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.providers.standard.triggers.asset import AssetPartitionTrigger
+    from airflow.sdk import timezone
+    from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
+    from airflow.sdk.exceptions import ErrorType
+    from airflow.sdk.execution_time import task_runner
+    from airflow.sdk.execution_time.comms import AssetEventsResult, ErrorResponse, GetAssetEventByAsset
+    from airflow.triggers.base import TriggerEvent
 
 
 class TestAssetPartitionTrigger:
