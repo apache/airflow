@@ -145,7 +145,11 @@
     "selectDateRange": "選擇日期範圍",
     "startTime": "起始時間"
   },
+  "fullscreen": {
+    "tooltip": "按下 {{hotkey}} 進入全螢幕"
+  },
   "generateToken": "產生權杖",
+  "key": "鍵",
   "logicalDate": "邏輯日期",
   "logout": "登出",
   "logoutConfirmation": "確定要登出嗎？",
@@ -175,10 +179,14 @@
   "note": {
     "add": "新增筆記",
     "dagRun": "Dag 執行筆記",
+    "edit": "編輯筆記",
     "label": "筆記",
     "placeholder": "新增筆記...",
-    "taskInstance": "任務實例筆記"
+    "preview": "預覽",
+    "taskInstance": "任務實例筆記",
+    "write": "撰寫"
   },
+  "overallStatus": "整體狀態",
   "partitionedDagRun_one": "分區的 Dag 執行",
   "partitionedDagRun_other": "分區的 Dag 執行",
   "partitionedDagRunDetail": {
@@ -262,13 +270,17 @@
       "any": "任何"
     },
     "tagPlaceholder": "依標籤篩選",
-    "to": "到"
+    "to": "到",
+    "updatedAt": "更新時間"
   },
   "task": {
+    "dependsOnPast": "依賴過去",
     "documentation": "任務文件",
     "lastInstance": "最後實例",
     "operator": "任務操作器",
-    "triggerRule": "觸發規則"
+    "retries": "重試次數",
+    "triggerRule": "觸發規則",
+    "waitForDownstream": "等待下游"
   },
   "task_one": "任務",
   "task_other": "任務",
@@ -279,10 +291,12 @@
   "taskGroup_other": "任務群組",
   "taskId": "任務 ID",
   "taskInstance": {
+    "additionalAttributes": "任務實例額外屬性",
     "dagVersion": "Dag 版本",
     "executor": "執行器",
     "executorConfig": "執行器設定",
     "hostname": "主機名稱",
+    "id": "ID",
     "maxTries": "最大嘗試次數",
     "pid": "PID",
     "pool": "資源池",
@@ -292,11 +306,13 @@
     "queuedWhen": "開始排隊時間",
     "renderedMapIndex": "渲染後的映射索引",
     "scheduledWhen": "開始排程時間",
+    "trigger": "觸發器",
     "triggerer": {
       "assigned": "指派的觸發者",
       "class": "觸發器類別",
       "createdAt": "觸發器建立時間",
       "id": "觸發器 ID",
+      "job": "觸發者工作",
       "latestHeartbeat": "最新觸發者心跳時間",
       "title": "觸發者資訊"
     },
@@ -393,6 +409,7 @@
     "mustBeAtLeast": "必須至少為 {{min}}。",
     "mustBeValidNumber": "必須為有效的數字。"
   },
+  "value": "值",
   "wrap": {
     "hotkey": "w",
     "tooltip": "按 {{hotkey}} 切換換行",

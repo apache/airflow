@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-microsoft-azure``
 
-Release: ``13.4.0``
+Release: ``13.5.0``
 
 
 `Microsoft Azure <https://azure.microsoft.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``microsoft.azure`` provider. All classes for thi
 are in ``airflow.providers.microsoft.azure`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.4.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.5.0/>`_.
 
 Installation
 ------------
@@ -105,6 +105,8 @@ Dependent package                                                               
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                      ``amazon``
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_        ``common.compat``
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
+`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                      ``google``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_            ``openlineage``
 `apache-airflow-providers-oracle <https://airflow.apache.org/docs/apache-airflow-providers-oracle>`_                      ``oracle``
 `apache-airflow-providers-sftp <https://airflow.apache.org/docs/apache-airflow-providers-sftp>`_                          ``sftp``
 ========================================================================================================================  ====================
@@ -119,7 +121,9 @@ Extra                 Dependencies
 ``oracle``            ``apache-airflow-providers-oracle``
 ``sftp``              ``apache-airflow-providers-sftp``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
+``google``            ``apache-airflow-providers-google``
+``openlineage``       ``apache-airflow-providers-openlineage>=2.3.0``
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.4.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.5.0/changelog.html>`_.

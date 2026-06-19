@@ -44,7 +44,7 @@ from airflow.models.asset import (
 )
 from airflow.models.log import Log
 from airflow.timetables.base import compute_rollup_fingerprint
-from airflow.utils.helpers import is_container
+from airflow.utils.helpers import is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
 
@@ -397,7 +397,12 @@ class AssetManager(LoggingMixin):
             )
         )
 
-        stats.incr("asset.updates")
+        team_name = None
+        if task_instance and conf.getboolean("core", "multi_team"):
+            from airflow.models.dag import DagModel
+
+            team_name = DagModel.get_team_name(task_instance.dag_id, session=session)
+        stats.incr("asset.updates", tags=prune_dict({"team_name": team_name}))
 
         dags_to_queue = (
             dags_to_queue_from_asset | dags_to_queue_from_asset_alias | dags_to_queue_from_asset_ref
@@ -405,7 +410,6 @@ class AssetManager(LoggingMixin):
 
         if conf.getboolean("core", "multi_team"):
             if task_instance:
-                team_name = DagModel.get_team_name(task_instance.dag_id, session=session)
                 resolved_source_teams = {team_name} if team_name else set()
                 # Resolve consumer-team filtering from the outlet reference
                 outlet_ref = session.scalar(
@@ -552,8 +556,7 @@ class AssetManager(LoggingMixin):
             )
             return
 
-        max_downstream_keys = conf.getint("scheduler", "partition_mapper_max_downstream_keys")
-
+        global_cap = conf.getint("scheduler", "partition_mapper_max_downstream_keys")
         for target_dag in partition_dags:
             if TYPE_CHECKING:
                 assert partition_key is not None
@@ -573,9 +576,8 @@ class AssetManager(LoggingMixin):
 
             try:
                 # We'll need to catch every possible exception happen when mapping partition_key.
-                target_key = timetable.get_partition_mapper(
-                    name=asset_model.name, uri=asset_model.uri
-                ).to_downstream(partition_key)
+                mapper = timetable.get_partition_mapper(name=asset_model.name, uri=asset_model.uri)
+                target_key = mapper.to_downstream(partition_key)
             except Exception as err:
                 log.exception(
                     "Could not map partition key for asset in target Dag. "
@@ -607,6 +609,14 @@ class AssetManager(LoggingMixin):
                 target_keys = [target_key]
             del target_key
 
+            mapper_cap = mapper.max_downstream_keys
+            if mapper_cap is not None:
+                max_downstream_keys = mapper_cap
+                cap_source = f"max_downstream_keys={mapper_cap}"
+            else:
+                max_downstream_keys = global_cap
+                cap_source = f"[scheduler] partition_mapper_max_downstream_keys={global_cap}"
+
             if len(target_keys) > max_downstream_keys:
                 log.error(
                     "Partition mapper produced more downstream keys than allowed; skipping queue.",
@@ -615,6 +625,7 @@ class AssetManager(LoggingMixin):
                     target_dag=target_dag.dag_id,
                     produced_keys=len(target_keys),
                     max_downstream_keys=max_downstream_keys,
+                    cap_source=cap_source,
                 )
                 session.add(
                     Log(
@@ -624,7 +635,7 @@ class AssetManager(LoggingMixin):
                             f"uri='{asset_model.uri}') in target Dag '{target_dag.dag_id}' "
                             f"produced {len(target_keys)} downstream keys from "
                             f"partition_key='{partition_key}', exceeding "
-                            f"[scheduler] partition_mapper_max_downstream_keys={max_downstream_keys}. "
+                            f"{cap_source}. "
                             f"No Dag runs were queued for this event."
                         ),
                         task_instance=task_instance,

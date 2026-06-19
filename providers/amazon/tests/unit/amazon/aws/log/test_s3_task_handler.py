@@ -184,6 +184,21 @@ class TestS3RemoteLogIO:
 
         assert body == b"previous \ntext"
 
+    def test_write_does_not_expose_lineage(self, hook_lineage_collector):
+        # Remote task logs are not task data assets, so uploading them must not add the S3 object
+        # as a task output in OpenLineage events.
+        self.subject.write("text", self.remote_log_location)
+        assert hook_lineage_collector.collected_assets.outputs == []
+        assert hook_lineage_collector.collected_assets.inputs == []
+
+    @conf_vars({("logging", "encrypt_s3_logs"): "True"})
+    def test_write_with_encryption(self):
+        self.subject.write("text", self.remote_log_location)
+        resp = self.conn.head_object(Bucket="bucket", Key=self.remote_log_key)
+        assert resp["ServerSideEncryption"] == "AES256"
+        body = boto3.resource("s3").Object("bucket", self.remote_log_key).get()["Body"].read()
+        assert body == b"text"
+
     def test_upload_repeated_appends_no_duplication(self):
         """Simulate reschedule-mode sensor: each cycle appends to the local log, then uploads.
 

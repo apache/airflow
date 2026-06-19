@@ -251,6 +251,7 @@ cli
 ClickHouse
 clickhouse
 clickhousedb
+clickstream
 ClientSecretCredential
 cloudant
 CloudantV
@@ -648,6 +649,7 @@ Filesystem
 filesystem
 filesystems
 filetype
+finalStatus
 fips
 firebase
 Firehose
@@ -1148,6 +1150,8 @@ ok
 oklch
 Okta
 okta
+OL
+ol
 Ollama
 onboarded
 onboarding
@@ -1386,6 +1390,7 @@ renderer
 renderers
 renewer
 reparse
+reparsed
 replicaSet
 repo
 repos

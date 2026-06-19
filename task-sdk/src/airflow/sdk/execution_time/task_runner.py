@@ -122,12 +122,12 @@ from airflow.sdk.execution_time.comms import (
     ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
-    AssetStoreAccessors,
+    AssetStateStoreAccessors,
     ConnectionAccessor,
     InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
-    TaskStoreAccessor,
+    TaskStateStoreAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     context_get_outlet_events,
@@ -251,6 +251,14 @@ class RuntimeTaskInstance(TaskInstance):
 
     sentry_integration: str = ""
 
+    @property
+    def stats_tags(self) -> dict[str, str]:
+        """Metric tags for this task instance, including team_name when available."""
+        tags: dict[str, str] = {"dag_id": self.dag_id, "task_id": self.task_id}
+        if self._ti_context_from_server and self._ti_context_from_server.dag_run.team_name:
+            tags["team_name"] = self._ti_context_from_server.dag_run.team_name
+        return tags
+
     def __rich_repr__(self):
         yield "id", self.id
         yield "task_id", self.task_id
@@ -300,7 +308,7 @@ class RuntimeTaskInstance(TaskInstance):
                     "value": VariableAccessor(deserialize_json=False),
                 },
                 "conn": ConnectionAccessor(),
-                "task_store": TaskStoreAccessor(
+                "task_state_store": TaskStateStoreAccessor(
                     ti_id=self.id,
                     scope=TaskScope(
                         dag_id=self.dag_id,
@@ -312,7 +320,7 @@ class RuntimeTaskInstance(TaskInstance):
             }
             _asset_types = (Asset, AssetNameRef, AssetUriRef, AssetAlias)
             if any(isinstance(i, _asset_types) for i in self.task.inlets + self.task.outlets):
-                self._cached_template_context["asset_store"] = AssetStoreAccessors(
+                self._cached_template_context["asset_state_store"] = AssetStateStoreAccessors(
                     self.task.inlets, self.task.outlets
                 )
                 # AssetAlias inlets are resolved to their concrete assets at context build time via
@@ -1434,7 +1442,7 @@ def run(
     state: TaskInstanceState | None = None
     error: BaseException | None = None
 
-    stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+    stats_tags = ti.stats_tags
     stats.incr("ti.start", tags=stats_tags)
 
     try:
@@ -1533,7 +1541,7 @@ def run(
         # We should allow retries if the task has defined it.
         log.exception("Task failed with exception")
         log.info("::group::Post Execute")
-        msg, state = _apply_retry_policy_or_default(ti, e, log, context)
+        msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
     except AirflowTaskTerminated as e:
         # External state updates are already handled with `ti_heartbeat` and will be
@@ -1553,12 +1561,12 @@ def run(
         # SystemExit needs to be retried if they are eligible.
         log.error("Task exited", exit_code=e.code)
         log.info("::group::Post Execute")
-        msg, state = _apply_retry_policy_or_default(ti, e, log, context)
+        msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
     except BaseException as e:
         log.exception("Task failed with exception")
         log.info("::group::Post Execute")
-        msg, state = _apply_retry_policy_or_default(ti, e, log, context)
+        msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
     finally:
         # `state` may still be unset if an exception handler above raised before
@@ -1613,7 +1621,7 @@ def _handle_current_task_success(
 
     # Record operator and task instance success metrics
     operator = ti.task.__class__.__name__
-    stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+    stats_tags = ti.stats_tags
 
     stats.incr("operator_successes", tags={**stats_tags, "operator_name": operator})
     stats.incr("ti_successes", tags=stats_tags)
@@ -1625,7 +1633,7 @@ def _handle_current_task_success(
         log.info(
             "Clearing task state from custom backend as clear_on_success is enabled. The database references will be cleared by the API server."
         )
-        context["task_store"]._clear_backend_only()
+        context["task_state_store"]._clear_backend_only()
 
     msg = SucceedTask(
         end_date=end_date,
@@ -1667,20 +1675,20 @@ def _evaluate_retry_policy(
         return None
 
 
-def _apply_retry_policy_or_default(
+def _handle_current_task_failed(
     ti: RuntimeTaskInstance,
     exception: BaseException,
     log: Logger,
     context: Context | None = None,
 ) -> tuple[RetryTask | TaskState, TaskInstanceState]:
     """
-    Evaluate the retry policy (if any) and decide the task's next state.
+    Handle a failed task: evaluate the retry policy (if any) and decide the next state.
 
-    When the policy returns FAIL the task is marked as failed immediately,
-    bypassing the normal retry-count check.  When it returns RETRY with
-    a custom delay, that delay is forwarded in the ``RetryTask`` message.
-    For DEFAULT (or when no policy is configured), the standard
-    ``_handle_current_task_failed`` logic runs.
+    This is the entry point every failure path routes through. When the policy
+    returns FAIL the task is marked as failed immediately, bypassing the normal
+    retry-count check.  When it returns RETRY with a custom delay, that delay is
+    forwarded in the ``RetryTask`` message.  For DEFAULT (or when no policy is
+    configured), the standard ``_finalize_task_failure`` logic runs.
     """
     from airflow.sdk.definitions.retry_policy import RetryAction
 
@@ -1696,23 +1704,31 @@ def _apply_retry_policy_or_default(
             TaskInstanceState.FAILED,
         )
     if decision is not None and decision.action == RetryAction.RETRY:
-        return _handle_current_task_failed(
+        return _finalize_task_failure(
             ti, retry_delay_override=decision.retry_delay, retry_reason=decision.reason
         )
-    return _handle_current_task_failed(ti)
+    return _finalize_task_failure(ti)
 
 
-def _handle_current_task_failed(
+def _finalize_task_failure(
     ti: RuntimeTaskInstance,
     retry_delay_override: timedelta | None = None,
     retry_reason: str | None = None,
 ) -> tuple[RetryTask, TaskInstanceState] | tuple[TaskState, TaskInstanceState]:
+    """
+    Record failure metrics and build the standard retry-or-fail outcome.
+
+    Returns an ``UP_FOR_RETRY`` ``RetryTask`` when the server marked the task
+    retry-eligible (optionally carrying a policy-supplied delay/reason), else a
+    ``FAILED`` ``TaskState``. This is the default path; retry-policy overrides
+    are decided in :func:`_handle_current_task_failed` before this is called.
+    """
     end_date = datetime.now(tz=timezone.utc)
     ti.end_date = end_date
 
     # Record operator and task instance failed metrics
     operator = ti.task.__class__.__name__
-    stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+    stats_tags = ti.stats_tags
 
     stats.incr("operator_failures", tags={**stats_tags, "operator_name": operator})
     stats.incr("ti_failures", tags=stats_tags)
@@ -1820,7 +1836,7 @@ def _handle_trigger_dag_run(
                 # therefore honours a configured retry_policy. Synthesize the same
                 # exception here so non-deferrable waits evaluate the policy too,
                 # falling back to the standard retry-count check when none is set.
-                return _apply_retry_policy_or_default(
+                return _handle_current_task_failed(
                     ti,
                     AirflowException(f"{drte.trigger_dag_id} failed with failed state {comms_msg.state}"),
                     log,
@@ -2077,9 +2093,7 @@ def finalize(
     # Record task duration metrics for all terminal states
     if ti.start_date and ti.end_date:
         duration_ms = (ti.end_date - ti.start_date).total_seconds() * 1000
-        stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
-
-        stats.timing("task.duration", duration_ms, tags=stats_tags)
+        stats.timing("task.duration", duration_ms, tags=ti.stats_tags)
 
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.

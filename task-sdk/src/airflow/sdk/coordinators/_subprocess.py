@@ -51,8 +51,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from airflow.sdk.api.client import Client
-    from airflow.sdk.api.datamodels._generated import BundleInfo
-    from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
+    from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
@@ -279,7 +278,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
     def start(  # type: ignore[override]
         cls,
         *,
-        what: TaskInstanceDTO,
+        what: TaskInstance,
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
         logger: FilteringBoundLogger | None = None,
@@ -369,7 +368,7 @@ class SubprocessCoordinator(BaseCoordinator):
 
     task_startup_timeout: float = 10.0
 
-    def _build_execute_task_command(self, *, what: TaskInstanceDTO) -> tuple[list[str], str | None]:
+    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         """
         Build the subprocess command and resolve its supervisor wire-schema version for *what*.
 
@@ -385,7 +384,7 @@ class SubprocessCoordinator(BaseCoordinator):
     def execute_task(
         self,
         *,
-        what: TaskInstanceDTO,
+        what: TaskInstance,
         dag_rel_path: str | os.PathLike[str],
         bundle_info: BundleInfo,
         client: Client,

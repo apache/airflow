@@ -95,7 +95,11 @@ dependencies = [
     "cryptography>=44.0.3",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
-    "fastapi[standard-no-fastapi-cloud-cli]>=0.129.0",
+    # Cap below 0.137.0: FastAPI 0.137 switched to lazy router inclusion, which breaks cadwyn's
+    # versioned router generation (RouterGenerationError) and fails api-server / dag-processor
+    # startup. Relax once cadwyn supports FastAPI 0.137. See
+    # https://github.com/apache/airflow/issues/68562
+    "fastapi[standard-no-fastapi-cloud-cli]>=0.129.0,<0.137.0",
     "uvicorn>=0.37.0",
     "starlette>=1.0.1",
     "httpx>=0.25.0",

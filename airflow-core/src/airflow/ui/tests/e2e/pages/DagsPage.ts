@@ -17,6 +17,7 @@
  * under the License.
  */
 import { expect, type Locator, type Page, type Response } from "@playwright/test";
+import { HITLReviewModal } from "tests/e2e/components/HITLReviewModal";
 import { BasePage } from "tests/e2e/pages/BasePage";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
@@ -32,6 +33,8 @@ export class DagsPage extends BasePage {
   public readonly cardViewButton: Locator;
   public readonly confirmButton: Locator;
   public readonly failedFilter: Locator;
+  public readonly hitlReviewModal: HITLReviewModal;
+  public readonly needsReviewBadges: Locator;
   public readonly needsReviewFilter: Locator;
   public readonly operatorFilter: Locator;
   public readonly queuedFilter: Locator;
@@ -63,6 +66,8 @@ export class DagsPage extends BasePage {
     this.tableViewButton = page.getByRole("button", { name: "Show table view" });
     this.successFilter = page.getByRole("button", { name: "Success" });
     this.failedFilter = page.getByRole("button", { name: "Failed" });
+    this.hitlReviewModal = new HITLReviewModal(page);
+    this.needsReviewBadges = page.getByTestId("needs-review-badge");
     this.runningFilter = page.getByRole("button", { name: "Running" });
     this.queuedFilter = page.getByRole("button", { name: "Queued" });
     // Uses testId because this button's text is driven by an i18n key.
@@ -193,6 +198,22 @@ export class DagsPage extends BasePage {
     const texts = await dagLinks.allTextContents();
 
     return texts.map((text) => text.trim()).filter((text) => text !== "");
+  }
+
+  public async getDagNeedsReviewBadgeOnCard(dagId: string): Promise<Locator> {
+    const dagCard = this.page.getByTestId("dag-card").filter({ hasText: dagId });
+
+    await expect(dagCard).toBeVisible({ timeout: 60_000 });
+
+    return dagCard.getByTestId("needs-review-badge");
+  }
+
+  public async getDagNeedsReviewBadgeOnTable(dagId: string): Promise<Locator> {
+    const dagRow = this.page.getByTestId("table-list").getByRole("row").filter({ hasText: dagId });
+
+    await expect(dagRow).toBeVisible({ timeout: 60_000 });
+
+    return dagRow.getByTestId("needs-review-badge");
   }
 
   /**

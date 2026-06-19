@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-google"
-version = "22.1.0"
+version = "22.2.0"
 description = "Provider package apache-airflow-providers-google for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -86,6 +86,7 @@ dependencies = [
     "google-cloud-aiplatform[evaluation]>=1.155.0",
     "ray[default]>=2.42.0;python_version<'3.13'",
     "ray[default]>=2.49.0;python_version>='3.13' and python_version <'3.14'",
+    "ray[default]>=2.55.0;python_version>='3.14' and python_version <'3.15'",
     "google-cloud-bigquery-storage>=2.31.0;python_version<'3.13'",
     "google-cloud-bigquery-storage>=2.33.0;python_version>='3.13'",
     "google-cloud-alloydb>=0.4.0",
@@ -139,6 +140,9 @@ dependencies = [
     # Used to write parquet files by BaseSqlToGCSOperator
     "pyarrow>=18.0.0; python_version < '3.14'",
     "pyarrow>=22.0.0; python_version >= '3.14'",
+    # The 3.14 constraint is a workaround to deal with a Ray incompatibility
+    # See https://github.com/ray-project/ray/issues/62664
+    "pydantic>=2.13.1; python_version >= '3.14'",
     "python-slugify>=7.0.0",
     "sqlalchemy-bigquery>=1.2.1",
     "sqlalchemy-spanner>=1.6.2",
@@ -272,8 +276,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.1.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.1.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.2.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.2.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

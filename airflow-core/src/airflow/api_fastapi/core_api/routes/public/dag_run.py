@@ -657,6 +657,7 @@ def trigger_dag_run(
             triggering_user_name=user.get_name(),
             state=DagRunState.QUEUED,
             partition_key=params["partition_key"],
+            partition_date=params["partition_date"],
             session=session,
         )
     except (ParamValidationError, ValueError) as e:
@@ -703,21 +704,29 @@ def wait_dag_run_until_finished(
     interval: Annotated[float, Query(gt=0.0, description="Seconds to wait between dag run state checks")],
     result_task_ids: Annotated[
         list[str] | None,
-        Query(alias="result", description="Collect result XCom from task. Can be set multiple times."),
+        Query(
+            alias="result",
+            description=(
+                "Collect result XCom from task. Can be set multiple times. "
+                "If unset, return value of the return task as specified in the "
+                "dag (in present) is returned by default."
+            ),
+        ),
     ] = None,
 ):
     "Wait for a dag run until it finishes, and return its result(s)."
-    if result_task_ids:
-        if not get_auth_manager().is_authorized_dag(
-            method="GET",
-            access_entity=DagAccessEntity.XCOM,
-            details=DagDetails(id=dag_id),
-            user=user,
-        ):
+    if not get_auth_manager().is_authorized_dag(
+        method="GET",
+        access_entity=DagAccessEntity.XCOM,
+        details=DagDetails(id=dag_id),
+        user=user,
+    ):
+        if result_task_ids:
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
                 "User is not authorized to read XCom data for this Dag",
             )
+        result_task_ids = []  # Explicitly not returning any XCom results.
     if not session.scalar(select(1).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)):
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
