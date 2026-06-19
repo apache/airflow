@@ -21,11 +21,11 @@ from typing import TYPE_CHECKING
 from pluggy import HookspecMarker
 
 if TYPE_CHECKING:
-    from airflow.timetables.base import DataInterval
+    from airflow.timetables.base import SkippedIntervalsSummary
 
 hookspec = HookspecMarker("airflow")
 
 
 @hookspec
-def on_intervals_skipped(dag_id: str, skipped_intervals: list[DataInterval]):
-    """Execute when a DAG with catchup=False skips one or more scheduled intervals."""
+def on_intervals_skipped(dag_id: str, summary: SkippedIntervalsSummary):
+    """Execute when a Dag with catchup=False skips one or more scheduled intervals."""
