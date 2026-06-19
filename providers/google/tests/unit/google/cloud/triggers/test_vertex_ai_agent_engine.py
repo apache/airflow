@@ -178,6 +178,19 @@ class TestAgentEngineQueryJobTrigger:
             },
         )
 
+    def test_serialize_with_pydantic_config(self):
+        pydantic_config = FakeModel(CHECK_QUERY_CONFIG)
+        trigger = AgentEngineQueryJobTrigger(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            operation_name=QUERY_OPERATION_NAME,
+            config=pydantic_config,
+            gcp_conn_id=GCP_CONN_ID,
+            poll_interval=1,
+        )
+        _, kwargs = trigger.serialize()
+        assert kwargs["config"] == CHECK_QUERY_CONFIG
+
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineAsyncHook", autospec=True)
     async def test_run_loop_return_success_event(self, mock_hook, query_job_trigger):

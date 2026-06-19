@@ -37,6 +37,19 @@ if TYPE_CHECKING:
     from vertexai._genai import types
 
 
+def _serialize_value(value: Any) -> Any:
+    """Recursively convert SDK model objects to JSON-serializable types."""
+    if hasattr(value, "model_dump"):
+        return value.model_dump(mode="json")
+    if isinstance(value, dict):
+        return {key: _serialize_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_serialize_value(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_serialize_value(item) for item in value)
+    return value
+
+
 class AgentEngineHook(GoogleBaseHook):
     """Hook for Google Cloud Vertex AI Agent Engine APIs."""
 
@@ -179,6 +192,8 @@ class AgentEngineHook(GoogleBaseHook):
                 return query_job
             if status == "FAILED":
                 raise RuntimeError(f"Agent Engine query job {operation_name} failed.")
+            if status is not None:
+                self.log.warning("Unknown Agent Engine query job status: %s", status)
             if timeout is not None and time.monotonic() - start_time > timeout:
                 raise TimeoutError(f"Timed out waiting for Agent Engine query job {operation_name}")
             self.log.info("Waiting for Agent Engine query job %s to complete.", operation_name)
