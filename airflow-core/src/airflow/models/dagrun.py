@@ -1420,6 +1420,7 @@ class DagRun(Base, LoggingMixin):
             TaskInstance as TIDataModel,
             TIRunContext,
         )
+        from airflow.models.dag import DagModel
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
         if relevant_ti:
@@ -1463,7 +1464,19 @@ class DagRun(Base, LoggingMixin):
                 callback(context)
             except Exception:
                 self.log.exception("Callback failed for %s", dag.dag_id)
-                stats.incr("dag.callback_exceptions", tags={"dag_id": dag.dag_id})
+                stats.incr(
+                    "dag.callback_exceptions",
+                    tags=prune_dict(
+                        {
+                            "dag_id": dag.dag_id,
+                            "team_name": (
+                                DagModel.get_team_name(dag.dag_id)
+                                if airflow_conf.getboolean("core", "multi_team")
+                                else None
+                            ),
+                        }
+                    ),
+                )
 
     def _get_ready_tis(
         self,
