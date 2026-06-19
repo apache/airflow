@@ -65,6 +65,7 @@ from airflow.models.asset import (
     AssetEvent,
     AssetModel,
     AssetPartitionDagRun,
+    DagScheduleAssetReference,
     PartitionedAssetKeyLog,
 )
 from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
@@ -5501,39 +5502,20 @@ class TestSchedulerJob:
 
         with dag_maker(dag_id="assets-1", start_date=timezone.utcnow(), session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset1])
-        dr = dag_maker.create_dagrun(
+        dr1 = dag_maker.create_dagrun(
             run_id="run1",
             logical_date=(DEFAULT_DATE + timedelta(days=100)),
             data_interval=(DEFAULT_DATE + timedelta(days=10), DEFAULT_DATE + timedelta(days=11)),
         )
-
-        asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
-
-        event1 = AssetEvent(
-            asset_id=asset1_id,
-            source_task_id="task",
-            source_dag_id=dr.dag_id,
-            source_run_id=dr.run_id,
-            source_map_index=-1,
-        )
-        session.add(event1)
-
-        # Create a second event, creation time is more recent, but data interval is older
-        dr = dag_maker.create_dagrun(
+        dr2 = dag_maker.create_dagrun(
             run_id="run2",
             logical_date=(DEFAULT_DATE + timedelta(days=101)),
             data_interval=(DEFAULT_DATE + timedelta(days=5), DEFAULT_DATE + timedelta(days=6)),
         )
 
-        event2 = AssetEvent(
-            asset_id=asset1_id,
-            source_task_id="task",
-            source_dag_id=dr.dag_id,
-            source_run_id=dr.run_id,
-            source_map_index=-1,
-        )
-        session.add(event2)
+        asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
 
+        # Consumer Dags are created before the events, so the events fall within their window.
         with dag_maker(dag_id="assets-consumer-multiple", schedule=[asset1, asset2]):
             pass
         dag2 = dag_maker.dag
@@ -5541,11 +5523,38 @@ class TestSchedulerJob:
             pass
         dag3 = dag_maker.dag
 
+        base = session.scalar(
+            select(DagScheduleAssetReference.created_at).where(
+                DagScheduleAssetReference.dag_id == dag3.dag_id
+            )
+        )
+        event1 = AssetEvent(
+            asset_id=asset1_id,
+            source_task_id="task",
+            source_dag_id=dr1.dag_id,
+            source_run_id=dr1.run_id,
+            source_map_index=-1,
+            timestamp=base + timedelta(seconds=1),
+        )
+        event2 = AssetEvent(
+            asset_id=asset1_id,
+            source_task_id="task",
+            source_dag_id=dr2.dag_id,
+            source_run_id=dr2.run_id,
+            source_map_index=-1,
+            timestamp=base + timedelta(seconds=2),
+        )
+        session.add_all([event1, event2])
+
         session = dag_maker.session
         session.add_all(
             [
-                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag2.dag_id),
-                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag3.dag_id),
+                AssetDagRunQueue(
+                    asset_id=asset1_id, target_dag_id=dag2.dag_id, created_at=base + timedelta(hours=1)
+                ),
+                AssetDagRunQueue(
+                    asset_id=asset1_id, target_dag_id=dag3.dag_id, created_at=base + timedelta(hours=1)
+                ),
             ]
         )
         session.flush()
@@ -5590,6 +5599,65 @@ class TestSchedulerJob:
         )
 
         assert created_run.creating_job_id == scheduler_job.id
+
+    @pytest.mark.need_serialized_dag
+    def test_new_asset_triggered_dag_ignores_events_before_creation(self, session, dag_maker):
+        """A newly added asset-triggered Dag must not consume events that predate it.
+
+        Reproduces issue #39456: a new consumer Dag scheduled on an asset that already has
+        historical events should only receive events that occurred after it started
+        consuming the asset, not the entire backlog since the first event.
+        """
+        asset = Asset(uri="test://asset-historical", name="hist_asset", group="test_group")
+
+        # Producer Dag + run that the asset events are sourced from.
+        with dag_maker(dag_id="historical-producer", start_date=timezone.utcnow(), session=session):
+            BashOperator(task_id="task", bash_command="echo 1", outlets=[asset])
+        producer_run = dag_maker.create_dagrun(run_id="producer-run")
+
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+
+        # Consumer Dag created now; its schedule reference's created_at is the cut-off.
+        with dag_maker(dag_id="historical-consumer", schedule=[asset]):
+            pass
+        consumer_dag = dag_maker.dag
+        reference_created_at = session.scalar(
+            select(DagScheduleAssetReference.created_at).where(
+                DagScheduleAssetReference.dag_id == consumer_dag.dag_id
+            )
+        )
+
+        def _make_event(timestamp):
+            return AssetEvent(
+                asset_id=asset_id,
+                source_task_id="task",
+                source_dag_id=producer_run.dag_id,
+                source_run_id=producer_run.run_id,
+                source_map_index=-1,
+                timestamp=timestamp,
+            )
+
+        old_event = _make_event(reference_created_at - timedelta(days=1))
+        new_event = _make_event(reference_created_at + timedelta(seconds=1))
+        session.add_all([old_event, new_event])
+        # Trigger time after both events so neither is excluded by the upper bound.
+        session.add(
+            AssetDagRunQueue(
+                asset_id=asset_id,
+                target_dag_id=consumer_dag.dag_id,
+                created_at=reference_created_at + timedelta(hours=1),
+            )
+        )
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        with create_session() as session:
+            self.job_runner._create_dagruns_for_dags(session, session)
+
+        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag.dag_id)).one()
+        assert created_run.state == State.QUEUED
+        assert {e.id for e in created_run.consumed_asset_events} == {new_event.id}
 
     @pytest.mark.need_serialized_dag
     def test_create_dag_runs_asset_alias_with_asset_event_attached(self, session, dag_maker):

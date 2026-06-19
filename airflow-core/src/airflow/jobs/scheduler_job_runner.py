@@ -2592,7 +2592,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             ),
                         ),
                         AssetEvent.timestamp <= triggered_date,
-                        AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
+                        AssetEvent.timestamp
+                        > func.coalesce(
+                            cte.c.previous_dag_run_run_after,
+                            select(func.min(DagScheduleAssetReference.created_at))
+                            .where(DagScheduleAssetReference.dag_id == dag.dag_id)
+                            .scalar_subquery(),
+                            date.min,
+                        ),
                     )
                     .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
                 )
