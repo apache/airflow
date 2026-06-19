@@ -93,6 +93,5 @@ def test_listener_notified_when_intervals_skipped(session, dag_maker, listener_m
     assert len(skipped_intervals_listener.events) == 1
     dag_id, summary = skipped_intervals_listener.events[0]
     assert dag_id == dag_maker.dag.dag_id
-    assert summary.skipped_interval_count == 3
     assert summary.skipped_range.start == prev_end
     assert summary.skipped_range.end == new_start

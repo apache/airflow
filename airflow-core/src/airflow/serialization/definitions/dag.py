@@ -532,31 +532,18 @@ class SerializedDAG:
         """
         Summarize intervals skipped between two automated Dag run boundaries.
 
-        Returns ``None`` when there is no schedulable gap or the timetable cannot
-        count skipped intervals in constant time.
+        Returns ``None`` when there is no schedulable gap.
         """
         if prev_interval_end >= new_interval_start:
             return None
 
         from airflow._shared.timezones import timezone
 
-        prev_end = timezone.coerce_datetime(prev_interval_end)
-        new_start = timezone.coerce_datetime(new_interval_start)
-        count_fn = getattr(self.timetable, "count_skipped_intervals_between", None)
-        if count_fn is None:
-            return None
-
-        try:
-            count = count_fn(prev_end, new_start)
-        except NotImplementedError:
-            return None
-
-        if count <= 0:
-            return None
-
         return SkippedIntervalsSummary(
-            skipped_interval_count=count,
-            skipped_range=DataInterval(start=prev_end, end=new_start),
+            skipped_range=DataInterval(
+                start=timezone.coerce_datetime(prev_interval_end),
+                end=timezone.coerce_datetime(new_interval_start),
+            ),
         )
 
     @provide_session

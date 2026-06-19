@@ -200,34 +200,3 @@ class CronMixin:
         if self._get_next(prev_time) != current:
             return prev_time
         return current
-
-    def count_skipped_intervals_between(
-        self,
-        prev_interval_end: DateTime,
-        new_interval_start: DateTime,
-    ) -> int:
-        if new_interval_start <= prev_interval_end:
-            return 0
-
-        first_period_end = self._get_next(prev_interval_end)
-        first_period_seconds = (first_period_end - prev_interval_end).total_seconds()
-        second_period_seconds = (self._get_next(first_period_end) - first_period_end).total_seconds()
-        gap_seconds = (new_interval_start - prev_interval_end).total_seconds()
-
-        if first_period_seconds > 0 and first_period_seconds == second_period_seconds:
-            return int(gap_seconds // first_period_seconds)
-
-        expression = cron_presets.get(self._expression, self._expression)
-        fields = expression.split()
-        if len(fields) >= 5:
-            dom, month, dow = fields[2], fields[3], fields[4]
-            prev_local = prev_interval_end.in_timezone(self._timezone)
-            new_local = new_interval_start.in_timezone(self._timezone)
-            if dom != "*" and month == "*":
-                return (new_local.year - prev_local.year) * 12 + (new_local.month - prev_local.month)
-            if dow != "*" and dom == "*":
-                return (new_local.date() - prev_local.date()).days // 7
-
-        raise AirflowTimetableInvalid(
-            f"Cannot count skipped intervals for cron expression {self._expression!r}"
-        )
