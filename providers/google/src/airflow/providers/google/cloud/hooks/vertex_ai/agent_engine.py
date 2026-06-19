@@ -194,7 +194,7 @@ class AgentEngineHook(GoogleBaseHook):
                 raise RuntimeError(f"Agent Engine query job {operation_name} failed.")
             if status is not None:
                 self.log.warning("Unknown Agent Engine query job status: %s", status)
-            if timeout is not None and time.monotonic() - start_time > timeout:
+            if timeout is not None and time.monotonic() - start_time >= timeout:
                 raise TimeoutError(f"Timed out waiting for Agent Engine query job {operation_name}")
             self.log.info("Waiting for Agent Engine query job %s to complete.", operation_name)
             time.sleep(poll_interval)
@@ -282,7 +282,7 @@ class AgentEngineHook(GoogleBaseHook):
                         f"Agent Engine operation {operation_name} failed: {operation['error']}"
                     )
                 return
-            if timeout is not None and time.monotonic() - start_time > timeout:
+            if timeout is not None and time.monotonic() - start_time >= timeout:
                 raise TimeoutError(f"Timed out waiting for Agent Engine operation {operation_name}")
             self.log.info("Waiting for Agent Engine operation %s to complete.", operation_name)
             time.sleep(poll_interval)
