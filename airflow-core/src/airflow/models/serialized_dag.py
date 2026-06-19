@@ -780,6 +780,8 @@ class SerializedDagModel(Base):
         if not deadline_uuid_mapping and reused_deadline_data:
             new_mapping = {str(uuid6.uuid7()): data for data in reused_deadline_data.values()}
             sd_data = new_serialized_dag.data
+            if sd_data is None:
+                raise ValueError(f"Serialized DAG data is unexpectedly None for dag_id={dag.dag_id}")
             sd_data["dag"]["deadline"] = list(new_mapping.keys())
             dag_data_json = json.dumps(sd_data, sort_keys=True).encode("utf-8")
             if _COMPRESS_SERIALIZED_DAGS:
