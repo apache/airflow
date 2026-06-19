@@ -103,7 +103,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.sdk.api.client import Client
     from airflow.sdk.bases.operator import BaseOperator
-    from airflow.sdk.definitions.context import Context
+    from airflow.sdk.definitions.context import Context, SkippedIntervalsCallbackContext
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.typing_compat import Self
@@ -418,7 +418,7 @@ def _execute_dag_skipped_intervals_callback(
 
     callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
     summary = request.to_summary()
-    context: Context = {  # type: ignore[typeddict-unknown-key]
+    context: SkippedIntervalsCallbackContext = {
         "dag": dag,
         "reason": "skipped_intervals",
         "skipped_interval_count": summary.skipped_interval_count,
