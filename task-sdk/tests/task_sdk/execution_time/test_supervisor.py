@@ -61,6 +61,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
     AssetProfile,
     AssetResponse,
+    ConnectionResponse,
     DagRun,
     DagRunState,
     DagRunType,
@@ -3580,6 +3581,37 @@ def test_log_upload_failures_are_non_fatal(mocker):
     )
 
 
+def test_logs_uploaded_even_when_state_update_fails(mocker):
+    """`wait()` must upload remote logs even if the final state update raises.
+
+    A failed state update (e.g. a transient API error) is exactly when the logs
+    matter most for debugging, so `_upload_logs()` runs in a `finally` block and
+    the original exception still propagates to the caller.
+    """
+    proc = ActivitySubprocess(
+        process_log=mocker.MagicMock(),
+        id=TI_ID,
+        pid=12345,
+        stdin=mocker.MagicMock(),
+        client=mocker.MagicMock(),
+        process=mocker.MagicMock(),
+    )
+    # Leave `_exit_code` unset so `wait()` doesn't short-circuit; the no-op
+    # `_monitor_subprocess` mock leaves it as None and `wait()` defaults it to 1.
+    mocker.patch.object(ActivitySubprocess, "_monitor_subprocess")
+    mocker.patch.object(
+        ActivitySubprocess,
+        "update_task_state_if_needed",
+        side_effect=httpx.ConnectError("connection refused"),
+    )
+    upload_logs = mocker.patch.object(ActivitySubprocess, "_upload_logs")
+
+    with pytest.raises(httpx.ConnectError):
+        proc.wait()
+
+    upload_logs.assert_called_once_with()
+
+
 def test_remote_logging_conn_sets_process_context(monkeypatch, mocker):
     """
     Test that _remote_logging_conn sets _AIRFLOW_PROCESS_CONTEXT=client.
@@ -3786,6 +3818,37 @@ def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
         gc.collect()
         assert backend.calls == 1, "Connection should be cached, not fetched multiple times"
         assert all(ref() is None for ref in clients), "Client instances should be garbage collected"
+
+
+def test_fetch_remote_logging_conn_does_not_cache_none_result(mocker):
+    """Test that connection caching doesn't cache failed lookups as None."""
+    conn_id = "test_conn"
+    client = mocker.Mock()
+    mocker.patch.object(supervisor, "ensure_secrets_backend_loaded", return_value=[])
+    mocker.patch.dict(supervisor._REMOTE_LOGGING_CONN_CACHE, {}, clear=True)
+    client.connections.get.side_effect = [
+        ErrorResponse(error=ErrorType.PERMISSION_DENIED),
+        ConnectionResponse(
+            conn_id=conn_id,
+            conn_type="example",
+            host=None,
+            schema_=None,
+            login=None,
+            password=None,
+            port=None,
+            extra=None,
+        ),
+    ]
+
+    assert supervisor._fetch_remote_logging_conn(conn_id, client) is None
+    assert conn_id not in supervisor._REMOTE_LOGGING_CONN_CACHE
+
+    second_call_result = supervisor._fetch_remote_logging_conn(conn_id, client)
+    assert second_call_result is not None
+    assert second_call_result.conn_id == conn_id
+    assert supervisor._REMOTE_LOGGING_CONN_CACHE[conn_id] is not None
+    # The first call resulted in None and was not cached, so the second fetch calls the API again.
+    assert client.connections.get.call_count == 2
 
 
 def test_process_log_messages_from_subprocess(monkeypatch, caplog):

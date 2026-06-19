@@ -117,6 +117,7 @@ from airflow.timetables.base import Timetable, compute_rollup_fingerprint
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.event_scheduler import EventScheduler
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -574,6 +575,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         starved_pools = {pool_name for pool_name, stats in pools.items() if stats["open"] <= 0}
 
+        pool_to_team_name: dict[str, str | None] = {}
+        if self._multi_team:
+            pool_to_team_name = Pool.get_name_to_team_name_mapping(list(pools.keys()), session=session)
+
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
         concurrency_map = ConcurrencyMap()
         concurrency_map.load(session=session)
@@ -747,6 +752,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.log.warning("Tasks using non-existent pool '%s' will not be scheduled", pool_name)
                     starved_pools.add(pool_name)
                     continue
+
+                if pool_team := pool_to_team_name.get(pool_name):
+                    dag_team = dag_id_to_team_name.get(task_instance.dag_id)
+                    if dag_team != pool_team:
+                        self.log.debug(
+                            "Not executing %s. Pool '%s' is assigned to team '%s' "
+                            "but task's DAG belongs to team '%s'",
+                            task_instance,
+                            pool_name,
+                            pool_team,
+                            dag_team,
+                        )
+                        starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                        continue
 
                 # Make sure to emit metrics if pool has no starving tasks
                 pool_num_starving_tasks.setdefault(pool_name, 0)
@@ -1437,9 +1456,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
             if ti_queued and not ti_requeued:
+                team_name = (
+                    DagModel.get_team_name(ti.dag_id, session=session)
+                    if conf.getboolean("core", "multi_team")
+                    else None
+                )
                 stats.incr(
                     "scheduler.tasks.killed_externally",
-                    tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
+                    tags=prune_dict({"dag_id": ti.dag_id, "task_id": ti.task_id, "team_name": team_name}),
                 )
                 msg = (
                     "Executor %s reported that the task instance %s finished with state %s, but the task instance's state attribute is %s. "  # noqa: RUF100, UP031, flynt
@@ -1869,8 +1893,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             guard.commit()
 
             # Bulk fetch the currently active dag runs for the dags we are
-            # examining, rather than making one query per DagRun
-            dag_runs = DagRun.get_running_dag_runs_to_examine(session=session)
+            # examining, rather than making one query per DagRun.
+            # Materialize into a list because the multi-team block below iterates
+            # the result and ScalarResult is a one-pass iterator.
+            dag_runs = list(DagRun.get_running_dag_runs_to_examine(session=session))
 
             if self._multi_team and dag_runs:
                 unique_dag_ids = {dr.dag_id for dr in dag_runs}
@@ -2432,7 +2458,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_id=dag_model.dag_id,
                     logical_date=dag_model.next_dagrun,
                 )
-                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
+                dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=dr)
                 continue
 
             if (
@@ -2472,7 +2498,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     partition_date=next_info.partition_date,
                 )
                 active_runs_of_dags[dag_model.dag_id] += 1
-                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=created_run)
+                dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=created_run)
                 self._set_exceeds_max_active_runs(
                     dag_model=dag_model,
                     session=session,
@@ -2585,7 +2611,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 creating_job_id=self.job.id,
                 session=session,
             )
-            stats.incr("asset.triggered_dagruns")
+            team_name = (
+                self._get_team_names_for_dag_ids([dag.dag_id], session).get(dag.dag_id)
+                if self._multi_team
+                else None
+            )
+            stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
             dag_run.consumed_asset_events.extend(asset_events)
             self.log.info(
                 "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
@@ -2669,7 +2700,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 stats.timing(
                     "dagrun.schedule_delay",
                     schedule_delay,
-                    tags={"dag_id": dag.dag_id},
+                    tags=prune_dict(
+                        {
+                            "dag_id": dag.dag_id,
+                            "team_name": self._get_team_names_for_dag_ids([dag.dag_id], session).get(
+                                dag.dag_id
+                            )
+                            if self._multi_team
+                            else None,
+                        }
+                    ),
                 )
 
         # cache saves time during scheduling of many dag_runs for same dag
@@ -2820,7 +2860,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 stats.timing(
                     "dagrun.duration.failed",
                     duration,
-                    tags={"dag_id": dag_run.dag_id},
+                    tags=prune_dict(
+                        {
+                            "dag_id": dag_run.dag_id,
+                            "team_name": self._get_team_names_for_dag_ids([dag_run.dag_id], session).get(
+                                dag_run.dag_id
+                            )
+                            if self._multi_team
+                            else None,
+                        }
+                    ),
                 )
             return callback_to_execute
 
@@ -3104,6 +3153,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
         all_states_metric = session.execute(stmt).all()
 
+        if self._multi_team:
+            unique_dag_ids = {row[1] for row in all_states_metric}
+            dag_id_to_team_name = self._get_team_names_for_dag_ids(unique_dag_ids, session)
+        else:
+            dag_id_to_team_name = {}
+
         for state in metric_states:
             if state not in self.previous_ti_metrics:
                 self.previous_ti_metrics[state] = {}
@@ -3118,7 +3173,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 stats.gauge(
                     f"ti.{state}",
                     float(count),
-                    tags={"queue": queue, "dag_id": dag_id, "task_id": task_id},
+                    tags=prune_dict(
+                        {
+                            "queue": queue,
+                            "dag_id": dag_id,
+                            "task_id": task_id,
+                            "team_name": dag_id_to_team_name.get(dag_id),
+                        }
+                    ),
                 )
 
             for prev_key in self.previous_ti_metrics[state]:
@@ -3128,7 +3190,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     stats.gauge(
                         f"ti.{state}",
                         0,
-                        tags={"queue": queue, "dag_id": dag_id, "task_id": task_id},
+                        tags=prune_dict(
+                            {
+                                "queue": queue,
+                                "dag_id": dag_id,
+                                "task_id": task_id,
+                                "team_name": dag_id_to_team_name.get(dag_id),
+                            }
+                        ),
                     )
 
             self.previous_ti_metrics[state] = ti_metrics
@@ -3506,7 +3575,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
             executor.change_state(ti.key, TaskInstanceState.FAILED, remove_running=True)
             stats.incr(
-                "task_instances_without_heartbeats_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id}
+                "task_instances_without_heartbeats_killed",
+                tags=prune_dict(
+                    {
+                        "dag_id": ti.dag_id,
+                        "task_id": ti.task_id,
+                        "team_name": dag_id_to_team_name.get(ti.dag_id),
+                    }
+                ),
             )
 
     # [END find_and_purge_task_instances_without_heartbeats]

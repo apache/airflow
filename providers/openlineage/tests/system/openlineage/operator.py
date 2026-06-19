@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 from dateutil.parser import parse
-from jinja2 import Environment
+from jinja2 import Environment, TemplateError
 
 from airflow.providers.common.compat.sdk import BaseOperator, Variable
 
@@ -45,6 +45,15 @@ log = logging.getLogger(__name__)
 
 def any(result: Any) -> Any:
     return result
+
+
+def is_numeric(result: Any) -> str:
+    try:
+        float(result)
+        return "true"
+    except Exception:
+        pass
+    return "false"
 
 
 def is_datetime(result: Any) -> str:
@@ -107,6 +116,7 @@ def setup_jinja() -> Environment:
     env = Environment()
     env.globals["any"] = any
     env.globals["is_datetime"] = is_datetime
+    env.globals["is_numeric"] = is_numeric
     env.globals["is_uuid"] = is_uuid
     env.globals["regex_match"] = regex_match
     env.globals["env_var"] = env_var
@@ -116,7 +126,7 @@ def setup_jinja() -> Environment:
     return env
 
 
-def match(expected, result, env: Environment) -> bool:
+def match(expected, result, env: Environment, path: list | None = None) -> bool:
     """
     Check if result is "equal" to expected value.
 
@@ -137,16 +147,26 @@ def match(expected, result, env: Environment) -> bool:
     ``"$optional"``.
 
     """
+    if path is None:
+        path = []
+    path_str = " > ".join(str(p) for p in path) if path else "<root>"
+
     if isinstance(expected, dict):
         # Only keys present in expected are checked — extra keys in the actual event are ignored.
         if not isinstance(result, dict):
-            log.error("Not a dict: %s\nExpected %s", result, expected)
+            log.error("Path `%s`: expected a dict but got `%s` (%s)", path_str, result, type(result).__name__)
             return False
         for k, v in expected.items():
             # null sentinel: assert the key must NOT appear in the actual event.
             if v is None:
                 if k in result:
-                    log.error("Key %s should not be present in received event %s", k, result)
+                    log.error(
+                        "Path `%s`: key `%s` must be absent but got `%s` (%s)",
+                        path_str,
+                        k,
+                        result[k],
+                        type(result[k]).__name__,
+                    )
                     return False
                 continue
 
@@ -169,32 +189,21 @@ def match(expected, result, env: Environment) -> bool:
 
             # At this point v is a plain template (dict, list, or scalar) with no sentinels.
             if k not in result:
-                log.error("Key %s not in received event %s\nExpected %s", k, result, expected)
+                log.error("Path `%s`: key `%s` not found in received event", path_str, k)
                 return False
-            if not match(v, result[k], env):
-                log.error(
-                    "For key %s, expected value %s not equals received %s\n\nExpected: %s,\n\n request: %s",
-                    k,
-                    v,
-                    result[k],
-                    expected,
-                    result,
-                )
+            if not match(v, result[k], env, path + [k]):
                 return False
     elif isinstance(expected, list):
         # Lists must match exactly in length and order. Each element is compared recursively,
         # so nested sentinels (null, $optional) work inside list items too.
+        if not isinstance(result, list):
+            log.error("Path `%s`: expected a list but got `%s` (%s)", path_str, result, type(result).__name__)
+            return False
         if len(expected) != len(result):
-            log.error("Length does not match: expected %d, result: %d", len(expected), len(result))
+            log.error("Path `%s`: expected %d item(s) but got %d", path_str, len(expected), len(result))
             return False
         for i, x in enumerate(expected):
-            if not match(x, result[i], env):
-                log.error(
-                    "List not matched at %d\nexpected:\n%s\nresult: \n%s",
-                    i,
-                    json.dumps(x),
-                    json.dumps(result[i]),
-                )
+            if not match(x, result[i], env, path + [i]):
                 return False
     elif isinstance(expected, str):
         if "{{" in expected:
@@ -204,20 +213,40 @@ def match(expected, result, env: Environment) -> bool:
             # (for expressions that transform the value, e.g. filters).
             try:
                 rendered = env.from_string(expected).render(result=result)
-            except ValueError as e:
-                log.error("Error rendering jinja template %s: %s", expected, e)
+            except (ValueError, TemplateError) as e:
+                log.error("Path `%s`: failed to render template `%s`: %s", path_str, expected, e)
                 return False
             if str(rendered).lower() == "true" or rendered == result:
                 return True
-            log.error("Rendered value %s does not equal 'true' or %s", rendered, result)
+            log.error(
+                "Path `%s`: template `%s` rendered to `%s` but expected `true` or actual value `%s` (%s)",
+                path_str,
+                expected,
+                rendered,
+                result,
+                type(result).__name__,
+            )
             return False
         # Plain string: exact equality check.
         if expected != result:
-            log.error("Expected value %s does not equal result %s", expected, result)
+            log.error(
+                "Path `%s`: expected `%s` (str) but got `%s` (%s)",
+                path_str,
+                expected,
+                result,
+                type(result).__name__,
+            )
             return False
     elif expected != result:
         # Scalar (int, bool, float, …): exact equality check.
-        log.error("Object of type %s: %s does not match %s", type(expected), expected, result)
+        log.error(
+            "Path `%s`: expected `%s` (%s) but got `%s` (%s)",
+            path_str,
+            expected,
+            type(expected).__name__,
+            result,
+            type(result).__name__,
+        )
         return False
     return True
 
@@ -297,6 +326,8 @@ class OpenLineageTestOperator(BaseOperator):
         self.clear_variables = clear_variables
         self.fail_fast = fail_fast
         self.event_sort_fn = event_sort_fn
+        if event_templates is None and file_path is None:
+            raise ValueError("Either event_templates or file_path must be provided")
         if self.event_templates and self.file_path:
             raise ValueError("Can't pass both event_templates and file_path")
 
@@ -348,7 +379,12 @@ class OpenLineageTestOperator(BaseOperator):
                 log.info("Key `%s` absent as expected (%s).", key, reason)
                 return
 
-        actual_events = Variable.get(key=key, deserialize_json=True)
+        try:
+            actual_events = Variable.get(key=key, deserialize_json=True)
+        except NoVariableError:
+            raise ValueError(
+                f"Expected events for key `{key}` but variable does not exist (no events emitted)"
+            )
         if not isinstance(actual_events, list):
             raise ValueError(
                 f"Variable {key} does not contain a list of events, got {type(actual_events).__name__}"
@@ -370,7 +406,7 @@ class OpenLineageTestOperator(BaseOperator):
         if isinstance(template, list):
             # Multiple expected events: compare each one after sorting.
             for i, (tmpl, evt_str) in enumerate(zip(template, actual_events)):
-                if not match(tmpl, json.loads(evt_str), self.env):
+                if not match(tmpl, json.loads(evt_str), self.env, [i]):
                     raise ValueError(f"Event at index {i} does not match template for key `{key}`")
         else:
             # Last event is checked against the template

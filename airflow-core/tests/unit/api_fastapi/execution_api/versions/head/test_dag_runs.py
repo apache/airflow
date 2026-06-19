@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 import time_machine
 from fastapi import Request
@@ -28,6 +30,7 @@ from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.models import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
@@ -71,7 +74,7 @@ class TestDagRunTrigger:
         dag_id = "test_trigger_dag_run_partition_key"
         run_id = "test_run_id"
         logical_date = timezone.datetime(2025, 2, 20)
-        partition_key = "2025-02-20"
+        partition_key = "2025-02-20T00:00:00"
 
         with dag_maker(
             dag_id=dag_id,
@@ -125,6 +128,31 @@ class TestDagRunTrigger:
                 "message": f"Dag '{dag_id}' is not a partitioned Dag and does not accept a partition_key.",
             }
         }
+
+    def test_trigger_dag_run_invalid_partition_key(self, client, session, dag_maker):
+        """partition_key that the timetable cannot decode must return 400."""
+        dag_id = "test_trigger_dag_run_invalid_partition_key"
+        run_id = "test_run_id_invalid_pk"
+        logical_date = timezone.datetime(2025, 2, 20)
+
+        with dag_maker(
+            dag_id=dag_id,
+            schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="test_task")
+        session.commit()
+
+        response = client.post(
+            f"/execution/dag-runs/{dag_id}/{run_id}",
+            json={"logical_date": logical_date.isoformat(), "partition_key": "not-a-date"},
+        )
+
+        assert response.status_code == 400
+        detail = response.json()["detail"]
+        assert detail["reason"] == "invalid_partition_key"
+        assert "does not match the timetable's key_format" in detail["message"]
 
     def test_trigger_dag_run_dag_not_found(self, client):
         """Test that a DAG that does not exist cannot be triggered."""
@@ -355,6 +383,34 @@ class TestDagRunClear:
         response = client.post(f"/execution/dag-runs/{dag_id}/{run_id}/clear")
 
         assert response.status_code == 404
+
+    def test_dag_run_clear_invokes_resolver(self, client, session, dag_maker):
+        """Clearing resolves run_on_latest_version (no explicit override) and forwards it to dag.clear."""
+        dag_id = "test_clear_invokes_resolver"
+        run_id = "test_run_id"
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+        dag_maker.create_dagrun(run_id=run_id, state=DagRunState.SUCCESS)
+        session.commit()
+
+        with (
+            mock.patch(
+                "airflow.api_fastapi.execution_api.routes.dag_runs.resolve_run_on_latest_version",
+                return_value=mock.sentinel.resolved,
+            ) as mock_resolver,
+            mock.patch.object(SerializedDAG, "clear", autospec=True) as mock_clear,
+        ):
+            response = client.post(f"/execution/dag-runs/{dag_id}/{run_id}/clear")
+
+        assert response.status_code == 204
+        mock_resolver.assert_called_once()
+        # First positional arg is the explicit override; operator does not pass one.
+        assert mock_resolver.call_args.args[0] is None
+        # The resolved value must reach dag.clear, not be silently dropped.
+        mock_clear.assert_called_once()
+        assert mock_clear.call_args.kwargs["run_id"] == run_id
+        assert mock_clear.call_args.kwargs["run_on_latest_version"] is mock.sentinel.resolved
 
 
 class TestDagRunDetail:

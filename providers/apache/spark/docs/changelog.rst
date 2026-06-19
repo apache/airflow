@@ -29,6 +29,21 @@
 Changelog
 ---------
 
+6.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add crash recovery ability to SparkSubmitOperator against Kubernetes (#68067)``
+* ``Crash recovery for YARN cluster mode in SparkSubmitOperator built on AIP-103 (#67473)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Align spark provider with the task state store terminology (#68430)``
+   * ``fix: fix missing rename in test_spark_submit (#68565)``
+   * ``Rename task_store/asset_store to task_state_store/asset_state_store (#68438)``
+
 6.1.0
 .....
 

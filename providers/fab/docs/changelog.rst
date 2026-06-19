@@ -20,6 +20,37 @@
 Changelog
 ---------
 
+3.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Implement 'get_cli_user' in the FAB auth manager so airflowctl CLI commands can authenticate (#68175)``
+* ``Add Browse > Deadlines menu item for compatibility with Airflow 3.3.0 (#67586)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix fab deserialize user session leak (#68100)``
+* ``Import ldap.filter in security_manager override (#68226)``
+* ``Add defensive validation for LDAP search filter configuration (#67630)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update FAB auth manager Flask config wording for Airflow 3 (#68162)``
+* ``Fix removed webserver command in FAB SSO guide for Airflow 3 (#68166)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#67928)``
+   * ``[main] Upgrade important CI environment (#68163)``
+   * ``Bump stylelint (#68347)``
+   * ``Bump prettier (#68576)``
+   * ``Bump eslint (#68681)``
+   * ``Load example DAGs from providers via ProvidersManager (continuation of #57320) (#66161)``
+
 3.6.5
 .....
 
