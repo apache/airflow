@@ -22,6 +22,7 @@ from unittest import mock
 
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
+from google.cloud import pubsub_v1
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.providers.common.compat.sdk import TaskDeferred
@@ -552,3 +553,81 @@ class TestPubSubPullOperator:
         assert len(result.outputs) == 1
         assert result.outputs[0].namespace == "pubsub"
         assert result.outputs[0].name == f"subscription:{TEST_PROJECT}:{TEST_SUBSCRIPTION}"
+
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
+    def test_execute_complete_use_message_callback(self, mock_hook):
+        test_message = [
+            {
+                "ack_id": "UAYWLF1GSFE3GQhoUQ5PXiM_NSAoRRIJB08CKF15MU0sQVhwaFENGXJ9YHxrUxsDV0ECel1RGQdoTm11H4GglfRLQ1RrWBIHB01Vel5TEwxoX11wBnm4vPO6v8vgfwk9OpX-8tltO6ywsP9GZiM9XhJLLD5-LzlFQV5AEkwkDERJUytDCypYEU4EISE-MD5FU0Q",
+                "message": {
+                    "data": "aGkgZnJvbSBjbG91ZCBjb25zb2xlIQ==",
+                    "message_id": "12165864188103151",
+                    "publish_time": "2024-08-28T11:49:50.962Z",
+                    "attributes": {},
+                    "ordering_key": "",
+                },
+                "delivery_attempt": 0,
+            }
+        ]
+
+        received_messages = [pubsub_v1.types.ReceivedMessage(msg) for msg in test_message]
+
+        messages_callback_return_value = "custom_message_from_callback"
+
+        def messages_callback(
+            pulled_messages: list[ReceivedMessage],
+            context: dict[str, Any],
+        ):
+            assert pulled_messages == received_messages
+
+            assert isinstance(context, dict)
+            for key in context.keys():
+                assert isinstance(key, str)
+
+            return messages_callback_return_value
+
+        operator = PubSubPullOperator(
+            task_id="test_task",
+            ack_messages=True,
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            deferrable=True,
+            messages_callback=messages_callback,
+        )
+        mock_hook.return_value.pull.return_value = received_messages
+
+        with mock.patch.object(operator.log, "info") as mock_log_info:
+            resp = operator.execute_complete(context={}, event={"status": "success", "message": test_message})
+        mock_log_info.assert_called_with("Sensor pulls messages: %s", test_message)
+        assert resp == messages_callback_return_value
+
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
+    def test_execute_complete_use_default_message_callback(self, mock_hook):
+        test_message = [
+            {
+                "ack_id": "UAYWLF1GSFE3GQhoUQ5PXiM_NSAoRRIJB08CKF15MU0sQVhwaFENGXJ9YHxrUxsDV0ECel1RGQdoTm11H4GglfRLQ1RrWBIHB01Vel5TEwxoX11wBnm4vPO6v8vgfwk9OpX-8tltO6ywsP9GZiM9XhJLLD5-LzlFQV5AEkwkDERJUytDCypYEU4EISE-MD5FU0Q",
+                "message": {
+                    "data": "aGkgZnJvbSBjbG91ZCBjb25zb2xlIQ==",
+                    "message_id": "12165864188103151",
+                    "publish_time": "2024-08-28T11:49:50.962Z",
+                    "attributes": {},
+                    "ordering_key": "",
+                },
+                "delivery_attempt": 0,
+            }
+        ]
+        received_messages = [pubsub_v1.types.ReceivedMessage(msg) for msg in test_message]
+
+        operator = PubSubPullOperator(
+            task_id="test_task",
+            ack_messages=True,
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            deferrable=True,
+        )
+        mock_hook.return_value.pull.return_value = received_messages
+
+        with mock.patch.object(operator.log, "info") as mock_log_info:
+            resp = operator.execute_complete(context={}, event={"status": "success", "message": test_message})
+        mock_log_info.assert_called_with("Sensor pulls messages: %s", test_message)
+        assert resp == [ReceivedMessage.to_dict(m) for m in received_messages]

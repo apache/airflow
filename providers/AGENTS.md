@@ -46,14 +46,14 @@ Airflow has two distinct user roles with different trust levels:
 - **Connection editors** — UI/API users with permission to create or edit
   Connections. They control the host, login, password, and the `extra` JSON
   blob.
-- **DAG authors** — users who write the Python code that constructs hooks
+- **Dag authors** — users who write the Python code that constructs hooks
   and operators. They control which arguments are passed at call sites.
 
 These are *not* the same population, and the security model treats them
 differently. A Connection editor is trusted to supply credentials for a target
 system; they are **not** trusted to alter how the worker process behaves, load
 arbitrary Python code, change file paths the worker reads, or pass options
-into client libraries that the DAG author did not opt into.
+into client libraries that the Dag author did not opt into.
 
 ### What goes wrong when extras are forwarded blindly
 
@@ -90,7 +90,7 @@ model does not grant them.
 - When adding support for a new extra key, treat it like any other public
   argument: review what the underlying library does with it, and document
   it in the provider's connection docs.
-- If a DAG author genuinely needs to pass a non-allowlisted option, that
+- If a Dag author genuinely needs to pass a non-allowlisted option, that
   option should be a **Dag-author-supplied argument** on the operator or
   hook (with its own review), not something a Connection editor can set.
 

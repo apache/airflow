@@ -61,7 +61,7 @@ def get_cookie_path() -> str:
 
 
 # Fast API apps mounted under these prefixes are not allowed
-RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution"]
+RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution", "/auth", "/pluginsv2"]
 
 log = logging.getLogger(__name__)
 
@@ -71,8 +71,32 @@ class _AuthManagerState:
     _lock = threading.Lock()
 
 
+def _initialize_api_server_stats() -> None:
+    """
+    Initialize the ``Stats`` singleton in the API server process.
+
+    Initialization is guarded so a metrics misconfiguration can never prevent the API server
+    from starting.
+    """
+    try:
+        from airflow._shared.observability.metrics import stats
+        from airflow.observability.metrics import stats_utils
+
+        stats.initialize(
+            factory=stats_utils.get_stats_factory(),
+            export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+        )
+    except Exception:
+        log.warning(
+            "Failed to initialize API server Stats in the API server; metrics emitted through the "
+            "API server Stats singleton will not be recorded.",
+            exc_info=True,
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _initialize_api_server_stats()
     async with AsyncExitStack() as stack:
         for route in app.routes:
             if isinstance(route, Mount) and isinstance(route.app, FastAPI):

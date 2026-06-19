@@ -98,27 +98,20 @@ def test_catch_all_route_last(client):
 
 
 @pytest.mark.parametrize(
-    ("fastapi_apps", "expected_message", "invalid_path"),
+    ("invalid_prefix", "expected_message"),
     [
-        (
-            [{"name": "test", "app": FastAPI(), "url_prefix": ""}],
-            "'url_prefix' key is empty string for the fastapi app: test",
-            "",
-        ),
-        (
-            [{"name": "test", "app": FastAPI(), "url_prefix": next(iter(app_module.RESERVED_URL_PREFIXES))}],
-            "attempted to use reserved url_prefix",
-            next(iter(app_module.RESERVED_URL_PREFIXES)),
-        ),
+        ("", "'url_prefix' key is empty string for the fastapi app: test"),
+        *((prefix, "attempted to use reserved url_prefix") for prefix in app_module.RESERVED_URL_PREFIXES),
     ],
 )
-def test_plugin_with_invalid_url_prefix(caplog, fastapi_apps, expected_message, invalid_path):
+def test_plugin_with_invalid_url_prefix(caplog, invalid_prefix, expected_message):
+    fastapi_apps = [{"name": "test", "app": FastAPI(), "url_prefix": invalid_prefix}]
     app = FastAPI()
     with mock.patch.object(plugins_manager, "get_fastapi_plugins", return_value=(fastapi_apps, [])):
         app_module.init_plugins(app)
 
     assert any(expected_message in rec.message for rec in caplog.records)
-    assert not any(r.path == invalid_path for r in app.routes)
+    assert not any(r.path == invalid_prefix for r in app.routes)
 
 
 class TestGetCookiePath:
@@ -175,3 +168,47 @@ def test_create_auth_manager_thread_safety():
     assert call_count == 1
 
     app_module.purge_cached_app()
+
+
+class TestInitializeApiServerStats:
+    """
+    Ensure that stats subsystem is properly initialized in API server.
+    """
+
+    def test_initializes_api_server_stats_with_factory(self):
+        """It initializes the Stats singleton in the API server using the configured factory."""
+        sentinel_factory = object()
+        with (
+            mock.patch("airflow._shared.observability.metrics.stats") as mock_stats,
+            mock.patch(
+                "airflow.observability.metrics.stats_utils.get_stats_factory",
+                return_value=sentinel_factory,
+            ) as mock_get_factory,
+        ):
+            app_module._initialize_api_server_stats()
+
+            mock_get_factory.assert_called_once_with()
+            mock_stats.initialize.assert_called_once()
+            _, kwargs = mock_stats.initialize.call_args
+            assert kwargs["factory"] is sentinel_factory
+            assert isinstance(kwargs["export_legacy_names"], bool)
+
+    def test_stats_failure_does_not_block_startup(self):
+        """A metrics misconfiguration must not prevent the API server from starting."""
+        with (
+            mock.patch("airflow._shared.observability.metrics.stats") as mock_stats,
+            mock.patch("airflow.observability.metrics.stats_utils.get_stats_factory"),
+            mock.patch("airflow.api_fastapi.app.log") as mock_logger,
+        ):
+            mock_stats.initialize.side_effect = RuntimeError("boom")
+
+            # Must not raise.
+            app_module._initialize_api_server_stats()
+
+        mock_logger.warning.assert_called_once()
+
+    def test_stats_initialized_during_lifespan(self, client):
+        """_initialize_api_server_stats must be called as part of the app lifespan, not just defined."""
+        with mock.patch.object(app_module, "_initialize_api_server_stats") as mock_init:
+            with client():
+                mock_init.assert_called_once()

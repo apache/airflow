@@ -84,15 +84,22 @@ def _prepare_app(broker_url=None, execute=None):
     test_config = dict(celery_executor_utils.get_celery_configuration())
     test_config.update({"broker_url": broker_url})
     test_app = Celery(broker_url, config_source=test_config)
-    # Register the fake execute function with the test_app using the correct task name.
-    # This ensures workers using test_app will execute the fake function.
-    test_execute = test_app.task(name=execute_name)(execute)
+    # Register the fake execute function on test_app under the same task name as the real
+    # `execute_workload`. The real task uses `@app.task(...)` (shared=True by default),
+    # which adds a finalizer to celery's process-global `_on_app_finalizers` set. When
+    # `start_worker(app=test_app)` calls `test_app.finalize()`, celery iterates that set in
+    # non-deterministic (hash-based) order and calls `_task_from_fun` for each — and
+    # `_task_from_fun` keeps the existing entry if the task name is already registered,
+    # so whichever finalizer fires first wins. If the real one wins, the worker invokes
+    # the real `execute_workload`, which calls the Execution API at localhost:8080 and
+    # fails with `Connection refused` since no API server is running in this test setup.
+    # To make the fake win deterministically: finalize the app first (real finalizer
+    # registers the real task), then evict that entry and register the fake explicitly
+    # with `shared=False` so it stays out of the global finalizer set.
+    test_app.finalize()
+    test_app._tasks.pop(execute_name, None)
+    test_execute = test_app.task(name=execute_name, shared=False)(execute)
     patch_app = mock.patch.object(celery_executor_utils, "app", test_app)
-
-    if AIRFLOW_V_3_0_PLUS:
-        celery_executor_utils.execute_workload.__wrapped__ = execute
-    else:
-        celery_executor_utils.execute_command.__wrapped__ = execute
 
     patch_execute = mock.patch.object(celery_executor_utils, execute_name, test_execute)
     # Patch factory function so CeleryExecutor instances get the test app.

@@ -391,3 +391,26 @@ Impact
 
 Using a quota project affects where API usage is billed, which quotas are applied, and how
 usage is reported for monitoring and auditing.
+
+
+Authenticating to Google Sovereign Cloud in Airflow
+---------------------------------------------------
+
+When working with a Sovereign Cloud, you are operating outside the standard ``googleapis.com`` domain.
+To point Airflow to the correct environment **in addition to your primary connection**, you must configure the **Universe Domain**.
+
+Set the Global Environment Variable
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For Airflow to communicate with a Sovereign Cloud, the underlying Google Cloud client libraries need to know the destination.
+The easiest way to do this is by setting an environment variable on your Airflow:
+
+.. code-block:: bash
+
+    export GOOGLE_CLOUD_UNIVERSE_DOMAIN="your-universe-domain"
+
+Why this is necessary
+~~~~~~~~~~~~~~~~~~~~~
+
+By default, Google Cloud libraries look for the "Global" universe. Setting the ``GOOGLE_CLOUD_UNIVERSE_DOMAIN`` tells the library to generate API endpoints
+specific to your partner-managed environment (e.g., ``storage.your-sovereign-domain.goog`` instead of ``storage.googleapis.com``).

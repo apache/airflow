@@ -24,7 +24,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from google.api_core.exceptions import AlreadyExists
+from google.api_core.exceptions import Aborted, AlreadyExists, PermissionDenied
 from google.cloud.exceptions import GoogleCloudError
 from google.cloud.run_v2 import Job, Service
 
@@ -42,10 +42,13 @@ from airflow.providers.google.cloud.triggers.cloud_run import RunJobStatus
 
 CLOUD_RUN_HOOK_PATH = "airflow.providers.google.cloud.operators.cloud_run.CloudRunHook"
 CLOUD_RUN_SERVICE_HOOK_PATH = "airflow.providers.google.cloud.operators.cloud_run.CloudRunServiceHook"
+GCP_LOGGING_PATH = "airflow.providers.google.cloud.operators.cloud_run.gcp_logging"
 TASK_ID = "test"
 PROJECT_ID = "testproject"
 REGION = "us-central1"
 JOB_NAME = "jobname"
+EXECUTION_NAME = "jobname-abc12"
+EXECUTION_FULL_NAME = f"projects/{PROJECT_ID}/locations/{REGION}/jobs/{JOB_NAME}/executions/{EXECUTION_NAME}"
 SERVICE_NAME = "servicename"
 OVERRIDES = {
     "container_overrides": [{"args": ["python", "main.py"]}],
@@ -253,6 +256,32 @@ class TestCloudRunExecuteJobOperator:
         )
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable_execute_complete_method_fail_on_cancellation(self, hook_mock):
+        """
+        Pin the contract that a FAIL event emitted by the trigger when a Cloud Run Job is
+        cancelled (no ``operation.error`` but ``cancelled_count > 0``) propagates as an
+        AirflowException — see #57791.
+        """
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
+
+        event = {
+            "status": RunJobStatus.FAIL.value,
+            "operation_error_code": None,
+            "operation_error_message": (
+                "Cloud Run Job did not finish all tasks: task_count=3, succeeded_count=1, "
+                "failed_count=0, cancelled_count=2."
+            ),
+            "job_name": JOB_NAME,
+        }
+
+        with pytest.raises(AirflowException) as e:
+            operator.execute_complete(mock.MagicMock(), event)
+
+        assert "cancelled_count=2" in str(e.value)
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_deferrable_execute_complete_method_success(self, hook_mock):
         hook_mock.return_value.get_job.return_value = JOB
 
@@ -348,6 +377,364 @@ class TestCloudRunExecuteJobOperator:
 
         with pytest.raises(AirflowException):
             operator.execute(context=mock.MagicMock())
+
+    @mock.patch(GCP_LOGGING_PATH)
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_verbose_false_does_not_call_logging_client(self, hook_mock, gcp_logging_mock):
+        """Default behaviour (``verbose=False``) must not touch Cloud Logging."""
+        hook_mock.return_value.get_job.return_value = JOB
+        hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 3, 0)
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
+        )
+        operator.execute(context=mock.MagicMock())
+
+        gcp_logging_mock.Client.assert_not_called()
+
+    @mock.patch(GCP_LOGGING_PATH)
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_verbose_true_forwards_container_logs(self, hook_mock, gcp_logging_mock):
+        """``verbose=True`` fetches Cloud Logging entries for the execution and logs each one."""
+        execution = self._mock_execution(3, 3, 0)
+        execution.name = EXECUTION_FULL_NAME
+        execution.job = JOB_NAME
+        operation = mock.MagicMock()
+        operation.result.return_value = execution
+        hook_mock.return_value.execute_job.return_value = operation
+        hook_mock.return_value.get_job.return_value = JOB
+
+        gcp_logging_mock.Client.return_value.list_entries.return_value = [
+            mock.MagicMock(payload="Starting Task #0, Attempt #0 ..."),
+            mock.MagicMock(payload="Completed Task #0, Attempt #0"),
+            mock.MagicMock(payload="Container called exit(0)."),
+        ]
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            verbose=True,
+        )
+        operator._cached_logger = operator._log = mock.MagicMock()
+        operator.execute(context=mock.MagicMock())
+
+        hook_mock.assert_called_once()
+        gcp_logging_mock.Client.assert_called_once_with(
+            project=PROJECT_ID,
+            credentials=hook_mock.return_value.get_credentials.return_value,
+        )
+        log_filter = gcp_logging_mock.Client.return_value.list_entries.call_args.kwargs["filter_"]
+        assert f'resource.labels.job_name="{JOB_NAME}"' in log_filter
+        assert f'"run.googleapis.com/execution_name"="{EXECUTION_NAME}"' in log_filter
+        # Audit logs (logName starting with cloudaudit.googleapis.com/...) live under the same
+        # cloud_run_job resource and otherwise pollute the Airflow task log with structured
+        # AuditLog dumps. The filter must exclude them at the API level.
+        assert 'NOT logName:"cloudaudit.googleapis.com"' in log_filter
+        operator._cached_logger.info.assert_has_calls(
+            [
+                mock.call("Starting Task #0, Attempt #0 ..."),
+                mock.call("Completed Task #0, Attempt #0"),
+                mock.call("Container called exit(0)."),
+            ]
+        )
+
+    @mock.patch(GCP_LOGGING_PATH)
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_verbose_true_forwards_structured_log_payload(self, hook_mock, gcp_logging_mock):
+        """Cloud Logging entries can carry a non-string (JSON / proto) payload. Those must be
+        forwarded via ``log.info("%s", payload)`` so the structured value still reaches the
+        Airflow task log instead of being passed as a non-string ``msg`` to the stdlib logger.
+        """
+        execution = self._mock_execution(3, 3, 0)
+        execution.name = EXECUTION_FULL_NAME
+        execution.job = JOB_NAME
+        operation = mock.MagicMock()
+        operation.result.return_value = execution
+        hook_mock.return_value.execute_job.return_value = operation
+        hook_mock.return_value.get_job.return_value = JOB
+
+        structured_payload = {"severity": "ERROR", "message": "boom", "code": 42}
+        gcp_logging_mock.Client.return_value.list_entries.return_value = [
+            mock.MagicMock(payload="Starting Task #0, Attempt #0 ..."),
+            mock.MagicMock(payload=structured_payload),
+        ]
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            verbose=True,
+        )
+        operator._cached_logger = operator._log = mock.MagicMock()
+        operator.execute(context=mock.MagicMock())
+
+        operator._cached_logger.info.assert_has_calls(
+            [
+                mock.call("Starting Task #0, Attempt #0 ..."),
+                mock.call("%s", structured_payload),
+            ]
+        )
+
+    @mock.patch(GCP_LOGGING_PATH)
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_verbose_true_logging_api_failure_warns_and_succeeds(self, hook_mock, gcp_logging_mock):
+        """A Cloud Logging API failure during log forwarding must not fail the task."""
+        execution = self._mock_execution(3, 3, 0)
+        execution.name = EXECUTION_FULL_NAME
+        execution.job = JOB_NAME
+        operation = mock.MagicMock()
+        operation.result.return_value = execution
+        hook_mock.return_value.execute_job.return_value = operation
+        hook_mock.return_value.get_job.return_value = JOB
+
+        gcp_logging_mock.Client.return_value.list_entries.side_effect = PermissionDenied(
+            "Missing roles/logging.viewer"
+        )
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            verbose=True,
+        )
+        operator._cached_logger = operator._log = mock.MagicMock()
+        result = operator.execute(context=mock.MagicMock())
+
+        assert result["name"] == JOB.name
+        hook_mock.assert_called_once()
+        operator._cached_logger.warning.assert_called_once()
+
+    @mock.patch(GCP_LOGGING_PATH)
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_complete_verbose_true_forwards_container_logs(self, hook_mock, gcp_logging_mock):
+        """Deferrable path: ``execute_complete`` fetches and forwards container logs too."""
+        hook_mock.return_value.get_job.return_value = JOB
+        gcp_logging_mock.Client.return_value.list_entries.return_value = [
+            mock.MagicMock(payload="Starting Task #0, Attempt #0 ..."),
+            mock.MagicMock(payload="Completed Task #0, Attempt #0"),
+        ]
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            deferrable=True,
+            verbose=True,
+        )
+        operator._cached_logger = operator._log = mock.MagicMock()
+
+        event = {
+            "status": RunJobStatus.SUCCESS.value,
+            "job_name": JOB_NAME,
+            "execution_name": EXECUTION_NAME,
+        }
+        operator.execute_complete(mock.MagicMock(), event)
+
+        hook_mock.assert_called_once()
+        log_filter = gcp_logging_mock.Client.return_value.list_entries.call_args.kwargs["filter_"]
+        assert f'"run.googleapis.com/execution_name"="{EXECUTION_NAME}"' in log_filter
+        assert 'NOT logName:"cloudaudit.googleapis.com"' in log_filter
+        operator._cached_logger.info.assert_has_calls(
+            [
+                mock.call("Starting Task #0, Attempt #0 ..."),
+                mock.call("Completed Task #0, Attempt #0"),
+            ]
+        )
+
+    @mock.patch(GCP_LOGGING_PATH)
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_verbose_true_with_failed_execution_still_forwards_logs(
+        self, hook_mock, gcp_logging_mock
+    ):
+        """
+        When the execution has failed tasks (``failed_count > 0``), ``verbose=True`` MUST
+        still forward the container logs into the Airflow task log BEFORE the operator
+        raises the failure. Debugging a failed job is the case the user needs the logs the
+        most — see issue #36963.
+        """
+        execution = self._mock_execution(task_count=1, succeeded_count=0, failed_count=1)
+        execution.name = EXECUTION_FULL_NAME
+        execution.job = JOB_NAME
+        operation = mock.MagicMock()
+        operation.result.return_value = execution
+        hook_mock.return_value.execute_job.return_value = operation
+
+        gcp_logging_mock.Client.return_value.list_entries.return_value = [
+            mock.MagicMock(payload="2026/05/18 00:00:00 Starting Task #0, Attempt #0 ..."),
+            mock.MagicMock(payload="Task failed with exit code 1"),
+        ]
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            verbose=True,
+        )
+        operator._cached_logger = operator._log = mock.MagicMock()
+
+        with (
+            mock.patch("airflow.providers.google.cloud.operators.cloud_run.time.sleep"),
+            pytest.raises(AirflowException, match="Some tasks failed execution"),
+        ):
+            operator.execute(context=mock.MagicMock())
+
+        hook_mock.assert_called_once()
+        operator._cached_logger.info.assert_has_calls(
+            [
+                mock.call("2026/05/18 00:00:00 Starting Task #0, Attempt #0 ..."),
+                mock.call("Task failed with exit code 1"),
+            ]
+        )
+
+    @mock.patch(GCP_LOGGING_PATH)
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_verbose_true_with_operation_exception_still_forwards_logs(
+        self, hook_mock, gcp_logging_mock
+    ):
+        """
+        Some Cloud Run job failures make ``operation.result()`` raise before returning
+        an Execution. ``verbose=True`` must still use the operation metadata to forward
+        container logs before raising the AirflowException.
+        """
+        operation = mock.MagicMock()
+        operation.metadata.name = EXECUTION_FULL_NAME
+        operation.metadata.log_uri = None
+        operation.result.side_effect = Aborted("The container exited with an error.")
+        operation.exception.return_value = Aborted("The container exited with an error.")
+        hook_mock.return_value.execute_job.return_value = operation
+
+        gcp_logging_mock.Client.return_value.list_entries.return_value = [
+            mock.MagicMock(payload="Starting failing task"),
+            mock.MagicMock(payload="Task failed badly"),
+            mock.MagicMock(payload="Container called exit(1)."),
+        ]
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            verbose=True,
+        )
+        operator._cached_logger = operator._log = mock.MagicMock()
+
+        with (
+            mock.patch("airflow.providers.google.cloud.operators.cloud_run.time.sleep"),
+            pytest.raises(AirflowException, match="The container exited with an error"),
+        ):
+            operator.execute(context=mock.MagicMock())
+
+        hook_mock.assert_called_once()
+        log_filter = gcp_logging_mock.Client.return_value.list_entries.call_args.kwargs["filter_"]
+        assert f'"run.googleapis.com/execution_name"="{EXECUTION_NAME}"' in log_filter
+        operator._cached_logger.info.assert_has_calls(
+            [
+                mock.call("Starting failing task"),
+                mock.call("Task failed badly"),
+                mock.call("Container called exit(1)."),
+            ]
+        )
+
+    @mock.patch(GCP_LOGGING_PATH)
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_verbose_true_with_operation_exception_waits_for_late_logs(
+        self, hook_mock, gcp_logging_mock
+    ):
+        """
+        Cloud Logging can expose entries shortly after the Cloud Run operation has
+        already failed. ``verbose=True`` waits briefly before one fetch so stdout/stderr
+        that arrive late are less likely to be missed.
+        """
+        operation = mock.MagicMock()
+        operation.metadata.name = EXECUTION_FULL_NAME
+        operation.metadata.log_uri = None
+        operation.result.side_effect = Aborted("The container exited with an error.")
+        operation.exception.return_value = Aborted("The container exited with an error.")
+        hook_mock.return_value.execute_job.return_value = operation
+
+        gcp_logging_mock.Client.return_value.list_entries.return_value = [
+            mock.MagicMock(payload="Starting failing task"),
+            mock.MagicMock(payload="Task failed badly"),
+            mock.MagicMock(payload="Container called exit(1)."),
+        ]
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            verbose=True,
+        )
+        operator._cached_logger = operator._log = mock.MagicMock()
+
+        with (
+            mock.patch("airflow.providers.google.cloud.operators.cloud_run.time.sleep") as sleep_mock,
+            pytest.raises(AirflowException, match="The container exited with an error"),
+        ):
+            operator.execute(context=mock.MagicMock())
+
+        sleep_mock.assert_called_once_with(1)
+        hook_mock.assert_called_once()
+        gcp_logging_mock.Client.return_value.list_entries.assert_called_once()
+        operator._cached_logger.info.assert_has_calls(
+            [
+                mock.call("Starting failing task"),
+                mock.call("Task failed badly"),
+                mock.call("Container called exit(1)."),
+            ]
+        )
+        assert operator._cached_logger.info.call_count == 3
+
+    @mock.patch(GCP_LOGGING_PATH)
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_complete_verbose_true_fail_event_still_forwards_logs(self, hook_mock, gcp_logging_mock):
+        """
+        Deferrable path: when the trigger reports a FAIL event with an ``execution_name``,
+        ``verbose=True`` MUST still forward the container logs before re-raising as
+        AirflowException. See issue #36963.
+        """
+        gcp_logging_mock.Client.return_value.list_entries.return_value = [
+            mock.MagicMock(payload="2026/05/18 00:00:00 Starting Task #0, Attempt #0 ..."),
+            mock.MagicMock(payload="Task failed with exit code 1"),
+        ]
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            deferrable=True,
+            verbose=True,
+        )
+        operator._cached_logger = operator._log = mock.MagicMock()
+
+        event = {
+            "status": RunJobStatus.FAIL.value,
+            "operation_error_code": 13,
+            "operation_error_message": "operation error",
+            "job_name": JOB_NAME,
+            "execution_name": EXECUTION_NAME,
+        }
+
+        with (
+            mock.patch("airflow.providers.google.cloud.operators.cloud_run.time.sleep"),
+            pytest.raises(AirflowException, match="Operation failed"),
+        ):
+            operator.execute_complete(mock.MagicMock(), event)
+
+        hook_mock.assert_called_once()
+        operator._cached_logger.info.assert_has_calls(
+            [
+                mock.call("2026/05/18 00:00:00 Starting Task #0, Attempt #0 ..."),
+                mock.call("Task failed with exit code 1"),
+            ]
+        )
 
     def _mock_operation(self, task_count, succeeded_count, failed_count):
         operation = mock.MagicMock()

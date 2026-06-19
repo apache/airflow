@@ -38,6 +38,7 @@ from airflow.api_fastapi.common.dagbag import (
     get_dag_for_run,
     get_dag_for_run_or_latest_version,
     get_latest_version_of_dag,
+    resolve_run_on_latest_version,
 )
 from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
@@ -60,6 +61,8 @@ from airflow.api_fastapi.common.parameters import (
     QueryTIQueueFilter,
     QueryTIQueueNamePatternSearch,
     QueryTIQueueNamePrefixPatternSearch,
+    QueryTIRenderedMapIndexPatternSearch,
+    QueryTIRenderedMapIndexPrefixPatternSearch,
     QueryTIStateFilter,
     QueryTITaskDisplayNamePatternSearch,
     QueryTITaskDisplayNamePrefixPatternSearch,
@@ -184,6 +187,8 @@ def get_mapped_task_instances(
     operator_name_pattern: QueryTIOperatorNamePatternSearch,
     operator_name_prefix_pattern: QueryTIOperatorNamePrefixPatternSearch,
     map_index: QueryTIMapIndexFilter,
+    rendered_map_index_pattern: QueryTIRenderedMapIndexPatternSearch,
+    rendered_map_index_prefix_pattern: QueryTIRenderedMapIndexPrefixPatternSearch,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -211,6 +216,13 @@ def get_mapped_task_instances(
                     "logical_date": DagRun.logical_date,
                     "data_interval_start": DagRun.data_interval_start,
                     "data_interval_end": DagRun.data_interval_end,
+                    # Compound sort: when _rendered_map_index is NULL (no map_index_template),
+                    # all primary values tie and the integer map_index is the effective key,
+                    # giving correct numeric ordering (0, 1, 2, 10…) rather than lexicographic
+                    # ("0", "1", "10", "2"…).  When _rendered_map_index is set (map_index_template
+                    # used), TIs are ordered by their human-readable label first, then by
+                    # map_index for identical labels.
+                    "rendered_map_index": [TI._rendered_map_index, TI.map_index],
                 },
             ).dynamic_depends(default="map_index")
         ),
@@ -260,6 +272,8 @@ def get_mapped_task_instances(
             operator_name_pattern,
             operator_name_prefix_pattern,
             map_index,
+            rendered_map_index_pattern,
+            rendered_map_index_prefix_pattern,
         ],
         order_by=order_by,
         offset=offset,
@@ -472,6 +486,8 @@ def get_task_instances(
     operator_name_pattern: QueryTIOperatorNamePatternSearch,
     operator_name_prefix_pattern: QueryTIOperatorNamePrefixPatternSearch,
     map_index: QueryTIMapIndexFilter,
+    rendered_map_index_pattern: QueryTIRenderedMapIndexPatternSearch,
+    rendered_map_index_prefix_pattern: QueryTIRenderedMapIndexPrefixPatternSearch,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -499,6 +515,8 @@ def get_task_instances(
                     "run_after": DagRun.run_after,
                     "data_interval_start": DagRun.data_interval_start,
                     "data_interval_end": DagRun.data_interval_end,
+                    # Compound sort: see the listMapped endpoint comment for rationale.
+                    "rendered_map_index": [TI._rendered_map_index, TI.map_index],
                 },
             ).dynamic_depends(default="map_index")
         ),
@@ -579,6 +597,8 @@ def get_task_instances(
         operator_name_pattern,
         operator_name_prefix_pattern,
         map_index,
+        rendered_map_index_pattern,
+        rendered_map_index_prefix_pattern,
     ]
 
     if use_cursor:
@@ -824,6 +844,8 @@ def post_clear_task_instances(
     """Clear task instances."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
+    resolved_run_on_latest = resolve_run_on_latest_version(body.run_on_latest_version, dag_id, session)
+
     reset_dag_runs = body.reset_dag_runs
     dry_run = body.dry_run
     # We always pass dry_run here, otherwise this would try to confirm on the terminal!
@@ -908,7 +930,7 @@ def post_clear_task_instances(
             task_ids=task_markers_to_clear,
             run_id=dag_run_id,
             session=session,
-            run_on_latest_version=body.run_on_latest_version,
+            run_on_latest_version=resolved_run_on_latest,
             only_failed=body.only_failed,
             only_running=body.only_running,
         )
@@ -920,7 +942,7 @@ def post_clear_task_instances(
             start_date=body.start_date,
             end_date=body.end_date,
             session=session,
-            run_on_latest_version=body.run_on_latest_version,
+            run_on_latest_version=resolved_run_on_latest,
             only_failed=body.only_failed,
             only_running=body.only_running,
         )
@@ -931,7 +953,7 @@ def post_clear_task_instances(
                 task_instances,
                 session,
                 DagRunState.QUEUED if reset_dag_runs else False,
-                run_on_latest_version=body.run_on_latest_version,
+                run_on_latest_version=resolved_run_on_latest,
                 prevent_running_task=body.prevent_running_task,
             )
         except AirflowClearRunningTaskException as e:

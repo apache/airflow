@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack } from "@chakra-ui/react";
+import { Box, HStack } from "@chakra-ui/react";
 import type { MultiValue } from "chakra-react-select";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -146,7 +146,9 @@ export const DagsFilters = () => {
 
   return (
     <HStack flexWrap="wrap" gap={2} justifyContent="space-between">
-      <StateFilters onChange={handleStateChange} value={stateValue} />
+      <Box overflowX="auto">
+        <StateFilters onChange={handleStateChange} value={stateValue} />
+      </Box>
       <RequiredActionFilter needsReview={needsReview === "true"} onToggle={handleNeedsReviewToggle} />
       <PausedFilter onChange={handlePausedChange} value={pausedValue} />
       <TagFilter

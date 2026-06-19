@@ -58,6 +58,13 @@
                 "type": "string"
             }
         },
+        "excluded-platforms": {
+            "description": "List of platforms (e.g. linux/arm64) excluded for that provider. Used to skip providers whose native dependencies are unavailable on a given architecture.",
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
         "integrations": {
             "description": "List of integrations supported by the provider.",
             "type": "array",
@@ -527,6 +534,25 @@
             "description": "Logging Task Handlers class names",
             "items": {
                 "type": "string"
+            }
+        },
+        "remote-logging": {
+            "type": "array",
+            "description": "Remote logging IO handlers contributed by the provider. Each entry registers a RemoteLogIO implementation that ProvidersManager dispatches by URL scheme.",
+            "items": {
+                "type": "object",
+                "required": ["classpath", "scheme"],
+                "additionalProperties": false,
+                "properties": {
+                    "classpath": {
+                        "type": "string",
+                        "description": "Fully-qualified class name of the RemoteLogIO implementation."
+                    },
+                    "scheme": {
+                        "type": "string",
+                        "description": "URL scheme (without ://) of [logging] remote_base_log_folder that this handler claims."
+                    }
+                }
             }
         },
         "auth-backends": {

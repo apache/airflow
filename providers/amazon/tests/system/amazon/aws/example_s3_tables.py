@@ -22,8 +22,12 @@ from airflow.providers.amazon.aws.operators.s3_tables import (
     S3TablesCreateNamespaceOperator,
     S3TablesCreateTableBucketOperator,
     S3TablesCreateTableOperator,
+    S3TablesDeleteNamespaceOperator,
     S3TablesDeleteTableBucketOperator,
+    S3TablesDeleteTableBucketPolicyOperator,
     S3TablesDeleteTableOperator,
+    S3TablesPutTableBucketPolicyOperator,
+    S3TablesRenameTableOperator,
 )
 from airflow.providers.common.compat.sdk import DAG, chain
 
@@ -39,7 +43,9 @@ from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_s3_tables"
 
-sys_test_context_task = SystemTestContextBuilder().build()
+ACCOUNT_ID_KEY = "ACCOUNT_ID"
+
+sys_test_context_task = SystemTestContextBuilder().add_variable(ACCOUNT_ID_KEY).build()
 
 SCHEMA = {
     "iceberg": {
@@ -60,10 +66,12 @@ with DAG(
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
+    account_id = test_context[ACCOUNT_ID_KEY]
 
     bucket_name = f"{env_id}-s3tables"
     namespace = f"{env_id}_ns"
     table_name = f"{env_id}_tbl"
+    renamed_table_name = f"{env_id}_tbl_renamed"
 
     @task
     def create_namespace(table_bucket_arn: str, namespace: str):
@@ -72,19 +80,29 @@ with DAG(
 
         boto3.client("s3tables").create_namespace(tableBucketARN=table_bucket_arn, namespace=[namespace])
 
-    @task(trigger_rule=TriggerRule.ALL_DONE)
-    def delete_namespace(table_bucket_arn: str, namespace: str):
-        """Delete the namespace."""
-        import boto3
-
-        boto3.client("s3tables").delete_namespace(tableBucketARN=table_bucket_arn, namespace=namespace)
-
     # [START howto_operator_s3tables_create_table_bucket]
     create_table_bucket = S3TablesCreateTableBucketOperator(
         task_id="create_table_bucket",
         table_bucket_name=bucket_name,
     )
     # [END howto_operator_s3tables_create_table_bucket]
+
+    # [START howto_operator_s3tables_put_table_bucket_policy]
+    put_policy = S3TablesPutTableBucketPolicyOperator(
+        task_id="put_table_bucket_policy",
+        table_bucket_arn=create_table_bucket.output,
+        resource_policy=f'{{"Version":"2012-10-17","Statement":[{{"Sid":"TestPolicy","Effect":"Allow","Principal":{{"AWS":"arn:aws:iam::{account_id}:root"}},"Action":"s3tables:GetTable","Resource":"*"}}]}}',
+    )
+    # [END howto_operator_s3tables_put_table_bucket_policy]
+
+    # [START howto_operator_s3tables_delete_table_bucket_policy]
+    delete_policy = S3TablesDeleteTableBucketPolicyOperator(
+        task_id="delete_table_bucket_policy",
+        table_bucket_arn=create_table_bucket.output,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_s3tables_delete_table_bucket_policy]
+
     # [START howto_operator_s3tables_create_namespace]
     setup_namespace = S3TablesCreateNamespaceOperator(
         task_id="create_namespace",
@@ -103,12 +121,22 @@ with DAG(
     )
     # [END howto_operator_s3tables_create_table]
 
+    # [START howto_operator_s3tables_rename_table]
+    rename_table = S3TablesRenameTableOperator(
+        task_id="rename_table",
+        table_bucket_arn=create_table_bucket.output,
+        namespace=namespace,
+        table_name=table_name,
+        new_name=renamed_table_name,
+    )
+    # [END howto_operator_s3tables_rename_table]
+
     # [START howto_operator_s3tables_delete_table]
     delete_table = S3TablesDeleteTableOperator(
         task_id="delete_table",
         table_bucket_arn=create_table_bucket.output,
         namespace=namespace,
-        table_name=table_name,
+        table_name=renamed_table_name,
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_s3tables_delete_table]
@@ -121,16 +149,28 @@ with DAG(
     )
     # [END howto_operator_s3tables_delete_table_bucket]
 
+    # [START howto_operator_s3tables_delete_namespace]
+    delete_namespace = S3TablesDeleteNamespaceOperator(
+        task_id="delete_namespace",
+        table_bucket_arn=create_table_bucket.output,
+        namespace=namespace,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_s3tables_delete_namespace]
+
     chain(
         # TEST SETUP
         test_context,
         create_table_bucket,
+        put_policy,
+        delete_policy,
         setup_namespace,
         # TEST BODY
         create_table,
+        rename_table,
         # TEST TEARDOWN
         delete_table,
-        delete_namespace(table_bucket_arn=create_table_bucket.output, namespace=namespace),
+        delete_namespace,
         delete_table_bucket,
     )
 

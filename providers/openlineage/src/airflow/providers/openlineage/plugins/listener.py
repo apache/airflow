@@ -20,6 +20,7 @@ import logging
 import os
 import sys
 from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures.process import BrokenProcessPool
 from datetime import datetime
 from functools import cache
 from typing import TYPE_CHECKING
@@ -855,8 +856,21 @@ class OpenLineageListener:
             if not AIRFLOW_V_3_0_PLUS:
                 configure_orm(disable_connection_pool=True)
             self.log.debug("Executing OpenLineage process - %s - pid %s", callable_name, os.getpid())
-            callable()
-            self.log.debug("Process with current pid finishes after %s", callable_name)
+            try:
+                callable()
+                self.log.debug("Process with current pid finishes after %s", callable_name)
+            except Exception:
+                self.log.warning(
+                    "OpenLineage %s process failed. This has no impact on actual task execution status.",
+                    callable_name,
+                    exc_info=True,
+                )
+            finally:
+                # os._exit(0) bypasses Python's atexit/stdio flush. Explicitly shut down
+                # logging so buffered records (including any warnings above) are flushed
+                # before the process exits. Without this, the final log lines are silently
+                # dropped, making failures invisible.
+                logging.shutdown()
             os._exit(0)
 
     @property
@@ -1036,7 +1050,13 @@ class OpenLineageListener:
             self.log.warning("OpenLineage received exception in method on_dag_run_failed", exc_info=e)
 
     def submit_callable(self, callable, *args, **kwargs):
-        fut = self.executor.submit(callable, *args, **kwargs)
+        try:
+            fut = self.executor.submit(callable, *args, **kwargs)
+        except BrokenProcessPool:
+            self.log.warning("ProcessPoolExecutor is broken; recreating and retrying submission.")
+            self._executor.shutdown(wait=False)
+            self._executor = None
+            fut = self.executor.submit(callable, *args, **kwargs)
         fut.add_done_callback(self.log_submit_error)
         return fut
 

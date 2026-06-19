@@ -156,6 +156,7 @@ The following features are known missing and will be implemented in increments:
 
   - Overview about queues / jobs per queue
   - Allow starting Edge Worker REST API separate to api-server
+  - Fine granular access control (e.g. separate read only vs. management permissions for workers) (if demanded by somebody)
 
 - Edge Worker CLI
 

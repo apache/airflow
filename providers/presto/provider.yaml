@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1775592656
+source-date-epoch: 1779138298
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 5.12.0
   - 5.11.2
   - 5.11.1
   - 5.11.0
@@ -101,6 +102,20 @@ transfers:
     how-to-guide: /docs/apache-airflow-providers-presto/transfer/gcs_to_presto.rst
     python-module: airflow.providers.presto.transfers.gcs_to_presto
 
+
+asset-uris:
+  - schemes: [presto]
+    handler: airflow.providers.presto.assets.presto.sanitize_uri
+    factory: airflow.providers.presto.assets.presto.create_asset
+    to_openlineage_converter: airflow.providers.presto.assets.presto.convert_asset_to_openlineage
+
+# dataset has been renamed to asset in Airflow 3.0
+# This is kept for backward compatibility.
+dataset-uris:
+  - schemes: [presto]
+    handler: airflow.providers.presto.assets.presto.sanitize_uri
+    factory: airflow.providers.presto.assets.presto.create_asset
+    to_openlineage_converter: airflow.providers.presto.assets.presto.convert_asset_to_openlineage
 
 connection-types:
   - hook-class-name: airflow.providers.presto.hooks.presto.PrestoHook

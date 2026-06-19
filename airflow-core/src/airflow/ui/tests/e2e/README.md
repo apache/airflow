@@ -161,7 +161,7 @@ When submitting a PR that adds new E2E coverage, briefly explain in the PR descr
 
 2. **Create a spec file** in `specs/`
    - Import page objects and write test steps
-   - See existing test: [dag-trigger.spec.ts](specs/dag-trigger.spec.ts)
+   - See existing test: [dag-runs.spec.ts](specs/dag-runs.spec.ts)
 
 3. **Run tests locally**
 

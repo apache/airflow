@@ -18,10 +18,14 @@
   "asset_other": "Datensets (Assets)",
   "assetEvent_one": "Ereignis zu Datensets (Asset)",
   "assetEvent_other": "Ereignisse zu Datensets (Asset)",
+  "assetInactive": {
+    "tooltip": "Vorgänger-Datenset (Asset) wurde deaktiviert; der Scheduler hält die Partitionsauswertung an, bis es reaktiviert wird."
+  },
   "backfill_one": "Auffüllung",
   "backfill_other": "Auffüllungen",
   "browse": {
     "auditLog": "Prüf-Log",
+    "deadlines": "Fristen",
     "jobs": "Jobs",
     "requiredActions": "Erforderliche Interaktionen",
     "xcoms": "Task Kommunikation (XComs)"
@@ -61,6 +65,11 @@
     "dagVersions": "Dag Versionen",
     "dataIntervalEnd": "Datenintervall Ende",
     "dataIntervalStart": "Datenintervall Start",
+    "durationStats": {
+      "mean": "Mittelwert",
+      "mode": "Modus"
+    },
+    "expectedDuration": "Erwartete mittlere Laufzeit",
     "lastSchedulingDecision": "Letzte Planungsentscheidung",
     "mappedPartitionKey": "Zugeordneter Partitionsschlüssel",
     "partitionKey": "Partitionsschlüssel",
@@ -193,6 +202,12 @@
     },
     "tooltip": "Tastenkombination {{hotkey}} zum scrollen nach {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Übereinstimmung an beliebiger Stelle im Wert (Teilstring-Suche). Bei großen Installationen langsamer, da der standardmäßige Datenbank-Index nicht genutzt werden kann. Details hierzu finden Sie im Dokumentationsabschnitt zu benutzerdefinierten Metadaten-Indizes (Performance tuning (API and UI)).",
+      "title": "Übereinstimmung an beliebiger Stelle"
+    }
+  },
   "security": {
     "actions": "Aktionen",
     "permissions": "Berechtigungen",
@@ -214,6 +229,7 @@
   "startDate": "Startdatum",
   "state": "Status",
   "states": {
+    "awaiting_input": "Wartet auf Interaktion",
     "deferred": "Delegiert",
     "failed": "Fehlgeschlagen",
     "no_status": "Kein Status",
@@ -256,7 +272,11 @@
   },
   "task_one": "Task",
   "task_other": "Tasks",
-  "taskGroup": "Task Gruppe",
+  "taskGroup": {
+    "documentation": "Dokumentation der Task Gruppe"
+  },
+  "taskGroup_one": "Task Gruppe",
+  "taskGroup_other": "Task Gruppen",
   "taskId": "Task ID",
   "taskInstance": {
     "dagVersion": "Dag Version",
@@ -270,6 +290,7 @@
     "priorityWeight": "Priorität",
     "queue": "Warteschlange",
     "queuedWhen": "Wartend seit",
+    "renderedMapIndex": "Planungs-Index Anzeige",
     "scheduledWhen": "Geplant ab",
     "triggerer": {
       "assigned": "Zugewiesene Abrufumgebung",

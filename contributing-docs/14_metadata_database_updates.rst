@@ -97,6 +97,15 @@ and back down to the former. To run any of those CI tests on your machine, you c
 1. Copy the relevant command (specified by the ``run`` key for the relevant CI job), and replace the environment variable references with their literal values defined in the sibling ``env`` section.
 2. Run the command you created from step 1, troubleshooting errors as needed.
 
+SQLite FK round-trip safety
+---------------------------
+
+Migrations that rebuild a parent table via ``op.batch_alter_table`` must wrap their entire body in
+``disable_sqlite_fkeys(op)`` *before* any DML or DDL opens an implicit transaction — otherwise the
+wrapper's PRAGMA is a no-op and the rebuild's implicit ``DROP TABLE`` cascade-deletes child rows
+(or aborts on a RESTRICT chain). The placement convention and the round-trip prek hook that
+enforces it are documented in `Migration round-trip regression check <26_migration_round_trip_check.rst>`__.
+
 How to hook your application into Airflow's migration process
 -------------------------------------------------------------
 

@@ -164,10 +164,19 @@ def redefine_state(worker_state: EdgeWorkerState, body_state: EdgeWorkerState) -
 
 
 def redefine_maintenance_comments(
-    worker_maintenance_comment: str | None, body_maintenance_comments: str | None
+    worker_state: EdgeWorkerState,
+    worker_maintenance_comment: str | None,
+    body_maintenance_comments: str | None,
 ) -> str | None:
     """Add new maintenance comments or overwrite the old ones if it is too long."""
-    if body_maintenance_comments:
+    if worker_state not in (
+        EdgeWorkerState.MAINTENANCE_REQUEST,
+        EdgeWorkerState.MAINTENANCE_PENDING,
+        EdgeWorkerState.MAINTENANCE_MODE,
+        EdgeWorkerState.OFFLINE_MAINTENANCE,
+    ):
+        return None
+    if body_maintenance_comments and body_maintenance_comments != worker_maintenance_comment:
         if (
             worker_maintenance_comment
             and len(body_maintenance_comments) + len(worker_maintenance_comment) < 1020
@@ -206,7 +215,7 @@ def register(
             )
     worker.state = redefine_state(worker.state, body.state)
     worker.maintenance_comment = redefine_maintenance_comments(
-        worker.maintenance_comment, body.maintenance_comments
+        worker.state, worker.maintenance_comment, body.maintenance_comments
     )
     worker.queues = body.queues
     worker.sysinfo = body.sysinfo
@@ -229,7 +238,7 @@ def set_state(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Worker not found")
     worker.state = redefine_state(worker.state, body.state)
     worker.maintenance_comment = redefine_maintenance_comments(
-        worker.maintenance_comment, body.maintenance_comments
+        worker.state, worker.maintenance_comment, body.maintenance_comments
     )
     worker.jobs_active = body.jobs_active
     worker.sysinfo = body.sysinfo

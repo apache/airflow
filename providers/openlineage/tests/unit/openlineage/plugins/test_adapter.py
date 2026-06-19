@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 import os
 import pathlib
 import uuid
@@ -41,7 +42,7 @@ from openlineage.client.facet_v2 import (
 from airflow import DAG
 from airflow.models.dagrun import DagRun, DagRunState
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
-from airflow.providers.common.compat.sdk import Stats
+from airflow.providers.common.compat.sdk import BaseHook, Connection, Stats
 from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import _PRODUCER, OpenLineageAdapter
@@ -49,6 +50,11 @@ from airflow.providers.openlineage.plugins.facets import (
     AirflowDagRunFacet,
     AirflowDebugRunFacet,
     AirflowStateRunFacet,
+)
+from airflow.providers.openlineage.token_provider import (
+    AIRFLOW_CONNECTION_API_KEY_AUTH_TYPE,
+    OpenLineageAirflowConnectionAuthError,
+    OpenLineageAirflowConnectionConfigError,
 )
 from airflow.providers.openlineage.utils.utils import get_airflow_job_facet
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -100,6 +106,160 @@ def test_create_client_from_config_with_options():
 
     assert client.transport.kind == "http"
     assert client.transport.url == "http://ol-api:5000"
+
+
+@patch.object(BaseHook, "get_connection")
+@conf_vars(
+    {
+        ("openlineage", "transport"): '{"type": "http", "url": "http://ol-api:5000",'
+        ' "auth": {"type": "api_key", "apiKey": "api-key"}}'
+    }
+)
+def test_create_client_from_config_without_connection_auth_does_not_read_connection(mock_get_connection):
+    client = OpenLineageAdapter().get_or_create_openlineage_client()
+
+    assert client.transport.kind == "http"
+    assert client.transport.url == "http://ol-api:5000"
+    mock_get_connection.assert_not_called()
+
+
+def _connection_auth_transport_config(**auth_config):
+    auth = {
+        "type": AIRFLOW_CONNECTION_API_KEY_AUTH_TYPE,
+        "conn_id": "openlineage_default",
+        **auth_config,
+    }
+    return json.dumps({"type": "http", "url": "http://ol-api:5000", "auth": auth})
+
+
+@patch.object(BaseHook, "get_connection")
+def test_create_client_from_config_with_connection_auth_password(mock_get_connection):
+    mock_get_connection.return_value = Connection(
+        conn_id="openlineage_default", conn_type="http", password="api-key"
+    )
+
+    with conf_vars({("openlineage", "transport"): _connection_auth_transport_config()}):
+        client = OpenLineageAdapter().get_or_create_openlineage_client()
+
+    assert client.transport.kind == "http"
+    assert client.transport.url == "http://ol-api:5000"
+    assert client.transport.config.auth.api_key == "api-key"
+
+
+@patch.object(BaseHook, "get_connection")
+def test_create_client_from_config_with_connection_auth_extra(mock_get_connection):
+    mock_get_connection.return_value = Connection(
+        conn_id="openlineage_default",
+        conn_type="http",
+        extra='{"lineage_token": "api-key-from-extra"}',
+    )
+
+    transport_config = _connection_auth_transport_config(extra_key="lineage_token")
+    with conf_vars({("openlineage", "transport"): transport_config}):
+        client = OpenLineageAdapter().get_or_create_openlineage_client()
+
+    assert client.transport.kind == "http"
+    assert client.transport.config.auth.api_key == "api-key-from-extra"
+
+
+@patch.object(BaseHook, "get_connection")
+def test_create_client_from_config_with_connection_auth_token_extra(mock_get_connection):
+    mock_get_connection.return_value = Connection(
+        conn_id="openlineage_default",
+        conn_type="http",
+        extra='{"token": "api-key-from-token"}',
+    )
+
+    with conf_vars({("openlineage", "transport"): _connection_auth_transport_config()}):
+        client = OpenLineageAdapter().get_or_create_openlineage_client()
+
+    assert client.transport.kind == "http"
+    assert client.transport.config.auth.api_key == "api-key-from-token"
+
+
+@patch.object(BaseHook, "get_connection")
+def test_create_client_from_config_with_connection_auth_missing_secret(mock_get_connection):
+    mock_get_connection.return_value = Connection(conn_id="openlineage_default", conn_type="http", extra="{}")
+
+    with conf_vars({("openlineage", "transport"): _connection_auth_transport_config()}):
+        with pytest.raises(OpenLineageAirflowConnectionAuthError, match="could not find a token"):
+            OpenLineageAdapter().get_or_create_openlineage_client()
+
+
+@patch.object(BaseHook, "get_connection")
+def test_create_client_from_connection_config_with_connection_auth_password(mock_get_connection):
+    mock_get_connection.return_value = Connection(
+        conn_id="openlineage_default",
+        conn_type="http",
+        password="api-key",
+        extra=json.dumps(
+            {
+                "transport": {
+                    "type": "http",
+                    "url": "http://ol-api:5000",
+                    "auth": {
+                        "type": AIRFLOW_CONNECTION_API_KEY_AUTH_TYPE,
+                    },
+                }
+            }
+        ),
+    )
+
+    with conf_vars({("openlineage", "config_conn_id"): "openlineage_default"}):
+        client = OpenLineageAdapter().get_or_create_openlineage_client()
+
+    assert client.transport.kind == "http"
+    assert client.transport.url == "http://ol-api:5000"
+    assert client.transport.config.auth.api_key == "api-key"
+
+
+@patch.object(BaseHook, "get_connection")
+def test_create_client_from_connection_transport_config(mock_get_connection):
+    mock_get_connection.return_value = Connection(
+        conn_id="openlineage_default",
+        conn_type="generic",
+        extra='{"transport": {"type": "console"}}',
+    )
+
+    with conf_vars({("openlineage", "config_conn_id"): "openlineage_default"}):
+        client = OpenLineageAdapter().get_or_create_openlineage_client()
+
+    assert client.transport.kind == "console"
+
+
+@patch.object(BaseHook, "get_connection")
+def test_connection_config_takes_precedence_over_transport_config(mock_get_connection):
+    mock_get_connection.return_value = Connection(
+        conn_id="openlineage_default",
+        conn_type="generic",
+        extra='{"transport": {"type": "console"}}',
+    )
+
+    with conf_vars(
+        {
+            ("openlineage", "config_conn_id"): "openlineage_default",
+            ("openlineage", "transport"): '{"type": "http", "url": "http://ol-api:5000"}',
+        }
+    ):
+        client = OpenLineageAdapter().get_or_create_openlineage_client()
+
+    assert client.transport.kind == "console"
+
+
+@patch.object(BaseHook, "get_connection")
+def test_connection_config_missing_transport_raises_custom_exception(mock_get_connection):
+    mock_get_connection.return_value = Connection(
+        conn_id="openlineage_default",
+        conn_type="generic",
+        extra='{"url": "http://ol-api:5000"}',
+    )
+
+    with conf_vars({("openlineage", "config_conn_id"): "openlineage_default"}):
+        with pytest.raises(
+            OpenLineageAirflowConnectionConfigError,
+            match="must contain a `transport` JSON object",
+        ):
+            OpenLineageAdapter().get_or_create_openlineage_client()
 
 
 def test_create_client_from_yaml_config():

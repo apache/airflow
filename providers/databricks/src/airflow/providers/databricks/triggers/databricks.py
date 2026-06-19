@@ -23,6 +23,7 @@ from typing import Any
 
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.providers.databricks.utils.databricks import extract_failed_task_errors_async
+from airflow.providers.databricks.utils.retry import validate_deferrable_databricks_retry_args
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -38,6 +39,8 @@ class DatabricksExecutionTrigger(BaseTrigger):
     :param retry_delay: The number of seconds to wait between retries.
     :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param run_page_url: The run page url.
+    :param repair_run: Repair the databricks run in case of failure.
+    :param caller: The name of the operator that is calling the hook.
     """
 
     def __init__(
@@ -53,6 +56,9 @@ class DatabricksExecutionTrigger(BaseTrigger):
         caller: str = "DatabricksExecutionTrigger",
     ) -> None:
         super().__init__()
+        # Trigger kwargs cross Airflow's serialization boundary, so fail before storing invalid
+        # trigger state or surfacing a generic serializer error without Databricks-specific guidance.
+        validate_deferrable_databricks_retry_args(retry_args, owner=caller)
         self.run_id = run_id
         self.databricks_conn_id = databricks_conn_id
         self.polling_period_seconds = polling_period_seconds
@@ -61,6 +67,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
         self.retry_args = retry_args
         self.run_page_url = run_page_url
         self.repair_run = repair_run
+        self.caller = caller
         self.hook = DatabricksHook(
             databricks_conn_id,
             retry_limit=self.retry_limit,
@@ -81,6 +88,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
                 "retry_args": self.retry_args,
                 "run_page_url": self.run_page_url,
                 "repair_run": self.repair_run,
+                "caller": self.caller,
             },
         )
 
@@ -132,6 +140,7 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
     :param retry_limit: The number of times to retry the connection in case of service outages.
     :param retry_delay: The number of seconds to wait between retries.
     :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
+    :param caller: The name of the operator that is calling the hook.
     """
 
     def __init__(
@@ -146,6 +155,9 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
         caller: str = "DatabricksSQLStatementExecutionTrigger",
     ) -> None:
         super().__init__()
+        # Trigger kwargs cross Airflow's serialization boundary, so fail before storing invalid
+        # trigger state or surfacing a generic serializer error without Databricks-specific guidance.
+        validate_deferrable_databricks_retry_args(retry_args, owner=caller)
         self.statement_id = statement_id
         self.databricks_conn_id = databricks_conn_id
         self.end_time = end_time
@@ -153,6 +165,7 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
         self.retry_args = retry_args
+        self.caller = caller
         self.hook = DatabricksHook(
             databricks_conn_id,
             retry_limit=self.retry_limit,
@@ -172,6 +185,7 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
                 "retry_limit": self.retry_limit,
                 "retry_delay": self.retry_delay,
                 "retry_args": self.retry_args,
+                "caller": self.caller,
             },
         )
 

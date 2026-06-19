@@ -1,0 +1,1 @@
+``dag_processing.last_run.seconds_ago.{dag_file}`` is now a legacy metric. The new metric ``dag_processing.last_run.seconds_ago`` is emitted with ``file_path``, ``bundle_name`` and ``file_name`` as tags, where ``file_path`` and ``bundle_name`` uniquely identify the DAG file. The legacy metric is still emitted by default and can be disabled via ``[metrics] legacy_names_on``.

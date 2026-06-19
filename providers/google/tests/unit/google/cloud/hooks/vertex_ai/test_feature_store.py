@@ -44,23 +44,30 @@ class TestFeatureStoreHook:
         ):
             self.hook = FeatureStoreHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
+    @mock.patch(BASE_STRING.format("GoogleBaseHook.get_client_options"))
     @mock.patch(FEATURE_STORE_STRING.format("FeatureOnlineStoreAdminServiceClient"), autospec=True)
     @mock.patch(BASE_STRING.format("GoogleBaseHook.get_credentials"))
-    def test_get_feature_online_store_admin_service_client(self, mock_get_credentials, mock_client):
+    def test_get_feature_online_store_admin_service_client(
+        self, mock_get_credentials, mock_client, mock_get_client_options
+    ):
         self.hook.get_feature_online_store_admin_service_client(location=TEST_LOCATION)
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value, client_info=mock.ANY, client_options=mock.ANY
+            credentials=mock_get_credentials.return_value,
+            client_info=mock.ANY,
+            client_options=mock_get_client_options.return_value,
         )
-        client_options = mock_client.call_args[1]["client_options"]
-        assert client_options.api_endpoint == f"{TEST_LOCATION}-aiplatform.googleapis.com:443"
+        api_endpoint_override = mock_get_client_options.call_args[1]["api_endpoint_override"]
+        assert api_endpoint_override == f"{TEST_LOCATION}-aiplatform.googleapis.com:443"
 
         mock_client.reset_mock()
         self.hook.get_feature_online_store_admin_service_client()
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value, client_info=mock.ANY, client_options=mock.ANY
+            credentials=mock_get_credentials.return_value,
+            client_info=mock.ANY,
+            client_options=mock_get_client_options.return_value,
         )
-        client_options = mock_client.call_args[1]["client_options"]
-        assert not client_options.api_endpoint
+        api_endpoint_override = mock_get_client_options.call_args[1]["api_endpoint_override"]
+        assert not api_endpoint_override
 
     @mock.patch(FEATURE_STORE_STRING.format("FeatureStoreHook.get_feature_online_store_admin_service_client"))
     def test_get_feature_view_sync(self, mock_client_getter):

@@ -90,6 +90,7 @@ class TestGetPlugins:
                 "url_route": "test_iframe_plugin",
                 "destination": "nav",
                 "category": "browse",
+                "nav_top_level": False,
             },
         ]
 
@@ -106,6 +107,7 @@ class TestGetPlugins:
                         "icon": None,
                         "icon_dark_mode": None,
                         "name": "Google",
+                        "nav_top_level": False,
                         "url_route": None,
                     },
                     {
@@ -116,6 +118,7 @@ class TestGetPlugins:
                         "icon_dark_mode": None,
                         "label": "The Apache Software Foundation",
                         "name": "apache",
+                        "nav_top_level": False,
                         "url_route": None,
                     },
                 ]

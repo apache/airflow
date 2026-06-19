@@ -45,6 +45,9 @@ ACCEPTED_NON_INIT_DIRS = [
     ".pnpm-store",
     "node_modules",
     "non_python_src",
+    # Agent Skills bundles (agentskills.io): a "skills" dir holds SKILL.md files
+    # and their assets, not a Python package.
+    "skills",
 ]
 
 IGNORE_DIR_PATTERNS = ["airflow/providers/edge3/plugins", "airflow/providers/common/ai/plugins"]

@@ -131,7 +131,11 @@ class GKEHook(GoogleBaseHook):
     def get_cluster_manager_client(self) -> ClusterManagerClient:
         """Create or get a ClusterManagerClient."""
         if self._client is None:
-            self._client = ClusterManagerClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = ClusterManagerClient(
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options=self.get_client_options(),
+            )
         return self._client
 
     def wait_for_operation(self, operation: Operation, project_id: str = PROVIDE_PROJECT_ID) -> Operation:
@@ -377,9 +381,11 @@ class GKEAsyncHook(GoogleBaseAsyncHook):
 
     async def _get_client(self) -> ClusterManagerAsyncClient:
         if self._client is None:
+            sync_hook = await self.get_sync_hook()
             self._client = ClusterManagerAsyncClient(
-                credentials=(await self.get_sync_hook()).get_credentials(),
+                credentials=sync_hook.get_credentials(),
                 client_info=CLIENT_INFO,
+                client_options=sync_hook.get_client_options(),
             )
         return self._client
 
@@ -481,6 +487,7 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
         self,
         cluster_url: str,
         ssl_ca_cert: str,
+        use_dns_endpoint: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         enable_tcp_keepalive: bool = True,
@@ -489,6 +496,7 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
         self._cluster_url = cluster_url
         self._ssl_ca_cert = ssl_ca_cert
         self.enable_tcp_keepalive = enable_tcp_keepalive
+        self.use_dns_endpoint = use_dns_endpoint
         super().__init__(
             cluster_url=cluster_url,
             ssl_ca_cert=ssl_ca_cert,
@@ -540,11 +548,12 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
     def _get_config(self) -> async_client.configuration.Configuration:
         configuration = async_client.Configuration(
             host=self._cluster_url,
-            ssl_ca_cert=FileOrData(
+        )
+        if not self.use_dns_endpoint:
+            configuration.ssl_ca_cert = FileOrData(
                 {
                     "certificate-authority-data": self._ssl_ca_cert,
                 },
                 file_key_name="certificate-authority",
-            ).as_file(),
-        )
+            ).as_file()
         return configuration
