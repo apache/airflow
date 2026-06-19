@@ -1387,7 +1387,7 @@
       "type": "string"
     },
     "DagSkippedIntervalsCallbackRequest": {
-      "description": "A Class with information about the skipped intervals DAG callback to be executed.",
+      "description": "Store skipped intervals callback data for execution by the Dag processor.",
       "properties": {
         "filepath": {
           "title": "Filepath",
