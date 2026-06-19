@@ -39,7 +39,7 @@ import {
   useUpstreamDatasetEvents,
 } from "src/api";
 import useSelection from "src/dag/useSelection";
-import { getMetaValue, getTask, useOffsetTop } from "src/utils";
+import { getMetaValue, getTask, useContentHeight } from "src/utils";
 import { useGraphLayout } from "src/utils/graph";
 import Edge from "src/components/Graph/Edge";
 import type { DepNode, WebserverEdge } from "src/types";
@@ -244,7 +244,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const { colors } = useTheme();
   const { getZoom, fitView } = useReactFlow();
   const latestDagRunId = dagRuns[dagRuns.length - 1]?.runId;
-  const offsetTop = useOffsetTop(graphRef);
+  const contentHeight = useContentHeight(graphRef);
 
   useOnViewportChange({
     onEnd: (viewport: Viewport) => {
@@ -312,11 +312,11 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   return (
     <Box
       ref={graphRef}
-      height={`calc(100% - ${offsetTop}px)`}
+      height={`${contentHeight}px`}
       borderWidth={1}
       borderColor="gray.200"
     >
-      {!!offsetTop && (
+      {!!contentHeight && (
         <ReactFlow
           nodes={nodes}
           edges={edges}

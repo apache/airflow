@@ -41,7 +41,7 @@ import {
   getMetaValue,
   getTaskSummary,
   toSentenceCase,
-  useOffsetTop,
+  useContentHeight,
 } from "src/utils";
 import { useGridData, useDagDetails } from "src/api";
 import Time from "src/components/Time";
@@ -61,7 +61,7 @@ const Dag = () => {
     data: { dagRuns, groups },
   } = useGridData();
   const detailsRef = useRef<HTMLDivElement>(null);
-  const offsetTop = useOffsetTop(detailsRef);
+  const contentHeight = useContentHeight(detailsRef);
 
   const { data: dagDetailsData, isLoading: isLoadingDagDetails } =
     useDagDetails();
@@ -160,7 +160,7 @@ const Dag = () => {
   return (
     <Box
       height="100%"
-      maxHeight={`calc(100% - ${offsetTop}px)`}
+      maxHeight={`${contentHeight}px`}
       ref={detailsRef}
       overflowY="auto"
     >

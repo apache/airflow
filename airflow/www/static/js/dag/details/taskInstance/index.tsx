@@ -21,7 +21,7 @@ import React, { useRef } from "react";
 import { Box } from "@chakra-ui/react";
 
 import { useGridData, useTaskInstance } from "src/api";
-import { getMetaValue, getTask, useOffsetTop } from "src/utils";
+import { getMetaValue, getTask, useContentHeight } from "src/utils";
 import type { DagRun, TaskInstance as GridTaskInstance } from "src/types";
 import NotesAccordion from "src/dag/details/NotesAccordion";
 
@@ -43,7 +43,7 @@ interface Props {
 
 const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
   const taskInstanceRef = useRef<HTMLDivElement>(null);
-  const offsetTop = useOffsetTop(taskInstanceRef);
+  const contentHeight = useContentHeight(taskInstanceRef);
   const isMapIndexDefined = !(mapIndex === undefined);
   const {
     data: { dagRuns, groups },
@@ -79,8 +79,7 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
   return (
     <Box
       py="4px"
-      height="100%"
-      maxHeight={`calc(100% - ${offsetTop}px)`}
+      height={`${contentHeight}px`}
       ref={taskInstanceRef}
       overflowY="auto"
     >

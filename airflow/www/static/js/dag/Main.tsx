@@ -35,7 +35,7 @@ import { isEmpty, debounce } from "lodash";
 import { FaExpandArrowsAlt, FaCompressArrowsAlt } from "react-icons/fa";
 
 import { useGridData } from "src/api";
-import { hoverDelay } from "src/utils";
+import { hoverDelay, useContentHeight } from "src/utils";
 
 import ShortcutCheatSheet from "src/components/ShortcutCheatSheet";
 import { useKeysPress } from "src/utils/useKeysPress";
@@ -56,21 +56,6 @@ const saveWidth = debounce(
   hoverDelay,
 );
 
-const footerHeight =
-  parseInt(
-    getComputedStyle(
-      document.getElementsByTagName("body")[0],
-    ).paddingBottom.replace("px", ""),
-    10,
-  ) || 0;
-const headerHeight =
-  parseInt(
-    getComputedStyle(
-      document.getElementsByTagName("body")[0],
-    ).paddingTop.replace("px", ""),
-    10,
-  ) || 0;
-
 const Main = () => {
   const {
     data: { groups },
@@ -85,6 +70,8 @@ const Main = () => {
   const gridRef = useRef<HTMLDivElement>(null);
   const gridScrollRef = useRef<HTMLDivElement>(null);
   const ganttScrollRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLDivElement>(null);
+  const mainHeight = useContentHeight(mainRef);
 
   const [hoveredTaskState, setHoveredTaskState] = useState<
     string | null | undefined
@@ -199,9 +186,8 @@ const Main = () => {
   return (
     <Box
       flex={1}
-      height={`calc(100vh - ${footerHeight + headerHeight}px)`}
-      maxHeight={`calc(100vh - ${footerHeight + headerHeight}px)`}
-      minHeight="750px"
+      ref={mainRef}
+      height={`${mainHeight}px`}
       overflow="hidden"
       position="relative"
     >
