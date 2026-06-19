@@ -25,6 +25,37 @@
 Changelog
 ---------
 
+0.7.3
+.....
+
+Misc
+~~~~
+
+* ``Replace Sphinx Redoc with Swagger API Docs (#67390)``
+* ``Add prek hook to enforce HTTPException is imported from fastapi (#67367)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+0.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Attach default role policies (#67031)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update Keycloak documentation to mention '[api] base_url' (#66023)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Isolate non-provider mypy hooks per distribution with dedicated .build/ venvs (#65492)``
+
 0.7.1
 .....
 

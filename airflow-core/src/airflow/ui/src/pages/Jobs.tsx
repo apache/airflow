@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, VStack } from "@chakra-ui/react";
+import { Box, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -131,7 +131,6 @@ export const Jobs = () => {
 
   return (
     <Box p={2}>
-      <Heading>{translate("common:browse.jobs")}</Heading>
       <VStack align="start" gap={4} paddingY="4px">
         <FilterBar
           configs={filterConfigs}

@@ -24,6 +24,7 @@ import { useLocalStorage } from "usehooks-ts";
 type ResizableWrapperProps = {
   readonly defaultSize?: { height: number; width: number };
   readonly maxConstraints?: [width: number, height: number];
+  readonly minSize?: { height: number; width: number };
   readonly storageKey: string;
 } & PropsWithChildren;
 
@@ -36,6 +37,7 @@ export const ResizableWrapper = ({
   children,
   defaultSize = DEFAULT_SIZE,
   maxConstraints = MAX_SIZE,
+  minSize = DEFAULT_SIZE,
   storageKey,
 }: ResizableWrapperProps) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -79,13 +81,13 @@ export const ResizableWrapper = ({
         overflow: "hidden",
         resize: "both",
       }}
-      height={`${storedSize.height}px`}
+      height={`${Math.max(storedSize.height, minSize.height)}px`}
       maxHeight={`${maxConstraints[1]}px`}
       maxWidth={`${maxConstraints[0]}px`}
-      minHeight={`${DEFAULT_SIZE.height}px`}
-      minWidth={`${DEFAULT_SIZE.width}px`}
+      minHeight={`${minSize.height}px`}
+      minWidth={`${minSize.width}px`}
       ref={ref}
-      width={`${storedSize.width}px`}
+      width={`${Math.max(storedSize.width, minSize.width)}px`}
     >
       {children}
     </Box>

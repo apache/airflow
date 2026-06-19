@@ -18,9 +18,9 @@
 
 from __future__ import annotations
 
-import os
 import sys
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from kubernetes import client
 from kubernetes.client.api_client import ApiClient
@@ -61,7 +61,7 @@ def generate_pod_yaml(args):
         dag = get_bagged_dag(bundle_names=args.bundle_name, dag_id=args.dag_id)
     else:
         dag = get_bagged_dag(subdir=args.subdir, dag_id=args.dag_id)
-    yaml_output_path = args.output_path
+    yaml_output_path = Path(args.output_path) / "airflow_yaml_output"
 
     dm = DagModel(dag_id=dag.dag_id)
 
@@ -112,11 +112,11 @@ def generate_pod_yaml(args):
         api_client = ApiClient()
         date_string = pod_generator.datetime_to_label_safe_datestring(logical_date)
         yaml_file_name = f"{args.dag_id}_{ti.task_id}_{date_string}.yml"
-        os.makedirs(os.path.dirname(yaml_output_path + "/airflow_yaml_output/"), exist_ok=True)
-        with open(yaml_output_path + "/airflow_yaml_output/" + yaml_file_name, "w") as output:
+        yaml_output_path.mkdir(parents=True, exist_ok=True)
+        with open(yaml_output_path / yaml_file_name, "w") as output:
             sanitized_pod = api_client.sanitize_for_serialization(pod)
             output.write(yaml.dump(sanitized_pod))
-    print(f"YAML output can be found at {yaml_output_path}/airflow_yaml_output/")
+    print(f"YAML output can be found at {yaml_output_path}")
 
 
 @cli_utils.action_cli(check_db=False)

@@ -20,12 +20,15 @@ from __future__ import annotations
 import ast
 import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, SupportsAbs
 
+from airflow.providers.common.compat.openlineage.check import require_openlineage_version
 from airflow.providers.common.compat.sdk import (
     AirflowException,
     AirflowFailException,
+    AirflowOptionalProviderFeatureException,
     AirflowSkipException,
     BaseHook,
     BaseOperator,
@@ -127,6 +130,46 @@ def default_output_processor(results: list[Any], descriptions: list[Sequence[Seq
     return results
 
 
+@dataclass
+class SQLCheckResult:
+    """Record of a single SQL check result."""
+
+    name: str
+    """Unique name identifying this check."""
+
+    check_type: str
+    """Classification of the check, e.g. ``"not_null"``, ``"row_count"``, ``"unique"``."""
+
+    success: bool
+    """Whether the check found no issues (``True``) or found issues (``False``)."""
+
+    severity: str = "error"
+    """How severe a failure of this check is: ``"error"`` (raises, default), ``"warn"`` (logs a warning only),
+     or ``"info"`` (informational, never causes task failure, like branching operator)."""
+
+    column: str | None = None
+    """Column the check refers to. When set, the assertion targets a specific column rather than
+    the whole table. Should match the column name in the schema."""
+
+    table: str | None = None
+    """Table the check was performed against."""
+
+    expected: str | None = None
+    """The expected value or threshold, serialized as a string, e.g. ``"> 0"`` or ``"[10, 100]"``."""
+
+    actual: str | None = None
+    """The actual value observed during the check, serialized as a string."""
+
+    content: str | None = None
+    """The check body — typically the SQL expression used to perform the check."""
+
+    description: str | None = None
+    """Human-readable description of what the check verifies."""
+
+    params: dict | None = None
+    """Arbitrary key-value pairs with check-specific context, e.g. accept_none or partition_clause."""
+
+
 class BaseSQLOperator(BaseOperator):
     """
     This is a base class for generic SQL Operator to get a DB Hook.
@@ -156,6 +199,7 @@ class BaseSQLOperator(BaseOperator):
         self.database = database
         self.hook_params = hook_params or {}
         self.retry_on_failure = retry_on_failure
+        self.check_results: list[SQLCheckResult] = []  # Used by listeners
 
     @classmethod
     # TODO: can be removed once Airflow min version for this provider is 3.0.0 or higher
@@ -300,14 +344,116 @@ class BaseSQLOperator(BaseOperator):
             database_specific_lineage = None
 
         if database_specific_lineage is None:
-            return operator_lineage
+            if not self.check_results:
+                return operator_lineage
+            try:
+                return self._attach_check_facets(operator_lineage)
+            except AirflowOptionalProviderFeatureException as err:
+                self.log.debug("OpenLineage could not attach check facets: %s", err)
+                return operator_lineage
 
-        return OperatorLineage(
+        merged = OperatorLineage(
             inputs=operator_lineage.inputs + database_specific_lineage.inputs,
             outputs=operator_lineage.outputs + database_specific_lineage.outputs,
             run_facets=merge_dicts(operator_lineage.run_facets, database_specific_lineage.run_facets),
             job_facets=merge_dicts(operator_lineage.job_facets, database_specific_lineage.job_facets),
         )
+        if not self.check_results:
+            return merged
+        try:
+            return self._attach_check_facets(merged)
+        except AirflowOptionalProviderFeatureException as err:
+            self.log.debug("OpenLineage could not attach check facets: %s", err)
+            return merged
+
+    @require_openlineage_version(client_min_version="1.47.0")
+    def _attach_check_facets(self, operator_lineage: OperatorLineage) -> OperatorLineage:
+        """
+        Attach OpenLineage check-result facets to the given lineage object.
+
+        Requires openlineage-python >= 1.47.0, which introduced the extended ``Assertion``
+        and ``TestExecution`` schemas (``name``, ``description``, ``expected``, ``actual``, ``content``,
+        ``params`` fields).  The decorator raises ``AirflowOptionalProviderFeatureException`` when
+        the client is absent or too old; callers are expected to catch that exception.
+
+        Results with a ``table`` set are attached as``DataQualityAssertionsDatasetFacet`` on the matching
+        dataset (matched by suffix).  Unmatched results, and results without a table, fall back
+        to a run-level ``TestRunFacet``.
+        """
+        from openlineage.client.facet_v2 import data_quality_assertions_dataset, test_run
+
+        by_table: dict[str | None, list[SQLCheckResult]] = {}
+        for r in self.check_results:
+            by_table.setdefault(r.table, []).append(r)
+
+        run_level: list[SQLCheckResult] = list(by_table.pop(None, []))
+
+        for table, results in by_table.items():
+            assertions = [
+                data_quality_assertions_dataset.Assertion(
+                    assertion=r.check_type,
+                    success=r.success,
+                    severity=r.severity,
+                    column=r.column,
+                    name=r.name,
+                    description=r.description,
+                    expected=r.expected,
+                    actual=r.actual,
+                    content=r.content,
+                    contentType="sql",
+                    params=r.params,
+                )
+                for r in results
+            ]
+            table_lower = table.lower()  # type: ignore[union-attr]
+            matched = False
+            for group in (operator_lineage.inputs, operator_lineage.outputs):
+                # Exact match takes priority over suffix match when both are present in the same group.
+                target = next(
+                    (ds for ds in group if ds.name.lower() == table_lower),
+                    None,
+                ) or next(
+                    (ds for ds in group if ds.name.lower().endswith(f".{table_lower}")),
+                    None,
+                )
+                if target is not None:
+                    target.facets = target.facets or {}
+                    existing = target.facets.get("dataQualityAssertions")
+                    facet_assertions = (
+                        existing.assertions + assertions if existing is not None else assertions
+                    )
+                    target.facets["dataQualityAssertions"] = (
+                        data_quality_assertions_dataset.DataQualityAssertionsDatasetFacet(
+                            assertions=facet_assertions
+                        )
+                    )
+                    matched = True
+            if not matched:
+                run_level.extend(results)
+
+        if run_level:
+            tests = [
+                test_run.TestExecution(
+                    name=r.name,
+                    status="pass" if r.success else "fail",
+                    severity=r.severity,
+                    type=r.check_type,
+                    description=r.description,
+                    expected=r.expected,
+                    actual=r.actual,
+                    content=r.content,
+                    contentType="sql",
+                    params={"tested_column": r.column, "tested_table": r.table, **(r.params or {})},
+                )
+                for r in run_level
+            ]
+            operator_lineage.run_facets = operator_lineage.run_facets or {}
+            existing = operator_lineage.run_facets.get("test")
+            if existing is not None:
+                tests = existing.tests + tests
+            operator_lineage.run_facets["test"] = test_run.TestRunFacet(tests=tests)
+
+        return operator_lineage
 
 
 class SQLExecuteQueryOperator(BaseSQLOperator):
@@ -554,6 +700,9 @@ class SQLColumnCheckOperator(BaseSQLOperator):
                 self.column_mapping[column][check], result, tolerance
             )
 
+        # Save check results before raising exception, to be used by listeners
+        self.check_results = self._build_check_results()
+
         failed_tests = [
             f"Column: {col}\n\tCheck: {check},\n\tCheck Values: {check_values}\n"
             for col, checks in self.column_mapping.items()
@@ -685,6 +834,105 @@ class SQLColumnCheckOperator(BaseSQLOperator):
                 "'less than or equal to', use geq_to or leq_to."
             )
 
+    def _build_check_results(self) -> list[SQLCheckResult]:
+        try:
+            return [
+                SQLCheckResult(
+                    name=f"{col}.{check}",
+                    check_type=self._get_column_check_type(check, check_values),
+                    success=check_values.get("success", False),
+                    column=col,
+                    table=self.table,
+                    expected=self._format_column_expected(check_values),
+                    actual=str(check_values["result"]) if "result" in check_values else None,
+                    content=self.column_checks[check].format(column=col),
+                    description="Column-level statistical check against the configured threshold",
+                    params={
+                        k: v
+                        for k, v in {
+                            "equal_to": check_values.get("equal_to"),
+                            "greater_than": check_values.get("greater_than"),
+                            "geq_to": check_values.get("geq_to"),
+                            "less_than": check_values.get("less_than"),
+                            "leq_to": check_values.get("leq_to"),
+                            "tolerance": check_values.get("tolerance"),
+                            "accept_none": self.accept_none,
+                            "partition_clause": self.partition_clause,
+                            "check_partition_clause": check_values.get("partition_clause"),
+                        }.items()
+                        if v is not None
+                    }
+                    or None,
+                )
+                for col, checks in self.column_mapping.items()
+                for check, check_values in checks.items()
+            ]
+        except Exception as err:
+            self.log.debug("Failed to build check results %s", err)
+            return []
+
+    @staticmethod
+    def _get_column_check_type(check: str, check_values: dict) -> str:
+        """
+        Return a dbt-style check type for a column check based on the metric and comparison operators.
+
+        Range operators (``greater_than``, ``geq_to``, ``less_than``, ``leq_to``) always yield
+        ``accepted_range``.  ``equal_to`` with a non-zero tolerance also yields ``accepted_range``
+        because the check expands to ``[value*(1-tol), value*(1+tol)]``.  For ``equal_to``-only
+        checks without tolerance, ``null_check`` and ``unique_check`` use their semantic names
+        (``not_null``, ``unique``) when asserting the canonical zero value; any other target becomes
+        ``accepted_values``.  Custom check names fall through unchanged.
+        """
+        if any(k in check_values for k in ("greater_than", "geq_to", "less_than", "leq_to")):
+            return "accepted_range"
+        if "equal_to" in check_values:
+            if check_values.get("tolerance") and check_values["equal_to"] != 0:
+                return "accepted_range"
+            if check == "null_check" and check_values["equal_to"] == 0:
+                return "not_null"
+            if check == "unique_check" and check_values["equal_to"] == 0:
+                return "unique"
+            return "accepted_values"
+        return check
+
+    @staticmethod
+    def _format_column_expected(check_values: dict) -> str:
+        """
+        Return the expected string for a column check, expanding tolerance into actual bounds.
+
+        Without tolerance: shows raw comparison operators (e.g. ``">5, <=10"``).
+        With tolerance: computes and shows the actual relaxed bounds using the same arithmetic
+        as ``_get_match``, so ``equal_to=5, tolerance=0.1`` becomes ``">= 4.5, <= 5.5"``.
+        """
+        tol = check_values.get("tolerance")
+        if tol is None:
+            return ", ".join(
+                f"{op}{check_values[key]}"
+                for key, op in {
+                    "equal_to": "",
+                    "greater_than": ">",
+                    "geq_to": ">=",
+                    "less_than": "<",
+                    "leq_to": "<=",
+                }.items()
+                if key in check_values
+            )
+        tol = float(tol)  # The operator already treats is as numeric in `_get_match`.
+        parts = []
+        if "equal_to" in check_values:
+            v = check_values["equal_to"]
+            parts.append(f">= {v * (1 - tol)}")
+            parts.append(f"<= {v * (1 + tol)}")
+        if "greater_than" in check_values:
+            parts.append(f"> {check_values['greater_than'] * (1 - tol)}")
+        if "geq_to" in check_values:
+            parts.append(f">= {check_values['geq_to'] * (1 - tol)}")
+        if "less_than" in check_values:
+            parts.append(f"< {check_values['less_than'] * (1 + tol)}")
+        if "leq_to" in check_values:
+            parts.append(f"<= {check_values['leq_to'] * (1 + tol)}")
+        return ", ".join(parts)
+
 
 class SQLTableCheckOperator(BaseSQLOperator):
     """
@@ -754,6 +1002,16 @@ class SQLTableCheckOperator(BaseSQLOperator):
         hook = self.get_db_hook()
         records = hook.get_records(self.sql)
 
+        if records:
+            self.log.info("Record:\n%s", records)
+            for row in records:
+                check, result = row
+                self.checks[check]["result"] = str(result)
+                self.checks[check]["success"] = _parse_boolean(str(result))
+
+        # Save check results before raising exception, to be used by listeners
+        self.check_results = self._build_check_results(records)
+
         if not records:
             # accept_none prevents an error from being thrown if there are no records in the table
             if self.accept_none:
@@ -766,12 +1024,6 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
             # Otherwise, we'll raise an exception
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
-
-        self.log.info("Record:\n%s", records)
-
-        for row in records:
-            check, result = row
-            self.checks[check]["success"] = _parse_boolean(str(result))
 
         failed_tests = [
             f"\tCheck: {check},\n\tCheck Values: {check_values}\n"
@@ -808,6 +1060,36 @@ class SQLTableCheckOperator(BaseSQLOperator):
             )
             for check_name, value in self.checks.items()
         )
+
+    def _build_check_results(self, records) -> list[SQLCheckResult]:
+        try:
+            return [
+                SQLCheckResult(
+                    name=check_name,
+                    check_type="expression_is_true",
+                    success=check_values.get("success", False),
+                    table=self.table,
+                    content=check_values.get("check_statement"),
+                    expected="all truthy",
+                    actual=check_values.get("result"),
+                    severity="warn" if (not records and self.accept_none) else "error",
+                    description="User-defined SQL expression must evaluate to true",
+                    params={
+                        k: v
+                        for k, v in {
+                            "accept_none": self.accept_none,
+                            "partition_clause": self.partition_clause,
+                            "check_partition_clause": check_values.get("partition_clause"),
+                        }.items()
+                        if v is not None
+                    }
+                    or None,
+                )
+                for check_name, check_values in self.checks.items()
+            ]
+        except Exception as err:
+            self.log.debug("Failed to build check results %s", err)
+            return []
 
 
 class SQLCheckOperator(BaseSQLOperator):
@@ -874,6 +1156,10 @@ class SQLCheckOperator(BaseSQLOperator):
         records = self.get_db_hook().get_first(self.sql, self.parameters)
 
         self.log.info("Record: %s", records)
+
+        # Save check results before raising exception, to be used by listeners
+        self.check_results = self._build_check_results(records)
+
         if not records:
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
         elif isinstance(records, dict) and not all(records.values()):
@@ -882,6 +1168,31 @@ class SQLCheckOperator(BaseSQLOperator):
             self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
 
         self.log.info("Success.")
+
+    def _build_check_results(self, records) -> list[SQLCheckResult]:
+        try:
+            if not records:
+                success = False
+            elif isinstance(records, dict):
+                success = all(records.values())
+            else:
+                success = all(records)
+
+            return [
+                SQLCheckResult(
+                    name=self.task_id,
+                    check_type="expression_is_true",
+                    success=success,
+                    expected="all truthy",
+                    actual=str(records) if records else None,
+                    content=self.sql,
+                    description="All values in the first returned row must evaluate to true",
+                    params={"parameters": self.parameters} if self.parameters else None,
+                )
+            ]
+        except Exception as err:
+            self.log.debug("Failed to build check results %s", err)
+            return []
 
 
 class SQLValueCheckOperator(BaseSQLOperator):
@@ -956,6 +1267,10 @@ class SQLValueCheckOperator(BaseSQLOperator):
     def execute(self, context: Context):
         self.log.info("Executing SQL check: %s", self.sql)
         records = self.get_db_hook().get_first(self.sql, self.parameters)
+
+        # Save check results before raising exception, to be used by listeners
+        self.check_results = self._build_check_results(records)
+
         self.check_value(records)
 
     def _to_float(self, records):
@@ -972,6 +1287,54 @@ class SQLValueCheckOperator(BaseSQLOperator):
             ]
 
         return [record == numeric_pass_value_conv for record in numeric_records]
+
+    def _evaluate_check_value(self, records) -> bool:
+        """Return whether the value check passes without raising."""
+        if not records:
+            return False
+        pass_value_conv = _convert_to_float_if_possible(self.pass_value)
+        if not isinstance(pass_value_conv, float):
+            return all(self._get_string_matches(records, pass_value_conv))
+        try:
+            numeric_records = self._to_float(records)
+        except (ValueError, TypeError):
+            return False
+        return all(self._get_numeric_matches(numeric_records, pass_value_conv))
+
+    def _build_check_results(self, records) -> list[SQLCheckResult]:
+        try:
+            expected_str = self.pass_value
+            check_type = "accepted_values"
+
+            pass_value_conv = _convert_to_float_if_possible(self.pass_value)
+            if isinstance(pass_value_conv, float) and isinstance(self.tol, float):
+                expected_str = f">= {pass_value_conv * (1 - self.tol)}, <= {pass_value_conv * (1 + self.tol)}"
+                check_type = "accepted_range"
+
+            return [
+                SQLCheckResult(
+                    name=self.task_id,
+                    check_type=check_type,
+                    success=self._evaluate_check_value(records),
+                    expected=expected_str,
+                    actual=str(records) if records else None,
+                    content=self.sql,
+                    description="All values in the first returned row must match the expected value",
+                    params={
+                        k: v
+                        for k, v in {
+                            "pass_value": self.pass_value,
+                            "tolerance": self.tol,
+                            "parameters": self.parameters,
+                        }.items()
+                        if v is not None
+                    }
+                    or None,
+                )
+            ]
+        except Exception as err:
+            self.log.debug("Failed to build check results %s", err)
+            return []
 
 
 class SQLIntervalCheckOperator(BaseSQLOperator):
@@ -1007,6 +1370,11 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
     ratio_formulas = {
         "max_over_min": lambda cur, ref: max(cur, ref) / min(cur, ref),
         "relative_diff": lambda cur, ref: abs(cur - ref) / ref,
+    }
+
+    ratio_formula_expressions = {
+        "max_over_min": "max({current}, {past}) / min({current}, {past})",
+        "relative_diff": "abs({current} - {past}) / {past}",
     }
 
     def __init__(
@@ -1103,6 +1471,9 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
                 threshold,
             )
 
+        # Save check results before raising exception, to be used by listeners
+        self.check_results = self._build_check_results(all_tests_results)
+
         failed_tests = [single for single in all_tests_results.values() if not single["success"]]
         if failed_tests:
             self.log.warning(
@@ -1123,6 +1494,37 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
             self._raise_exception(f"The following tests have failed:\n {failed_test_details}")
 
         self.log.info("All tests have passed")
+
+    def _build_check_results(self, all_tests_results: dict[str, dict[str, Any]]) -> list[SQLCheckResult]:
+        try:
+            return [
+                SQLCheckResult(
+                    name=f"interval_{metric}",
+                    check_type="accepted_range",
+                    success=details["success"],
+                    table=self.table,
+                    expected=f"< {details['threshold']}",
+                    content=self.ratio_formula_expressions.get(self.ratio_formula, self.ratio_formula).format(
+                        current=details["current_metric"], past=details["past_metric"]
+                    ),
+                    actual=str(details["ratio"]) if details["ratio"] is not None else "0",
+                    description="Ratio of current metric to historical baseline must be below the threshold",
+                    params={
+                        "threshold": details["threshold"],
+                        "days_back": self.days_back,
+                        "ratio_formula_name": self.ratio_formula,
+                        "ratio_formula": self.ratio_formula_expressions.get(self.ratio_formula),
+                        "date_filter_column": self.date_filter_column,
+                        "ignore_zero": self.ignore_zero,
+                        "current_metric": details["current_metric"],
+                        "past_metric": details["past_metric"],
+                    },
+                )
+                for metric, details in all_tests_results.items()
+            ]
+        except Exception as err:
+            self.log.debug("Failed to build check results %s", err)
+            return []
 
 
 class SQLThresholdCheckOperator(BaseSQLOperator):
@@ -1202,6 +1604,10 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
         }
 
         self.push(meta_data)
+
+        # Save check results before raising exception, to be used by listeners
+        self.check_results = self._build_check_results(result, meta_data)
+
         if not meta_data["within_threshold"]:
             result = (
                 round(meta_data.get("result"), 2)  # type: ignore[arg-type]
@@ -1219,6 +1625,27 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
             self._raise_exception(error_msg)
 
         self.log.info("Test %s Successful.", self.task_id)
+
+    def _build_check_results(self, result: Any, meta_data: dict[str, Any]) -> list[SQLCheckResult]:
+        try:
+            return [
+                SQLCheckResult(
+                    name=self.task_id,
+                    check_type="accepted_range",
+                    success=meta_data["within_threshold"],
+                    expected=f">= {meta_data['min_threshold']}, <= {meta_data['max_threshold']}",
+                    actual=str(result),
+                    content=self.sql,
+                    description="SQL result must fall within the configured bounds",
+                    params={
+                        "min_threshold": str(self.min_threshold),
+                        "max_threshold": str(self.max_threshold),
+                    },
+                )
+            ]
+        except Exception as err:
+            self.log.debug("Failed to build check results %s", err)
+            return []
 
     def push(self, meta_data):
         """
@@ -1318,7 +1745,39 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
                 f"Unexpected query return result '{query_result}' type '{type(query_result)}'"
             )
 
+        # Save check results before raising exception, to be used by listeners
+        self.check_results = self._build_check_results(query_result)
+
         self.skip_all_except(context["ti"], self.follow_branch)
+
+    def _build_check_results(self, query_result: Any) -> list[SQLCheckResult]:
+        try:
+            return [
+                SQLCheckResult(
+                    name=self.task_id,
+                    check_type="expression_is_true",
+                    success=self.follow_branch == self.follow_task_ids_if_true,
+                    severity="info",
+                    expected="truthy",
+                    actual=str(query_result),
+                    content=self.sql,
+                    description="SQL result is evaluated as boolean to determine the execution branch",
+                    params={
+                        k: v
+                        for k, v in {
+                            "follow_task_ids_if_true": self.follow_task_ids_if_true,
+                            "follow_task_ids_if_false": self.follow_task_ids_if_false,
+                            "follow_branch": self.follow_branch,
+                            "parameters": self.parameters,
+                        }.items()
+                        if v is not None
+                    }
+                    or None,
+                )
+            ]
+        except Exception as err:
+            self.log.debug("Failed to build check results %s", err)
+            return []
 
 
 class SQLInsertRowsOperator(BaseSQLOperator):

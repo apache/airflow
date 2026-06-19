@@ -119,43 +119,49 @@ class BigQueryInsertJobTrigger(BaseTrigger):
     if not AIRFLOW_V_3_3_PLUS:
 
         @provide_session
-        def get_task_instance(self, session: Session) -> TaskInstance:
+        def get_task_instance(self, *, session: Session) -> TaskInstance:
+            ti = self.task_instance
+            if ti is None:
+                raise RuntimeError("task_instance is not set on the trigger")
             task_instance = session.scalar(
                 select(TaskInstance).where(
-                    TaskInstance.dag_id == self.task_instance.dag_id,
-                    TaskInstance.task_id == self.task_instance.task_id,
-                    TaskInstance.run_id == self.task_instance.run_id,
-                    TaskInstance.map_index == self.task_instance.map_index,
+                    TaskInstance.dag_id == ti.dag_id,
+                    TaskInstance.task_id == ti.task_id,
+                    TaskInstance.run_id == ti.run_id,
+                    TaskInstance.map_index == ti.map_index,
                 )
             )
             if task_instance is None:
                 raise AirflowException(
                     "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
-                    self.task_instance.dag_id,
-                    self.task_instance.task_id,
-                    self.task_instance.run_id,
-                    self.task_instance.map_index,
+                    ti.dag_id,
+                    ti.task_id,
+                    ti.run_id,
+                    ti.map_index,
                 )
             return task_instance
 
         async def get_task_state(self):
             from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
+            ti = self.task_instance
+            if ti is None:
+                raise RuntimeError("task_instance is not set on the trigger")
             task_states_response = await sync_to_async(RuntimeTaskInstance.get_task_states)(
-                dag_id=self.task_instance.dag_id,
-                task_ids=[self.task_instance.task_id],
-                run_ids=[self.task_instance.run_id],
-                map_index=self.task_instance.map_index,
+                dag_id=ti.dag_id,
+                task_ids=[ti.task_id],
+                run_ids=[ti.run_id],
+                map_index=ti.map_index,
             )
             try:
-                task_state = task_states_response[self.task_instance.run_id][self.task_instance.task_id]
+                task_state = task_states_response[ti.run_id][ti.task_id]
             except Exception:
                 raise AirflowException(
                     "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
-                    self.task_instance.dag_id,
-                    self.task_instance.task_id,
-                    self.task_instance.run_id,
-                    self.task_instance.map_index,
+                    ti.dag_id,
+                    ti.task_id,
+                    ti.run_id,
+                    ti.map_index,
                 )
             return task_state
 
@@ -480,6 +486,9 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
                 "table": self.table,
                 "metrics_thresholds": self.metrics_thresholds,
                 "location": self.location,
+                "dataset_id": self.dataset_id,
+                "table_id": self.table_id,
+                "poll_interval": self.poll_interval,
                 "date_filter_column": self.date_filter_column,
                 "days_back": self.days_back,
                 "ratio_formula": self.ratio_formula,
@@ -873,3 +882,107 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
         if records:
             records = [row[0] for row in records]
             return self.partition_id in records
+
+
+class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
+    """
+    Poll a BigQuery table until its streaming buffer is empty.
+
+    Used by :class:`~airflow.providers.google.cloud.sensors.bigquery.BigQueryStreamingBufferEmptySensor`
+    in deferrable mode.
+
+    :param project_id: Google Cloud project ID.
+    :param dataset_id: Dataset of the table to monitor.
+    :param table_id: Table to monitor.
+    :param gcp_conn_id: Airflow connection ID for GCP.
+    :param poll_interval: Seconds between polls.
+    :param impersonation_chain: Optional service account to impersonate, or a
+        chained list of accounts.
+    """
+
+    def __init__(
+        self,
+        project_id: str,
+        dataset_id: str,
+        table_id: str,
+        gcp_conn_id: str,
+        poll_interval: float = 30.0,
+        impersonation_chain: str | Sequence[str] | None = None,
+    ):
+        super().__init__()
+        self.project_id = project_id
+        self.dataset_id = dataset_id
+        self.table_id = table_id
+        self.gcp_conn_id = gcp_conn_id
+        self.poll_interval = poll_interval
+        self.impersonation_chain = impersonation_chain
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.google.cloud.triggers.bigquery.BigQueryStreamingBufferEmptyTrigger",
+            {
+                "project_id": self.project_id,
+                "dataset_id": self.dataset_id,
+                "table_id": self.table_id,
+                "gcp_conn_id": self.gcp_conn_id,
+                "poll_interval": self.poll_interval,
+                "impersonation_chain": self.impersonation_chain,
+            },
+        )
+
+    def _get_async_hook(self) -> BigQueryTableAsyncHook:
+        return BigQueryTableAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
+        try:
+            hook = self._get_async_hook()
+            async with ClientSession() as session:
+                while True:
+                    self.log.info("Checking streaming buffer for table %s", table_uri)
+                    is_empty = await self._is_streaming_buffer_empty(
+                        hook=hook,
+                        session=session,
+                        project_id=self.project_id,
+                        dataset_id=self.dataset_id,
+                        table_id=self.table_id,
+                    )
+                    if is_empty:
+                        message = f"Streaming buffer is empty for table: {table_uri}"
+                        self.log.info(message)
+                        yield TriggerEvent({"status": "success", "message": message})
+                        return
+                    self.log.info("Streaming buffer not empty, sleeping %ss", self.poll_interval)
+                    await asyncio.sleep(self.poll_interval)
+        except Exception as e:
+            self.log.exception("Error while checking streaming buffer for table %s", table_uri)
+            yield TriggerEvent({"status": "error", "message": str(e)})
+
+    async def _is_streaming_buffer_empty(
+        self,
+        hook: BigQueryTableAsyncHook,
+        session: ClientSession,
+        project_id: str,
+        dataset_id: str,
+        table_id: str,
+    ) -> bool:
+        try:
+            client = await hook.get_table_client(
+                dataset=dataset_id,
+                table_id=table_id,
+                project_id=project_id,
+                session=session,
+            )
+            response = await client.get()
+        except ClientResponseError as err:
+            if err.status == 404:
+                raise ValueError(f"Table {project_id}.{dataset_id}.{table_id} not found") from err
+            raise
+
+        if not response:
+            raise ValueError(f"Table {project_id}.{dataset_id}.{table_id} does not exist")
+
+        return response.get("streamingBuffer") is None

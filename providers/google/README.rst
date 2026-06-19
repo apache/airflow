@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``21.3.0``
+Release: ``22.1.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/21.3.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/22.1.0/>`_.
 
 Installation
 ------------
@@ -72,13 +72,14 @@ PIP package                                 Version required
 ``gcsfs``                                   ``>=2023.10.0``
 ``google-ads``                              ``>=26.0.0,!=28.0.0.post2``
 ``google-analytics-admin``                  ``>=0.9.0``
-``google-api-core``                         ``>=2.11.0,!=2.16.0,!=2.18.0``
+``google-api-core``                         ``>=2.30.3``
 ``google-api-python-client``                ``>=2.0.2``
 ``google-auth``                             ``>=2.29.0``
 ``google-auth-httplib2``                    ``>=0.0.1``
-``google-cloud-aiplatform[evaluation]``     ``>=1.145.0``
+``google-cloud-aiplatform[evaluation]``     ``>=1.155.0``
 ``ray[default]``                            ``>=2.42.0; python_version < "3.13"``
 ``ray[default]``                            ``>=2.49.0; python_version >= "3.13" and python_version < "3.14"``
+``ray[default]``                            ``>=2.55.0; python_version >= "3.14" and python_version < "3.15"``
 ``google-cloud-bigquery-storage``           ``>=2.31.0; python_version < "3.13"``
 ``google-cloud-bigquery-storage``           ``>=2.33.0; python_version >= "3.13"``
 ``google-cloud-alloydb``                    ``>=0.4.0``
@@ -129,6 +130,7 @@ PIP package                                 Version required
 ``proto-plus``                              ``>=1.26.0``
 ``pyarrow``                                 ``>=18.0.0; python_version < "3.14"``
 ``pyarrow``                                 ``>=22.0.0; python_version >= "3.14"``
+``pydantic``                                ``>=2.13.1; python_version >= "3.14"``
 ``python-slugify``                          ``>=7.0.0``
 ``sqlalchemy-bigquery``                     ``>=1.2.1``
 ``sqlalchemy-spanner``                      ``>=1.6.2``
@@ -205,4 +207,4 @@ Extra                 Dependencies
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/21.3.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.1.0/changelog.html>`_.

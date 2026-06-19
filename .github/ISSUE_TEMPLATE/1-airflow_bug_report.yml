@@ -136,6 +136,7 @@ body:
         - asana
         - atlassian-jira
         - celery
+        - clickhousedb
         - cloudant
         - cncf-kubernetes
         - cohere
@@ -162,6 +163,7 @@ body:
         - grpc
         - hashicorp
         - http
+        - ibm-mq
         - imap
         - influxdb
         - informatica
@@ -226,7 +228,8 @@ body:
       multiple: false
       options:
         - "Not Applicable"
-        - "1.21.0 (latest released)"
+        - "1.22.0 (latest released)"
+        - "1.21.0"
         - "1.20.0"
         - "1.19.0"
         - "1.18.0"

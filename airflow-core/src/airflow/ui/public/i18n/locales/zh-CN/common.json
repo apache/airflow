@@ -18,16 +18,21 @@
   "asset_other": "资源",
   "assetEvent_one": "资源事件",
   "assetEvent_other": "资源事件",
+  "assetInactive": {
+    "tooltip": "上游资源已停用；调度器将暂停分区评估，直到其重新启用。"
+  },
   "backfill_one": "回填",
   "backfill_other": "回填",
   "browse": {
     "auditLog": "审计日志",
+    "deadlines": "截止期限",
     "jobs": "作业",
     "requiredActions": "待响应的任务实例",
     "xcoms": "XComs"
   },
   "collapseAllExtra": "收起所有额外 JSON",
   "collapseDetailsPanel": "收起详细信息",
+  "consumingAsset": "消费者资源",
   "createdAssetEvent_one": "已创建资源事件",
   "createdAssetEvent_other": "已创建资源事件",
   "dag_one": "Dag",
@@ -60,6 +65,11 @@
     "dagVersions": "Dag 版本",
     "dataIntervalEnd": "数据区间结束",
     "dataIntervalStart": "数据区间起始",
+    "durationStats": {
+      "mean": "平均值",
+      "mode": "众数"
+    },
+    "expectedDuration": "预计耗时",
     "lastSchedulingDecision": "最后调度决策",
     "mappedPartitionKey": "映射分区键",
     "partitionKey": "分区键",
@@ -103,6 +113,12 @@
     "notFound": "找不到页面",
     "title": "错误"
   },
+  "errors": {
+    "forbidden": {
+      "description": "您没有权限执行此操作。",
+      "title": "拒绝访问"
+    }
+  },
   "expand": {
     "collapse": "收起",
     "expand": "展开",
@@ -125,9 +141,12 @@
     "logicalDateTo": "逻辑结束日期",
     "runAfterFrom": "执行时间起始",
     "runAfterTo": "执行时间结束",
+    "searchAsset": "搜索资源",
     "selectDateRange": "选择日期范围",
     "startTime": "开始时间"
   },
+  "generateToken": "生成令牌",
+  "key": "键",
   "logicalDate": "逻辑日期",
   "logout": "退出登录",
   "logoutConfirmation": "确定要退出登录吗？",
@@ -171,6 +190,7 @@
   "reset": "重置",
   "runId": "执行 ID",
   "runTypes": {
+    "asset_materialization": "资源物化",
     "asset_triggered": "资源触发",
     "backfill": "回填",
     "manual": "手动触发",
@@ -183,6 +203,12 @@
     },
     "tooltip": "按 {{hotkey}} 滚动到{{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "在值中的任意位置匹配（子串搜索）。在大型部署中较慢，因为它无法使用默认的 B-tree 索引。详情请参阅文档中关于自定义元数据索引的章节。",
+      "title": "任意位置匹配"
+    }
+  },
   "security": {
     "actions": "操作",
     "permissions": "权限",
@@ -191,6 +217,7 @@
     "users": "用户"
   },
   "selectLanguage": "选择语言",
+  "selected": "已选择",
   "showDetailsPanel": "显示详细信息",
   "signedInAs": "当前登录身份",
   "source": {
@@ -203,6 +230,7 @@
   "startDate": "开始日期",
   "state": "状态",
   "states": {
+    "awaiting_input": "等待输入",
     "deferred": "已延后",
     "failed": "失败",
     "no_status": "无状态",
@@ -235,7 +263,8 @@
       "any": "任何"
     },
     "tagPlaceholder": "按标签筛选",
-    "to": "结束时间"
+    "to": "结束时间",
+    "updatedAt": "更新时间"
   },
   "task": {
     "documentation": "任务文档",
@@ -245,7 +274,11 @@
   },
   "task_one": "任务",
   "task_other": "任务",
-  "taskGroup": "任务分组",
+  "taskGroup": {
+    "documentation": "任务分组文档"
+  },
+  "taskGroup_one": "任务分组",
+  "taskGroup_other": "任务分组",
   "taskId": "任务 ID",
   "taskInstance": {
     "dagVersion": "Dag 版本",
@@ -259,6 +292,7 @@
     "priorityWeight": "优先级权重",
     "queue": "排队",
     "queuedWhen": "开始排队时间",
+    "renderedMapIndex": "已渲染映射索引",
     "scheduledWhen": "开始调度时间",
     "triggerer": {
       "assigned": "指派的触发器",
@@ -291,11 +325,25 @@
     "utc": "UTC"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "批量清除 {{resourceName}} 请求失败",
+      "success": {
+        "description": "已成功清除 {{count}} 个 {{resourceName}}。键：{{keys}}",
+        "title": "已提交批量清除 {{resourceName}} 请求"
+      }
+    },
     "bulkDelete": {
       "error": "批量删除 {{resourceName}} 请求失败",
       "success": {
         "description": "已成功删除 {{count}} 个 {{resourceName}}。键：{{keys}}",
         "title": "已提交批量删除 {{resourceName}} 请求"
+      }
+    },
+    "bulkUpdate": {
+      "error": "批量更新 {{resourceName}} 请求失败",
+      "success": {
+        "description": "已成功更新 {{count}} 个 {{resourceName}}。键：{{keys}}",
+        "title": "已提交批量更新 {{resourceName}} 请求"
       }
     },
     "create": {
@@ -327,10 +375,27 @@
       }
     }
   },
+  "tokenGeneration": {
+    "apiToken": "API 令牌",
+    "cliToken": "CLI 令牌",
+    "errorDescription": "生成令牌时发生错误。请重试。",
+    "errorTitle": "令牌生成失败",
+    "generate": "生成",
+    "selectType": "请选择要生成的令牌类型。",
+    "title": "生成令牌",
+    "tokenExpiresIn": "此令牌将在 {{duration}} 后过期。",
+    "tokenGenerated": "您的令牌已生成。",
+    "tokenShownOnce": "此令牌仅显示一次。请立即复制。"
+  },
   "total": "总计 {{state}}",
   "triggered": "已触发",
   "tryNumber": "尝试次数",
   "user": "用户",
+  "validation": {
+    "mustBeAtLeast": "不能小于 {{min}}。",
+    "mustBeValidNumber": "必须是有效的数字。"
+  },
+  "value": "值",
   "wrap": {
     "hotkey": "w",
     "tooltip": "按 {{hotkey}} 切换换行",

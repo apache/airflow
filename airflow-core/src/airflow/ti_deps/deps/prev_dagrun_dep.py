@@ -126,7 +126,7 @@ class PrevDagrunDep(BaseTIDep):
         )
 
     @provide_session
-    def _get_dep_statuses(self, ti: TI, session: Session, dep_context):
+    def _get_dep_statuses(self, ti: TI, dep_context, *, session: Session):
         if TYPE_CHECKING:
             assert ti.task
         if dep_context.ignore_depends_on_past:
@@ -160,7 +160,7 @@ class PrevDagrunDep(BaseTIDep):
         # Don't depend on the previous task instance if we are the first task.
         catchup = ti.task.dag and ti.task.dag.catchup
         if catchup:
-            last_dagrun = DagRun.get_previous_scheduled_dagrun(dr.id, session)
+            last_dagrun = DagRun.get_previous_scheduled_dagrun(dr.id, session=session)
         else:
             last_dagrun = DagRun.get_previous_dagrun(dr, session=session)
         # First ever run for this DAG.

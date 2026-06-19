@@ -16,22 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBookOpen } from "react-icons/fi";
-import { useParams, Link as RouterLink } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import { ParseDagButton } from "src/components/DagActions/ParseDagButton";
-import { DagDeactivatedBadge } from "src/components/DagDeactivatedBadge";
 import DagRunInfo from "src/components/DagRunInfo";
 import { DagVersion } from "src/components/DagVersion";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
+import { NeedsReviewButtonWithModal } from "src/components/NeedsReviewButton";
 import { TogglePause } from "src/components/TogglePause";
+import { RouterLink } from "src/components/ui";
 
 import { DagOwners } from "../DagsList/DagOwners";
 import { DagTags } from "../DagsList/DagTags";
@@ -93,17 +93,15 @@ export const Header = ({
       label: translate("dagDetails.latestRun"),
       value:
         Boolean(latestRunInfo) && latestRunInfo !== undefined ? (
-          <Link asChild color="fg.info">
-            <RouterLink to={`/dags/${latestRunInfo.dag_id}/runs/${latestRunInfo.run_id}`}>
-              <DagRunInfo
-                endDate={latestRunInfo.end_date}
-                logicalDate={latestRunInfo.logical_date}
-                runAfter={latestRunInfo.run_after}
-                startDate={latestRunInfo.start_date}
-                state={latestRunInfo.state}
-              />
-            </RouterLink>
-          </Link>
+          <RouterLink to={`/dags/${latestRunInfo.dag_id}/runs/${latestRunInfo.run_id}`}>
+            <DagRunInfo
+              endDate={latestRunInfo.end_date}
+              logicalDate={latestRunInfo.logical_date}
+              runAfter={latestRunInfo.run_after}
+              startDate={latestRunInfo.start_date}
+              state={latestRunInfo.state}
+            />
+          </RouterLink>
         ) : undefined,
     },
     ...nextRunStat,
@@ -134,6 +132,7 @@ export const Header = ({
         dag === undefined ? undefined : (
           <>
             <DeadlineAlertsBadge dagId={dag.dag_id} />
+            <NeedsReviewButtonWithModal dagId={dag.dag_id} />
             {dag.doc_md === null ? undefined : (
               <DisplayMarkdownButton
                 header={translate("dagDetails.documentation")}
@@ -151,13 +150,9 @@ export const Header = ({
       icon={<DagIcon />}
       stats={stats}
       subTitle={
-        isStale ? (
-          <DagDeactivatedBadge />
-        ) : (
-          dag !== undefined && (
-            <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
-          )
-        )
+        dag !== undefined && !isStale ? (
+          <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
+        ) : undefined
       }
       title={dag?.dag_display_name ?? dagId}
     />

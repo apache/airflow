@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 import uuid6
-from sqlalchemy import JSON, Float, ForeignKey, String, Text, Uuid, select
+from sqlalchemy import JSON, ForeignKey, String, Text, Uuid, select
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -50,13 +50,22 @@ class DeadlineAlert(Base):
     name: Mapped[str | None] = mapped_column(String(250), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     reference: Mapped[dict] = mapped_column(JSON, nullable=False)
-    interval: Mapped[float] = mapped_column(Float, nullable=False)
+    interval: Mapped[dict] = mapped_column(JSON, nullable=False)
     callback_def: Mapped[dict] = mapped_column(JSON, nullable=False)
 
     def __repr__(self):
-        interval_seconds = int(self.interval)
 
-        if interval_seconds >= 3600:
+        interval_seconds = None
+
+        if isinstance(self.interval, (int, float)):
+            interval_seconds = int(self.interval)
+
+        elif isinstance(self.interval, datetime.timedelta):
+            interval_seconds = int(self.interval.total_seconds())
+
+        if interval_seconds is None:
+            interval_display = "dynamic"
+        elif interval_seconds >= 3600:
             interval_display = f"{interval_seconds // 3600}h"
         elif interval_seconds >= 60:
             interval_display = f"{interval_seconds // 60}m"
@@ -93,7 +102,7 @@ class DeadlineAlert(Base):
 
     @classmethod
     @provide_session
-    def get_by_id(cls, deadline_alert_id: str | UUID, session: Session = NEW_SESSION) -> DeadlineAlert:
+    def get_by_id(cls, deadline_alert_id: str | UUID, *, session: Session = NEW_SESSION) -> DeadlineAlert:
         """
         Retrieve a DeadlineAlert record by its UUID.
 

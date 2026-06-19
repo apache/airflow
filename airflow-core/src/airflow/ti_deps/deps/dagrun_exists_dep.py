@@ -29,8 +29,8 @@ class DagrunRunningDep(BaseTIDep):
     IGNORABLE = True
 
     @provide_session
-    def _get_dep_statuses(self, ti, session, dep_context):
-        dr = ti.get_dagrun(session)
+    def _get_dep_statuses(self, ti, dep_context, *, session):
+        dr = ti.get_dagrun(session=session)
         if dr.state != DagRunState.RUNNING:
             yield self._failing_status(
                 reason=f"Task instance's dagrun was not in the 'running' state but in the state '{dr.state}'."

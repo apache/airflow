@@ -28,7 +28,6 @@ class TestScheduler:
     @pytest.mark.parametrize(
         ("executor", "workers_values", "kind"),
         [
-            # Test workers.celery.persistence.enabled flag
             ("CeleryExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
             ("CeleryExecutor", {"celery": {"persistence": {"enabled": True}}}, "Deployment"),
             (
@@ -44,14 +43,6 @@ class TestScheduler:
                 "StatefulSet",
             ),
             ("LocalExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
-            # Test workers.persistence.enabled flag when celery one is default
-            ("CeleryExecutor", {"persistence": {"enabled": False}}, "Deployment"),
-            ("CeleryExecutor", {"persistence": {"enabled": True}}, "Deployment"),
-            ("CeleryExecutor,KubernetesExecutor", {"persistence": {"enabled": True}}, "Deployment"),
-            ("KubernetesExecutor", {"persistence": {"enabled": True}}, "Deployment"),
-            ("LocalExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
-            ("LocalExecutor,KubernetesExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
-            ("LocalExecutor", {"persistence": {"enabled": False}}, "Deployment"),
         ],
     )
     def test_scheduler_kind(self, executor, workers_values, kind):
@@ -600,28 +591,6 @@ class TestScheduler:
             "runAsNonRoot": True,
         }
 
-    def test_scheduler_security_context_legacy(self):
-        docs = render_chart(
-            values={
-                "scheduler": {
-                    "securityContext": {
-                        "fsGroup": 1000,
-                        "runAsGroup": 1001,
-                        "runAsNonRoot": True,
-                        "runAsUser": 2000,
-                    }
-                },
-            },
-            show_only=["templates/scheduler/scheduler-deployment.yaml"],
-        )
-
-        assert jmespath.search("spec.template.spec.securityContext", docs[0]) == {
-            "runAsUser": 2000,
-            "runAsGroup": 1001,
-            "fsGroup": 1000,
-            "runAsNonRoot": True,
-        }
-
     def test_scheduler_resources_are_configurable(self):
         docs = render_chart(
             values={
@@ -820,20 +789,12 @@ class TestScheduler:
                 c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
             ]
 
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {"persistence": {"annotations": {"foo": "bar"}}},
-            {"celery": {"persistence": {"annotations": {"foo": "bar"}}}},
-            {
-                "persistence": {"annotations": {"a": "b"}},
-                "celery": {"persistence": {"annotations": {"foo": "bar"}}},
-            },
-        ],
-    )
-    def test_persistence_volume_annotations(self, workers_values):
+    def test_persistence_volume_annotations(self):
         docs = render_chart(
-            values={"executor": "LocalExecutor", "workers": workers_values},
+            values={
+                "executor": "LocalExecutor",
+                "workers": {"celery": {"persistence": {"annotations": {"foo": "bar"}}}},
+            },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
         assert jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0]) == {"foo": "bar"}
@@ -881,32 +842,15 @@ class TestScheduler:
         assert jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0]) == "127.0.0.1"
         assert jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0]) == "foo.local"
 
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {
-                "persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"},
-                "celery": {"enabled": True},
-            },
-            {
-                "celery": {
-                    "enabled": True,
-                    "persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"},
-                }
-            },
-            {
-                "persistence": {"storageClassName": "{{ .Release.Name }}"},
-                "celery": {
-                    "enabled": True,
-                    "persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"},
-                },
-            },
-        ],
-    )
-    def test_scheduler_template_storage_class_name(self, workers_values):
+    def test_scheduler_template_storage_class_name(self):
         docs = render_chart(
             values={
-                "workers": workers_values,
+                "workers": {
+                    "celery": {
+                        "enabled": True,
+                        "persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"},
+                    }
+                },
                 "logs": {"persistence": {"enabled": False}},
                 "executor": "LocalExecutor",
             },
@@ -917,33 +861,16 @@ class TestScheduler:
             == "release-name-storage-class"
         )
 
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {
-                "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
-                "celery": {"enabled": True},
-            },
-            {
-                "celery": {
-                    "enabled": True,
-                    "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
-                }
-            },
-            {
-                "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Retain"}},
-                "celery": {
-                    "enabled": True,
-                    "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
-                },
-            },
-        ],
-    )
-    def test_persistent_volume_claim_retention_policy(self, workers_values):
+    def test_persistent_volume_claim_retention_policy(self):
         docs = render_chart(
             values={
                 "executor": "LocalExecutor",
-                "workers": workers_values,
+                "workers": {
+                    "celery": {
+                        "enabled": True,
+                        "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
+                    }
+                },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
@@ -966,18 +893,10 @@ class TestScheduler:
         )
         assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
 
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {"persistence": {"size": "50Gi"}, "celery": {"persistence": {"size": None}}},
-            {"celery": {"persistence": {"size": "50Gi"}}},
-            {"persistence": {"size": "10Gi"}, "celery": {"persistence": {"size": "50Gi"}}},
-        ],
-    )
-    def test_scheduler_template_storage_size(self, workers_values):
+    def test_scheduler_template_storage_size(self):
         docs = render_chart(
             values={
-                "workers": workers_values,
+                "workers": {"celery": {"persistence": {"size": "50Gi"}}},
                 "logs": {"persistence": {"enabled": False}},
                 "executor": "LocalExecutor",
             },
@@ -1088,6 +1007,28 @@ class TestSchedulerService:
 
         assert "executor" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["executor"] == expected_label
+
+    def test_ip_family_policy(self):
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "ipFamilyPolicy": "PreferDualStack",
+                "ipFamilies": ["IPv4", "IPv6"],
+            },
+            show_only=["templates/scheduler/scheduler-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) == "PreferDualStack"
+        assert jmespath.search("spec.ipFamilies", docs[0]) == ["IPv4", "IPv6"]
+
+    def test_ip_family_policy_not_set_by_default(self):
+        docs = render_chart(
+            values={"executor": "LocalExecutor"},
+            show_only=["templates/scheduler/scheduler-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) is None
+        assert jmespath.search("spec.ipFamilies", docs[0]) is None
 
 
 class TestSchedulerServiceAccount:

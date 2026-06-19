@@ -36,6 +36,10 @@ type taskFunction struct {
 
 var _ Task = (*taskFunction)(nil)
 
+// NewTaskFunction wraps a plain Go function as a Task, validating its signature
+// (injectable parameters, and a return of error or (result, error)). Bundle
+// authors normally use Dag.AddTask, which calls this for them; use it directly
+// only when building a Task outside the registry.
 func NewTaskFunction(fn any) (Task, error) {
 	v := reflect.ValueOf(fn)
 	fullName := runtime.FuncForPC(v.Pointer()).Name()
@@ -45,14 +49,34 @@ func NewTaskFunction(fn any) (Task, error) {
 
 func (f *taskFunction) Execute(ctx context.Context, logger *slog.Logger) error {
 	fnType := f.fn.Type()
-	sdkClient := sdk.NewClient()
+	var sdkClient sdk.Client
+	if injected, ok := ctx.Value(sdkcontext.SdkClientContextKey).(sdk.Client); ok {
+		sdkClient = injected
+	} else {
+		sdkClient = sdk.NewClient()
+	}
 
 	reflectArgs := make([]reflect.Value, fnType.NumIn())
 	for i := range reflectArgs {
 		in := fnType.In(i)
 
 		switch {
+		case isTIRunContext(in):
+			// sdk.TIRunContext embeds context.Context, so it also satisfies
+			// isContext - this case must come first. The runtime stores the
+			// identifiers/timestamps under RuntimeContextKey; rebuild the
+			// value around the live task context here.
+			var ti sdk.TaskInstance
+			var dagRun sdk.DagRun
+			if stored, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext); ok {
+				ti, dagRun = stored.TaskInstance(), stored.DagRun()
+			}
+			reflectArgs[i] = reflect.ValueOf(sdk.NewTIRunContext(ctx, ti, dagRun))
 		case isContext(in):
+			// Plain context.Context injection is retained for the Edge Worker
+			// runtime path, which does not populate the task runtime context
+			// (TI/DagRun) that sdk.TIRunContext carries. New tasks should
+			// declare sdk.TIRunContext instead.
 			reflectArgs[i] = reflect.ValueOf(ctx)
 		case isLogger(in):
 			reflectArgs[i] = reflect.ValueOf(logger)
@@ -139,9 +163,10 @@ func isValidResultType(inType reflect.Type) bool {
 }
 
 var (
-	errorType      = reflect.TypeFor[error]()
-	contextType    = reflect.TypeFor[context.Context]()
-	slogLoggerType = reflect.TypeFor[*slog.Logger]()
+	errorType        = reflect.TypeFor[error]()
+	contextType      = reflect.TypeFor[context.Context]()
+	tiRunContextType = reflect.TypeFor[sdk.TIRunContext]()
+	slogLoggerType   = reflect.TypeFor[*slog.Logger]()
 
 	connClientType = reflect.TypeFor[sdk.ConnectionClient]()
 	varClientType  = reflect.TypeFor[sdk.VariableClient]()
@@ -154,6 +179,10 @@ func isError(inType reflect.Type) bool {
 
 func isContext(inType reflect.Type) bool {
 	return inType != nil && inType.Implements(contextType)
+}
+
+func isTIRunContext(inType reflect.Type) bool {
+	return inType == tiRunContextType
 }
 
 func isLogger(inType reflect.Type) bool {

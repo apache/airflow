@@ -19,12 +19,17 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 try:
-    from airflow.providers.common.ai.utils.sql_validation import validate_sql as _validate_sql
+    from airflow.providers.common.ai.utils.sql_validation import (
+        SQLSafetyError,
+        collect_table_references,
+        parse_sql as _parse_sql,
+        resolve_sqlglot_dialect,
+        validate_sql as _validate_sql,
+    )
     from airflow.providers.common.sql.hooks.sql import DbApiHook
 except ImportError as e:
     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
@@ -36,6 +41,7 @@ from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 from pydantic_core import SchemaValidator, core_schema
 
+from airflow.providers.common.ai.utils.tool_definition import return_schema_kwargs
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
@@ -73,31 +79,6 @@ _CHECK_QUERY_SCHEMA: dict[str, Any] = {
     "required": ["sql"],
 }
 
-_POSTGRES_RETRYABLE_EXCEPTIONS: tuple[type[Exception], ...] = ()
-with suppress(ImportError):
-    import psycopg2.errors as _psycopg2_errors
-
-    _POSTGRES_RETRYABLE_EXCEPTIONS += (
-        _psycopg2_errors.UndefinedColumn,
-        _psycopg2_errors.UndefinedTable,
-    )
-
-with suppress(ImportError):
-    from psycopg import errors as _psycopg3_errors
-
-    _POSTGRES_RETRYABLE_EXCEPTIONS += (
-        _psycopg3_errors.UndefinedColumn,
-        _psycopg3_errors.UndefinedTable,
-    )
-
-_SQLALCHEMY_RETRYABLE_EXCEPTIONS: tuple[type[Exception], ...] = ()
-with suppress(ImportError):
-    from sqlalchemy.exc import (
-        ProgrammingError as _SQLAlchemyProgrammingError,
-    )
-
-    _SQLALCHEMY_RETRYABLE_EXCEPTIONS = (_SQLAlchemyProgrammingError,)
-
 
 class SQLToolset(AbstractToolset[Any]):
     """
@@ -109,18 +90,50 @@ class SQLToolset(AbstractToolset[Any]):
     Uses a :class:`~airflow.providers.common.sql.hooks.sql.DbApiHook` resolved
     lazily from the given ``db_conn_id``.
 
+    When a tool fails, the database's error message is returned to the agent as a
+    retry (:class:`pydantic_ai.ModelRetry`) so the model can correct its SQL within
+    the run instead of failing the task. ``pydantic-ai`` bounds this by the tool's
+    ``max_retries``, so an unrecoverable error -- a bad connection or an auth
+    failure -- exhausts the retries and fails the task for Airflow to retry. The
+    toolset does not inspect the error type or message.
+
     :param db_conn_id: Airflow connection ID for the database.
-    :param allowed_tables: Restrict which tables the agent can discover via
-        ``list_tables`` and ``get_schema``. ``None`` (default) exposes all tables.
+    :param allowed_tables: Restrict the agent to a fixed set of tables. ``None``
+        (default) exposes every table in ``schema``. Entries may be schema-qualified
+        (``"SCHEMA.TABLE"``) to span multiple schemas in one database -- common on
+        warehouses such as Snowflake. ``list_tables`` introspects each referenced
+        schema and returns the matching tables fully qualified, and ``get_schema``
+        routes to the table's own schema. Unqualified entries use ``schema``.
+        Matching is case-insensitive, since databases reflect identifiers in their
+        own case.
+
+        When set, the list is enforced on the ``query`` and ``check_query`` tools as
+        well as on discovery: every table a query reaches -- through subqueries, CTEs,
+        JOINs, set operations, ``DESCRIBE``, catalog views such as
+        ``information_schema``, or DML -- must be on the list, resolved with its
+        database/catalog, or the query is rejected before it runs. CTE references are
+        excluded by lexical scope (a same-named CTE in another scope never hides a real
+        table). Constructs the list cannot describe are rejected outright while it is
+        active: table-valued functions (``dblink``), ``TABLE('name')`` row sources, the
+        ``TABLE <name>`` shorthand, ``SHOW``, dynamic SQL, and **inline comments**
+        (where parser-vs-engine differences such as MySQL ``/*! ... */`` executable
+        comments hide).
 
         .. note::
-            ``allowed_tables`` controls metadata visibility only. It does **not**
-            parse or validate table references in SQL queries. An LLM can still
-            query tables outside this list if it guesses the name. For query-level
-            restrictions, use database-level permissions (e.g. a read-only role
-            with grants limited to specific tables).
+            This is an application-level guardrail, enforced by parsing the SQL with
+            sqlglot. It is strong defense-in-depth but not a substitute for database
+            permissions: it cannot police data reached through a function whose
+            argument is itself SQL or a path -- ``pg_read_file('...')`` (a file) or
+            ``query_to_xml('SELECT ... FROM other_table', ...)`` and ``dblink`` in
+            scalar position (a table, read through a string the parser cannot inspect)
+            -- and any query the engine parses differently from sqlglot is a residual
+            gap. For a hard guarantee, also point ``db_conn_id`` at a least-privilege
+            role whose ``SELECT`` grants are limited to the same tables.
 
-    :param schema: Database schema/namespace for table listing and introspection.
+    :param schema: Default schema/namespace for table listing and introspection,
+        used for unqualified ``allowed_tables`` entries and unqualified
+        ``get_schema`` calls. Schema-qualified ``allowed_tables`` entries override
+        it per table.
     :param allow_writes: Allow data-modifying SQL (INSERT, UPDATE, DELETE, etc.).
         Default ``False`` — only SELECT-family statements are permitted.
     :param max_rows: Maximum number of rows returned from the ``query`` tool.
@@ -142,6 +155,59 @@ class SQLToolset(AbstractToolset[Any]):
         self._allow_writes = allow_writes
         self._max_rows = max_rows
         self._hook: DbApiHook | None = None
+
+        # Canonical ``(catalog, schema, table)`` view of allowed_tables for membership
+        # tests, plus the schemas to introspect. Built once: every reference -- a
+        # discovery hit, a get_schema arg, or a table parsed out of a query -- is
+        # normalised to the same shape and matched against this set.
+        #
+        # Identifiers are case-folded: databases reflect them in their own case
+        # (Snowflake stores unquoted names uppercase but reflects them lowercased), so
+        # a byte-exact match against the user's entries would silently miss. Unqualified
+        # entries resolve to the default ``schema`` (``None`` when unset) so that
+        # ``"orders"`` and ``"<schema>.orders"`` denote the same table. Allow-list
+        # entries carry no catalog, so any catalog-qualified reference
+        # (``otherdb.public.orders``) has a non-null catalog in its key and cannot match
+        # -- that closes cross-database access the single-connection allow-list can't
+        # describe.
+        self._allowed_canonical: frozenset[tuple[str | None, str | None, str]] | None = None
+        # Qualified entries ("SCHEMA.TABLE") are listed under their own schema and
+        # returned fully qualified; unqualified entries (and allow-all) use the
+        # default ``schema``.
+        self._qualified_schemas: frozenset[str] = frozenset()
+        self._include_default_schema: bool = True
+        if self._allowed_tables is not None:
+            canonical: set[tuple[str | None, str | None, str]] = set()
+            qualified_schemas: set[str] = set()
+            include_default = False
+            for entry in self._allowed_tables:
+                entry_schema, sep, table = entry.rpartition(".")
+                if sep:
+                    qualified_schemas.add(entry_schema)
+                    canonical.add(self._canonical_ref("", entry_schema, table))
+                else:
+                    include_default = True
+                    canonical.add(self._canonical_ref("", self._schema, entry))
+            self._allowed_canonical = frozenset(canonical)
+            self._qualified_schemas = frozenset(qualified_schemas)
+            self._include_default_schema = include_default
+
+    @staticmethod
+    def _canonical_ref(
+        catalog: str | None, schema: str | None, table: str
+    ) -> tuple[str | None, str | None, str]:
+        """Normalise a ``(catalog, schema, table)`` reference to its case-folded comparison key."""
+        return (
+            catalog.casefold() if catalog else None,
+            schema.casefold() if schema else None,
+            table.casefold(),
+        )
+
+    def _is_ref_allowed(self, catalog: str | None, schema: str | None, table: str) -> bool:
+        """Membership test for a resolved ``(catalog, schema, table)`` reference (allow-all when unset)."""
+        if self._allowed_canonical is None:
+            return True
+        return self._canonical_ref(catalog, schema, table) in self._allowed_canonical
 
     @property
     def id(self) -> str:
@@ -178,11 +244,14 @@ class SQLToolset(AbstractToolset[Any]):
         ):
             # sequential=True because all tools use a shared DbApiHook with
             # synchronous I/O — they must not run concurrently.
+            # return_schema is "string": every tool returns a JSON-encoded string
+            # (json.dumps), so code mode renders `-> str` instead of `-> Any`.
             tool_def = ToolDefinition(
                 name=name,
                 description=description,
                 parameters_json_schema=schema,
                 sequential=True,
+                **return_schema_kwargs({"type": "string"}),
             )
             tools[name] = ToolsetTool(
                 toolset=self,
@@ -199,47 +268,97 @@ class SQLToolset(AbstractToolset[Any]):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        if name == "list_tables":
-            return self._list_tables()
-        if name == "get_schema":
-            return self._get_schema(tool_args["table_name"])
-        if name == "query":
-            return self._query(tool_args["sql"])
-        if name == "check_query":
+        if name not in ("list_tables", "get_schema", "query", "check_query"):
+            raise ValueError(f"Unknown tool: {name!r}")
+        try:
+            if name == "list_tables":
+                return self._list_tables()
+            if name == "get_schema":
+                return self._get_schema(tool_args["table_name"])
+            if name == "query":
+                return self._query(tool_args["sql"])
             return self._check_query(tool_args["sql"])
-        raise ValueError(f"Unknown tool: {name!r}")
+        except Exception as e:
+            # Hand the database's own error back to the agent as a retry so it can
+            # read the message and fix its SQL within the run. pydantic-ai bounds
+            # this by the tool's max_retries, so an unrecoverable error (a bad
+            # connection, an auth failure) exhausts the budget and fails the task
+            # for Airflow to retry, rather than being silently worked around.
+            raise ModelRetry(
+                f"The {name} tool failed: {e}\n"
+                "Use the list_tables and get_schema tools to inspect the database, "
+                "then fix the query and try again."
+            ) from e
 
     # ------------------------------------------------------------------
     # Tool implementations
     # ------------------------------------------------------------------
 
+    def _split_table_identifier(self, table_name: str) -> tuple[str | None, str]:
+        """Split ``"SCHEMA.TABLE"`` into ``(schema, table)``; unqualified uses the default schema."""
+        schema, sep, table = table_name.rpartition(".")
+        if not sep:
+            return self._schema, table_name
+        return schema, table
+
     def _list_tables(self) -> str:
         hook = self._get_db_hook()
-        tables: list[str] = hook.inspector.get_table_names(schema=self._schema)
-        if self._allowed_tables is not None:
-            tables = [t for t in tables if t in self._allowed_tables]
+        tables: list[str] = []
+        # Dedupe by (schema, table) so a table reachable both qualified and via the
+        # default schema (e.g. "public.users" and "users" with schema="public") is
+        # listed once. Case-folded because databases reflect identifiers in their case.
+        seen: set[tuple[str | None, str | None, str]] = set()
+
+        def add(schema: str | None, name: str, display: str) -> None:
+            key = self._canonical_ref("", schema, name)
+            if self._is_ref_allowed("", schema, name) and key not in seen:
+                seen.add(key)
+                tables.append(display)
+
+        # Schemas referenced by qualified allowed_tables entries: introspect each
+        # and return matching tables fully qualified so they round-trip to get_schema.
+        for schema in sorted(self._qualified_schemas):
+            for name in hook.inspector.get_table_names(schema=schema):
+                add(schema, name, f"{schema}.{name}")
+
+        # Default schema: used for allow-all and unqualified allowed_tables entries.
+        # Names stay bare to preserve the single-schema behaviour.
+        if self._include_default_schema:
+            for name in hook.inspector.get_table_names(schema=self._schema):
+                add(self._schema, name, name)
+
         return json.dumps(tables)
 
     def _get_schema(self, table_name: str) -> str:
-        if self._allowed_tables is not None and table_name not in self._allowed_tables:
+        schema, table = self._split_table_identifier(table_name)
+        if not self._is_ref_allowed("", schema, table):
             return json.dumps({"error": f"Table {table_name!r} is not in the allowed tables list."})
         hook = self._get_db_hook()
-        columns = hook.get_table_schema(table_name, schema=self._schema)
+        columns = hook.get_table_schema(table, schema=schema)
         return json.dumps(columns)
 
-    def _query(self, sql: str) -> str:
-        if not self._allow_writes:
-            _validate_sql(sql)
-
+    def _dialect_for_validation(self) -> str | None:
+        """Resolve the hook's sqlglot dialect so DESCRIBE/SHOW validate correctly."""
         hook = self._get_db_hook()
-        try:
-            rows = hook.get_records(sql)
-        except Exception as e:
-            if self._is_retryable_query_error(hook, e):
-                raise ModelRetry(
-                    f"error: {e!s}, Use get_schema and list_tables tools for more details."
-                ) from e
-            raise
+        return resolve_sqlglot_dialect(getattr(hook, "dialect_name", None))
+
+    def _query(self, sql: str) -> str:
+        hook = self._get_db_hook()
+        dialect = self._dialect_for_validation()
+        statements: list[Any] | None = None
+        if not self._allow_writes:
+            # allow_read_only_metadata lets agents inspect schemas with DESCRIBE/SHOW
+            # (a common first move) instead of hard-failing; the deep scan still
+            # rejects any data-modifying statement, including EXPLAIN <write>.
+            statements = _validate_sql(sql, dialect=dialect, allow_read_only_metadata=True)
+        elif self._allowed_canonical is not None:
+            # Writes are allowed but tables are restricted: parse anyway so the
+            # allow-list still governs which tables a write may touch.
+            statements = _parse_sql(sql, dialect=dialect)
+        if statements is not None:
+            self._enforce_allowed_tables(statements)
+
+        rows = hook.get_records(sql)
         # Fetch column names from cursor description.
         col_names: list[str] | None = None
         if hook.last_description:
@@ -258,27 +377,47 @@ class SQLToolset(AbstractToolset[Any]):
             output["max_rows"] = self._max_rows
         return json.dumps(output, default=str)
 
-    @staticmethod
-    def _is_retryable_query_error(hook: DbApiHook, error: Exception) -> bool:
-        check_error = getattr(error, "orig", error)
-        conn_type = getattr(hook, "conn_type", None)
-        if conn_type == "postgres":
-            return bool(_POSTGRES_RETRYABLE_EXCEPTIONS) and isinstance(
-                check_error, _POSTGRES_RETRYABLE_EXCEPTIONS
-            )
-        if conn_type == "sqlite":
-            if isinstance(check_error, sqlite3.OperationalError):
-                message = str(check_error).lower()
-                return "no such column" in message or "no such table" in message
-            return False
-        if _SQLALCHEMY_RETRYABLE_EXCEPTIONS and isinstance(error, _SQLALCHEMY_RETRYABLE_EXCEPTIONS):
-            return True
-        # TODO: Add support for other databases.
-        return False
-
     def _check_query(self, sql: str) -> str:
+        # Resolve the dialect best-effort: if the connection can't be reached we
+        # still syntax-check dialect-agnostically rather than reporting invalid.
+        dialect: str | None = None
+        with suppress(Exception):
+            dialect = self._dialect_for_validation()
         try:
-            _validate_sql(sql)
+            statements = _validate_sql(sql, dialect=dialect, allow_read_only_metadata=True)
+            self._enforce_allowed_tables(statements)
             return json.dumps({"valid": True})
         except Exception as e:
             return json.dumps({"valid": False, "error": str(e)})
+
+    def _enforce_allowed_tables(self, statements: list[Any]) -> None:
+        """
+        Reject a parsed query that reaches any table outside ``allowed_tables``.
+
+        No-op when ``allowed_tables`` is unset (allow-all). Otherwise every table the
+        query references (resolved scope-correctly, including catalog) must be on the
+        list, and any construct the list cannot describe -- a table-valued function,
+        ``SHOW``, dynamic SQL, an inline comment, or the ``TABLE <name>`` shorthand --
+        is refused. Raises :class:`SQLSafetyError` -- ``call_tool`` turns it into a
+        ``ModelRetry`` so the agent can re-target an allowed table, while
+        ``check_query`` reports it invalid.
+        """
+        if self._allowed_canonical is None:
+            return
+        scan = collect_table_references(statements)
+        if scan.unverifiable_sources:
+            raise SQLSafetyError(
+                f"Query uses a data source that cannot be checked against allowed_tables: "
+                f"{'; '.join(scan.unverifiable_sources)}. Query the allowed tables directly: "
+                f"use list_tables to see them."
+            )
+        disallowed = [
+            ".".join(part for part in (catalog, schema, table) if part)
+            for catalog, schema, table in scan.tables
+            if not self._is_ref_allowed(catalog, schema or self._schema, table)
+        ]
+        if disallowed:
+            raise SQLSafetyError(
+                f"Query references tables that are not in the allowed tables list: "
+                f"{', '.join(sorted(set(disallowed)))}. Use list_tables to see the allowed tables."
+            )

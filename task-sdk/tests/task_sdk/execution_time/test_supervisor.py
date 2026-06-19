@@ -27,8 +27,9 @@ import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
-from contextlib import nullcontext
+from contextlib import nullcontext, suppress
 from dataclasses import dataclass, field
 from datetime import datetime, timezone as dt_timezone
 from operator import attrgetter
@@ -53,13 +54,14 @@ from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
-from airflow.sdk import BaseOperator, timezone
+from airflow.sdk import DAG, BaseOperator, timezone
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
     AssetProfile,
     AssetResponse,
+    ConnectionResponse,
     DagRun,
     DagRunState,
     DagRunType,
@@ -73,10 +75,11 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     AssetsByAliasResult,
-    AssetStateResult,
-    ClearAssetStateByName,
-    ClearAssetStateByUri,
-    ClearTaskState,
+    AssetStateStoreResult,
+    AwaitInputTask,
+    ClearAssetStateStoreByName,
+    ClearAssetStateStoreByUri,
+    ClearTaskStateStore,
     CommsDecoder,
     ConnectionResult,
     CreateHITLDetailPayload,
@@ -84,9 +87,9 @@ from airflow.sdk.execution_time.comms import (
     DagRunResult,
     DagRunStateResult,
     DeferTask,
-    DeleteAssetStateByName,
-    DeleteAssetStateByUri,
-    DeleteTaskState,
+    DeleteAssetStateStoreByName,
+    DeleteAssetStateStoreByUri,
+    DeleteTaskStateStore,
     DeleteVariable,
     DeleteXCom,
     DRCount,
@@ -96,8 +99,8 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetAssetsByAlias,
-    GetAssetStateByName,
-    GetAssetStateByUri,
+    GetAssetStateStoreByName,
+    GetAssetStateStoreByUri,
     GetConnection,
     GetDag,
     GetDagRun,
@@ -109,8 +112,8 @@ from airflow.sdk.execution_time.comms import (
     GetPrevSuccessfulDagRun,
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
-    GetTaskState,
     GetTaskStates,
+    GetTaskStateStore,
     GetTICount,
     GetVariable,
     GetVariableKeys,
@@ -130,19 +133,19 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
-    SetAssetStateByName,
-    SetAssetStateByUri,
+    SetAssetStateStoreByName,
+    SetAssetStateStoreByUri,
     SetRenderedFields,
     SetRenderedMapIndex,
-    SetTaskState,
+    SetTaskStateStore,
     SetXCom,
     SkipDownstreamTasks,
     SucceedTask,
     TaskBreadcrumbsResult,
     TaskRescheduleStartDate,
     TaskState,
-    TaskStateResult,
     TaskStatesResult,
+    TaskStateStoreResult,
     TICount,
     ToSupervisor,
     TriggerDagRun,
@@ -161,9 +164,11 @@ from airflow.sdk.execution_time.supervisor import (
     ActivitySubprocess,
     InProcessSupervisorComms,
     InProcessTestSupervisor,
+    ProcessTracker,
     _make_process_nondumpable,
     _remote_logging_conn,
     in_process_api_server,
+    make_buffered_socket_reader,
     process_log_messages_from_subprocess,
     set_supervisor_comms,
     supervise_task,
@@ -174,6 +179,8 @@ from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     import kgb
+
+    from airflow.sdk.definitions.context import Context
 
 log = logging.getLogger(__name__)
 TI_ID = uuid7()
@@ -236,6 +243,7 @@ class TestSupervisor:
             run_id="d",
             try_number=1,
             dag_version_id=uuid7(),
+            queue="default",
         )
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
@@ -254,6 +262,52 @@ class TestSupervisor:
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             with expectation:
                 supervise_task(**kw)
+
+    def test_on_kill_hook_called_when_supervisor_receives_sigterm(
+        self,
+        test_dags_dir,
+        captured_logs,
+        client_with_ti_start,
+    ):
+        """SIGTERM to the supervisor process is forwarded to the task subprocess."""
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="signal_task",
+            dag_id="signal_forward_test",
+            run_id="r",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        )
+        bundle_info = BundleInfo(name="my-bundle", version=None)
+
+        supervisor_pid = os.getpid()
+
+        def _kill_children():
+            for child in psutil.Process(supervisor_pid).children(recursive=True):
+                with suppress(psutil.NoSuchProcess):
+                    child.kill()
+
+        watchdog = threading.Timer(20.0, _kill_children)
+        watchdog.daemon = True
+        watchdog.start()
+
+        try:
+            with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
+                supervise_task(
+                    ti=ti,
+                    dag_rel_path="signal_forward_test.py",
+                    token="",
+                    dry_run=True,
+                    client=client_with_ti_start,
+                    bundle_info=bundle_info,
+                )
+        finally:
+            watchdog.cancel()
+
+        stdout_events = [entry["event"] for entry in captured_logs if entry.get("logger") == "task.stdout"]
+        assert "EXECUTE_STARTED" in stdout_events
+        assert "ON_KILL_CALLED_VIA_SIGNAL_FORWARDING" in stdout_events
 
 
 @pytest.mark.usefixtures("disable_capturing")
@@ -329,6 +383,7 @@ class TestWatchedSubprocess:
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
+                queue="default",
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -404,6 +459,7 @@ class TestWatchedSubprocess:
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
+                queue="default",
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -501,6 +557,7 @@ class TestWatchedSubprocess:
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
+                queue="default",
             ),
             client=make_client(transport=httpx.MockTransport(handle_request)),
             target=subprocess_main,
@@ -530,6 +587,7 @@ class TestWatchedSubprocess:
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
+                queue="default",
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -559,7 +617,13 @@ class TestWatchedSubprocess:
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
             what=TaskInstance(
-                id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+                id=uuid7(),
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
             ),
             client=mock_client,
             target=subprocess_main,
@@ -604,6 +668,7 @@ class TestWatchedSubprocess:
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
+                queue="default",
             ),
             client=mock_client,
             target=lambda: None,
@@ -641,7 +706,13 @@ class TestWatchedSubprocess:
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
             what=TaskInstance(
-                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+                id=ti_id,
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
             ),
             client=sdk_client.Client(base_url="", dry_run=True, token=""),
             target=subprocess_main,
@@ -678,7 +749,13 @@ class TestWatchedSubprocess:
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
             what=TaskInstance(
-                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+                id=ti_id,
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
             ),
             client=sdk_client.Client(base_url="", dry_run=True, token=""),
             target=subprocess_main,
@@ -700,6 +777,7 @@ class TestWatchedSubprocess:
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            queue="default",
         )
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
@@ -741,6 +819,7 @@ class TestWatchedSubprocess:
             run_id="d",
             try_number=1,
             dag_version_id=uuid7(),
+            queue="default",
         )
 
         # Create a mock client to assert calls to the client
@@ -862,7 +941,13 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             what=TaskInstance(
-                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+                id=ti_id,
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
             ),
             client=make_client(transport=httpx.MockTransport(handle_request)),
             target=subprocess_main,
@@ -940,7 +1025,13 @@ class TestWatchedSubprocess:
                 dag_rel_path=os.devnull,
                 bundle_info=FAKE_BUNDLE,
                 what=TaskInstance(
-                    id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+                    id=ti_id,
+                    task_id="b",
+                    dag_id="c",
+                    run_id="d",
+                    try_number=1,
+                    dag_version_id=uuid7(),
+                    queue="default",
                 ),
                 client=make_client(transport=httpx.MockTransport(handle_request)),
                 target=subprocess_main,
@@ -1151,6 +1242,7 @@ class TestWatchedSubprocess:
                 run_id="d",
                 try_number=1,
                 dag_version_id=uuid7(),
+                queue="default",
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -1165,14 +1257,12 @@ class TestWatchedSubprocess:
         assert rc == -signal_to_raise
 
     @pytest.mark.execution_timeout(3)
-    def test_cleanup_sockets_after_delay(self, monkeypatch, mocker, time_machine):
+    def test_cleanup_sockets_after_delay(self, monkeypatch, mocker):
         """Supervisor should close sockets if EOF events are missed."""
 
         monkeypatch.setattr("airflow.sdk.execution_time.supervisor.SOCKET_CLEANUP_TIMEOUT", 1.0)
 
         mock_process = mocker.Mock(pid=12345)
-
-        time_machine.move_to(time.time(), tick=False)
 
         proc = ActivitySubprocess(
             process_log=mocker.MagicMock(),
@@ -1188,27 +1278,26 @@ class TestWatchedSubprocess:
 
         proc._exit_code = 0
         # Create a fake placeholder in the open socket weakref
-        proc._open_sockets[mocker.MagicMock()] = "test placeholder"
-        proc._process_exit_monotonic = time.time()
-
-        mocker.patch.object(
-            ActivitySubprocess,
-            "_cleanup_open_sockets",
-            side_effect=lambda: setattr(proc, "_open_sockets", {}),
-        )
-
-        time_machine.shift(2)
+        mock_socket = mocker.MagicMock(spec=socket.socket)
+        proc._open_sockets[mock_socket] = "test placeholder"
+        proc._process_exit_monotonic = time.monotonic() - 2
 
         proc._monitor_subprocess()
         assert len(proc._open_sockets) == 0
+        mock_socket.close.assert_called_once()
+        proc.selector.close.assert_called_once()
+        proc.stdin.close.assert_called_once()
 
 
 class TestWatchedSubprocessKill:
     @pytest.fixture
     def mock_process(self, mocker):
-        process = mocker.Mock(spec=psutil.Process)
-        process.pid = 12345
-        return process
+        return mocker.Mock(
+            spec=ProcessTracker,
+            pid=12345,
+            ProcessNotFound=psutil.NoSuchProcess,
+            TimeoutExpired=psutil.TimeoutExpired,
+        )
 
     @pytest.fixture
     def watched_subprocess(self, mocker, mock_process):
@@ -1308,7 +1397,13 @@ class TestWatchedSubprocessKill:
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
             what=TaskInstance(
-                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+                id=ti_id,
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
             ),
             client=client_with_ti_start,
             target=subprocess_main,
@@ -1590,6 +1685,14 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="task_instances.defer",
             args=(TI_ID, DeferTask(next_method="execute_callback", classpath="my-classpath")),
+        ),
+    ),
+    RequestTestCase(
+        message=AwaitInputTask(next_method="execute_complete"),
+        test_id="patch_task_instance_to_awaiting_input",
+        client_mock=ClientMock(
+            method_path="task_instances.await_input",
+            args=(TI_ID, AwaitInputTask(next_method="execute_complete")),
         ),
     ),
     RequestTestCase(
@@ -2627,7 +2730,7 @@ REQUEST_TEST_CASES = [
     ),
     RequestTestCase(
         message=GetXComCount(key="test_key", dag_id="test_dag", run_id="test_run", task_id="test_task"),
-        expected_body={"len": 5, "type": "XComLengthResponse"},
+        expected_body={"len": 5, "type": "XComCountResponse"},
         client_mock=ClientMock(
             method_path="xcoms.head",
             args=("test_dag", "test_run", "test_task", "test_key"),
@@ -2712,40 +2815,62 @@ REQUEST_TEST_CASES = [
         test_id="get_dag",
     ),
     RequestTestCase(
-        message=GetTaskState(ti_id=TI_ID, key="job_id"),
-        test_id="get_task_state",
+        message=GetTaskStateStore(ti_id=TI_ID, key="job_id"),
+        test_id="get_task_store",
         client_mock=ClientMock(
-            method_path="task_state.get",
+            method_path="task_state_store.get",
             args=(TI_ID, "job_id"),
-            response=TaskStateResult(value="spark_app_001"),
+            response=TaskStateStoreResult(value="spark_app_001"),
         ),
-        expected_body={"value": "spark_app_001", "type": "TaskStateResult"},
+        expected_body={"value": "spark_app_001", "type": "TaskStateStoreResult"},
     ),
     RequestTestCase(
-        message=SetTaskState(ti_id=TI_ID, key="job_id", value="spark_app_001"),
-        test_id="set_task_state",
+        message=SetTaskStateStore(
+            ti_id=TI_ID,
+            key="job_id",
+            value="spark_app_001",
+            expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc),
+        ),
+        test_id="set_task_store",
         client_mock=ClientMock(
-            method_path="task_state.set",
+            method_path="task_state_store.set",
             args=(TI_ID, "job_id", "spark_app_001"),
+            kwargs={"expires_at": datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc)},
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=DeleteTaskState(ti_id=TI_ID, key="job_id"),
-        test_id="delete_task_state",
+        message=SetTaskStateStore(
+            ti_id=TI_ID,
+            key="job_id",
+            value="spark_app_001",
+            expires_at=datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc),
+        ),
+        test_id="set_task_store_with_expires_at",
         client_mock=ClientMock(
-            method_path="task_state.delete",
+            method_path="task_state_store.set",
+            args=(TI_ID, "job_id", "spark_app_001"),
+            kwargs={"expires_at": datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc)},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=DeleteTaskStateStore(ti_id=TI_ID, key="job_id"),
+        test_id="delete_task_store",
+        client_mock=ClientMock(
+            method_path="task_state_store.delete",
             args=(TI_ID, "job_id"),
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=ClearTaskState(ti_id=TI_ID),
-        test_id="clear_task_state",
+        message=ClearTaskStateStore(ti_id=TI_ID),
+        test_id="clear_task_store",
         client_mock=ClientMock(
-            method_path="task_state.clear",
+            method_path="task_state_store.clear",
             args=(TI_ID,),
             kwargs={"all_map_indices": False},
             response=OKResponse(ok=True),
@@ -2753,10 +2878,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=ClearTaskState(ti_id=TI_ID, all_map_indices=True),
-        test_id="clear_task_state_all_map_indices",
+        message=ClearTaskStateStore(ti_id=TI_ID, all_map_indices=True),
+        test_id="clear_task_store_all_map_indices",
         client_mock=ClientMock(
-            method_path="task_state.clear",
+            method_path="task_state_store.clear",
             args=(TI_ID,),
             kwargs={"all_map_indices": True},
             response=OKResponse(ok=True),
@@ -2764,34 +2889,34 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=GetAssetStateByName(name="debug_watcher_asset", key="watermark"),
-        test_id="get_asset_state_by_name",
+        message=GetAssetStateStoreByName(name="debug_watcher_asset", key="watermark"),
+        test_id="get_asset_store_by_name",
         client_mock=ClientMock(
-            method_path="asset_state.get",
+            method_path="asset_state_store.get",
             args=("watermark",),
             kwargs={"name": "debug_watcher_asset"},
-            response=AssetStateResult(value="2026-04-30T00:00:00Z"),
+            response=AssetStateStoreResult(value="2026-04-30T00:00:00Z"),
         ),
-        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStateResult"},
+        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStateStoreResult"},
     ),
     RequestTestCase(
-        message=GetAssetStateByUri(uri="s3://bucket/key", key="watermark"),
-        test_id="get_asset_state_by_uri",
+        message=GetAssetStateStoreByUri(uri="s3://bucket/key", key="watermark"),
+        test_id="get_asset_store_by_uri",
         client_mock=ClientMock(
-            method_path="asset_state.get",
+            method_path="asset_state_store.get",
             args=("watermark",),
             kwargs={"uri": "s3://bucket/key"},
-            response=AssetStateResult(value="2026-04-30T00:00:00Z"),
+            response=AssetStateStoreResult(value="2026-04-30T00:00:00Z"),
         ),
-        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStateResult"},
+        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStateStoreResult"},
     ),
     RequestTestCase(
-        message=SetAssetStateByName(
+        message=SetAssetStateStoreByName(
             name="debug_watcher_asset", key="watermark", value="2026-04-30T00:00:00Z"
         ),
-        test_id="set_asset_state_by_name",
+        test_id="set_asset_state_store_by_name",
         client_mock=ClientMock(
-            method_path="asset_state.set",
+            method_path="asset_state_store.set",
             args=("watermark", "2026-04-30T00:00:00Z"),
             kwargs={"name": "debug_watcher_asset"},
             response=OKResponse(ok=True),
@@ -2799,10 +2924,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=SetAssetStateByUri(uri="s3://bucket/key", key="watermark", value="2026-04-30T00:00:00Z"),
-        test_id="set_asset_state_by_uri",
+        message=SetAssetStateStoreByUri(uri="s3://bucket/key", key="watermark", value="2026-04-30T00:00:00Z"),
+        test_id="set_asset_state_store_by_uri",
         client_mock=ClientMock(
-            method_path="asset_state.set",
+            method_path="asset_state_store.set",
             args=("watermark", "2026-04-30T00:00:00Z"),
             kwargs={"uri": "s3://bucket/key"},
             response=OKResponse(ok=True),
@@ -2810,10 +2935,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=DeleteAssetStateByName(name="debug_watcher_asset", key="watermark"),
-        test_id="delete_asset_state_by_name",
+        message=DeleteAssetStateStoreByName(name="debug_watcher_asset", key="watermark"),
+        test_id="delete_asset_store_by_name",
         client_mock=ClientMock(
-            method_path="asset_state.delete",
+            method_path="asset_state_store.delete",
             args=("watermark",),
             kwargs={"name": "debug_watcher_asset"},
             response=OKResponse(ok=True),
@@ -2821,10 +2946,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=DeleteAssetStateByUri(uri="s3://bucket/key", key="watermark"),
-        test_id="delete_asset_state_by_uri",
+        message=DeleteAssetStateStoreByUri(uri="s3://bucket/key", key="watermark"),
+        test_id="delete_asset_store_by_uri",
         client_mock=ClientMock(
-            method_path="asset_state.delete",
+            method_path="asset_state_store.delete",
             args=("watermark",),
             kwargs={"uri": "s3://bucket/key"},
             response=OKResponse(ok=True),
@@ -2832,10 +2957,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=ClearAssetStateByName(name="debug_watcher_asset"),
-        test_id="clear_asset_state_by_name",
+        message=ClearAssetStateStoreByName(name="debug_watcher_asset"),
+        test_id="clear_asset_store_by_name",
         client_mock=ClientMock(
-            method_path="asset_state.clear",
+            method_path="asset_state_store.clear",
             args=(),
             kwargs={"name": "debug_watcher_asset"},
             response=OKResponse(ok=True),
@@ -2843,10 +2968,10 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
-        message=ClearAssetStateByUri(uri="s3://bucket/key"),
-        test_id="clear_asset_state_by_uri",
+        message=ClearAssetStateStoreByUri(uri="s3://bucket/key"),
+        test_id="clear_asset_store_by_uri",
         client_mock=ClientMock(
-            method_path="asset_state.clear",
+            method_path="asset_state_store.clear",
             args=(),
             kwargs={"uri": "s3://bucket/key"},
             response=OKResponse(ok=True),
@@ -3023,6 +3148,177 @@ class TestHandleRequest:
             "detail": error.response.json(),
         }
 
+    def test_handle_requests_network_exception_does_not_crash_loop(self, watched_subprocess, mocker):
+        """A transient network error must not crash the IPC generator.
+
+        Without the catch-all in handle_requests, an httpx.ConnectError would
+        propagate, the generator would terminate, the task subprocess would
+        get EOFError on every subsequent send, and the worker would be stuck.
+        Verify that the error is reported back to the task as an
+        API_SERVER_ERROR ErrorResponse and that the loop stays alive for the
+        next request.
+        """
+        watched_subprocess, read_socket = watched_subprocess
+
+        # First request raises a network exception, second succeeds.
+        first_call = httpx.ConnectError("connection refused")
+        watched_subprocess.client.task_instances.succeed = mocker.Mock(side_effect=[first_call, None])
+
+        generator = watched_subprocess.handle_requests(log=mocker.Mock())
+        next(generator)
+
+        # First request — should produce an ErrorResponse, not crash the generator.
+        msg1 = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"))
+        req1 = _RequestFrame(id=randint(1, 2**32 - 1), body=msg1.model_dump())
+        generator.send(req1)
+
+        read_socket.settimeout(0.5)
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        bytes_ = read_socket.recv(frame_len)
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(bytes_)
+
+        assert frame.id == req1.id
+        assert frame.error is not None
+        assert frame.error["error"] == "API_SERVER_ERROR"
+        assert frame.error["detail"]["exception_type"] == "ConnectError"
+
+        # Second request — generator must still be alive and process it normally.
+        msg2 = SucceedTask(end_date=timezone.parse("2024-10-31T12:01:00Z"))
+        req2 = _RequestFrame(id=randint(1, 2**32 - 1), body=msg2.model_dump())
+        # Should not raise StopIteration (which would mean the loop crashed).
+        generator.send(req2)
+
+    @pytest.mark.parametrize(
+        ("msg", "api_method", "expected_state"),
+        [
+            pytest.param(
+                SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                "succeed",
+                TaskInstanceState.SUCCESS,
+                id="succeed",
+            ),
+            pytest.param(
+                RetryTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                "retry",
+                TaskInstanceState.UP_FOR_RETRY,
+                id="retry",
+            ),
+            pytest.param(
+                DeferTask(
+                    next_method="execute_complete",
+                    classpath="airflow.providers.standard.triggers.external_task.WorkflowTrigger",
+                    trigger_kwargs={},
+                ),
+                "defer",
+                TaskInstanceState.DEFERRED,
+                id="defer",
+            ),
+            pytest.param(
+                RescheduleTask(
+                    reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                ),
+                "reschedule",
+                TaskInstanceState.UP_FOR_RESCHEDULE,
+                id="reschedule",
+            ),
+        ],
+    )
+    def test_terminal_state_not_set_when_direct_api_fails(
+        self, watched_subprocess, mocker, msg, api_method, expected_state
+    ):
+        """`_terminal_state` must NOT be set when the dedicated terminal-state
+        API raises.
+
+        The original message is captured in `_pending_terminal_state_msg`
+        BEFORE the API call so the recovery dispatcher in
+        `update_task_state_if_needed` can re-issue it on subprocess exit.
+        Covers all four terminal-state message types.
+        """
+        watched_subprocess, _ = watched_subprocess
+        setattr(
+            watched_subprocess.client.task_instances,
+            api_method,
+            mocker.Mock(side_effect=httpx.ConnectError("connection refused")),
+        )
+
+        with pytest.raises(httpx.ConnectError):
+            watched_subprocess._handle_request(msg, mocker.Mock(), req_id=1)
+
+        assert watched_subprocess._terminal_state is None
+        # Pending msg preserved so the recovery dispatcher can re-issue.
+        assert watched_subprocess._pending_terminal_state_msg is msg
+
+    @pytest.mark.parametrize(
+        ("msg", "api_method", "expected_state"),
+        [
+            pytest.param(
+                SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                "succeed",
+                TaskInstanceState.SUCCESS,
+                id="succeed",
+            ),
+            pytest.param(
+                RetryTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                "retry",
+                TaskInstanceState.UP_FOR_RETRY,
+                id="retry",
+            ),
+            pytest.param(
+                DeferTask(
+                    next_method="execute_complete",
+                    classpath="airflow.providers.standard.triggers.external_task.WorkflowTrigger",
+                    trigger_kwargs={},
+                ),
+                "defer",
+                TaskInstanceState.DEFERRED,
+                id="defer",
+            ),
+            pytest.param(
+                RescheduleTask(
+                    reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                ),
+                "reschedule",
+                TaskInstanceState.UP_FOR_RESCHEDULE,
+                id="reschedule",
+            ),
+        ],
+    )
+    def test_update_task_state_replays_pending_terminal_state_call(
+        self, watched_subprocess, mocker, msg, api_method, expected_state
+    ):
+        """If a direct terminal-state API call was attempted and raised, the
+        recovery dispatcher must re-issue the dedicated endpoint (not
+        `finish()`, which the server-side endpoint refuses for SUCCESS /
+        DEFERRED / SERVER_TERMINATED). Covers all four message types.
+        """
+        watched_subprocess, _ = watched_subprocess
+        watched_subprocess._exit_code = 0
+        # Simulate the failure scenario: original API call raised, msg preserved.
+        watched_subprocess._pending_terminal_state_msg = msg
+
+        watched_subprocess.update_task_state_if_needed()
+
+        # Recovery re-issues the dedicated endpoint, NOT finish().
+        getattr(watched_subprocess.client.task_instances, api_method).assert_called_once()
+        watched_subprocess.client.task_instances.finish.assert_not_called()
+        assert watched_subprocess._terminal_state == expected_state
+        assert watched_subprocess._pending_terminal_state_msg is None
+
+    def test_update_task_state_no_recovery_without_pending_msg(self, watched_subprocess, mocker):
+        """No replay when nothing was pending — preserves the original
+        STATES_SENT_DIRECTLY short-circuit for the happy path."""
+        watched_subprocess, _ = watched_subprocess
+        watched_subprocess._exit_code = 0
+        watched_subprocess._terminal_state = TaskInstanceState.SUCCESS
+        watched_subprocess._pending_terminal_state_msg = None
+
+        watched_subprocess.update_task_state_if_needed()
+
+        watched_subprocess.client.task_instances.finish.assert_not_called()
+        watched_subprocess.client.task_instances.succeed.assert_not_called()
+
 
 class TestSetSupervisorComms:
     class DummyComms:
@@ -3101,6 +3397,56 @@ class TestInProcessTestSupervisor:
         # Ensure we got back what we expect
         assert isinstance(response, VariableResult)
         assert response.value == "value"
+
+    def test_inprocess_failure_callback_receives_exception(
+        self,
+        monkeypatch,
+        make_ti_context,
+    ):
+        """Run a failing task via InProcessTestSupervisor and ensure the
+        `on_failure_callback` receives `context['exception']`.
+        """
+        collected: list[BaseException | None] = [None]
+
+        class _Failure(Exception):
+            pass
+
+        def failure_callback(context):
+            collected[0] = context.get("exception")
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context: Context):
+                raise _Failure("boom")
+
+        task = FailingOperator(task_id="failing", on_failure_callback=failure_callback)
+
+        task.dag = DAG(dag_id="test_dag")
+
+        # Create a simple TaskInstance datamodel to pass to the supervisor
+        ti = TaskInstance(
+            id=uuid7(),
+            dag_version_id=uuid7(),
+            dag_id="test_dag",
+            task_id=task.task_id,
+            run_id="r",
+            try_number=1,
+            queue="default",
+        )
+
+        # Patch the API client used by InProcessTestSupervisor to return a predictable TI context
+        fake_task_instances = mock.MagicMock(spec_set=["start", "finish"])
+        fake_task_instances.start.return_value = make_ti_context()
+        fake_client = mock.MagicMock(spec_set=["task_instances"])
+        fake_client.task_instances = fake_task_instances
+        monkeypatch.setattr(
+            InProcessTestSupervisor, "_api_client", staticmethod(lambda dag=None: fake_client)
+        )
+
+        result = InProcessTestSupervisor.start(what=ti, task=task)
+
+        # Ensure the task failed and the callback saw the exception
+        assert isinstance(result.error, _Failure)
+        assert isinstance(collected[0], _Failure)
 
 
 class TestInProcessClient:
@@ -3233,6 +3579,37 @@ def test_log_upload_failures_are_non_fatal(mocker):
         ti_id=TI_ID,
         pid=12345,
     )
+
+
+def test_logs_uploaded_even_when_state_update_fails(mocker):
+    """`wait()` must upload remote logs even if the final state update raises.
+
+    A failed state update (e.g. a transient API error) is exactly when the logs
+    matter most for debugging, so `_upload_logs()` runs in a `finally` block and
+    the original exception still propagates to the caller.
+    """
+    proc = ActivitySubprocess(
+        process_log=mocker.MagicMock(),
+        id=TI_ID,
+        pid=12345,
+        stdin=mocker.MagicMock(),
+        client=mocker.MagicMock(),
+        process=mocker.MagicMock(),
+    )
+    # Leave `_exit_code` unset so `wait()` doesn't short-circuit; the no-op
+    # `_monitor_subprocess` mock leaves it as None and `wait()` defaults it to 1.
+    mocker.patch.object(ActivitySubprocess, "_monitor_subprocess")
+    mocker.patch.object(
+        ActivitySubprocess,
+        "update_task_state_if_needed",
+        side_effect=httpx.ConnectError("connection refused"),
+    )
+    upload_logs = mocker.patch.object(ActivitySubprocess, "_upload_logs")
+
+    with pytest.raises(httpx.ConnectError):
+        proc.wait()
+
+    upload_logs.assert_called_once_with()
 
 
 def test_remote_logging_conn_sets_process_context(monkeypatch, mocker):
@@ -3443,6 +3820,37 @@ def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
         assert all(ref() is None for ref in clients), "Client instances should be garbage collected"
 
 
+def test_fetch_remote_logging_conn_does_not_cache_none_result(mocker):
+    """Test that connection caching doesn't cache failed lookups as None."""
+    conn_id = "test_conn"
+    client = mocker.Mock()
+    mocker.patch.object(supervisor, "ensure_secrets_backend_loaded", return_value=[])
+    mocker.patch.dict(supervisor._REMOTE_LOGGING_CONN_CACHE, {}, clear=True)
+    client.connections.get.side_effect = [
+        ErrorResponse(error=ErrorType.PERMISSION_DENIED),
+        ConnectionResponse(
+            conn_id=conn_id,
+            conn_type="example",
+            host=None,
+            schema_=None,
+            login=None,
+            password=None,
+            port=None,
+            extra=None,
+        ),
+    ]
+
+    assert supervisor._fetch_remote_logging_conn(conn_id, client) is None
+    assert conn_id not in supervisor._REMOTE_LOGGING_CONN_CACHE
+
+    second_call_result = supervisor._fetch_remote_logging_conn(conn_id, client)
+    assert second_call_result is not None
+    assert second_call_result.conn_id == conn_id
+    assert supervisor._REMOTE_LOGGING_CONN_CACHE[conn_id] is not None
+    # The first call resulted in None and was not cached, so the second fetch calls the API again.
+    assert client.connections.get.call_count == 2
+
+
 def test_process_log_messages_from_subprocess(monkeypatch, caplog):
     from airflow.sdk._shared.logging.structlog import PER_LOGGER_LEVELS
 
@@ -3508,6 +3916,7 @@ def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
             run_id="d",
             try_number=1,
             dag_version_id=uuid7(),
+            queue="default",
         ),
         client=client_with_ti_start,
         target=subprocess_main,
@@ -3758,3 +4167,101 @@ def test_ipc_trace_context_propagation(mocker):
     assert captured == [expected_span_id]
     # Context is detached after dispatch — no leak.
     assert get_current_span().get_span_context().span_id != expected_span_id
+
+
+class TestMakeBufferedSocketReader:
+    """Tests for the data= pre-seeding parameter added to make_buffered_socket_reader.
+
+    The ``data`` kwarg lets callers inject bytes that arrived on the socket
+    before the selector loop started (e.g. bytes drained from a subprocess
+    stdout/stderr pipe while waiting for a TCP handshake).  Complete lines
+    in ``data`` must be dispatched to the generator immediately on
+    construction; partial lines must be held in the buffer until the socket
+    delivers the remainder.
+    """
+
+    def _collecting_gen(self, received: list[bytes]):
+        """Generator that appends every line sent to it into *received*."""
+        while True:
+            line = yield
+            received.append(bytes(line))
+
+    def test_empty_data_dispatches_nothing_before_socket_reads(self):
+        received: list[bytes] = []
+        on_close = MagicMock()
+        make_buffered_socket_reader(self._collecting_gen(received), data=b"", on_close=on_close)
+        assert received == []
+
+    def test_complete_line_in_data_dispatched_immediately(self):
+        received: list[bytes] = []
+        on_close = MagicMock()
+        make_buffered_socket_reader(self._collecting_gen(received), data=b"hello\n", on_close=on_close)
+        assert received == [b"hello\n"]
+
+    def test_multiple_complete_lines_in_data_all_dispatched(self):
+        received: list[bytes] = []
+        on_close = MagicMock()
+        make_buffered_socket_reader(
+            self._collecting_gen(received), data=b"line1\nline2\nline3\n", on_close=on_close
+        )
+        assert received == [b"line1\n", b"line2\n", b"line3\n"]
+
+    def test_partial_line_in_data_held_until_socket_completes_it(self):
+        """A line without a trailing newline in data must not be dispatched
+        until the socket delivers the rest of the line."""
+        received: list[bytes] = []
+        on_close = MagicMock()
+        r, w = socket.socketpair()
+        try:
+            cb, _ = make_buffered_socket_reader(
+                self._collecting_gen(received), data=b"partial", on_close=on_close
+            )
+            assert received == []  # incomplete line — must not fire yet
+            w.sendall(b" rest\n")
+            cb(r)
+            assert received == [b"partial rest\n"]
+        finally:
+            r.close()
+            w.close()
+
+    def test_complete_and_partial_lines_in_data_only_complete_dispatched(self):
+        """Only the complete line is flushed on construction; the trailing
+        fragment is retained and completed by subsequent socket reads."""
+        received: list[bytes] = []
+        on_close = MagicMock()
+        r, w = socket.socketpair()
+        try:
+            cb, _ = make_buffered_socket_reader(
+                self._collecting_gen(received), data=b"full\nincomplete", on_close=on_close
+            )
+            assert received == [b"full\n"]
+            w.sendall(b" suffix\n")
+            cb(r)
+            assert received == [b"full\n", b"incomplete suffix\n"]
+        finally:
+            r.close()
+            w.close()
+
+    def test_data_pre_seeding_does_not_trigger_on_close(self):
+        """Flushing pre-seeded lines must never invoke the on_close callback."""
+        received: list[bytes] = []
+        on_close = MagicMock()
+        make_buffered_socket_reader(self._collecting_gen(received), data=b"line\n", on_close=on_close)
+        on_close.assert_not_called()
+
+    def test_socket_data_appended_after_pre_seeded_data(self):
+        """Bytes arriving on the socket are appended after any pre-seeded
+        partial content, preserving message order."""
+        received: list[bytes] = []
+        on_close = MagicMock()
+        r, w = socket.socketpair()
+        try:
+            cb, _ = make_buffered_socket_reader(
+                self._collecting_gen(received), data=b"seeded\n", on_close=on_close
+            )
+            w.sendall(b"live\n")
+            cb(r)
+            assert received == [b"seeded\n", b"live\n"]
+        finally:
+            r.close()
+            w.close()

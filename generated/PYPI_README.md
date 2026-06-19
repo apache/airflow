@@ -54,7 +54,7 @@ Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow sched
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)                 | Stable version (3.2.0)              | Stable version (2.11.2)      |
+|            | Main version (dev)                 | Stable version (3.2.0)              | Deprecate version (2.11.2)   |
 |------------|------------------------------------|-------------------------------------|------------------------------|
 | Python     | 3.10, 3.11, 3.12, 3.13, 3.14       | 3.10, 3.11, 3.12, 3.13, 3.14        | 3.10, 3.11, 3.12             |
 | Platform   | AMD64/ARM64                        | AMD64/ARM64                         | AMD64/ARM64(\*)              |

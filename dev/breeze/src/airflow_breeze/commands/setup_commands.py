@@ -116,7 +116,7 @@ def autocomplete(force: bool):
     """
     # Determine if the shell is bash/zsh/powershell. It helps to build the autocomplete path
     detected_shell = os.environ.get("SHELL")
-    detected_shell = None if detected_shell is None else detected_shell.split(os.sep)[-1]
+    detected_shell = None if detected_shell is None else Path(detected_shell).name
     if detected_shell not in ["bash", "zsh", "fish"]:
         console_print(f"\n[error] The shell {detected_shell} is not supported for autocomplete![/]\n")
         sys.exit(1)
