@@ -27,6 +27,41 @@
 Changelog
 ---------
 
+22.2.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add MongoToGCSOperator to copy MongoDB collections to GCS (#66013)``
+* ``Forward Google Cloud Run container logs to Airflow log via verbose flag (#67140)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'DataprocCreateBatchOperator' stuck in deferred state for a long time (#67638)``
+* ``Fix empty labels in Stackdriver log IO for Airflow 3 Supervisor (#68292)``
+* ``Fix remote-log providers not satisfying RemoteLogIO upload contract (#68300)``
+* ``Validate destination paths derived from GCS object names (#67667)``
+
+Misc
+~~~~
+
+* ``Bump google-cloud-aiplatform to force upgrade of litellm (#66632)``
+* ``Fix mypy errors for task_instance access in provider triggers (#68685)``
+* ``Add Ray constraints for Python 3.14 in Google provider (#68710)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document that the Google OpenID auth backend matches users by their (mutable) email (#68391)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add tests for links/base and links/bigquery in Google provider (#68066)``
+   * ``Load example DAGs from providers via ProvidersManager (continuation of #57320) (#66161)``
+   * ``Bump aiohttp regarding dependabot warning (#67978)``
+
 22.1.0
 ......
 

@@ -4344,7 +4344,7 @@ def test_calculate_dagrun_date_fields(
     run = dag_maker.create_dagrun()
     serdag = dag_maker.serialized_dag
     dag_model = dag_maker.dag_model
-    dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=run)
+    dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=run)
     assert dag_model.next_dagrun_data_interval == next_interval
     assert dag_model.next_dagrun == next_run
     assert dag_model.next_dagrun_create_after == next_run_after
