@@ -107,8 +107,7 @@ Custom logging configs and remote logging
 -----------------------------------------
 
 When ``[logging] remote_logging = True`` and you point ``logging_config_class``
-at your own module, define two module-level attributes alongside your
-``LOGGING_CONFIG`` dict:
+at your own module, define two module-level attributes in that module:
 
 * ``REMOTE_TASK_LOG`` — an instance of
   :class:`~airflow.logging.remote.RemoteLogIO` (or
@@ -139,18 +138,11 @@ and the UI cannot read task logs back from the remote backend.
       REMOTE_TASK_LOG: RemoteLogIO | None = MyRemoteLogIO()
       DEFAULT_REMOTE_CONN_ID: str | None = "my_remote_conn"
 
-      LOGGING_CONFIG = {
-          "version": 1,
-          "disable_existing_loggers": False,
-          # ... your formatters / handlers / loggers / root ...
-      }
-
 .. note::
 
-   ``airflow.config_templates.airflow_local_settings`` (and its
-   ``DEFAULT_LOGGING_CONFIG``) is planned for deprecation. Build
-   ``LOGGING_CONFIG`` directly rather than deep-copying from it, and define
-   ``REMOTE_TASK_LOG`` yourself rather than re-exporting from that module.
+   Define ``REMOTE_TASK_LOG`` in your own module rather than re-exporting it
+   from ``airflow.config_templates.airflow_local_settings``, which is planned
+   for deprecation.
 
 
 Custom logger for Operators, Hooks and Tasks
