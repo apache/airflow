@@ -499,7 +499,14 @@ class BaseExecutor(LoggingMixin):
         self.trigger_workloads(open_slots)
 
     def order_queued_tasks_by_priority(self) -> list:
-        """Backward-compat shim: forwards to :meth:`_get_workloads_to_schedule`."""
+        """
+        Backward-compat shim: forwards to :meth:`_get_workloads_to_schedule`.
+
+        Note: the return shape differs from the original method. The old implementation returned
+        *all* queued tasks, tasks-only and untruncated. This shim iterates every queue in
+        ``executor_queues`` (so callbacks and other workload types are included) and truncates the
+        result to the number of currently open slots.
+        """
         self._warn_legacy_property(
             "order_queued_tasks_by_priority",
             "order_queued_tasks_by_priority is deprecated, use _get_workloads_to_schedule instead.",

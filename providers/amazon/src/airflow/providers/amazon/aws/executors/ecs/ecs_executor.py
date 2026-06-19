@@ -159,7 +159,10 @@ class AwsEcsExecutor(BaseExecutor):
                 queue = workload.ti.queue
                 executor_config = workload.ti.executor_config or {}
 
-                del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
+                if AIRFLOW_V_3_3_PLUS:
+                    del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
+                else:
+                    del self.queued_tasks[key]
                 self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
                 self.running.add(key)
 
