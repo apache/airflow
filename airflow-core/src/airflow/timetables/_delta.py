@@ -69,3 +69,32 @@ class DeltaMixin:
 
     def _align_to_prev(self, current: DateTime) -> DateTime:
         return current
+
+    def count_skipped_intervals_between(
+        self,
+        prev_interval_end: DateTime,
+        new_interval_start: DateTime,
+    ) -> int:
+        if new_interval_start <= prev_interval_end:
+            return 0
+        period_seconds = self._schedule_period_seconds()
+        if period_seconds <= 0:
+            return 0
+        gap_seconds = (new_interval_start - prev_interval_end).total_seconds()
+        return int(gap_seconds // period_seconds)
+
+    def _schedule_period_seconds(self) -> float:
+        if isinstance(self._delta, datetime.timedelta):
+            return self._delta.total_seconds()
+        return float(self._relativedelta_in_seconds(self._delta))
+
+    @staticmethod
+    def _relativedelta_in_seconds(delta: relativedelta) -> int:
+        return (
+            delta.years * 365 * 24 * 60 * 60
+            + delta.months * 30 * 24 * 60 * 60
+            + delta.days * 24 * 60 * 60
+            + delta.hours * 60 * 60
+            + delta.minutes * 60
+            + delta.seconds
+        )

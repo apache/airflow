@@ -22,14 +22,14 @@ from typing import TYPE_CHECKING
 from airflow.listeners import hookimpl
 
 if TYPE_CHECKING:
-    from airflow.timetables.base import DataInterval
+    from airflow.timetables.base import SkippedIntervalsSummary
 
-events: list[tuple[str, list[DataInterval]]] = []
+events: list[tuple[str, SkippedIntervalsSummary]] = []
 
 
 @hookimpl
-def on_intervals_skipped(dag_id: str, skipped_intervals: list[DataInterval]):
-    events.append((dag_id, list(skipped_intervals)))
+def on_intervals_skipped(dag_id: str, summary: SkippedIntervalsSummary):
+    events.append((dag_id, summary))
 
 
 def clear():

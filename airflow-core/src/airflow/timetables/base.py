@@ -75,6 +75,21 @@ class DataInterval(NamedTuple):
         return cls(start=at, end=at)
 
 
+class SkippedIntervalsSummary(NamedTuple):
+    """
+    Summary of scheduled data intervals skipped due to ``catchup=False``.
+
+    ``skipped_range`` spans from the previous automated Dag run's
+    ``data_interval_end`` to the new run's ``data_interval_start``.
+    ``skipped_interval_count`` is derived from that range and the Dag schedule in O(1) time.
+    Use :meth:`~airflow.serialization.definitions.dag.SerializedDAG.iter_dagrun_infos_between`
+    in a callback if the full sequence is required.
+    """
+
+    skipped_interval_count: int
+    skipped_range: DataInterval
+
+
 class TimeRestriction(NamedTuple):
     """
     Restriction on when a DAG can be scheduled for a run.
