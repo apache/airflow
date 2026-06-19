@@ -25,8 +25,8 @@ import innerText from "react-innertext";
 
 import { useDeadlinesServiceGetCallbackLogs } from "openapi/queries";
 import type { TaskInstanceState, TaskInstancesLogResponse } from "openapi/requests/types.gen";
-import { renderStructuredLog } from "src/components/renderStructuredLog";
 import { StateBadge } from "src/components/StateBadge";
+import { renderStructuredLog } from "src/components/renderStructuredLog";
 import { Dialog } from "src/components/ui";
 import { TaskLogContent } from "src/pages/TaskInstance/Logs/TaskLogContent";
 import type { ParsedLogEntry } from "src/queries/useLogs";
