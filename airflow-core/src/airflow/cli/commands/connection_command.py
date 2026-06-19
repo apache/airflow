@@ -314,6 +314,11 @@ def connections_add(args):
         )
         args.conn_type = "generic"
 
+    # Validate port if provided
+    if args.conn_port is not None:
+        if not isinstance(args.conn_port, int) or not (0 <= args.conn_port <= 65535):
+            raise SystemExit(f"Port must be between 0 and 65535, got {args.conn_port}")
+
     if has_uri or has_json:
         invalid_args = []
         if has_uri and not _valid_uri(args.conn_uri):

@@ -107,6 +107,14 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
     login: Mapped[str | None] = mapped_column(Text, nullable=True)
     schema: Mapped[str | None] = mapped_column("schema", String(500), nullable=True)
     port: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    @staticmethod
+    def _validate_port(port: int | None, connection_id: str | None = None) -> None:
+        """Validate that port is within the valid TCP/UDP range (0-65535)."""
+        if port is not None and not (0 <= port <= 65535):
+            conn_msg = f" for connection {connection_id!r}" if connection_id else ""
+            raise ValueError(f"Port must be between 0 and 65535{conn_msg}, got {port}")
+
     commit_on_success: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
     )
@@ -152,6 +160,7 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
         self.login = login
         self.password = password
         self.schema = schema
+        self._validate_port(port, connection_id)
         self.port = port
         self.extra = extra
         self.commit_on_success = commit_on_success
