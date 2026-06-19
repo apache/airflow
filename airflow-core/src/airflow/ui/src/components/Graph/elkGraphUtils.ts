@@ -49,6 +49,8 @@ export type FormattedNode = {
   isOpen?: boolean;
   setupTeardownType?: NodeResponse["setup_teardown_type"];
   team?: string | null;
+  uiColor?: string | null;
+  uiFgcolor?: string | null;
 } & ElkShape &
   NodeResponse;
 
@@ -392,6 +394,8 @@ export const generateElkGraph = ({
       team: node.team,
       tooltip: node.tooltip,
       type: node.type,
+      uiColor: node.ui_color,
+      uiFgcolor: node.ui_fgcolor,
       width,
     };
   };

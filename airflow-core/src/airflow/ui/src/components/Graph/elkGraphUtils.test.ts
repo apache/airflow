@@ -303,3 +303,35 @@ describe("generateElkGraph — closed TaskGroup", () => {
     expect(rootEdgeIds).toEqual(new Set(["start-group_a", "group_a-final_task"]));
   });
 });
+
+describe("generateElkGraph — operator colors", () => {
+  it("maps ui_color/ui_fgcolor onto the formatted leaf node", () => {
+    const root = generateElkGraph({
+      direction: "RIGHT",
+      edges: [],
+      font: "12px sans-serif",
+      nodes: [buildNode({ id: "t1", label: "t1", ui_color: "blue.500", ui_fgcolor: "red.700" })],
+      openGroupIds: [],
+    });
+
+    const node = root.children?.[0] as FormattedNode;
+
+    expect(node.uiColor).toBe("blue.500");
+    expect(node.uiFgcolor).toBe("red.700");
+  });
+
+  it("leaves the colors undefined when the node has none", () => {
+    const root = generateElkGraph({
+      direction: "RIGHT",
+      edges: [],
+      font: "12px sans-serif",
+      nodes: [buildNode({ id: "t1", label: "t1" })],
+      openGroupIds: [],
+    });
+
+    const node = root.children?.[0] as FormattedNode;
+
+    expect(node.uiColor).toBeUndefined();
+    expect(node.uiFgcolor).toBeUndefined();
+  });
+});

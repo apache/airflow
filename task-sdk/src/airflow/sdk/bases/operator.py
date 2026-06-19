@@ -38,6 +38,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, NoReturn, TypeVar, cast
 import attrs
 
 from airflow.sdk import TriggerRule, timezone
+from airflow.sdk._shared.dagnode.ui_color import is_chakra_color_token
 from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_EMAIL_ON_FAILURE,
@@ -588,7 +589,30 @@ class BaseOperatorMeta(abc.ABCMeta):
         if new_cls.__init__ is not first_superclass.__init__:
             new_cls.__init__ = cls._apply_defaults(new_cls.__init__)
 
+        _warn_on_invalid_ui_color(name, namespace, new_cls.__module__)
+
         return new_cls
+
+
+def _warn_on_invalid_ui_color(name: str, namespace: dict[str, Any], module: str) -> None:
+    """
+    Warn when user code sets ``ui_color``/``ui_fgcolor`` to a non Chakra color token.
+
+    Such values are ignored by the UI graph (only Chakra palette tokens like ``blue.500`` are
+    rendered). Built-in operators (``airflow.*``, including providers) are left alone so the many
+    that still carry legacy hex values do not flood Dag parsing with warnings.
+    """
+    if module.startswith("airflow."):
+        return
+    for color_attr in ("ui_color", "ui_fgcolor"):
+        value = namespace.get(color_attr)
+        if isinstance(value, str) and not is_chakra_color_token(value):
+            warnings.warn(
+                f"{name}.{color_attr} value {value!r} is not a Chakra color token (e.g. 'blue.500') "
+                f"and will be ignored in the UI graph.",
+                UserWarning,
+                stacklevel=3,
+            )
 
 
 # TODO: The following mapping is used to validate that the arguments passed to the BaseOperator are of the
