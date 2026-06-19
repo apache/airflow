@@ -2497,7 +2497,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self, dag_models: Collection[DagModel], session: Session
     ) -> list[DagSkippedIntervalsCallbackRequest]:
         """
-        Create a DAG run and update the dag_model to control if/when the next DAGRun should be created.
+        Create a Dag run and update the dag_model to control if/when the next DagRun should be created.
 
         Returns a list of skipped-intervals callback requests to dispatch after commit.
         """
