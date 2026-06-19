@@ -31,7 +31,7 @@ from google.cloud.aiplatform_v1 import (
 )
 
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineAsyncHook
+from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineAsyncHook, _serialize_value
 from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import BatchPredictionJobAsyncHook
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobAsyncHook
 from airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job import (
@@ -42,18 +42,6 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from proto import Message
-
-
-def _serialize_value(value: Any) -> Any:
-    if hasattr(value, "model_dump"):
-        return value.model_dump(mode="json")
-    if isinstance(value, dict):
-        return {key: _serialize_value(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_serialize_value(item) for item in value]
-    if isinstance(value, tuple):
-        return tuple(_serialize_value(item) for item in value)
-    return value
 
 
 class BaseVertexAIJobTrigger(BaseTrigger):

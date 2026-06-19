@@ -24,7 +24,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import conf
-from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineHook
+from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineHook, _serialize_value
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.vertex_ai import (
     AgentEngineDeleteTrigger,
@@ -35,18 +35,6 @@ if TYPE_CHECKING:
     from vertexai._genai import types
 
     from airflow.providers.common.compat.sdk import Context
-
-
-def _serialize_value(value: Any) -> Any:
-    if hasattr(value, "model_dump"):
-        return value.model_dump(mode="json")
-    if isinstance(value, dict):
-        return {key: _serialize_value(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_serialize_value(item) for item in value]
-    if isinstance(value, tuple):
-        return tuple(_serialize_value(item) for item in value)
-    return value
 
 
 def _serialize_agent_engine(agent_engine: types.AgentEngine) -> dict[str, Any]:
