@@ -71,7 +71,7 @@ class TestDagRunTrigger:
         dag_id = "test_trigger_dag_run_partition_key"
         run_id = "test_run_id"
         logical_date = timezone.datetime(2025, 2, 20)
-        partition_key = "2025-02-20"
+        partition_key = "2025-02-20T00:00:00"
 
         with dag_maker(
             dag_id=dag_id,
@@ -125,6 +125,31 @@ class TestDagRunTrigger:
                 "message": f"Dag '{dag_id}' is not a partitioned Dag and does not accept a partition_key.",
             }
         }
+
+    def test_trigger_dag_run_invalid_partition_key(self, client, session, dag_maker):
+        """partition_key that the timetable cannot decode must return 400."""
+        dag_id = "test_trigger_dag_run_invalid_partition_key"
+        run_id = "test_run_id_invalid_pk"
+        logical_date = timezone.datetime(2025, 2, 20)
+
+        with dag_maker(
+            dag_id=dag_id,
+            schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="test_task")
+        session.commit()
+
+        response = client.post(
+            f"/execution/dag-runs/{dag_id}/{run_id}",
+            json={"logical_date": logical_date.isoformat(), "partition_key": "not-a-date"},
+        )
+
+        assert response.status_code == 400
+        detail = response.json()["detail"]
+        assert detail["reason"] == "invalid_partition_key"
+        assert "does not match the timetable's key_format" in detail["message"]
 
     def test_trigger_dag_run_dag_not_found(self, client):
         """Test that a DAG that does not exist cannot be triggered."""

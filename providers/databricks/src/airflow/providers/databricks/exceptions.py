@@ -30,3 +30,7 @@ class DatabricksSqlExecutionError(AirflowException):
 
 class DatabricksSqlExecutionTimeout(DatabricksSqlExecutionError):
     """Raised when a sql execution times out."""
+
+
+class DatabricksOperatorPayloadError(AirflowException):
+    """Raised when a Databricks operator payload is invalid."""

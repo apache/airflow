@@ -1148,6 +1148,8 @@ ok
 oklch
 Okta
 okta
+OL
+ol
 Ollama
 onboarded
 onboarding

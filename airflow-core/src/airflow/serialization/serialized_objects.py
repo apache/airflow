@@ -106,7 +106,7 @@ from airflow.task.priority_strategy import (
     validate_and_load_priority_weight_strategy,
 )
 from airflow.timetables.base import DagRunInfo, Timetable
-from airflow.triggers.base import BaseTrigger, StartTriggerArgs
+from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.db import LazySelectSequence
 
@@ -470,7 +470,6 @@ class BaseSerialization:
         :meta private:
         """
         from airflow.sdk.definitions._internal.types import is_arg_set
-        from airflow.sdk.exceptions import TaskDeferred
 
         if not is_arg_set(var):
             return cls._encode(None, type_=DAT.ARG_NOT_SET)
@@ -535,7 +534,7 @@ class BaseSerialization:
                 var._asdict(),
                 type_=DAT.TASK_INSTANCE_KEY,
             )
-        elif isinstance(var, (AirflowException, TaskDeferred)) and hasattr(var, "serialize"):
+        elif isinstance(var, AirflowException) and hasattr(var, "serialize"):
             exc_cls_name, args, kwargs = var.serialize()
             return cls._encode(
                 cls.serialize(
@@ -555,14 +554,6 @@ class BaseSerialization:
                     strict=strict,
                 ),
                 type_=DAT.BASE_EXC_SER,
-            )
-        elif isinstance(var, BaseTrigger):
-            return cls._encode(
-                cls.serialize(
-                    var.serialize(),
-                    strict=strict,
-                ),
-                type_=DAT.BASE_TRIGGER,
             )
         elif callable(var):
             return str(get_python_source(var))
@@ -672,10 +663,6 @@ class BaseSerialization:
             else:
                 exc_cls = import_string(f"builtins.{exc_cls_name}")
             return exc_cls(*args, **kwargs)
-        elif type_ == DAT.BASE_TRIGGER:
-            tr_cls_name, kwargs = cls.deserialize(var)
-            tr_cls = import_string(tr_cls_name)
-            return tr_cls(**kwargs)
         elif type_ == DAT.SET:
             return {cls.deserialize(v) for v in var}
         elif type_ == DAT.TUPLE:
