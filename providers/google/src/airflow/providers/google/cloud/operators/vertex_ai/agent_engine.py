@@ -169,7 +169,7 @@ class QueryAgentEngineOperator(GoogleCloudBaseOperator):
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
     :param agent_engine_id: Required. The Agent Engine ID.
-    :param config: Optional. Configuration for the query job (``query``, ``output_gcs_uri``).
+    :param config: Required. Configuration for the query job (``query``, ``output_gcs_uri``).
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term credentials.
     """
@@ -189,7 +189,7 @@ class QueryAgentEngineOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         agent_engine_id: str,
-        config: types.RunQueryJobAgentEngineConfigOrDict | None = None,
+        config: types.RunQueryJobAgentEngineConfigOrDict,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
