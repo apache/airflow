@@ -453,9 +453,23 @@ Doc-only
 
 Rules:
 
-- Include the `.. note::` block **only** when the version bump was driven by
-  a `min_airflow_bump` (or by a `breaking` whose breaking aspect is the
-  Airflow min bump).
+- A `.. note::` block at the top of the version section (directly under the
+  `<dots>` underline, before the first `~~~` header) is used in two distinct
+  situations. Include it whenever **either** applies — combine the wording
+  into a single note, or stack two notes, when both do:
+  - **Airflow min-version bump** — when the bump was driven by a
+    `min_airflow_bump` (or by a `breaking` whose breaking aspect *is* the
+    Airflow min bump), use the support-policy wording shown in the skeleton.
+  - **Breaking change** — for **every** `breaking` classification (major
+    bump, including a `0.x` minor that ships a breaking change), add a note
+    explaining *what* breaks and *how users should adapt* (the migration
+    path). Write it from the PR description and the actual diff, not as a
+    restatement of the commit subject — the reader must learn how to react
+    without opening the PR. This mirrors the standing changelog convention
+    ("only add notes … when there are some breaking changes and you want to
+    add an explanation to the users on how they are supposed to deal with
+    them"). The bullet under `Breaking changes` still lists the commit
+    subject as usual; the note is in addition to it, not a replacement.
 - Drop a section entirely if it has no entries (e.g. no `Breaking changes`
   section if there were none — don't leave an empty header).
 - The `.. Below changes are excluded ...` block at the end is required even
@@ -669,6 +683,10 @@ above the next existing section, matching the order in
 If you re-bumped the version in Incremental Phase 3.5, also add or remove the
 `.. note::` block about the Airflow min version requirement to match the
 new bump kind.
+
+If a new commit is classified `breaking`, add (or extend) a `.. note::` at the
+top of the version section explaining what breaks and how users should adapt,
+exactly as in the breaking-change note rule in Phase 4b.
 
 ### Incremental Phase 5 — Validate
 
