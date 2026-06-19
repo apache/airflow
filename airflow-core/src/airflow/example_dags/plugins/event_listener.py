@@ -231,12 +231,14 @@ def on_intervals_skipped(dag_id: str, summary):
     Called when a Dag with catchup=False skips one or more scheduled intervals.
 
     ``summary`` is a :class:`~airflow.timetables.base.SkippedIntervalsSummary` with
-    ``count`` and ``skipped_range``. Use
+    ``skipped_range``. Call
     :meth:`~airflow.serialization.definitions.dag.SerializedDAG.iter_dagrun_infos_between`
-    if the full list of skipped intervals is required.
+    with ``skipped_range.start`` and ``skipped_range.end`` if the full list of skipped
+    intervals is required.
     """
-    print(f"Dag {dag_id} skipped {summary.skipped_interval_count} interval(s)")
-    print(f"  Range: {summary.skipped_range.start} -> {summary.skipped_range.end}")
+    print(
+        f"Dag {dag_id} skipped intervals in range: {summary.skipped_range.start} -> {summary.skipped_range.end}"
+    )
 
 
 # [END howto_listen_intervals_skipped]
