@@ -46,7 +46,7 @@ from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions._internal.node import DAGNode, validate_key
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
-from airflow.sdk.definitions.context import Context
+from airflow.sdk.definitions.context import Context, SkippedIntervalsCallbackContext
 from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.sdk.definitions.timetables.assets import AssetTriggeredTimetable
@@ -102,6 +102,7 @@ FINISHED_STATES = frozenset(
 )
 
 DagStateChangeCallback = Callable[[Context], None]
+SkippedIntervalsCallback = Callable[[SkippedIntervalsCallbackContext], None]
 ScheduleInterval = None | str | timedelta | relativedelta
 
 ScheduleArg = Union[ScheduleInterval, BaseTimetable, "CoreTimetable", BaseAsset, Collection[BaseAsset]]
@@ -391,9 +392,9 @@ class DAG:
     :param on_skipped_intervals_callback: A function or list of functions invoked by the
         scheduler when a Dag with ``catchup=False`` advances past one or more scheduled
         data intervals without creating Dag runs for them (for example after a scheduler
-        restart or when a paused Dag is re-enabled). The callback receives a context
-        dictionary with ``dag``, ``reason`` (``"skipped_intervals"``),
-        ``skipped_interval_count``, ``skipped_range``. It runs in the dag processor, not in the scheduler.
+        restart or when a paused Dag is re-enabled). The callback receives a
+        :class:`~airflow.sdk.definitions.context.SkippedIntervalsCallbackContext`.
+        It runs in the dag processor, not in the scheduler.
     :param access_control: Specify optional DAG-level actions, e.g.,
         "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit', 'can_delete'}}"
         or it can specify the resource name if there is a DAGs Run resource, e.g.,
@@ -523,7 +524,7 @@ class DAG:
     )
     on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
-    on_skipped_intervals_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
+    on_skipped_intervals_callback: None | SkippedIntervalsCallback | list[SkippedIntervalsCallback] = None
     doc_md: str | None = attrs.field(default=None, converter=_convert_doc_md)
     params: ParamsDict = attrs.field(
         # mypy doesn't really like passing the Converter object
@@ -1645,7 +1646,9 @@ if TYPE_CHECKING:
         catchup: bool = ...,
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
-        on_skipped_intervals_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
+        on_skipped_intervals_callback: None
+        | SkippedIntervalsCallback
+        | list[SkippedIntervalsCallback] = None,
         deadline: list[DeadlineAlert] | DeadlineAlert | None = None,
         doc_md: str | None = None,
         params: ParamsDict | dict[str, Any] | None = None,
