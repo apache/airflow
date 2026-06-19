@@ -176,7 +176,7 @@ class DagCallbackRequest(BaseCallbackRequest):
 
 
 class DagSkippedIntervalsCallbackRequest(BaseCallbackRequest):
-    """A Class with information about the skipped intervals DAG callback to be executed."""
+    """Store skipped intervals callback data for execution by the Dag processor."""
 
     dag_id: str
     skipped_interval_count: int

@@ -2433,7 +2433,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             select(DagRun)
             .where(
                 DagRun.dag_id == serdag.dag_id,
-                DagRun.run_type.in_([DagRunType.SCHEDULED]),
+                DagRun.run_type == DagRunType.SCHEDULED,
                 DagRun.data_interval_end.is_not(None),
                 DagRun.data_interval_end <= new_data_interval.start,
             )
