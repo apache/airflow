@@ -174,30 +174,32 @@ def test_fail_and_success():
     assert len(executor.get_event_buffer()) == 3
 
 
+@pytest.mark.parametrize(
+    ("team_name", "expected_tags"),
+    [
+        pytest.param(None, {"status": "open", "executor_class_name": "BaseExecutor"}, id="without_team"),
+        pytest.param(
+            "team_a",
+            {"status": "open", "executor_class_name": "BaseExecutor", "team_name": "team_a"},
+            id="with_team",
+        ),
+    ],
+)
 @mock.patch("airflow.executors.base_executor.BaseExecutor.sync")
 @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
 @mock.patch("airflow.executors.base_executor.stats.gauge")
-def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_tasks, mock_sync):
-    executor = BaseExecutor()
+def test_gauge_executor_metrics_single_executor(
+    mock_stats_gauge, mock_trigger_tasks, mock_sync, team_name, expected_tags
+):
+    executor = BaseExecutor(team_name=team_name)
     executor.heartbeat()
-    calls = [
-        mock.call(
-            "executor.open_slots",
-            value=mock.ANY,
-            tags={"status": "open", "executor_class_name": "BaseExecutor"},
-        ),
-        mock.call(
-            "executor.queued_tasks",
-            value=mock.ANY,
-            tags={"status": "queued", "executor_class_name": "BaseExecutor"},
-        ),
-        mock.call(
-            "executor.running_tasks",
-            value=mock.ANY,
-            tags={"status": "running", "executor_class_name": "BaseExecutor"},
-        ),
-    ]
-    mock_stats_gauge.assert_has_calls(calls)
+    # Verify all three gauges use the expected tag structure
+    for metric, status in [
+        ("executor.open_slots", "open"),
+        ("executor.queued_tasks", "queued"),
+        ("executor.running_tasks", "running"),
+    ]:
+        mock_stats_gauge.assert_any_call(metric, value=mock.ANY, tags={**expected_tags, "status": status})
 
 
 @pytest.mark.parametrize(

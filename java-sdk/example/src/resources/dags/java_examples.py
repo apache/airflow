@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from airflow.sdk import dag, task
 
 
@@ -33,6 +35,10 @@ def extract(): ...
 
 @task.stub(queue="java")
 def transform(): ...
+
+
+@task.stub(queue="java", retries=1, retry_delay=timedelta(seconds=5))
+def load(): ...
 
 
 @task()
@@ -54,6 +60,7 @@ def java_annotation_example():
     transformed = transform()
     python_task_1() >> extract() >> transformed
     python_task_2(transformed)
+    transformed >> load()
 
 
 java_interface_example()

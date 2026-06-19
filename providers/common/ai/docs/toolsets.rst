@@ -155,10 +155,10 @@ the validator, so ``SHOW`` is recognized on databases that support it (Snowflake
 MySQL, etc.); on databases without ``SHOW`` it stays rejected. Data-modifying
 statements remain blocked -- including ones hidden behind ``DESCRIBE``/``EXPLAIN``
 (e.g. ``EXPLAIN DELETE ...``, ``DESCRIBE DROP TABLE ...``), which the validator
-rejects by scanning the parsed statement for write operations. Like ``SELECT``,
-metadata statements are not scoped by ``allowed_tables`` (see
-:ref:`allowed-tables-limitation`) -- an agent can ``DESCRIBE`` a table outside the
-list, so rely on database permissions to restrict access.
+rejects by scanning the parsed statement for write operations. When
+``allowed_tables`` is set it scopes these statements too: a ``DESCRIBE`` names a
+table, so its target must be on the list, while ``SHOW`` enumerates objects beyond
+any single table and is rejected outright (see :ref:`allowed-tables-enforcement`).
 
 Multi-schema warehouses
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -186,11 +186,13 @@ Parameters
 ^^^^^^^^^^
 
 - ``db_conn_id``: Airflow connection ID for the database.
-- ``allowed_tables``: Restrict which tables the agent can discover via
-  ``list_tables`` and ``get_schema``. ``None`` (default) exposes all tables in
-  ``schema``. Entries may be schema-qualified (``"SCHEMA.TABLE"``) to span
-  multiple schemas; see above. Matching is case-insensitive.
-  See :ref:`allowed-tables-limitation` for an important caveat.
+- ``allowed_tables``: Restrict the agent to a fixed set of tables. ``None``
+  (default) exposes all tables in ``schema``. Entries may be schema-qualified
+  (``"SCHEMA.TABLE"``) to span multiple schemas; see above. Matching is
+  case-insensitive. When set, the list is enforced on ``query`` and
+  ``check_query`` as well as discovery -- every table a query references must be
+  on it. See :ref:`allowed-tables-enforcement` for what this does and does not
+  guarantee.
 - ``schema``: Default schema/namespace for unqualified table listing and
   introspection. Schema-qualified ``allowed_tables`` entries override it per table.
 - ``allow_writes``: Allow data-modifying SQL (INSERT, UPDATE, DELETE, etc.).
@@ -583,11 +585,14 @@ No single layer is sufficient — they work together.
        INTO, and other non-SELECT statements.
      - Does not prevent the agent from reading any registered data source.
    * - **SQLToolset: allowed_tables**
-     - Restricts which tables appear in ``list_tables`` and ``get_schema``
-       responses, limiting the agent's knowledge of the schema.
-     - Does **not** validate table references in SQL queries. The agent can
-       still query unlisted tables if it guesses the name. See
-       :ref:`allowed-tables-limitation` below.
+     - Restricts the agent to listed tables across ``list_tables``,
+       ``get_schema``, ``query``, and ``check_query``. Queries are parsed and
+       every referenced table (including via subqueries, CTEs, JOINs, and
+       ``DESCRIBE``) is checked against the list before execution.
+     - Cannot police data reached through side-effecting scalar functions
+       (e.g. ``pg_read_file``), and is only as exact as the SQL parser. Pair it
+       with least-privilege database grants. See
+       :ref:`allowed-tables-enforcement` below.
    * - **SQLToolset: max_rows**
      - Truncates query results to ``max_rows`` (default 50), preventing the
        agent from pulling entire tables into context.
@@ -604,21 +609,38 @@ No single layer is sufficient — they work together.
      - Requires explicit configuration — the default allows many rounds.
 
 
-.. _allowed-tables-limitation:
+.. _allowed-tables-enforcement:
 
-The ``allowed_tables`` Limitation
-"""""""""""""""""""""""""""""""""
+How ``allowed_tables`` Is Enforced
+""""""""""""""""""""""""""""""""""
 
-``allowed_tables`` is a **metadata filter**, not an access control mechanism.
-It hides table names from ``list_tables`` and blocks ``get_schema`` for
-unlisted tables, but does not parse SQL queries to validate table references.
+When ``allowed_tables`` is set it governs every tool, not just discovery:
 
-An LLM can craft ``SELECT * FROM secrets`` even when
-``allowed_tables=["orders"]``. Parsing SQL for table references (including
-CTEs, subqueries, aliases, and vendor-specific syntax) is complex and
-error-prone; we chose not to provide a false sense of security.
+- ``list_tables`` and ``get_schema`` only reveal listed tables.
+- ``query`` and ``check_query`` parse the SQL with `sqlglot
+  <https://github.com/tobymao/sqlglot>`_ and reject it before execution if it
+  references any table that is not on the list. Tables reached indirectly are
+  caught too -- through subqueries, CTEs, JOINs, set operations (``UNION`` etc.),
+  ``DESCRIBE``, catalog views such as ``information_schema``, and DML. CTE
+  references are excluded by lexical scope, so a same-named CTE in another scope
+  cannot hide a real table, and the database/catalog is part of the match, so a
+  cross-database reference like ``otherdb.public.orders`` is refused.
+- Constructs the list cannot describe are rejected outright while it is active:
+  table-valued functions (``dblink``), ``TABLE('name')`` row sources, the
+  ``TABLE <name>`` shorthand, ``SHOW``, dynamic SQL (``EXEC``), and **inline
+  comments** -- the last because parser-vs-engine differences hide in comments
+  (MySQL executes ``/*! ... */`` while sqlglot and other engines ignore it).
 
-For query-level restrictions, use database permissions:
+So ``SELECT * FROM secrets`` with ``allowed_tables=["orders"]`` is refused, and
+the rejection is handed back to the agent so it can re-target an allowed table.
+
+This is a strong **application-level guardrail**, but it is not a substitute for
+database permissions. It cannot police data reached through a function whose
+argument is itself SQL or a path: ``pg_read_file('/etc/passwd')`` reads a file,
+and ``query_to_xml('SELECT * FROM other_table', ...)`` or a scalar ``dblink``
+reads a table through a string the parser cannot inspect. Any query the engine
+parses differently from sqlglot is also a residual gap. For a hard boundary, also
+run the connection as a least-privilege role:
 
 .. code-block:: sql
 
@@ -627,8 +649,10 @@ For query-level restrictions, use database permissions:
     GRANT SELECT ON orders, customers TO airflow_agent_reader;
     -- Use this role's credentials in the Airflow connection
 
-The Airflow connection should use a database user with the minimum privileges
-required.
+Defense in depth: the allow-list contains the agent's *intent* (and gives it a
+correctable error), while the database role is the boundary that holds even if
+the agent reaches data the parser cannot see. The connection should use a
+database user with the minimum privileges required.
 
 
 HookToolset Guidelines

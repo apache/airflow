@@ -5421,6 +5421,24 @@ class TestTaskInstanceMetrics:
 class TestDetailSpan:
     """Tests for the detail_span decorator / context manager."""
 
+    @pytest.fixture(autouse=True)
+    def _sampled_carrier_provider(self):
+        """Make new_dagrun_trace_carrier produce a SAMPLED carrier.
+
+        new_dagrun_trace_carrier consults the global tracer provider's sampler to
+        decide the carrier's SAMPLED flag. In the test process the global provider
+        is a no-op ProxyTracerProvider (no sampler) -> unsampled carrier, which
+        would make the parent span (and its detail children) non-recording. Patch
+        the lookup to a real SDK provider whose default sampler
+        (parentbased_always_on) samples the root, mirroring "otel on" in production.
+        """
+        provider = TracerProvider()
+        with mock.patch(
+            "airflow._shared.observability.traces.trace.get_tracer_provider",
+            return_value=provider,
+        ):
+            yield
+
     def test_level_1_no_child_span_as_context_manager(self):
         """At detail level 1, entering detail_span should not create a real recorded span."""
         exporter = InMemorySpanExporter()
@@ -5678,7 +5696,7 @@ class TestTaskInstanceStateOperations:
             return AssetResult(name=actual.uri, uri=actual.uri, group="asset")
         return OKResponse(ok=True)
 
-    def test_asset_state_get_and_set(self, create_runtime_ti, mock_supervisor_comms):
+    def test_asset_state_store_get_and_set(self, create_runtime_ti, mock_supervisor_comms):
         watched = Asset(name="my_asset", uri="s3://bucket/data")
 
         class WatcherOperator(BaseOperator):
@@ -5697,7 +5715,9 @@ class TestTaskInstanceStateOperations:
         )
         mock_supervisor_comms.send.assert_any_call(GetAssetStateStoreByName(name="my_asset", key="watermark"))
 
-    def test_asset_state_get_returns_default_when_key_missing(self, create_runtime_ti, mock_supervisor_comms):
+    def test_asset_state_store_get_returns_default_when_key_missing(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
         watched = Asset(name="my_asset", uri="s3://bucket/data")
         captured = {}
 
@@ -5718,7 +5738,7 @@ class TestTaskInstanceStateOperations:
 
         assert captured["result"] == "2026-01-01T00:00:00+00:00"
 
-    def test_asset_state_delete(self, create_runtime_ti, mock_supervisor_comms):
+    def test_asset_state_store_delete(self, create_runtime_ti, mock_supervisor_comms):
         watched = Asset(name="my_asset", uri="s3://bucket/data")
 
         class WatcherOperator(BaseOperator):
@@ -5735,7 +5755,7 @@ class TestTaskInstanceStateOperations:
             DeleteAssetStateStoreByName(name="my_asset", key="watermark")
         )
 
-    def test_asset_state_clear(self, create_runtime_ti, mock_supervisor_comms):
+    def test_asset_state_store_clear(self, create_runtime_ti, mock_supervisor_comms):
         watched = Asset(name="my_asset", uri="s3://bucket/data")
 
         class WatcherOperator(BaseOperator):
@@ -5750,7 +5770,7 @@ class TestTaskInstanceStateOperations:
 
         mock_supervisor_comms.send.assert_any_call(ClearAssetStateStoreByName(name="my_asset"))
 
-    def test_asset_state_uri_ref_inlet(self, create_runtime_ti, mock_supervisor_comms):
+    def test_asset_state_store_uri_ref_inlet(self, create_runtime_ti, mock_supervisor_comms):
         watched = AssetUriRef(uri="s3://bucket/data")
 
         class WatcherOperator(BaseOperator):
@@ -5771,7 +5791,7 @@ class TestTaskInstanceStateOperations:
             GetAssetStateStoreByUri(uri="s3://bucket/data", key="watermark")
         )
 
-    def test_asset_state_alias_as_inlet(self, create_runtime_ti, mock_supervisor_comms):
+    def test_asset_state_store_alias_as_inlet(self, create_runtime_ti, mock_supervisor_comms):
         alias = AssetAlias(name="my_alias")
         resolved = Asset(name="resolved_asset", uri="s3://bucket/resolved")
 
@@ -5796,7 +5816,7 @@ class TestTaskInstanceStateOperations:
             SetAssetStateStoreByName(name="resolved_asset", key="watermark", value="2026-05-01")
         )
 
-    def test_asset_state_alias_inlet_no_resolved_assets(self, create_runtime_ti, mock_supervisor_comms):
+    def test_asset_state_store_alias_inlet_no_resolved_assets(self, create_runtime_ti, mock_supervisor_comms):
         alias = AssetAlias(name="empty_alias")
 
         class WatcherOperator(BaseOperator):
@@ -5815,7 +5835,7 @@ class TestTaskInstanceStateOperations:
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-    def test_asset_state_keyed_access_single_inlet(self, create_runtime_ti, mock_supervisor_comms):
+    def test_asset_state_store_keyed_access_single_inlet(self, create_runtime_ti, mock_supervisor_comms):
         watched = Asset(name="my_asset", uri="s3://bucket/data")
 
         class WatcherOperator(BaseOperator):
@@ -5833,7 +5853,7 @@ class TestTaskInstanceStateOperations:
             SetAssetStateStoreByName(name="my_asset", key="watermark", value="2026-05-01")
         )
 
-    def test_asset_state_multi_inlet(self, create_runtime_ti, mock_supervisor_comms):
+    def test_asset_state_store_multi_inlet(self, create_runtime_ti, mock_supervisor_comms):
         asset_a = Asset(name="asset_a", uri="s3://bucket/a")
         asset_b = Asset(name="asset_b", uri="s3://bucket/b")
 
@@ -5855,7 +5875,7 @@ class TestTaskInstanceStateOperations:
             SetAssetStateStoreByName(name="asset_b", key="watermark_b", value="2026-05-02")
         )
 
-    def test_asset_state_set_sends_reference_via_custom_backend(
+    def test_asset_state_store_set_sends_reference_via_custom_backend(
         self, create_runtime_ti, mock_supervisor_comms
     ):
         """When a worker backend is configured, asset state set() sends a reference, not the actual value."""
