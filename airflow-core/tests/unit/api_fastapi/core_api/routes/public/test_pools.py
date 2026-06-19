@@ -181,6 +181,7 @@ class TestGetPool(TestPoolsEndpoint):
     def test_get_unlimited_pool_should_respond_200(self, test_client, session):
         """Regression for #65377: an unlimited (-1 slots) pool has open_slots == inf internally; the
         response must serialize open_slots as -1 and return 200, not 500."""
+        # Seed the DB row directly to exercise the GET/read path that #65377 reported.
         session.add(Pool(pool="unlimited_pool", slots=-1, include_deferred=False))
         session.commit()
         response = test_client.get("/pools/unlimited_pool")
@@ -262,6 +263,7 @@ class TestGetPools(TestPoolsEndpoint):
     def test_get_pools_with_unlimited_pool_should_respond_200(self, test_client, session):
         """Regression for #65377: listing pools that include an unlimited (-1 slots) pool must serialize
         open_slots as -1 through the collection serializer and return 200, not 500."""
+        # Seed the DB row directly to exercise the GET/read path that #65377 reported.
         session.add(Pool(pool="unlimited_pool", slots=-1, include_deferred=False))
         session.commit()
         response = test_client.get("/pools")
