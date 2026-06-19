@@ -9933,7 +9933,7 @@ class TestSchedulerJob:
             start=DEFAULT_DATE + timedelta(days=4),
             end=DEFAULT_DATE + timedelta(days=5),
         )
-        assert self.job_runner._collect_skipped_intervals(serdag, new_interval, session) == []
+        assert self.job_runner._collect_skipped_intervals(serdag, new_interval, session) is None
 
     def test_collect_skipped_intervals_returns_empty_without_callback_or_listener(self, session, dag_maker):
         with dag_maker(
@@ -9960,9 +9960,9 @@ class TestSchedulerJob:
         )
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
-        assert self.job_runner._collect_skipped_intervals(serdag, new_interval, session) == []
+        assert self.job_runner._collect_skipped_intervals(serdag, new_interval, session) is None
 
-    def test_collect_skipped_intervals_returns_gap_intervals(self, session, dag_maker):
+    def test_collect_skipped_intervals_returns_gap_summary(self, session, dag_maker):
         with dag_maker(
             dag_id="test_collect_skipped_intervals",
             schedule=timedelta(days=1),
@@ -9988,15 +9988,15 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
 
-        skipped = self.job_runner._collect_skipped_intervals(
+        summary = self.job_runner._collect_skipped_intervals(
             serdag,
             DataInterval(start=new_start, end=new_end),
             session,
         )
 
-        assert len(skipped) == 3
-        assert skipped[0] == (prev_end, prev_end + timedelta(days=1))
-        assert skipped[-1] == (new_start - timedelta(days=1), new_start)
+        assert summary is not None
+        assert summary.skipped_interval_count == 3
+        assert summary.skipped_range == DataInterval(start=prev_end, end=new_start)
 
     def test_collect_skipped_intervals_returns_empty_without_previous_run(self, session, dag_maker):
         with dag_maker(
@@ -10015,7 +10015,7 @@ class TestSchedulerJob:
             start=DEFAULT_DATE + timedelta(days=1),
             end=DEFAULT_DATE + timedelta(days=2),
         )
-        assert self.job_runner._collect_skipped_intervals(serdag, new_interval, session) == []
+        assert self.job_runner._collect_skipped_intervals(serdag, new_interval, session) is None
 
     def test_collect_skipped_intervals_returns_empty_when_no_gap(self, session, dag_maker):
         with dag_maker(
@@ -10040,7 +10040,7 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
         new_interval = DataInterval(start=prev_end, end=prev_end + timedelta(days=1))
-        assert self.job_runner._collect_skipped_intervals(serdag, new_interval, session) == []
+        assert self.job_runner._collect_skipped_intervals(serdag, new_interval, session) is None
 
     def test_create_dag_runs_returns_skipped_intervals_callback_request(self, session, dag_maker):
         with dag_maker(
@@ -10084,8 +10084,8 @@ class TestSchedulerJob:
         assert request.dag_id == dag.dag_id
         assert request.filepath == dag_model.relative_fileloc
         assert request.bundle_name == dag_model.bundle_name
-        assert len(request.skipped_intervals) == 3
-        assert request.skipped_intervals[0] == (prev_end, prev_end + timedelta(days=1))
+        assert request.skipped_interval_count == 3
+        assert request.skipped_range == (prev_end, new_start)
 
     def test_do_scheduling_dispatches_skipped_intervals_callback(self, session, dag_maker):
         with dag_maker(

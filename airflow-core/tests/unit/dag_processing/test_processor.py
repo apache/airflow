@@ -87,6 +87,7 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+from airflow.timetables.base import DataInterval, SkippedIntervalsSummary
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
@@ -94,6 +95,32 @@ from tests_common.test_utils.config import conf_vars, env_vars
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
+
+
+def _skipped_intervals_callback_request(
+    *,
+    filepath: str = "test.py",
+    dag_id: str = "test_dag",
+    bundle_name: str = "testing",
+    bundle_version: str | None = None,
+    interval_start=None,
+    interval_end=None,
+    count: int = 1,
+) -> DagSkippedIntervalsCallbackRequest:
+    interval_start = interval_start or timezone.utcnow()
+    interval_end = interval_end or timezone.utcnow()
+    summary = SkippedIntervalsSummary(
+        skipped_interval_count=count,
+        skipped_range=DataInterval(start=interval_start, end=interval_end),
+    )
+    return DagSkippedIntervalsCallbackRequest.from_summary(
+        filepath=filepath,
+        dag_id=dag_id,
+        bundle_name=bundle_name,
+        bundle_version=bundle_version,
+        summary=summary,
+    )
+
 
 pytestmark = pytest.mark.db_test
 
@@ -818,13 +845,7 @@ class TestExecuteCallbacks:
 
     def test_execute_callbacks_routes_skipped_intervals_request(self):
         callbacks = [
-            DagSkippedIntervalsCallbackRequest(
-                filepath="test.py",
-                dag_id="test_dag",
-                bundle_name="testing",
-                bundle_version="some_commit_hash",
-                skipped_intervals=[(timezone.utcnow(), timezone.utcnow())],
-            )
+            _skipped_intervals_callback_request(bundle_version="some_commit_hash"),
         ]
         log = MagicMock(spec=FilteringBoundLogger)
         dagbag = MagicMock(spec=DagBag)
@@ -1353,12 +1374,9 @@ class TestExecuteDagSkippedIntervalsCallback:
 
         interval_start = timezone.datetime(2024, 1, 1)
         interval_end = timezone.datetime(2024, 1, 2)
-        request = DagSkippedIntervalsCallbackRequest(
-            filepath="test.py",
-            dag_id="test_dag",
-            bundle_name="testing",
-            bundle_version=None,
-            skipped_intervals=[(interval_start, interval_end)],
+        request = _skipped_intervals_callback_request(
+            interval_start=interval_start,
+            interval_end=interval_end,
         )
 
         log = structlog.get_logger()
@@ -1367,10 +1385,8 @@ class TestExecuteDagSkippedIntervalsCallback:
         assert context_received is not None
         assert context_received["dag"] is dag
         assert context_received["reason"] == "skipped_intervals"
-        assert len(context_received["skipped_intervals"]) == 1
-        skipped = context_received["skipped_intervals"][0]
-        assert skipped.start == interval_start
-        assert skipped.end == interval_end
+        assert context_received["skipped_interval_count"] == 1
+        assert context_received["skipped_range"] == DataInterval(start=interval_start, end=interval_end)
 
     def test_execute_skipped_intervals_callback_multiple_callbacks(self, spy_agency):
         call_count = 0
@@ -1397,13 +1413,7 @@ class TestExecuteDagSkippedIntervalsCallback:
         dagbag = DagBag()
         dagbag.collect_dags()
 
-        request = DagSkippedIntervalsCallbackRequest(
-            filepath="test.py",
-            dag_id="test_dag",
-            bundle_name="testing",
-            bundle_version=None,
-            skipped_intervals=[(timezone.utcnow(), timezone.utcnow())],
-        )
+        request = _skipped_intervals_callback_request()
 
         _execute_dag_skipped_intervals_callback(dagbag, request, structlog.get_logger())
         assert call_count == 2
@@ -1420,13 +1430,7 @@ class TestExecuteDagSkippedIntervalsCallback:
         dagbag = DagBag()
         dagbag.collect_dags()
 
-        request = DagSkippedIntervalsCallbackRequest(
-            filepath="test.py",
-            dag_id="test_dag",
-            bundle_name="testing",
-            bundle_version=None,
-            skipped_intervals=[(timezone.utcnow(), timezone.utcnow())],
-        )
+        request = _skipped_intervals_callback_request()
 
         log = MagicMock(spec=FilteringBoundLogger)
         _execute_dag_skipped_intervals_callback(dagbag, request, log)
@@ -1438,13 +1442,7 @@ class TestExecuteDagSkippedIntervalsCallback:
 
     def test_execute_skipped_intervals_callback_missing_dag(self):
         dagbag = DagBag()
-        request = DagSkippedIntervalsCallbackRequest(
-            filepath="test.py",
-            dag_id="missing_dag",
-            bundle_name="testing",
-            bundle_version=None,
-            skipped_intervals=[(timezone.utcnow(), timezone.utcnow())],
-        )
+        request = _skipped_intervals_callback_request(dag_id="missing_dag")
 
         with pytest.raises(ValueError, match="DAG 'missing_dag' not found in DagBag"):
             _execute_dag_skipped_intervals_callback(dagbag, request, structlog.get_logger())

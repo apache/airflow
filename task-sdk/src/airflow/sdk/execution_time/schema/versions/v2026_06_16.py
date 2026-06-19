@@ -28,5 +28,6 @@ class AddDagSkippedIntervalsCallbackRequest(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         schema(DagSkippedIntervalsCallbackRequest).field("dag_id").didnt_exist,
-        schema(DagSkippedIntervalsCallbackRequest).field("skipped_intervals").didnt_exist,
+        schema(DagSkippedIntervalsCallbackRequest).field("skipped_interval_count").didnt_exist,
+        schema(DagSkippedIntervalsCallbackRequest).field("skipped_range").didnt_exist,
     )
