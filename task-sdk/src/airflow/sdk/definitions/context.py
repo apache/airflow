@@ -98,7 +98,6 @@ class SkippedIntervalsCallbackContext(TypedDict):
 
     dag: DAG
     reason: Literal["skipped_intervals"]
-    skipped_interval_count: int
     skipped_range: DataInterval
 
 
