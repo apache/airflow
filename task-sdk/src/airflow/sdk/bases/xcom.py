@@ -339,7 +339,7 @@ class BaseXCom:
 
         if msg.value is not None:
             return cls.deserialize_value(msg)
-        log.info(
+        log.debug(
             "No XCom value found; defaulting to None.",
             key=key,
             dag_id=dag_id,
@@ -403,7 +403,7 @@ class BaseXCom:
 
         if msg.value is not None:
             return cls.deserialize_value(msg)
-        log.info(
+        log.debug(
             "No XCom value found; defaulting to None.",
             key=key,
             dag_id=dag_id,
