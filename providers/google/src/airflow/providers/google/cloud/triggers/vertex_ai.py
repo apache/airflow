@@ -42,6 +42,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from proto import Message
+    from vertexai._genai import types as vertexai_types
 
 
 class BaseVertexAIJobTrigger(BaseTrigger):
@@ -245,7 +246,7 @@ class AgentEngineQueryJobTrigger(BaseTrigger):
         project_id: str,
         location: str,
         operation_name: str,
-        config: dict[str, Any] | None = None,
+        config: vertexai_types.CheckQueryJobAgentEngineConfigOrDict | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         poll_interval: float = 30,
