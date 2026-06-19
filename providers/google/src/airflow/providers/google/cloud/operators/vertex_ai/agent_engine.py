@@ -164,13 +164,12 @@ class GetAgentEngineOperator(GoogleCloudBaseOperator):
 
 class QueryAgentEngineOperator(GoogleCloudBaseOperator):
     """
-    Query a Vertex AI Agent Engine.
+    Run a query job on a Vertex AI Agent Engine.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
     :param agent_engine_id: Required. The Agent Engine ID.
-    :param config: Optional. Configuration for the query request (``class_method``, ``input``).
-    :param request_timeout: Optional. Timeout in seconds for the HTTP request. Defaults to no timeout.
+    :param config: Optional. Configuration for the query job (``query``, ``output_gcs_uri``).
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term credentials.
     """
@@ -190,8 +189,7 @@ class QueryAgentEngineOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         agent_engine_id: str,
-        config: Any | None = None,
-        request_timeout: float | None = None,
+        config: types.RunQueryJobAgentEngineConfigOrDict | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -201,7 +199,6 @@ class QueryAgentEngineOperator(GoogleCloudBaseOperator):
         self.location = location
         self.agent_engine_id = agent_engine_id
         self.config = config
-        self.request_timeout = request_timeout
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
@@ -212,17 +209,16 @@ class QueryAgentEngineOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-    def execute(self, context: Context) -> Any:
-        self.log.info("Querying Agent Engine %s.", self.agent_engine_id)
-        result = self.hook.query_agent_engine(
+    def execute(self, context: Context) -> dict[str, Any]:
+        self.log.info("Running query job on Agent Engine %s.", self.agent_engine_id)
+        query_job = self.hook.query_agent_engine(
             project_id=self.project_id,
             location=self.location,
             agent_engine_id=self.agent_engine_id,
             config=self.config,
-            request_timeout=self.request_timeout,
         )
-        self.log.info("Agent Engine %s was queried.", self.agent_engine_id)
-        return result
+        self.log.info("Query job was started on Agent Engine %s.", self.agent_engine_id)
+        return _serialize_value(query_job)
 
 
 class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
