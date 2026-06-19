@@ -24,6 +24,10 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from vertexai._genai import types as vertexai_types
 
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.vertex_ai.agent_engine import (
@@ -56,7 +60,7 @@ QUERY_OPERATION_NAME = "{{ task_instance.xcom_pull(task_ids='query_agent_engine'
 BUCKET_NAME = f"bucket-{DAG_ID}-{ENV_ID}".replace("_", "-")
 DISPLAY_NAME = f"airflow-agent-engine-{ENV_ID}"
 
-QUERY_CONFIG = {
+QUERY_CONFIG: vertexai_types.RunQueryJobAgentEngineConfigDict = {
     "query": "Respond with a short acknowledgement.",
     "output_gcs_uri": f"gs://{BUCKET_NAME}/query-output/",
 }

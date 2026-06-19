@@ -276,7 +276,7 @@ class CheckQueryAgentEngineOperator(GoogleCloudBaseOperator):
                     project_id=self.project_id,
                     location=self.location,
                     operation_name=self.operation_name,
-                    config=_serialize_value(self.config),
+                    config=self.config,
                     gcp_conn_id=self.gcp_conn_id,
                     impersonation_chain=self.impersonation_chain,
                     poll_interval=self.poll_interval,
