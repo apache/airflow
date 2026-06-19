@@ -27,6 +27,7 @@ from datetime import datetime
 
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.vertex_ai.agent_engine import (
+    CheckQueryAgentEngineOperator,
     CreateAgentEngineOperator,
     DeleteAgentEngineOperator,
     GetAgentEngineOperator,
@@ -51,6 +52,7 @@ CONTAINER_URI = os.environ.get(
 )
 
 AGENT_ENGINE_ID = "{{ task_instance.xcom_pull(task_ids='create_agent_engine')['name'].split('/')[-1] }}"
+QUERY_OPERATION_NAME = "{{ task_instance.xcom_pull(task_ids='query_agent_engine')['job_name'] }}"
 BUCKET_NAME = f"bucket-{DAG_ID}-{ENV_ID}".replace("_", "-")
 DISPLAY_NAME = f"airflow-agent-engine-{ENV_ID}"
 
@@ -114,6 +116,17 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_query_agent_engine_operator]
 
+    # [START how_to_cloud_vertex_ai_check_query_agent_engine_operator]
+    check_query_agent_engine = CheckQueryAgentEngineOperator(
+        task_id="check_query_agent_engine",
+        project_id=PROJECT_ID,
+        location=LOCATION,
+        operation_name=QUERY_OPERATION_NAME,
+        config={"retrieve_result": True},
+        deferrable=True,
+    )
+    # [END how_to_cloud_vertex_ai_check_query_agent_engine_operator]
+
     # [START how_to_cloud_vertex_ai_update_agent_engine_operator]
     update_agent_engine = UpdateAgentEngineOperator(
         task_id="update_agent_engine",
@@ -151,6 +164,7 @@ with DAG(
         >> get_agent_engine
         >> create_bucket
         >> query_agent_engine
+        >> check_query_agent_engine
         >> update_agent_engine
         >> delete_agent_engine
         >> delete_bucket

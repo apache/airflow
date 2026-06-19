@@ -26,7 +26,10 @@ from typing import TYPE_CHECKING, Any
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.vertex_ai import AgentEngineDeleteTrigger
+from airflow.providers.google.cloud.triggers.vertex_ai import (
+    AgentEngineDeleteTrigger,
+    AgentEngineQueryJobTrigger,
+)
 
 if TYPE_CHECKING:
     from vertexai._genai import types
@@ -219,6 +222,102 @@ class QueryAgentEngineOperator(GoogleCloudBaseOperator):
         )
         self.log.info("Query job was started on Agent Engine %s.", self.agent_engine_id)
         return _serialize_value(query_job)
+
+
+class CheckQueryAgentEngineOperator(GoogleCloudBaseOperator):
+    """
+    Check a query job on a Vertex AI Agent Engine.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud location that the service belongs to.
+    :param operation_name: Required. The query job operation name (e.g. from the ``job_name`` field of the result of ``QueryAgentEngineOperator``).
+    :param config: Optional. Configuration for checking the query job.
+    :param poll_interval: Time, in seconds, to wait between checks.
+    :param timeout: Optional timeout, in seconds.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term credentials.
+    :param deferrable: Run operator in the deferrable mode.
+    """
+
+    template_fields = (
+        "project_id",
+        "location",
+        "operation_name",
+        "config",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        location: str,
+        operation_name: str,
+        config: types.CheckQueryJobAgentEngineConfigOrDict | None = None,
+        poll_interval: float = 30,
+        timeout: float | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.operation_name = operation_name
+        self.config = config
+        self.poll_interval = poll_interval
+        self.timeout = timeout
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
+
+    @cached_property
+    def hook(self) -> AgentEngineHook:
+        return AgentEngineHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def execute(self, context: Context) -> dict[str, Any]:
+        self.log.info("Checking Agent Engine query job %s.", self.operation_name)
+        if self.deferrable:
+            self.defer(
+                trigger=AgentEngineQueryJobTrigger(
+                    project_id=self.project_id,
+                    location=self.location,
+                    operation_name=self.operation_name,
+                    config=_serialize_value(self.config),
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                    poll_interval=self.poll_interval,
+                    timeout=self.timeout,
+                ),
+                method_name="execute_complete",
+            )
+
+        query_job = self.hook.wait_for_query_agent_engine_job(
+            project_id=self.project_id,
+            location=self.location,
+            operation_name=self.operation_name,
+            config=self.config,
+            poll_interval=self.poll_interval,
+            timeout=self.timeout,
+        )
+        result = _serialize_value(query_job)
+        self.log.info("Agent Engine query job %s completed.", self.operation_name)
+        return result
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
+        if event is None:
+            raise RuntimeError("No event received in trigger callback")
+        if event["status"] == "success":
+            self.log.info("Agent Engine query job completed.")
+            return event["query_job"]
+        if event["status"] == "timeout":
+            raise TimeoutError(event["message"])
+        raise RuntimeError(event["message"])
 
 
 class UpdateAgentEngineOperator(GoogleCloudBaseOperator):

@@ -44,6 +44,18 @@ if TYPE_CHECKING:
     from proto import Message
 
 
+def _serialize_value(value: Any) -> Any:
+    if hasattr(value, "model_dump"):
+        return value.model_dump(mode="json")
+    if isinstance(value, dict):
+        return {key: _serialize_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_serialize_value(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_serialize_value(item) for item in value)
+    return value
+
+
 class BaseVertexAIJobTrigger(BaseTrigger):
     """
     Base class for Vertex AI job triggers.
@@ -233,6 +245,105 @@ class AgentEngineDeleteTrigger(BaseTrigger):
                     "status": "error",
                     "message": str(err),
                     "agent_engine_id": self.agent_engine_id,
+                }
+            )
+
+
+class AgentEngineQueryJobTrigger(BaseTrigger):
+    """Trigger that waits until a Vertex AI Agent Engine query job completes."""
+
+    def __init__(
+        self,
+        project_id: str,
+        location: str,
+        operation_name: str,
+        config: dict[str, Any] | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        poll_interval: float = 30,
+        timeout: float | None = None,
+    ):
+        super().__init__()
+        self.project_id = project_id
+        self.location = location
+        self.operation_name = operation_name
+        self.config = config
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.poll_interval = poll_interval
+        self.timeout = timeout
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineQueryJobTrigger",
+            {
+                "project_id": self.project_id,
+                "location": self.location,
+                "operation_name": self.operation_name,
+                "config": _serialize_value(self.config),
+                "gcp_conn_id": self.gcp_conn_id,
+                "impersonation_chain": self.impersonation_chain,
+                "poll_interval": self.poll_interval,
+                "timeout": self.timeout,
+            },
+        )
+
+    @cached_property
+    def async_hook(self) -> AgentEngineAsyncHook:
+        return AgentEngineAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        start_time = time.monotonic()
+        try:
+            while True:
+                query_job = await self.async_hook.check_query_agent_engine_job(
+                    project_id=self.project_id,
+                    location=self.location,
+                    operation_name=self.operation_name,
+                    config=self.config,
+                )
+                status = getattr(query_job, "status", None)
+                if status == "SUCCESS":
+                    yield TriggerEvent(
+                        {
+                            "status": "success",
+                            "message": "Agent Engine query job completed",
+                            "query_job": _serialize_value(query_job),
+                        }
+                    )
+                    return
+                if status == "FAILED":
+                    yield TriggerEvent(
+                        {
+                            "status": "error",
+                            "message": f"Agent Engine query job {self.operation_name} failed.",
+                            "query_job": _serialize_value(query_job),
+                        }
+                    )
+                    return
+
+                if self.timeout is not None and time.monotonic() - start_time >= self.timeout:
+                    yield TriggerEvent(
+                        {
+                            "status": "timeout",
+                            "message": f"Timed out waiting for Agent Engine query job {self.operation_name}",
+                            "operation_name": self.operation_name,
+                        }
+                    )
+                    return
+
+                self.log.info("Waiting for Agent Engine query job %s to complete.", self.operation_name)
+                await asyncio.sleep(self.poll_interval)
+        except Exception as err:
+            self.log.exception("Exception occurred while waiting for Agent Engine query job.")
+            yield TriggerEvent(
+                {
+                    "status": "error",
+                    "message": str(err),
+                    "operation_name": self.operation_name,
                 }
             )
 
