@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 from dateutil.parser import parse
-from jinja2 import Environment
+from jinja2 import Environment, TemplateError
 
 from airflow.providers.common.compat.sdk import BaseOperator, Variable
 
@@ -196,6 +196,9 @@ def match(expected, result, env: Environment, path: list | None = None) -> bool:
     elif isinstance(expected, list):
         # Lists must match exactly in length and order. Each element is compared recursively,
         # so nested sentinels (null, $optional) work inside list items too.
+        if not isinstance(result, list):
+            log.error("Path `%s`: expected a list but got `%s` (%s)", path_str, result, type(result).__name__)
+            return False
         if len(expected) != len(result):
             log.error("Path `%s`: expected %d item(s) but got %d", path_str, len(expected), len(result))
             return False
@@ -210,7 +213,7 @@ def match(expected, result, env: Environment, path: list | None = None) -> bool:
             # (for expressions that transform the value, e.g. filters).
             try:
                 rendered = env.from_string(expected).render(result=result)
-            except ValueError as e:
+            except (ValueError, TemplateError) as e:
                 log.error("Path `%s`: failed to render template `%s`: %s", path_str, expected, e)
                 return False
             if str(rendered).lower() == "true" or rendered == result:
@@ -323,6 +326,8 @@ class OpenLineageTestOperator(BaseOperator):
         self.clear_variables = clear_variables
         self.fail_fast = fail_fast
         self.event_sort_fn = event_sort_fn
+        if event_templates is None and file_path is None:
+            raise ValueError("Either event_templates or file_path must be provided")
         if self.event_templates and self.file_path:
             raise ValueError("Can't pass both event_templates and file_path")
 
@@ -374,7 +379,12 @@ class OpenLineageTestOperator(BaseOperator):
                 log.info("Key `%s` absent as expected (%s).", key, reason)
                 return
 
-        actual_events = Variable.get(key=key, deserialize_json=True)
+        try:
+            actual_events = Variable.get(key=key, deserialize_json=True)
+        except NoVariableError:
+            raise ValueError(
+                f"Expected events for key `{key}` but variable does not exist (no events emitted)"
+            )
         if not isinstance(actual_events, list):
             raise ValueError(
                 f"Variable {key} does not contain a list of events, got {type(actual_events).__name__}"
@@ -396,7 +406,7 @@ class OpenLineageTestOperator(BaseOperator):
         if isinstance(template, list):
             # Multiple expected events: compare each one after sorting.
             for i, (tmpl, evt_str) in enumerate(zip(template, actual_events)):
-                if not match(tmpl, json.loads(evt_str), self.env):
+                if not match(tmpl, json.loads(evt_str), self.env, [i]):
                     raise ValueError(f"Event at index {i} does not match template for key `{key}`")
         else:
             # Last event is checked against the template
