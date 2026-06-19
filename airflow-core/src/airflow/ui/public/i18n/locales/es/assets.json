@@ -14,7 +14,7 @@
     "deleteWarning": "El Asset perderá esta entrada de almacén de estado persistente.",
     "edit": "Editar Almacén de Estado de Asset",
     "emptyState": "El almacén de estado de Asset almacena valores con alcance en la identidad de un Asset, compartidos entre todas las ejecuciones del Dag. Los workers pueden escribir en el almacén de estado de Asset mediante el Task SDK.",
-    "lastUpdatedBy": "Última Actualización Por",
+    "lastUpdatedBy": "Última actualización realizada por",
     "lastUpdatedByApi": "API",
     "lastUpdatedByWatcher": "Watcher",
     "title": "Almacén de Estado de Asset"
