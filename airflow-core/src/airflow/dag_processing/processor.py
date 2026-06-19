@@ -423,7 +423,6 @@ def _execute_dag_skipped_intervals_callback(
     context: SkippedIntervalsCallbackContext = {
         "dag": dag,
         "reason": "skipped_intervals",
-        "skipped_interval_count": summary.skipped_interval_count,
         "skipped_range": summary.skipped_range,
     }
 

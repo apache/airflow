@@ -114,7 +114,6 @@ The context mapping contains:
 
 * ``dag`` -- the Dag object
 * ``reason`` -- always ``"skipped_intervals"``
-* ``skipped_interval_count`` -- how many scheduled data intervals were skipped
 * ``skipped_range`` -- a :class:`~airflow.timetables.base.DataInterval` from the
   previous automated run's ``data_interval_end`` to the new run's ``data_interval_start``
 
@@ -131,7 +130,6 @@ Example:
 
 
     def log_skipped_intervals(context):
-        print(f"Skipped {context['skipped_interval_count']} interval(s)")
         skipped_range = context["skipped_range"]
         print(f"Gap: {skipped_range.start} -> {skipped_range.end}")
         for info in context["dag"].iter_dagrun_infos_between(skipped_range.start, skipped_range.end):
