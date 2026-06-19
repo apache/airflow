@@ -226,16 +226,17 @@ def on_dag_run_running(dag_run: DagRun, msg: str):
 
 # [START howto_listen_intervals_skipped]
 @hookimpl
-def on_intervals_skipped(dag_id: str, skipped_intervals: list):
+def on_intervals_skipped(dag_id: str, summary):
     """
     Called when a Dag with catchup=False skips one or more scheduled intervals.
 
-    skipped_intervals is a list of DataInterval objects for the intervals the scheduler
-    advanced past without creating Dag runs.
+    ``summary`` is a :class:`~airflow.timetables.base.SkippedIntervalsSummary` with
+    ``count`` and ``skipped_range``. Use
+    :meth:`~airflow.serialization.definitions.dag.SerializedDAG.iter_dagrun_infos_between`
+    if the full list of skipped intervals is required.
     """
-    print(f"Dag {dag_id} skipped {len(skipped_intervals)} interval(s)")
-    for interval in skipped_intervals:
-        print(f"  Skipped: {interval.start} -> {interval.end}")
+    print(f"Dag {dag_id} skipped {summary.skipped_interval_count} interval(s)")
+    print(f"  Range: {summary.skipped_range.start} -> {summary.skipped_range.end}")
 
 
 # [END howto_listen_intervals_skipped]

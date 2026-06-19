@@ -69,7 +69,8 @@ Dag Skipped Interval Events
 
 When a Dag with ``catchup=False`` skips one or more scheduled data intervals (for example after
 a scheduler restart or when a paused Dag is re-enabled), the scheduler invokes the
-``on_intervals_skipped`` listener hook. This is the listener counterpart to the Dag-level
+``on_intervals_skipped`` listener hook with a
+:class:`~airflow.timetables.base.SkippedIntervalsSummary`. This is the listener counterpart to the Dag-level
 ``on_skipped_intervals_callback``; listeners run synchronously in the scheduler, while the callback
 is dispatched to the dag processor.
 
