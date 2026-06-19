@@ -9689,7 +9689,6 @@ class TestSchedulerJob:
         )
 
         assert summary is not None
-        assert summary.skipped_interval_count == 3
         assert summary.skipped_range == DataInterval(start=prev_end, end=new_start)
 
     def test_collect_skipped_intervals_returns_empty_without_previous_run(self, session, dag_maker):
@@ -9778,7 +9777,6 @@ class TestSchedulerJob:
         assert request.dag_id == dag.dag_id
         assert request.filepath == dag_model.relative_fileloc
         assert request.bundle_name == dag_model.bundle_name
-        assert request.skipped_interval_count == 3
         assert request.skipped_range == (prev_end, new_start)
 
     def test_do_scheduling_dispatches_skipped_intervals_callback(self, session, dag_maker):

@@ -380,7 +380,6 @@ class TestDagSkippedIntervalsCallbackRequest:
         interval_start = timezone.datetime(2024, 1, 1)
         interval_end = timezone.datetime(2024, 1, 2)
         summary = SkippedIntervalsSummary(
-            skipped_interval_count=1,
             skipped_range=DataInterval(start=interval_start, end=interval_end),
         )
         request = DagSkippedIntervalsCallbackRequest.from_summary(
@@ -405,7 +404,6 @@ class TestDagSkippedIntervalsCallbackRequest:
             "dag_id": "test_dag",
             "bundle_name": "testing",
             "bundle_version": "v1",
-            "skipped_interval_count": 1,
             "skipped_range": [interval_start.isoformat(), interval_end.isoformat()],
         }
 
@@ -414,7 +412,7 @@ class TestDagSkippedIntervalsCallbackRequest:
 
         assert isinstance(callback_request, DagSkippedIntervalsCallbackRequest)
         assert callback_request.dag_id == "test_dag"
-        assert callback_request.skipped_interval_count == 1
+        assert callback_request.skipped_range == (interval_start, interval_end)
 
 
 class TestEmailRequest:

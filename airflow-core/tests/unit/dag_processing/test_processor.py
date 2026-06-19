@@ -104,12 +104,10 @@ def _skipped_intervals_callback_request(
     bundle_version: str | None = None,
     interval_start=None,
     interval_end=None,
-    count: int = 1,
 ) -> DagSkippedIntervalsCallbackRequest:
     interval_start = interval_start or timezone.utcnow()
     interval_end = interval_end or timezone.utcnow()
     summary = SkippedIntervalsSummary(
-        skipped_interval_count=count,
         skipped_range=DataInterval(start=interval_start, end=interval_end),
     )
     return DagSkippedIntervalsCallbackRequest.from_summary(
@@ -1341,7 +1339,6 @@ class TestExecuteDagSkippedIntervalsCallback:
         assert context_received is not None
         assert context_received["dag"] is dag
         assert context_received["reason"] == "skipped_intervals"
-        assert context_received["skipped_interval_count"] == 1
         assert context_received["skipped_range"] == DataInterval(start=interval_start, end=interval_end)
 
     def test_execute_skipped_intervals_callback_multiple_callbacks(self, spy_agency):

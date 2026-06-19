@@ -1424,10 +1424,6 @@
           "title": "Dag Id",
           "type": "string"
         },
-        "skipped_interval_count": {
-          "title": "Skipped Interval Count",
-          "type": "integer"
-        },
         "skipped_range": {
           "maxItems": 2,
           "minItems": 2,
@@ -1456,7 +1452,6 @@
         "bundle_name",
         "bundle_version",
         "dag_id",
-        "skipped_interval_count",
         "skipped_range"
       ],
       "title": "DagSkippedIntervalsCallbackRequest",
