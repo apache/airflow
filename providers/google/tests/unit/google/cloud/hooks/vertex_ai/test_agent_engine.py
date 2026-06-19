@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from unittest import mock
 
 import pytest
@@ -36,7 +35,7 @@ AGENT_ENGINE_ID = "123"
 AGENT_ENGINE_NAME = "projects/test-project/locations/us-central1/reasoningEngines/123"
 OPERATION_NAME = "projects/test-project/locations/us-central1/operations/delete-123"
 CONFIG = {"display_name": "test-agent-engine"}
-QUERY_CONFIG = {"class_method": "query", "input": {"prompt": "hello"}}
+QUERY_CONFIG = {"query": "hello", "output_gcs_uri": "gs://test-bucket/query-output/"}
 
 
 class TestAgentEngineHookWithDefaultProjectId:
@@ -87,10 +86,6 @@ class TestAgentEngineHookWithDefaultProjectId:
 
     @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
     def test_query_agent_engine(self, mock_get_client):
-        mock_get_client.return_value._api_client.request.return_value.body = json.dumps(
-            {"output": {"answer": "hello"}}
-        )
-
         result = self.hook.query_agent_engine(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
@@ -98,104 +93,11 @@ class TestAgentEngineHookWithDefaultProjectId:
             config=QUERY_CONFIG,
         )
 
-        mock_get_client.return_value._api_client.request.assert_called_once_with(
-            "post",
-            f"{AGENT_ENGINE_NAME}:query",
-            {"classMethod": "query", "input": {"prompt": "hello"}},
-            mock.ANY,
-        )
-        assert result == {"answer": "hello"}
-
-    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
-    def test_query_agent_engine_returns_full_response_when_output_missing(self, mock_get_client):
-        full_response = {"someOtherField": "value"}
-        mock_get_client.return_value._api_client.request.return_value.body = json.dumps(full_response)
-
-        result = self.hook.query_agent_engine(
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            agent_engine_id=AGENT_ENGINE_ID,
+        mock_get_client.return_value.run_query_job.assert_called_once_with(
+            name=AGENT_ENGINE_NAME,
             config=QUERY_CONFIG,
         )
-
-        assert result == full_response
-
-    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
-    def test_query_agent_engine_returns_full_response_when_output_is_none(self, mock_get_client):
-        full_response = {"output": None}
-        mock_get_client.return_value._api_client.request.return_value.body = json.dumps(full_response)
-
-        result = self.hook.query_agent_engine(
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            agent_engine_id=AGENT_ENGINE_ID,
-            config=QUERY_CONFIG,
-        )
-
-        assert result == full_response
-
-    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
-    def test_query_agent_engine_raises_when_sdk_request_helper_is_missing(self, mock_get_client):
-        del mock_get_client.return_value._api_client.request
-
-        with pytest.raises(
-            RuntimeError,
-            match="The Vertex AI Agent Engine SDK no longer exposes _api_client.request",
-        ):
-            self.hook.query_agent_engine(
-                project_id=GCP_PROJECT,
-                location=GCP_LOCATION,
-                agent_engine_id=AGENT_ENGINE_ID,
-                config=QUERY_CONFIG,
-            )
-
-    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
-    def test_query_agent_engine_parses_json_string_input(self, mock_get_client):
-        mock_get_client.return_value._api_client.request.return_value.body = json.dumps(
-            {"output": {"answer": "hello"}}
-        )
-
-        result = self.hook.query_agent_engine(
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            agent_engine_id=AGENT_ENGINE_ID,
-            config={"class_method": "query", "input": '{"prompt": "hello"}'},
-        )
-
-        mock_get_client.return_value._api_client.request.assert_called_once_with(
-            "post",
-            f"{AGENT_ENGINE_NAME}:query",
-            {"classMethod": "query", "input": {"prompt": "hello"}},
-            mock.ANY,
-        )
-        assert result == {"answer": "hello"}
-
-    def test_query_agent_engine_rejects_invalid_json_string_input(self):
-        with pytest.raises(ValueError, match="Agent Engine query input must be valid JSON."):
-            self.hook.query_agent_engine(
-                project_id=GCP_PROJECT,
-                location=GCP_LOCATION,
-                agent_engine_id=AGENT_ENGINE_ID,
-                config={"class_method": "query", "input": "not valid json"},
-            )
-
-    @pytest.mark.parametrize(
-        "input_value",
-        [
-            '"test string"',
-            '["prompt", "hello"]',
-            1,
-            ["prompt", "hello"],
-        ],
-    )
-    def test_query_agent_engine_rejects_non_object_input(self, input_value):
-        with pytest.raises(ValueError, match="Agent Engine query input must be a JSON object."):
-            self.hook.query_agent_engine(
-                project_id=GCP_PROJECT,
-                location=GCP_LOCATION,
-                agent_engine_id=AGENT_ENGINE_ID,
-                config={"class_method": "query", "input": input_value},
-            )
+        assert result == mock_get_client.return_value.run_query_job.return_value
 
     @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
     def test_update_agent_engine(self, mock_get_client):

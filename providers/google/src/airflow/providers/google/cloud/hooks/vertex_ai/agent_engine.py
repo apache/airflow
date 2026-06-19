@@ -19,14 +19,12 @@
 
 from __future__ import annotations
 
-import json
 import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import google.auth.transport.requests
 from asgiref.sync import sync_to_async
-from google.genai._api_client import HttpOptions
 from vertexai import Client
 
 from airflow.providers.google.common.hooks.base_google import (
@@ -111,55 +109,21 @@ class AgentEngineHook(GoogleBaseHook):
         self,
         location: str,
         agent_engine_id: str,
-        config: Any | None = None,
-        request_timeout: float | None = None,
+        config: types.RunQueryJobAgentEngineConfigOrDict | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
-    ) -> Any:
+    ) -> types.RunQueryJobResult:
         """
-        Query an Agent Engine.
+        Run a query job on an Agent Engine.
 
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param agent_engine_id: Required. The Agent Engine ID.
-        :param config: Optional. Configuration for the query request (``class_method``, ``input``).
-        :param request_timeout: Optional. Timeout in seconds for the HTTP request. Defaults to no timeout.
+        :param config: Optional. Configuration for the query job (``query``, ``output_gcs_uri``).
         :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
             configured in the connection.
         """
-        # Use the SDK's _api_client.request() directly rather than the SDK's run_query_job
-        # (requires GCS) or _query (private method; triggers a Pydantic parsing bug in
-        # google-genai 2.8.0 when the response output type is Any). Calling request() bypasses
-        # Pydantic parsing while still letting the SDK handle URL construction and auth.
-        # Replace with a public synchronous query API when available; tracked at
-        # https://github.com/apache/airflow/issues/68605
-        cfg = config if isinstance(config, dict) else {}
-        body: dict[str, Any] = {"classMethod": cfg.get("class_method", "query")}
-        if "input" in cfg:
-            input_val = cfg["input"]
-            if isinstance(input_val, str):
-                try:
-                    input_val = json.loads(input_val)
-                except json.JSONDecodeError as err:
-                    raise ValueError("Agent Engine query input must be valid JSON.") from err
-            if not isinstance(input_val, dict):
-                raise ValueError("Agent Engine query input must be a JSON object.")
-            body["input"] = input_val
-
-        sdk_client = self.get_agent_engine_client(project_id=project_id, location=location)
-        http_options = HttpOptions(
-            timeout=int(request_timeout * 1000) if request_timeout is not None else None
-        )
+        client = self.get_agent_engine_client(project_id=project_id, location=location)
         name = self.build_agent_engine_name(project_id, location, agent_engine_id)
-        api_client = getattr(sdk_client, "_api_client", None)
-        request = getattr(api_client, "request", None)
-        if request is None:
-            raise RuntimeError(
-                "The Vertex AI Agent Engine SDK no longer exposes _api_client.request. "
-                "QueryAgentEngineOperator must be updated to use a supported synchronous query API."
-            )
-        response = request("post", f"{name}:query", body, http_options)
-        data = {} if not response.body else json.loads(response.body)
-        output = data.get("output")
-        return output if output is not None else data
+        return client.run_query_job(name=name, config=config)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def update_agent_engine(

@@ -25,6 +25,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.vertex_ai.agent_engine import (
     CreateAgentEngineOperator,
     DeleteAgentEngineOperator,
@@ -50,11 +51,12 @@ CONTAINER_URI = os.environ.get(
 )
 
 AGENT_ENGINE_ID = "{{ task_instance.xcom_pull(task_ids='create_agent_engine')['name'].split('/')[-1] }}"
+BUCKET_NAME = f"bucket-{DAG_ID}-{ENV_ID}".replace("_", "-")
 DISPLAY_NAME = f"airflow-agent-engine-{ENV_ID}"
 
 QUERY_CONFIG = {
-    "class_method": "query",
-    "input": {"prompt": "Respond with a short acknowledgement."},
+    "query": "Respond with a short acknowledgement.",
+    "output_gcs_uri": f"gs://{BUCKET_NAME}/query-output/",
 }
 
 with DAG(
@@ -96,6 +98,12 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_get_agent_engine_operator]
 
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket",
+        bucket_name=BUCKET_NAME,
+        project_id=PROJECT_ID,
+    )
+
     # [START how_to_cloud_vertex_ai_query_agent_engine_operator]
     query_agent_engine = QueryAgentEngineOperator(
         task_id="query_agent_engine",
@@ -131,12 +139,21 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_delete_agent_engine_operator]
 
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        force=True,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
     (
         create_agent_engine
         >> get_agent_engine
+        >> create_bucket
         >> query_agent_engine
         >> update_agent_engine
         >> delete_agent_engine
+        >> delete_bucket
     )
 
     # ### Everything below this line is not part of example ###

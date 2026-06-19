@@ -40,7 +40,7 @@ IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 AGENT_ENGINE_ID = "123"
 AGENT_ENGINE_NAME = "projects/test-project/locations/us-central1/reasoningEngines/123"
 CONFIG = {"display_name": "test-agent-engine"}
-QUERY_CONFIG = {"class_method": "query", "input": {"prompt": "hello"}}
+QUERY_CONFIG = {"query": "hello", "output_gcs_uri": "gs://test-bucket/query-output/"}
 OPERATION = {"name": "operations/delete-123", "done": False}
 
 
@@ -124,7 +124,12 @@ class TestGetAgentEngineOperator:
 class TestQueryAgentEngineOperator:
     @mock.patch(AGENT_ENGINE_PATH.format("AgentEngineHook"), autospec=True)
     def test_execute(self, mock_hook, context):
-        mock_hook.return_value.query_agent_engine.return_value = {"output": "hello"}
+        result_payload = {
+            "job_name": "operations/query-123",
+            "input_gcs_uri": "gs://test-bucket/query-output/input.json",
+            "output_gcs_uri": "gs://test-bucket/query-output/output.json",
+        }
+        mock_hook.return_value.query_agent_engine.return_value = FakeModel(result_payload)
         op = QueryAgentEngineOperator(
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
@@ -142,9 +147,8 @@ class TestQueryAgentEngineOperator:
             location=GCP_LOCATION,
             agent_engine_id=AGENT_ENGINE_ID,
             config=QUERY_CONFIG,
-            request_timeout=None,
         )
-        assert result == {"output": "hello"}
+        assert result == result_payload
 
 
 class TestUpdateAgentEngineOperator:
