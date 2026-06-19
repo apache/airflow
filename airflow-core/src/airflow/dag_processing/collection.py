@@ -595,9 +595,6 @@ class DagModelOperation(NamedTuple):
         }
 
     def add_dags(self, *, session: Session) -> dict[str, DagModel]:
-        if collisions := self.find_dag_id_collisions(session=session):
-            raise next(iter(collisions.values()))
-
         orm_dags = self.find_orm_dags(session=session)
         orm_dags.update(
             (model.dag_id, model)
