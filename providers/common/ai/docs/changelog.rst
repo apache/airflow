@@ -28,6 +28,16 @@ Changelog
 0.5.0
 .....
 
+.. note::
+    ``SQLToolset(allowed_tables=[...])`` now enforces the allow-list on the ``query`` and
+    ``check_query`` tools, not only on metadata discovery (#68487). The SQL an agent submits is
+    parsed with sqlglot and rejected before execution if it reaches any table outside the list
+    (including through subqueries, CTEs, JOINs, set operations and DML). While a list is active,
+    constructs a ``schema.table`` list cannot describe are also rejected: quoted identifiers,
+    inline comments, cross-database references, ``SHOW``, table-valued functions and dynamic SQL.
+    Agents querying a restricted connection must send unquoted, comment-free SQL. This is an
+    application-level guardrail and not a substitute for least-privilege database permissions.
+
 Breaking changes
 ~~~~~~~~~~~~~~~~
 

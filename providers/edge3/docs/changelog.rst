@@ -30,6 +30,13 @@ Changelog
 4.0.0
 .....
 
+.. note::
+    The worker-bound ``TaskInstance`` fields exchanged over the Edge worker API are now
+    defined by the versioned execution API schema instead of a duplicated ``TaskInstanceDTO``
+    (#68390). The regenerated Edge worker API spec drops ``parent_context_carrier`` and sources
+    the ``queue`` field from the shared schema. Upgrade your Edge workers together with the
+    Airflow API server so both sides of the worker API agree on the contract.
+
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
