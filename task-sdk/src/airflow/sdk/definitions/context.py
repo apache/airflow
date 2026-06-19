@@ -20,7 +20,7 @@ from __future__ import annotations
 import copy
 import os
 from collections.abc import MutableMapping
-from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict, cast
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypedDict, cast
 
 from typing_extensions import NotRequired
 
@@ -41,6 +41,7 @@ if TYPE_CHECKING:
         OutletEventAccessorsProtocol,
         RuntimeTaskInstanceProtocol,
     )
+    from airflow.timetables.base import DataInterval  # noqa: SDK002
 
 
 class Context(TypedDict, total=False):
@@ -90,6 +91,15 @@ class Context(TypedDict, total=False):
     ts_nodash: str
     ts_nodash_with_tz: str
     var: Any
+
+
+class SkippedIntervalsCallbackContext(TypedDict):
+    """Context passed to ``on_skipped_intervals_callback`` handlers."""
+
+    dag: DAG
+    reason: Literal["skipped_intervals"]
+    skipped_interval_count: int
+    skipped_range: DataInterval
 
 
 KNOWN_CONTEXT_KEYS: set[str] = set(Context.__annotations__.keys())
