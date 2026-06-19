@@ -93,8 +93,10 @@ TEST_COMMANDS = [
     "dags update example_bash_operator --no-is-paused",
     # Dag Run commands
     "dagrun list --dag-id example_bash_operator --state success --limit=1",
-    # Task instance commands - need a Dag run with completed tasks
-    'taskinstances get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0',
+    # Tasks state command (manual command, uses flags) - needs a Dag run with completed tasks
+    'tasks state --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0',
+    # Task instance get (auto-generated command, uses positional args) - needs a Dag run with completed tasks
+    'taskinstances get example_bash_operator "manual__{date_param}" runme_0',
     # XCom commands - need a Dag run with completed tasks
     'xcom add example_bash_operator "manual__{date_param}" runme_0 {xcom_key} \'{{"test": "value"}}\'',
     'xcom get example_bash_operator "manual__{date_param}" runme_0 {xcom_key}',
