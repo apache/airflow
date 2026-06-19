@@ -447,6 +447,25 @@ You can also add ``--answer yes`` to perform non-interactive build.
   :width: 100%
   :alt: Breeze prepare-provider-documentation
 
+Classifying provider changes
+""""""""""""""""""""""""""""
+
+You can use Breeze to classify each provider's unreleased changes using hard-coded,
+high-confidence rules, flagging ambiguous commits as ``needs_llm`` for an agent or skill
+to assess. The result is emitted as JSON, providing a deterministic alternative to the
+``--non-interactive`` documentation run used purely for change discovery.
+
+The below example classifies the pending changes for all providers.
+
+.. code-block:: bash
+
+     breeze release-management classify-provider-changes
+
+.. image:: ./images/output_release-management_classify-provider-changes.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_classify-provider-changes.svg
+  :width: 100%
+  :alt: Breeze classify-provider-changes
+
 Updating provider next version
 """"""""""""""""""""""""""""""
 

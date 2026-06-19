@@ -22,9 +22,9 @@ import copy
 import datetime
 import logging
 from collections.abc import Generator
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import TIMESTAMP, PickleType, String, event, nullsfirst
+from sqlalchemy import TIMESTAMP, PickleType, String, event, nullsfirst, text
 from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.compiler import compiles
@@ -39,6 +39,9 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from kubernetes.client.models.v1_pod import V1Pod
+    from sqlalchemy.dialects.mysql.dml import Insert as MySQLInsert
+    from sqlalchemy.dialects.postgresql.dml import Insert as PostgreSQLInsert
+    from sqlalchemy.dialects.sqlite.dml import Insert as SQLiteInsert
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
@@ -56,6 +59,51 @@ def get_dialect_name(session: Session) -> str | None:
     if (bind := session.get_bind()) is None:
         raise ValueError("No bind/engine is associated with the provided Session")
     return getattr(bind.dialect, "name", None)
+
+
+def build_upsert_stmt(
+    dialect: str | None,
+    model: Any,
+    conflict_cols: list[str],
+    values: dict[str, Any],
+    update_fields: dict[str, Any],
+) -> MySQLInsert | PostgreSQLInsert | SQLiteInsert:
+    """
+    Build a dialect-specific ``INSERT ... ON CONFLICT DO UPDATE`` (upsert) statement.
+
+    A single-statement upsert is atomic at the database level, which avoids the
+    race conditions that arise from the non-atomic SELECT-then-INSERT performed by
+    ``session.merge()`` when concurrent transactions target the same primary key.
+
+    :param dialect: dialect name as returned by :func:`get_dialect_name`
+    :param model: the SQLAlchemy model (or table) to insert into
+    :param conflict_cols: columns that make up the conflict target (PostgreSQL/SQLite)
+    :param values: column values to insert
+    :param update_fields: column values to set when a conflicting row already exists
+    :raises ValueError: if the dialect does not support a known upsert syntax
+    """
+    stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
+    if dialect == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        stmt = pg_insert(model).values(**values)
+        stmt = stmt.on_conflict_do_update(index_elements=conflict_cols, set_=update_fields)
+    elif dialect == "mysql":
+        from sqlalchemy.dialects.mysql import insert as mysql_insert
+
+        stmt = mysql_insert(model).values(**values)
+        stmt = stmt.on_duplicate_key_update(**update_fields)
+    elif dialect == "sqlite":
+        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+        stmt = sqlite_insert(model).values(**values)
+        stmt = stmt.on_conflict_do_update(index_elements=conflict_cols, set_=update_fields)
+    else:
+        raise ValueError(
+            f"Unsupported database dialect '{dialect}' for upsert. "
+            "Supported dialects are: postgresql, mysql, sqlite."
+        )
+    return stmt
 
 
 class random_db_uuid(FunctionElement):
@@ -251,11 +299,12 @@ def ensure_pod_is_valid_after_unpickling(pod: V1Pod) -> V1Pod | None:
     if not isinstance(pod, V1Pod):
         return None
     try:
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+        from kubernetes.client.api_client import ApiClient
 
         # now we actually reserialize / deserialize the pod
         pod_dict = sanitize_for_serialization(pod)
-        return PodGenerator.deserialize_model_dict(pod_dict)
+        # kubernetes-client does not expose a public dict->model API; see https://github.com/kubernetes-client/python/issues/977.
+        return ApiClient()._ApiClient__deserialize_model(pod_dict, V1Pod)
     except Exception:
         return None
 
@@ -411,6 +460,48 @@ def lock_rows(query: Select, session: Session) -> Generator[None, None, None]:
     locked_rows = with_row_locks(query, session)
     yield
     del locked_rows
+
+
+@contextlib.contextmanager
+def with_db_lock_timeout(session: Session, lock_timeout: int = 30) -> Generator[None, None, None]:
+    """
+    Context manager to set the database lock timeout for the current session.
+
+    This prevents long-running operations from blocking indefinitely if they encounter
+    lock contention. Only supported on PostgreSQL and MySQL.
+
+    :param session: ORM Session
+    :param lock_timeout: Lock timeout in seconds.
+    """
+    if lock_timeout <= 0:
+        raise ValueError("lock_timeout must be a positive integer number of seconds")
+
+    try:
+        dialect_name = get_dialect_name(session)
+    except ValueError:
+        dialect_name = None
+
+    old_mysql_timeout = None
+
+    if dialect_name == "postgresql":
+        # SET LOCAL applies only to the current transaction and resets on COMMIT/ROLLBACK.
+        session.execute(text(f"SET LOCAL lock_timeout = '{lock_timeout}s'"))
+    elif dialect_name == "mysql":
+        old_mysql_timeout = session.execute(text("SELECT @@SESSION.innodb_lock_wait_timeout")).scalar()
+        session.execute(text(f"SET SESSION innodb_lock_wait_timeout = {lock_timeout}"))
+    else:
+        log.debug(
+            "Database lock timeout is not supported for dialect '%s'. "
+            "The requested timeout of %ss will not be applied.",
+            dialect_name,
+            lock_timeout,
+        )
+
+    try:
+        yield
+    finally:
+        if dialect_name == "mysql" and old_mysql_timeout is not None:
+            session.execute(text(f"SET SESSION innodb_lock_wait_timeout = {old_mysql_timeout}"))
 
 
 class CommitProhibitorGuard:

@@ -188,7 +188,9 @@ ARG_END_DATE = Arg(
 ARG_PARTITION_DATE_START = Arg(
     ("--partition-date-start",),
     help=(
-        "Inclusive lower bound of the partition_date window (matched against DagRun.partition_date). "
+        "Inclusive lower bound of the partition_date window. Matched at local calendar-day "
+        "granularity: the start of the given local calendar day in the Dag's timetable timezone "
+        "(any time-of-day component is ignored). "
         "Accepts the same datetime formats as --start-date."
     ),
     type=parsedate,
@@ -196,7 +198,9 @@ ARG_PARTITION_DATE_START = Arg(
 ARG_PARTITION_DATE_END = Arg(
     ("--partition-date-end",),
     help=(
-        "Inclusive upper bound of the partition_date window (matched against DagRun.partition_date). "
+        "Inclusive upper bound of the partition_date window. Matched at local calendar-day "
+        "granularity: all runs whose partition_date falls on the given local calendar day in the "
+        "Dag's timetable timezone are included (any time-of-day component is ignored). "
         "Accepts the same datetime formats as --end-date."
     ),
     type=parsedate,
@@ -370,10 +374,22 @@ ARG_TEAM_NAME = Arg(("name",), help="Team name")
 # backfill
 ARG_BACKFILL_DAG = Arg(flags=("--dag-id",), help="The dag to backfill.", required=True)
 ARG_BACKFILL_FROM_DATE = Arg(
-    ("--from-date",), help="Earliest logical date to backfill.", type=parsedate, required=True
+    ("--from-date",),
+    help=(
+        "Backfill window start (inclusive). "
+        "For partitioned Dags, this range is interpreted as the partition-date range (auto-detected)."
+    ),
+    type=parsedate,
+    required=True,
 )
 ARG_BACKFILL_TO_DATE = Arg(
-    ("--to-date",), help="Latest logical date to backfill", type=parsedate, required=True
+    ("--to-date",),
+    help=(
+        "Backfill window end (inclusive). "
+        "For partitioned Dags, this range is interpreted as the partition-date range (auto-detected)."
+    ),
+    type=parsedate,
+    required=True,
 )
 ARG_DAG_RUN_CONF = Arg(flags=("--dag-run-conf",), help="JSON dag run configuration.")
 ARG_RUN_BACKWARDS = Arg(
@@ -413,8 +429,6 @@ ARG_BACKFILL_RUN_ON_LATEST_VERSION = Arg(
     action=argparse.BooleanOptionalAction,
     default=None,
 )
-
-
 # misc
 ARG_TREAT_DAG_ID_AS_REGEX = Arg(
     ("--treat-dag-id-as-regex",),
@@ -592,6 +606,7 @@ ARG_POOL_DESCRIPTION = Arg(("description",), help="Pool description")
 ARG_POOL_INCLUDE_DEFERRED = Arg(
     ("--include-deferred",), help="Include deferred tasks in calculations for Pool", action="store_true"
 )
+ARG_POOL_TEAM_NAME = Arg(("--team-name",), help="Team name to assign the pool to (requires multi_team mode)")
 ARG_POOL_IMPORT = Arg(
     ("file",),
     metavar="FILEPATH",
@@ -601,7 +616,7 @@ ARG_POOL_IMPORT = Arg(
             """
             {
                 "pool_1": {"slots": 5, "description": "", "include_deferred": true},
-                "pool_2": {"slots": 10, "description": "test", "include_deferred": false}
+                "pool_2": {"slots": 10, "description": "test", "include_deferred": false, "team_name": "my_team"}
             }"""
         ),
         " " * 4,
@@ -1190,7 +1205,8 @@ DAGS_COMMANDS = (
             "Clear Dag runs of the given dag_id and re-queue them for reprocessing. Exactly one "
             "of the following selectors must be provided: --run-id (single run); --partition-key "
             "(every run with that exact partition_key); or a partition_date window via "
-            "--partition-date-start and/or --partition-date-end (inclusive on both ends). "
+            "--partition-date-start and/or --partition-date-end (both bounds are inclusive local "
+            "calendar days, anchored in the Dag's timetable timezone). "
             "Intended for partitioned Dags, whose runs are keyed by partition_date / "
             "partition_key instead of logical_date. For traditional, non-partitioned Dags, use "
             "`airflow tasks clear --start-date / --end-date`."
@@ -1570,6 +1586,7 @@ POOLS_COMMANDS = (
             ARG_POOL_SLOTS,
             ARG_POOL_DESCRIPTION,
             ARG_POOL_INCLUDE_DEFERRED,
+            ARG_POOL_TEAM_NAME,
             ARG_OUTPUT,
             ARG_VERBOSE,
         ),
@@ -1667,14 +1684,14 @@ TEAMS_COMMANDS = (
 )
 STATE_STORE_COMMANDS = (
     ActionCommand(
-        name="cleanup-task-states",
-        help="Remove expired task state rows (MetastoreStateBackend only)",
+        name="cleanup-task-state-store",
+        help="Remove expired task state store rows (MetastoreBackend only)",
         description=(
-            "Reads [state_store] default_retention_days from config and deletes task_state rows "
-            "older than the configured threshold. Only applies when MetastoreStateBackend is configured; "
+            "Reads [state_store] default_retention_days from config and deletes task_state_store rows "
+            "older than the configured threshold. Only applies when MetastoreBackend is configured; "
             "custom backends are skipped. Use --dry-run to preview without deleting."
         ),
-        func=lazy_load_command("airflow.cli.commands.state_store_command.cleanup_task_states"),
+        func=lazy_load_command("airflow.cli.commands.state_store_command.cleanup_task_state_store"),
         args=(ARG_DB_DRY_RUN, ARG_VERBOSE),
     ),
 )

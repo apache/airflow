@@ -39,10 +39,16 @@ class TestCustomDmsWaiters:
         assert "replication_config_deleted" in hook_waiters
         assert "replication_stopped" in hook_waiters
         assert "replication_complete" in hook_waiters
+        assert "replication_task_modified" in hook_waiters
 
     @pytest.fixture
     def mock_describe_replication(self):
         with mock.patch.object(self.client, "describe_replications") as m:
+            yield m
+
+    @pytest.fixture
+    def mock_describe_replication_tasks(self):
+        with mock.patch.object(self.client, "describe_replication_tasks") as m:
             yield m
 
     @pytest.fixture
@@ -136,4 +142,38 @@ class TestCustomDmsWaiters:
                     "Values": ["XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"],
                 }
             ]
+        )
+
+    @pytest.mark.parametrize("status", ["stopped", "ready", "failed"])
+    def test_wait_for_replication_task_modified(self, mock_describe_replication_tasks, status):
+        mock_describe_replication_tasks.return_value = {
+            "ReplicationTasks": [
+                {
+                    "ReplicationTaskArn": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                    "Status": status,
+                }
+            ]
+        }
+
+        hook = DmsHook(aws_conn_id=None)
+        waiter = hook.get_waiter("replication_task_modified")
+        waiter.wait(
+            Filters=[
+                {
+                    "Name": "replication-task-arn",
+                    "Values": ["XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"],
+                }
+            ],
+            WithoutSettings=True,
+            WaiterConfig={"Delay": 0.01, "MaxAttempts": 3},
+        )
+
+        mock_describe_replication_tasks.assert_called_once_with(
+            Filters=[
+                {
+                    "Name": "replication-task-arn",
+                    "Values": ["XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"],
+                }
+            ],
+            WithoutSettings=True,
         )

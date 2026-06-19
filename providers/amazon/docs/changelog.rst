@@ -26,6 +26,76 @@
 Changelog
 ---------
 
+9.31.0
+......
+
+Features
+~~~~~~~~
+
+* ``Wait for Bedrock AgentCore Runtime deletion (#68140)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Upload log with 'put_object' in 's3_task_handler' (#68619)``
+* ``Add 'evaluation_config', 'inference_config' and 'output_data_config' to BedrockCreateEvaluationJobOperator template_fields (#68310)``
+* ``Fix remote-log providers not satisfying RemoteLogIO upload contract (#68300)``
+* ``Harden S3 sync target paths (#67847)``
+
+Misc
+~~~~
+
+* ``Fix mypy errors for task_instance access in provider triggers (#68685)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Version the worker-bound TaskInstance fields in the execution API schema (#68390)``
+   * ``fix(tests): Use unique S3 bucket name in bedrock evaluation system test (#68256)``
+   * ``fix(tests): Add retries to EMR on EKS system test job submission (#68257)``
+
+9.30.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'GlueCatalogBatchDeletePartitionOperator' (#66721)``
+* ``Add 'OpenSearchServerlessCreateCollectionOperator' (#66549)``
+* ``Propogate 'verify' and 'botocore_config' in batch triggers (#67508)``
+* ``Propogate 'verify' and 'botocore_config' in redshift cluster triggers (#67876)``
+* ``Add ExecuteCallback support to AWS ECS Executor (#63657)``
+* ``Add Amazon Bedrock AgentCore Runtime operators (#67984)``
+* ``Add 'DmsModifyTaskOperator' (#67524)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SageMaker processing stopped state handling (#67291)``
+* ``Fix EMR Serverless task failure on transient AWS throttling errors (#67222)``
+* ``Fix duplicated logs and memory issue with S3 log handler (#67144)``
+* ``Fix EksPodOperator 401 with cross-account AssumeRole via aws_conn_id (#65335)``
+* ``Fix inconsistency in S3 transfer operators (#67378)``
+* ``Support log level parsing from container output in 'EcsRunTaskOperator' (#67180)``
+* ``Fix IDC domain S3 path resolution (#67987)``
+
+Misc
+~~~~
+
+* ``Remove further findings from positional session check (#67712)``
+* ``Cleanup redundant RedshiftHook TODO comment for cluster snapshot creation (#67485)``
+* ``Add prek hook to enforce HTTPException is imported from fastapi (#67367)``
+* ``Update Notebook Operator to pull S3 project bucket from tooling env (#67915)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix example_opensearch_serverless system test (#67666)``
+   * ``Fix example_mwaa_serverless system test race condition with stop_workflow_run (#67578)``
+   * ``Fix smus_notebook system test failure in deferrable CI rotation (#67568)``
+   * ``Fix smus_notebook system test: assume DataZone environment role via aws_conn_id (#66976)``
+   * ``Fix provider executor tests broken in main (#67268)``
+   * ``Replace fixed sleep with active IAM trust policy validation in example_emr_eks (#66736)``
+
+
 9.29.0
 ......
 

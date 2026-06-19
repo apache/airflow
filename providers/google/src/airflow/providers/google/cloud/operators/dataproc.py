@@ -201,6 +201,13 @@ class ClusterGenerator:
     :param auto_delete_ttl: The life duration of cluster, the cluster will be
         auto-deleted at the end of this duration.
         A duration in seconds. (If auto_delete_time is set this parameter will be ignored)
+    :param idle_stop_ttl: The longest duration that cluster would keep alive while
+        staying idle. Passing this threshold will cause cluster to be auto-stopped.
+        A duration in seconds.
+    :param auto_stop_time:  The time when cluster will be auto-stopped.
+    :param auto_stop_ttl: The life duration of cluster, the cluster will be
+        auto-stopped at the end of this duration.
+        A duration in seconds. (If auto_stop_time is set this parameter will be ignored)
     :param customer_managed_key: The customer-managed key used for disk encryption
         ``projects/[PROJECT_STORING_KEYS]/locations/[LOCATION]/keyRings/[KEY_RING_NAME]/cryptoKeys/[KEY_NAME]`` # noqa
     :param enable_component_gateway: Provides access to the web interfaces of default and selected optional
@@ -210,6 +217,8 @@ class ClusterGenerator:
         identify the driver group in future operations, such as resizing the node group.
     :param secondary_worker_instance_flexibility_policy: Instance flexibility Policy allowing a mixture of VM
         shapes and provisioning models.
+    :param master_instance_flexibility_policy: Instance flexibility Policy for master nodes.
+    :param worker_instance_flexibility_policy: Instance flexibility Policy for worker nodes.
     :param secondary_worker_accelerator_type: Type of the accelerator card (GPU) to attach to the secondary workers,
         see https://cloud.google.com/dataproc/docs/reference/rest/v1/InstanceGroupConfig#acceleratorconfig
     :param secondary_worker_accelerator_count: Number of accelerator cards (GPUs) to attach to the secondary workers
@@ -257,11 +266,16 @@ class ClusterGenerator:
         idle_delete_ttl: int | None = None,
         auto_delete_time: datetime | None = None,
         auto_delete_ttl: int | None = None,
+        idle_stop_ttl: int | None = None,
+        auto_stop_time: datetime | None = None,
+        auto_stop_ttl: int | None = None,
         customer_managed_key: str | None = None,
         enable_component_gateway: bool | None = False,
         driver_pool_size: int = 0,
         driver_pool_id: str | None = None,
         secondary_worker_instance_flexibility_policy: InstanceFlexibilityPolicy | None = None,
+        master_instance_flexibility_policy: InstanceFlexibilityPolicy | None = None,
+        worker_instance_flexibility_policy: InstanceFlexibilityPolicy | None = None,
         secondary_worker_accelerator_type: str | None = None,
         secondary_worker_accelerator_count: int | None = None,
         *,
@@ -307,12 +321,17 @@ class ClusterGenerator:
         self.idle_delete_ttl = idle_delete_ttl
         self.auto_delete_time = auto_delete_time
         self.auto_delete_ttl = auto_delete_ttl
+        self.idle_stop_ttl = idle_stop_ttl
+        self.auto_stop_time = auto_stop_time
+        self.auto_stop_ttl = auto_stop_ttl
         self.customer_managed_key = customer_managed_key
         self.enable_component_gateway = enable_component_gateway
         self.single_node = num_workers == 0
         self.driver_pool_size = driver_pool_size
         self.driver_pool_id = driver_pool_id
         self.secondary_worker_instance_flexibility_policy = secondary_worker_instance_flexibility_policy
+        self.master_instance_flexibility_policy = master_instance_flexibility_policy
+        self.worker_instance_flexibility_policy = worker_instance_flexibility_policy
         self.secondary_worker_accelerator_type = secondary_worker_accelerator_type
         self.secondary_worker_accelerator_count = secondary_worker_accelerator_count
         self.cluster_tier = cluster_tier
@@ -404,6 +423,17 @@ class ClusterGenerator:
         elif self.auto_delete_ttl:
             cluster_data[lifecycle_config]["auto_delete_ttl"] = {"seconds": int(self.auto_delete_ttl)}
 
+        if self.idle_stop_ttl:
+            cluster_data[lifecycle_config]["idle_stop_ttl"] = {"seconds": self.idle_stop_ttl}
+
+        if self.auto_stop_time:
+            utc_auto_stop_time = timezone.convert_to_utc(self.auto_stop_time)
+            cluster_data[lifecycle_config]["auto_stop_time"] = utc_auto_stop_time.strftime(
+                "%Y-%m-%dT%H:%M:%S.%fZ"
+            )
+        elif self.auto_stop_ttl:
+            cluster_data[lifecycle_config]["auto_stop_ttl"] = {"seconds": int(self.auto_stop_ttl)}
+
         return cluster_data
 
     def _build_driver_pool(self):
@@ -454,6 +484,19 @@ class ClusterGenerator:
             "autoscaling_config": {},
             "endpoint_config": {},
         }
+        if self.master_instance_flexibility_policy:
+            cluster_data["master_config"]["instance_flexibility_policy"] = {
+                "instance_selection_list": [
+                    vars(s) for s in self.master_instance_flexibility_policy.instance_selection_list
+                ]
+            }
+
+        if self.worker_instance_flexibility_policy:
+            cluster_data["worker_config"]["instance_flexibility_policy"] = {
+                "instance_selection_list": [
+                    vars(s) for s in self.worker_instance_flexibility_policy.instance_selection_list
+                ]
+            }
 
         if self.min_num_workers:
             cluster_data["worker_config"]["min_num_instances"] = self.min_num_workers

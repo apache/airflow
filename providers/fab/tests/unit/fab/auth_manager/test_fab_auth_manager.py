@@ -28,6 +28,7 @@ from flask import g
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 from sqlalchemy.exc import OperationalError, PendingRollbackError
 
+from airflow import settings
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
@@ -831,6 +832,17 @@ class TestFabAuthManager:
                 [(ACTION_CAN_ACCESS_MENU, RESOURCE_AUDIT_LOG), (ACTION_CAN_READ, RESOURCE_VARIABLE)],
                 [MenuItem.AUDIT_LOG],
             ),
+            *(
+                [
+                    (
+                        [MenuItem.DEADLINES],
+                        [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG_RUN)],
+                        [MenuItem.DEADLINES],
+                    )
+                ]
+                if hasattr(MenuItem, "DEADLINES")
+                else []
+            ),
             (
                 [],
                 [],
@@ -1035,7 +1047,7 @@ def test_resetdb(
     mock_connect = mock_engine.connect.return_value
 
     session_mock = MagicMock()
-    resetdb(session_mock, skip_init=skip_init)
+    resetdb(session=session_mock, skip_init=skip_init)
 
     # In the non-MySQL path, drop functions are called with the raw connection
     mock_drop_airflow.assert_called_once_with(mock_connect)
@@ -1044,6 +1056,28 @@ def test_resetdb(
         mock_init.assert_not_called()
     else:
         mock_init.assert_called_once()
+
+
+@pytest.mark.db_test
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS,
+    reason="Compat matrix against Airflow < 3.1 uses NullPool, which does not track checked-out connections.",
+)
+class TestDeserializeUserSessionLifecycle:
+    def test_no_connection_checked_out_after_deserialize_user(self, flask_app, auth_manager_with_appbuilder):
+        user = create_user(flask_app, "session_lifecycle_test_user")
+        try:
+            settings.engine.dispose()
+            auth_manager_with_appbuilder.cache.clear()
+
+            result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+            assert result.id == user.id
+
+            assert settings.engine.pool.checkedout() == 0, (
+                "deserialize_user left a connection checked out — session was not closed"
+            )
+        finally:
+            delete_user(flask_app, "session_lifecycle_test_user")
 
 
 @pytest.mark.db_test
@@ -1061,11 +1095,22 @@ class TestDeserializeUserSessionCleanup:
     """
 
     @staticmethod
+    @contextmanager
     def _patched_session(auth_manager, mock_session):
-        """Replace the ``session`` property on *auth_manager* with *mock_session*."""
-        return mock.patch.object(
-            type(auth_manager), "session", new_callable=mock.PropertyMock, return_value=mock_session
-        )
+        """Route both ``self.session`` and ``create_session()`` to *mock_session*."""
+        create_session_cm = MagicMock(spec=["__enter__", "__exit__"])
+        create_session_cm.__enter__.return_value = mock_session
+        create_session_cm.__exit__.return_value = False
+        with (
+            mock.patch.object(
+                type(auth_manager), "session", new_callable=mock.PropertyMock, return_value=mock_session
+            ),
+            mock.patch(
+                "airflow.providers.fab.auth_manager.fab_auth_manager.create_session",
+                return_value=create_session_cm,
+            ),
+        ):
+            yield
 
     @pytest.mark.parametrize(
         "raised_exc",
@@ -1287,3 +1332,29 @@ class TestFabAuthManagerSessionCleanupErrorHandling:
             mock_session.remove.assert_called()
             mock_log.warning.assert_called()
             assert response is not None
+
+
+class TestFabGetCliUser:
+    """``get_cli_user`` reuses an existing ``Admin`` user for the local CLI token."""
+
+    @mock.patch("airflow.utils.session.create_session")
+    def test_returns_admin_user(self, mock_create_session, auth_manager):
+        admin_user = MagicMock()
+        session = MagicMock()
+        session.scalars.return_value.first.return_value = admin_user
+        mock_create_session.return_value.__enter__.return_value = session
+
+        result = auth_manager.get_cli_user()
+
+        assert result is admin_user
+        # The user is detached so its attributes survive the session closing.
+        session.expunge.assert_called_once_with(admin_user)
+
+    @mock.patch("airflow.utils.session.create_session")
+    def test_raises_when_no_admin_user(self, mock_create_session, auth_manager):
+        session = MagicMock()
+        session.scalars.return_value.first.return_value = None
+        mock_create_session.return_value.__enter__.return_value = session
+
+        with pytest.raises(AirflowConfigException, match="Admin"):
+            auth_manager.get_cli_user()
