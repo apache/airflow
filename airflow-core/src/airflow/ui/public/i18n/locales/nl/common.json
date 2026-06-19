@@ -18,10 +18,14 @@
   "asset_other": "Assets",
   "assetEvent_one": "Asset Event",
   "assetEvent_other": "Asset Events",
+  "assetInactive": {
+    "tooltip": "Upstream asset is gedeactiveerd; de scheduler houdt partitie-evaluatie vast totdat het opnieuw wordt geactiveerd."
+  },
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Audit Log",
+    "deadlines": "Deadlines",
     "jobs": "Jobs",
     "requiredActions": "Vereiste acties",
     "xcoms": "XComs"
@@ -141,7 +145,11 @@
     "selectDateRange": "Selecteer datumbereik",
     "startTime": "Starttijd"
   },
+  "fullscreen": {
+    "tooltip": "Druk op {{hotkey}} voor volledig scherm"
+  },
   "generateToken": "Genereer token",
+  "key": "Sleutel",
   "logicalDate": "Logische datum",
   "logout": "Uitloggen",
   "logoutConfirmation": "Je staat op het punt om uit te loggen uit de applicatie.",
@@ -171,10 +179,14 @@
   "note": {
     "add": "Notitie toevoegen",
     "dagRun": "Dag Run notitie",
+    "edit": "Bewerk notitie",
     "label": "Notitie",
     "placeholder": "Voeg een notitie toe...",
-    "taskInstance": "Task Instance notitie"
+    "preview": "Voorbeeld",
+    "taskInstance": "Task Instance notitie",
+    "write": "Schrijf"
   },
+  "overallStatus": "Algemene status",
   "partitionedDagRun_one": "Gepartitioneerde Dag Run",
   "partitionedDagRun_other": "Gepartitioneerde Dag Runs",
   "partitionedDagRunDetail": {
@@ -198,6 +210,12 @@
     },
     "tooltip": "Druk op {{hotkey}} om te scrollen naar {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Match overal in de waarde (substring zoekopdracht). Langzamer bij grote deployments omdat het de standaard B-tree index niet kan gebruiken. Bekijk de documentatie sectie over aangepaste metadata-indexen voor details.",
+      "title": "Match overal"
+    }
+  },
   "security": {
     "actions": "Acties",
     "permissions": "Permissies",
@@ -219,6 +237,7 @@
   "startDate": "Start datum",
   "state": "Status",
   "states": {
+    "awaiting_input": "Wachtend op invoer",
     "deferred": "Uitgesteld",
     "failed": "Mislukt",
     "no_status": "Geen status",
@@ -237,36 +256,47 @@
     "upstream_failed": "Upstream mislukt"
   },
   "table": {
-    "completedAt": "Completed at",
-    "createdAt": "Created at",
+    "completedAt": "Voltooid op",
+    "createdAt": "Aangemaakt op",
     "filterByTag": "Filter Dags op label",
     "filterColumns": "Filter tabel kolommen",
     "filterReset_one": "Reset filter",
     "filterReset_other": "Reset filters",
     "from": "Van",
-    "maxActiveRuns": "Maximaal aantal active Runs",
+    "maxActiveRuns": "Maximaal aantal actieve Runs",
     "noTagsFound": "Geen labels gevonden",
     "tagMode": {
       "all": "All",
       "any": "Any"
     },
     "tagPlaceholder": "Filter op label",
-    "to": "Naar"
+    "to": "Naar",
+    "updatedAt": "Bijgewerkt op"
   },
   "task": {
+    "dependsOnPast": "Afhankelijk van vorige",
     "documentation": "Task documentatie",
     "lastInstance": "Laatste Task Instance",
     "operator": "Operator",
-    "triggerRule": "Trigger regel"
+    "retries": "Pogingen",
+    "triggerRule": "Trigger regel",
+    "waitForDownstream": "Wacht op downstream"
   },
   "task_one": "Task",
   "task_other": "Tasks",
+  "taskGroup": {
+    "documentation": "Task groep documentatie"
+  },
+  "taskGroup_one": "Task groep",
+  "taskGroup_other": "Task groepen",
   "taskId": "Task ID",
   "taskInstance": {
+    "additionalAttributes": "Extra Task Instance attributen",
     "dagVersion": "Dag versie",
     "executor": "Executor",
     "executorConfig": "Executor Configuratie",
     "hostname": "Hostname",
+    "id": "ID",
     "maxTries": "Maximaal aantal pogingen",
     "pid": "PID",
     "pool": "Pool",
@@ -274,12 +304,15 @@
     "priorityWeight": "Prioriteitsgewicht",
     "queue": "Wachtrij",
     "queuedWhen": "In de wachtrij gezet om",
+    "renderedMapIndex": "Gerenderde Map index",
     "scheduledWhen": "Gepland om",
+    "trigger": "Trigger",
     "triggerer": {
-      "assigned": "Toegewegen Triggerer",
+      "assigned": "Toegewezen Triggerer",
       "class": "Trigger class",
       "createdAt": "Trigger aangemaakt op",
       "id": "Trigger ID",
+      "job": "Triggerer Job",
       "latestHeartbeat": "Laatste Triggerer hartslag",
       "title": "Triggerer informatie"
     },
@@ -376,6 +409,7 @@
     "mustBeAtLeast": "Moet minimaal {{min}} zijn.",
     "mustBeValidNumber": "Moet een geldig nummer zijn."
   },
+  "value": "Waarde",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Druk op {{hotkey}} om wrap te schakelen",
