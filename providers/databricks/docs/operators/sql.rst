@@ -104,7 +104,7 @@ The sensor executes the SQL statement supplied by the user. The only required pa
 Other parameters are optional and could be found in the class documentation.
 
 Attaching query tags
-~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^
 
 Both ``DatabricksSqlSensor`` and ``DatabricksPartitionSensor`` support ``query_tags`` and
 ``include_airflow_query_tags`` to attach metadata to every query sent to Databricks.
