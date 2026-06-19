@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Box, Button, Heading, HStack, Text } from "@chakra-ui/react";
+import { Box, Button, Heading, HStack, Text } from "@chakra-ui/react";
 import type { TFunction } from "i18next";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -24,8 +24,9 @@ import { FiFileText } from "react-icons/fi";
 import innerText from "react-innertext";
 
 import { useDeadlinesServiceGetCallbackLogs } from "openapi/queries";
-import type { TaskInstancesLogResponse } from "openapi/requests/types.gen";
+import type { TaskInstanceState, TaskInstancesLogResponse } from "openapi/requests/types.gen";
 import { renderStructuredLog } from "src/components/renderStructuredLog";
+import { StateBadge } from "src/components/StateBadge";
 import { Dialog } from "src/components/ui";
 import { TaskLogContent } from "src/pages/TaskInstance/Logs/TaskLogContent";
 import type { ParsedLogEntry } from "src/queries/useLogs";
@@ -33,15 +34,9 @@ import { parseStreamingLogContent } from "src/utils/logs";
 
 type CallbackLogViewerProps = {
   readonly callbackId: string;
-  readonly callbackState?: string | null;
+  readonly callbackState?: TaskInstanceState | null;
   readonly dagId: string;
   readonly dagRunId: string;
-};
-
-const stateColorMap: Record<string, string> = {
-  failed: "red",
-  running: "blue",
-  success: "green",
 };
 
 /**
@@ -157,9 +152,9 @@ export const CallbackLogViewer = ({ callbackId, callbackState, dagId, dagRunId }
             <HStack gap={2}>
               <Heading size="sm">{translate("dag:callbackLogs.title")}</Heading>
               {callbackState !== undefined && callbackState !== null ? (
-                <Badge colorPalette={stateColorMap[callbackState] ?? "gray"} size="sm" variant="solid">
+                <StateBadge size="sm" state={callbackState}>
                   {callbackState}
-                </Badge>
+                </StateBadge>
               ) : undefined}
             </HStack>
           </Dialog.Header>

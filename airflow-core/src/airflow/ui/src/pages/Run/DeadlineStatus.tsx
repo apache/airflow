@@ -25,6 +25,7 @@ import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiCheck, FiClock } from "react-icons/fi";
 
 import { useDeadlinesServiceGetDagDeadlineAlerts, useDeadlinesServiceGetDeadlines } from "openapi/queries";
+import type { TaskInstanceState } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui/Tooltip";
 import { CallbackLogViewer } from "src/pages/Run/CallbackLogViewer";
@@ -169,7 +170,7 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
         {dl.callback_id !== undefined && dl.callback_id !== null ? (
           <CallbackLogViewer
             callbackId={dl.callback_id}
-            callbackState={dl.callback_state}
+            callbackState={dl.callback_state as TaskInstanceState | null}
             dagId={dagId}
             dagRunId={dagRunId}
           />

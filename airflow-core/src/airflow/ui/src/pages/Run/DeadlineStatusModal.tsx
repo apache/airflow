@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
 import { useDeadlinesServiceGetDeadlines } from "openapi/queries";
+import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { Dialog } from "src/components/ui";
@@ -113,7 +114,7 @@ export const DeadlineStatusModal = ({
                     {dl.callback_id !== undefined && dl.callback_id !== null ? (
                       <CallbackLogViewer
                         callbackId={dl.callback_id}
-                        callbackState={dl.callback_state}
+                        callbackState={dl.callback_state as TaskInstanceState | null}
                         dagId={dagId}
                         dagRunId={dagRunId}
                       />
