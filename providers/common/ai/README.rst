@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-common-ai``
 
-Release: ``0.4.0``
+Release: ``0.5.0``
 
 
 AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
@@ -36,7 +36,7 @@ This is a provider package for ``common.ai`` provider. All classes for this prov
 are in ``airflow.providers.common.ai`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.4.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.5.0/>`_.
 
 Installation
 ------------
@@ -54,7 +54,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=3.0.0``
-``apache-airflow-providers-common-compat``  ``>=1.14.1``
+``apache-airflow-providers-common-compat``  ``>=1.15.0``
 ``apache-airflow-providers-standard``       ``>=1.12.1``
 ``pydantic-ai-slim``                        ``>=1.99.0``
 ==========================================  ==================
@@ -92,6 +92,7 @@ Extra           Dependencies
 ``google``      ``pydantic-ai-slim[google]``
 ``openai``      ``pydantic-ai-slim[openai]``
 ``mcp``         ``pydantic-ai-slim[mcp]``
+``code-mode``   ``pydantic-ai-harness[codemode]>=0.3.0``
 ``skills``      ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=0.11.0``
 ``avro``        ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
 ``parquet``     ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
@@ -105,4 +106,4 @@ Extra           Dependencies
 ==============  ==========================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.4.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.5.0/changelog.html>`_.

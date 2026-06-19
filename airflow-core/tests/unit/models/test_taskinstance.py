@@ -113,6 +113,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
@@ -3546,6 +3547,23 @@ def test_find_relevant_relatives_with_non_mapped_task_as_tuple(dag_maker, sessio
     )
     # Should return t1 as the upstream of t2
     assert result == {"t1"}
+
+
+def test_register_asset_changes_in_db_no_outlets_is_a_noop(dag_maker, session):
+    """A task with no outlets and no outlet events must not issue any queries."""
+    with dag_maker(dag_id="no_outlets", schedule=None, session=session):
+        EmptyOperator(task_id="hi")
+    dr = dag_maker.create_dagrun(session=session)
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
+
+    with assert_queries_count(0):
+        TaskInstance.register_asset_changes_in_db(
+            ti=ti,
+            task_outlets=[],
+            outlet_events=[],
+            session=session,
+        )
 
 
 def test_when_dag_run_has_partition_then_asset_does(dag_maker, session):

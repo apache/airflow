@@ -487,6 +487,30 @@ new versions you just wrote. It will not touch `changelog.rst`.
 > `airflow-providers-commits` directive). It will be regenerated on the
 > next full release. No action needed here.
 
+#### 4d. Resolve `# use next version` inter-provider pins
+
+Contributors can defer an inter-provider dependency bump by pinning it in
+`pyproject.toml` with a trailing `# use next version` comment, instead of
+hard-coding a version that does not exist yet. Now that the versions are
+bumped, resolve those pins:
+
+```bash
+breeze release-management update-providers-next-version
+```
+
+This rewrites every `# use next version` dependency to the just-bumped
+version of the referenced provider and removes the comment.
+
+> [!IMPORTANT]
+> **Run this every time, before opening the PR — even when you believe no
+> provider uses the comment** (the command is a safe no-op when none do).
+> Skipping it ships the wave with stale lower bounds on inter-provider
+> dependencies; once the PR is merged the only remedy is a separate
+> follow-up PR. This is the "Update versions of dependent providers to the
+> next version" step in `dev/README_RELEASE_PROVIDERS.md` — it lives between
+> doc preparation and PR creation, so it is easy to forget when the skill
+> hands back to the regular release workflow.
+
 ### Phase 5 — Validate
 
 Run the same checks the release manager would run:
@@ -506,11 +530,14 @@ provider-by-provider:
 
 - Confirm the version in `provider.yaml` matches the bump rule.
 - Confirm `changelog.rst` has the right sections populated.
+- Confirm Phase 4d ran: no `# use next version` comment remains where the
+  referenced provider was bumped in this wave.
 - Flag anything where Phase 3.5 had to escalate, so the RM can double-check.
 
 Stop here. Do not commit, do not push — the release manager opens the PR
 themselves following the regular release workflow in
-`dev/README_RELEASE_PROVIDERS.md`.
+`dev/README_RELEASE_PROVIDERS.md`. Make sure Phase 4d
+(`update-providers-next-version`) has been run before that PR is opened.
 
 ---
 
@@ -651,6 +678,11 @@ no leftover "Please review …" markers from a prior interactive
 --incremental-update` run. If any are present (someone ran the breeze
 incremental flow before invoking this skill), remove them as part of the
 final pass. Then walk the diff with the release manager.
+
+If the incremental run bumped a provider to a *new* version (Incremental
+Phase 3.5), re-run Phase 4d (`update-providers-next-version`) as well — a
+`# use next version` pin on that provider must resolve to the freshly
+bumped version before the rebased PR is pushed.
 
 ---
 

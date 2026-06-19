@@ -22,6 +22,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
+from pydantic_ai.messages import (
+    ModelMessagesTypeAdapter,
+    ModelRequest,
+    ModelResponse,
+    TextPart,
+    UserPromptPart,
+)
 from pydantic_ai.usage import UsageLimits
 
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink, _build_code_mode
@@ -90,7 +97,14 @@ class TestAgentOperatorValidation:
 
 class TestAgentOperatorTemplateFields:
     def test_template_fields(self):
-        expected = {"prompt", "llm_conn_id", "model_id", "system_prompt", "agent_params"}
+        expected = {
+            "prompt",
+            "llm_conn_id",
+            "model_id",
+            "system_prompt",
+            "agent_params",
+            "message_history",
+        }
         assert set(AgentOperator.template_fields) == expected
 
 
@@ -617,3 +631,136 @@ class TestAgentOperatorMultimodalPromptGuard:
             op.execute(context=MagicMock())
 
         mock_agent.run_sync.assert_not_called()
+
+
+def _sample_history():
+    """A minimal two-message pydantic-ai conversation for round-trip tests."""
+    return [
+        ModelRequest(parts=[UserPromptPart(content="first question")]),
+        ModelResponse(parts=[TextPart(content="first answer")]),
+    ]
+
+
+# The accepted input forms for ``message_history``, computed once at collection time.
+_SAMPLE_HISTORY_JSON = ModelMessagesTypeAdapter.dump_json(_sample_history()).decode()
+_SAMPLE_HISTORY_DICTS = ModelMessagesTypeAdapter.dump_python(_sample_history(), mode="json")
+
+
+class TestAgentOperatorMessageHistory:
+    """Multi-turn session support: seed run_sync with prior history, emit the transcript."""
+
+    @pytest.mark.parametrize(
+        ("raw", "expected_len"),
+        [
+            pytest.param([], 0, id="empty-list"),
+            pytest.param("", 0, id="empty-str"),
+            pytest.param("   ", 0, id="blank-str"),
+            pytest.param(_SAMPLE_HISTORY_JSON, 2, id="json-str"),
+            pytest.param(_SAMPLE_HISTORY_DICTS, 2, id="list-of-dicts"),
+            pytest.param(_sample_history(), 2, id="list-of-objects"),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_message_history_seeds_run_sync(self, mock_hook_cls, raw, expected_len):
+        """Every accepted input form is deserialized and passed to run_sync; blank/empty start fresh."""
+        mock_agent = _make_mock_agent("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c", message_history=raw)
+        op.execute(context=MagicMock())
+
+        passed = mock_agent.run_sync.call_args.kwargs["message_history"]
+        assert len(passed) == expected_len
+        assert all(isinstance(m, (ModelRequest, ModelResponse)) for m in passed)
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_none_is_single_turn_no_history_no_emit(self, mock_hook_cls):
+        """Default message_history=None passes no history and pushes no transcript XCom."""
+        mock_agent = _make_mock_agent("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c")
+        context = MagicMock()
+        op.execute(context=context)
+
+        assert "message_history" not in mock_agent.run_sync.call_args.kwargs
+        context["task_instance"].xcom_push.assert_not_called()
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_transcript_emitted_to_xcom_when_history_set(self, mock_hook_cls):
+        """When message_history is set, the post-run transcript is pushed to XCom and round-trips."""
+        mock_agent = _make_mock_agent("ok")
+        mock_agent.run_sync.return_value.all_messages.return_value = _sample_history()
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c", message_history=[])
+        context = MagicMock()
+        op.execute(context=context)
+
+        ti = context["task_instance"]
+        ti.xcom_push.assert_called_once()
+        push_kwargs = ti.xcom_push.call_args.kwargs
+        assert push_kwargs["key"] == "message_history"
+        restored = ModelMessagesTypeAdapter.validate_json(push_kwargs["value"])
+        assert len(restored) == 2
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_usage_limits_still_forwarded_with_history(self, mock_hook_cls):
+        """Adding message_history does not drop usage_limits from the run_sync call."""
+        mock_agent = _make_mock_agent("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        limits = UsageLimits(request_limit=2)
+        op = AgentOperator(
+            task_id="t", prompt="run", llm_conn_id="c", usage_limits=limits, message_history=[]
+        )
+        op.execute(context=MagicMock())
+
+        kwargs = mock_agent.run_sync.call_args.kwargs
+        assert kwargs["usage_limits"] is limits
+        assert kwargs["message_history"] == []
+
+    def test_message_history_with_hitl_review_raises(self):
+        """message_history cannot be combined with HITL review (post-review transcript is lost)."""
+        with pytest.raises(ValueError, match="message_history and enable_hitl_review"):
+            AgentOperator(
+                task_id="t",
+                prompt="run",
+                llm_conn_id="c",
+                message_history=[],
+                enable_hitl_review=True,
+            )
+
+    @patch("pydantic_ai.models.wrapper.infer_model", side_effect=lambda m: m)
+    @patch("pydantic_ai.models.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.durable.storage._get_base_path")
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_durable_path_also_seeds_message_history(
+        self, mock_hook_cls, mock_base_path, mock_infer, _, tmp_path
+    ):
+        """The durable branch forwards message_history into the cached run too."""
+        from airflow.sdk import ObjectStoragePath
+
+        mock_base_path.return_value = ObjectStoragePath(f"file://{tmp_path.as_posix()}")
+
+        mock_agent = MagicMock(spec=["run_sync", "model", "override"])
+        mock_agent.run_sync.return_value = _make_mock_run_result("ok")
+        mock_agent.model = "test-model"
+        mock_agent.override.return_value.__enter__ = MagicMock(return_value=None)
+        mock_agent.override.return_value.__exit__ = MagicMock(return_value=False)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_infer.return_value = MagicMock()
+
+        context = MagicMock()
+        context.__getitem__ = MagicMock(
+            return_value=MagicMock(dag_id="d", task_id="t", run_id="r", map_index=-1)
+        )
+
+        history_json = ModelMessagesTypeAdapter.dump_json(_sample_history()).decode()
+        op = AgentOperator(
+            task_id="test", prompt="test", llm_conn_id="my_llm", durable=True, message_history=history_json
+        )
+        op.execute(context=context)
+
+        passed = mock_agent.run_sync.call_args.kwargs["message_history"]
+        assert len(passed) == 2
