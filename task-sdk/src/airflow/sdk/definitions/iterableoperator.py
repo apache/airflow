@@ -285,12 +285,12 @@ class IterableOperator(BaseOperator):
                             if task.next_try_number > (self.retries or 0):
                                 exceptions.append(AirflowTaskTimeout(raised))
                             else:
-                                reschedule_date = min(reschedule_date, task.next_retry_datetime())
+                                reschedule_date = max(reschedule_date, task.next_retry_datetime())
                                 failed_tasks.append(task)
                             continue
 
                         if isinstance(raised, AirflowRescheduleTaskInstanceException):
-                            reschedule_date = min(reschedule_date, raised.reschedule_date)
+                            reschedule_date = max(reschedule_date, raised.reschedule_date)
                             self.log.exception(
                                 "An exception occurred for task_id %s with index %s, it has been rescheduled at %s",
                                 task.task_id,
