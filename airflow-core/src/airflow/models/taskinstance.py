@@ -2424,17 +2424,6 @@ def _get_relevant_map_indexes(
     # and "ti_count == ancestor_ti_count" does not work, since the further
     # expansion may be of length 1.
     if not _is_further_mapped_inside(relative, common_ancestor):
-        if (
-            use_post_expansion_placeholder
-            and _should_use_post_expansion_placeholder(
-                task=task,
-                relative=relative,
-                map_index=ancestor_map_index,
-                run_id=run_id,
-                session=session,
-            )
-        ):
-            return 0
         return ancestor_map_index
 
     # Otherwise we need a partial aggregation for values from selected task

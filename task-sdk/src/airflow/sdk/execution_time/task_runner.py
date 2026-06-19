@@ -547,7 +547,8 @@ class RuntimeTaskInstance(TaskInstance):
         _xcom_push(self, key, value)
 
     def get_relevant_upstream_map_indexes(
-        self, upstream: BaseOperator, ti_count: int | None, session: Any
+        self, upstream: BaseOperator, ti_count: int | None, session: Any,
+        use_post_expansion_placeholder: bool = False
     ) -> int | range | None:
         """
         Compute the relevant upstream map indexes for XCom resolution.
@@ -577,6 +578,7 @@ class RuntimeTaskInstance(TaskInstance):
             ti_count=ti_count,
             relative=upstream,
             dag_id=self.dag_id,
+            use_post_expansion_placeholder=use_post_expansion_placeholder,
         )
 
     def get_first_reschedule_date(self, context: Context) -> AwareDatetime | None:
