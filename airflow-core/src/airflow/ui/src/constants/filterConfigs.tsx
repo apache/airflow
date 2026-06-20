@@ -35,6 +35,7 @@ import {
 import { PiQueue } from "react-icons/pi";
 
 import type { DagRunState, DagRunType, TaskInstanceState } from "openapi/requests/types.gen";
+import {useDagServiceGetDagTags} from 'openapi/queries';
 import { DagIcon } from "src/assets/DagIcon";
 import { TaskIcon } from "src/assets/TaskIcon";
 import type { FilterConfig } from "src/components/FilterBar";
@@ -60,6 +61,8 @@ export enum FilterTypes {
 
 export const useFilterConfigs = () => {
   const { t: translate } = useTranslation(["browse", "common", "components", "admin", "hitl"]);
+
+  const {data : dagTags} = useDagServiceGetDagTags({limit : 10, offset : 10, orderBy :["name"]});
 
   const filterConfigMap = {
     [SearchParamsKeys.ASSET_EVENT_DATE_RANGE]: {
@@ -93,6 +96,15 @@ export const useFilterConfigs = () => {
       label: translate("common:consumingAsset"),
       placeholder: translate("common:filters.searchAsset"),
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.TAGS]: {
+      icon: <DagIcon />,
+      label: translate("common:tags"),
+      options: dagTags?.tags.map((tag) => ({
+        label : tag,
+        value : tag
+      })),
+      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.CREATED_AT_RANGE]: {
       endKey: SearchParamsKeys.CREATED_AT_LTE,

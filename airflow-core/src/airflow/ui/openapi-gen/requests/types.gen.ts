@@ -917,6 +917,7 @@ export type DAGRunResponse = {
     bundle_version: string | null;
     dag_display_name: string;
     partition_key: string | null;
+    tags?: string;
 };
 
 /**
@@ -3056,6 +3057,7 @@ export type GetDagRunsData = {
     updatedAtGte?: string | null;
     updatedAtLt?: string | null;
     updatedAtLte?: string | null;
+    tags?: string | null;
 };
 
 export type GetDagRunsResponse = DAGRunCollectionResponse;

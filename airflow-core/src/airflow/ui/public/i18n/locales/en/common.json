@@ -401,5 +401,6 @@
     "tooltip": "Press {{hotkey}} to toggle wrap",
     "unwrap": "Unwrap",
     "wrap": "Wrap"
-  }
+  },
+  "tags": "tags"
 }
