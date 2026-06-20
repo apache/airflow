@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import json
-import re
 from unittest import mock
 
 import pytest
@@ -107,7 +106,7 @@ class TestPoolImportCommand:
 
         # Update the assertion to match the actual output format
         captured = capsys.readouterr()
-        assert "'test_pool'" in captured.out
+        assert str(["test_pool"]) in captured.out
 
     @pytest.mark.parametrize(
         ("action_on_existing_key", "expected_enum"),
@@ -175,10 +174,8 @@ class TestPoolExportCommand:
 
         # Verify output message
         captured = capsys.readouterr()
-        ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
-        out_str = ansi_escape.sub("", captured.out).replace("\n", "")
-        # Since rich wraps long lines, newlines are removed, so we assert the combined text.
-        assert out_str == f"Exported {len(exported_data)} pool(s) to {export_file}"
+        expected_output = f"Exported {len(exported_data)} pool(s) to {export_file}"
+        assert expected_output in captured.out.replace("\n", "")
 
     @pytest.mark.parametrize("output_format", ["table", "yaml", "plain"])
     def test_export_non_json_uses_airflow_console(self, mock_client, tmp_path, output_format):
