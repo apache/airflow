@@ -91,6 +91,8 @@ from airflowctl.api.datamodels.generated import (
     QueuedEventCollectionResponse,
     QueuedEventResponse,
     ReprocessBehavior,
+    TaskInstanceResponse,
+    TaskInstanceState,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -100,7 +102,7 @@ from airflowctl.api.datamodels.generated import (
     XComResponse,
     XComResponseNative,
 )
-from airflowctl.api.operations import BaseOperations
+from airflowctl.api.operations import BaseOperations, ServerResponseError
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
@@ -1905,6 +1907,102 @@ class TestXComOperations:
             map_index=self.map_index,
         )
         assert response == self.key
+
+
+class TestTaskInstancesOperations:
+    """Test suite for task instance operations."""
+
+    dag_id: str = "test_dag"
+    dag_run_id: str = "manual__2025-01-24T00:00:00+00:00"
+    task_id: str = "test_task"
+
+    task_instance_response = TaskInstanceResponse(
+        id=uuid.uuid4(),
+        task_id=task_id,
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        map_index=-1,
+        run_after=datetime.datetime(2025, 1, 24, 0, 0, 0),
+        try_number=1,
+        max_tries=1,
+        task_display_name=task_id,
+        dag_display_name=dag_id,
+        pool="default_pool",
+        pool_slots=1,
+        executor_config="{}",
+        state=TaskInstanceState.SUCCESS,
+    )
+
+    def test_get(self):
+        """Test fetching an unmapped task instance hits the standard endpoint."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_id}"
+            )
+            return httpx.Response(200, json=json.loads(self.task_instance_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.get(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+        )
+        assert response == self.task_instance_response
+
+    @pytest.mark.parametrize("map_index", [-1, None])
+    def test_get_without_map_index_uses_unmapped_endpoint(self, map_index):
+        """A negative or omitted ``map_index`` must not append a map index to the path."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_id}"
+            )
+            return httpx.Response(200, json=json.loads(self.task_instance_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.get(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+            map_index=map_index,
+        )
+        assert response == self.task_instance_response
+
+    @pytest.mark.parametrize("map_index", [0, 1, 7])
+    def test_get_with_map_index_uses_mapped_endpoint(self, map_index):
+        """A non-negative ``map_index`` must hit the mapped task instance endpoint."""
+        mapped_response = self.task_instance_response.model_copy(update={"map_index": map_index})
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/"
+                f"taskInstances/{self.task_id}/{map_index}"
+            )
+            return httpx.Response(200, json=json.loads(mapped_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.get(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+            map_index=map_index,
+        )
+        assert response == mapped_response
+
+    def test_get_not_found_raises(self):
+        """A 404 from the server must surface as a ServerResponseError."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(404, json={"detail": "Task instance not found"})
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        with pytest.raises(ServerResponseError):
+            client.task_instances.get(
+                dag_id=self.dag_id,
+                dag_run_id=self.dag_run_id,
+                task_id=self.task_id,
+            )
 
 
 class TestPluginsOperations:
