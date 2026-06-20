@@ -119,7 +119,7 @@ def test_get_removed_providers():
 
 def test_get_not_ready_provider_ids():
     # Modify it every time we add/release the first version of a provider
-    assert get_not_ready_provider_ids() == ["apache.datafusion"]
+    assert get_not_ready_provider_ids() == ["ibm.mq"]
 
 
 def test_get_suspended_provider_ids():
