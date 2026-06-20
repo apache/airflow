@@ -1127,7 +1127,8 @@ export class DagRunService {
                 dag_id_prefix_pattern: data.dagIdPrefixPattern,
                 partition_key_pattern: data.partitionKeyPattern,
                 partition_key_prefix_pattern: data.partitionKeyPrefixPattern,
-                consuming_asset_pattern: data.consumingAssetPattern
+                consuming_asset_pattern: data.consumingAssetPattern,
+                tags: data.tags,
             },
             errors: {
                 401: 'Unauthorized',
