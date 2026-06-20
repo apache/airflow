@@ -2498,6 +2498,14 @@ paths:
           items:
             type: string
           title: State
+      - name: tags
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tags
       - name: dag_version
         in: query
         required: false
@@ -13636,6 +13644,13 @@ components:
           $ref: '#/components/schemas/DagRunType'
         state:
           $ref: '#/components/schemas/DagRunState'
+        tags:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DagTagResponse'
+            type: array
+          - type: 'null'
+          title: Tags
         triggered_by:
           anyOf:
           - $ref: '#/components/schemas/DagRunTriggeredByType'
@@ -13689,6 +13704,7 @@ components:
       - last_scheduling_decision
       - run_type
       - state
+      - tags
       - triggered_by
       - triggering_user_name
       - conf
