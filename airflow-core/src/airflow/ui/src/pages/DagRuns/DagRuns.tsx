@@ -80,6 +80,7 @@ const {
   START_DATE_LTE: START_DATE_LTE_PARAM,
   STATE: STATE_PARAM,
   TRIGGERING_USER_NAME_PATTERN: TRIGGERING_USER_NAME_PATTERN_PARAM,
+  TAGS: TAGS,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 type ColumnProps = {
@@ -253,6 +254,7 @@ export const DagRuns = () => {
   const durationLte = searchParams.get(DURATION_LTE_PARAM);
   const confContains = searchParams.get(CONF_CONTAINS_PARAM);
   const partitionKeyPattern = searchParams.get(PARTITION_KEY_PATTERN_PARAM);
+  const filteredTags = searchParams.get(TAGS);
 
   const refetchInterval = useAutoRefresh({});
 
@@ -284,6 +286,7 @@ export const DagRuns = () => {
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
       bundleVersion: bundleVersion ?? undefined,
+      tags: filteredTags ?? undefined,
       confContains: confContains !== null && confContains !== "" ? confContains : undefined,
       consumingAssetPattern: filteredConsumingAsset ?? undefined,
       cursor: cursor ?? "",
