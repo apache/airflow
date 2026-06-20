@@ -745,23 +745,40 @@ class SerializedDAG:
                 interval = deserialized_deadline_alert.interval
 
                 if isinstance(interval, VariableInterval):
-                    # Resolve the VariableInterval on the SCHEDULER's session rather than via
-                    # ``interval.resolve()`` → ``Variable.get()``. That SDK path goes through
-                    # ``MetastoreBackend.get_variable`` (``@provide_session``), which — getting no
-                    # session — opens one via ``create_session(scoped=True)``. Because that is the
-                    # thread-local scoped session, it is the SAME session the scheduler holds, and
-                    # its context-manager exit COMMITS — tripping the ``prohibit_commit`` guard
-                    # (``UNEXPECTED COMMIT``) that ``create_dagrun`` runs under, which this block
-                    # then swallows, silently skipping the deadline. Read the value on the passed-in
-                    # session (no commit) and reuse the SDK's canonical validation.
-                    from airflow.models.variable import Variable as VariableModel
+                    # Resolve the VariableInterval through the full secrets chain (env vars,
+                    # configured secrets backends, then the metadata DB) -- the same resolution
+                    # order as ``Variable.get`` -- rather than reading only the ``variable`` table.
+                    # Reading the table directly would bypass ``AIRFLOW_VAR_*`` env vars and secrets
+                    # backends, so a Variable that lives there resolves to ``None`` and the deadline
+                    # is silently dropped by the per-alert ``except`` below.
+                    #
+                    # We must NOT call ``Variable.get`` / ``get_variable_from_secrets`` here: the
+                    # metastore backend's ``get_variable`` is ``@provide_session`` and, given no
+                    # session, opens the thread-local scoped session (the SAME one the scheduler
+                    # holds) whose context-manager exit COMMITS -- tripping the ``prohibit_commit``
+                    # guard ``create_dagrun`` runs under. Instead iterate the backends ourselves and
+                    # pass the scheduler's ``session`` through to the metastore backend (env/custom
+                    # backends ignore it), so the DB read happens on our session with no commit.
+                    from airflow._shared.secrets_backend.base import call_secrets_backend_method
+                    from airflow.configuration import ensure_secrets_loaded
+                    from airflow.secrets.metastore import MetastoreBackend
 
-                    var_row = session.scalar(
-                        select(VariableModel).where(VariableModel.key == interval.key).limit(1)
-                    )
-                    if var_row is None:
-                        raise ValueError(f"VariableInterval '{interval.key}' not found")
-                    interval = interval.coerce_to_timedelta(var_row.get_val())
+                    var_val = None
+                    for secrets_backend in ensure_secrets_loaded():
+                        kwargs = {"session": session} if isinstance(secrets_backend, MetastoreBackend) else {}
+                        var_val = call_secrets_backend_method(
+                            secrets_backend.get_variable, team_name=None, key=interval.key, **kwargs
+                        )
+                        if var_val is not None:
+                            break
+                    if var_val is None:
+                        # Fail loudly (the per-alert ``except`` isolates it): the Variable does not
+                        # exist in any backend, so we cannot resolve the interval. Not a silent skip.
+                        raise ValueError(
+                            f"VariableInterval '{interval.key}' could not be resolved from any "
+                            f"secrets backend, environment variable, or the metadata database"
+                        )
+                    interval = interval.coerce_to_timedelta(var_val)
 
                 if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
                     deadline_time = deserialized_deadline_alert.reference.evaluate_with(

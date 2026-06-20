@@ -64,7 +64,6 @@ from airflow.providers.standard.operators.python import PythonOperator, ShortCir
 from airflow.sdk import DAG, BaseOperator, get_current_context, setup, task, task_group, teardown
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
-from airflow.sdk.definitions.variable import Variable
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.settings import get_policy_plugin_manager
@@ -1375,9 +1374,8 @@ class TestDagRun:
             VariableInterval("my_key"),
         ],
     )
-    @mock.patch.object(Variable, "get")
     @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_success_deadline(self, _, mock_get, interval, session, deadline_test_dag):
+    def test_dagrun_success_deadline(self, _, interval, session, deadline_test_dag):
         def on_success_callable(context):
             assert context["dag_run"].dag_id == "test_dag"
 
@@ -1386,8 +1384,17 @@ class TestDagRun:
         # the deadline_time UtcDateTime column accepts it on all backends.
         future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
 
-        # First value used during resolution
-        mock_get.return_value = "5"
+        # Seed a REAL Variable row so the VariableInterval resolves through the actual
+        # secrets chain (metastore backend) on the scheduler's session -- the code under test no
+        # longer calls Variable.get, so mocking it would be a false green (see regression: reading
+        # only the variable table bypassed env/secrets resolution).
+        if isinstance(interval, VariableInterval):
+            # Seed via the metastore model (not the SDK Variable imported above, whose set() routes
+            # through SUPERVISOR_COMMS) so the row really lands in the variable table on this session.
+            from airflow.models.variable import Variable as VariableModel
+
+            VariableModel.set(key="my_key", value="5", session=session)
+            session.flush()
 
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
@@ -1512,8 +1519,8 @@ class TestDagRun:
         under the scheduler ``prohibit_commit`` guard, where a SAVEPOINT release would raise
         ``UNEXPECTED COMMIT`` and skip every scheduled DagRun's deadlines.)
         """
-        # No Variable named "missing_key" is seeded, so the scheduler-side resolver's direct
-        # session read returns None -> ValueError("VariableInterval 'missing_key' not found").
+        # No Variable named "missing_key" is seeded in any backend, so the scheduler-side resolver
+        # returns None -> ValueError(...could not be resolved...), isolated by the per-alert except.
         # Fixed future date (repo standard: no datetime.now() in tests). Far enough ahead that the
         # FIXED_DATETIME deadline never fires, but within MySQL's TIMESTAMP range (< 2038-01-19) so
         # the deadline_time UtcDateTime column accepts it on all backends.
@@ -1538,6 +1545,43 @@ class TestDagRun:
         # The bad deadline was skipped — no Deadline row created.
         deadline = session.execute(select(Deadline)).scalars().one_or_none()
         assert deadline is None
+
+    @mock.patch.object(Deadline, "prune_deadlines")
+    def test_dagrun_deadline_variable_interval_resolves_from_env_var(
+        self, _, session, deadline_test_dag, monkeypatch
+    ):
+        """A VariableInterval backed by an ``AIRFLOW_VAR_*`` env var (no DB row) must resolve.
+
+        Regression guard: the scheduler-side resolver must go through the full secrets chain
+        (env vars + secrets backends + metadata DB), not read only the ``variable`` table. A
+        table-only read returns None for an env/secrets-backed Variable, and the per-alert
+        ``except`` then silently drops the deadline. Here the Variable lives ONLY in the
+        environment, so a correct resolver creates the Deadline and a regressed one drops it.
+        """
+        # Variable exists only as an env var — never written to the variable table.
+        # VariableInterval values are interpreted as SECONDS (see coerce_to_timedelta).
+        monkeypatch.setenv("AIRFLOW_VAR_ENV_INTERVAL_KEY", "7")
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
+
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=VariableInterval("env_interval_key"),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        dag_run = self.create_dag_run(
+            dag=scheduler_dag,
+            task_states={"task_1": TaskInstanceState.SUCCESS},
+            session=session,
+        )
+        assert dag_run is not None
+
+        # The env-var-backed interval resolved (7 seconds) -> a Deadline row WAS created.
+        deadline = session.execute(select(Deadline)).scalars().one_or_none()
+        assert deadline is not None
+        assert deadline.deadline_time == future_date + datetime.timedelta(seconds=7)
 
     @mock.patch.object(Deadline, "prune_deadlines")
     def test_dagrun_deadline_decode_failure_is_isolated(self, _, session, deadline_test_dag):
