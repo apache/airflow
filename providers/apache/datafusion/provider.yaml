@@ -21,7 +21,7 @@ name: Apache DataFusion
 description: |
     `Apache DataFusion <https://datafusion.apache.org/>`__
 
-state: not-ready
+state: ready
 lifecycle: incubation
 source-date-epoch: 1775799686
 # Note that those versions are maintained by release manager - do not update them manually
