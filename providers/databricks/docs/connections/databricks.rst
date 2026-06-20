@@ -81,6 +81,23 @@ Extra (optional)
 
     * ``token``: Specify PAT to use. Consider to switch to specification of PAT in the Password field as it's more secure.
 
+    The following optional parameter can be used when Airflow workers need to access Databricks or Azure
+    token endpoints through an HTTP proxy:
+
+    * ``proxies``: JSON object with optional ``http`` and ``https`` keys, using the same shape as the
+      ``requests`` and Azure SDK ``proxies`` argument. Only these two keys are accepted. The configured proxy
+      is applied to Databricks REST API calls, Databricks OAuth token exchanges, and Azure Identity token
+      acquisition for AAD and default Azure credential authentication.
+
+      .. code-block:: json
+
+          {
+            "proxies": {
+              "http": "http://proxy.example.com:8080",
+              "https": "http://proxy.example.com:8443"
+            }
+          }
+
     Following parameters are necessary if using authentication with OAuth token for Databricks-managed Service Principal:
 
     * ``service_principal_oauth``: required boolean flag. If specified as ``true``, use the Client ID and Client Secret as the Username and Password. See `Authentication using OAuth for service principals <https://docs.databricks.com/en/dev-tools/authentication-oauth.html>`_.
