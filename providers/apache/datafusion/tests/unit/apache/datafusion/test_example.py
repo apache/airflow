@@ -15,9 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Example test
 from __future__ import annotations
 
+from airflow.providers.apache.datafusion.get_provider_info import get_provider_info
 
-def test_example():
-    assert True
+
+def test_get_provider_info():
+    provider_info = get_provider_info()
+
+    assert provider_info["package-name"] == "apache-airflow-providers-apache-datafusion"
+    assert provider_info["name"] == "Apache DataFusion"

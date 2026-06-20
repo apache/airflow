@@ -50,16 +50,11 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 Requirements
 ------------
 
-===================  ==================
-PIP package          Version required
-===================  ==================
-``apache-airflow``   ``>=2.11.0``
-===================  ==================
-
-.. note::
-
-   This provider is currently not ready and only contains the initial package skeleton.
-   Hooks, operators, sensors, and connection types have not been added yet.
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.11.0``
+==================  ==================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-datafusion/0.1.0/changelog.html>`_.

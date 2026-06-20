@@ -114,7 +114,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\""
 ]
 "apache.datafusion" = [
-    "apache-airflow-providers-apache-datafusion>=0.1.0" # Set from local provider pyproject.toml
+    "apache-airflow-providers-apache-datafusion>=0.1.0"
 ]
 "apache.drill" = [
     "apache-airflow-providers-apache-drill>=2.8.1"
@@ -415,7 +415,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-alibaba>=3.0.0",
     "apache-airflow-providers-amazon>=9.0.0",
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
-    "apache-airflow-providers-apache-datafusion>=0.1.0", # Set from local provider pyproject.toml
+    "apache-airflow-providers-apache-datafusion>=0.1.0",
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
     "apache-airflow-providers-apache-flink>=1.6.0",

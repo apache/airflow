@@ -154,7 +154,7 @@
     "cross-providers-deps": [],
     "excluded-python-versions": [],
     "excluded-platforms": [],
-    "state": "not-ready"
+    "state": "ready"
   },
   "apache.drill": {
     "deps": [
