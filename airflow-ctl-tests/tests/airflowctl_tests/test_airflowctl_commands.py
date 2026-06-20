@@ -98,7 +98,10 @@ TEST_COMMANDS = [
     'tasks list example_bash_operator "manual__{date_param}"',
     'tasks get example_bash_operator "manual__{date_param}" runme_0',
     "tasks clear example_bash_operator --dry-run",
-    'tasks update example_bash_operator "manual__{date_param}" runme_0 --new-state=success',
+    # runme_0 completes as "success" once the triggered run finishes, so updating it
+    # to "success" is rejected with 409 "already in success state". Use "failed" to
+    # exercise a real state transition (valid states: success, failed, skipped).
+    'tasks update example_bash_operator "manual__{date_param}" runme_0 --new-state=failed',
     # XCom commands - need a DAG run with completed tasks
     'xcom add example_bash_operator "manual__{date_param}" runme_0 {xcom_key} \'{{"test": "value"}}\'',
     'xcom get example_bash_operator "manual__{date_param}" runme_0 {xcom_key}',
