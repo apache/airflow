@@ -319,6 +319,39 @@ class TestAirflowCommon:
         for doc in docs:
             assert expected_image == jmespath.search("spec.template.spec.initContainers[0].image", doc)
 
+    @pytest.mark.parametrize(
+        ("component", "component_key", "expected_image", "digest"),
+        [
+            ("api-server", "apiServer", "apache/airflow-api-server@api-server-digest", "api-server-digest"),
+            ("scheduler", "scheduler", "apache/airflow-scheduler:scheduler-tag", None),
+            ("dag-processor", "dagProcessor", "apache/airflow-dag-processor@test-digest", "test-digest"),
+            ("triggerer", "triggerer", "apache/airflow-triggerer:triggerer-tag", None),
+        ],
+    )
+    def test_should_use_correct_component_image(self, component, component_key, expected_image, digest):
+        docs = render_chart(
+            values={
+                "defaultAirflowRepository": "apache/airflow",
+                "defaultAirflowTag": "default-tag",
+                "defaultAirflowDigest": "default-digest",
+                "images": {
+                    "airflow": {
+                        component_key: {
+                            "repository": f"apache/airflow-{component}",
+                            "tag": f"{component}-tag",
+                            "digest": digest,
+                        },
+                    },
+                },
+            },
+            show_only=[
+                f"templates/{component}/{component}-deployment.yaml",
+            ],
+        )
+
+        for doc in docs:
+            assert expected_image == jmespath.search("spec.template.spec.containers[0].image", doc)
+
     def test_should_set_correct_helm_hooks_weight(self):
         docs = render_chart(
             show_only=["templates/secrets/fernetkey-secret.yaml"],

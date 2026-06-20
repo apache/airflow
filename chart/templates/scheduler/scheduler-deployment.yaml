@@ -177,7 +177,7 @@ spec:
         {{- end }}
       containers:
         - name: scheduler
-          image: {{ template "airflow_image" . }}
+          image: {{ include "airflow_component_image" (merge (dict "component" "scheduler") .) }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
           {{- if $containerLifecycleHooks }}

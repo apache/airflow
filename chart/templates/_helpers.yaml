@@ -1167,3 +1167,25 @@ Usage:
           path: namespace
   {{- end }}
 {{- end -}}
+
+{{/*
+Configure the image for the different components.
+
+Usage:
+  {{ include "airflow_component_image" (merge (dict "component" "apiServer") .) }}
+*/}}
+{{- define "airflow_component_image" -}}
+  {{- $override := index .Values.images.airflow .component | default dict -}}
+  {{- $repository := $override.repository | default .Values.images.airflow.repository | default .Values.defaultAirflowRepository -}}
+  {{- $defaultTag := .Values.images.airflow.tag | default .Values.defaultAirflowTag -}}
+  {{- $defaultDigest := .Values.images.airflow.digest | default .Values.defaultAirflowDigest -}}
+  {{- if $override.digest }}
+    {{- printf "%s@%s" $repository $override.digest -}}
+  {{- else if $override.tag }}
+    {{- printf "%s:%s" $repository $override.tag -}}
+  {{- else if $defaultDigest }}
+    {{- printf "%s@%s" $repository $defaultDigest -}}
+  {{- else }}
+    {{- printf "%s:%s" $repository $defaultTag -}}
+  {{- end }}
+{{- end }}
