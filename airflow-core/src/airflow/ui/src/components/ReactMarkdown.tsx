@@ -64,7 +64,7 @@ const LinkComponent = ({
   readonly href: string;
   readonly title?: string;
 }) => (
-  <Link color="fg.info" fontWeight="bold" href={href} title={title}>
+  <Link color="fg.info" fontWeight="bold" href={href} rel="noopener noreferrer" target="_blank" title={title}>
     {children}
   </Link>
 );
@@ -109,16 +109,13 @@ const UlComponent = ({ children }: PropsWithChildren) => (
 // Factory function for the code component that needs style
 const createCodeComponent =
   (style: typeof oneDark | typeof oneLight) =>
-  ({
-    children,
-    className,
-    inline,
-  }: {
-    readonly children: ReactNode;
-    readonly className?: string;
-    readonly inline?: boolean;
-  }) => {
-    if (inline) {
+  ({ children, className }: { readonly children: ReactNode; readonly className?: string }) => {
+    // react-markdown v9 no longer passes an `inline` prop. Only fenced code
+    // blocks carry a `language-*` class; everything else is inline code and
+    // must render as a <span> (a block <div> inside a <p> breaks hydration).
+    const match = /language-(?<lang>\w+)/u.exec(className ?? "");
+
+    if (!match) {
       return (
         <Code display="inline" p={2}>
           {children}
@@ -126,9 +123,7 @@ const createCodeComponent =
       );
     }
 
-    // Extract language from className (format: "language-python")
-    const match = /language-(?<lang>\w+)/u.exec(className ?? "");
-    const language = match?.groups?.lang;
+    const language = match.groups?.lang;
 
     // Safely extract string content from children
     let childString = "";
@@ -146,7 +141,7 @@ const createCodeComponent =
     );
   };
 
-const ReactMarkdown = (props: Options) => {
+const ReactMarkdown = ({ components: componentOverrides, ...restProps }: Options) => {
   const { colorMode } = useColorMode();
   const style = colorMode === "dark" ? oneDark : oneLight;
 
@@ -180,7 +175,14 @@ const ReactMarkdown = (props: Options) => {
     ul: UlComponent,
   };
 
-  return <ReactMD components={components as Components} {...props} remarkPlugins={[remarkGfm]} skipHtml />;
+  return (
+    <ReactMD
+      components={{ ...components, ...componentOverrides } as Components}
+      {...restProps}
+      remarkPlugins={[remarkGfm]}
+      skipHtml
+    />
+  );
 };
 
 export default ReactMarkdown;

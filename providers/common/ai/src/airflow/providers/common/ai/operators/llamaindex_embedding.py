@@ -44,10 +44,10 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
     ``list[dict]`` with ``text`` and ``metadata`` keys; output includes the
     embedding vectors ready for downstream storage ingest.
 
-    The operator passes the embedding model **directly** to
-    ``VectorStoreIndex(..., embed_model=...)`` -- it does not mutate
-    LlamaIndex's global ``Settings`` singleton, so concurrent tasks in the
-    same worker don't race on shared state.
+    The operator calls the embedding model **directly** (and passes it to
+    ``VectorStoreIndex(..., embed_model=...)`` when persisting) -- it does
+    not mutate LlamaIndex's global ``Settings`` singleton, so concurrent
+    tasks in the same worker don't race on shared state.
 
     :param documents: List of dicts with ``text`` and ``metadata`` keys,
         typically from ``DocumentLoaderOperator`` or a ``@task``. Templated,
@@ -114,6 +114,7 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
         try:
             from llama_index.core import Document, VectorStoreIndex
             from llama_index.core.node_parser import SentenceSplitter
+            from llama_index.core.schema import MetadataMode
         except ImportError as e:
             raise AirflowOptionalProviderFeatureException(e)
 
@@ -125,19 +126,32 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
         nodes = splitter.get_nodes_from_documents(llama_docs)
         self.log.info("Split %d documents into %d chunks", len(llama_docs), len(nodes))
 
-        # ``VectorStoreIndex(...)`` populates each node's ``.embedding`` as a
-        # side effect of building the index; capture the index so the
-        # variable isn't discarded.
-        index = VectorStoreIndex(nodes, embed_model=embed_model, show_progress=False)
+        # ``VectorStoreIndex(...)`` never sets ``.embedding`` on the nodes it
+        # is given -- ``_get_node_with_embedding()`` attaches embeddings to
+        # ``model_copy()`` copies, so reading ``node.embedding`` afterwards
+        # always returns ``None`` (apache/airflow#68416). Embed the original
+        # nodes explicitly.
+        # ``MetadataMode.EMBED`` matches what ``embed_nodes()`` inside the
+        # index embeds (includes metadata, respects
+        # ``excluded_embed_metadata_keys``).
+        texts = [node.get_content(metadata_mode=MetadataMode.EMBED) for node in nodes]
+        vectors = embed_model.get_text_embedding_batch(texts, show_progress=False)
+        for node, vector in zip(nodes, vectors, strict=True):
+            node.embedding = vector
 
         if self.persist_dir:
+            # The index is only needed for persistence. ``embed_nodes()``
+            # inside ``VectorStoreIndex`` skips nodes whose ``.embedding`` is
+            # already set, so this reuses the vectors above instead of
+            # re-calling the embedding API.
+            index = VectorStoreIndex(nodes, embed_model=embed_model, show_progress=False)
             self._persist(index, self.persist_dir)
 
         # ``SentenceSplitter`` always returns ``TextNode`` instances, but the
         # base ``get_nodes_from_documents`` signature is typed as
         # ``list[BaseNode]`` (which has no ``.text``). Cast so mypy doesn't
-        # flag the ``.text`` access; ``node.embedding`` is populated by
-        # ``VectorStoreIndex`` for every node above.
+        # flag the ``.text`` access; ``node.embedding`` is populated by the
+        # pre-embed step above for every node.
         text_nodes = cast("list[TextNode]", nodes)
         chunks = [
             {
@@ -164,9 +178,9 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
         * ``None`` or ``str`` -- build an ``OpenAIEmbedding`` via
           ``LlamaIndexHook`` (the framework's documented ``default``
           behaviour).
-        * Has ``get_text_embedding`` / ``_get_query_embedding`` -- treat as
-          a pre-built ``BaseEmbedding`` (duck-typed to avoid forcing a
-          ``llama_index`` import here).
+        * Has ``get_text_embedding_batch`` / ``_get_query_embedding`` --
+          treat as a pre-built ``BaseEmbedding`` (duck-typed to avoid
+          forcing a ``llama_index`` import here).
         * Anything else -- ``TypeError`` with a clear pointer.
         """
         if self.embed_model is None or isinstance(self.embed_model, str):
@@ -179,10 +193,11 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
             ).get_embedding_model()
 
         # ``BaseEmbedding`` always exposes these two methods (see
-        # ``llama_index.core.base.embeddings.base``). Duck-typing avoids
-        # importing ``llama_index`` here and also catches the case where an
+        # ``llama_index.core.base.embeddings.base``); ``execute`` calls
+        # ``get_text_embedding_batch``. Duck-typing avoids importing
+        # ``llama_index`` here and also catches the case where an
         # unresolved ``XComArg`` slips through.
-        if hasattr(self.embed_model, "get_text_embedding") and hasattr(
+        if hasattr(self.embed_model, "get_text_embedding_batch") and hasattr(
             self.embed_model, "_get_query_embedding"
         ):
             return self.embed_model

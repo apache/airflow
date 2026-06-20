@@ -29,6 +29,12 @@ if (OpenAPI.BASE.endsWith("/")) {
   OpenAPI.BASE = OpenAPI.BASE.slice(0, -1);
 }
 
+// Encode path params as full URI components so values containing "/" (e.g. a variable key like
+// "/foo") become "%2Ffoo" rather than a literal "//", which proxies may collapse. The generated
+// client otherwise defaults to encodeURI, which leaves "/" untouched.
+// The backend automatically decodes path params.
+OpenAPI.ENCODE_PATH = encodeURIComponent;
+
 const RETRY_COUNT = 3;
 
 const retryFunction = (failureCount: number, error: unknown) => {

@@ -1425,6 +1425,70 @@ class TestSchedulerJob:
         assert tis[3].key in res_keys
         session.rollback()
 
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_find_executable_task_instances_pool_team_enforcement(self, dag_maker, session):
+        """Tasks using a pool owned by another team are not scheduled."""
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team_a = Team(name="team_a")
+        team_b = Team(name="team_b")
+        session.add_all([team_a, team_b])
+        session.flush()
+
+        bundle_a = DagBundleModel(name="bundle_a")
+        bundle_a.teams.append(team_a)
+        bundle_b = DagBundleModel(name="bundle_b")
+        bundle_b.teams.append(team_b)
+        session.add_all([bundle_a, bundle_b])
+        session.flush()
+
+        # Pool owned by team_a
+        pool_a = Pool(pool="pool_a", slots=10, include_deferred=False, team_name="team_a")
+        # Shared pool (no team)
+        pool_shared = Pool(pool="pool_shared", slots=10, include_deferred=False)
+        session.add_all([pool_a, pool_shared])
+        session.flush()
+
+        # DAG in team_a using pool_a (allowed)
+        with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
+            EmptyOperator(task_id="task_a", pool="pool_a")
+        dr_a = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        ti_a = dr_a.get_task_instance("task_a", session=session)
+        ti_a.state = State.SCHEDULED
+        session.merge(ti_a)
+
+        # DAG in team_b using pool_a (should be blocked)
+        with dag_maker(dag_id="dag_b_cross", bundle_name="bundle_b", session=session):
+            EmptyOperator(task_id="task_cross", pool="pool_a")
+        dr_b = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        ti_b = dr_b.get_task_instance("task_cross", session=session)
+        ti_b.state = State.SCHEDULED
+        session.merge(ti_b)
+
+        # DAG in team_b using shared pool (allowed)
+        with dag_maker(dag_id="dag_b_shared", bundle_name="bundle_b", session=session):
+            EmptyOperator(task_id="task_shared", pool="pool_shared")
+        dr_b2 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        ti_b2 = dr_b2.get_task_instance("task_shared", session=session)
+        ti_b2.state = State.SCHEDULED
+        session.merge(ti_b2)
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        queued_keys = {ti.key for ti in res}
+
+        # team_a task using its own pool: allowed
+        assert ti_a.key in queued_keys
+        # team_b task using team_a's pool: blocked
+        assert ti_b.key not in queued_keys
+        # team_b task using shared pool: allowed
+        assert ti_b2.key in queued_keys
+        session.rollback()
+
     @pytest.mark.parametrize(
         ("state", "total_executed_ti"),
         [
@@ -2873,6 +2937,55 @@ class TestSchedulerJob:
         mock_stats.gauge.assert_any_call("pool.queued_slots", mock.ANY, tags=expected_tags)
         mock_stats.gauge.assert_any_call("pool.running_slots", mock.ANY, tags=expected_tags)
 
+    @pytest.mark.parametrize(
+        ("multi_team", "expected_tags"),
+        [
+            pytest.param(
+                "true",
+                {"queue": "default", "dag_id": "ti_gauge_dag", "task_id": "task1", "team_name": "ti_team"},
+                id="with_team",
+            ),
+            pytest.param(
+                "false",
+                {"queue": "default", "dag_id": "ti_gauge_dag", "task_id": "task1"},
+                id="without_team",
+            ),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_emit_ti_metrics_team_name(self, mock_get_backend, multi_team, expected_tags, dag_maker, session):
+        """TI gauge metrics include team_name only when multi_team is enabled."""
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+
+        clear_db_teams()
+
+        team = Team(name="ti_team")
+        session.add(team)
+        session.flush()
+
+        clear_db_dag_bundles()
+
+        bundle = DagBundleModel(name="ti_bundle")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        with dag_maker(dag_id="ti_gauge_dag", bundle_name="ti_bundle", session=session):
+            EmptyOperator(task_id="task1")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instances(session=session)[0]
+        ti.state = State.RUNNING
+        session.flush()
+
+        with conf_vars({("core", "multi_team"): multi_team}):
+            scheduler_job = Job()
+            self.job_runner = SchedulerJobRunner(job=scheduler_job)
+            self.job_runner._emit_ti_metrics(session=session)
+
+        mock_stats.gauge.assert_any_call("ti.running", mock.ANY, tags=expected_tags)
+
     def test_enqueue_task_instances_with_queued_state(self, dag_maker, session):
         dag_id = "SchedulerJobTest.test_enqueue_task_instances_with_queued_state"
         task_id_1 = "dummy"
@@ -3536,6 +3649,57 @@ class TestSchedulerJob:
         # (dag_maker creates one) and the callback should be sent
         assert any("Backfilled dag_version_id" in rec.message for rec in caplog.records)
         mock_executor.send_callback.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("multi_team", "expected_tags"),
+        [
+            pytest.param(
+                "true",
+                {"dag_id": "heartbeat_dag", "task_id": "task", "team_name": "hb_team"},
+                id="with_team",
+            ),
+            pytest.param(
+                "false",
+                {"dag_id": "heartbeat_dag", "task_id": "task"},
+                id="without_team",
+            ),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats.incr")
+    def test_purge_heartbeat_killed_metric_team_name(
+        self, mock_incr, multi_team, expected_tags, dag_maker, session
+    ):
+        clear_db_teams()
+        team = Team(name="hb_team")
+        session.add(team)
+        session.flush()
+
+        clear_db_dag_bundles()
+        bundle = DagBundleModel(name="hb_bundle")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        with dag_maker("heartbeat_dag", bundle_name="hb_bundle", session=session):
+            EmptyOperator(task_id="task")
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        mock_executor = MagicMock()
+        scheduler_job = Job()
+
+        ti = dag_run.get_task_instance(task_id="task", session=session)
+        ti.state = TaskInstanceState.RUNNING
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(hours=1)
+        session.merge(ti)
+        session.commit()
+
+        with conf_vars({("core", "multi_team"): multi_team}):
+            self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
+            self.job_runner._purge_task_instances_without_heartbeats([ti], session=session)
+
+        mock_incr.assert_any_call("task_instances_without_heartbeats_killed", tags=expected_tags)
 
     @staticmethod
     def mock_failure_callback(context):
@@ -4908,7 +5072,7 @@ class TestSchedulerJob:
                 bash_command="exit 1",
                 retries=1,
             )
-        dag_maker.dag_model.calculate_dagrun_date_fields(dag, last_automated_run=None)
+        dag_maker.dag_model.calculate_dagrun_date_fields(dag, reference_run=None)
 
         @provide_session
         def do_schedule(*, session: Session = NEW_SESSION):
@@ -5502,6 +5666,67 @@ class TestSchedulerJob:
         assert created_run.data_interval_start is None
         assert created_run.data_interval_end is None
         assert created_run.creating_job_id == scheduler_job.id
+
+    @pytest.mark.parametrize(
+        ("multi_team", "expect_team_tag"),
+        [
+            pytest.param("true", True, id="with_team"),
+            pytest.param("false", False, id="without_team"),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_asset_triggered_dagruns_respects_team_name(
+        self, mock_get_backend, multi_team, expect_team_tag, session, dag_maker
+    ):
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+
+        suffix = "with_team" if expect_team_tag else "without_team"
+
+        team_name = f"team_asset_trig_{suffix}"
+        team = Team(name=team_name)
+        session.add(team)
+        session.flush()
+
+        bundle_name = f"bundle_asset_trig_{suffix}"
+        bundle = DagBundleModel(name=bundle_name)
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.commit()
+
+        asset_name = f"test_team_asset_{suffix}"
+        asset = Asset(uri=f"test://{asset_name}", name=asset_name, group="test_group")
+        with dag_maker(dag_id=f"producer_{suffix}", bundle_name=bundle_name, session=session):
+            BashOperator(task_id="task", bash_command="echo 1", outlets=[asset])
+        dr = dag_maker.create_dagrun()
+
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+        event = AssetEvent(
+            asset_id=asset_id,
+            source_task_id="task",
+            source_dag_id=dr.dag_id,
+            source_run_id=dr.run_id,
+            source_map_index=-1,
+        )
+        session.add(event)
+
+        with dag_maker(
+            dag_id=f"consumer_{suffix}", schedule=[asset], bundle_name=bundle_name, session=session
+        ):
+            pass
+
+        session.add(AssetDagRunQueue(asset_id=asset_id, target_dag_id=f"consumer_{suffix}"))
+        session.flush()
+
+        with conf_vars({("core", "multi_team"): multi_team}):
+            scheduler_job = Job()
+            self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+            self.job_runner._create_dagruns_for_dags(session, session)
+
+        if expect_team_tag:
+            mock_stats.incr.assert_any_call("asset.triggered_dagruns", tags={"team_name": team_name})
+        else:
+            mock_stats.incr.assert_any_call("asset.triggered_dagruns")
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.parametrize(
@@ -9342,6 +9567,43 @@ class TestSchedulerJob:
 
         assert ti._team_name == "team_a"
         assert ti.stats_tags == {"dag_id": "dag_a", "task_id": "task_a", "team_name": "team_a"}
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_do_scheduling_multi_team_schedules_task_instances(self, dag_maker, session):
+        """Test that _do_scheduling correctly schedules tasks when multi_team is enabled.
+
+        Regression test: the multi-team code path used to consume the ScalarResult iterator
+        (returned by get_running_dag_runs_to_examine) when building the team-name mapping,
+        leaving an exhausted iterator for _schedule_all_dag_runs. This caused tasks to remain
+        in None state indefinitely.
+        """
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team = Team(name="team_a")
+        session.add(team)
+        session.flush()
+
+        bundle = DagBundleModel(name="bundle_a")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        with dag_maker(dag_id="test_multi_team_scheduling", bundle_name="bundle_a", session=session):
+            EmptyOperator(task_id="task1")
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        dr = dag_maker.create_dagrun(state=State.RUNNING)
+        ti = dr.get_task_instance("task1", session=session)
+        assert ti.state == State.NONE
+
+        self.job_runner._do_scheduling(session)
+
+        ti = session.merge(ti)
+        session.refresh(ti)
+        assert ti.state != State.NONE
 
 
 @pytest.mark.need_serialized_dag

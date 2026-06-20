@@ -25,6 +25,17 @@
 Changelog
 ---------
 
+0.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Implement 'get_cli_user' in the Keycloak auth manager so airflowctl CLI commands can authenticate via a service account (#68175)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.7.3
 .....
 

@@ -58,7 +58,7 @@ from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
+from airflow.providers.amazon.aws.exceptions import S3HookPathTraversalError, S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
@@ -1804,6 +1804,7 @@ class S3Hook(AwsBaseHook):
         """Download S3 files from the S3 bucket to the local directory."""
         self.log.debug("Downloading data from s3://%s/%s to %s", bucket_name, s3_prefix, local_dir)
 
+        local_dir_resolved = local_dir.resolve()
         local_s3_objects = []
         s3_bucket = self.get_bucket(bucket_name)
         for obj in s3_bucket.objects.filter(Prefix=s3_prefix):
@@ -1811,6 +1812,12 @@ class S3Hook(AwsBaseHook):
                 continue
             obj_path = Path(obj.key)
             local_target_path = local_dir.joinpath(obj_path.relative_to(s3_prefix))
+            try:
+                local_target_path.resolve().relative_to(local_dir_resolved)
+            except ValueError:
+                raise S3HookPathTraversalError(
+                    f"S3 object key {obj.key!r} resolves outside local directory {local_dir}"
+                ) from None
             if not local_target_path.parent.exists():
                 local_target_path.parent.mkdir(parents=True, exist_ok=True)
                 self.log.debug("Created local directory: %s", local_target_path.parent)
