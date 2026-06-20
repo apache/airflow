@@ -94,6 +94,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
     _cached_handler: watchtower.CloudWatchLogHandler | None = attrs.field(
         init=False, default=None, repr=False
     )
+    _closed: bool = attrs.field(init=False, default=False, repr=False)
 
     @log_group.default
     def _(self):
@@ -122,16 +123,12 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     @property
     def handler(self) -> watchtower.CloudWatchLogHandler:
-        """
-        Return a usable watchtower handler, rebuilding it if it has been closed.
-
-        ``configure_logging`` ends in ``logging.config.dictConfig``, whose
-        non-incremental reset closes every handler registered in the stdlib
-        ``logging._handlerList`` -- including this one. A closed watchtower
-        handler has ``shutting_down=True`` and silently drops every record, so a
-        fresh handler is built whenever that has happened.
-        """
-        if self._cached_handler is None or self._cached_handler.shutting_down:
+        """Return the streaming handler, rebuilding it if dictConfig closed it mid-task."""
+        # dictConfig's non-incremental reset closes every handler in logging._handlerList,
+        # leaving this one with shutting_down=True (it then silently drops every record).
+        # Rebuild only while the IO is live: once close() has run, keep the closed handler so a
+        # late record is dropped instead of spawning an orphan handler + background thread.
+        if self._cached_handler is None or (not self._closed and self._cached_handler.shutting_down):
             self._cached_handler = self._build_handler()
         return self._cached_handler
 
@@ -177,13 +174,11 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         return (proc,)
 
     def close(self):
-        # Use the flush method to ensure all logs are sent to CloudWatch.
-        # Closing the handler sets `shutting_down` to True, which prevents any further logs from being sent.
-        # When `shutting_down` is True, means the logging system is in the process of shutting down,
-        # during which it attempts to flush the logs which are queued.
+        # Terminal flush — only ever called from upload(). Mark the IO closed first so `handler`
+        # stops rebuilding: a record arriving after teardown must be dropped, not revive a fresh
+        # handler. Read the cached handler directly so we never build one just to flush it.
+        self._closed = True
         handler = self._cached_handler
-        # Inspect the cached handler directly (not the rebuilding ``handler`` property) so a handler
-        # already closed by dictConfig stays closed instead of being needlessly rebuilt just to flush.
         if handler is None or handler.shutting_down:
             return
 
@@ -337,8 +332,12 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         if self.closed:
             return
 
-        if self.handler is not None:
-            self.handler.close()
+        # Close the handler the IO is actually using now, not the reference captured in
+        # set_context(): dictConfig may have closed that one and the IO rebuilt since, and
+        # closing the stale handler would leak the live handler's background thread.
+        live_handler = self.io._cached_handler
+        if live_handler is not None:
+            live_handler.close()
         if hasattr(self, "ti"):
             try:
                 self.io.upload(self.log_relative_path, self.ti)

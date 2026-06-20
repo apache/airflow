@@ -270,6 +270,19 @@ class TestCloudRemoteLogIO:
                 '{"foo": "bar", "event": "Hi", "level": "info", "timestamp": "2025-03-27T21:58:01.002000+00:00"}\n'
             ]
 
+    def test_handler_not_rebuilt_after_close(self):
+        # Once the IO has been closed, a closed handler must NOT be rebuilt: a record arriving
+        # after teardown should be dropped silently rather than spin up an orphan handler and its
+        # background queue thread. Only dictConfig closing it mid-task should trigger a rebuild.
+        with conf_vars({("logging", "base_log_folder"): self.local_log_location.as_posix()}):
+            original = self.subject.handler
+            self.subject.close()
+            original.close()
+            assert original.shutting_down is True
+
+            assert self.subject.handler is original
+            assert self.subject.handler.shutting_down is True
+
 
 @pytest.mark.db_test
 class TestCloudwatchTaskHandler:
@@ -536,6 +549,23 @@ class TestCloudwatchTaskHandler:
                     mock_upload.assert_called_once_with(
                         self.cloudwatch_task_handler.log_relative_path, self.ti
                     )
+
+    def test_close_closes_live_io_handler_after_rebuild(self):
+        """close() closes the handler the IO is currently using, not a stale captured reference."""
+        handler = self.cloudwatch_task_handler
+        with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.set_context"):
+            with mock.patch.object(handler.io, "upload"):
+                handler.set_context(self.ti)
+                stale = handler.handler
+                # Simulate dictConfig closing the handler mid-task and the IO rebuilding it.
+                stale.close()
+                rebuilt = handler.io._cached_handler = handler.io._build_handler()
+                assert rebuilt is not stale
+
+                handler.close()
+
+                # The live (rebuilt) handler is the one that gets closed, not the stale reference.
+                assert rebuilt.shutting_down is True
 
     def test_close_skips_upload_without_set_context(self):
         """close() without a prior set_context() should not call io.upload()."""
