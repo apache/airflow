@@ -382,7 +382,7 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
     :param agent_engine_id: Required. The Agent Engine ID.
     :param force: Optional. Whether to delete child resources.
     :param config: Optional. Additional deletion configuration.
-    :param wait_for_completion: Whether to wait until the Agent Engine no longer exists.
+    :param wait_for_completion: Whether to wait until the delete operation completes.
     :param poll_interval: Time, in seconds, to wait between checks.
     :param timeout: Optional timeout, in seconds.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.

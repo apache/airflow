@@ -131,7 +131,7 @@ class BaseVertexAIJobTrigger(BaseTrigger):
 
 
 class AgentEngineDeleteTrigger(BaseTrigger):
-    """Trigger that waits until a Vertex AI Agent Engine no longer exists."""
+    """Trigger that waits until a Vertex AI Agent Engine delete operation completes."""
 
     def __init__(
         self,
