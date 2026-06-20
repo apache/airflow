@@ -50,7 +50,6 @@ class FakeModel:
 @pytest.fixture
 def delete_trigger():
     return AgentEngineDeleteTrigger(
-        project_id=GCP_PROJECT,
         location=GCP_LOCATION,
         agent_engine_id=AGENT_ENGINE_ID,
         gcp_conn_id=GCP_CONN_ID,
@@ -80,7 +79,6 @@ class TestAgentEngineDeleteTrigger:
         assert delete_trigger.serialize() == (
             "airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineDeleteTrigger",
             {
-                "project_id": GCP_PROJECT,
                 "location": GCP_LOCATION,
                 "agent_engine_id": AGENT_ENGINE_ID,
                 "gcp_conn_id": GCP_CONN_ID,
@@ -102,6 +100,29 @@ class TestAgentEngineDeleteTrigger:
             location=GCP_LOCATION,
             operation_name=OPERATION_NAME,
         )
+        assert event == TriggerEvent(
+            {
+                "status": "success",
+                "message": "Agent Engine deleted",
+                "agent_engine_id": AGENT_ENGINE_ID,
+            }
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.asyncio.sleep", autospec=True)
+    @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineAsyncHook", autospec=True)
+    async def test_run_loop_polls_until_success(self, mock_hook, mock_sleep, delete_trigger):
+        mock_hook.return_value.get_agent_engine_operation.side_effect = [
+            {"done": False},
+            {"done": False},
+            {"done": True},
+        ]
+
+        event = await delete_trigger.run().asend(None)
+
+        assert mock_hook.return_value.get_agent_engine_operation.call_count == 3
+        assert mock_sleep.call_count == 2
+        mock_sleep.assert_awaited_with(1)
         assert event == TriggerEvent(
             {
                 "status": "success",
@@ -138,7 +159,7 @@ class TestAgentEngineDeleteTrigger:
         assert event == TriggerEvent(
             {
                 "status": "error",
-                "message": "boom",
+                "message": "Failed while polling Agent Engine deletion: boom",
                 "agent_engine_id": AGENT_ENGINE_ID,
             }
         )
@@ -219,6 +240,31 @@ class TestAgentEngineQueryJobTrigger:
         )
 
     @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.asyncio.sleep", autospec=True)
+    @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineAsyncHook", autospec=True)
+    async def test_run_loop_polls_until_success(self, mock_hook, mock_sleep, query_job_trigger):
+        running_job = FakeModel({"operation_name": QUERY_OPERATION_NAME, "status": "RUNNING"})
+        success_job = FakeModel({"operation_name": QUERY_OPERATION_NAME, "status": "SUCCESS"})
+        mock_hook.return_value.check_query_agent_engine_job.side_effect = [
+            running_job,
+            running_job,
+            success_job,
+        ]
+
+        event = await query_job_trigger.run().asend(None)
+
+        assert mock_hook.return_value.check_query_agent_engine_job.call_count == 3
+        assert mock_sleep.call_count == 2
+        mock_sleep.assert_awaited_with(1)
+        assert event == TriggerEvent(
+            {
+                "status": "success",
+                "message": "Agent Engine query job completed",
+                "query_job": {"operation_name": QUERY_OPERATION_NAME, "status": "SUCCESS"},
+            }
+        )
+
+    @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineAsyncHook", autospec=True)
     async def test_run_loop_return_failed_event(self, mock_hook, query_job_trigger):
         query_job = {"operation_name": QUERY_OPERATION_NAME, "status": "FAILED"}
@@ -248,7 +294,26 @@ class TestAgentEngineQueryJobTrigger:
             {
                 "status": "timeout",
                 "message": f"Timed out waiting for Agent Engine query job {QUERY_OPERATION_NAME}",
-                "operation_name": QUERY_OPERATION_NAME,
+                "query_job": {"status": "RUNNING"},
+            }
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineAsyncHook", autospec=True)
+    async def test_run_loop_return_error_event_for_unexpected_status(self, mock_hook, query_job_trigger):
+        query_job = {"operation_name": QUERY_OPERATION_NAME, "status": "CANCELLED"}
+        mock_hook.return_value.check_query_agent_engine_job.return_value = FakeModel(query_job)
+
+        event = await query_job_trigger.run().asend(None)
+
+        assert event == TriggerEvent(
+            {
+                "status": "error",
+                "message": (
+                    f"Agent Engine query job {QUERY_OPERATION_NAME} completed with "
+                    "unexpected status CANCELLED."
+                ),
+                "query_job": query_job,
             }
         )
 
@@ -262,7 +327,7 @@ class TestAgentEngineQueryJobTrigger:
         assert event == TriggerEvent(
             {
                 "status": "error",
-                "message": "boom",
-                "operation_name": QUERY_OPERATION_NAME,
+                "message": "Failed while polling Agent Engine query job: boom",
+                "query_job": {"operation_name": QUERY_OPERATION_NAME},
             }
         )
