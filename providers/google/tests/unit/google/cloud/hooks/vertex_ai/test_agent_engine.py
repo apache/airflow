@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineHook
+from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineAsyncHook, AgentEngineHook
 
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
@@ -136,6 +136,26 @@ class TestAgentEngineHookWithDefaultProjectId:
         )
         assert result == mock_check_query_job.return_value
 
+    @mock.patch(AGENT_ENGINE_STRING.format("time.sleep"), autospec=True)
+    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.check_query_agent_engine_job"), autospec=True)
+    def test_wait_for_query_agent_engine_job_polls_until_success(self, mock_check_query_job, mock_sleep):
+        running_job = mock.Mock(status="RUNNING")
+        success_job = mock.Mock(status="SUCCESS")
+        mock_check_query_job.side_effect = [running_job, running_job, success_job]
+
+        result = self.hook.wait_for_query_agent_engine_job(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            operation_name=QUERY_OPERATION_NAME,
+            config=CHECK_QUERY_CONFIG,
+            poll_interval=10,
+        )
+
+        assert result is success_job
+        assert mock_check_query_job.call_count == 3
+        assert mock_sleep.call_count == 2
+        mock_sleep.assert_called_with(10)
+
     @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.check_query_agent_engine_job"), autospec=True)
     def test_wait_for_query_agent_engine_job_raises_on_failed_status(self, mock_check_query_job):
         mock_check_query_job.return_value.status = "FAILED"
@@ -147,6 +167,26 @@ class TestAgentEngineHookWithDefaultProjectId:
                 operation_name=QUERY_OPERATION_NAME,
                 config=CHECK_QUERY_CONFIG,
             )
+
+    @mock.patch(AGENT_ENGINE_STRING.format("time.sleep"), autospec=True)
+    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.check_query_agent_engine_job"), autospec=True)
+    def test_wait_for_query_agent_engine_job_raises_on_unexpected_status(
+        self, mock_check_query_job, mock_sleep
+    ):
+        mock_check_query_job.return_value.status = "CANCELLED"
+
+        with pytest.raises(
+            RuntimeError,
+            match=f"Agent Engine query job {QUERY_OPERATION_NAME} completed with unexpected status CANCELLED.",
+        ):
+            self.hook.wait_for_query_agent_engine_job(
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                operation_name=QUERY_OPERATION_NAME,
+                config=CHECK_QUERY_CONFIG,
+            )
+
+        mock_sleep.assert_not_called()
 
     @mock.patch(AGENT_ENGINE_STRING.format("time.sleep"), autospec=True)
     @mock.patch(AGENT_ENGINE_STRING.format("time.monotonic"), autospec=True)
@@ -233,6 +273,23 @@ class TestAgentEngineHookWithDefaultProjectId:
             operation_name=OPERATION_NAME,
         )
 
+    @mock.patch(AGENT_ENGINE_STRING.format("time.sleep"), autospec=True)
+    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_operation"), autospec=True)
+    def test_wait_for_agent_engine_operation_polls_until_done(self, mock_get_operation, mock_sleep):
+        running_operation = {"name": OPERATION_NAME, "done": False}
+        done_operation = {"name": OPERATION_NAME, "done": True}
+        mock_get_operation.side_effect = [running_operation, running_operation, done_operation]
+
+        self.hook.wait_for_agent_engine_operation(
+            location=GCP_LOCATION,
+            operation_name=OPERATION_NAME,
+            poll_interval=10,
+        )
+
+        assert mock_get_operation.call_count == 3
+        assert mock_sleep.call_count == 2
+        mock_sleep.assert_called_with(10)
+
     @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_operation"), autospec=True)
     def test_wait_for_agent_engine_operation_raises_on_error(self, mock_get_operation):
         mock_get_operation.return_value = {"name": OPERATION_NAME, "done": True, "error": {"message": "boom"}}
@@ -258,3 +315,50 @@ class TestAgentEngineHookWithDefaultProjectId:
             )
 
         mock_sleep.assert_not_called()
+
+
+class TestAgentEngineAsyncHook:
+    def setup_method(self):
+        with mock.patch(
+            BASE_STRING.format("GoogleBaseAsyncHook.__init__"),
+            return_value=None,
+        ):
+            self.hook = AgentEngineAsyncHook(gcp_conn_id=TEST_GCP_CONN_ID)
+
+    @pytest.mark.asyncio
+    async def test_get_agent_engine_operation_calls_sync_hook(self):
+        sync_hook = mock.Mock(spec=AgentEngineHook)
+        sync_hook.get_agent_engine_operation.return_value = {"name": OPERATION_NAME, "done": True}
+        self.hook.get_sync_hook = mock.AsyncMock(return_value=sync_hook)
+
+        result = await self.hook.get_agent_engine_operation(
+            location=GCP_LOCATION,
+            operation_name=OPERATION_NAME,
+        )
+
+        sync_hook.get_agent_engine_operation.assert_called_once_with(
+            location=GCP_LOCATION,
+            operation_name=OPERATION_NAME,
+        )
+        assert result == {"name": OPERATION_NAME, "done": True}
+
+    @pytest.mark.asyncio
+    async def test_check_query_agent_engine_job_calls_sync_hook(self):
+        sync_hook = mock.Mock(spec=AgentEngineHook)
+        sync_hook.check_query_agent_engine_job.return_value = mock.sentinel.query_job
+        self.hook.get_sync_hook = mock.AsyncMock(return_value=sync_hook)
+
+        result = await self.hook.check_query_agent_engine_job(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            operation_name=QUERY_OPERATION_NAME,
+            config=CHECK_QUERY_CONFIG,
+        )
+
+        sync_hook.check_query_agent_engine_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            operation_name=QUERY_OPERATION_NAME,
+            config=CHECK_QUERY_CONFIG,
+        )
+        assert result == mock.sentinel.query_job

@@ -135,17 +135,15 @@ class AgentEngineDeleteTrigger(BaseTrigger):
 
     def __init__(
         self,
-        project_id: str,
         location: str,
         agent_engine_id: str,
+        operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         poll_interval: float = 30,
         timeout: float | None = None,
-        operation_name: str | None = None,
     ):
         super().__init__()
-        self.project_id = project_id
         self.location = location
         self.agent_engine_id = agent_engine_id
         self.gcp_conn_id = gcp_conn_id
@@ -158,7 +156,6 @@ class AgentEngineDeleteTrigger(BaseTrigger):
         return (
             "airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineDeleteTrigger",
             {
-                "project_id": self.project_id,
                 "location": self.location,
                 "agent_engine_id": self.agent_engine_id,
                 "gcp_conn_id": self.gcp_conn_id,
@@ -177,16 +174,6 @@ class AgentEngineDeleteTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        if not self.operation_name:
-            yield TriggerEvent(
-                {
-                    "status": "error",
-                    "message": "Delete Agent Engine operation name is required.",
-                    "agent_engine_id": self.agent_engine_id,
-                }
-            )
-            return
-
         start_time = time.monotonic()
         try:
             while True:
@@ -232,7 +219,7 @@ class AgentEngineDeleteTrigger(BaseTrigger):
             yield TriggerEvent(
                 {
                     "status": "error",
-                    "message": str(err),
+                    "message": f"Failed while polling Agent Engine deletion: {err}",
                     "agent_engine_id": self.agent_engine_id,
                 }
             )
@@ -295,12 +282,13 @@ class AgentEngineQueryJobTrigger(BaseTrigger):
                     config=self.config,
                 )
                 status = getattr(query_job, "status", None)
+                serialized_query_job = _serialize_value(query_job)
                 if status == "SUCCESS":
                     yield TriggerEvent(
                         {
                             "status": "success",
                             "message": "Agent Engine query job completed",
-                            "query_job": _serialize_value(query_job),
+                            "query_job": serialized_query_job,
                         }
                     )
                     return
@@ -309,7 +297,19 @@ class AgentEngineQueryJobTrigger(BaseTrigger):
                         {
                             "status": "error",
                             "message": f"Agent Engine query job {self.operation_name} failed.",
-                            "query_job": _serialize_value(query_job),
+                            "query_job": serialized_query_job,
+                        }
+                    )
+                    return
+                if status not in (None, "RUNNING"):
+                    yield TriggerEvent(
+                        {
+                            "status": "error",
+                            "message": (
+                                f"Agent Engine query job {self.operation_name} completed with "
+                                f"unexpected status {status}."
+                            ),
+                            "query_job": serialized_query_job,
                         }
                     )
                     return
@@ -319,7 +319,7 @@ class AgentEngineQueryJobTrigger(BaseTrigger):
                         {
                             "status": "timeout",
                             "message": f"Timed out waiting for Agent Engine query job {self.operation_name}",
-                            "operation_name": self.operation_name,
+                            "query_job": serialized_query_job,
                         }
                     )
                     return
@@ -331,8 +331,8 @@ class AgentEngineQueryJobTrigger(BaseTrigger):
             yield TriggerEvent(
                 {
                     "status": "error",
-                    "message": str(err),
-                    "operation_name": self.operation_name,
+                    "message": f"Failed while polling Agent Engine query job: {err}",
+                    "query_job": {"operation_name": self.operation_name},
                 }
             )
 

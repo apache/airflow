@@ -460,7 +460,6 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
         if self.deferrable:
             self.defer(
                 trigger=AgentEngineDeleteTrigger(
-                    project_id=self.project_id,
                     location=self.location,
                     agent_engine_id=self.agent_engine_id,
                     gcp_conn_id=self.gcp_conn_id,
