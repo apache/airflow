@@ -85,7 +85,7 @@ To update an Agent Engine you can use
 
 To delete an Agent Engine you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.DeleteAgentEngineOperator`.
-By default, the operator waits until the Agent Engine no longer exists. The same operation
+By default, the operator waits until the delete operation completes. The same operation
 can be performed in the deferrable mode.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_agent_engine.py
