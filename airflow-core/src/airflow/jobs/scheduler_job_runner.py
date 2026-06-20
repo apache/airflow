@@ -2458,7 +2458,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_id=dag_model.dag_id,
                     logical_date=dag_model.next_dagrun,
                 )
-                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
+                dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=dr)
                 continue
 
             if (
@@ -2498,7 +2498,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     partition_date=next_info.partition_date,
                 )
                 active_runs_of_dags[dag_model.dag_id] += 1
-                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=created_run)
+                dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=created_run)
                 self._set_exceeds_max_active_runs(
                     dag_model=dag_model,
                     session=session,
@@ -2611,7 +2611,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 creating_job_id=self.job.id,
                 session=session,
             )
-            stats.incr("asset.triggered_dagruns")
+            team_name = (
+                self._get_team_names_for_dag_ids([dag.dag_id], session).get(dag.dag_id)
+                if self._multi_team
+                else None
+            )
+            stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
             dag_run.consumed_asset_events.extend(asset_events)
             self.log.info(
                 "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
