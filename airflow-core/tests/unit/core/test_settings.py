@@ -533,3 +533,58 @@ class TestDisposeOrm:
             settings.dispose_orm(do_log=False)
 
         mock_close.assert_not_called()
+
+
+class TestGetAsyncConnUriFromSync:
+    """Tests for _get_async_conn_uri_from_sync function."""
+
+    def test_sqlite_uri_conversion(self):
+        """Test conversion of SQLite sync URI to async with aiosqlite."""
+        result = settings._get_async_conn_uri_from_sync("sqlite:///path/to/db.sqlite")
+        assert result == "sqlite+aiosqlite:///path/to/db.sqlite"
+
+    def test_postgresql_uri_conversion(self):
+        """Test conversion of PostgreSQL sync URI to async with asyncpg."""
+        result = settings._get_async_conn_uri_from_sync("postgresql://user:pass@localhost/dbname")
+        assert result == "postgresql+asyncpg://user:pass@localhost/dbname"
+
+    def test_mysql_uri_conversion(self):
+        """Test conversion of MySQL sync URI to async with aiomysql."""
+        result = settings._get_async_conn_uri_from_sync("mysql://user:pass@localhost/dbname")
+        assert result == "mysql+aiomysql://user:pass@localhost/dbname"
+
+    def test_postgresql_psycopg2_uri_conversion(self):
+        """Test conversion of PostgreSQL with psycopg2 driver to asyncpg."""
+        result = settings._get_async_conn_uri_from_sync("postgresql+psycopg2://user@localhost/db")
+        assert result == "postgresql+asyncpg://user@localhost/db"
+
+    def test_unsupported_scheme_returns_original_uri(self):
+        """Test that unsupported schemes return the original URI unchanged."""
+        uri = "oracle://user:pass@localhost:1521/dbname"
+        result = settings._get_async_conn_uri_from_sync(uri)
+        assert result == uri
+
+    def test_empty_string_raises_value_error(self):
+        """Test that empty string raises ValueError with helpful message."""
+        with pytest.raises(ValueError, match="Invalid SQLAlchemy connection URI"):
+            settings._get_async_conn_uri_from_sync("")
+
+    def test_none_raises_value_error(self):
+        """Test that None raises ValueError with helpful message."""
+        with pytest.raises(ValueError, match="Invalid SQLAlchemy connection URI"):
+            settings._get_async_conn_uri_from_sync(None)
+
+    def test_malformed_uri_without_colon_raises_value_error(self):
+        """Test that URI without ':' separator raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid SQLAlchemy connection URI.*':' separator"):
+            settings._get_async_conn_uri_from_sync("notavaliduri")
+
+    def test_error_message_is_helpful(self):
+        """Test that error message contains helpful guidance."""
+        with pytest.raises(ValueError, match="Invalid SQLAlchemy connection URI") as exc_info:
+            settings._get_async_conn_uri_from_sync("invalid_value")
+
+        error_msg = str(exc_info.value)
+        assert "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN" in error_msg
+        assert "sql_alchemy_conn" in error_msg
+        assert "airflow.cfg" in error_msg
