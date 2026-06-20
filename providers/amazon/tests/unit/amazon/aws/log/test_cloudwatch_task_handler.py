@@ -242,6 +242,34 @@ class TestCloudRemoteLogIO:
                 '{"foo": "bar", "event": "Hi", "level": "info", "timestamp": "2025-03-27T21:58:01.002000+00:00"}\n'
             ]
 
+    @time_machine.travel(datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
+    def test_log_message_after_handler_closed_by_dictconfig(self):
+        # configure_logging() ends in logging.config.dictConfig(), whose
+        # _clearExistingHandlers closes every handler in logging._handlerList,
+        # including the streaming watchtower handler built moments earlier. The
+        # processor must rebuild it instead of feeding the closed one (which
+        # silently drops every record), otherwise no task log ever ships.
+        with conf_vars({("logging", "base_log_folder"): self.local_log_location.as_posix()}):
+            import structlog
+
+            closed = self.subject.handler
+            closed.close()
+            assert closed.shutting_down is True
+
+            log = structlog.get_logger()
+            log.info("Hi", foo="bar")
+            self.subject.close()
+
+            # A fresh handler was built rather than reusing the closed one.
+            assert self.subject.handler is not closed
+            assert self.subject.handler.shutting_down is False
+
+            stream_name = self.task_log_path.replace(":", "_")
+            _, logs = self.subject.read(stream_name, self.ti)
+            assert logs == [
+                '{"foo": "bar", "event": "Hi", "level": "info", "timestamp": "2025-03-27T21:58:01.002000+00:00"}\n'
+            ]
+
 
 @pytest.mark.db_test
 class TestCloudwatchTaskHandler:

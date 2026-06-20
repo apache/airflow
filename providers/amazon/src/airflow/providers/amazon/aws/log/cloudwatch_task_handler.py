@@ -91,6 +91,9 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
     log_stream_name: str = ""
     log_group: str = attrs.field(init=False, repr=False)
     region_name: str = attrs.field(init=False, repr=False)
+    _cached_handler: watchtower.CloudWatchLogHandler | None = attrs.field(
+        init=False, default=None, repr=False
+    )
 
     @log_group.default
     def _(self):
@@ -107,8 +110,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             aws_conn_id=conf.get("logging", "remote_log_conn_id"), region_name=self.region_name
         )
 
-    @cached_property
-    def handler(self) -> watchtower.CloudWatchLogHandler:
+    def _build_handler(self) -> watchtower.CloudWatchLogHandler:
         _json_serialize = conf.getimport("aws", "cloudwatch_task_handler_json_serializer", fallback=None)
         return watchtower.CloudWatchLogHandler(
             log_group_name=self.log_group,
@@ -117,6 +119,21 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             boto3_client=self.hook.get_conn(),
             json_serialize_default=_json_serialize or json_serialize_legacy,
         )
+
+    @property
+    def handler(self) -> watchtower.CloudWatchLogHandler:
+        """
+        Return a usable watchtower handler, rebuilding it if it has been closed.
+
+        ``configure_logging`` ends in ``logging.config.dictConfig``, whose
+        non-incremental reset closes every handler registered in the stdlib
+        ``logging._handlerList`` -- including this one. A closed watchtower
+        handler has ``shutting_down=True`` and silently drops every record, so a
+        fresh handler is built whenever that has happened.
+        """
+        if self._cached_handler is None or self._cached_handler.shutting_down:
+            self._cached_handler = self._build_handler()
+        return self._cached_handler
 
     @cached_property
     def processors(self) -> tuple[structlog.typing.Processor, ...]:
@@ -127,16 +144,19 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         logRecordFactory = getLogRecordFactory()
         # The handler MUST be initted here, before the processor is actually used to log anything.
         # Otherwise, logging that occurs during the creation of the handler can create infinite loops.
-        _handler = self.handler
+        _ = self.handler
         from airflow.sdk.log import relative_path_from_logger
 
         def proc(logger: structlog.typing.WrappedLogger, method_name: str, event: structlog.typing.EventDict):
             if not logger or not (stream_name := relative_path_from_logger(logger)):
                 return event
+            # Resolve the handler on every record: configure_logging() may have
+            # closed the one built above, in which case ``handler`` rebuilds it.
+            handler = self.handler
             # We can't set the log stream name in the above init handler because
             # the log path isn't known at that stage.
             # Instead, we should always rely on the path (log stream name) provided by the logger.
-            _handler.log_stream_name = stream_name.as_posix().replace(":", "_")
+            handler.log_stream_name = stream_name.as_posix().replace(":", "_")
             name = event.get("logger_name") or event.get("logger", "")
             level = structlog.stdlib.NAME_TO_LEVEL.get(method_name.lower(), logging.INFO)
             msg = copy.copy(event)
@@ -151,7 +171,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
                 ct = created.timestamp()
                 record.created = ct
                 record.msecs = int((ct - int(ct)) * 1000) + 0.0  # Copied from stdlib logging
-            _handler.handle(record)
+            handler.handle(record)
             return event
 
         return (proc,)
@@ -161,10 +181,13 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         # Closing the handler sets `shutting_down` to True, which prevents any further logs from being sent.
         # When `shutting_down` is True, means the logging system is in the process of shutting down,
         # during which it attempts to flush the logs which are queued.
-        if self.handler is None or self.handler.shutting_down:
+        handler = self._cached_handler
+        # Inspect the cached handler directly (not the rebuilding ``handler`` property) so a handler
+        # already closed by dictConfig stays closed instead of being needlessly rebuilt just to flush.
+        if handler is None or handler.shutting_down:
             return
 
-        self.handler.flush()
+        handler.flush()
 
     def upload(self, path: os.PathLike | str, ti: RuntimeTI | None = None) -> None:
         """Upload the given log path to the remote storage."""
