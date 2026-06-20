@@ -42,6 +42,7 @@ from airflow.providers.openlineage.utils.utils import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
     DagRunInfo,
+    build_task_event_job_facets,
     get_airflow_dag_run_facet,
     get_airflow_debug_facet,
     get_airflow_job_facet,
@@ -154,6 +155,18 @@ def _emit_manual_state_change_event(adapter_method_name: str, stats_key: str, **
     event = getattr(_get_process_adapter(), adapter_method_name)(**kwargs)
     Stats.gauge(stats_key, len(Serde.to_json(event).encode("utf-8")))
     return event
+
+
+def _build_task_event_job_facet_kwargs(*, task, dag, task_metadata: OperatorLineage) -> dict:
+    if not get_source_code_location_job_facet(dag):
+        return {}
+    return {
+        "job_facets": build_task_event_job_facets(
+            task=task,
+            dag=dag,
+            additional_job_facets=task_metadata.job_facets,
+        )
+    }
 
 
 class OpenLineageListener:
@@ -329,6 +342,7 @@ class OpenLineageListener:
                     ),
                     **debug_facet,
                 },
+                **_build_task_event_job_facet_kwargs(task=task, dag=dag, task_metadata=task_metadata),
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
 
@@ -490,6 +504,7 @@ class OpenLineageListener:
                     ),
                     **get_airflow_debug_facet(),
                 },
+                **_build_task_event_job_facet_kwargs(task=task, dag=dag, task_metadata=task_metadata),
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
 
@@ -666,6 +681,7 @@ class OpenLineageListener:
                     ),
                     **get_airflow_debug_facet(),
                 },
+                **_build_task_event_job_facet_kwargs(task=task, dag=dag, task_metadata=task_metadata),
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
 
@@ -817,6 +833,7 @@ class OpenLineageListener:
                     ),
                     **get_airflow_debug_facet(),
                 },
+                **_build_task_event_job_facet_kwargs(task=task, dag=dag, task_metadata=task_metadata),
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
 
@@ -919,6 +936,8 @@ class OpenLineageListener:
             doc: str | None = None
             doc_type: str | None = None
             airflow_run_facet: dict = {}
+            job_facet_kwargs: dict = {}
+            task_metadata = OperatorLineage()
             if task:  # on scheduler, we should have access to task
                 doc, doc_type = get_task_documentation(task)
                 dag = getattr(task, "dag")
@@ -935,12 +954,15 @@ class OpenLineageListener:
                         task_uuid,
                         include_full_task_info=include_full_task_info,
                     )
+                    job_facet_kwargs = _build_task_event_job_facet_kwargs(
+                        task=task, dag=dag, task_metadata=task_metadata
+                    )
 
             adapter_kwargs: dict = {
                 "run_id": task_uuid,
                 "job_name": get_job_name(ti),
                 "end_time": end_date.isoformat(),
-                "task": OperatorLineage(),
+                "task": task_metadata,
                 "nominal_start_time": data_interval_start,
                 "nominal_end_time": data_interval_end,
                 "tags": dag_tags,
@@ -956,6 +978,7 @@ class OpenLineageListener:
                     **airflow_run_facet,
                     **get_airflow_debug_facet(),
                 },
+                **job_facet_kwargs,
             }
             if ti_state == TaskInstanceState.FAILED:
                 adapter_kwargs["error"] = error

@@ -1391,19 +1391,23 @@ def get_source_code_location_job_facet(dag: DAG | SerializedDAG | None) -> dict[
     if not source_code_location:
         return {}
 
-    url = source_code_location.url or source_code_location.repo_url
+    def get_optional_str(name: str) -> str | None:
+        value = getattr(source_code_location, name, None)
+        return value if isinstance(value, str) else None
+
+    url = get_optional_str("url") or get_optional_str("repo_url")
     if not url:
         return {}
 
     return {
         "sourceCodeLocation": source_code_location_job.SourceCodeLocationJobFacet(
-            type=source_code_location.type,
+            type=get_optional_str("type") or "git",
             url=url,
-            repoUrl=source_code_location.repo_url,
-            path=source_code_location.path,
-            version=source_code_location.version,
-            tag=source_code_location.tag,
-            branch=source_code_location.branch,
+            repoUrl=get_optional_str("repo_url"),
+            path=get_optional_str("path"),
+            version=get_optional_str("version"),
+            tag=get_optional_str("tag"),
+            branch=get_optional_str("branch"),
             producer=_PRODUCER,
         )
     }

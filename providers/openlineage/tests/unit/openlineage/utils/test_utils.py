@@ -4440,6 +4440,12 @@ def test_get_source_code_location_job_facet_returns_empty_for_missing_location()
     assert get_source_code_location_job_facet(dag) == {}
 
 
+def test_get_source_code_location_job_facet_returns_empty_for_mock_location():
+    dag = MagicMock()
+
+    assert get_source_code_location_job_facet(dag) == {}
+
+
 def test_build_task_event_job_facets_prefers_task_doc_over_dag_doc():
     facets = build_task_event_job_facets(
         task=_job_task(doc_md="task-doc"),
