@@ -33,6 +33,7 @@ from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN, PodGe
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager, PodPhase
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.helpers import prune_dict
+from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import add_sidecar_to_spark_operator_pod_spec
 
 if TYPE_CHECKING:
     import jinja2
@@ -230,7 +231,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         pod_try_number = pod.metadata.labels.get(task_context_labels.get("try_number", ""), "")
         return str(task_instance.try_number) == str(pod_try_number)
 
-    @property
+    @cached_property
     def template_body(self):
         """Templated body for CustomObjectLauncher."""
         return self.manage_template_specs()
@@ -349,6 +350,16 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         )
         return driver_pod
 
+    def _apply_xcom_sidecar_to_template(self, template_body: dict) -> None:
+        if self.do_xcom_push:
+            self.log.debug("Adding xcom sidecar to driver pod spec in task %s", self.task_id)
+            driver_template = template_body["spark"]["spec"]
+            template_body["spark"]["spec"] = add_sidecar_to_spark_operator_pod_spec(
+                driver_template,
+                sidecar_container_image=self.hook.get_xcom_sidecar_container_image(),
+                sidecar_container_resources=self.hook.get_xcom_sidecar_container_resources(),
+            )
+
     def execute(self, context: Context):
         self.name = self.create_job_name()
 
@@ -407,6 +418,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
                 env_list.append({"name": "SPARK_APPLICATION_NAME", "value": self.name})
 
         self.log.info("Creating sparkApplication.")
+        self._apply_xcom_sidecar_to_template(template_body)
+
         self.launcher = CustomObjectLauncher(
             name=self.name,
             namespace=self.namespace,

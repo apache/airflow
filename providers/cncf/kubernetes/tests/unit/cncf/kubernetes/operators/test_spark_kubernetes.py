@@ -38,6 +38,7 @@ from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKu
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
+from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
@@ -1652,3 +1653,80 @@ class TestSparkKubernetesLifecycle:
             app_name_envs = [e for e in env if e["name"] == "SPARK_APPLICATION_NAME"]
             assert len(app_name_envs) == 1  # not duplicated
             assert app_name_envs[0]["value"] == "user-defined"
+
+    @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.client")
+    @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
+    def test_setup_spark_configuration_injects_xcom_sidecar_when_do_xcom_push(
+        self, mock_hook_cls, mock_client
+    ):
+        xcom_sidecar_resources = {
+            "requests": {"cpu": "1m", "memory": "10Mi"},
+            "limits": {"cpu": "10m", "memory": "50Mi"},
+        }
+        mock_hook_cls.return_value.get_xcom_sidecar_container_image.return_value = "custom.repo/alpine:3.16"
+        mock_hook_cls.return_value.get_xcom_sidecar_container_resources.return_value = xcom_sidecar_resources
+        op = SparkKubernetesOperator(
+            task_id="test_task",
+            namespace="default",
+            template_spec={
+                "apiVersion": "sparkoperator.k8s.io/v1beta2",
+                "kind": "SparkApplication",
+                "spec": {
+                    "driver": {},
+                    "executor": {},
+                },
+            },
+            do_xcom_push=True,
+            reattach_on_restart=False,
+        )
+        op.name = "my-spark-app"
+
+        with mock.patch.object(op, "get_or_create_spark_crd", return_value=mock.MagicMock()):
+            op._setup_spark_configuration(mock.MagicMock())
+
+        spec = op.launcher.body["spec"]
+        assert spec["volumes"] == [PodDefaults.VOLUME.to_dict()]
+        assert spec["driver"]["volumeMounts"] == [
+            {"name": PodDefaults.VOLUME_MOUNT_NAME, "mountPath": PodDefaults.XCOM_MOUNT_PATH}
+        ]
+        sidecars = spec["driver"]["sidecars"]
+        assert len(sidecars) == 1
+        assert sidecars[0]["name"] == PodDefaults.SIDECAR_CONTAINER_NAME
+        assert sidecars[0]["image"] == "custom.repo/alpine:3.16"
+        assert sidecars[0]["resources"] == xcom_sidecar_resources
+        mock_hook_cls.return_value.get_xcom_sidecar_container_image.assert_called_once()
+        mock_hook_cls.return_value.get_xcom_sidecar_container_resources.assert_called_once()
+
+    @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.client")
+    @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
+    def test_setup_spark_configuration_skips_xcom_sidecar_when_do_xcom_push_false(
+        self, mock_hook_cls, mock_client
+    ):
+        original_volumes = [{"name": "config", "emptyDir": {}}]
+        original_mounts = [{"name": "config", "mountPath": "/config"}]
+        op = SparkKubernetesOperator(
+            task_id="test_task",
+            namespace="default",
+            template_spec={
+                "apiVersion": "sparkoperator.k8s.io/v1beta2",
+                "kind": "SparkApplication",
+                "spec": {
+                    "volumes": copy.deepcopy(original_volumes),
+                    "driver": {"volumeMounts": copy.deepcopy(original_mounts)},
+                    "executor": {},
+                },
+            },
+            do_xcom_push=False,
+            reattach_on_restart=False,
+        )
+        op.name = "my-spark-app"
+
+        with mock.patch.object(op, "get_or_create_spark_crd", return_value=mock.MagicMock()):
+            op._setup_spark_configuration(mock.MagicMock())
+
+        spec = op.launcher.body["spec"]
+        assert spec["volumes"] == original_volumes
+        assert spec["driver"]["volumeMounts"] == original_mounts
+        assert "sidecars" not in spec["driver"]
+        mock_hook_cls.return_value.get_xcom_sidecar_container_image.assert_not_called()
+        mock_hook_cls.return_value.get_xcom_sidecar_container_resources.assert_not_called()
