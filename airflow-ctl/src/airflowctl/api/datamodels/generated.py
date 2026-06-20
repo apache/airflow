@@ -1766,6 +1766,7 @@ class DAGRunResponse(BaseModel):
     last_scheduling_decision: Annotated[datetime | None, Field(title="Last Scheduling Decision")] = None
     run_type: DagRunType
     state: DagRunState
+    tags: Annotated[list[DagTagResponse] | None, Field(title="Tags")] = None
     triggered_by: DagRunTriggeredByType | None = None
     triggering_user_name: Annotated[str | None, Field(title="Triggering User Name")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None

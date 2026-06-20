@@ -99,7 +99,8 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.TASK_ID_PATTERN
   | SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN
   | SearchParamsKeys.TRY_NUMBER
-  | SearchParamsKeys.USER;
+  | SearchParamsKeys.USER
+  | SearchParamsKeys.TAGS;
 
 export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsKeys>) => {
   const { getFilterConfig } = useFilterConfigs();
