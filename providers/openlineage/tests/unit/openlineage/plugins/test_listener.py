@@ -103,6 +103,13 @@ def direct_submit_call(self, callable, *args, **kwargs):
     return callable(*args, **kwargs)
 
 
+def assert_source_code_location_job_facet(event):
+    source_code_location_facet = event.job.facets["sourceCodeLocation"]
+    assert source_code_location_facet.url == "https://github.com/apache/airflow.git"
+    assert source_code_location_facet.path == "dags/example.py"
+    assert source_code_location_facet.version == "abc123"
+
+
 class MockExecutor:
     def __init__(self, *args, **kwargs):
         self.submitted = False
@@ -420,6 +427,50 @@ class TestOpenLineageListenerAirflow2:
         task_instance.get_template_context()["task_reschedule_count"] = 0
 
         return listener, task_instance
+
+    @pytest.mark.parametrize("event_name", ["running", "success", "failed"])
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet", return_value={})
+    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled", return_value=False)
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet", return_value={})
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet", return_value={})
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet", return_value={}
+    )
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets", return_value={}
+    )
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_task_events_emit_source_code_location_job_facet(
+        self,
+        mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
+        mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
+        mock_disabled,
+        mock_debug_facet,
+        event_name,
+    ):
+        listener, task_instance = self._create_listener_and_task_instance()
+        task_instance.task.dag.source_code_location = SourceCodeLocation(
+            repo_url="https://github.com/apache/airflow.git",
+            path="dags/example.py",
+            version="abc123",
+        )
+        listener.extractor_manager.extract_metadata.return_value = OperatorLineage()
+        listener.adapter = OpenLineageAdapter()
+        listener.adapter.emit = mock.Mock(side_effect=lambda event: event)
+
+        if event_name == "running":
+            listener.on_task_instance_running(None, task_instance, None)
+        elif event_name == "success":
+            listener.on_task_instance_success(None, task_instance, None)
+        else:
+            listener.on_task_instance_failed(None, task_instance, ValueError("test"), None)
+
+        emitted_event = listener.adapter.emit.call_args.args[0]
+        assert_source_code_location_job_facet(emitted_event)
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
@@ -1367,6 +1418,52 @@ class TestOpenLineageListenerAirflow3:
         listener.adapter = adapter
 
         return listener, task_instance
+
+    @pytest.mark.parametrize("event_name", ["running", "success", "failed", "skipped"])
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet", return_value={})
+    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled", return_value=False)
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet", return_value={})
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet", return_value={})
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet", return_value={}
+    )
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets", return_value={}
+    )
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_task_events_emit_source_code_location_job_facet(
+        self,
+        mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
+        mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
+        mock_disabled,
+        mock_debug_facet,
+        event_name,
+    ):
+        listener, task_instance = self._create_listener_and_task_instance()
+        task_instance.task.dag.source_code_location = SourceCodeLocation(
+            repo_url="https://github.com/apache/airflow.git",
+            path="dags/example.py",
+            version="abc123",
+        )
+        listener.extractor_manager.extract_metadata.return_value = OperatorLineage()
+        listener.adapter = OpenLineageAdapter()
+        listener.adapter.emit = mock.Mock(side_effect=lambda event: event)
+
+        if event_name == "running":
+            listener.on_task_instance_running(None, task_instance)
+        elif event_name == "success":
+            listener.on_task_instance_success(None, task_instance)
+        elif event_name == "failed":
+            listener.on_task_instance_failed(None, task_instance, ValueError("test"))
+        else:
+            listener.on_task_instance_skipped(None, task_instance)
+
+        emitted_event = listener.adapter.emit.call_args.args[0]
+        assert_source_code_location_job_facet(emitted_event)
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
