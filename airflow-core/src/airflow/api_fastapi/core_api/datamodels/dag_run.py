@@ -26,11 +26,11 @@ from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, model_vali
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.timetables.base import DataInterval
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
-from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 
 if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
@@ -112,7 +112,7 @@ class DAGRunResponse(BaseModel):
     last_scheduling_decision: datetime | None
     run_type: DagRunType
     state: DagRunState
-    tags: list[DagTagResponse] | None = Field(validation_alias=AliasPath("dag_model","tags"))
+    tags: list[DagTagResponse] | None = Field(validation_alias=AliasPath("dag_model", "tags"))
     triggered_by: DagRunTriggeredByType | None
     triggering_user_name: str | None
     conf: dict | None

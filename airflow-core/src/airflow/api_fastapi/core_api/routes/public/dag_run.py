@@ -108,6 +108,7 @@ from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent
+from airflow.models.dag import DagTag
 from airflow.models.dag_version import DagVersion
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -436,6 +437,10 @@ def get_dag_runs(
     ],
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
+    tags: Annotated[
+        FilterParam[str | None],
+        Depends(filter_param_factory(DagTag.name, str | None, FilterOptionEnum.EQUAL, "tags")),
+    ],
     dag_version: QueryDagRunVersionFilter,
     bundle_version: Annotated[
         FilterParam[str | None], Depends(filter_param_factory(DagRun.bundle_version, str | None))
@@ -516,6 +521,9 @@ def get_dag_runs(
         get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the Dag exists.
         query = query.filter(DagRun.dag_id == dag_id).options()
 
+    if tags != "":
+        query = query.join(DagTag, DagRun.dag_id == DagTag.dag_id)
+
     # Add join with DagVersion if dag_version filter is active
     if dag_version.value:
         query = query.join(DagVersion, DagRun.created_dag_version_id == DagVersion.id)
@@ -529,6 +537,7 @@ def get_dag_runs(
         duration_range,
         conf_contains,
         state,
+        tags,
         run_type,
         dag_version,
         bundle_version,
