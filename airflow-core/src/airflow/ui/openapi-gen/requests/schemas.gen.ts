@@ -4243,7 +4243,7 @@ export const $DagVersionResponse = {
 
 export const $DagWarningType = {
     type: 'string',
-    enum: ['asset conflict', 'non-existent pool', 'runtime varying value'],
+    enum: ['asset conflict', 'duplicate dag id', 'non-existent pool', 'runtime varying value'],
     title: 'DagWarningType',
     description: `Enum for DAG warning types.
 

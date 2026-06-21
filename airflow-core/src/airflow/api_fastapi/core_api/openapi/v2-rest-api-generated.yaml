@@ -14249,6 +14249,7 @@ components:
       type: string
       enum:
       - asset conflict
+      - duplicate dag id
       - non-existent pool
       - runtime varying value
       title: DagWarningType
