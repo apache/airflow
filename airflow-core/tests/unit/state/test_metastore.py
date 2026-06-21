@@ -260,6 +260,127 @@ class TestMetastoreBackendTaskScope:
         assert row is not None
         assert row.expires_at is None
 
+    def test_cleanup_deletes_stale_rows_by_default_retention(
+        self, session: Session, backend: MetastoreBackend, dag_run: DagRun
+    ):
+        """cleanup() removes rows with expires_at=NULL that exceed default_retention_days.
+
+        This is the primary regression test for the bug where cleanup() only checked
+        ``expires_at < now()`` and completely ignored ``default_retention_days``, causing
+        rows written by the task worker (which send expires_at=None) to accumulate forever.
+        """
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        backend.set(scope, "old_state", "old_value", session=session)   # stale — should be deleted
+        backend.set(scope, "fresh_state", "fresh_value", session=session)  # recent — should be kept
+        session.flush()
+
+        # Backdate updated_at on old_state to 35 days ago to simulate retention-eligible row
+        old_row = session.scalar(
+            select(TaskStateStoreModel).where(
+                TaskStateStoreModel.dag_id == DAG_ID, TaskStateStoreModel.key == "old_state"
+            )
+        )
+        assert old_row is not None
+        assert old_row.expires_at is None  # worker writes always have NULL expires_at
+        old_row.updated_at = timezone.utcnow() - timedelta(days=35)
+        session.flush()
+        session.commit()
+
+        with conf_vars({("state_store", "default_retention_days"): "30"}):
+            backend.cleanup()
+
+        session.expire_all()
+        assert (
+            session.scalar(select(TaskStateStoreModel).where(TaskStateStoreModel.key == "old_state"))
+            is None
+        ), "cleanup() must delete rows with expires_at=NULL older than default_retention_days"
+        assert (
+            session.scalar(select(TaskStateStoreModel).where(TaskStateStoreModel.key == "fresh_state"))
+            is not None
+        ), "cleanup() must NOT delete rows with expires_at=NULL that are within default_retention_days"
+
+    def test_cleanup_does_not_delete_fresh_null_expires_at_rows(
+        self, session: Session, backend: MetastoreBackend, dag_run: DagRun
+    ):
+        """cleanup() keeps rows with expires_at=NULL when they are within the retention window."""
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        backend.set(scope, "recent_key", "some_value", session=session)
+        session.flush()
+        session.commit()
+
+        with conf_vars({("state_store", "default_retention_days"): "30"}):
+            backend.cleanup()
+
+        session.expire_all()
+        assert (
+            session.scalar(select(TaskStateStoreModel).where(TaskStateStoreModel.key == "recent_key"))
+            is not None
+        )
+
+    def test_cleanup_skips_stale_pass_when_retention_days_is_zero(
+        self, session: Session, backend: MetastoreBackend, dag_run: DagRun
+    ):
+        """When default_retention_days=0, rows with expires_at=NULL are never deleted."""
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        backend.set(scope, "old_key", "old_value", session=session)
+        session.flush()
+
+        old_row = session.scalar(
+            select(TaskStateStoreModel).where(
+                TaskStateStoreModel.dag_id == DAG_ID, TaskStateStoreModel.key == "old_key"
+            )
+        )
+        assert old_row is not None
+        old_row.updated_at = timezone.utcnow() - timedelta(days=365)
+        session.flush()
+        session.commit()
+
+        with conf_vars({("state_store", "default_retention_days"): "0"}):
+            backend.cleanup()
+
+        session.expire_all()
+        assert (
+            session.scalar(select(TaskStateStoreModel).where(TaskStateStoreModel.key == "old_key"))
+            is not None
+        ), "With retention_days=0, rows with expires_at=NULL must never be deleted"
+
+    def test_summary_dry_run_includes_stale_rows(
+        self, session: Session, backend: MetastoreBackend, dag_run: DagRun
+    ):
+        """_summary_dry_run() reports both explicitly-expired and default-retention-stale rows."""
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        # Row 1: explicit expires_at in the past
+        backend.set(scope, "explicit_expired", "v1", session=session)
+        session.flush()
+        explicit_row = session.scalar(
+            select(TaskStateStoreModel).where(TaskStateStoreModel.key == "explicit_expired")
+        )
+        assert explicit_row is not None
+        explicit_row.expires_at = timezone.utcnow() - timedelta(hours=1)
+
+        # Row 2: NULL expires_at but very old updated_at
+        backend.set(scope, "stale_key", "v2", session=session)
+        session.flush()
+        stale_row = session.scalar(
+            select(TaskStateStoreModel).where(TaskStateStoreModel.key == "stale_key")
+        )
+        assert stale_row is not None
+        stale_row.updated_at = timezone.utcnow() - timedelta(days=35)
+        session.flush()
+        session.commit()
+
+        with conf_vars({("state_store", "default_retention_days"): "30"}):
+            summary = backend._summary_dry_run()
+
+        expired_keys = {row[4] for row in summary["expired"]}   # key is index 4 in the tuple
+        stale_keys = {row[4] for row in summary.get("stale", [])}
+
+        assert "explicit_expired" in expired_keys
+        assert "stale_key" in stale_keys, (
+            "_summary_dry_run() must report rows with expires_at=NULL older than default_retention_days"
+        )
+
+
     def test_cleanup_removes_expired_rows(self, session: Session, backend: MetastoreBackend, dag_run: DagRun):
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         backend.set(scope, "old_key", "old_value", session=session)

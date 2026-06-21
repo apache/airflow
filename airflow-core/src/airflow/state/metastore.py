@@ -20,7 +20,7 @@ from __future__ import annotations
 import functools
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 import structlog
@@ -383,13 +383,24 @@ class MetastoreBackend(BaseStoreBackend):
 
     def cleanup(self) -> None:
         """
-        Remove expired task state rows.
+        Remove expired and stale task state rows.
 
-        ``expires_at`` is set at write time on every ``set()`` call, so cleanup is a single
-        ``WHERE expires_at < now()`` pass. Rows with ``expires_at=NULL`` (default_retention_days=0)
-        are never deleted. Batching is configurable via ``[state_store] state_cleanup_batch_size``.
+        Two deletion passes run in order:
+
+        1. **Explicit expiry**: rows where ``expires_at IS NOT NULL AND expires_at < now()``.
+           These are rows where the writer set a specific TTL via ``set(expires_at=...)``.
+
+        2. **Default retention**: rows where ``expires_at IS NULL`` and
+           ``updated_at + timedelta(days=default_retention_days) < now()``.
+           This applies the deployment-wide ``[state_store] default_retention_days`` (default 30)
+           to rows that were written without an explicit TTL — which is the common case for
+           task worker writes. When ``default_retention_days`` is 0, this pass is skipped
+           and those rows are kept indefinitely.
+
+        Batching is configurable via ``[state_store] state_cleanup_batch_size``.
         """
         batch_size = conf.getint("state_store", "state_cleanup_batch_size")
+        retention_days = conf.getint("state_store", "default_retention_days")
         now = timezone.utcnow()
 
         def _delete_batched(where_clause) -> int:
@@ -409,11 +420,26 @@ class MetastoreBackend(BaseStoreBackend):
                         break
             return total
 
+        # Pass 1: explicit expires_at
         deleted = _delete_batched(TaskStateStoreModel.expires_at < now)
-        log.info("Deleted expired task_state_store rows", rows_deleted=deleted)
+        log.info("Deleted explicitly-expired task_state_store rows", rows_deleted=deleted)
+
+        # Pass 2: default retention for rows without an explicit expires_at
+        if retention_days > 0:
+            cutoff = now - timedelta(days=retention_days)
+            stale_deleted = _delete_batched(
+                (TaskStateStoreModel.expires_at.is_(None))
+                & (TaskStateStoreModel.updated_at < cutoff)
+            )
+            log.info(
+                "Deleted stale task_state_store rows by default retention",
+                rows_deleted=stale_deleted,
+                retention_days=retention_days,
+            )
 
     def _summary_dry_run(self) -> dict[str, list]:
         """Return rows that would be deleted by cleanup() without deleting anything."""
+        retention_days = conf.getint("state_store", "default_retention_days")
         now = timezone.utcnow()
         cols = (
             TaskStateStoreModel.dag_id,
@@ -423,8 +449,20 @@ class MetastoreBackend(BaseStoreBackend):
             TaskStateStoreModel.key,
         )
         with create_session() as session:
+            # Pass 1: explicit expires_at
             expired = session.execute(select(*cols).where(TaskStateStoreModel.expires_at < now)).all()
-        return {"expired": list(expired)}
+
+            # Pass 2: default retention for rows without an explicit expires_at
+            stale: list = []
+            if retention_days > 0:
+                cutoff = now - timedelta(days=retention_days)
+                stale = session.execute(
+                    select(*cols).where(
+                        (TaskStateStoreModel.expires_at.is_(None))
+                        & (TaskStateStoreModel.updated_at < cutoff)
+                    )
+                ).all()
+        return {"expired": list(expired), "stale": stale}
 
     async def _aget_task_state_store(
         self, scope: TaskScope, key: str, *, session: AsyncSession
