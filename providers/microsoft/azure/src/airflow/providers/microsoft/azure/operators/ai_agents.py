@@ -22,22 +22,30 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import BaseOperator, conf
-from airflow.providers.microsoft.azure.hooks.ai_agents import AzureAIAgentsHook
-from airflow.providers.microsoft.azure.triggers.ai_agents import (
+from airflow.providers.microsoft.azure.hooks.ai_agents import (
     RUN_FAILURE_STATUSES,
+    RUN_INTERMEDIATE_STATUSES,
     RUN_SUCCESS_STATUSES,
-    AzureAIAgentDeleteTrigger,
-    AzureAIAgentRunTrigger,
+    AzureAIAgentsHook,
+    build_incomplete_run_message,
+    build_run_failure_message,
+    get_incomplete_details,
     get_resource_attr,
     get_run_status,
     serialize_resource,
+)
+from airflow.providers.microsoft.azure.triggers.ai_agents import (
+    AzureAIAgentDeleteTrigger,
+    AzureAIAgentRunTrigger,
 )
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
 
 
-def validate_execute_complete_event(event: dict[str, Any] | None) -> dict[str, Any]:
+def validate_execute_complete_event(
+    event: dict[str, Any] | None, *, require_run: bool = False
+) -> dict[str, Any]:
     """Validate a trigger event and raise a specific exception for non-success events."""
     if event is None:
         raise RuntimeError("Trigger returned no event.")
@@ -45,6 +53,8 @@ def validate_execute_complete_event(event: dict[str, Any] | None) -> dict[str, A
     status = event.get("status")
     message = event.get("message", "No message returned from trigger.")
     if status == "success":
+        if require_run and "run" not in event:
+            raise RuntimeError("Trigger success event did not include run payload.")
         return event
     if status == "timeout":
         raise TimeoutError(message)
@@ -92,6 +102,8 @@ class CreateAzureAIAgentOperator(BaseOperator):
 
     def execute(self, context: Context) -> Any:
         """Create an Azure AI Agent and return the created resource."""
+        if "model" in self.config:
+            raise ValueError("Pass 'model' as the operator parameter, not inside 'config'.")
         self.log.info("Creating Azure AI Agent.")
         agent = self.hook.create_agent(model=self.model, **self.config)
         return serialize_resource(agent)
@@ -150,7 +162,7 @@ class RunAzureAIAgentOperator(BaseOperator):
     :param wait_for_completion: Whether to wait until the run reaches a terminal status.
     :param poll_interval: Time in seconds between status checks.
     :param timeout: Time in seconds to wait for the run to complete.
-    :param deferrable: Run in deferrable mode.
+    :param deferrable: Run in deferrable mode when ``wait_for_completion`` is ``True``.
     :param azure_ai_agents_conn_id: Azure AI Agents connection id.
     :param endpoint: Optional Azure AI Foundry project endpoint override.
     """
@@ -220,13 +232,22 @@ class RunAzureAIAgentOperator(BaseOperator):
 
     def _wait_for_run_completion(self, *, thread_id: str, run_id: str) -> Any:
         end_time = time.monotonic() + self.timeout
-        while time.monotonic() <= end_time:
+        while True:
             run = self.hook.get_run(thread_id=thread_id, run_id=run_id)
             status = get_run_status(run)
             if status in RUN_SUCCESS_STATUSES:
+                incomplete_details = get_incomplete_details(run)
+                if incomplete_details:
+                    raise RuntimeError(
+                        build_incomplete_run_message(run_id=run_id, incomplete_details=incomplete_details)
+                    )
                 return serialize_resource(run)
             if status in RUN_FAILURE_STATUSES:
-                raise RuntimeError(f"Azure AI Agent run {run_id} finished with status {status}.")
+                raise RuntimeError(build_run_failure_message(run_id=run_id, status=status))
+            if status not in RUN_INTERMEDIATE_STATUSES:
+                raise RuntimeError(f"Azure AI Agent run {run_id} reached unknown status {status}.")
+            if time.monotonic() >= end_time:
+                break
 
             self.log.info(
                 "Azure AI Agent run %s is in status %s. Sleeping for %s seconds.",
@@ -240,7 +261,7 @@ class RunAzureAIAgentOperator(BaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None) -> Any:
         """Resume after the run trigger completes."""
-        validated_event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event, require_run=True)
         self.log.info(validated_event["message"])
         return validated_event["run"]
 
@@ -292,6 +313,8 @@ class DeleteAzureAIAgentOperator(BaseOperator):
         self.log.info("Deleting Azure AI Agent %s.", self.agent_id)
         self.hook.delete_agent(agent_id=self.agent_id)
 
+        # The SDK delete call is synchronous, but the resource can remain briefly retrievable.
+        # Poll the read path so downstream tasks do not observe a stale agent.
         if self.deferrable:
             self.defer(
                 timeout=self.execution_timeout,
@@ -309,10 +332,12 @@ class DeleteAzureAIAgentOperator(BaseOperator):
 
     def _wait_for_agent_deletion(self) -> None:
         end_time = time.monotonic() + self.timeout
-        while time.monotonic() <= end_time:
+        while True:
             if self.hook.is_agent_deleted(agent_id=self.agent_id):
                 self.log.info("Azure AI Agent %s was deleted.", self.agent_id)
                 return
+            if time.monotonic() >= end_time:
+                break
 
             self.log.info(
                 "Azure AI Agent %s is still retrievable. Sleeping for %s seconds.",

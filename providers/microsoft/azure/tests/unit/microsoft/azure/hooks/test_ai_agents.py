@@ -24,7 +24,11 @@ from azure.core.exceptions import ResourceNotFoundError
 pytest.importorskip("azure.ai.agents")
 
 from airflow.models import Connection
-from airflow.providers.microsoft.azure.hooks.ai_agents import AzureAIAgentsHook
+from airflow.providers.microsoft.azure.hooks.ai_agents import (
+    AzureAIAgentsAsyncHook,
+    AzureAIAgentsHook,
+    get_run_status,
+)
 
 MODULE = "airflow.providers.microsoft.azure.hooks.ai_agents"
 CONN_ID = "azure_ai_agents_test"
@@ -243,3 +247,109 @@ class TestAzureAIAgentsHook:
 
         assert hook.is_agent_deleted(agent_id=AGENT_ID) is False
         client.get_agent.assert_called_once_with(agent_id=AGENT_ID)
+
+    def test_get_run_status_raises_when_status_missing(self):
+        with pytest.raises(ValueError, match="did not include a status"):
+            get_run_status({})
+
+
+class TestAzureAIAgentsAsyncHook:
+    pytestmark = pytest.mark.asyncio
+
+    @mock.patch(f"{MODULE}.AsyncAgentsClient", autospec=True)
+    @mock.patch(f"{MODULE}.AsyncClientSecretCredential", autospec=True)
+    async def test_get_async_conn_uses_connection_endpoint_and_client_secret_credential(
+        self, mock_credential_cls, mock_client_cls, create_mock_connection
+    ):
+        create_mock_connection(
+            Connection(
+                conn_id=CONN_ID,
+                conn_type="azure_ai_agents",
+                host=ENDPOINT,
+                login="client-id",
+                password="client-secret",
+                extra={"tenantId": "tenant-id", "cloud_environment": "AzureUSGovernment"},
+            )
+        )
+        mock_credential = mock_credential_cls.return_value
+        mock_client = mock_client_cls.return_value
+        mock_client.close = mock.AsyncMock()
+        mock_credential.close = mock.AsyncMock()
+        hook = AzureAIAgentsAsyncHook(azure_ai_agents_conn_id=CONN_ID)
+
+        async with hook.get_async_conn() as client:
+            result = client
+
+        assert result == mock_client
+        mock_credential_cls.assert_called_once_with(
+            client_id="client-id",
+            client_secret="client-secret",
+            tenant_id="tenant-id",
+            authority="login.microsoftonline.us",
+        )
+        mock_client_cls.assert_called_once_with(endpoint=ENDPOINT, credential=mock_credential)
+        mock_client.close.assert_awaited_once()
+        mock_credential.close.assert_awaited_once()
+
+    @mock.patch(f"{MODULE}.AsyncAgentsClient", autospec=True)
+    @mock.patch(f"{MODULE}.get_async_default_azure_credential", autospec=True)
+    async def test_get_async_conn_uses_default_credential_and_endpoint_extra(
+        self, mock_default_credential, mock_client_cls, create_mock_connection
+    ):
+        create_mock_connection(
+            Connection(
+                conn_id=CONN_ID,
+                conn_type="azure_ai_agents",
+                extra={
+                    "endpoint": ENDPOINT,
+                    "managed_identity_client_id": "managed-identity-client-id",
+                    "workload_identity_tenant_id": "workload-identity-tenant-id",
+                },
+            )
+        )
+        mock_credential = mock_default_credential.return_value
+        mock_client = mock_client_cls.return_value
+        mock_client.close = mock.AsyncMock()
+        mock_credential.close = mock.AsyncMock()
+        hook = AzureAIAgentsAsyncHook(azure_ai_agents_conn_id=CONN_ID)
+
+        async with hook.get_async_conn() as client:
+            result = client
+
+        assert result == mock_client
+        mock_default_credential.assert_called_once_with(
+            managed_identity_client_id="managed-identity-client-id",
+            workload_identity_tenant_id="workload-identity-tenant-id",
+        )
+        mock_client_cls.assert_called_once_with(endpoint=ENDPOINT, credential=mock_credential)
+
+    @mock.patch.object(AzureAIAgentsAsyncHook, "get_async_conn")
+    async def test_async_get_run(self, mock_get_async_conn):
+        client = mock.AsyncMock()
+        client.runs.get.return_value = mock.sentinel.run
+        mock_get_async_conn.return_value.__aenter__.return_value = client
+        hook = AzureAIAgentsAsyncHook(azure_ai_agents_conn_id=CONN_ID)
+
+        result = await hook.async_get_run(thread_id="thread_123", run_id="run_123")
+
+        assert result == mock.sentinel.run
+        client.runs.get.assert_awaited_once_with(thread_id="thread_123", run_id="run_123")
+
+    @mock.patch.object(AzureAIAgentsAsyncHook, "get_async_conn")
+    async def test_is_agent_deleted_when_resource_does_not_exist(self, mock_get_async_conn):
+        client = mock.AsyncMock()
+        client.get_agent.side_effect = ResourceNotFoundError("not found")
+        mock_get_async_conn.return_value.__aenter__.return_value = client
+        hook = AzureAIAgentsAsyncHook(azure_ai_agents_conn_id=CONN_ID)
+
+        assert await hook.async_is_agent_deleted(agent_id=AGENT_ID) is True
+        client.get_agent.assert_awaited_once_with(agent_id=AGENT_ID)
+
+    @mock.patch.object(AzureAIAgentsAsyncHook, "get_async_conn")
+    async def test_is_agent_deleted_when_resource_exists(self, mock_get_async_conn):
+        client = mock.AsyncMock()
+        mock_get_async_conn.return_value.__aenter__.return_value = client
+        hook = AzureAIAgentsAsyncHook(azure_ai_agents_conn_id=CONN_ID)
+
+        assert await hook.async_is_agent_deleted(agent_id=AGENT_ID) is False
+        client.get_agent.assert_awaited_once_with(agent_id=AGENT_ID)

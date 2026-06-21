@@ -21,47 +21,19 @@ import time
 from collections.abc import AsyncIterator
 from typing import Any
 
-from airflow.providers.microsoft.azure.hooks.ai_agents import AzureAIAgentsHook
+from airflow.providers.microsoft.azure.hooks.ai_agents import (
+    RUN_FAILURE_STATUSES,
+    RUN_INTERMEDIATE_STATUSES,
+    RUN_SUCCESS_STATUSES,
+    AzureAIAgentsAsyncHook,
+    build_incomplete_run_message,
+    build_run_failure_message,
+    build_run_payload,
+    get_incomplete_details,
+    get_run_status,
+    serialize_resource,
+)
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-
-RUN_FAILURE_STATUSES = {"failed", "cancelled", "expired", "incomplete"}
-RUN_SUCCESS_STATUSES = {"completed"}
-
-
-def serialize_resource(resource: Any) -> Any:
-    """Serialize an Azure SDK object into XCom-safe primitives."""
-    if resource is None or isinstance(resource, str | int | float | bool):
-        return resource
-    if isinstance(resource, list | tuple):
-        return [serialize_resource(item) for item in resource]
-    if isinstance(resource, dict):
-        return {key: serialize_resource(value) for key, value in resource.items()}
-    if hasattr(resource, "as_dict"):
-        return serialize_resource(resource.as_dict())
-    if hasattr(resource, "model_dump"):
-        return serialize_resource(resource.model_dump())
-    if hasattr(resource, "__dict__"):
-        return {
-            key: serialize_resource(value) for key, value in vars(resource).items() if not key.startswith("_")
-        }
-    return resource
-
-
-def get_resource_attr(resource: Any, attr: str) -> Any:
-    """Get an attribute from an SDK resource or mapping."""
-    if isinstance(resource, dict):
-        return resource.get(attr)
-    return getattr(resource, attr, None)
-
-
-def get_run_status(run: Any) -> str:
-    """Return a normalized run status string."""
-    status = get_resource_attr(run, "status")
-    if hasattr(status, "value"):
-        status = status.value
-    if status is None:
-        raise ValueError("Azure AI Agent run did not include a status.")
-    return str(status).lower()
 
 
 class AzureAIAgentRunTrigger(BaseTrigger):
@@ -113,6 +85,17 @@ class AzureAIAgentRunTrigger(BaseTrigger):
         status = get_run_status(run)
         serialized_run = serialize_resource(run)
         if status in RUN_SUCCESS_STATUSES:
+            incomplete_details = get_incomplete_details(run)
+            if incomplete_details:
+                return TriggerEvent(
+                    {
+                        "status": "error",
+                        "message": build_incomplete_run_message(
+                            run_id=self.run_id, incomplete_details=incomplete_details
+                        ),
+                        "run": serialized_run,
+                    }
+                )
             return TriggerEvent(
                 {
                     "status": "success",
@@ -124,7 +107,15 @@ class AzureAIAgentRunTrigger(BaseTrigger):
             return TriggerEvent(
                 {
                     "status": "error",
-                    "message": f"Azure AI Agent run {self.run_id} finished with status {status}.",
+                    "message": build_run_failure_message(run_id=self.run_id, status=status),
+                    "run": serialized_run,
+                }
+            )
+        if status not in RUN_INTERMEDIATE_STATUSES:
+            return TriggerEvent(
+                {
+                    "status": "error",
+                    "message": f"Azure AI Agent run {self.run_id} reached unknown status {status}.",
                     "run": serialized_run,
                 }
             )
@@ -132,23 +123,21 @@ class AzureAIAgentRunTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Poll the run status until terminal state or timeout."""
-        hook = AzureAIAgentsHook(
+        hook = AzureAIAgentsAsyncHook(
             azure_ai_agents_conn_id=self.azure_ai_agents_conn_id,
             endpoint=self.endpoint,
         )
 
         try:
             end_time = time.monotonic() + self.timeout
-            while time.monotonic() <= end_time:
-                run = await asyncio.to_thread(
-                    hook.get_run,
-                    thread_id=self.thread_id,
-                    run_id=self.run_id,
-                )
+            while True:
+                run = await hook.async_get_run(thread_id=self.thread_id, run_id=self.run_id)
                 event = self._build_trigger_event(run)
                 if event:
                     yield event
                     return
+                if time.monotonic() >= end_time:
+                    break
 
                 await asyncio.sleep(self.poll_interval)
 
@@ -156,8 +145,7 @@ class AzureAIAgentRunTrigger(BaseTrigger):
                 {
                     "status": "timeout",
                     "message": f"Timeout waiting for Azure AI Agent run {self.run_id}.",
-                    "run_id": self.run_id,
-                    "thread_id": self.thread_id,
+                    "run": build_run_payload(run_id=self.run_id, thread_id=self.thread_id),
                 }
             )
         except Exception as e:
@@ -165,9 +153,8 @@ class AzureAIAgentRunTrigger(BaseTrigger):
             yield TriggerEvent(
                 {
                     "status": "error",
-                    "message": str(e),
-                    "run_id": self.run_id,
-                    "thread_id": self.thread_id,
+                    "message": f"Failed while polling Azure AI Agent run {self.run_id}: {e}",
+                    "run": build_run_payload(run_id=self.run_id, thread_id=self.thread_id),
                 }
             )
 
@@ -214,15 +201,15 @@ class AzureAIAgentDeleteTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Poll the agent until the service reports it as deleted."""
-        hook = AzureAIAgentsHook(
+        hook = AzureAIAgentsAsyncHook(
             azure_ai_agents_conn_id=self.azure_ai_agents_conn_id,
             endpoint=self.endpoint,
         )
 
         try:
             end_time = time.monotonic() + self.timeout
-            while time.monotonic() <= end_time:
-                if await asyncio.to_thread(hook.is_agent_deleted, agent_id=self.agent_id):
+            while True:
+                if await hook.async_is_agent_deleted(agent_id=self.agent_id):
                     yield TriggerEvent(
                         {
                             "status": "success",
@@ -231,6 +218,8 @@ class AzureAIAgentDeleteTrigger(BaseTrigger):
                         }
                     )
                     return
+                if time.monotonic() >= end_time:
+                    break
 
                 await asyncio.sleep(self.poll_interval)
 
@@ -246,7 +235,7 @@ class AzureAIAgentDeleteTrigger(BaseTrigger):
             yield TriggerEvent(
                 {
                     "status": "error",
-                    "message": str(e),
+                    "message": f"Failed while polling Azure AI Agent {self.agent_id} deletion: {e}",
                     "agent_id": self.agent_id,
                 }
             )
