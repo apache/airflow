@@ -21,6 +21,8 @@ from unittest import mock
 
 import pytest
 
+pytest.importorskip("azure.ai.agents")
+
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.microsoft.azure.hooks.ai_agents import AzureAIAgentsHook
 from airflow.providers.microsoft.azure.operators.ai_agents import (
@@ -41,8 +43,8 @@ ENDPOINT = "https://test.services.ai.azure.com/api/projects/test-project"
 AGENT_ID = "agent_123"
 
 
-def create_run(status: str = "completed") -> SimpleNamespace:
-    return SimpleNamespace(id="run_123", thread_id="thread_123", status=status)
+def create_run(status: str = "completed", **kwargs) -> SimpleNamespace:
+    return SimpleNamespace(id="run_123", thread_id="thread_123", status=status, **kwargs)
 
 
 class TestCreateAzureAIAgentOperator:
@@ -71,6 +73,16 @@ class TestCreateAzureAIAgentOperator:
         mock_create_agent.assert_called_once_with(mock.ANY, model="gpt-4o", name="test-agent")
         assert operator.hook.conn_id == CONN_ID
         assert operator.hook.endpoint == ENDPOINT
+
+    def test_execute_raises_when_model_is_passed_in_config(self):
+        operator = CreateAzureAIAgentOperator(
+            task_id="create_agent",
+            model="gpt-4o",
+            config={"model": "gpt-4o-mini"},
+        )
+
+        with pytest.raises(ValueError, match="Pass 'model' as the operator parameter"):
+            operator.execute(context={})
 
 
 class TestUpdateAzureAIAgentOperator:
@@ -155,7 +167,7 @@ class TestRunAzureAIAgentOperator:
         mock_sleep.assert_not_called()
 
     @mock.patch(f"{MODULE}.time.sleep", autospec=True)
-    @mock.patch(f"{MODULE}.time.monotonic", autospec=True, side_effect=[0, 0, 1])
+    @mock.patch(f"{MODULE}.time.monotonic", autospec=True, side_effect=[0, 0])
     @mock.patch.object(AzureAIAgentsHook, "get_run", autospec=True)
     @mock.patch.object(AzureAIAgentsHook, "run_agent", autospec=True)
     def test_execute_raises_when_run_times_out(
@@ -174,7 +186,67 @@ class TestRunAzureAIAgentOperator:
             operator.execute(context={})
 
         mock_get_run.assert_called_once_with(mock.ANY, thread_id="thread_123", run_id="run_123")
-        mock_sleep.assert_called_once_with(0)
+        mock_sleep.assert_not_called()
+
+    @mock.patch.object(AzureAIAgentsHook, "get_run", autospec=True)
+    @mock.patch.object(AzureAIAgentsHook, "run_agent", autospec=True)
+    def test_execute_raises_when_run_is_cancelled(self, mock_run_agent, mock_get_run):
+        mock_run_agent.return_value = create_run(status="queued")
+        mock_get_run.return_value = create_run(status="cancelled")
+        operator = RunAzureAIAgentOperator(task_id="run_agent", agent_id=AGENT_ID)
+
+        with pytest.raises(RuntimeError, match="finished with status cancelled"):
+            operator.execute(context={})
+
+    @mock.patch.object(AzureAIAgentsHook, "get_run", autospec=True)
+    @mock.patch.object(AzureAIAgentsHook, "run_agent", autospec=True)
+    def test_execute_raises_when_run_requires_action(self, mock_run_agent, mock_get_run):
+        mock_run_agent.return_value = create_run(status="queued")
+        mock_get_run.return_value = create_run(
+            status="requires_action",
+            required_action={"type": "submit_tool_outputs"},
+        )
+        operator = RunAzureAIAgentOperator(task_id="run_agent", agent_id=AGENT_ID)
+
+        with pytest.raises(RuntimeError, match="requires tool outputs"):
+            operator.execute(context={})
+
+    @mock.patch.object(AzureAIAgentsHook, "get_run", autospec=True)
+    @mock.patch.object(AzureAIAgentsHook, "run_agent", autospec=True)
+    def test_execute_raises_when_run_completes_with_incomplete_details(self, mock_run_agent, mock_get_run):
+        mock_run_agent.return_value = create_run(status="queued")
+        mock_get_run.return_value = create_run(
+            status="completed",
+            incomplete_details={"reason": "max_completion_tokens"},
+        )
+        operator = RunAzureAIAgentOperator(task_id="run_agent", agent_id=AGENT_ID)
+
+        with pytest.raises(RuntimeError, match="completed with incomplete output"):
+            operator.execute(context={})
+
+    @mock.patch(f"{MODULE}.time.sleep", autospec=True)
+    @mock.patch.object(AzureAIAgentsHook, "get_run", autospec=True)
+    @mock.patch.object(AzureAIAgentsHook, "run_agent", autospec=True)
+    def test_execute_keeps_polling_when_run_is_cancelling(self, mock_run_agent, mock_get_run, mock_sleep):
+        mock_run_agent.return_value = create_run(status="queued")
+        mock_get_run.side_effect = [create_run(status="cancelling"), create_run(status="cancelled")]
+        operator = RunAzureAIAgentOperator(task_id="run_agent", agent_id=AGENT_ID, poll_interval=10)
+
+        with pytest.raises(RuntimeError, match="finished with status cancelled"):
+            operator.execute(context={})
+
+        assert mock_get_run.call_count == 2
+        mock_sleep.assert_called_once_with(10)
+
+    @mock.patch.object(AzureAIAgentsHook, "get_run", autospec=True)
+    @mock.patch.object(AzureAIAgentsHook, "run_agent", autospec=True)
+    def test_execute_raises_when_run_has_unknown_status(self, mock_run_agent, mock_get_run):
+        mock_run_agent.return_value = create_run(status="queued")
+        mock_get_run.return_value = create_run(status="validating")
+        operator = RunAzureAIAgentOperator(task_id="run_agent", agent_id=AGENT_ID)
+
+        with pytest.raises(RuntimeError, match="reached unknown status validating"):
+            operator.execute(context={})
 
     @mock.patch.object(AzureAIAgentsHook, "run_agent", autospec=True)
     def test_execute_defers(self, mock_run_agent):
@@ -225,6 +297,12 @@ class TestRunAzureAIAgentOperator:
 
         assert result == {"id": "run_123", "status": "completed"}
 
+    def test_execute_complete_raises_when_success_event_omits_run(self):
+        operator = RunAzureAIAgentOperator(task_id="run_agent", agent_id=AGENT_ID)
+
+        with pytest.raises(RuntimeError, match="did not include run payload"):
+            operator.execute_complete(context={}, event={"status": "success", "message": "done"})
+
 
 class TestDeleteAzureAIAgentOperator:
     def test_template_fields(self):
@@ -252,7 +330,27 @@ class TestDeleteAzureAIAgentOperator:
         mock_is_agent_deleted.assert_called_once_with(mock.ANY, agent_id=AGENT_ID)
 
     @mock.patch(f"{MODULE}.time.sleep", autospec=True)
-    @mock.patch(f"{MODULE}.time.monotonic", autospec=True, side_effect=[0, 0, 1])
+    @mock.patch.object(AzureAIAgentsHook, "is_agent_deleted", autospec=True)
+    @mock.patch.object(AzureAIAgentsHook, "delete_agent", autospec=True)
+    def test_execute_polls_until_deleted_after_delete_returns(
+        self, mock_delete_agent, mock_is_agent_deleted, mock_sleep
+    ):
+        mock_is_agent_deleted.side_effect = [False, True]
+        operator = DeleteAzureAIAgentOperator(
+            task_id="delete_agent",
+            agent_id=AGENT_ID,
+            poll_interval=10,
+            azure_ai_agents_conn_id=CONN_ID,
+        )
+
+        result = operator.execute(context={})
+
+        assert result is None
+        assert mock_is_agent_deleted.call_count == 2
+        mock_sleep.assert_called_once_with(10)
+
+    @mock.patch(f"{MODULE}.time.sleep", autospec=True)
+    @mock.patch(f"{MODULE}.time.monotonic", autospec=True, side_effect=[0, 0])
     @mock.patch.object(AzureAIAgentsHook, "is_agent_deleted", autospec=True)
     @mock.patch.object(AzureAIAgentsHook, "delete_agent", autospec=True)
     def test_execute_raises_when_delete_times_out(
@@ -272,7 +370,7 @@ class TestDeleteAzureAIAgentOperator:
 
         mock_delete_agent.assert_called_once_with(mock.ANY, agent_id=AGENT_ID)
         mock_is_agent_deleted.assert_called_once_with(mock.ANY, agent_id=AGENT_ID)
-        mock_sleep.assert_called_once_with(0)
+        mock_sleep.assert_not_called()
 
     @mock.patch.object(AzureAIAgentsHook, "delete_agent", autospec=True)
     def test_execute_defers(self, mock_delete_agent):

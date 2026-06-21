@@ -17,27 +17,105 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 from azure.ai.agents import AgentsClient
+from azure.ai.agents.aio import AgentsClient as AsyncAgentsClient
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import ClientSecretCredential
+from azure.identity.aio import (
+    ClientSecretCredential as AsyncClientSecretCredential,
+    DefaultAzureCredential as AsyncDefaultAzureCredential,
+)
 
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.microsoft.azure.hooks.base_azure import _AZURE_CLOUD_ENVIRONMENTS
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
+    get_async_default_azure_credential,
     get_field,
     get_sync_default_azure_credential,
 )
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
+    from azure.ai.agents.models import Agent, ThreadRun
     from azure.core.credentials import TokenCredential
+    from azure.core.credentials_async import AsyncTokenCredential
     from azure.identity import DefaultAzureCredential
 
     from airflow.sdk import Connection
+
+
+RUN_INTERMEDIATE_STATUSES = {"queued", "in_progress", "cancelling"}
+RUN_FAILURE_STATUSES = {"failed", "cancelled", "expired", "requires_action"}
+RUN_SUCCESS_STATUSES = {"completed"}
+
+
+def build_run_payload(run_id: str, thread_id: str) -> dict[str, str]:
+    """Build the fallback run payload used when the SDK run object is unavailable."""
+    return {"id": run_id, "thread_id": thread_id}
+
+
+def serialize_resource(resource: Any) -> Any:
+    """Serialize an Azure SDK object into XCom-safe primitives."""
+    if resource is None or isinstance(resource, str | int | float | bool):
+        return resource
+    if isinstance(resource, list | tuple):
+        return [serialize_resource(item) for item in resource]
+    if isinstance(resource, dict):
+        return {key: serialize_resource(value) for key, value in resource.items()}
+    if hasattr(resource, "as_dict"):
+        return serialize_resource(resource.as_dict())
+    if hasattr(resource, "model_dump"):
+        return serialize_resource(resource.model_dump())
+    if hasattr(resource, "__dict__"):
+        return {
+            key: serialize_resource(value) for key, value in vars(resource).items() if not key.startswith("_")
+        }
+    return resource
+
+
+def get_resource_attr(resource: Any, attr: str) -> Any:
+    """Get an attribute from an SDK resource or mapping."""
+    if isinstance(resource, dict):
+        return resource.get(attr)
+    return getattr(resource, attr, None)
+
+
+def get_run_status(run: Any) -> str:
+    """Return a normalized run status string."""
+    status = get_resource_attr(run, "status")
+    if hasattr(status, "value"):
+        status = status.value
+    if status is None:
+        raise ValueError("Azure AI Agent run did not include a status.")
+    return str(status).lower()
+
+
+def get_incomplete_details(run: Any) -> Any:
+    """Return run incomplete details when the service reports a truncated run."""
+    return get_resource_attr(run, "incomplete_details")
+
+
+def build_run_failure_message(run_id: str, status: str) -> str:
+    """Build the failure message for a run terminal or actionable status."""
+    if status == "requires_action":
+        return (
+            f"Azure AI Agent run {run_id} requires tool outputs, but "
+            "RunAzureAIAgentOperator does not support tool-output submission."
+        )
+    return f"Azure AI Agent run {run_id} finished with status {status}."
+
+
+def build_incomplete_run_message(run_id: str, incomplete_details: Any) -> str:
+    """Build the failure message for a completed run with incomplete output."""
+    reason = get_resource_attr(incomplete_details, "reason") or incomplete_details
+    return f"Azure AI Agent run {run_id} completed with incomplete output: {reason}."
 
 
 class AzureAIAgentsHook(BaseHook):
@@ -153,19 +231,19 @@ class AzureAIAgentsHook(BaseHook):
             field_name=field_name,
         )
 
-    def create_agent(self, **config) -> Any:
+    def create_agent(self, **config: Any) -> Agent:
         """Create an agent."""
         return self.conn.create_agent(**prune_dict(config))
 
-    def update_agent(self, agent_id: str, **config) -> Any:
+    def update_agent(self, agent_id: str, **config: Any) -> Agent:
         """Update an agent."""
         return self.conn.update_agent(agent_id=agent_id, **prune_dict(config))
 
-    def run_agent(self, agent_id: str, **config) -> Any:
+    def run_agent(self, agent_id: str, **config: Any) -> ThreadRun:
         """Create a thread and run an agent."""
         return self.conn.create_thread_and_run(agent_id=agent_id, **prune_dict(config))
 
-    def get_run(self, thread_id: str, run_id: str) -> Any:
+    def get_run(self, thread_id: str, run_id: str) -> ThreadRun:
         """Get an agent run."""
         return self.conn.runs.get(thread_id=thread_id, run_id=run_id)
 
@@ -173,7 +251,7 @@ class AzureAIAgentsHook(BaseHook):
         """Delete an agent."""
         self.conn.delete_agent(agent_id=agent_id)
 
-    def get_agent(self, agent_id: str) -> Any:
+    def get_agent(self, agent_id: str) -> Agent:
         """Get an agent."""
         return self.conn.get_agent(agent_id=agent_id)
 
@@ -181,6 +259,64 @@ class AzureAIAgentsHook(BaseHook):
         """Return True if the agent no longer exists."""
         try:
             self.get_agent(agent_id=agent_id)
+        except ResourceNotFoundError:
+            return True
+        return False
+
+
+class AzureAIAgentsAsyncHook(AzureAIAgentsHook):
+    """Async hook for Microsoft Foundry Agents Service."""
+
+    @asynccontextmanager
+    async def get_async_conn(self) -> AsyncGenerator[AsyncAgentsClient, None]:
+        """Create an async Azure AI Agents client."""
+        conn = await get_async_connection(self.conn_id)
+        credential = self._get_async_credential(conn)
+        client = AsyncAgentsClient(endpoint=self._get_endpoint(conn), credential=credential)
+        try:
+            yield client
+        finally:
+            await client.close()
+            if hasattr(credential, "close"):
+                await credential.close()
+
+    def _get_async_credential(self, conn: Connection) -> AsyncTokenCredential:
+        tenant = self._get_field(conn.extra_dejson, "tenantId")
+        cloud_env_name = self._get_field(conn.extra_dejson, "cloud_environment") or "AzurePublicCloud"
+        cloud_env = _AZURE_CLOUD_ENVIRONMENTS.get(
+            cloud_env_name, _AZURE_CLOUD_ENVIRONMENTS["AzurePublicCloud"]
+        )
+
+        if all([conn.login, conn.password, tenant]):
+            self.log.info("Getting connection using specific credentials.")
+            return AsyncClientSecretCredential(
+                client_id=cast("str", conn.login),
+                client_secret=cast("str", conn.password),
+                tenant_id=cast("str", tenant),
+                authority=cloud_env["authority"],
+            )
+
+        self.log.info("Using DefaultAzureCredential as credential.")
+        managed_identity_client_id = self._get_field(conn.extra_dejson, "managed_identity_client_id")
+        workload_identity_tenant_id = self._get_field(conn.extra_dejson, "workload_identity_tenant_id")
+        return cast(
+            "AsyncDefaultAzureCredential",
+            get_async_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            ),
+        )
+
+    async def async_get_run(self, thread_id: str, run_id: str) -> ThreadRun:
+        """Get an agent run asynchronously."""
+        async with self.get_async_conn() as client:
+            return await client.runs.get(thread_id=thread_id, run_id=run_id)
+
+    async def async_is_agent_deleted(self, agent_id: str) -> bool:
+        """Return True if the agent no longer exists."""
+        try:
+            async with self.get_async_conn() as client:
+                await client.get_agent(agent_id=agent_id)
         except ResourceNotFoundError:
             return True
         return False

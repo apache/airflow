@@ -41,6 +41,7 @@ CreateAzureAIAgentOperator
 
 To create an Azure AI Agent, use the
 :class:`~airflow.providers.microsoft.azure.operators.ai_agents.CreateAzureAIAgentOperator`.
+The operator returns the created agent as a serializable dictionary.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
@@ -55,6 +56,7 @@ UpdateAzureAIAgentOperator
 
 To update an Azure AI Agent, use the
 :class:`~airflow.providers.microsoft.azure.operators.ai_agents.UpdateAzureAIAgentOperator`.
+The operator returns the updated agent as a serializable dictionary.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
@@ -69,6 +71,14 @@ RunAzureAIAgentOperator
 
 To create a thread and run an Azure AI Agent, use the
 :class:`~airflow.providers.microsoft.azure.operators.ai_agents.RunAzureAIAgentOperator`.
+The operator returns the run as a serializable dictionary. When ``wait_for_completion`` is
+``True``, the returned run is in a terminal state. When ``wait_for_completion`` is ``False``,
+the returned run is the initial run created by Azure AI Foundry Agents.
+
+``RunAzureAIAgentOperator`` uses ``AgentsClient.create_thread_and_run``. It does not process
+agent tool calls or submit tool outputs. Runs that enter ``requires_action`` fail with an
+actionable error. Use agents that can complete without tool-output submission, or handle the
+tool-call workflow outside this operator.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
@@ -77,7 +87,9 @@ To create a thread and run an Azure AI Agent, use the
     :end-before: [END howto_operator_azure_ai_agent_run]
 
 The operator can run in deferrable mode so that polling for run completion occurs on the Airflow
-Triggerer.
+Triggerer. Deferrable mode only applies when ``wait_for_completion`` is ``True``. When
+``wait_for_completion`` is ``False``, the operator returns the initial run immediately and does
+not defer.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
@@ -93,6 +105,7 @@ DeleteAzureAIAgentOperator
 To delete an Azure AI Agent, use the
 :class:`~airflow.providers.microsoft.azure.operators.ai_agents.DeleteAzureAIAgentOperator`.
 The operator waits until the agent is no longer retrievable before completing.
+The operator does not return a value.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
@@ -106,4 +119,4 @@ Reference
 For further information, look at:
 
 * `Azure AI Foundry Agents documentation <https://learn.microsoft.com/en-us/azure/ai-foundry/agents/>`__
-* `AgentsClient API reference <https://learn.microsoft.com/en-us/python/api/azure-ai-agents/azure.ai.agents.agentsclient>`__
+* `AgentsClient API reference <https://learn.microsoft.com/en-us/python/api/azure-ai-agents/azure.ai.agents.agentsclient?view=azure-python>`__
