@@ -78,7 +78,7 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.BUNDLE_VERSION]: {
       hotkeyDisabled: true,
       icon: <MdCode />,
-      label: translate("common:bundleVersion"),
+      label: translate("components:versionDetails.bundleVersion"),
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.CONF_CONTAINS]: {
@@ -128,6 +128,13 @@ export const useFilterConfigs = () => {
       label: translate("common:dagRun.dagVersions"),
       min: 1,
       type: FilterTypes.NUMBER,
+    },
+    [SearchParamsKeys.DEADLINE_TIME_RANGE]: {
+      endKey: SearchParamsKeys.DEADLINE_TIME_LTE,
+      icon: <MdDateRange />,
+      label: translate("browse:deadlines.columns.deadlineTime"),
+      startKey: SearchParamsKeys.DEADLINE_TIME_GTE,
+      type: FilterTypes.DATERANGE,
     },
     [SearchParamsKeys.DURATION_GTE]: {
       icon: <MdHourglassEmpty />,
@@ -209,6 +216,16 @@ export const useFilterConfigs = () => {
       min: -1,
       type: FilterTypes.NUMBER,
     },
+    [SearchParamsKeys.MISSED]: {
+      icon: <MdCheckCircle />,
+      label: translate("browse:deadlines.filters.status"),
+      options: [
+        { label: translate("browse:deadlines.filters.statusOptions.all"), value: "" },
+        { label: translate("browse:deadlines.filters.statusOptions.pending"), value: "false" },
+        { label: translate("browse:deadlines.filters.statusOptions.missed"), value: "true" },
+      ],
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.NAME_PATTERN]: {
       hotkeyDisabled: true,
       icon: <TaskIcon />,
@@ -263,7 +280,7 @@ export const useFilterConfigs = () => {
       options: [
         { label: translate("hitl:filters.response.all"), value: "all" },
         {
-          label: <StateBadge state="deferred">{translate("hitl:filters.response.pending")}</StateBadge>,
+          label: <StateBadge state="awaiting_input">{translate("hitl:filters.response.pending")}</StateBadge>,
           value: "false",
         },
         {

@@ -173,6 +173,7 @@ For the full public API reference, see the :doc:`api` page.
   examples
   dynamic-task-mapping
   deferred-vs-async-operators
+  resumable-job-mixin
   api
   concepts
   executable-bundle-spec

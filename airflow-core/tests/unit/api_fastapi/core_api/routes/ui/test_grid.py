@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.models.dag import DagModel
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -643,15 +644,17 @@ class TestGetGridDataEndpoint:
         assert _strip_dag_version_ids(response.json()) == [GRID_RUN_1, GRID_RUN_2]
 
     def test_get_grid_runs_multiple_dag_versions(self, session, test_client):
-        latest_dag_version = session.scalar(select(DagModel).where(DagModel.dag_id == DAG_ID_5)).dag_versions[
-            -1
-        ]
-        latest_task_instance = session.scalar(
+        # run_5_2 is created after version 2 exists, so its task instances run on version 2.
+        # Reassign one of them to version 1 so the run spans two versions.
+        first_dag_version = session.scalar(
+            select(DagVersion).where(DagVersion.dag_id == DAG_ID_5, DagVersion.version_number == 1)
+        )
+        task_instance = session.scalar(
             select(TaskInstance)
             .where(TaskInstance.dag_id == DAG_ID_5, TaskInstance.run_id == "run_5_2")
             .limit(1)
         )
-        latest_task_instance.dag_version = latest_dag_version
+        task_instance.dag_version = first_dag_version
         session.commit()
 
         response = test_client.get(f"/grid/runs/{DAG_ID_5}?limit=5")
@@ -837,7 +840,7 @@ class TestGetGridDataEndpoint:
 
         expected = [
             {
-                "child_states": {"None": 1},
+                "child_states": {"none": 1},
                 "dag_version_number": 1,
                 "task_id": "mapped_task_2",
                 "task_display_name": "mapped_task_2",
@@ -846,7 +849,7 @@ class TestGetGridDataEndpoint:
                 "state": None,
             },
             {
-                "child_states": {"success": 1, "running": 1, "None": 1},
+                "child_states": {"success": 1, "running": 1, "none": 1},
                 "dag_version_number": 1,
                 "max_end_date": "2024-12-30T01:02:03Z",
                 "min_start_date": "2024-12-30T01:00:00Z",
@@ -873,7 +876,7 @@ class TestGetGridDataEndpoint:
                 "min_start_date": None,
             },
             {
-                "child_states": {"None": 6},
+                "child_states": {"none": 6},
                 "dag_version_number": 1,
                 "task_id": "task_group",
                 "task_display_name": "task_group",
@@ -882,7 +885,7 @@ class TestGetGridDataEndpoint:
                 "state": None,
             },
             {
-                "child_states": {"None": 2},
+                "child_states": {"none": 2},
                 "dag_version_number": 1,
                 "task_id": "task_group.inner_task_group",
                 "task_display_name": "task_group.inner_task_group",
@@ -891,7 +894,7 @@ class TestGetGridDataEndpoint:
                 "state": None,
             },
             {
-                "child_states": {"None": 2},
+                "child_states": {"none": 2},
                 "dag_version_number": 1,
                 "task_id": "task_group.inner_task_group.inner_task_group_sub_task",
                 "task_display_name": "Inner Task Group Sub Task Label",
@@ -900,7 +903,7 @@ class TestGetGridDataEndpoint:
                 "state": None,
             },
             {
-                "child_states": {"None": 4},
+                "child_states": {"none": 4},
                 "dag_version_number": 1,
                 "task_id": "task_group.mapped_task",
                 "task_display_name": "task_group.mapped_task",

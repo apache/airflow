@@ -24,11 +24,12 @@ import { IconButton } from ".";
 
 type LazyClipboardProps = {
   readonly getValue: () => string;
+  readonly label?: string;
 } & ButtonProps;
 
 /** Clipboard button that lazily computes the value only when clicked */
 export const LazyClipboard = React.forwardRef<HTMLButtonElement, LazyClipboardProps>(
-  ({ getValue, ...props }, ref) => {
+  ({ getValue, label, ...props }, ref) => {
     const [copied, setCopied] = React.useState(false);
 
     const handleClick = () => {
@@ -40,7 +41,7 @@ export const LazyClipboard = React.forwardRef<HTMLButtonElement, LazyClipboardPr
     };
 
     return (
-      <IconButton onClick={handleClick} ref={ref} size="xs" variant="subtle" {...props}>
+      <IconButton label={label} onClick={handleClick} ref={ref} size="xs" variant="subtle" {...props}>
         {copied ? <LuCheck /> : <LuClipboard />}
       </IconButton>
     );

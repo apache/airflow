@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
+from pathlib import Path
+from textwrap import dedent
 from unittest import mock
 from uuid import UUID, uuid4
 
@@ -172,30 +174,32 @@ def test_fail_and_success():
     assert len(executor.get_event_buffer()) == 3
 
 
+@pytest.mark.parametrize(
+    ("team_name", "expected_tags"),
+    [
+        pytest.param(None, {"status": "open", "executor_class_name": "BaseExecutor"}, id="without_team"),
+        pytest.param(
+            "team_a",
+            {"status": "open", "executor_class_name": "BaseExecutor", "team_name": "team_a"},
+            id="with_team",
+        ),
+    ],
+)
 @mock.patch("airflow.executors.base_executor.BaseExecutor.sync")
 @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
 @mock.patch("airflow.executors.base_executor.stats.gauge")
-def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_tasks, mock_sync):
-    executor = BaseExecutor()
+def test_gauge_executor_metrics_single_executor(
+    mock_stats_gauge, mock_trigger_tasks, mock_sync, team_name, expected_tags
+):
+    executor = BaseExecutor(team_name=team_name)
     executor.heartbeat()
-    calls = [
-        mock.call(
-            "executor.open_slots",
-            value=mock.ANY,
-            tags={"status": "open", "executor_class_name": "BaseExecutor"},
-        ),
-        mock.call(
-            "executor.queued_tasks",
-            value=mock.ANY,
-            tags={"status": "queued", "executor_class_name": "BaseExecutor"},
-        ),
-        mock.call(
-            "executor.running_tasks",
-            value=mock.ANY,
-            tags={"status": "running", "executor_class_name": "BaseExecutor"},
-        ),
-    ]
-    mock_stats_gauge.assert_has_calls(calls)
+    # Verify all three gauges use the expected tag structure
+    for metric, status in [
+        ("executor.open_slots", "open"),
+        ("executor.queued_tasks", "queued"),
+        ("executor.running_tasks", "running"),
+    ]:
+        mock_stats_gauge.assert_any_call(metric, value=mock.ANY, tags={**expected_tags, "status": status})
 
 
 @pytest.mark.parametrize(
@@ -443,16 +447,6 @@ def test_state_queued():
     assert executor.event_buffer[key] == (TaskInstanceState.QUEUED, info)
 
 
-def test_state_generic():
-    executor = BaseExecutor()
-    key = TaskInstanceKey("my_dag1", "my_task1", timezone.utcnow(), 1)
-    executor.running.add(key)
-    info = "info"
-    executor.queued(key, info=info)
-    assert not executor.running
-    assert executor.event_buffer[key] == (TaskInstanceState.QUEUED, info)
-
-
 def test_state_running():
     executor = BaseExecutor()
     key = TaskInstanceKey("my_dag1", "my_task1", timezone.utcnow(), 1)
@@ -647,11 +641,6 @@ class TestCallbackSupport:
         executor = BaseExecutor()
         assert executor.supports_callbacks is False
 
-    def test_local_executor_supports_callbacks_true(self):
-        """Test that LocalExecutor sets supports_callbacks to True."""
-        executor = LocalExecutor()
-        assert executor.supports_callbacks is True
-
     @pytest.mark.db_test
     def test_queue_callback_without_support_raises_error(self, dag_maker, session):
         executor = BaseExecutor()  # supports_callbacks = False by default
@@ -725,20 +714,118 @@ class TestCallbackSupport:
 
 class TestExecuteCallbackWorkload:
     @pytest.mark.parametrize(
-        ("path", "kwargs", "expect_success", "error_contains"),
+        ("path", "kwargs", "dag_rel_path", "bundle_path", "expect_success", "error_contains"),
         [
-            pytest.param("builtins.dict", {"a": 1, "b": 2, "c": 3}, True, None, id="function_success"),
-            pytest.param("", {}, False, "Callback path not found", id="missing_path"),
-            pytest.param("nonexistent.module.function", {}, False, "ModuleNotFoundError", id="import_error"),
-            pytest.param("builtins.len", {}, False, "TypeError", id="execution_error"),
+            pytest.param(
+                "builtins.dict",
+                {"a": 1, "b": 2, "c": 3},
+                Path("test.py"),
+                Path("bundle/path"),
+                True,
+                None,
+                id="function_success",
+            ),
+            pytest.param(
+                "",
+                {},
+                Path("test.py"),
+                Path("bundle/path"),
+                False,
+                "Callback path not found",
+                id="missing_path",
+            ),
+            pytest.param(
+                "nonexistent.module.function",
+                {},
+                Path("test.py"),
+                Path("bundle/path"),
+                False,
+                "ModuleNotFoundError",
+                id="import_error",
+            ),
+            pytest.param(
+                "builtins.len",
+                {},
+                Path("test.py"),
+                Path("bundle/path"),
+                False,
+                "TypeError",
+                id="execution_error",
+            ),
+            pytest.param(
+                "unusual_prefix_fad099f9df8ac798a50aac7381aab95ad4008e79_test_dag.success_message",
+                {},
+                Path("test.py"),
+                Path("bundle/path"),
+                False,
+                "FileNotFoundError",
+                id="dag_import_error",
+            ),
         ],
     )
-    def test_execute_callback(self, path, kwargs, expect_success, error_contains):
+    def test_execute_callback(self, path, kwargs, dag_rel_path, bundle_path, expect_success, error_contains):
         log = structlog.get_logger()
-        success, error = execute_callback(path, kwargs, log)
+        success, error = execute_callback(
+            callback_path=path,
+            callback_kwargs=kwargs,
+            dag_rel_path=dag_rel_path,
+            bundle_path=bundle_path,
+            log=log,
+        )
 
         assert success is expect_success
         if error_contains:
             assert error_contains in error
         else:
             assert error is None
+
+    def test_execute_callback_unusual_prefix_success(self, tmp_path):
+        """Test successful execution of callback with same Dag module path."""
+        dag_file = tmp_path / "test_dag.py"
+        dag_content = dedent('''
+            def test_callback(**kwargs):
+                """Test callback function."""
+                return "success"
+        ''')
+        dag_file.write_text(dag_content)
+
+        callback_path = "unusual_prefix_abc123_test_dag.test_callback"
+        callback_kwargs = {"param1": "value1", "context": {"dag_id": "test"}}
+        dag_rel_path = Path("test_dag.py")
+        bundle_path = tmp_path
+        log = structlog.get_logger()
+
+        success, error = execute_callback(
+            callback_path=callback_path,
+            callback_kwargs=callback_kwargs,
+            dag_rel_path=dag_rel_path,
+            bundle_path=bundle_path,
+            log=log,
+        )
+
+        assert success is True
+        assert error is None
+
+    @pytest.mark.parametrize(
+        ("dag_rel_path", "bundle_path", "expected_error"),
+        [
+            pytest.param(None, Path("bundle/path"), "Dag relative path not found", id="missing_dag_path"),
+            pytest.param(Path("test.py"), None, "Bundle path not found", id="missing_bundle_path"),
+        ],
+    )
+    def test_execute_callback_unusual_prefix_missing_paths(self, dag_rel_path, bundle_path, expected_error):
+        """Test same Dag module callback with missing required paths."""
+        callback_path = "unusual_prefix_abc123_test_dag.test_callback"
+        callback_kwargs = {"param1": "value1"}
+        log = structlog.get_logger()
+
+        success, error = execute_callback(
+            callback_path=callback_path,
+            callback_kwargs=callback_kwargs,
+            dag_rel_path=dag_rel_path,
+            bundle_path=bundle_path,
+            log=log,
+        )
+
+        assert success is False
+        assert expected_error in error

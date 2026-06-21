@@ -43,16 +43,26 @@ This generates both an HTML representation and Javadoc.
 
 ## Running the example
 
-* Put the [DAG with stub tasks](./dags) to somewhere Airflow can find.
+The SDK projects must first built and published:
+
+```bash
+./gradlew publishToMavenLocal -PskipSigning=true
+```
+
+After the build is successful, you should be able to see directories in `~/.m2/repository/org/apache/airflow/`.
+
+Now `cd example` into the example project, and
+
+* Put the [DAG with stub tasks](./example/src/resources/dags) to somewhere Airflow can find.
 
 * Ensure the `java` command is available in the same environment the Airflow
   task worker is in.
 
-* Package the example and its dependencies into JARs in
-  `./example/build/install/example/lib`
+* Package the example to `./example/build/bundle`
 
   ```bash
-  ./gradlew :example:installDist
+  # We're now in the 'example' directory, so gradlew is in parent.
+  ../gradlew bundle
   ```
 
 * Configure Airflow to route tasks in the *java* queue to be run with Java:
@@ -61,7 +71,7 @@ This generates both an HTML representation and Javadoc.
   export AIRFLOW__SDK__COORDINATORS='{
     "java": {
       "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-      "kwargs": {"jars_root": ["/opt/airflow/java-sdk/example/build/install/example/lib"]}
+      "kwargs": {"jars_root": ["/opt/airflow/java-sdk/example/build/bundle"]}
     }
   }'
   export AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"java": "java"}'
@@ -80,6 +90,108 @@ This generates both an HTML representation and Javadoc.
   }'
   export AIRFLOW_VAR_MY_VARIABLE=123
   ```
+
+## Publishing
+
+The SDK is published to Maven Central via the
+[ASF Nexus staging repository](https://repository.apache.org).
+The full release process follows the
+[ASF Maven publishing guide](https://infra.apache.org/publishing-maven-artifacts.html).
+
+### Prerequisites
+
+* An ASF committer account with access to
+  [repository.apache.org](https://repository.apache.org).
+* A GPG key that has been
+  [added to the project KEYS file](https://infra.apache.org/release-signing.html)
+  and uploaded to a public key server.
+
+### Bump the version
+
+Edit `gradle.properties` and set the version for this release:
+
+```properties
+projectVersion=1.0.0
+```
+
+Commit the change and push it to the release branch.
+
+### Verify the POM locally
+
+Before touching any remote repository, publish to your local Maven cache and
+inspect the generated POM:
+
+```bash
+rm -rf ~/.m2/repository/org/apache/airflow/  # Start clean.
+
+./gradlew publishToMavenLocal -PskipSigning=true
+
+# The airflow-sdk runtime.
+less ~/.m2/repository/org/apache/airflow/airflow-sdk/*/airflow-sdk-*.pom
+
+# The bill of materials of airflow-sdk
+less ~/.m2/repository/org/apache/airflow/airflow-sdk-bom/*/*.pom
+
+# The annotation processor for the builder pattern.
+less ~/.m2/repository/org/apache/airflow/airflow-sdk-processor/*/airflow-sdk-*.pom
+
+# The Gradle plugin for bundling.
+less ~/.m2/repository/org/apache/airflow/airflow-sdk-gradle-plugin/*/airflow-sdk-*.pom
+
+# The Gradle plugin's registration.
+less ~/.m2/repository/org/apache/airflow/sdk/org.apache.airflow.sdk.gradle.plugin/*/*.pom
+```
+
+Check that the coordinates, description, license, SCM, and organization fields
+look correct.
+
+### Dry-run against a local repository
+
+To test the full publish flow without touching ASF infrastructure, override the
+repository URL to a local directory
+
+```bash
+rm -rf /tmp/local-maven-repo  # Start clean.
+./gradlew publish -PmavenUrl=file:///tmp/local-maven-repo -PskipSigning=true
+ls /tmp/local-maven-repo/org/apache/airflow/
+# This should contain the same components in ~/.m2 as inspected in the previous step.
+```
+
+*NOTE:* Signing is not required since nothing goes to Maven Central. If you want
+to test signing, set the GPG private key and passphrase as described in the next
+section, and remove `-PskipSigning=true` from the above command.
+
+### Publish to ASF Nexus staging
+
+Store the credentials in `~/.gradle/gradle.properties` so they are not exposed
+in your shell history:
+
+```properties
+mavenUsername=your-asf-nexus-token-username
+mavenPassword=your-asf-nexus-token-password
+signing.password=your-gpg-key-passphrase
+```
+
+Then run the publish task.
+
+```bash
+./gradlew publish -P"signing.key=$(gpg --armor --export-secret-keys your-gpg-key-fingerprint)"
+```
+
+*NOTE:* The signing key is supplied through the command line since it contains
+newlines, which does not work well in a Gradle properties file.
+
+*NOTE:* You can also use the following environment variables to provide the
+credentials instead: `ASF_NEXUS_USERNAME`, `ASF_NEXUS_PASSWORD`, `SIGNING_KEY`,
+and `SIGNING_PASSWORD`. This is especially useful on e.g. CI.
+
+### Verify the upload
+
+Verify all artifacts have been released correctly to the
+[ASF Nexus server](https://repository.apache.org/#nexus-search;quick~org.apache.airflow).
+
+Check *Updated by* (should be your ID), *Uploaded Date*, and *Last Modified*.
+
 
 ## Technical Details
 

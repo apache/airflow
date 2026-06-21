@@ -1,3 +1,4 @@
+
 .. Licensed to the Apache Software Foundation (ASF) under one
    or more contributor license agreements.  See the NOTICE file
    distributed with this work for additional information
@@ -31,7 +32,7 @@ Release: ``1.0.0``
 Provider package
 ----------------
 
-This is a provider package for ``clickhouse`` provider. All classes for this provider package
+This is a provider package for ``clickhousedb`` provider. All classes for this provider package
 are in ``airflow.providers.clickhousedb`` python package.
 
 You can find package information and changelog for the provider
@@ -44,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-clickhousedb``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -54,8 +55,27 @@ PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.11.0``
 ``apache-airflow-providers-common-sql``  ``>=1.32.0``
-``clickhouse-connect``                   ``>=0.7.0``
+``clickhouse-connect``                   ``>=1.3.0``
 =======================================  ==================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified providers in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-clickhousedb[common.sql]
+
+
+============================================================================================================  ==============
+Dependent package                                                                                             Extra
+============================================================================================================  ==============
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
+============================================================================================================  ==============
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-clickhousedb/1.0.0/changelog.html>`_.

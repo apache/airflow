@@ -595,6 +595,26 @@ class TestSSHHook:
             assert ssh_client.return_value.set_missing_host_key_policy.called is True
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
+    def test_conn_retry_attempts_defaults_to_three(self, ssh_client):
+        hook = SSHHook(ssh_conn_id="ssh_default")
+        assert hook.conn_retry_attempts == 3
+
+    @mock.patch("time.sleep")
+    @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
+    def test_conn_retry_attempts_retries_until_limit(self, ssh_client, _mock_sleep):
+        """get_conn retries the configured number of times before re-raising."""
+        ssh_client.return_value.connect.side_effect = paramiko.ssh_exception.SSHException(
+            "Error reading SSH protocol banner"
+        )
+        hook = SSHHook(ssh_conn_id="ssh_default", conn_retry_attempts=4)
+        assert hook.conn_retry_attempts == 4
+
+        with pytest.raises(paramiko.ssh_exception.SSHException):
+            hook.get_conn()
+
+        assert ssh_client.return_value.connect.call_count == 4
+
+    @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
     def test_ssh_connection_with_host_key_where_allow_host_key_change_is_true(self, ssh_client):
         hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_ALLOW_HOST_KEY_CHANGES_TRUE)
         assert hook.host_key is not None

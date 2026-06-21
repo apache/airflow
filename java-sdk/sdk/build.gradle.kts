@@ -17,25 +17,16 @@
  * under the License.
  */
 
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-}
-
 val airflowSupervisorSchemaVersion: String by project
-val sdkVersion: String by project
-
-// Full Maven coordinate: org.apache.airflow:airflow-sdk:<version>
-group = "org.apache.airflow"
-version = sdkVersion
-base.archivesName.set("airflow-sdk")
 
 plugins {
-    kotlin("plugin.serialization") version "2.3.0"
+    `java-library`
+    id("airflow-jvm-conventions")
+    id("airflow-publish")
     id("org.jetbrains.dokka") version "2.2.0"
     id("org.jetbrains.dokka-javadoc") version "2.2.0"
     id("org.jsonschema2pojo") version "1.2.2"
+    kotlin("plugin.serialization") version "2.3.0"
 }
 
 // TODO: Use a hosted file instead.
@@ -53,7 +44,6 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.21.0")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.0")
-    implementation("com.squareup:javapoet:1.13.0")
     implementation("com.xenomachina:kotlin-argparser:2.0.7")
     implementation("io.ktor:ktor-network:3.3.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
@@ -63,7 +53,6 @@ dependencies {
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.11")
 
     testImplementation(kotlin("test"))
-    testImplementation("com.google.testing.compile:compile-testing:0.23.0")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }
 
@@ -150,8 +139,9 @@ abstract class GenerateDiscriminatorTask : DefaultTask() {
                 appendLine("// Maps every wire `type` discriminator string to its generated model class.")
                 appendLine("// Generated from the Supervisor Schema; do not edit by hand.")
                 appendLine("internal object Discriminator {")
-                appendLine("    val types: Map<String, Class<*>> = mapOf(")
-                entries.forEach { appendLine("        \"${it.wireType}\" to ${it.className}::class.java,") }
+                appendLine("  val types: Map<String, Class<*>> =")
+                appendLine("    mapOf(")
+                entries.forEach { appendLine("      \"${it.wireType}\" to ${it.className}::class.java,") }
                 appendLine("    )")
                 appendLine("}")
             },
@@ -170,6 +160,13 @@ tasks.register<GeneratePointersTask>("generatePointers") {
     description = "Generate pointer files for jsonSchema2Pojo"
     schemaFile = layout.file(provider { schemaInput })
     targetDirectory = pointersDir
+}
+
+val javadocJar by tasks.registering(Jar::class) {
+    description = "Assembles Javadoc JAR from Dokka output"
+    group = JavaBasePlugin.DOCUMENTATION_GROUP
+    archiveClassifier.set("javadoc")
+    from(tasks.named("dokkaGeneratePublicationJavadoc"))
 }
 
 jsonSchema2Pojo {
@@ -201,7 +198,7 @@ sourceSets {
 }
 
 dokka {
-    moduleVersion.set(sdkVersion)
+    moduleVersion.set(project.version.toString())
     dokkaSourceSets.configureEach {
         // Suppress everything in 'execution' since it's implementation detail.
         perPackageOption {
@@ -209,6 +206,11 @@ dokka {
             suppress.set(true)
         }
     }
+}
+
+java {
+    withSourcesJar() // Required by Maven Central.
+    // Do NOT call withJavadocJar(); we use Dokka to generate documentation. See javadocJar above.
 }
 
 tasks.named("generateJsonSchema2Pojo") {
@@ -224,7 +226,7 @@ tasks.named("compileKotlin") {
 }
 
 tasks.named("runKtlintCheckOverMainSourceSet") {
-    dependsOn("generateJsonSchema2Pojo")
+    dependsOn("generateJsonSchema2Pojo", "generateDiscriminator")
 }
 
 tasks.matching { it.name.startsWith("dokkaGenerate") }.configureEach {
@@ -232,6 +234,7 @@ tasks.matching { it.name.startsWith("dokkaGenerate") }.configureEach {
 }
 
 tasks.withType<Jar> {
+    dependsOn("generateJsonSchema2Pojo", "generateDiscriminator")
     manifest {
         attributes(
             "Airflow-Supervisor-Schema-Version" to airflowSupervisorSchemaVersion,
@@ -241,4 +244,18 @@ tasks.withType<Jar> {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("mavenJava") {
+            artifactId = "airflow-sdk"
+            from(components["java"])
+            artifact(javadocJar)
+            pom {
+                name = "Apache Airflow Java SDK"
+                description = "Java SDK for implementing Apache Airflow task logic on the JVM."
+            }
+        }
+    }
 }

@@ -68,7 +68,7 @@ type MarkdownLinkProps = {
 };
 
 const MarkdownLink = ({ children, href, title }: MarkdownLinkProps) => (
-  <Link color="fg.info" fontWeight="bold" href={href} title={title}>
+  <Link color="fg.info" fontWeight="bold" href={href} rel="noopener noreferrer" target="_blank" title={title}>
     {children}
   </Link>
 );
@@ -204,7 +204,7 @@ const createMarkdownComponents = (style: SyntaxTheme): Components => ({
   ul: UlComponent,
 });
 
-const ReactMarkdown = ({ children, ...props }: Options) => {
+const ReactMarkdown = ({ children, components: componentOverrides, ...restProps }: Options) => {
   const { colorMode } = useColorMode();
   const style = colorMode === "dark" ? oneDark : oneLight;
   const components = createMarkdownComponents(style);
@@ -219,8 +219,8 @@ const ReactMarkdown = ({ children, ...props }: Options) => {
   return (
     <Box alignSelf="stretch" css={markdownContentStyles} maxWidth="100%" minWidth={0} width="100%">
       <ReactMD
-        components={components}
-        {...props}
+        components={{ ...components, ...componentOverrides }}
+        {...restProps}
         rehypePlugins={shouldEnableMath ? [rehypeKatex] : []}
         remarkPlugins={
           shouldEnableMath ? [remarkGfm, [remarkMath, { singleDollarTextMath: false }]] : [remarkGfm]

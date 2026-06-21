@@ -48,77 +48,6 @@ class TestIngressAPIServer:
         )
         assert jmespath.search("spec.ingressClassName", docs[0]) == "foo"
 
-    def test_should_ingress_hosts_objs_have_priority_over_host(self):
-        docs = render_chart(
-            values={
-                "ingress": {
-                    "apiServer": {
-                        "enabled": True,
-                        "tls": {"enabled": True, "secretName": "oldsecret"},
-                        "hosts": [
-                            {"name": "*.a-host", "tls": {"enabled": True, "secretName": "newsecret1"}},
-                            {"name": "b-host", "tls": {"enabled": True, "secretName": "newsecret2"}},
-                            {"name": "c-host", "tls": {"enabled": True, "secretName": "newsecret1"}},
-                            {"name": "d-host", "tls": {"enabled": False, "secretName": ""}},
-                            {"name": "e-host"},
-                        ],
-                        "host": "old-host",
-                    },
-                },
-            },
-            show_only=["templates/api-server/api-server-ingress.yaml"],
-        )
-        assert jmespath.search("spec.rules[*].host", docs[0]) == [
-            "*.a-host",
-            "b-host",
-            "c-host",
-            "d-host",
-            "e-host",
-        ]
-        assert jmespath.search("spec.tls[*]", docs[0]) == [
-            {"hosts": ["*.a-host"], "secretName": "newsecret1"},
-            {"hosts": ["b-host"], "secretName": "newsecret2"},
-            {"hosts": ["c-host"], "secretName": "newsecret1"},
-        ]
-
-    def test_should_ingress_hosts_strs_have_priority_over_host(self):
-        docs = render_chart(
-            values={
-                "ingress": {
-                    "apiServer": {
-                        "enabled": True,
-                        "tls": {"enabled": True, "secretName": "secret"},
-                        "hosts": ["*.a-host", "b-host", "c-host", "d-host"],
-                        "host": "old-host",
-                    },
-                },
-            },
-            show_only=["templates/api-server/api-server-ingress.yaml"],
-        )
-        assert jmespath.search("spec.rules[*].host", docs[0]) == ["*.a-host", "b-host", "c-host", "d-host"]
-        assert jmespath.search("spec.tls[*]", docs[0]) == [
-            {"hosts": ["*.a-host", "b-host", "c-host", "d-host"], "secretName": "secret"}
-        ]
-
-    def test_should_ingress_deprecated_host_and_top_level_tls_still_work(self):
-        docs = render_chart(
-            values={
-                "ingress": {
-                    "apiServer": {
-                        "enabled": True,
-                        "tls": {"enabled": True, "secretName": "supersecret"},
-                        "host": "old-host",
-                    },
-                },
-            },
-            show_only=["templates/api-server/api-server-ingress.yaml"],
-        )
-        assert (
-            ["old-host"]
-            == jmespath.search("spec.rules[*].host", docs[0])
-            == jmespath.search("spec.tls[0].hosts", docs[0])
-        )
-
     def test_should_ingress_host_entry_not_exist(self):
         docs = render_chart(
             values={
@@ -133,32 +62,24 @@ class TestIngressAPIServer:
         assert not jmespath.search("spec.rules[*].host", docs[0])
 
     @pytest.mark.parametrize(
-        ("global_value", "api_server_value", "expected"),
+        ("api_server_value", "expected"),
         [
-            (None, None, False),
-            (None, False, False),
-            (None, True, True),
-            (False, None, False),
-            (True, None, True),
-            (False, True, True),  # We will deploy it if _either_ are true
-            (True, False, True),
+            (None, False),
+            (False, False),
+            (True, True),
         ],
     )
-    def test_ingress_created(self, global_value, api_server_value, expected):
-        values = {"ingress": {}}
-        if global_value is not None:
-            values["ingress"]["enabled"] = global_value
+    def test_ingress_created(self, api_server_value, expected):
+        values = {}
         if api_server_value is not None:
-            values["ingress"]["apiServer"] = {"enabled": api_server_value}
-        if values["ingress"] == {}:
-            del values["ingress"]
+            values["ingress"] = {"apiServer": {"enabled": api_server_value}}
         docs = render_chart(values=values, show_only=["templates/api-server/api-server-ingress.yaml"])
         assert expected == (len(docs) == 1)
 
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
-                "ingress": {"enabled": True},
+                "ingress": {"apiServer": {"enabled": True}},
                 "apiServer": {
                     "labels": {"test_label": "test_label_value"},
                 },

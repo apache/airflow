@@ -4,6 +4,8 @@ go 1.24.0
 
 toolchain go1.24.6
 
+tool github.com/apache/airflow/go-sdk/cmd/airflow-go-pack
+
 require (
 	github.com/cappuccinotm/slogx v1.4.2
 	github.com/golang-jwt/jwt/v5 v5.3.0
@@ -60,5 +62,5 @@ require (
 	github.com/samber/slog-http v1.8.2
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1
 )
