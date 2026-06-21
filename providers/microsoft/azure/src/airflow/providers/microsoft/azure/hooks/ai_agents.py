@@ -28,7 +28,6 @@ from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import ClientSecretCredential
 from azure.identity.aio import (
     ClientSecretCredential as AsyncClientSecretCredential,
-    DefaultAzureCredential as AsyncDefaultAzureCredential,
 )
 
 from airflow.providers.common.compat.connection import get_async_connection
@@ -46,7 +45,6 @@ if TYPE_CHECKING:
     from azure.ai.agents.models import Agent, ThreadRun
     from azure.core.credentials import TokenCredential
     from azure.core.credentials_async import AsyncTokenCredential
-    from azure.identity import DefaultAzureCredential
 
     from airflow.sdk import Connection
 
@@ -215,12 +213,9 @@ class AzureAIAgentsHook(BaseHook):
         self.log.info("Using DefaultAzureCredential as credential.")
         managed_identity_client_id = self._get_field(conn.extra_dejson, "managed_identity_client_id")
         workload_identity_tenant_id = self._get_field(conn.extra_dejson, "workload_identity_tenant_id")
-        return cast(
-            "DefaultAzureCredential",
-            get_sync_default_azure_credential(
-                managed_identity_client_id=managed_identity_client_id,
-                workload_identity_tenant_id=workload_identity_tenant_id,
-            ),
+        return get_sync_default_azure_credential(
+            managed_identity_client_id=managed_identity_client_id,
+            workload_identity_tenant_id=workload_identity_tenant_id,
         )
 
     def _get_field(self, extras: dict[str, Any], field_name: str) -> Any:
@@ -299,12 +294,9 @@ class AzureAIAgentsAsyncHook(AzureAIAgentsHook):
         self.log.info("Using DefaultAzureCredential as credential.")
         managed_identity_client_id = self._get_field(conn.extra_dejson, "managed_identity_client_id")
         workload_identity_tenant_id = self._get_field(conn.extra_dejson, "workload_identity_tenant_id")
-        return cast(
-            "AsyncDefaultAzureCredential",
-            get_async_default_azure_credential(
-                managed_identity_client_id=managed_identity_client_id,
-                workload_identity_tenant_id=workload_identity_tenant_id,
-            ),
+        return get_async_default_azure_credential(
+            managed_identity_client_id=managed_identity_client_id,
+            workload_identity_tenant_id=workload_identity_tenant_id,
         )
 
     async def async_get_run(self, thread_id: str, run_id: str) -> ThreadRun:
