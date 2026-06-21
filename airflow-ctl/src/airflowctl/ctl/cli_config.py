@@ -607,7 +607,7 @@ class CommandFactory:
                         arg_type=self._python_type_from_string(field_type.annotation),
                         arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
                         arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if field_type.annotation is bool else None,
+                        arg_default=None,
                     )
                 )
             else:
@@ -622,7 +622,7 @@ class CommandFactory:
                         arg_type=self._python_type_from_string(annotation),
                         arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
                         arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if annotation is bool else None,
+                        arg_default=None,
                     )
                 )
         return commands
