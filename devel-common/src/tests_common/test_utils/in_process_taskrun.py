@@ -70,7 +70,7 @@ def _remembering_handler(store: dict, run_context_json: bytes) -> Callable:
             dag_id, run_id, task_id, key = parts[1:]
             sig = (dag_id, run_id, task_id, key)
             if request.method == "POST":
-                store[sig] = json.loads(request.content or b"null")
+                store[sig] = json.loads(request.content)
                 return httpx.Response(201, json={"ok": True})
             if request.method == "GET":
                 if sig in store:
