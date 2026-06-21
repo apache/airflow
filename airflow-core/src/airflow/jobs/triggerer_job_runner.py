@@ -311,6 +311,7 @@ class messages:
         # Format of list[str] is the exc traceback format
         failures: list[tuple[int, list[str] | None]] | None = None
         finished: list[int] | None = None
+        num_running: int = 0
 
     class TriggerStateSync(BaseModel):
         type: Literal["TriggerStateSync"] = "TriggerStateSync"
@@ -562,6 +563,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                         # handle leaks for every failed upload.
                         factory.close()
 
+            self.check_for_unhandled_triggers(msg.num_running)
+
             # Drain the persist confirmations accumulated since the last sync.
             events_persisted: list[int] = []
             while self.persisted_event_seqs:
@@ -719,6 +722,21 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     def clean_unused(self) -> None:
         """Remove triggers that are no longer needed."""
         Trigger.clean_unused()
+
+    def check_for_unhandled_triggers(self, num_running: int) -> None:
+        """
+        Shut down if the subprocess trigger count disagrees with the supervisor.
+
+        Only valid between finished-removal and to_create-addition in ``_handle_request``.
+        """
+        expected = len(self.running_triggers)
+        if expected != num_running:
+            log.error(
+                "Trigger count mismatch: expected %d, subprocess reports %d. Shutting down.",
+                expected,
+                num_running,
+            )
+            self.stop = True
 
     def handle_failed_triggers(self):
         """
@@ -1404,6 +1422,7 @@ class TriggerRunner:
             events=events_to_send if events_to_send else None,
             finished=finished_ids if finished_ids else None,
             failures=failures_to_send if failures_to_send else None,
+            num_running=len(self.triggers),
         )
 
     def sanitize_trigger_events(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateChanges:
@@ -1432,6 +1451,7 @@ class TriggerRunner:
             events=events_to_send if events_to_send else None,
             finished=msg.finished,
             failures=msg.failures,
+            num_running=msg.num_running,
         )
 
     async def sync_state_to_supervisor(self, finished_ids: list[int]) -> None:
