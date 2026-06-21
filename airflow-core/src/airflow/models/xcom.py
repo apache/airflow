@@ -54,6 +54,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.expression import Select, TextClause
 
+    from airflow.models.taskinstancekey import TaskInstanceKey
+
 
 XCOM_RETURN_KEY = "return_value"
 
@@ -331,6 +333,57 @@ class XComModel(TaskInstanceDependencies):
         if limit:
             return query.limit(limit)
         return query
+
+    @classmethod
+    @provide_session
+    def get_one(
+        cls,
+        *,
+        key: str,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: int | None = None,
+        include_prior_dates: bool = False,
+        session: Session = NEW_SESSION,
+    ) -> Any | None:
+        """Retrieve and deserialize a single XCom value from the metadata database."""
+        result = session.execute(
+            cls.get_many(
+                key=key,
+                dag_ids=dag_id,
+                task_ids=task_id,
+                run_id=run_id,
+                map_indexes=map_index,
+                include_prior_dates=include_prior_dates,
+                limit=1,
+            ).with_only_columns(cls.value)
+        ).first()
+        if result is None:
+            return None
+        from airflow.sdk.bases.xcom import BaseXCom
+        from airflow.sdk.execution_time.xcom import resolve_xcom_backend
+
+        XCom = resolve_xcom_backend()
+        if XCom is BaseXCom:
+            return cls.deserialize_value(result)
+        return XCom.deserialize_value(result)
+
+    @classmethod
+    def get_value(
+        cls,
+        *,
+        ti_key: TaskInstanceKey,
+        key: str,
+    ) -> Any | None:
+        """Retrieve and deserialize an XCom value for a task instance key."""
+        return cls.get_one(
+            key=key,
+            dag_id=ti_key.dag_id,
+            task_id=ti_key.task_id,
+            run_id=ti_key.run_id,
+            map_index=ti_key.map_index,
+        )
 
     @staticmethod
     def serialize_value(

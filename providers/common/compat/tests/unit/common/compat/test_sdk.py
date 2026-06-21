@@ -52,3 +52,10 @@ def test_invalid_import_raises_attribute_error():
 
     with pytest.raises(AttributeError, match="has no attribute 'NonExistentClass'"):
         _ = sdk.NonExistentClass
+
+
+def test_xcom_model_imports_server_side_model():
+    from airflow.models.xcom import XComModel
+    from airflow.providers.common.compat import sdk
+
+    assert sdk.XComModel is XComModel
