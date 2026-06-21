@@ -31,9 +31,9 @@ from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import C
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager, PodPhase
+from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import add_sidecar_to_spark_operator_pod_spec
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.helpers import prune_dict
-from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import add_sidecar_to_spark_operator_pod_spec
 
 if TYPE_CHECKING:
     import jinja2
