@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineStorage, MdSyncAlt } from "react-icons/md";
 import { Outlet } from "react-router-dom";
@@ -34,7 +35,9 @@ export const StorageLayout = () => {
           { icon: <MdSyncAlt />, label: translate("tabs.xcom"), value: "xcom" },
         ]}
       />
-      <Outlet />
+      <Box ps={6}>
+        <Outlet />
+      </Box>
     </>
   );
 };
