@@ -383,21 +383,10 @@ class MetastoreBackend(BaseStoreBackend):
 
     def cleanup(self) -> None:
         """
-        Remove expired and stale task state rows.
+        Remove expired task state rows.
 
-        Two deletion passes run in order:
-
-        1. **Explicit expiry**: rows where ``expires_at IS NOT NULL AND expires_at < now()``.
-           These are rows where the writer set a specific TTL via ``set(expires_at=...)``.
-
-        2. **Default retention**: rows where ``expires_at IS NULL`` and
-           ``updated_at + timedelta(days=default_retention_days) < now()``.
-           This applies the deployment-wide ``[state_store] default_retention_days`` (default 30)
-           to rows that were written without an explicit TTL — which is the common case for
-           task worker writes. When ``default_retention_days`` is 0, this pass is skipped
-           and those rows are kept indefinitely.
-
-        Batching is configurable via ``[state_store] state_cleanup_batch_size``.
+        Rows with an explicit ``expires_at`` are deleted when expired. Rows without an
+        explicit expiry are deleted according to ``[state_store] default_retention_days``.
         """
         batch_size = conf.getint("state_store", "state_cleanup_batch_size")
         retention_days = conf.getint("state_store", "default_retention_days")
@@ -420,21 +409,14 @@ class MetastoreBackend(BaseStoreBackend):
                         break
             return total
 
-        # Pass 1: explicit expires_at
-        deleted = _delete_batched(TaskStateStoreModel.expires_at < now)
-        log.info("Deleted explicitly-expired task_state_store rows", rows_deleted=deleted)
-
-        # Pass 2: default retention for rows without an explicit expires_at
+        where_clause = TaskStateStoreModel.expires_at < now
         if retention_days > 0:
             cutoff = now - timedelta(days=retention_days)
-            stale_deleted = _delete_batched(
-                (TaskStateStoreModel.expires_at.is_(None)) & (TaskStateStoreModel.updated_at < cutoff)
+            where_clause = where_clause | (
+                TaskStateStoreModel.expires_at.is_(None) & (TaskStateStoreModel.updated_at < cutoff)
             )
-            log.info(
-                "Deleted stale task_state_store rows by default retention",
-                rows_deleted=stale_deleted,
-                retention_days=retention_days,
-            )
+        deleted = _delete_batched(where_clause)
+        log.info("Deleted expired task_state_store rows", rows_deleted=deleted)
 
     def _summary_dry_run(self) -> dict[str, list]:
         """Return rows that would be deleted by cleanup() without deleting anything."""
