@@ -83,6 +83,29 @@ model (JVM/interpreted → Java; native/compiled → Go).
 
 ---
 
+## Logging
+
+The **Logging** section of `30_new_language_sdk.rst` is the spec: the `--logs`
+JSON record format, the level names, and the `AIRFLOW__LOGGING__*` environment
+variables. Read it first. A few language-neutral details it leaves out:
+
+- **Level values.** Levels follow Python's `logging` scale, so thresholds line
+  up with the rest of Airflow: `CRITICAL=50`, `ERROR=40`, `WARNING=30`,
+  `INFO=20`, `DEBUG=10`, `NOTSET=0`.
+- **Parsing `NAMESPACE_LEVELS`.** Split the value on `[\s,]+`, then split each
+  item on `=` into `(logger_name, level_name)`. Emit a record only when its
+  level is `>=` the matching `logger_name` threshold, or the global threshold
+  when no per-logger entry matches.
+- **Don't drop late logs.** Connect the `--logs` socket early and keep it open
+  until the `--comm` channel has finished; otherwise records emitted during
+  teardown can be lost.
+- **Extra config keys.** The runtime can't read Airflow's config, so if your SDK
+  needs `[logging]` settings beyond the two above, propagate them as environment
+  variables from your coordinator's `start`, the same way.
+
+For how a given language wires its native logging frameworks into this channel,
+read that SDK's source (e.g. `java-sdk/`) rather than reproducing it here.
+
 ### E2E test suite
 
 Create two files mirroring `java_sdk_tests/` or `go_sdk_tests/`:
