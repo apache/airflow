@@ -263,12 +263,7 @@ class TestMetastoreBackendTaskScope:
     def test_cleanup_deletes_stale_rows_by_default_retention(
         self, session: Session, backend: MetastoreBackend, dag_run: DagRun
     ):
-        """cleanup() removes rows with expires_at=NULL that exceed default_retention_days.
-
-        This is the primary regression test for the bug where cleanup() only checked
-        ``expires_at < now()`` and completely ignored ``default_retention_days``, causing
-        rows written by the task worker (which send expires_at=None) to accumulate forever.
-        """
+        """cleanup() removes stale NULL-expires_at rows using default_retention_days."""
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         backend.set(scope, "old_state", "old_value", session=session)  # stale — should be deleted
         backend.set(scope, "fresh_state", "fresh_value", session=session)  # recent — should be kept
