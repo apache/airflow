@@ -458,7 +458,7 @@ spark_job_template.yaml
       #   karpenter.sh/provisioner-name: spark
       node_selector: {}
 
-      # example: https://kubernetes.io/docs/concepts/schedulingF-eviction/assign-pod-node/
+      # example: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
       # affinity:
       #   nodeAffinity:
       #     requiredDuringSchedulingIgnoredDuringExecution:
