@@ -658,7 +658,7 @@ How does XCom work?
 
 When ``do_xcom_push=True``, :class:`~airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator`
 injects an XCom ``emptyDir`` volume, a driver ``volumeMount`` at ``/airflow/xcom``, and an
-``airflow-xcom-sidecar`` sidecar into the SparkApplication spec before submission. 
+``airflow-xcom-sidecar`` sidecar into the SparkApplication spec before submission.
 
 .. important::
 
