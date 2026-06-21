@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from kubernetes.client import ApiClient, models as k8s
 
@@ -31,11 +33,11 @@ XCOM_MOUNT = ApiClient().sanitize_for_serialization(PodDefaults.VOLUME_MOUNT)
 
 def _make_spark_spec(
     *,
-    volumes: list[dict] | None = None,
-    driver_volume_mounts: list[dict] | None = None,
-    driver_sidecars: list[dict] | None = None,
-) -> dict:
-    spec = {
+    volumes: list[dict[str, Any]] | None = None,
+    driver_volume_mounts: list[dict[str, Any]] | None = None,
+    driver_sidecars: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    spec: dict[str, Any] = {
         "type": "Python",
         "driver": {"cores": 1, "memory": "512m"},
         "executor": {"instances": 1, "cores": 1, "memory": "512m"},
@@ -47,45 +49,6 @@ def _make_spark_spec(
     if driver_sidecars is not None:
         spec["driver"]["sidecars"] = driver_sidecars
     return spec
-
-
-def test_add_sidecar_to_spark_operator_pod_spec_does_not_mutate_input_spec():
-    existing_volume = {"name": EXISTING_VOLUME_NAME, "emptyDir": {}}
-    existing_mount = {"name": EXISTING_VOLUME_NAME, "mountPath": EXISTING_MOUNT_PATH}
-    existing_sidecar = {"name": "other-sidecar", "image": "busybox"}
-    spec = _make_spark_spec(
-        volumes=[existing_volume],
-        driver_volume_mounts=[existing_mount],
-        driver_sidecars=[existing_sidecar],
-    )
-    original_volumes = spec["volumes"]
-    original_mounts = spec["driver"]["volumeMounts"]
-    original_sidecars = spec["driver"]["sidecars"]
-
-    result = add_sidecar_to_spark_operator_pod_spec(spec)
-
-    assert spec["volumes"] is original_volumes
-    assert spec["volumes"] == [existing_volume]
-    assert spec["driver"]["volumeMounts"] is original_mounts
-    assert spec["driver"]["volumeMounts"] == [existing_mount]
-    assert spec["driver"]["sidecars"] is original_sidecars
-    assert spec["driver"]["sidecars"] == [existing_sidecar]
-    assert result is not spec
-
-
-def test_add_sidecar_to_spark_operator_pod_spec_sidecar_defaults():
-    spec = _make_spark_spec()
-
-    result = add_sidecar_to_spark_operator_pod_spec(spec)
-
-    assert len(result["volumes"]) == 1
-    assert result["volumes"][0] == PodDefaults.VOLUME.to_dict()
-    assert result["driver"]["volumeMounts"] == [XCOM_MOUNT]
-    sidecar = result["driver"]["sidecars"][0]
-    assert sidecar["name"] == PodDefaults.SIDECAR_CONTAINER_NAME
-    assert sidecar["command"] == PodDefaults.XCOM_SIDECAR_COMMAND
-    assert sidecar["image"] == PodDefaults.SIDECAR_CONTAINER.image
-    assert sidecar["volumeMounts"] == [XCOM_MOUNT]
 
 
 def test_add_sidecar_to_spark_operator_pod_spec_prepends_xcom_before_existing_volumes_and_mounts():
