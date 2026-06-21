@@ -362,9 +362,6 @@ For further information, look at:
 
 SparkKubernetesOperator
 ==========================
-
-.. _howto/operator:SparkKubernetesOperator:
-
 The :class:`~airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator` allows
 you to create and run spark job on a Kubernetes cluster. It is based on `spark-on-k8s-operator <https://github.com/GoogleCloudPlatform/spark-on-k8s-operator>`__ project.
 
@@ -461,7 +458,7 @@ spark_job_template.yaml
       #   karpenter.sh/provisioner-name: spark
       node_selector: {}
 
-      # example: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
+      # example: https://kubernetes.io/docs/concepts/schedulingF-eviction/assign-pod-node/
       # affinity:
       #   nodeAffinity:
       #     requiredDuringSchedulingIgnoredDuringExecution:
@@ -661,7 +658,7 @@ How does XCom work?
 
 When ``do_xcom_push=True``, :class:`~airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator`
 injects an XCom ``emptyDir`` volume, a driver ``volumeMount`` at ``/airflow/xcom``, and an
-``airflow-xcom-sidecar`` sidecar into the SparkApplication spec before submission.
+``airflow-xcom-sidecar`` sidecar into the SparkApplication spec before submission. 
 
 .. important::
 
