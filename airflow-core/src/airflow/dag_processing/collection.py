@@ -31,10 +31,11 @@ import traceback
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
-from sqlalchemy import delete, func, insert, select, tuple_, update
+from sqlalchemy import delete, false, func, insert, select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, load_only
 
+from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones.timezone import utcnow
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
@@ -51,7 +52,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagModel, DagOwnerAttributes, DagTag
 from airflow.models.dagrun import DagRun
-from airflow.models.dagwarning import DagWarningType
+from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
@@ -75,7 +76,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
-    from airflow.models.dagwarning import DagWarning
     from airflow.models.serialized_dag import DagWriteMetadata
     from airflow.typing_compat import Self, Unpack
 
@@ -325,6 +325,59 @@ def _sync_dag_perms(dag: LazyDeserializedDAG, session: Session):
     security_manager.sync_perm_for_dag(dag_id, dag.access_control)
 
 
+def _build_duplicate_dag_id_warnings(
+    dags: Collection[LazyDeserializedDAG],
+    bundle_name: str,
+    session: Session,
+) -> set[DagWarning]:
+    """
+    Detect dag_ids that are defined in multiple files and return DagWarning objects for each.
+
+    A warning is emitted whenever the incoming file differs from the file already recorded in
+    DagModel. This covers both accidental duplicates and file renames while leaving the final
+    interpretation to the user.
+    """
+    dag_by_id = {dag.dag_id: dag for dag in dags}
+    if not dag_by_id:
+        return set()
+
+    existing_rows = session.execute(
+        select(DagModel.dag_id, DagModel.bundle_name, DagModel.relative_fileloc).where(
+            DagModel.dag_id.in_(dag_by_id),
+            DagModel.is_stale == false(),
+        )
+    )
+
+    warnings: set[DagWarning] = set()
+    for existing in existing_rows:
+        dag = dag_by_id[existing.dag_id]
+        if bundle_name == existing.bundle_name and dag.relative_fileloc == existing.relative_fileloc:
+            continue
+
+        message = (
+            f"dag_id '{dag.dag_id}' is now served from '{dag.relative_fileloc}' "
+            f"(bundle: '{bundle_name}'), previously registered from '{existing.relative_fileloc}' "
+            f"(bundle: '{existing.bundle_name}'). "
+            f"If '{existing.relative_fileloc}' was renamed or moved, this notice will clear on "
+            "the next parse cycle once the old file is no longer observed. "
+            f"If both files coexist with the same dag_id, rename one of them to avoid "
+            "non-deterministic behavior."
+        )
+        log.warning(
+            "Duplicate dag_id '%s' detected: incoming file '%s' (bundle '%s') conflicts with "
+            "existing file '%s' (bundle '%s')",
+            dag.dag_id,
+            dag.relative_fileloc,
+            bundle_name,
+            existing.relative_fileloc,
+            existing.bundle_name,
+        )
+        stats.incr("dag_processing.duplicate_dag_id", tags={"dag_id": dag.dag_id})
+        warnings.add(DagWarning(dag.dag_id, DagWarningType.DUPLICATE_DAG_ID, message))
+
+    return warnings
+
+
 def _update_dag_warnings(
     dag_ids: list[str],
     warnings: set[DagWarning],
@@ -446,6 +499,7 @@ def update_dag_parsing_results_in_db(
     *,
     version_data: dict | None = None,
     warning_types: tuple[DagWarningType, ...] = (
+        DagWarningType.DUPLICATE_DAG_ID,
         DagWarningType.NONEXISTENT_POOL,
         DagWarningType.RUNTIME_VARYING_VALUE,
     ),
@@ -475,6 +529,13 @@ def update_dag_parsing_results_in_db(
     # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
     # of any Operational Errors
     # In case of failures, provide_session handles rollback
+    try:
+        duplicate_warnings = _build_duplicate_dag_id_warnings(dags, bundle_name, session)
+    except Exception:
+        log.exception("Error building duplicate dag_id warnings.")
+    else:
+        warnings = set(warnings) | duplicate_warnings
+
     for attempt in run_with_db_retries(logger=log):
         with attempt:
             serialize_errors = []
