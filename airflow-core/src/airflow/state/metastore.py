@@ -428,8 +428,7 @@ class MetastoreBackend(BaseStoreBackend):
         if retention_days > 0:
             cutoff = now - timedelta(days=retention_days)
             stale_deleted = _delete_batched(
-                (TaskStateStoreModel.expires_at.is_(None))
-                & (TaskStateStoreModel.updated_at < cutoff)
+                (TaskStateStoreModel.expires_at.is_(None)) & (TaskStateStoreModel.updated_at < cutoff)
             )
             log.info(
                 "Deleted stale task_state_store rows by default retention",
@@ -456,12 +455,14 @@ class MetastoreBackend(BaseStoreBackend):
             stale: list = []
             if retention_days > 0:
                 cutoff = now - timedelta(days=retention_days)
-                stale = session.execute(
-                    select(*cols).where(
-                        (TaskStateStoreModel.expires_at.is_(None))
-                        & (TaskStateStoreModel.updated_at < cutoff)
-                    )
-                ).all()
+                stale = list(
+                    session.execute(
+                        select(*cols).where(
+                            (TaskStateStoreModel.expires_at.is_(None))
+                            & (TaskStateStoreModel.updated_at < cutoff)
+                        )
+                    ).all()
+                )
         return {"expired": list(expired), "stale": stale}
 
     async def _aget_task_state_store(

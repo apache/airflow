@@ -270,7 +270,7 @@ class TestMetastoreBackendTaskScope:
         rows written by the task worker (which send expires_at=None) to accumulate forever.
         """
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
-        backend.set(scope, "old_state", "old_value", session=session)   # stale — should be deleted
+        backend.set(scope, "old_state", "old_value", session=session)  # stale — should be deleted
         backend.set(scope, "fresh_state", "fresh_value", session=session)  # recent — should be kept
         session.flush()
 
@@ -291,8 +291,7 @@ class TestMetastoreBackendTaskScope:
 
         session.expire_all()
         assert (
-            session.scalar(select(TaskStateStoreModel).where(TaskStateStoreModel.key == "old_state"))
-            is None
+            session.scalar(select(TaskStateStoreModel).where(TaskStateStoreModel.key == "old_state")) is None
         ), "cleanup() must delete rows with expires_at=NULL older than default_retention_days"
         assert (
             session.scalar(select(TaskStateStoreModel).where(TaskStateStoreModel.key == "fresh_state"))
@@ -361,9 +360,7 @@ class TestMetastoreBackendTaskScope:
         # Row 2: NULL expires_at but very old updated_at
         backend.set(scope, "stale_key", "v2", session=session)
         session.flush()
-        stale_row = session.scalar(
-            select(TaskStateStoreModel).where(TaskStateStoreModel.key == "stale_key")
-        )
+        stale_row = session.scalar(select(TaskStateStoreModel).where(TaskStateStoreModel.key == "stale_key"))
         assert stale_row is not None
         stale_row.updated_at = timezone.utcnow() - timedelta(days=35)
         session.flush()
@@ -372,14 +369,13 @@ class TestMetastoreBackendTaskScope:
         with conf_vars({("state_store", "default_retention_days"): "30"}):
             summary = backend._summary_dry_run()
 
-        expired_keys = {row[4] for row in summary["expired"]}   # key is index 4 in the tuple
+        expired_keys = {row[4] for row in summary["expired"]}  # key is index 4 in the tuple
         stale_keys = {row[4] for row in summary.get("stale", [])}
 
         assert "explicit_expired" in expired_keys
         assert "stale_key" in stale_keys, (
             "_summary_dry_run() must report rows with expires_at=NULL older than default_retention_days"
         )
-
 
     def test_cleanup_removes_expired_rows(self, session: Session, backend: MetastoreBackend, dag_run: DagRun):
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)

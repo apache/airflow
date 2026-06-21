@@ -44,11 +44,15 @@ def cleanup_task_state_store(args) -> None:
         if expired:
             print(f"Would delete {len(expired)} explicitly-expired task state store row(s):\n")
             for dag_id, run_id, task_id, map_index, key in expired:
-                print(f"  Dag {dag_id!r}, run {run_id!r}, task {task_id!r}, map_index {map_index!r}, key {key!r}")
+                print(
+                    f"  Dag {dag_id!r}, run {run_id!r}, task {task_id!r}, map_index {map_index!r}, key {key!r}"
+                )
         if stale:
             print(f"\nWould delete {len(stale)} stale task state store row(s) (default retention):\n")
             for dag_id, run_id, task_id, map_index, key in stale:
-                print(f"  Dag {dag_id!r}, run {run_id!r}, task {task_id!r}, map_index {map_index!r}, key {key!r}")
+                print(
+                    f"  Dag {dag_id!r}, run {run_id!r}, task {task_id!r}, map_index {map_index!r}, key {key!r}"
+                )
         return
 
     log.info("Running task state store cleanup")
