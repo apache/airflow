@@ -783,7 +783,7 @@ class TestPopenActivitySubprocessStart:
         """An empty value has no pairs to parse, so the variable is left out."""
         _, popen_mock, _ = self._start_with_mocks(mock_client, command=["/bin/true"])
         env = popen_mock.call_args.kwargs["env"]
-        assert "AIRFLOW__LOGGING__NAMESPACE_LEVELS" not in env
+        assert env["AIRFLOW__LOGGING__NAMESPACE_LEVELS"] == ""
 
     def test_register_pipe_readers_called_with_four_sockets(self, mock_client):
         """Both socketpair read-ends and both TCP sockets must be registered, with a data kwarg."""

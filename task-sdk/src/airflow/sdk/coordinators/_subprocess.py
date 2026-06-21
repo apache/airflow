@@ -300,9 +300,8 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             env = {
                 **os.environ,
                 "AIRFLOW__LOGGING__LOGGING_LEVEL": conf.get("logging", "logging_level", fallback="INFO"),
+                "AIRFLOW__LOGGING__NAMESPACE_LEVELS": conf.get("logging", "namespace_levels", fallback=""),
             }
-            if namespace_levels := conf.get("logging", "namespace_levels", fallback=None):
-                env["AIRFLOW__LOGGING__NAMESPACE_LEVELS"] = namespace_levels
 
             proc = subprocess.Popen(
                 [
