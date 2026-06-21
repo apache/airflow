@@ -38,6 +38,7 @@ AGENT_ID = "agent_123"
 
 class TestAzureAIAgentsHook:
     def test_connection_form_widgets(self):
+        pytest.importorskip("flask_appbuilder")
         widgets = AzureAIAgentsHook.get_connection_form_widgets()
 
         assert "tenantId" in widgets
