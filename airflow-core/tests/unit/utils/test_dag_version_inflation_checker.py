@@ -888,6 +888,4 @@ with DAG('my_dag') as dag:
 t_outside = BashOperator(task_id='outside', bash_command=str(datetime.now()))
 """
         warnings = self._check_code(code)
-        assert len(warnings) == 0, (
-            "A task constructed outside the DAG with-block must not be flagged"
-        )
+        assert len(warnings) == 0, "A task constructed outside the DAG with-block must not be flagged"
