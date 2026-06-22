@@ -74,7 +74,7 @@ The full rationale, method signature, and socket lifecycle for each path are in
 | ExecutableCoordinator (native bundles) | `task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py` |
 | Wire protocol in Kotlin | `java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/execution/` |
 | Wire protocol in Go | `go-sdk/pkg/execution/` |
-| AFBNDL01 footer (Go reference) | `go-sdk/internal/bundlefooter/` |
+| AFBNDL01 footer (Go reference) | `go-sdk/internal/bundlefooter/`, `task-sdk/docs/executable-bundle-spec.rst` |
 | All message types and field specs | `task-sdk/src/airflow/sdk/execution_time/schema/schema.json` |
 
 The Java and Go implementations are the two production reference points. When
