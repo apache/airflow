@@ -113,6 +113,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
@@ -2762,7 +2763,7 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
     expected_queue = queue_by_policy or default_queue
     if queue_by_policy:
         # Apply a dummy cluster policy to check if it is always applied
-        def mock_policy(task_instance: TaskInstance):
+        def mock_policy(task_instance: TaskInstance, dag_run=None):
             task_instance.queue = queue_by_policy
 
         monkeypatch.setattr("airflow.models.taskinstance.task_instance_mutation_hook", mock_policy)
@@ -3548,6 +3549,23 @@ def test_find_relevant_relatives_with_non_mapped_task_as_tuple(dag_maker, sessio
     assert result == {"t1"}
 
 
+def test_register_asset_changes_in_db_no_outlets_is_a_noop(dag_maker, session):
+    """A task with no outlets and no outlet events must not issue any queries."""
+    with dag_maker(dag_id="no_outlets", schedule=None, session=session):
+        EmptyOperator(task_id="hi")
+    dr = dag_maker.create_dagrun(session=session)
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
+
+    with assert_queries_count(0):
+        TaskInstance.register_asset_changes_in_db(
+            ti=ti,
+            task_outlets=[],
+            outlet_events=[],
+            session=session,
+        )
+
+
 def test_when_dag_run_has_partition_then_asset_does(dag_maker, session):
     asset = Asset(name="hello")
     with dag_maker(dag_id="asset_event_tester", schedule=PartitionAtRuntime()) as dag:
@@ -3661,7 +3679,7 @@ def test_runtime_partition_key_does_not_overwrite_scheduler_partition(dag_maker,
 def test_runtime_partition_keys_fan_out_to_one_event_per_key(dag_maker, session):
     """Multiple distinct runtime keys produce one AssetEvent each; DagRun.partition_key stays None."""
     asset = Asset(name="hello")
-    with dag_maker(dag_id="rt_pk_fanout", schedule=None) as dag:
+    with dag_maker(dag_id="rt_pk_fan_out", schedule=None) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dr = dag_maker.create_dagrun(session=session)
     assert dr.partition_key is None
@@ -4093,3 +4111,74 @@ def test_task_instance_repr_does_not_raise_for_deferred_columns(dag_maker, sessi
 
     assert "<deferred>" in result
     assert "[queued]" not in result
+
+
+class TestTaskInstanceStatsTagsTeamName:
+    def test_stats_tags_without_team_name(self, dag_maker, session):
+        """stats_tags should not include team_name when _team_name is not set."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="my_task")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("my_task", session=session)
+        tags = ti.stats_tags
+        assert "team_name" not in tags
+        assert tags == {"dag_id": "test_dag", "task_id": "my_task"}
+
+    def test_stats_tags_with_team_name(self, dag_maker, session):
+        """stats_tags should include team_name when _team_name is set."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="my_task")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("my_task", session=session)
+        ti._team_name = "my_team"
+        tags = ti.stats_tags
+        assert tags["team_name"] == "my_team"
+        assert tags == {"dag_id": "test_dag", "task_id": "my_task", "team_name": "my_team"}
+
+    def test_stats_tags_with_none_team_name(self, dag_maker, session):
+        """stats_tags should not include team_name when _team_name is None."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="my_task")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("my_task", session=session)
+        ti._team_name = None
+        tags = ti.stats_tags
+        assert "team_name" not in tags
+
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param(
+                "my_team",
+                {"dag_id": "test_dag", "task_id": "my_task", "team_name": "my_team", "queue": "default"},
+                id="with_team",
+            ),
+            pytest.param(
+                None,
+                {"dag_id": "test_dag", "task_id": "my_task", "queue": "default"},
+                id="without_team",
+            ),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats.timing")
+    def test_emit_state_change_metric_includes_team_name(
+        self, mock_timing, team_name, expected_tags, dag_maker, session
+    ):
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="my_task")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("my_task", session=session)
+        ti.state = TaskInstanceState.SCHEDULED
+        ti.scheduled_dttm = timezone.utcnow()
+        if team_name:
+            ti._team_name = team_name
+        session.merge(ti)
+        session.flush()
+
+        ti.emit_state_change_metric(TaskInstanceState.QUEUED)
+
+        mock_timing.assert_called_once_with(
+            "task.scheduled_duration",
+            mock.ANY,
+            tags=expected_tags,
+        )

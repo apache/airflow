@@ -165,6 +165,38 @@ When using deferrable mode, the operator defers to an async trigger that polls t
 REST can be used with deferrable mode, but it may be less efficient than gRPC and is generally best reserved for cases where gRPC
 cannot be used.
 
+Capturing container logs in the Airflow task log
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+By default the operator only reports its own status messages; the container's ``stdout`` /
+``stderr`` is only available in `Cloud Logging <https://console.cloud.google.com/logs>`__.
+Pass ``verbose=True`` to have the operator fetch the container log entries from Cloud
+Logging once the execution finishes and forward each line into the Airflow task log. This
+works in both eager and deferrable mode.
+
+.. code-block:: python
+
+    CloudRunExecuteJobOperator(
+        task_id="execute_cloud_run_job",
+        project_id=PROJECT_ID,
+        region=region,
+        job_name=job_name,
+        verbose=True,
+    )
+
+When enabling ``verbose``:
+
+* The service account used by ``gcp_conn_id`` (or by ``impersonation_chain``) must have the
+  ``roles/logging.viewer`` role on the project that runs the job.
+* Each task instance issues at least one Cloud Logging Read API request, with additional
+  pages fetched automatically when the execution produces enough log entries to span
+  multiple pages. Failed executions wait briefly before fetching logs to catch entries
+  that arrive just after the Cloud Run operation reports failure. Plan around the
+  project-wide quota of 60 read requests per minute documented at
+  https://cloud.google.com/logging/quotas#api-limits.
+* If the log fetch itself fails (for example missing IAM permission or quota exhausted),
+  the operator emits a warning and the task result is unaffected.
+
 You can also specify overrides that allow you to give a new entrypoint command to the job and more:
 
 :class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunExecuteJobOperator`

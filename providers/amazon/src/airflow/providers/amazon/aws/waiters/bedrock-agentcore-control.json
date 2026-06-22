@@ -43,6 +43,43 @@
                     "state": "failure"
                 }
             ]
+        },
+        "agent_runtime_deleted": {
+            "delay": 60,
+            "maxAttempts": 20,
+            "operation": "GetAgentRuntime",
+            "acceptors": [
+                {
+                    "matcher": "error",
+                    "expected": "ResourceNotFoundException",
+                    "state": "success",
+                    "argument": "Error.Code"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "DELETING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "CREATE_FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "UPDATE_FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "READY",
+                    "state": "failure"
+                }
+            ]
         }
     }
 }

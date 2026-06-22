@@ -42,6 +42,7 @@ RELEASE_PROVIDERS_COMMANDS: dict[str, str | list[str]] = {
     "name": "Providers release commands",
     "commands": [
         "prepare-provider-documentation",
+        "classify-provider-changes",
         "update-providers-next-version",
         "prepare-provider-distributions",
         "install-provider-distributions",
@@ -263,6 +264,24 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--clean-tags",
                 "--release-date",
+            ],
+        },
+    ],
+    "breeze release-management classify-provider-changes": [
+        {
+            "name": "Classification options",
+            "options": [
+                "--base-branch",
+                "--skip-git-fetch",
+                "--github-repository",
+                "--output-file",
+            ],
+        },
+        {
+            "name": "Select non-regular providers",
+            "options": [
+                "--include-not-ready-providers",
+                "--include-removed-providers",
             ],
         },
     ],

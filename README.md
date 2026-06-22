@@ -99,7 +99,7 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)                 | Stable version (3.2.0)              | Stable version (2.11.2)      |
+|            | Main version (dev)                 | Stable version (3.2.0)              | Deprecate version (2.11.2)   |
 |------------|------------------------------------|-------------------------------------|------------------------------|
 | Python     | 3.10, 3.11, 3.12, 3.13, 3.14       | 3.10, 3.11, 3.12, 3.13, 3.14        | 3.10, 3.11, 3.12             |
 | Platform   | AMD64/ARM64                        | AMD64/ARM64                         | AMD64/ARM64(\*)              |
@@ -292,14 +292,14 @@ Apache Airflow version life cycle:
 <!-- This table is automatically updated by prek scripts/ci/prek/supported_versions.py -->
 <!-- Beginning of auto-generated table -->
 
-| Version   | Current Patch/Minor   | State               | First Release   | Limited Maintenance   | EOL/Terminated   |
-|-----------|-----------------------|---------------------|-----------------|-----------------------|------------------|
-| 3         | 3.2.2                 | Maintenance         | Apr 22, 2025    | TBD                   | TBD              |
-| 2         | 2.11.2                | Limited maintenance | Dec 17, 2020    | Oct 22, 2025          | Apr 22, 2026     |
-| 1.10      | 1.10.15               | EOL                 | Aug 27, 2018    | Dec 17, 2020          | June 17, 2021    |
-| 1.9       | 1.9.0                 | EOL                 | Jan 03, 2018    | Aug 27, 2018          | Aug 27, 2018     |
-| 1.8       | 1.8.2                 | EOL                 | Mar 19, 2017    | Jan 03, 2018          | Jan 03, 2018     |
-| 1.7       | 1.7.1.2               | EOL                 | Mar 28, 2016    | Mar 19, 2017          | Mar 19, 2017     |
+| Version   | Current Patch/Minor   | State       | First Release   | Limited Maintenance   | EOL/Terminated   |
+|-----------|-----------------------|-------------|-----------------|-----------------------|------------------|
+| 3         | 3.2.2                 | Maintenance | Apr 22, 2025    | TBD                   | TBD              |
+| 2         | 2.11.2                | EOL         | Dec 17, 2020    | Oct 22, 2025          | Apr 22, 2026     |
+| 1.10      | 1.10.15               | EOL         | Aug 27, 2018    | Dec 17, 2020          | June 17, 2021    |
+| 1.9       | 1.9.0                 | EOL         | Jan 03, 2018    | Aug 27, 2018          | Aug 27, 2018     |
+| 1.8       | 1.8.2                 | EOL         | Mar 19, 2017    | Jan 03, 2018          | Jan 03, 2018     |
+| 1.7       | 1.7.1.2               | EOL         | Mar 28, 2016    | Mar 19, 2017          | Mar 19, 2017     |
 
 <!-- End of auto-generated table -->
 

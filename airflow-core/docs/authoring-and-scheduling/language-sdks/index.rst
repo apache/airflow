@@ -40,11 +40,16 @@ in a non-Python implementation.
      - :class:`task-sdk:airflow.sdk.coordinators.java.JavaCoordinator`
      - JRE 17
      - :doc:`java`
+   * - Go
+     - :class:`task-sdk:airflow.sdk.coordinators.executable.ExecutableCoordinator`
+     - None (native binary)
+     - :doc:`go`
 
 .. toctree::
    :hidden:
 
    java
+   go
 
 How it works
 ------------
@@ -133,7 +138,8 @@ Coordinators are registered in ``airflow.cfg`` (or via environment variables) un
         coordinators = {
             "my-coordinator": {
                 "classpath": "path.to.CoordinatorClass",
-                "kwargs": {}
+                "kwargs": {},
+                "extra": {}
             }
         }
 
@@ -141,6 +147,14 @@ Coordinators are registered in ``airflow.cfg`` (or via environment variables) un
     to the coordinator's constructor.  See the language-specific guide for the accepted kwargs
     of each coordinator (e.g. :ref:`java-sdk/coordinator-config` for
     :class:`~airflow.sdk.coordinators.java.JavaCoordinator`).
+
+    ``extra`` is an optional object for any additional information you want to associate with a
+    coordinator without coupling it to the coordinator instance. The coordinator itself never
+    receives it; other components read it as needed. For example, KubernetesExecutor reads
+    ``extra.pod_template_file`` to launch a queue's worker pod from a specific pod template, and
+    ``extra.worker_container_repository`` + ``extra.worker_container_tag`` to override that queue's
+    worker base image (both keys are required), e.g. an image that bundles the JVM for a Java
+    coordinator.
 
 ``queue_to_coordinator``
     A JSON object mapping Celery queue names to coordinator names:
@@ -160,3 +174,25 @@ Both settings can be supplied as environment variables using the standard Airflo
 
     AIRFLOW__SDK__COORDINATORS='{"my-coordinator": {...}}'
     AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"jdk17": "my-coordinator"}'
+
+.. _language-sdks/bundle-spec:
+
+Implementing a new compiled language SDK
+----------------------------------------
+
+:class:`task-sdk:airflow.sdk.coordinators.executable.ExecutableCoordinator` runs a task by executing the
+bundle file directly. It therefore fits **only compiled languages whose build artifact is a standalone
+binary the worker can execute with no additional runtime dependency** - that is, no language runtime,
+virtual machine, or interpreter has to be installed on the worker for the binary to run (Go, Rust, C, C++,
+Zig, ...). Languages whose artifact still needs a runtime present at execution time do not fit this
+coordinator; JVM languages, for example, compile to bytecode that requires a JRE, and are served by the
+:class:`task-sdk:airflow.sdk.coordinators.java.JavaCoordinator` instead.
+
+To support a new such language, produce a *bundle* in the shared on-disk format the coordinator consumes and
+speak the coordinator IPC protocol (the ``--comm`` / ``--logs`` socket arguments). That format - the
+``AFBNDL01`` footer appended to the executable, the binary integrity hash, and the ``airflow-metadata.yaml``
+manifest of ``dag_id``\ s and ``task_id``\ s - is specified, together with the reader algorithm and the
+compatibility/versioning rules, in :doc:`task-sdk:executable-bundle-spec`. That page also publishes a
+machine-readable JSON Schema for the manifest, for use by build tooling and validators. Follow the spec to
+make a new language's bundles discoverable by Airflow with no change to the scheduler, worker, or UI; the
+:doc:`Go SDK <go>` is a worked reference implementation.

@@ -23,9 +23,12 @@ import json
 import os
 from json import JSONDecodeError
 
-from airflow.api.client import get_current_api_client
+from airflowctl.api.operations import ServerResponseError
+
+from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
+from airflow.cli.api_client import NEW_API_CLIENT, Client, provide_api_client
 from airflow.cli.simple_table import AirflowConsole
-from airflow.exceptions import PoolNotFound
+from airflow.cli.utils import deprecated_for_airflowctl
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -36,61 +39,78 @@ def _show_pools(pools, output):
         data=pools,
         output=output,
         mapper=lambda x: {
-            "pool": x[0],
-            "slots": x[1],
-            "description": x[2],
-            "include_deferred": x[3],
+            "pool": x.name,
+            "slots": x.slots,
+            "description": x.description,
+            "include_deferred": x.include_deferred,
+            "team_name": x.team_name,
         },
     )
 
 
+@deprecated_for_airflowctl("airflowctl pools list")
 @suppress_logs_and_warning
 @providers_configuration_loaded
-def pool_list(args):
+@provide_api_client
+def pool_list(args, api_client: Client = NEW_API_CLIENT):
     """Display info of all the pools."""
-    api_client = get_current_api_client()
-    pools = api_client.get_pools()
+    pools = api_client.pools.list().pools
     _show_pools(pools=pools, output=args.output)
 
 
+@deprecated_for_airflowctl("airflowctl pools get")
 @suppress_logs_and_warning
 @providers_configuration_loaded
-def pool_get(args):
+@provide_api_client
+def pool_get(args, api_client: Client = NEW_API_CLIENT):
     """Display pool info by a given name."""
-    api_client = get_current_api_client()
     try:
-        pools = [api_client.get_pool(name=args.pool)]
+        pools = [api_client.pools.get(pool_name=args.pool)]
         _show_pools(pools=pools, output=args.output)
-    except PoolNotFound:
-        raise SystemExit(f"Pool {args.pool} does not exist")
+    except ServerResponseError as e:
+        if e.response.status_code == 404:
+            raise SystemExit(f"Pool {args.pool} does not exist")
+        raise
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl pools create")
 @suppress_logs_and_warning
 @providers_configuration_loaded
-def pool_set(args):
+@provide_api_client
+def pool_set(args, api_client: Client = NEW_API_CLIENT):
     """Create new pool with a given name and slots."""
-    api_client = get_current_api_client()
-    api_client.create_pool(
-        name=args.pool, slots=args.slots, description=args.description, include_deferred=args.include_deferred
+    # core_api PoolBody is the source of truth and is wire-compatible with the airflowctl
+    # client's generated model (the API server uses populate_by_name).
+    pool_body = PoolBody(
+        name=args.pool,
+        slots=args.slots,
+        description=args.description,
+        include_deferred=args.include_deferred,
+        team_name=args.team_name,
     )
+    api_client.pools.create(pool=pool_body)  # type: ignore[arg-type]
     print(f"Pool {args.pool} created")
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl pools delete")
 @suppress_logs_and_warning
 @providers_configuration_loaded
-def pool_delete(args):
+@provide_api_client
+def pool_delete(args, api_client: Client = NEW_API_CLIENT):
     """Delete pool by a given name."""
-    api_client = get_current_api_client()
     try:
-        api_client.delete_pool(name=args.pool)
+        api_client.pools.delete(pool=args.pool)
         print(f"Pool {args.pool} deleted")
-    except PoolNotFound:
-        raise SystemExit(f"Pool {args.pool} does not exist")
+    except ServerResponseError as e:
+        if e.response.status_code == 404:
+            raise SystemExit(f"Pool {args.pool} does not exist")
+        raise
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl pools import")
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def pool_import(args):
@@ -103,6 +123,7 @@ def pool_import(args):
     print(f"Uploaded {len(pools)} pool(s)")
 
 
+@deprecated_for_airflowctl("airflowctl pools export")
 @providers_configuration_loaded
 def pool_export(args):
     """Export all the pools to the file."""
@@ -110,10 +131,9 @@ def pool_export(args):
     print(f"Exported {len(pools)} pools to {args.file}")
 
 
-def pool_import_helper(filepath):
+@provide_api_client
+def pool_import_helper(filepath, api_client: Client = NEW_API_CLIENT):
     """Help import pools from the json file."""
-    api_client = get_current_api_client()
-
     with open(filepath) as poolfile:
         data = poolfile.read()
     try:
@@ -124,26 +144,33 @@ def pool_import_helper(filepath):
     failed = []
     for k, v in pools_json.items():
         if isinstance(v, dict) and "slots" in v and "description" in v:
-            pools.append(
-                api_client.create_pool(
-                    name=k,
-                    slots=v["slots"],
-                    description=v["description"],
-                    include_deferred=v.get("include_deferred", False),
-                )
+            pool_body = PoolBody(
+                name=k,
+                slots=v["slots"],
+                description=v["description"],
+                include_deferred=v.get("include_deferred", False),
+                team_name=v.get("team_name"),
             )
+            pools.append(api_client.pools.create(pool=pool_body))  # type: ignore[arg-type]
         else:
             failed.append(k)
     return pools, failed
 
 
-def pool_export_helper(filepath):
+@provide_api_client
+def pool_export_helper(filepath, api_client: Client = NEW_API_CLIENT):
     """Help export all the pools to the json file."""
-    api_client = get_current_api_client()
     pool_dict = {}
-    pools = api_client.get_pools()
+    pools = api_client.pools.list().pools
     for pool in pools:
-        pool_dict[pool[0]] = {"slots": pool[1], "description": pool[2], "include_deferred": pool[3]}
+        entry = {
+            "slots": pool.slots,
+            "description": pool.description,
+            "include_deferred": pool.include_deferred,
+        }
+        if pool.team_name is not None:
+            entry["team_name"] = pool.team_name
+        pool_dict[pool.name] = entry
     with open(filepath, "w") as poolfile:
         poolfile.write(json.dumps(pool_dict, sort_keys=True, indent=4))
     return pools

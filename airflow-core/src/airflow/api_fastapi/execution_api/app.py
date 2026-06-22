@@ -17,9 +17,11 @@
 
 from __future__ import annotations
 
-import contextlib
+import asyncio
 import json
+import threading
 import time
+import weakref
 from contextlib import AsyncExitStack
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
@@ -250,11 +252,12 @@ async def _extract_w3c_trace_context(
         yield
         return
     ctx = otel_propagate.extract(request.headers)
+    attached_in = asyncio.current_task()
     token = otel_context.attach(ctx)
     try:
         yield
     finally:
-        with contextlib.suppress(Exception):
+        if asyncio.current_task() is attached_in:
             otel_context.detach(token)
 
 
@@ -347,6 +350,23 @@ def get_extra_schemas() -> dict[str, dict]:
     }
 
 
+# Note: _shutdown_loop is used as a finalizer for :class:`InProcessExecutionAPI`. As such, its arguments must
+# not directly or indirectly reference the instance itself, as this will prevent the instance from being
+# garbage collected.
+def _shutdown_loop(
+    loop: asyncio.AbstractEventLoop,
+    thread: threading.Thread,
+    cm: AsyncExitStack,
+) -> None:
+    """Close the FastAPI lifespan and stop the background event loop + thread."""
+    try:
+        asyncio.run_coroutine_threadsafe(cm.aclose(), loop).result(timeout=5)
+    except Exception:
+        logger.exception("Error while closing in-process execution API lifespan")
+    loop.call_soon_threadsafe(loop.stop)
+    thread.join(timeout=5)
+
+
 @attrs.define()
 class InProcessExecutionAPI:
     """
@@ -357,7 +377,6 @@ class InProcessExecutionAPI:
     """
 
     _app: FastAPI | None = None
-    _cm: AsyncExitStack | None = None
 
     @cached_property
     def app(self):
@@ -392,20 +411,30 @@ class InProcessExecutionAPI:
 
     @cached_property
     def transport(self) -> httpx.WSGITransport:
-        import asyncio
-
         import httpx
         from a2wsgi import ASGIMiddleware
 
-        middleware = ASGIMiddleware(self.app)
+        # We choose to own the event loop + executor thread here so that we can have explicit control over
+        # their lifecycle.
+        loop = asyncio.new_event_loop()
+        thread = threading.Thread(target=loop.run_forever, name="InProcessExecutionAPI-loop", daemon=True)
+        thread.start()
+
+        middleware = ASGIMiddleware(self.app, loop=loop)
 
         # https://github.com/abersheeran/a2wsgi/discussions/64
         async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
             await cm.enter_async_context(app.router.lifespan_context(app))
 
-        self._cm = AsyncExitStack()
+        cm = AsyncExitStack()
 
-        asyncio.run_coroutine_threadsafe(start_lifespan(self._cm, self.app), middleware.loop)
+        # Wait for lifespan startup to complete so callers see a ready app and so the finalizer can
+        # safely aclose() a context whose __aenter__ has actually run.
+        asyncio.run_coroutine_threadsafe(start_lifespan(cm, self.app), loop).result()
+
+        # Stop the loop + thread and unwind the lifespan when this instance is garbage collected.
+        weakref.finalize(self, _shutdown_loop, loop, thread, cm)
+
         return httpx.WSGITransport(app=middleware)  # type: ignore[arg-type]
 
     @cached_property

@@ -51,10 +51,12 @@ class DAGRunPatchBody(StrictBaseModel):
 
 
 class BulkDAGRunBody(StrictBaseModel):
-    """Request body for bulk delete operations on Dag Runs."""
+    """Request body for bulk operations on Dag Runs."""
 
     dag_run_id: str
     dag_id: str | None = None
+    state: DagRunMutableStates | None = None
+    note: str | None = Field(None, max_length=1000)
 
 
 class BaseDAGRunClear(StrictBaseModel):
@@ -189,6 +191,9 @@ class TriggerDAGRunPostBody(StrictBaseModel):
             run_after=timezone.coerce_datetime(run_after),
             data_interval=data_interval,
         )
+
+        partition_date = dag.timetable.resolve_partition_date(self.partition_key)
+
         return {
             "run_id": run_id,
             "logical_date": coerced_logical_date,
@@ -197,6 +202,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
             "conf": self.conf,
             "note": self.note,
             "partition_key": self.partition_key,
+            "partition_date": partition_date,
         }
 
 
