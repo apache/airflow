@@ -230,7 +230,7 @@ Some of the providers have cross-dependencies with other providers distributions
 This typically happens for transfer operators where operators use hooks from the other providers
 in case they are transferring data between the providers. The list of dependencies is maintained
 (automatically with the ``update-providers-dependencies`` prek hook) in the
-``generated/provider_dependencies.json``).
+``generated/provider_dependencies.json``.
 
 Cross-dependencies between providers are converted into optional dependencies (extras) - if
 you need functionality from the other provider distribution you can install it adding [extra] after the
