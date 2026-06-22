@@ -698,6 +698,39 @@ class TestPodGenerator:
         assert len(caplog.records) == 1
         assert "non_existent.yaml does not exist" in caplog.text
 
+    def test_deserialize_model_dict_is_picklable_in_cluster(self, monkeypatch):
+        """A deserialized pod must not capture the unpicklable in-cluster Configuration.
+
+        In-cluster, the kubernetes client installs a process-global default ``Configuration`` whose
+        ``refresh_api_key_hook`` is an unpicklable local closure. ``deserialize_model_dict`` must
+        round-trip through a fresh ``Configuration`` so the pod (and every nested model) stays
+        picklable onto the KubernetesExecutor multiprocessing queue.
+        """
+        import pickle
+
+        from kubernetes.client import Configuration
+
+        def _make_unpicklable_hook():
+            def _refresh_api_key(config):
+                return None
+
+            return _refresh_api_key
+
+        dirty = Configuration()
+        dirty.refresh_api_key_hook = _make_unpicklable_hook()
+        monkeypatch.setattr(Configuration, "_default", dirty, raising=False)
+
+        pod_dict = {
+            "metadata": {"name": "test-pod"},
+            "spec": {"containers": [{"name": "base", "image": "airflow:3"}]},
+        }
+        pod = PodGenerator.deserialize_model_dict(pod_dict)
+
+        assert isinstance(pod, k8s.V1Pod)
+        pickle.dumps(pod)
+        assert pod.local_vars_configuration.refresh_api_key_hook is None
+        assert pod.spec.containers[0].local_vars_configuration.refresh_api_key_hook is None
+
     @pytest.mark.parametrize(
         "input",
         (

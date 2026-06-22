@@ -102,6 +102,35 @@ def test_convert_from_dict_with_invalid_type():
     assert str(exc_info.value) == "Expected dict or <class 'unittest.mock.Mock'>, got <class 'str'>"
 
 
+def test_convert_from_dict_is_picklable_in_cluster(monkeypatch):
+    """A model deserialized from a dict must not capture the unpicklable in-cluster Configuration.
+
+    In-cluster, the kubernetes client installs a process-global default ``Configuration`` whose
+    ``refresh_api_key_hook`` is an unpicklable local closure. ``_convert_from_dict`` must deserialize
+    through a fresh ``Configuration`` so the model (and every nested object) stays picklable.
+    """
+    import pickle
+
+    from kubernetes.client import Configuration
+
+    def _make_unpicklable_hook():
+        def _refresh_api_key(config):
+            return None
+
+        return _refresh_api_key
+
+    dirty = Configuration()
+    dirty.refresh_api_key_hook = _make_unpicklable_hook()
+    monkeypatch.setattr(Configuration, "_default", dirty, raising=False)
+
+    result = _convert_from_dict({"name": "vol", "emptyDir": {}}, k8s.V1Volume)
+
+    assert isinstance(result, k8s.V1Volume)
+    pickle.dumps(result)
+    assert result.local_vars_configuration.refresh_api_key_hook is None
+    assert result.empty_dir.local_vars_configuration.refresh_api_key_hook is None
+
+
 # testcase of convert_volume() function
 @patch("airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters._convert_kube_model_object")
 def test_convert_volume_normal_value(mock_convert_kube_model_object):
