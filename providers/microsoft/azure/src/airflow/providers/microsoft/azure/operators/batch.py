@@ -295,9 +295,9 @@ class AzureBatchOperator(BaseOperator):
 
         if self.deferrable:
             # Pre-deferral check (node readiness is already enforced by wait_for_all_node_state above)
-            pool = self.hook.connection.get_pool(self.batch_pool_id)
-            if pool.resize_errors:
-                raise RuntimeError(f"Pool resize errors: {pool.resize_errors}")
+            current_pool = self.hook.connection.get_pool(self.batch_pool_id)
+            if current_pool.resize_errors:
+                raise RuntimeError(f"Pool resize errors: {current_pool.resize_errors}")
 
             nodes = list(self.hook.connection.list_nodes(self.batch_pool_id))
             self.log.debug("Deferral pre-check: %d nodes present in pool %s", len(nodes), self.batch_pool_id)
