@@ -34,6 +34,10 @@ versions:
 executors:
   - airflow.providers.sandbox.executors.sandbox_executor.SandboxExecutor
 
+task-decorators:
+  - name: sandbox
+    class-name: airflow.providers.sandbox.decorators.sandbox.sandbox_task
+
 config:
   sandbox:
     description: SandboxExecutor configuration.
