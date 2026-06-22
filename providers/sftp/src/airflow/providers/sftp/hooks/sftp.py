@@ -1120,16 +1120,29 @@ class SFTPHookAsync(BaseHook):
         concurrency: int = 1,
         prefetch: bool = True,
     ) -> None:
-        """Perform an SFTP transfer operation (GET, PUT, or DELETE) via a thread executor."""
-        from asgiref.sync import sync_to_async
+        """Perform an SFTP transfer operation (GET, PUT, or DELETE) using native async I/O."""
+        from airflow.providers.sftp.constants import SFTPOperation
 
-        sync_hook = SFTPHook(ssh_conn_id=self.sftp_conn_id)
-        await sync_to_async(sync_hook.transfer)(
-            operation=operation,
-            local_filepath=local_filepath,
-            remote_filepath=remote_filepath,
-            confirm=confirm,
-            create_intermediate_dirs=create_intermediate_dirs,
-            concurrency=concurrency,
-            prefetch=prefetch,
-        )
+        if isinstance(local_filepath, str):
+            local_filepath_array = [local_filepath] if local_filepath else []
+        else:
+            local_filepath_array = local_filepath or []
+
+        if isinstance(remote_filepath, str):
+            remote_filepath_array = [remote_filepath]
+        else:
+            remote_filepath_array = list(remote_filepath)
+
+        if operation.lower() == SFTPOperation.GET:
+            for local, remote in zip(local_filepath_array, remote_filepath_array):
+                if create_intermediate_dirs:
+                    os.makedirs(os.path.dirname(local), exist_ok=True)
+                await self.retrieve_file(remote, local)
+        elif operation.lower() == SFTPOperation.PUT:
+            for local, remote in zip(local_filepath_array, remote_filepath_array):
+                await self.store_file(remote, local)
+        elif operation.lower() == SFTPOperation.DELETE:
+            for remote in remote_filepath_array:
+                async with await self._get_conn() as ssh_conn:
+                    async with ssh_conn.start_sftp_client() as sftp:
+                        await sftp.unlink(remote)
