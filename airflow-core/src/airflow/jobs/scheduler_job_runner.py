@@ -2458,7 +2458,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_id=dag_model.dag_id,
                     logical_date=dag_model.next_dagrun,
                 )
-                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
+                dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=dr)
                 continue
 
             if (
@@ -2498,7 +2498,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     partition_date=next_info.partition_date,
                 )
                 active_runs_of_dags[dag_model.dag_id] += 1
-                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=created_run)
+                dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=created_run)
                 self._set_exceeds_max_active_runs(
                     dag_model=dag_model,
                     session=session,

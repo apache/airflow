@@ -160,15 +160,17 @@ regional_sales = Asset(uri="file://incoming/sales/regional.csv", name="regional_
 
 with DAG(
     dag_id="ingest_regional_sales",
-    schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+    schedule=PartitionAtRuntime(),
     tags=["example", "sales", "ingestion"],
 ):
-    """Produce hourly regional sales data with composite partition keys."""
+    """Produce regional sales data with composite ``region|timestamp`` partition keys at runtime."""
 
     @task(outlets=[regional_sales])
-    def ingest_sales():
-        """Ingest regional sales data partitioned by region and time."""
-        pass
+    def ingest_sales(*, outlet_events=None):
+        """Emit one composite ``region|timestamp`` partition per region."""
+        timestamp = "2026-06-14T03:00:00"
+        for region in ("us", "eu", "apac"):
+            outlet_events[regional_sales].add_partitions(f"{region}|{timestamp}")
 
     ingest_sales()
 
@@ -205,7 +207,7 @@ region_raw_stats = Asset(uri="file://incoming/player-stats/by-region.csv", name=
 
 with DAG(
     dag_id="ingest_region_stats",
-    schedule=None,
+    schedule=PartitionAtRuntime(),
     tags=["example", "player-stats", "regional"],
 ):
     """

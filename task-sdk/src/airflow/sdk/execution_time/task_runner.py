@@ -420,6 +420,57 @@ class RuntimeTaskInstance(TaskInstance):
         self.is_mapped = original_task.is_mapped
         return original_task
 
+    def _normalize_xcom_pull_params(
+        self,
+        task_ids: str | Iterable[str] | None,
+        dag_id: str | None,
+        map_indexes: int | Iterable[int] | None | ArgNotSet,
+        run_id: str | None,
+    ) -> tuple[str, str, list[str], bool, bool, Iterable[int | None] | ArgNotSet]:
+        """
+        Normalize and validate the parameters shared by ``xcom_pull`` and ``axcom_pull``.
+
+        :returns: A tuple of ``(dag_id, run_id, task_ids, single_task_requested,
+            single_map_index_requested, map_indexes_iterable)``.  When
+            ``map_indexes_iterable`` is ``NOTSET`` the caller should fetch *all*
+            map-indexes (i.e. use ``get_all`` / ``aget_all``); otherwise it is an
+            iterable of explicit map indexes to fetch one-by-one.
+        """
+        if dag_id is None:
+            dag_id = self.dag_id
+        if run_id is None:
+            run_id = self.run_id
+
+        single_task_requested = isinstance(task_ids, (str, type(None)))
+        single_map_index_requested = isinstance(map_indexes, (int, type(None)))
+
+        if task_ids is None:
+            task_ids = [self.task_id]
+        elif isinstance(task_ids, str):
+            task_ids = [task_ids]
+        else:
+            task_ids = list(task_ids)
+
+        if not is_arg_set(map_indexes):
+            map_indexes_iterable: Iterable[int | None] | ArgNotSet = NOTSET
+        elif isinstance(map_indexes, int) or map_indexes is None:
+            map_indexes_iterable = [map_indexes]
+        elif isinstance(map_indexes, Iterable):
+            map_indexes_iterable = map_indexes
+        else:
+            raise TypeError(
+                f"Invalid type for map_indexes: expected int, iterable of ints, or None, got {type(map_indexes)}"
+            )
+
+        return (
+            dag_id,
+            run_id,
+            task_ids,
+            single_task_requested,
+            single_map_index_requested,
+            map_indexes_iterable,
+        )
+
     def xcom_pull(
         self,
         task_ids: str | Iterable[str] | None = None,
@@ -471,23 +522,14 @@ class RuntimeTaskInstance(TaskInstance):
         a non-str iterable), a list of matching XComs is returned. Elements in
         the list is ordered by item ordering in ``task_id`` and ``map_index``.
         """
-        if dag_id is None:
-            dag_id = self.dag_id
-        if run_id is None:
-            run_id = self.run_id
+        dag_id, run_id, task_ids, single_task_requested, single_map_index_requested, map_indexes_iterable = (
+            self._normalize_xcom_pull_params(task_ids, dag_id, map_indexes, run_id)
+        )
 
-        single_task_requested = isinstance(task_ids, (str, type(None)))
-        single_map_index_requested = isinstance(map_indexes, (int, type(None)))
+        xcoms: list[Any] = []
 
-        if task_ids is None:
-            # default to the current task if not provided
-            task_ids = [self.task_id]
-        elif isinstance(task_ids, str):
-            task_ids = [task_ids]
-
-        # If map_indexes is not specified, pull xcoms from all map indexes for each task
-        if not is_arg_set(map_indexes):
-            xcoms: list[Any] = []
+        if not is_arg_set(map_indexes_iterable):
+            # map_indexes was not specified — fetch all map indexes for each task
             for t_id in task_ids:
                 values = XCom.get_all(
                     run_id=run_id,
@@ -496,28 +538,12 @@ class RuntimeTaskInstance(TaskInstance):
                     dag_id=dag_id,
                     include_prior_dates=include_prior_dates,
                 )
-
-                if values is None:
-                    xcoms.append(None)
-                else:
-                    xcoms.extend(values)
-            # For single task pulling from unmapped task, return single value
+                xcoms.append(None) if values is None else xcoms.extend(values)
+            # For a single task pulling from an unmapped task, return a single value
             if single_task_requested and len(xcoms) == 1:
                 return xcoms[0]
             return xcoms
 
-        # Original logic when map_indexes is explicitly specified
-        map_indexes_iterable: Iterable[int | None] = []
-        if isinstance(map_indexes, int) or map_indexes is None:
-            map_indexes_iterable = [map_indexes]
-        elif isinstance(map_indexes, Iterable):
-            map_indexes_iterable = map_indexes
-        else:
-            raise TypeError(
-                f"Invalid type for map_indexes: expected int, iterable of ints, or None, got {type(map_indexes)}"
-            )
-
-        xcoms = []
         for t_id, m_idx in product(task_ids, map_indexes_iterable):
             value = XCom.get_one(
                 run_id=run_id,
@@ -527,10 +553,56 @@ class RuntimeTaskInstance(TaskInstance):
                 map_index=m_idx,
                 include_prior_dates=include_prior_dates,
             )
-            if value is None:
-                xcoms.append(default)
-            else:
-                xcoms.append(value)
+            xcoms.append(default if value is None else value)
+
+        if single_task_requested and single_map_index_requested:
+            return xcoms[0]
+        return xcoms
+
+    async def axcom_pull(
+        self,
+        task_ids: str | Iterable[str] | None = None,
+        dag_id: str | None = None,
+        key: str = BaseXCom.XCOM_RETURN_KEY,
+        include_prior_dates: bool = False,
+        *,
+        map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
+        default: Any = None,
+        run_id: str | None = None,
+    ) -> Any:
+        """Async version of :meth:`xcom_pull`; see that method for full documentation."""
+        dag_id, run_id, task_ids, single_task_requested, single_map_index_requested, map_indexes_iterable = (
+            self._normalize_xcom_pull_params(task_ids, dag_id, map_indexes, run_id)
+        )
+
+        xcoms: list[Any] = []
+
+        if not is_arg_set(map_indexes_iterable):
+            # map_indexes was not specified — fetch all map indexes for each task
+            for t_id in task_ids:
+                values = await XCom.aget_all(
+                    run_id=run_id,
+                    key=key,
+                    task_id=t_id,
+                    dag_id=dag_id,
+                    include_prior_dates=include_prior_dates,
+                )
+                xcoms.append(None) if values is None else xcoms.extend(values)
+            # For a single task pulling from an unmapped task, return a single value
+            if single_task_requested and len(xcoms) == 1:
+                return xcoms[0]
+            return xcoms
+
+        for t_id, m_idx in product(task_ids, map_indexes_iterable):
+            value = await XCom.aget_one(
+                run_id=run_id,
+                key=key,
+                task_id=t_id,
+                dag_id=dag_id,
+                map_index=m_idx,
+                include_prior_dates=include_prior_dates,
+            )
+            xcoms.append(default if value is None else value)
 
         if single_task_requested and single_map_index_requested:
             return xcoms[0]
@@ -545,6 +617,15 @@ class RuntimeTaskInstance(TaskInstance):
         :param value: Value to store. Only be JSON-serializable values may be used.
         """
         _xcom_push(self, key, value)
+
+    async def axcom_push(self, key: str, value: Any):
+        """
+        Make an XCom available for tasks to pull asynchronously.
+
+        :param key: Key to store the value under.
+        :param value: Value to store. Only be JSON-serializable values may be used.
+        """
+        await _axcom_push(self, key, value)
 
     def get_relevant_upstream_map_indexes(
         self, upstream: BaseOperator, ti_count: int | None, session: Any
@@ -798,6 +879,29 @@ def _xcom_push(
     # consumers
 
     XCom.set(
+        key=key,
+        value=value,
+        dag_id=ti.dag_id,
+        task_id=ti.task_id,
+        run_id=ti.run_id,
+        map_index=ti.map_index,
+        dag_result=ti.task.returns_dag_result,
+        _mapped_length=mapped_length,
+    )
+
+
+async def _axcom_push(
+    ti: RuntimeTaskInstance,
+    key: str,
+    value: Any,
+    *,
+    mapped_length: int | None = None,
+) -> None:
+    """Push a XCom through XCom.aset, which pushes to XCom Backend if configured."""
+    # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
+    # consumers
+
+    await XCom.aset(
         key=key,
         value=value,
         dag_id=ti.dag_id,
