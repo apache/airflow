@@ -37,7 +37,14 @@ object LogCapture {
     }
 
   fun resetThresholds() {
-    Log.globalThreshold = Level.NOTSET
-    Log.namedThresholds = emptyMap()
+    configureThresholds(Level.NOTSET, emptyMap())
+  }
+
+  fun configureThresholds(
+    global: Level,
+    named: Map<String, Level> = emptyMap(),
+  ) {
+    Log.globalThreshold = global
+    Log.namedThresholds = named
   }
 }

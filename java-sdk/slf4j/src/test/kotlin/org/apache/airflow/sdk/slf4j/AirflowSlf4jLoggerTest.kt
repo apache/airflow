@@ -22,6 +22,7 @@ package org.apache.airflow.sdk.slf4j
 import org.apache.airflow.sdk.execution.Level
 import org.apache.airflow.sdk.execution.LogCapture
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -85,5 +86,21 @@ class AirflowSlf4jLoggerTest {
     logger.error("oops", ex)
     val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
     assertTrue(msg.arguments["exception"].toString().contains("boom"))
+  }
+
+  @Test
+  fun `named DEBUG override enables debug while the global level stays INFO`() {
+    LogCapture.configureThresholds(Level.INFO, mapOf("com.example.Task" to Level.DEBUG))
+
+    // AbstractLogger gates debug() on isDebugEnabled(); the per-logger override must let it through.
+    assertTrue(logger.isDebugEnabled)
+    logger.debug("hello")
+
+    val messages = LogCapture.drain().filter { it.logger == "com.example.Task" }
+    assertEquals(1, messages.size, "named DEBUG override should let debug through")
+    assertEquals(Level.DEBUG, messages.single().level)
+
+    // A logger without an override still follows the global INFO threshold.
+    assertFalse(AirflowSlf4jLogger("com.other.Task").isDebugEnabled)
   }
 }

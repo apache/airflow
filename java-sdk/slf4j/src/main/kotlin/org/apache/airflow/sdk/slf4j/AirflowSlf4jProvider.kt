@@ -67,25 +67,25 @@ internal class AirflowSlf4jLogger(
     }
   }
 
-  override fun isTraceEnabled(marker: Marker?) = Log.isEnabledForLevel(Level.NOTSET, marker?.name)
+  override fun isTraceEnabled(marker: Marker?) = Log.isEnabledForLevel(Level.NOTSET, name)
 
-  override fun isTraceEnabled() = Log.isEnabledForLevel(Level.NOTSET, null)
+  override fun isTraceEnabled() = Log.isEnabledForLevel(Level.NOTSET, name)
 
-  override fun isDebugEnabled(marker: Marker?) = Log.isEnabledForLevel(Level.DEBUG, marker?.name)
+  override fun isDebugEnabled(marker: Marker?) = Log.isEnabledForLevel(Level.DEBUG, name)
 
-  override fun isDebugEnabled() = Log.isEnabledForLevel(Level.DEBUG, null)
+  override fun isDebugEnabled() = Log.isEnabledForLevel(Level.DEBUG, name)
 
-  override fun isInfoEnabled(marker: Marker?) = Log.isEnabledForLevel(Level.INFO, marker?.name)
+  override fun isInfoEnabled(marker: Marker?) = Log.isEnabledForLevel(Level.INFO, name)
 
-  override fun isInfoEnabled() = Log.isEnabledForLevel(Level.INFO, null)
+  override fun isInfoEnabled() = Log.isEnabledForLevel(Level.INFO, name)
 
-  override fun isWarnEnabled(marker: Marker?) = Log.isEnabledForLevel(Level.WARNING, marker?.name)
+  override fun isWarnEnabled(marker: Marker?) = Log.isEnabledForLevel(Level.WARNING, name)
 
-  override fun isWarnEnabled() = Log.isEnabledForLevel(Level.WARNING, null)
+  override fun isWarnEnabled() = Log.isEnabledForLevel(Level.WARNING, name)
 
-  override fun isErrorEnabled(marker: Marker?) = Log.isEnabledForLevel(Level.ERROR, marker?.name)
+  override fun isErrorEnabled(marker: Marker?) = Log.isEnabledForLevel(Level.ERROR, name)
 
-  override fun isErrorEnabled() = Log.isEnabledForLevel(Level.ERROR, null)
+  override fun isErrorEnabled() = Log.isEnabledForLevel(Level.ERROR, name)
 }
 
 internal class AirflowLoggerFactory : ILoggerFactory {
