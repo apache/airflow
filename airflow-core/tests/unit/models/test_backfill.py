@@ -20,6 +20,7 @@ from __future__ import annotations
 from contextlib import nullcontext
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
+from unittest import mock
 
 import pendulum
 import pytest
@@ -37,6 +38,7 @@ from airflow.models.backfill import (
     InvalidBackfillDateRange,
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
+    NoBackfillRunsToCreate,
     ReprocessBehavior,
     _create_backfill,
     _do_dry_run,
@@ -1382,6 +1384,94 @@ def test_partitioned_backfill_reprocess_failed(dag_maker, session):
     assert bdr is not None
     assert bdr.dag_run_id == backfill_run.id
     assert bdr.partition_key == info.partition_key
+
+
+@mock.patch("airflow.models.backfill._get_info_list", autospec=True, return_value=[])
+def test_create_backfill_empty_window_raises_no_runs_to_create(mock_get_info_list, dag_maker, session):
+    """_create_backfill raises NoBackfillRunsToCreate when _get_info_list returns an empty list."""
+    with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei")) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    with pytest.raises(NoBackfillRunsToCreate, match=dag.dag_id):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2026-02-18"),
+            to_date=pendulum.parse("2026-02-18"),
+            max_active_runs=2,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf={},
+        )
+
+
+@pytest.mark.parametrize("dag_run_conf", [None, {}])
+@mock.patch("airflow.models.backfill._get_info_list", autospec=True, return_value=[])
+def test_do_dry_run_empty_window_returns_empty_iterable(mock_get_info_list, dag_run_conf, dag_maker, session):
+    """_do_dry_run on an empty window yields nothing (does not raise), with or without dag_run_conf."""
+    with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei")) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    infos = list(
+        _do_dry_run(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2026-02-18"),
+            to_date=pendulum.parse("2026-02-18"),
+            reverse=False,
+            reprocess_behavior=ReprocessBehavior.NONE,
+            dag_run_conf=dag_run_conf,
+            session=session,
+        )
+    )
+    assert infos == []
+
+
+def test_create_backfill_real_empty_window_no_orphan(dag_maker, session):
+    """_create_backfill with a real empty window raises NoBackfillRunsToCreate without leaving an orphan.
+
+    Uses a weekly-Monday timetable; 2026-02-18 is a Wednesday so _get_info_list returns [] for real.
+    After the raise, no incomplete Backfill row must exist — proving #1 (orphan fix) holds.
+    A second call for the same dag_id must succeed (not be blocked by AlreadyRunningBackfill).
+    """
+    with dag_maker(schedule=CronPartitionTimetable("0 0 * * 1", timezone="UTC")) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    wednesday = pendulum.datetime(2026, 2, 18, tz="UTC")  # not a Monday
+
+    with pytest.raises(NoBackfillRunsToCreate, match=dag.dag_id):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=wednesday,
+            to_date=wednesday,
+            max_active_runs=2,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf=None,
+        )
+
+    # No orphan: zero incomplete Backfill rows for this dag
+    orphan_count = session.scalar(
+        select(Backfill).where(
+            Backfill.dag_id == dag.dag_id,
+            Backfill.completed_at.is_(None),
+        )
+    )
+    assert orphan_count is None, "An orphan Backfill row was left behind after NoBackfillRunsToCreate"
+
+    # A valid (Monday) window must not be blocked by AlreadyRunningBackfill
+    monday = pendulum.datetime(2026, 2, 23, tz="UTC")  # a Monday
+    br = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=monday,
+        to_date=monday,
+        max_active_runs=2,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf=None,
+    )
+    assert br is not None
 
 
 def test_handle_clear_run_preserves_partition_key(dag_maker, session):
