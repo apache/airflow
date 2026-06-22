@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import pickle
 import random
 import re
 import string
@@ -25,7 +26,7 @@ from unittest import mock
 
 import pytest
 import yaml
-from kubernetes.client import models as k8s
+from kubernetes.client import Configuration, models as k8s
 from kubernetes.client.rest import ApiException
 from sqlalchemy import inspect
 from urllib3 import HTTPResponse
@@ -36,6 +37,7 @@ from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
     KubernetesExecutor,
     PodReconciliationError,
+    _reset_local_vars_configuration,
 )
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
@@ -912,6 +914,123 @@ class TestKubernetesExecutor:
                         ),
                     )
                 )
+            finally:
+                executor.end()
+
+    @staticmethod
+    def _install_unpicklable_incluster_hook(pod):
+        """Simulate the in-cluster kubernetes v36 default config: an unpicklable local-closure hook
+        on every nested model object's ``Configuration`` (``InClusterConfigLoader._set_config.<locals>.
+        _refresh_api_key``)."""
+
+        def _make_hook():
+            def _refresh_api_key(config):
+                return None
+
+            return _refresh_api_key
+
+        for obj in (
+            pod,
+            pod.metadata,
+            pod.spec,
+            pod.spec.containers[0],
+            pod.spec.containers[0].resources,
+        ):
+            cfg = Configuration()
+            cfg.refresh_api_key_hook = _make_hook()
+            obj.local_vars_configuration = cfg
+
+    def test_reset_local_vars_configuration_strips_hook_recursively(self):
+        """``_reset_local_vars_configuration`` must replace every nested config with a hook-free one."""
+        # Build a pod with the unpicklable in-cluster hook on every nested config; confirm it is
+        # unpicklable first, then that the reset makes it picklable.
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(),
+            spec=k8s.V1PodSpec(
+                containers=[k8s.V1Container(name="base", resources=k8s.V1ResourceRequirements())]
+            ),
+        )
+        self._install_unpicklable_incluster_hook(pod)
+        with pytest.raises((pickle.PicklingError, AttributeError, TypeError)):
+            pickle.dumps(pod)
+
+        _reset_local_vars_configuration(pod)
+
+        for obj in (pod, pod.metadata, pod.spec, pod.spec.containers[0], pod.spec.containers[0].resources):
+            assert obj.local_vars_configuration.refresh_api_key_hook is None
+            assert obj.local_vars_configuration.client_side_validation is True
+        # now picklable
+        pickle.dumps(pod)
+
+    @pytest.mark.execution_timeout(30)
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.run_pod_async"
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_execute_async_pod_override_picklable_and_reconcilable(
+        self, mock_get_kube_client, mock_run_pod_async, data_file
+    ):
+        """Regression: a ``pod_override`` carrying an in-cluster ``Configuration`` must be both picklable
+        and reconcilable.
+
+        kubernetes-python-client v36 model constructors capture the global in-cluster ``Configuration``,
+        whose ``refresh_api_key_hook`` is a local closure -> pickling the ``KubernetesJob`` onto the
+        multiprocessing queue crashes the scheduler. ``execute_async`` resets ``local_vars_configuration``
+        to a fresh ``Configuration()`` so the job pickles, while keeping ``client_side_validation`` so the
+        worker-side ``run_next``/``reconcile_pods`` still works (nulling it instead would raise
+        ``'NoneType' object has no attribute 'client_side_validation'``).
+        """
+        pod_override = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(labels={"release": "stable"}),
+            spec=k8s.V1PodSpec(
+                containers=[
+                    k8s.V1Container(
+                        name="base",
+                        image="airflow:3.6",
+                        resources=k8s.V1ResourceRequirements(requests={"cpu": "100m", "memory": "384Mi"}),
+                    )
+                ]
+            ),
+        )
+        self._install_unpicklable_incluster_hook(pod_override)
+
+        # Sanity: the raw pod is unpicklable (reproduces the scheduler crash pre-fix).
+        with pytest.raises((pickle.PicklingError, AttributeError, TypeError)):
+            pickle.dumps(pod_override)
+
+        executor_template_file = data_file("executor/basic_template.yaml")
+        mock_get_kube_client.return_value = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
+
+        with conf_vars({("kubernetes_executor", "pod_template_file"): None}):
+            executor = self.kubernetes_executor
+            executor.start()
+            try:
+                executor.execute_async(
+                    key=TaskInstanceKey("dag", "task", "run_id", 1),
+                    queue=None,
+                    command=["airflow", "tasks", "run", "true", "some_parameter"],
+                    executor_config={
+                        "pod_template_file": executor_template_file,
+                        "pod_override": pod_override,
+                    },
+                )
+
+                assert not executor.task_queue.empty()
+                job = executor.task_queue.get_nowait()
+                executor.task_queue.task_done()
+
+                # 1) The queued job pickles cleanly (this is the actual scheduler crash path).
+                pickle.dumps(job)
+                # 2) Contract preserved: kube_executor_config stays a V1Pod.
+                assert isinstance(job.kube_executor_config, k8s.V1Pod)
+                # 3) Worker-side reconcile/construct_pod succeeds (the null-config approach fails here).
+                self.kubernetes_executor.kube_scheduler.run_next(job)
+                mock_run_pod_async.assert_called_once()
+                built = mock_run_pod_async.call_args[0][0]
+                assert built.spec.containers[0].resources.requests == {"cpu": "100m", "memory": "384Mi"}
             finally:
                 executor.end()
 

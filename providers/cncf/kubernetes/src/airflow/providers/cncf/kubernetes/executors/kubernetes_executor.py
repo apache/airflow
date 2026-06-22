@@ -36,6 +36,7 @@ from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any
 
 from deprecated import deprecated
+from kubernetes.client import Configuration
 from kubernetes.dynamic import DynamicClient
 from sqlalchemy import select
 
@@ -71,6 +72,30 @@ if TYPE_CHECKING:
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
         AirflowKubernetesScheduler,
     )
+
+
+def _reset_local_vars_configuration(obj: Any) -> None:
+    """
+    Reset ``local_vars_configuration`` to a fresh ``Configuration()`` on every kubernetes model object.
+
+    kubernetes-python-client v36.0.0 changed model constructors to call ``Configuration.get_default_copy()``
+    instead of ``Configuration()``, so objects created after incluster config was loaded capture the global
+    config whose ``refresh_api_key_hook`` is an unpicklable local closure function. We fall back to the
+    pre-v36 behaviour which is picklable. A fresh ``Configuration()`` keeps ``client_side_validation`` so
+    the worker-side ``reconcile_pods`` setters still work; ``None`` would break them.
+    """
+    if obj is None or isinstance(obj, (str, int, float, bool)):
+        return
+    if hasattr(obj, "openapi_types"):
+        obj.local_vars_configuration = Configuration()
+        for attr in obj.openapi_types:
+            _reset_local_vars_configuration(getattr(obj, attr, None))
+    elif isinstance(obj, dict):
+        for v in obj.values():
+            _reset_local_vars_configuration(v)
+    elif isinstance(obj, (list, tuple)):
+        for item in obj:
+            _reset_local_vars_configuration(item)
 
 
 class KubernetesExecutor(BaseExecutor):
@@ -226,6 +251,9 @@ class KubernetesExecutor(BaseExecutor):
             pod_template_file = executor_config.get("pod_template_file", None)
         else:
             pod_template_file = None
+
+        _reset_local_vars_configuration(kube_executor_config)
+
         self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
         self.task_queue.put(KubernetesJob(key, command, kube_executor_config, pod_template_file))
         # We keep a temporary local record that we've handled this so we don't
