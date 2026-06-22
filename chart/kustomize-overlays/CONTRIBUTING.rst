@@ -152,7 +152,7 @@ place - there is no central registry to also update.
 | Container images the     | Inline ``image:`` fields on containers / initContainers /       |
 | overlay uses             | sidecars in the overlay YAMLs above. **No second list.**        |
 |                          | ``breeze k8s smoke-test-overlay`` discovers them by walking     |
-|                          | the rendered manifest and ``docker pull`` + ``kind load``\ s    |
+|                          | the rendered manifest and ``docker pull`` + ``kind load``       |
 |                          | each one before applying. Always pair with                      |
 |                          | ``imagePullPolicy: IfNotPresent``.                              |
 +--------------------------+-----------------------------------------------------------------+
@@ -206,8 +206,8 @@ exits 0, the overlay's ``STATUS`` must stay at ``not-tested``.
 
 In short:
 
-* **prek hook** = structural, runs on every commit, cannot promote ``STATUS``.
-* **breeze k8s smoke-test-overlay** = functional, runs against a real
+* **prek hook** - structural, runs on every commit, cannot promote ``STATUS``.
+* **breeze k8s smoke-test-overlay** - functional, runs against a real
   cluster locally and in CI, is the gate for advancing ``STATUS`` to
   ``tested``.
 
@@ -272,9 +272,9 @@ not need their own preload step.
 
 * **Overlay images are auto-discovered.** Any new ``image:`` reference
   added to an overlay (containers, initContainers, sidecars, under any
-  pod-spec-bearing kind) is automatically pulled and ``kind load``\ ed
-  by ``smoke-test-overlay`` on the next run. There is no per-overlay
-  images list. Do not add overlay images to
+  pod-spec-bearing kind) is automatically pulled and uploaded
+  into kind cluster by ``smoke-test-overlay`` on the next run.
+  There is no per-overlay images list. Do not add overlay images to
   ``K8S_TEST_IMAGES_TO_PRELOAD`` in
   ``dev/breeze/src/airflow_breeze/commands/kubernetes_commands.py`` -
   that list is only for images consumed by the regular K8s system tests.

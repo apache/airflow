@@ -731,11 +731,8 @@ def _upload_k8s_image(python: str, kubernetes_version: str, output: Output | Non
 # runs against the deployed chart). Images that appear in a kustomize
 # overlay under chart/kustomize-overlays/<name>/ must NOT be added here:
 # `breeze k8s smoke-test-overlay` auto-discovers them from the rendered
-# manifest via _discover_overlay_images() and preloads them with the same
-# pull-and-kind-load pattern. If a per-overlay pytest module needs to spawn
-# an ad-hoc client pod, prefer reusing an image already declared by the
-# overlay (inherits the auto-preload by default); add to this list only
-# if the image is also useful to the non-overlay K8S tests.
+# manifest; add to this list only if the image is also useful to the non-overlay
+# K8S tests.
 K8S_TEST_IMAGES_TO_PRELOAD: tuple[str, ...] = (
     "alpine:3.24.1",  # xcom_sidecar default in providers/cncf/kubernetes
     "bitnamilegacy/postgresql:16.1.0-debian-11-r15",  # chart/values.yaml postgresql subchart
