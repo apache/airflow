@@ -2294,6 +2294,39 @@ class TestRuntimeTaskInstance:
                         ),
                     )
 
+    @pytest.mark.asyncio
+    async def test_axcom_pull(
+        self,
+        create_runtime_ti,
+        mock_supervisor_comms,
+        spy_agency,
+    ):
+        """
+        Test that a task makes an expected call to the Supervisor to pull an XCom value asynchronously.
+        """
+        spy_agency.spy_on(deserialize)
+
+        task = BaseOperator(task_id="pull_task")
+        runtime_ti = create_runtime_ti(task=task)
+
+        xcom_value = "hello"
+        ser_value = BaseXCom.serialize_value(xcom_value)
+        mock_supervisor_comms.asend.return_value = XComResult(key="key", value=ser_value)
+
+        value = await runtime_ti.axcom_pull(key="key", task_ids="push_task", map_indexes=-1)
+
+        assert value == xcom_value
+        spy_agency.assert_spy_called_with(deserialize, ser_value)
+        mock_supervisor_comms.asend.assert_called_once_with(
+            GetXCom(
+                key="key",
+                dag_id="test_dag",
+                run_id="test_run",
+                task_id="push_task",
+                map_index=-1,
+            ),
+        )
+
     @pytest.mark.parametrize(
         ("task_ids", "map_indexes", "expected_value"),
         [
@@ -5420,6 +5453,24 @@ class TestTaskInstanceMetrics:
 
 class TestDetailSpan:
     """Tests for the detail_span decorator / context manager."""
+
+    @pytest.fixture(autouse=True)
+    def _sampled_carrier_provider(self):
+        """Make new_dagrun_trace_carrier produce a SAMPLED carrier.
+
+        new_dagrun_trace_carrier consults the global tracer provider's sampler to
+        decide the carrier's SAMPLED flag. In the test process the global provider
+        is a no-op ProxyTracerProvider (no sampler) -> unsampled carrier, which
+        would make the parent span (and its detail children) non-recording. Patch
+        the lookup to a real SDK provider whose default sampler
+        (parentbased_always_on) samples the root, mirroring "otel on" in production.
+        """
+        provider = TracerProvider()
+        with mock.patch(
+            "airflow._shared.observability.traces.trace.get_tracer_provider",
+            return_value=provider,
+        ):
+            yield
 
     def test_level_1_no_child_span_as_context_manager(self):
         """At detail level 1, entering detail_span should not create a real recorded span."""

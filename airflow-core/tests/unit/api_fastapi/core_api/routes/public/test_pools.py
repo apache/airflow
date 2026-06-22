@@ -178,6 +178,28 @@ class TestGetPool(TestPoolsEndpoint):
             "team_name": None,
         }
 
+    def test_get_unlimited_pool_should_respond_200(self, test_client, session):
+        """Regression for #65377: an unlimited (-1 slots) pool has open_slots == inf internally; the
+        response must serialize open_slots as -1 and return 200, not 500."""
+        # Seed the DB row directly to exercise the GET/read path that #65377 reported.
+        session.add(Pool(pool="unlimited_pool", slots=-1, include_deferred=False))
+        session.commit()
+        response = test_client.get("/pools/unlimited_pool")
+        assert response.status_code == 200
+        assert response.json() == {
+            "deferred_slots": 0,
+            "description": None,
+            "include_deferred": False,
+            "name": "unlimited_pool",
+            "occupied_slots": 0,
+            "open_slots": -1,
+            "queued_slots": 0,
+            "running_slots": 0,
+            "scheduled_slots": 0,
+            "slots": -1,
+            "team_name": None,
+        }
+
 
 class TestGetPools(TestPoolsEndpoint):
     @pytest.mark.parametrize(
@@ -237,6 +259,18 @@ class TestGetPools(TestPoolsEndpoint):
 
         assert body["total_entries"] == 2
         assert [pool["name"] for pool in body["pools"]] == [Pool.DEFAULT_POOL_NAME, POOL1_NAME]
+
+    def test_get_pools_with_unlimited_pool_should_respond_200(self, test_client, session):
+        """Regression for #65377: listing pools that include an unlimited (-1 slots) pool must serialize
+        open_slots as -1 through the collection serializer and return 200, not 500."""
+        # Seed the DB row directly to exercise the GET/read path that #65377 reported.
+        session.add(Pool(pool="unlimited_pool", slots=-1, include_deferred=False))
+        session.commit()
+        response = test_client.get("/pools")
+        assert response.status_code == 200
+        pools = {pool["name"]: pool for pool in response.json()["pools"]}
+        assert pools["unlimited_pool"]["slots"] == -1
+        assert pools["unlimited_pool"]["open_slots"] == -1
 
 
 class TestPatchPool(TestPoolsEndpoint):
