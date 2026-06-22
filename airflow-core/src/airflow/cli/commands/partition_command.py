@@ -20,11 +20,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, or_, select
-
 from airflow._shared.timezones.timezone import parse as parsedate
-from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.dagrun import DagRun, clear_partition_runs
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import get_db_dag
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -32,45 +29,6 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
-
-TI_CHUNK_SIZE = 500
-
-
-def _flush_buffer(
-    buffer: list[str],
-    carry: list[TaskInstance],
-    session: Session,
-    *,
-    dag_id: str,
-    drain: bool = False,
-) -> int:
-    """
-    Fetch TIs for buffered run_ids, extend carry, send full TI_CHUNK_SIZE slices.
-
-    If drain=True, also send the final partial slice (used at end of run).
-    Returns the total number of TIs sent to clear_task_instances by this call.
-    """
-    flushed = 0
-    if buffer:
-        chunk_tis = list(
-            session.scalars(
-                select(TaskInstance).where(
-                    TaskInstance.dag_id == dag_id,
-                    TaskInstance.run_id.in_(buffer),
-                )
-            )
-        )
-        buffer.clear()
-        carry.extend(chunk_tis)
-    while len(carry) >= TI_CHUNK_SIZE:
-        slice_tis = carry[:TI_CHUNK_SIZE]
-        del carry[:TI_CHUNK_SIZE]
-        clear_task_instances(slice_tis, session=session)
-        flushed += len(slice_tis)
-    if drain and carry:
-        clear_task_instances(carry, session=session)
-        flushed += len(carry)
-    return flushed
 
 
 @cli_utils.action_cli
@@ -107,100 +65,53 @@ def clear(args, *, session: Session = NEW_SESSION) -> None:
         except ValueError:
             raise SystemExit("--date sides must be parseable as a date or datetime.")
 
-    stmt = select(DagRun).where(DagRun.dag_id == args.dag_id)
-    if args.run_id:
-        stmt = stmt.where(DagRun.run_id == args.run_id)
-    elif args.partition_key is not None:
-        stmt = stmt.where(DagRun.partition_key == args.partition_key)
-    else:
-        stmt = stmt.where(or_(DagRun.partition_key.is_not(None), DagRun.partition_date.is_not(None)))
-        if args.start_date is not None or args.end_date is not None:
-            dag = get_db_dag(bundle_names=None, dag_id=args.dag_id)
-            stmt = DagRun.apply_partition_date_window(
-                stmt,
-                timetable=dag.timetable,
-                start=args.start_date,
-                end=args.end_date,
-            )
-    stmt = stmt.order_by(DagRun.partition_date, DagRun.run_id)
-
+    has_date_window = args.start_date is not None or args.end_date is not None
+    dag = get_db_dag(bundle_names=None, dag_id=args.dag_id) if has_date_window else None
     clear_tis = bool(args.clear_task_instances)
-    cleared = 0
+
     processed_any = False
+    ti_run_count = 0
 
-    # For --clear-task-instances: run_ids are buffered so that TIs are fetched with a single
-    # SELECT IN per chunk (avoiding N+1). The fetched TIs are then flushed to
-    # clear_task_instances in slices of TI_CHUNK_SIZE, batched by TI count rather than
-    # DagRun count. Any leftover TIs that do not fill a full slice are carried forward and
-    # combined with the next SELECT's results before the next set of slices is cut.
-    ti_buffer_run_ids: list[str] = []
-    ti_carry: list[TaskInstance] = []
-    tis_cleared_total = 0
-    runs_for_ti_total = 0
-    # Collects run_ids matched during the loop for a single post-loop TI count (dry_run).
-    dry_run_matched_ids: list[str] = []
-
-    for run in session.scalars(stmt).yield_per(100):
+    def _print_run(run: DagRun, had_partition_fields: bool) -> None:
+        nonlocal processed_any, ti_run_count
         processed_any = True
-        fields_already_cleared = run.partition_key is None and run.partition_date is None
-        if fields_already_cleared and not clear_tis:
-            print(f"DagRun {run.run_id}: already cleared, skipping.")
-            continue
-        if not fields_already_cleared:
+        if clear_tis:
+            ti_run_count += 1
+        if had_partition_fields:
             print(
                 f"DagRun {run.run_id}: "
                 f"partition_key={run.partition_key!r} -> None, "
                 f"partition_date={run.partition_date.isoformat() if run.partition_date else None} -> None"
             )
-            if not args.dry_run:
-                run.partition_key = None
-                run.partition_date = None
-            cleared += 1
-        if clear_tis:
-            if args.dry_run:
-                dry_run_matched_ids.append(run.run_id)
-            else:
-                ti_buffer_run_ids.append(run.run_id)
-                runs_for_ti_total += 1
-                if len(ti_buffer_run_ids) >= TI_CHUNK_SIZE:
-                    tis_cleared_total += _flush_buffer(
-                        ti_buffer_run_ids, ti_carry, session, dag_id=args.dag_id
-                    )
+        elif not clear_tis:
+            print(f"DagRun {run.run_id}: already cleared, skipping.")
+
+    cleared, tis_cleared_total = clear_partition_runs(
+        dag=dag,
+        dag_id=args.dag_id,
+        run_id=args.run_id,
+        partition_key=args.partition_key,
+        partition_date_start=args.start_date,
+        partition_date_end=args.end_date,
+        clear_tis=clear_tis,
+        dry_run=args.dry_run,
+        session=session,
+        on_run_matched=_print_run,
+    )
 
     if not processed_any:
         print(f"No matching DagRuns found for dag_id={args.dag_id}.")
         return
 
-    # Flush the tail: fetch any remaining buffered run_ids, combine with carry, then
-    # cut full slices and send the final partial slice.
     if clear_tis:
         if args.dry_run:
-            tis_dry_total = 0
-            if dry_run_matched_ids:
-                for i in range(0, len(dry_run_matched_ids), TI_CHUNK_SIZE):
-                    chunk = dry_run_matched_ids[i : i + TI_CHUNK_SIZE]
-                    tis_dry_total += (
-                        session.scalar(
-                            select(func.count())
-                            .select_from(TaskInstance)
-                            .where(
-                                TaskInstance.dag_id == args.dag_id,
-                                TaskInstance.run_id.in_(chunk),
-                            )
-                        )
-                        or 0
-                    )
             print(
-                f"Dry run: would clear task instances on {len(dry_run_matched_ids)} "
-                f"DagRun(s) ({tis_dry_total} task instance(s))."
+                f"Dry run: would clear task instances on {ti_run_count} "
+                f"DagRun(s) ({tis_cleared_total} task instance(s))."
             )
         else:
-            tis_cleared_total += _flush_buffer(
-                ti_buffer_run_ids, ti_carry, session, dag_id=args.dag_id, drain=True
-            )
             print(
-                f"Cleared task instances on {runs_for_ti_total} "
-                f"DagRun(s) ({tis_cleared_total} task instance(s))."
+                f"Cleared task instances on {ti_run_count} DagRun(s) ({tis_cleared_total} task instance(s))."
             )
 
     if args.dry_run:

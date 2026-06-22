@@ -12230,6 +12230,29 @@ components:
       description: Request body for bulk operations on Dag Runs.
     BulkDAGRunClearBody:
       properties:
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
+          description: Select runs by exact partition key match. Mutually exclusive
+            with the other partition selectors.
+        partition_date_start:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date Start
+          description: Inclusive start of the partition date window (calendar-day
+            granular). Mutually exclusive with the other partition selectors.
+        partition_date_end:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date End
+          description: Inclusive end of the partition date window (calendar-day granular).
+            Mutually exclusive with the other partition selectors.
         dry_run:
           type: boolean
           title: Dry Run
@@ -12264,29 +12287,6 @@ components:
             $ref: '#/components/schemas/BulkDAGRunBody'
           type: array
           title: Dag Runs
-        partition_key:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Partition Key
-          description: Select runs by exact partition key match. Mutually exclusive
-            with ``dag_runs`` and partition date window.
-        partition_date_start:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Partition Date Start
-          description: Inclusive start of the partition date window (calendar-day
-            granular). Mutually exclusive with ``dag_runs`` and ``partition_key``.
-        partition_date_end:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Partition Date End
-          description: Inclusive end of the partition date window (calendar-day granular).
-            Mutually exclusive with ``dag_runs`` and ``partition_key``.
       additionalProperties: false
       type: object
       title: BulkDAGRunClearBody
@@ -12658,20 +12658,13 @@ components:
       title: BulkUpdateAction[VariableBody]
     ClearPartitionsBody:
       properties:
-        run_id:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Run Id
-          description: Select runs by exact run_id. Mutually exclusive with ``partition_key``
-            and partition date window.
         partition_key:
           anyOf:
           - type: string
           - type: 'null'
           title: Partition Key
           description: Select runs by exact partition key match. Mutually exclusive
-            with ``run_id`` and partition date window.
+            with the other partition selectors.
         partition_date_start:
           anyOf:
           - type: string
@@ -12679,7 +12672,7 @@ components:
           - type: 'null'
           title: Partition Date Start
           description: Inclusive start of the partition date window (calendar-day
-            granular). Mutually exclusive with ``run_id`` and ``partition_key``.
+            granular). Mutually exclusive with the other partition selectors.
         partition_date_end:
           anyOf:
           - type: string
@@ -12687,7 +12680,14 @@ components:
           - type: 'null'
           title: Partition Date End
           description: Inclusive end of the partition date window (calendar-day granular).
-            Mutually exclusive with ``run_id`` and ``partition_key``.
+            Mutually exclusive with the other partition selectors.
+        run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Run Id
+          description: Select runs by exact run_id. Mutually exclusive with ``partition_key``
+            and partition date window.
         clear_task_instances:
           type: boolean
           title: Clear Task Instances

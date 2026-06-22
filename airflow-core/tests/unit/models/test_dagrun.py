@@ -43,6 +43,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import StaleDataError
 
+import airflow.models.dagrun as dagrun_module
 from airflow import settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.observability.traces import OverrideableRandomIdGenerator
@@ -50,7 +51,7 @@ from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagrun import DagRun, DagRunNote
+from airflow.models.dagrun import DagRun, DagRunNote, clear_partition_runs
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.serialized_dag import SerializedDagModel
@@ -61,7 +62,16 @@ from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
-from airflow.sdk import DAG, BaseOperator, get_current_context, setup, task, task_group, teardown
+from airflow.sdk import (
+    DAG,
+    BaseOperator,
+    CronPartitionTimetable,
+    get_current_context,
+    setup,
+    task,
+    task_group,
+    teardown,
+)
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
@@ -77,6 +87,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from tests_common.test_utils.mapping import expand_mapped_task
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
@@ -4474,3 +4485,338 @@ class TestDagRunStatsTagsTeamName:
         dr._team_name = None
         tags = dr.stats_tags
         assert "team_name" not in tags
+
+
+class TestClearPartitionRuns:
+    """Direct unit tests for the clear_partition_runs model-layer function."""
+
+    @pytest.fixture(autouse=True)
+    def setup_partitioned_dag(self, dag_maker):
+
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            "test_cpr_dag",
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime.datetime(2026, 1, 1),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        dag_maker.create_dagrun(
+            run_id="cpr_run_1",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime.datetime(2026, 1, 1, tzinfo=pendulum.UTC),
+            partition_key="2026-01-01T00:00:00",
+        )
+        dag_maker.create_dagrun(
+            run_id="cpr_run_2",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime.datetime(2026, 1, 2, tzinfo=pendulum.UTC),
+            partition_key="2026-01-02T00:00:00",
+        )
+        dag_maker.create_dagrun(
+            run_id="cpr_run_3",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime.datetime(2026, 1, 3, tzinfo=pendulum.UTC),
+            partition_key="2026-01-03T00:00:00",
+        )
+        dag_maker.sync_dagbag_to_db()
+        self._serialized_dag = SerializedDagModel.get_dag("test_cpr_dag")
+        yield
+        clear_db_runs()
+        clear_db_dags()
+
+    def _get_run(self, run_id: str, session) -> DagRun:
+        return session.scalar(select(DagRun).where(DagRun.run_id == run_id))
+
+    def test_selector_run_id_clears_single_run(self, session):
+        cleared, tis = clear_partition_runs(
+            dag=self._serialized_dag,
+            dag_id="test_cpr_dag",
+            run_id="cpr_run_2",
+            partition_key=None,
+            partition_date_start=None,
+            partition_date_end=None,
+            clear_tis=False,
+            dry_run=False,
+            session=session,
+        )
+
+        assert cleared == 1
+        assert tis == 0
+        run = self._get_run("cpr_run_2", session)
+        assert run.partition_key is None
+        assert run.partition_date is None
+        # Other runs untouched.
+        run_1 = self._get_run("cpr_run_1", session)
+        assert run_1.partition_key == "2026-01-01T00:00:00"
+
+    def test_selector_partition_key_clears_matching_run(self, session):
+        cleared, tis = clear_partition_runs(
+            dag=self._serialized_dag,
+            dag_id="test_cpr_dag",
+            run_id=None,
+            partition_key="2026-01-03T00:00:00",
+            partition_date_start=None,
+            partition_date_end=None,
+            clear_tis=False,
+            dry_run=False,
+            session=session,
+        )
+
+        assert cleared == 1
+        run = self._get_run("cpr_run_3", session)
+        assert run.partition_key is None
+        # Other runs untouched.
+        run_1 = self._get_run("cpr_run_1", session)
+        assert run_1.partition_key == "2026-01-01T00:00:00"
+
+    def test_selector_date_window_clears_range(self, session):
+        cleared, tis = clear_partition_runs(
+            dag=self._serialized_dag,
+            dag_id="test_cpr_dag",
+            run_id=None,
+            partition_key=None,
+            partition_date_start=datetime.datetime(2026, 1, 2, tzinfo=pendulum.UTC),
+            partition_date_end=datetime.datetime(2026, 1, 3, tzinfo=pendulum.UTC),
+            clear_tis=False,
+            dry_run=False,
+            session=session,
+        )
+
+        assert cleared == 2
+        run_2 = self._get_run("cpr_run_2", session)
+        assert run_2.partition_key is None
+        run_3 = self._get_run("cpr_run_3", session)
+        assert run_3.partition_key is None
+        # Out-of-range run untouched.
+        run_1 = self._get_run("cpr_run_1", session)
+        assert run_1.partition_key == "2026-01-01T00:00:00"
+
+    def test_dry_run_returns_correct_count_without_db_changes(self, session):
+        cleared, tis = clear_partition_runs(
+            dag=self._serialized_dag,
+            dag_id="test_cpr_dag",
+            run_id=None,
+            partition_key=None,
+            partition_date_start=datetime.datetime(2026, 1, 1, tzinfo=pendulum.UTC),
+            partition_date_end=datetime.datetime(2026, 1, 3, tzinfo=pendulum.UTC),
+            clear_tis=False,
+            dry_run=True,
+            session=session,
+        )
+
+        assert cleared == 3
+        assert tis == 0
+        # DB unchanged.
+        for run_id, expected_key in [
+            ("cpr_run_1", "2026-01-01T00:00:00"),
+            ("cpr_run_2", "2026-01-02T00:00:00"),
+            ("cpr_run_3", "2026-01-03T00:00:00"),
+        ]:
+            run = self._get_run(run_id, session)
+            assert run.partition_key == expected_key
+
+    def test_cross_dag_isolation(self, dag_maker, session):
+        """Runs from another dag sharing the same run_id are not affected."""
+
+        bystander_dag_id = "test_cpr_bystander_dag"
+        with dag_maker(
+            bystander_dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime.datetime(2026, 1, 1),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        dag_maker.create_dagrun(
+            run_id="cpr_run_2",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime.datetime(2026, 1, 2, tzinfo=pendulum.UTC),
+            partition_key="bystander-key",
+        )
+        dag_maker.sync_dagbag_to_db()
+
+        cleared, _ = clear_partition_runs(
+            dag=self._serialized_dag,
+            dag_id="test_cpr_dag",
+            run_id="cpr_run_2",
+            partition_key=None,
+            partition_date_start=None,
+            partition_date_end=None,
+            clear_tis=False,
+            dry_run=False,
+            session=session,
+        )
+
+        assert cleared == 1
+        bystander_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == bystander_dag_id, DagRun.run_id == "cpr_run_2")
+        )
+        assert bystander_run.partition_key == "bystander-key"
+
+    def test_callback_called_once_per_matched_run_before_mutation(self, session):
+        calls: list[tuple[str, bool, str | None]] = []
+
+        def capture(run: DagRun, had_partition_fields: bool) -> None:
+            calls.append((run.run_id, had_partition_fields, run.partition_key))
+
+        clear_partition_runs(
+            dag=self._serialized_dag,
+            dag_id="test_cpr_dag",
+            run_id=None,
+            partition_key=None,
+            partition_date_start=datetime.datetime(2026, 1, 1, tzinfo=pendulum.UTC),
+            partition_date_end=datetime.datetime(2026, 1, 3, tzinfo=pendulum.UTC),
+            clear_tis=False,
+            dry_run=False,
+            session=session,
+            on_run_matched=capture,
+        )
+
+        assert len(calls) == 3
+        for run_id, had_partition_fields, old_partition_key in calls:
+            assert had_partition_fields is True
+            assert old_partition_key is not None, (
+                f"run {run_id}: callback saw None partition_key (mutation before callback)"
+            )
+
+    def test_callback_had_partition_fields_false_for_already_cleared_run(self, dag_maker, session):
+        dag_maker.create_dagrun(
+            run_id="cpr_already_cleared",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=None,
+            partition_key=None,
+        )
+        dag_maker.sync_dagbag_to_db()
+
+        calls: list[tuple[str, bool]] = []
+
+        def capture(run: DagRun, had_partition_fields: bool) -> None:
+            calls.append((run.run_id, had_partition_fields))
+
+        clear_partition_runs(
+            dag=self._serialized_dag,
+            dag_id="test_cpr_dag",
+            run_id="cpr_already_cleared",
+            partition_key=None,
+            partition_date_start=None,
+            partition_date_end=None,
+            clear_tis=False,
+            dry_run=False,
+            session=session,
+            on_run_matched=capture,
+        )
+
+        assert calls == [("cpr_already_cleared", False)]
+
+    def test_chunk_boundary_at_cap(self, dag_maker, session):
+        """2 DRs × 3 TIs = 6 TIs == chunk size → clear_task_instances called once."""
+
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            "test_cpr_chunk_at_cap",
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime.datetime(2024, 1, 1),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="t2")
+            EmptyOperator(task_id="t3")
+        for i in range(2):
+            dag_maker.create_dagrun(
+                run_id=f"cpr_cap_run_{i:04d}",
+                state=DagRunState.SUCCESS,
+                logical_date=None,
+                partition_date=datetime.datetime(2024, 1, 1, tzinfo=pendulum.UTC)
+                + datetime.timedelta(days=i),
+                partition_key=f"cap-key-{i:04d}",
+            )
+        dag_maker.sync_dagbag_to_db()
+        serialized_dag = SerializedDagModel.get_dag("test_cpr_chunk_at_cap")
+
+        with (
+            mock.patch.object(dagrun_module, "_TI_CHUNK_SIZE", 6),
+            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
+        ):
+            cleared, tis = clear_partition_runs(
+                dag=serialized_dag,
+                dag_id="test_cpr_chunk_at_cap",
+                run_id=None,
+                partition_key=None,
+                partition_date_start=datetime.datetime(2024, 1, 1, tzinfo=pendulum.UTC),
+                partition_date_end=datetime.datetime(2025, 12, 31, tzinfo=pendulum.UTC),
+                clear_tis=True,
+                dry_run=False,
+                session=session,
+            )
+
+        assert cleared == 2
+        assert [len(c.args[0]) for c in mock_cti.mock_calls] == [6]
+
+    def test_chunk_boundary_over_cap(self, dag_maker, session):
+        """3 DRs × 3 TIs = 9 TIs > chunk size 6 → two calls: [6, 3]."""
+
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            "test_cpr_chunk_over_cap",
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime.datetime(2024, 1, 1),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="t2")
+            EmptyOperator(task_id="t3")
+        for i in range(3):
+            dag_maker.create_dagrun(
+                run_id=f"cpr_over_run_{i:04d}",
+                state=DagRunState.SUCCESS,
+                logical_date=None,
+                partition_date=datetime.datetime(2024, 1, 1, tzinfo=pendulum.UTC)
+                + datetime.timedelta(days=i),
+                partition_key=f"over-key-{i:04d}",
+            )
+        dag_maker.sync_dagbag_to_db()
+        serialized_dag = SerializedDagModel.get_dag("test_cpr_chunk_over_cap")
+
+        with (
+            mock.patch.object(dagrun_module, "_TI_CHUNK_SIZE", 6),
+            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
+        ):
+            clear_partition_runs(
+                dag=serialized_dag,
+                dag_id="test_cpr_chunk_over_cap",
+                run_id=None,
+                partition_key=None,
+                partition_date_start=datetime.datetime(2024, 1, 1, tzinfo=pendulum.UTC),
+                partition_date_end=datetime.datetime(2025, 12, 31, tzinfo=pendulum.UTC),
+                clear_tis=True,
+                dry_run=False,
+                session=session,
+            )
+
+        assert [len(c.args[0]) for c in mock_cti.mock_calls] == [6, 3]
+
+    def test_date_window_with_dag_none_raises_value_error(self, session):
+        """Date-window selector requires a loaded Dag; dag=None must raise ValueError."""
+        with pytest.raises(ValueError, match="date-window selector requires"):
+            clear_partition_runs(
+                dag=None,
+                dag_id="test_cpr_dag",
+                run_id=None,
+                partition_key=None,
+                partition_date_start=datetime.datetime(2026, 1, 1, tzinfo=pendulum.UTC),
+                partition_date_end=datetime.datetime(2026, 1, 3, tzinfo=pendulum.UTC),
+                clear_tis=False,
+                dry_run=False,
+                session=session,
+            )

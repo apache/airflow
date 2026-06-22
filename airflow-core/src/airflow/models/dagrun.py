@@ -77,7 +77,7 @@ from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
-from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
@@ -2248,6 +2248,128 @@ class DagRunNote(Base):
         if self.map_index != -1:
             prefix += f" map_index={self.map_index}"
         return prefix + ">"
+
+
+_TI_CHUNK_SIZE = 500
+
+
+def clear_partition_runs(
+    *,
+    dag: SerializedDAG | None,
+    dag_id: str,
+    run_id: str | None,
+    partition_key: str | None,
+    partition_date_start: datetime | None,
+    partition_date_end: datetime | None,
+    clear_tis: bool,
+    dry_run: bool,
+    session: Session,
+    on_run_matched: Callable[[DagRun, bool], None] | None = None,
+) -> tuple[int, int]:
+    """
+    Reset partition_key and partition_date to None on matching Dag runs.
+
+    Selector priority: run_id → partition_key → date-window (day-granular, resolved through
+    the timetable timezone). Runs already cleared (both fields None) are skipped unless
+    clear_tis is True.
+
+    The date-window selector requires a non-None ``dag`` to resolve the timetable timezone.
+    The run_id and partition_key selectors do not use ``dag`` and accept ``None``.
+
+    Returns (dag_runs_cleared, task_instances_cleared).
+
+    ``on_run_matched`` is called once per matched run, before any mutation, with
+    ``(run, had_partition_fields)`` where ``had_partition_fields`` is True when the run's
+    partition fields are non-None at the time of the call (i.e. they will be reset).
+    """
+    stmt = select(DagRun).where(DagRun.dag_id == dag_id)
+    if run_id is not None:
+        stmt = stmt.where(DagRun.run_id == run_id)
+    elif partition_key is not None:
+        stmt = stmt.where(DagRun.partition_key == partition_key)
+    else:
+        if dag is None:
+            raise ValueError(
+                "The date-window selector requires a loaded Dag to resolve the timetable timezone; "
+                "dag must not be None when partition_date_start or partition_date_end is used."
+            )
+        stmt = stmt.where(or_(DagRun.partition_key.is_not(None), DagRun.partition_date.is_not(None)))
+        stmt = DagRun.apply_partition_date_window(
+            stmt,
+            timetable=dag.timetable,
+            start=partition_date_start,
+            end=partition_date_end,
+        )
+    stmt = stmt.order_by(DagRun.partition_date, DagRun.run_id)
+
+    dag_runs_cleared = 0
+    ti_buffer_run_ids: list[str] = []
+    ti_carry: list[TI] = []
+    tis_cleared_total = 0
+    dry_run_matched_ids: list[str] = []
+
+    def _flush_ti_buffer(*, drain: bool = False) -> int:
+        flushed = 0
+        if ti_buffer_run_ids:
+            chunk_tis = list(
+                session.scalars(
+                    select(TI).where(
+                        TI.dag_id == dag_id,
+                        TI.run_id.in_(ti_buffer_run_ids),
+                    )
+                )
+            )
+            ti_buffer_run_ids.clear()
+            ti_carry.extend(chunk_tis)
+        while len(ti_carry) >= _TI_CHUNK_SIZE:
+            slice_tis = ti_carry[:_TI_CHUNK_SIZE]
+            del ti_carry[:_TI_CHUNK_SIZE]
+            clear_task_instances(slice_tis, session=session)
+            flushed += len(slice_tis)
+        if drain and ti_carry:
+            clear_task_instances(ti_carry, session=session)
+            flushed += len(ti_carry)
+        return flushed
+
+    for run in session.scalars(stmt).yield_per(100):
+        fields_already_cleared = run.partition_key is None and run.partition_date is None
+        if on_run_matched is not None:
+            on_run_matched(run, not fields_already_cleared)
+        if fields_already_cleared and not clear_tis:
+            continue
+        if not fields_already_cleared:
+            if not dry_run:
+                run.partition_key = None
+                run.partition_date = None
+            dag_runs_cleared += 1
+        if clear_tis:
+            if dry_run:
+                dry_run_matched_ids.append(run.run_id)
+            else:
+                ti_buffer_run_ids.append(run.run_id)
+                if len(ti_buffer_run_ids) >= _TI_CHUNK_SIZE:
+                    tis_cleared_total += _flush_ti_buffer()
+
+    if clear_tis and not dry_run:
+        tis_cleared_total += _flush_ti_buffer(drain=True)
+
+    if dry_run and clear_tis:
+        if dry_run_matched_ids:
+            for i in range(0, len(dry_run_matched_ids), _TI_CHUNK_SIZE):
+                chunk = dry_run_matched_ids[i : i + _TI_CHUNK_SIZE]
+                tis_cleared_total += (
+                    session.scalar(
+                        select(func.count())
+                        .select_from(TI)
+                        .where(
+                            TI.dag_id == dag_id,
+                            TI.run_id.in_(chunk),
+                        )
+                    )
+                    or 0
+                )
+
+    return dag_runs_cleared, tis_cleared_total
 
 
 def get_or_create_dagrun(

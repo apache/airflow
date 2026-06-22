@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 import attrs
 import structlog
 from fastapi import HTTPException, status
-from sqlalchemy import func, or_, select, tuple_
+from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session, joinedload
 
 from airflow.api.common.mark_tasks import (
@@ -58,8 +58,8 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import (
 from airflow.api_fastapi.core_api.datamodels.task_instances import NewTaskResponse
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.dagrun import DagRun, clear_partition_runs
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.utils.session import create_session_async
 from airflow.utils.state import State, TaskInstanceState
@@ -159,9 +159,6 @@ def perform_clear_dag_run(
     return dag_run_cleared
 
 
-_TI_CHUNK_SIZE = 500
-
-
 def clear_partition_fields(
     *,
     dag: SerializedDAG,
@@ -173,92 +170,18 @@ def clear_partition_fields(
     Reset partition_key and partition_date to None on matching runs.
 
     Returns (dag_runs_cleared, task_instances_cleared).
-    Mirrors ``airflow partitions clear`` column-reset behavior.
     """
-    stmt = select(DagRun).where(DagRun.dag_id == dag_id)
-    if body.run_id is not None:
-        stmt = stmt.where(DagRun.run_id == body.run_id)
-    elif body.partition_key is not None:
-        stmt = stmt.where(DagRun.partition_key == body.partition_key)
-    else:
-        stmt = stmt.where(or_(DagRun.partition_key.is_not(None), DagRun.partition_date.is_not(None)))
-        stmt = DagRun.apply_partition_date_window(
-            stmt,
-            timetable=dag.timetable,
-            start=body.partition_date_start,
-            end=body.partition_date_end,
-        )
-    stmt = stmt.order_by(DagRun.partition_date, DagRun.run_id)
-
-    dag_runs_cleared = 0
-    # Buffers for batched TI fetching — mirrors _flush_buffer in partition_command.py
-    ti_buffer_run_ids: list[str] = []
-    ti_carry: list[TaskInstance] = []
-    tis_cleared_total = 0
-
-    def _flush_ti_buffer(*, drain: bool = False) -> int:
-        flushed = 0
-        if ti_buffer_run_ids:
-            chunk_tis = list(
-                session.scalars(
-                    select(TaskInstance).where(
-                        TaskInstance.dag_id == dag_id,
-                        TaskInstance.run_id.in_(ti_buffer_run_ids),
-                    )
-                )
-            )
-            ti_buffer_run_ids.clear()
-            ti_carry.extend(chunk_tis)
-        while len(ti_carry) >= _TI_CHUNK_SIZE:
-            slice_tis = ti_carry[:_TI_CHUNK_SIZE]
-            del ti_carry[:_TI_CHUNK_SIZE]
-            clear_task_instances(slice_tis, session=session)
-            flushed += len(slice_tis)
-        if drain and ti_carry:
-            clear_task_instances(ti_carry, session=session)
-            flushed += len(ti_carry)
-        return flushed
-
-    # Collects run_ids matched during the loop for a single post-loop TI count (dry_run).
-    dry_run_matched_ids: list[str] = []
-
-    for run in session.scalars(stmt).yield_per(100):
-        fields_already_cleared = run.partition_key is None and run.partition_date is None
-        if fields_already_cleared and not body.clear_task_instances:
-            continue
-        if not fields_already_cleared:
-            if not body.dry_run:
-                run.partition_key = None
-                run.partition_date = None
-            dag_runs_cleared += 1
-        if body.clear_task_instances:
-            if body.dry_run:
-                dry_run_matched_ids.append(run.run_id)
-            else:
-                ti_buffer_run_ids.append(run.run_id)
-                if len(ti_buffer_run_ids) >= _TI_CHUNK_SIZE:
-                    tis_cleared_total += _flush_ti_buffer()
-
-    if body.clear_task_instances and not body.dry_run:
-        tis_cleared_total += _flush_ti_buffer(drain=True)
-
-    if body.dry_run and body.clear_task_instances:
-        if dry_run_matched_ids:
-            for i in range(0, len(dry_run_matched_ids), _TI_CHUNK_SIZE):
-                chunk = dry_run_matched_ids[i : i + _TI_CHUNK_SIZE]
-                tis_cleared_total += (
-                    session.scalar(
-                        select(func.count())
-                        .select_from(TaskInstance)
-                        .where(
-                            TaskInstance.dag_id == dag_id,
-                            TaskInstance.run_id.in_(chunk),
-                        )
-                    )
-                    or 0
-                )
-
-    return dag_runs_cleared, tis_cleared_total
+    return clear_partition_runs(
+        dag=dag,
+        dag_id=dag_id,
+        run_id=body.run_id,
+        partition_key=body.partition_key,
+        partition_date_start=body.partition_date_start,
+        partition_date_end=body.partition_date_end,
+        clear_tis=body.clear_task_instances,
+        dry_run=body.dry_run,
+        session=session,
+    )
 
 
 def patch_dag_run_state(

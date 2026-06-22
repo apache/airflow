@@ -23,6 +23,7 @@ import pendulum
 import pytest
 from sqlalchemy import select
 
+import airflow.models.dagrun as dagrun_module
 from airflow.cli import cli_parser
 from airflow.cli.commands import partition_command
 from airflow.models.dagrun import DagRun
@@ -434,10 +435,8 @@ class TestPartitionsClear:
         dag_maker.sync_dagbag_to_db()
 
         with (
-            mock.patch.object(partition_command, "TI_CHUNK_SIZE", ti_cap),
-            mock.patch(
-                "airflow.cli.commands.partition_command.clear_task_instances", autospec=True
-            ) as mock_cti,
+            mock.patch.object(dagrun_module, "_TI_CHUNK_SIZE", ti_cap),
+            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
         ):
             partition_command.clear(
                 parser.parse_args(
@@ -487,10 +486,8 @@ class TestPartitionsClear:
         dag_maker.sync_dagbag_to_db()
 
         with (
-            mock.patch.object(partition_command, "TI_CHUNK_SIZE", ti_cap),
-            mock.patch(
-                "airflow.cli.commands.partition_command.clear_task_instances", autospec=True
-            ) as mock_cti,
+            mock.patch.object(dagrun_module, "_TI_CHUNK_SIZE", ti_cap),
+            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
         ):
             partition_command.clear(
                 parser.parse_args(
@@ -541,10 +538,8 @@ class TestPartitionsClear:
         dag_maker.sync_dagbag_to_db()
 
         with (
-            mock.patch.object(partition_command, "TI_CHUNK_SIZE", ti_cap),
-            mock.patch(
-                "airflow.cli.commands.partition_command.clear_task_instances", autospec=True
-            ) as mock_cti,
+            mock.patch.object(dagrun_module, "_TI_CHUNK_SIZE", ti_cap),
+            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
         ):
             partition_command.clear(
                 parser.parse_args(
@@ -569,7 +564,7 @@ class TestPartitionsClear:
         clear_db_dags()
 
     def test_clear_task_instances_chunks_mid_loop_trigger(self, parser, dag_maker):
-        """Pin mid-loop SELECT IN + slice trigger (partition_command.py L120-132).
+        """Pin mid-loop SELECT IN + slice trigger (dagrun.py clear_partition_runs loop body).
 
         Design: TI_CHUNK_SIZE=3, 1 dag with 2 tasks, 3 DRs (6 TIs total).
 
@@ -616,10 +611,8 @@ class TestPartitionsClear:
         dag_maker.sync_dagbag_to_db()
 
         with (
-            mock.patch.object(partition_command, "TI_CHUNK_SIZE", ti_cap),
-            mock.patch(
-                "airflow.cli.commands.partition_command.clear_task_instances", autospec=True
-            ) as mock_cti,
+            mock.patch.object(dagrun_module, "_TI_CHUNK_SIZE", ti_cap),
+            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
         ):
             partition_command.clear(
                 parser.parse_args(
@@ -1211,3 +1204,23 @@ class TestPartitionsClear:
 
         clear_db_runs()
         clear_db_dags()
+
+    @pytest.mark.parametrize(
+        "selector_args",
+        [
+            ["--run-id", "part_run_1"],
+            ["--partition-key", "2026-01-01T00:00:00"],
+        ],
+    )
+    def test_run_id_and_partition_key_do_not_call_get_db_dag(self, parser, selector_args):
+        """run_id and partition_key selectors must not load the Dag from the DB.
+
+        get_db_dag raises when the Dag has been deleted but DagRuns remain; the
+        CLI must not call it for these two selectors so that orphaned runs can
+        still be cleared.
+        """
+        with mock.patch("airflow.cli.commands.partition_command.get_db_dag") as mock_get_db_dag:
+            partition_command.clear(
+                parser.parse_args(["partitions", "clear", "--dag-id", DAG_ID, *selector_args])
+            )
+        mock_get_db_dag.assert_not_called()
