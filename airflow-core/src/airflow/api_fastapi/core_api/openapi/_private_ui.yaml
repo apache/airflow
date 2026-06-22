@@ -1990,6 +1990,17 @@ components:
       - count
       title: CalendarTimeRangeResponse
       description: Represents a summary of DAG runs for a specific calendar time range.
+    CallbackState:
+      type: string
+      enum:
+      - scheduled
+      - pending
+      - queued
+      - running
+      - success
+      - failed
+      title: CallbackState
+      description: All possible states of callbacks.
     ConfigResponse:
       properties:
         fallback_page_limit:
@@ -2644,9 +2655,8 @@ components:
           title: Callback Id
         callback_state:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/CallbackState'
           - type: 'null'
-          title: Callback State
       type: object
       required:
       - id
