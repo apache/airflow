@@ -394,6 +394,25 @@ class TestSimpleAuthManager:
         )
 
     @pytest.mark.parametrize(
+        ("api", "kwargs"),
+        [
+            ("is_authorized_configuration", {"method": "DELETE"}),
+            ("is_authorized_connection", {"method": "DELETE"}),
+            ("is_authorized_dag", {"method": "DELETE"}),
+            ("is_authorized_asset", {"method": "DELETE"}),
+            ("is_authorized_pool", {"method": "DELETE"}),
+            ("is_authorized_variable", {"method": "DELETE"}),
+            ("is_authorized_view", {"access_view": AccessView.CLUSTER_ACTIVITY}),
+        ],
+    )
+    def test_is_authorized_grants_full_access_to_system_user(self, auth_manager, api, kwargs):
+        # A trusted in-process SystemUser (used by the local REST client) is granted full access and
+        # must not trip over the SimpleAuthManagerUser-specific ``user.role`` handling.
+        from airflow.api_fastapi.auth.managers.models.system_user import SystemUser
+
+        assert getattr(auth_manager, api)(**kwargs, user=SystemUser(process_type="scheduler")) is True
+
+    @pytest.mark.parametrize(
         "api",
         [
             "is_authorized_dag",
