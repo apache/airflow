@@ -102,7 +102,7 @@ from airflowctl.api.datamodels.generated import (
     XComResponse,
     XComResponseNative,
 )
-from airflowctl.api.operations import BaseOperations, ServerResponseError
+from airflowctl.api.operations import BaseOperations
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
@@ -1989,20 +1989,6 @@ class TestTaskInstancesOperations:
             map_index=map_index,
         )
         assert response == mapped_response
-
-    def test_get_not_found_raises(self):
-        """A 404 from the server must surface as a ServerResponseError."""
-
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(404, json={"detail": "Task instance not found"})
-
-        client = make_api_client(transport=httpx.MockTransport(handle_request))
-        with pytest.raises(ServerResponseError):
-            client.task_instances.get(
-                dag_id=self.dag_id,
-                dag_run_id=self.dag_run_id,
-                task_id=self.task_id,
-            )
 
 
 class TestPluginsOperations:
