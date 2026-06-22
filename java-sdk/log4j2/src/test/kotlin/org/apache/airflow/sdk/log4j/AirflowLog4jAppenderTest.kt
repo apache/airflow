@@ -28,6 +28,7 @@ import io.mockk.unmockkAll
 import io.mockk.verify
 import org.apache.airflow.sdk.execution.Level
 import org.apache.airflow.sdk.execution.Log
+import org.apache.logging.log4j.MarkerManager
 import org.apache.logging.log4j.core.impl.Log4jLogEvent
 import org.apache.logging.log4j.message.SimpleMessage
 import org.junit.jupiter.api.AfterEach
@@ -89,16 +90,26 @@ class AirflowLog4jAppenderTest {
     assertTrue(capturedArgs.captured["exception"].toString().contains("kaboom"))
   }
 
+  @Test
+  fun `marker name is stored under the marker key`() {
+    val capturedArgs = slot<Map<String, Any?>>()
+    every { Log.send(any(), any(), any(), capture(capturedArgs)) } just runs
+    appender.append(event("hi", L4jLevel.INFO, marker = MarkerManager.getMarker("AUDIT")))
+    assertEquals("AUDIT", capturedArgs.captured["marker"])
+  }
+
   private fun event(
     message: String,
     level: L4jLevel,
     loggerName: String = "test.Logger",
     thrown: Throwable? = null,
+    marker: org.apache.logging.log4j.Marker? = null,
   ) = Log4jLogEvent
     .newBuilder()
     .setLoggerName(loggerName)
     .setLevel(level)
     .setMessage(SimpleMessage(message))
     .setThrown(thrown)
+    .setMarker(marker)
     .build()
 }

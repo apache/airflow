@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.slf4j.MarkerFactory
 import org.slf4j.event.Level as SLevel
 
 class AirflowSlf4jLoggerTest {
@@ -86,6 +87,20 @@ class AirflowSlf4jLoggerTest {
     logger.error("oops", ex)
     val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
     assertTrue(msg.arguments["exception"].toString().contains("boom"))
+  }
+
+  @Test
+  fun `marker name is stored under the marker key`() {
+    logger.info(MarkerFactory.getMarker("AUDIT"), "hello")
+    val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
+    assertEquals("AUDIT", msg.arguments["marker"])
+  }
+
+  @Test
+  fun `no marker key is added when none is supplied`() {
+    logger.info("hello")
+    val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
+    assertFalse(msg.arguments.containsKey("marker"))
   }
 
   @Test

@@ -21,7 +21,7 @@ package org.apache.airflow.sdk.log4j;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.airflow.sdk.execution.Level;
 import org.apache.airflow.sdk.execution.Log;
@@ -64,13 +64,17 @@ public final class AirflowLog4jAppender extends AbstractAppender {
     if (!Log.INSTANCE.isEnabledForLevel(level, logger)) return;
     // Log4J does not really provide a good way to access the underlying unformatted data
     // since it allows vastly different logging mechanisms. We pre-format the message here
-    // and only send the exception separately.
+    // and send the exception and marker separately as structured metadata.
     String message = event.getMessage().getFormattedMessage();
-    Throwable thrown = event.getThrown();
-    Map<String, Object> args =
-        thrown != null
-            ? Collections.singletonMap("exception", stackTrace(thrown))
-            : Collections.emptyMap();
+    Map<String, Object> args = new HashMap<>();
+    var thrown = event.getThrown();
+    if (thrown != null) {
+      args.put("exception", stackTrace(thrown));
+    }
+    var marker = event.getMarker();
+    if (marker != null) {
+      args.put("marker", marker.getName());
+    }
     Log.INSTANCE.send(level, logger, message, args);
   }
 
