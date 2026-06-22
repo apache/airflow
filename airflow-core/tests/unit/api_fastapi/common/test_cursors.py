@@ -26,7 +26,7 @@ from unittest.mock import MagicMock
 import msgspec
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import Column, String, select
 
 from airflow.api_fastapi.common.cursors import apply_cursor_filter, decode_cursor, encode_cursor
 from airflow.api_fastapi.common.parameters import SortParam
@@ -198,3 +198,153 @@ class TestCursorPagination:
         sql = str(stmt)
         assert "IS NULL" in sql
         assert "IS NOT NULL" in sql
+
+
+class TestSortParamKeysetColumns:
+    """Unit coverage for the NULLs-last keyset expansion added for cursor pagination."""
+
+    @pytest.mark.parametrize(
+        ("column", "expected"),
+        [
+            pytest.param(TaskInstance.start_date, True, id="mapped-nullable"),
+            pytest.param(TaskInstance.map_index, False, id="mapped-not-null"),
+            pytest.param(Column("x", String, nullable=True), True, id="raw-column"),
+            pytest.param(SimpleNamespace(), True, id="unknown-expression-defaults-nullable"),
+        ],
+    )
+    def test_is_nullable_sort_column(self, column, expected):
+        assert SortParam._is_nullable_sort_column(column) is expected
+
+    def test_get_keyset_columns_inserts_rank_before_nullable_only(self):
+        sp = SortParam(["id", "start_date", "map_index"], TaskInstance)
+        sp.set_value(["start_date"])
+        names = [name for name, _col, _desc in sp.get_keyset_columns()]
+        # start_date is nullable -> rank prepended; id (pk) is not -> untouched.
+        assert names == ["start_date__null_rank", "start_date", "id"]
+
+    def test_get_keyset_columns_no_rank_for_non_nullable_sort(self):
+        sp = SortParam(["id", "map_index"], TaskInstance)
+        sp.set_value(["map_index"])
+        names = [name for name, _col, _desc in sp.get_keyset_columns()]
+        assert names == ["map_index", "id"]
+
+    @pytest.mark.parametrize(
+        ("values", "expected"),
+        [
+            pytest.param(["2024-01-01", "uuid"], [0, "2024-01-01", "uuid"], id="non-null-rank-0"),
+            pytest.param([None, "uuid"], [1, None, "uuid"], id="null-rank-1"),
+        ],
+    )
+    def test_expand_keyset_values_aligns_with_columns(self, values, expected):
+        sp = SortParam(["id", "start_date"], TaskInstance)
+        sp.set_value(["start_date"])
+        assert sp.expand_keyset_values(values) == expected
+
+
+class TestKeysetPaginationNullableColumn:
+    """End-to-end: cursor pagination over a nullable sort column returns every row exactly once.
+
+    Regression for https://github.com/apache/airflow/issues/68858. Before the fix the
+    keyset predicate and the ORDER BY disagreed on NULL placement, so one side of the
+    NULL/non-NULL boundary was silently dropped.
+    """
+
+    @staticmethod
+    def _seed_session(rows):
+        """Build an in-memory model with one nullable column and seed it with ``(id, val)`` rows."""
+        from sqlalchemy import Integer, create_engine
+        from sqlalchemy.orm import Session, declarative_base
+
+        base = declarative_base()
+
+        class Item(base):
+            __tablename__ = "keyset_items"
+            id = Column(Integer, primary_key=True)
+            val = Column(String, nullable=True)
+
+        engine = create_engine("sqlite://")
+        base.metadata.create_all(engine)
+        session = Session(engine)
+        session.add_all([Item(id=i, val=v) for i, v in rows])
+        session.commit()
+        return Item, session
+
+    @staticmethod
+    def _walk_forward(session, model, sort, page_size):
+        collected: list[int] = []
+        token = None
+        for _ in range(50):  # guard against an infinite paging loop
+            stmt = sort.to_orm(select(model), keyset=True).limit(page_size)
+            if token is not None:
+                stmt = apply_cursor_filter(stmt, token, sort)
+            rows = list(session.scalars(stmt))
+            if not rows:
+                break
+            collected.extend(r.id for r in rows)
+            token = encode_cursor(rows[-1], sort)
+        return collected
+
+    @pytest.mark.parametrize(
+        ("order_by", "expected_order"),
+        [
+            pytest.param(["val"], [4, 5, 6, 1, 2, 3], id="ascending-nulls-last"),
+            pytest.param(["-val"], [3, 2, 1, 6, 5, 4], id="descending-nulls-first"),
+        ],
+    )
+    def test_forward_pagination_returns_all_rows(self, order_by, expected_order):
+        model, session = self._seed_session([(1, None), (2, None), (3, None), (4, "a"), (5, "b"), (6, "c")])
+        try:
+            sort = SortParam(["val"], model)
+            sort.set_value(order_by)
+            collected = self._walk_forward(session, model, sort, page_size=2)
+        finally:
+            session.close()
+
+        assert sorted(collected) == [1, 2, 3, 4, 5, 6], f"rows dropped/duplicated: {collected}"
+        assert len(collected) == len(set(collected)), f"rows duplicated: {collected}"
+        assert collected == expected_order
+
+    def test_multiple_nullable_columns_no_rows_dropped(self):
+        """Two nullable sort columns: every NULL/non-NULL combination paged exactly once."""
+        from sqlalchemy import Integer, create_engine
+        from sqlalchemy.orm import Session, declarative_base
+
+        base = declarative_base()
+
+        class Pair(base):
+            __tablename__ = "keyset_pairs"
+            id = Column(Integer, primary_key=True)
+            a = Column(String, nullable=True)
+            b = Column(String, nullable=True)
+
+        engine = create_engine("sqlite://")
+        base.metadata.create_all(engine)
+        rows = [
+            (1, None, None),
+            (2, None, "y"),
+            (3, "p", None),
+            (4, "p", "y"),
+            (5, "q", None),
+            (6, "q", "z"),
+        ]
+        with Session(engine) as session:
+            session.add_all([Pair(id=i, a=a, b=b) for i, a, b in rows])
+            session.commit()
+            sort = SortParam(["a", "b"], Pair)
+            sort.set_value(["a", "b"])
+            collected = self._walk_forward(session, Pair, sort, page_size=2)
+
+        assert sorted(collected) == [1, 2, 3, 4, 5, 6], f"rows dropped/duplicated: {collected}"
+        assert len(collected) == len(set(collected)), f"rows duplicated: {collected}"
+
+    def test_nullable_column_without_nulls_unaffected(self):
+        """The common case (a nullable column that happens to hold no NULLs) still pages correctly."""
+        model, session = self._seed_session([(1, "a"), (2, "b"), (3, "c"), (4, "d"), (5, "e")])
+        try:
+            sort = SortParam(["val"], model)
+            sort.set_value(["val"])
+            collected = self._walk_forward(session, model, sort, page_size=2)
+        finally:
+            session.close()
+
+        assert collected == [1, 2, 3, 4, 5]

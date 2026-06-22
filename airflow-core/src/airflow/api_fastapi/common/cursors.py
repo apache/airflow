@@ -182,7 +182,12 @@ def apply_cursor_filter(
 
     parsed_values = [_coerce_value(col, val) for (_, col, _), val in zip(resolved, raw_values, strict=True)]
 
-    if is_backward:
-        resolved = [(name, col, not is_desc) for name, col, is_desc in resolved]
+    # Expand with a NULLs-last rank key per nullable sort column so the predicate
+    # agrees with the keyset ORDER BY on where NULLs fall (see SortParam.get_keyset_columns).
+    keyset = sort_param.get_keyset_columns()
+    keyset_values = sort_param.expand_keyset_values(parsed_values)
 
-    return statement.where(_nested_keyset_predicate(resolved, parsed_values))
+    if is_backward:
+        keyset = [(name, col, not is_desc) for name, col, is_desc in keyset]
+
+    return statement.where(_nested_keyset_predicate(keyset, keyset_values))
