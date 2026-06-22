@@ -27,7 +27,8 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
-from airflow._shared.timezones.timezone import coerce_datetime, parse_timezone, utcnow
+from airflow._shared.timezones.timezone import coerce_datetime, make_aware, parse_timezone, utcnow
+from airflow.exceptions import InvalidPartitionKeyError
 from airflow.timetables._cron import CronMixin
 from airflow.timetables._delta import DeltaMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
@@ -389,9 +390,6 @@ class CronPartitionTimetable(CronTriggerTimetable):
       running every hour, this would run the previous time if less than 6
       minutes had past since the previous run time, otherwise it would wait
       until the next hour.
-
-    # todo: AIP-76 talk about how we can have auto-reprocessing of partitions
-    # todo: AIP-76 we could allow a tuple of integer + time-based
     """
 
     partitioned = True
@@ -403,12 +401,10 @@ class CronPartitionTimetable(CronTriggerTimetable):
         timezone: str | Timezone | FixedTimezone,
         run_offset: int | datetime.timedelta | relativedelta | None = None,
         run_immediately: bool | datetime.timedelta = False,
-        # todo: AIP-76 we can't infer partition date from this, so we need to store it separately.
         key_format: str = r"%Y-%m-%dT%H:%M:%S",
     ) -> None:
         super().__init__(cron, timezone=timezone, run_immediately=run_immediately)
         if not isinstance(run_offset, (int, NoneType)):
-            # todo: AIP-76 implement timedelta / relative delta?
             raise ValueError("Run offset other than integer not supported yet.")
         self._run_offset = run_offset or 0
         self._key_format = key_format
@@ -461,8 +457,8 @@ class CronPartitionTimetable(CronTriggerTimetable):
         return partition_date
 
     def _get_partition_info(self, run_date: DateTime) -> tuple[DateTime, str]:
-        # todo: AIP-76 it does not make sense that we would infer partition info from run date
-        #  in general, because they might not be 1-1
+        # Partition info is inferred from the run date here; this is only correct when run date and
+        # partition are 1-1, which is not guaranteed for every offset.
         partition_date = self._get_partition_date(run_date=run_date)
         partition_key = self._format_key(partition_date)
         return partition_date, partition_key
@@ -518,13 +514,32 @@ class CronPartitionTimetable(CronTriggerTimetable):
         # midnight partition keys as "...T00:00:00", not the prior UTC day's "...T16:00:00").
         return partition_date.in_timezone(self._timezone).strftime(self._key_format)
 
+    def _decode_partition_date(self, partition_key: str) -> datetime.datetime:
+        """
+        Decode *partition_key* back to the period-start datetime.
+
+        Parses the key with ``strptime`` using this timetable's ``key_format``
+        and localizes with the timetable's timezone, mirroring the forward
+        direction in :meth:`_format_key`.
+
+        :raises InvalidPartitionKeyError: When *partition_key* does not match
+            the timetable's ``key_format``.
+        """
+        try:
+            naive = datetime.datetime.strptime(partition_key, self._key_format)
+        except ValueError as exc:
+            raise InvalidPartitionKeyError(
+                f"Partition key {partition_key!r} does not match the timetable's "
+                f"key_format {self._key_format!r}: {exc}"
+            ) from exc
+        return make_aware(naive, self._timezone)
+
     def next_dagrun_info_v2(
         self,
         *,
         last_dagrun_info: DagRunInfo | None,
         restriction: TimeRestriction,
     ) -> DagRunInfo | None:
-        # todo: AIP-76 add test for this logic
         # Scheduler scheduling path: uses next_dagrun_info_v2 to advance run_after one tick
         # at a time. Backfill iterates partitions directly via timetable.iter_partition_dagrun_infos.
 

@@ -98,6 +98,54 @@ class BaseXCom:
         )
 
     @classmethod
+    async def aset(
+        cls,
+        key: str,
+        value: Any,
+        *,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: int = -1,
+        dag_result: bool = False,
+        _mapped_length: int | None = None,
+    ) -> None:
+        """
+        Store an XCom value asynchronously.
+
+        :param key: Key to store the XCom.
+        :param value: XCom value to store.
+        :param dag_id: Dag ID.
+        :param task_id: Task ID.
+        :param run_id: Dag run ID for the task.
+        :param map_index: Optional map index to assign XCom for a mapped task.
+            The default is ``-1`` (set for a non-mapped task).
+        """
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        value = cls.serialize_value(
+            value=value,
+            key=key,
+            task_id=task_id,
+            dag_id=dag_id,
+            run_id=run_id,
+            map_index=map_index,
+        )
+
+        await SUPERVISOR_COMMS.asend(
+            SetXCom(
+                key=key,
+                value=value,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+                dag_result=dag_result,
+                mapped_length=_mapped_length,
+            ),
+        )
+
+    @classmethod
     def _set_xcom_in_db(
         cls,
         key: str,
@@ -153,6 +201,34 @@ class BaseXCom:
             keys will be returned. Pass *None* (default) to remove the filter.
         """
         return cls.get_one(
+            key=key,
+            task_id=ti_key.task_id,
+            dag_id=ti_key.dag_id,
+            run_id=ti_key.run_id,
+            map_index=ti_key.map_index,
+        )
+
+    @classmethod
+    async def aget_value(
+        cls,
+        *,
+        ti_key: TIKeyProtocol,
+        key: str,
+    ) -> Any:
+        """
+        Retrieve an XCom value for a task instance asynchronously.
+
+        This method returns "full" XCom values (i.e. uses ``deserialize_value``
+        from the XCom backend).
+
+        If there are no results, *None* is returned. If multiple XCom entries
+        match the criteria, an arbitrary one is returned.
+
+        :param ti_key: The TaskInstanceKey to look up the XCom for.
+        :param key: A key for the XCom. If provided, only XCom with matching
+            keys will be returned. Pass *None* (default) to remove the filter.
+        """
+        return await cls.aget_one(
             key=key,
             task_id=ti_key.task_id,
             dag_id=ti_key.dag_id,
@@ -263,7 +339,71 @@ class BaseXCom:
 
         if msg.value is not None:
             return cls.deserialize_value(msg)
-        log.warning(
+        log.debug(
+            "No XCom value found; defaulting to None.",
+            key=key,
+            dag_id=dag_id,
+            task_id=task_id,
+            run_id=run_id,
+            map_index=map_index,
+        )
+        return None
+
+    @classmethod
+    async def aget_one(
+        cls,
+        *,
+        key: str,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: int | None = None,
+        include_prior_dates: bool = False,
+    ) -> Any | None:
+        """
+        Retrieve an XCom value asynchronously, optionally meeting certain criteria.
+
+        This method returns "full" XCom values (i.e. uses ``deserialize_value``
+        from the XCom backend).
+
+        If there are no results, *None* is returned. If multiple XCom entries
+        match the criteria, an arbitrary one is returned.
+
+        .. seealso:: ``aget_value()`` is a convenience function if you already
+            have a structured TaskInstance or TaskInstanceKey object available.
+
+        :param run_id: Dag run ID for the task.
+        :param dag_id: Only pull XCom from this Dag. Pass *None* (default) to
+            remove the filter.
+        :param task_id: Only XCom from task with matching ID will be pulled.
+            Pass *None* (default) to remove the filter.
+        :param map_index: Only XCom from task with matching ID will be pulled.
+            Pass *None* (default) to remove the filter.
+        :param key: A key for the XCom. If provided, only XCom with matching
+            keys will be returned. Pass *None* (default) to remove the filter.
+        :param include_prior_dates: If *False* (default), only XCom from the
+            specified Dag run is returned. If *True*, the latest matching XCom is
+            returned regardless of the run it belongs to.
+        """
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        msg = await SUPERVISOR_COMMS.asend(
+            GetXCom(
+                key=key,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+                include_prior_dates=include_prior_dates,
+            ),
+        )
+
+        if not isinstance(msg, XComResult):
+            raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
+
+        if msg.value is not None:
+            return cls.deserialize_value(msg)
+        log.debug(
             "No XCom value found; defaulting to None.",
             key=key,
             dag_id=dag_id,
@@ -304,6 +444,57 @@ class BaseXCom:
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         msg = SUPERVISOR_COMMS.send(
+            msg=GetXComSequenceSlice(
+                key=key,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                start=None,
+                stop=None,
+                step=None,
+                include_prior_dates=include_prior_dates,
+            ),
+        )
+
+        if not isinstance(msg, XComSequenceSliceResult):
+            raise TypeError(f"Expected XComSequenceSliceResult, received: {type(msg)} {msg}")
+
+        if not msg.root:
+            return None
+
+        return [cls.deserialize_value(_XComValueWrapper(value)) for value in msg.root]
+
+    @classmethod
+    async def aget_all(
+        cls,
+        *,
+        key: str,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        include_prior_dates: bool = False,
+    ) -> Any:
+        """
+        Retrieve all XCom values for a task asynchronously, typically from all map indexes.
+
+        XComSequenceSliceResult can never have *None* in it, it returns an empty list
+        if no values were found.
+
+        This is particularly useful for getting all XCom values from all map
+        indexes of a mapped task at once.
+
+        :param key: A key for the XCom. Only XComs with this key will be returned.
+        :param run_id: Dag run ID for the task.
+        :param dag_id: Dag ID to pull XComs from.
+        :param task_id: Task ID to pull XComs from.
+        :param include_prior_dates: If *False* (default), only XComs from the
+            specified Dag run are returned. If *True*, the latest matching XComs are
+            returned regardless of the run they belong to.
+        :return: List of all XCom values if found.
+        """
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        msg = await SUPERVISOR_COMMS.asend(
             msg=GetXComSequenceSlice(
                 key=key,
                 dag_id=dag_id,

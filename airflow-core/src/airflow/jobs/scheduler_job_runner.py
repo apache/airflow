@@ -575,6 +575,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         starved_pools = {pool_name for pool_name, stats in pools.items() if stats["open"] <= 0}
 
+        pool_to_team_name: dict[str, str | None] = {}
+        if self._multi_team:
+            pool_to_team_name = Pool.get_name_to_team_name_mapping(list(pools.keys()), session=session)
+
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
         concurrency_map = ConcurrencyMap()
         concurrency_map.load(session=session)
@@ -748,6 +752,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.log.warning("Tasks using non-existent pool '%s' will not be scheduled", pool_name)
                     starved_pools.add(pool_name)
                     continue
+
+                if pool_team := pool_to_team_name.get(pool_name):
+                    dag_team = dag_id_to_team_name.get(task_instance.dag_id)
+                    if dag_team != pool_team:
+                        self.log.debug(
+                            "Not executing %s. Pool '%s' is assigned to team '%s' "
+                            "but task's DAG belongs to team '%s'",
+                            task_instance,
+                            pool_name,
+                            pool_team,
+                            dag_team,
+                        )
+                        starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                        continue
 
                 # Make sure to emit metrics if pool has no starving tasks
                 pool_num_starving_tasks.setdefault(pool_name, 0)
@@ -2377,11 +2395,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
         existing_dagruns = {(x.dag_id, x.logical_date): x for x in existing_dagrun_objects}
 
-        # todo: AIP-76 we may want to update check existing to also check partitioned dag runs,
-        #  but the thing is, there is not actually a restriction that
-        #  we don't create new runs with the same partition key
-        #  so it's unclear whether we should / need to.
-
         # backfill runs are not created by scheduler and their concurrency is separate
         # so we exclude them here
         active_runs_of_dags = Counter(
@@ -2440,7 +2453,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_id=dag_model.dag_id,
                     logical_date=dag_model.next_dagrun,
                 )
-                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
+                dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=dr)
                 continue
 
             if (
@@ -2480,7 +2493,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     partition_date=next_info.partition_date,
                 )
                 active_runs_of_dags[dag_model.dag_id] += 1
-                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=created_run)
+                dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=created_run)
                 self._set_exceeds_max_active_runs(
                     dag_model=dag_model,
                     session=session,
@@ -2593,7 +2606,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 creating_job_id=self.job.id,
                 session=session,
             )
-            stats.incr("asset.triggered_dagruns")
+            team_name = (
+                self._get_team_names_for_dag_ids([dag.dag_id], session).get(dag.dag_id)
+                if self._multi_team
+                else None
+            )
+            stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
             dag_run.consumed_asset_events.extend(asset_events)
             self.log.info(
                 "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",

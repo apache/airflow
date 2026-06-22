@@ -32,8 +32,8 @@ from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
-from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
 from airflow.exceptions import ParamValidationError
 from airflow.models import DagModel, DagRun, Log
 from airflow.models.asset import AssetEvent, AssetModel
@@ -46,7 +46,7 @@ from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
 from airflow.settings import _configure_async_session
 from airflow.timetables.interval import CronDataIntervalTimetable
-from airflow.timetables.simple import PartitionAtRuntime
+from airflow.timetables.simple import PartitionAtRuntime, PartitionedAssetTimetable
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
@@ -2874,7 +2874,7 @@ class TestTriggerDagRun:
         partitioned_dag_id = "test_max_length_partition_key"
         with dag_maker(
             dag_id=partitioned_dag_id,
-            schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+            schedule=PartitionedAssetTimetable(assets=Asset("test")),
             start_date=START_DATE1,
             session=session,
             serialized=True,
@@ -2888,6 +2888,86 @@ class TestTriggerDagRun:
             json={"logical_date": None, "partition_key": "a" * 250},
         )
         assert response.status_code == 200
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_trigger_partitioned_dag_populates_partition_date(self, dag_maker, test_client, session):
+        """Triggering a CronPartitionTimetable Dag with a valid key populates partition_date on the run.
+
+        Regression guard: before this fix partition_date was NULL for manually triggered runs even
+        when partition_key was supplied, making partition-date-based filtering (e.g.
+        ``airflow dags clear --partition-date-*``) silently skip those runs.
+        """
+        partitioned_dag_id = "test_trigger_populates_partition_date"
+        with dag_maker(
+            dag_id=partitioned_dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{partitioned_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "2025-06-01T00:00:00"},
+        )
+        assert response.status_code == 200
+
+        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == partitioned_dag_id))
+        assert dag_run is not None
+        assert dag_run.partition_key == "2025-06-01T00:00:00"
+        assert dag_run.partition_date == datetime(2025, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_trigger_partitioned_dag_invalid_key_returns_400(self, dag_maker, test_client, session):
+        """An invalid partition_key for a CronPartitionTimetable Dag must return HTTP 400."""
+        partitioned_dag_id = "test_trigger_invalid_partition_key"
+        with dag_maker(
+            dag_id=partitioned_dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{partitioned_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "not-a-valid-date"},
+        )
+        assert response.status_code == 400
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_trigger_partition_at_runtime_dag_leaves_partition_date_none(
+        self, dag_maker, test_client, session
+    ):
+        """PartitionAtRuntime Dag with an arbitrary key must produce partition_date=None."""
+        runtime_dag_id = "test_trigger_partition_at_runtime_none_date"
+        with dag_maker(
+            dag_id=runtime_dag_id,
+            schedule=PartitionAtRuntime(),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{runtime_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "arbitrary-key"},
+        )
+        assert response.status_code == 200
+
+        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == runtime_dag_id))
+        assert dag_run is not None
+        assert dag_run.partition_key == "arbitrary-key"
+        assert dag_run.partition_date is None
 
 
 class TestResolveRunOnLatestVersion:
