@@ -351,7 +351,7 @@ def get_extra_schemas() -> dict[str, dict]:
 
 
 # Note: _shutdown_loop is used as a finalizer for the WSGI transport returned by
-# :meth:`InProcessExecutionAPI.transport`. As such, its arguments must not directly or indirectly reference
+`InProcessExecutionAPI.transport`. As such, its arguments must not directly or indirectly reference
 # that transport, as this would prevent the transport from being garbage collected.
 def _shutdown_loop(
     loop: asyncio.AbstractEventLoop,
