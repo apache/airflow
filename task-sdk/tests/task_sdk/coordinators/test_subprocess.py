@@ -45,6 +45,7 @@ from airflow.sdk.coordinators._subprocess import (
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 if not AIRFLOW_V_3_3_PLUS:
@@ -762,6 +763,27 @@ class TestPopenActivitySubprocessStart:
         kwargs = mock_on_started.call_args.kwargs
         assert kwargs["ti"] is ti
         assert kwargs["dag_rel_path"] == "bundle"
+
+    @conf_vars({("logging", "logging_level"): "DEBUG"})
+    def test_resolved_log_level_passed_to_subprocess_env(self, mock_client):
+        """A language SDK runtime gets the resolved task log level via the environment at launch."""
+        _, popen_mock, _ = self._start_with_mocks(mock_client, command=["/bin/true"])
+        env = popen_mock.call_args.kwargs["env"]
+        assert env["AIRFLOW__LOGGING__LOGGING_LEVEL"] == "DEBUG"
+
+    @conf_vars({("logging", "namespace_levels"): "sqlalchemy=INFO, botocore=WARNING"})
+    def test_namespace_levels_passed_to_subprocess_env(self, mock_client):
+        """Per-logger levels are propagated verbatim for the runtime to parse."""
+        _, popen_mock, _ = self._start_with_mocks(mock_client, command=["/bin/true"])
+        env = popen_mock.call_args.kwargs["env"]
+        assert env["AIRFLOW__LOGGING__NAMESPACE_LEVELS"] == "sqlalchemy=INFO, botocore=WARNING"
+
+    @conf_vars({("logging", "namespace_levels"): ""})
+    def test_namespace_levels_omitted_when_unset(self, mock_client):
+        """An empty value has no pairs to parse, so the variable is left out."""
+        _, popen_mock, _ = self._start_with_mocks(mock_client, command=["/bin/true"])
+        env = popen_mock.call_args.kwargs["env"]
+        assert env["AIRFLOW__LOGGING__NAMESPACE_LEVELS"] == ""
 
     def test_register_pipe_readers_called_with_four_sockets(self, mock_client):
         """Both socketpair read-ends and both TCP sockets must be registered, with a data kwarg."""
