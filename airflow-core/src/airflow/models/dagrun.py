@@ -23,7 +23,7 @@ import os
 import re
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 from uuid import UUID
 
@@ -108,6 +108,7 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import ScalarResult
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.elements import Case, ColumnElement
+    from sqlalchemy.sql.selectable import Select
 
     from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel
     from airflow.models.dag_version import DagVersion
@@ -115,6 +116,7 @@ if TYPE_CHECKING:
     from airflow.sdk import DAG as SDKDAG
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
+    from airflow.timetables.base import Timetable
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
     AttributeValueType: TypeAlias = (
@@ -2193,6 +2195,23 @@ class DagRun(Base, LoggingMixin):
     @staticmethod
     def _get_partial_task_ids(dag: SerializedDAG | None) -> list[str] | None:
         return dag.task_ids if dag and dag.partial else None
+
+    @staticmethod
+    def apply_partition_date_window(
+        stmt: Select,
+        *,
+        timetable: Timetable,
+        start: datetime | None,
+        end: datetime | None,
+    ) -> Select:
+        """Filter stmt to the half-open interval [lower, upper) on partition_date."""
+        if start is not None:
+            lower = timetable.resolve_day_bound(start.date())
+            stmt = stmt.where(DagRun.partition_date >= lower)
+        if end is not None:
+            upper = timetable.resolve_day_bound(end.date() + timedelta(days=1))
+            stmt = stmt.where(DagRun.partition_date < upper)
+        return stmt
 
 
 class DagRunNote(Base):

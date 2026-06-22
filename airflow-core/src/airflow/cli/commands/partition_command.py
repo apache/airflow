@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func, or_, select
@@ -117,12 +116,12 @@ def clear(args, *, session: Session = NEW_SESSION) -> None:
         stmt = stmt.where(or_(DagRun.partition_key.is_not(None), DagRun.partition_date.is_not(None)))
         if args.start_date is not None or args.end_date is not None:
             dag = get_db_dag(bundle_names=None, dag_id=args.dag_id)
-            if args.start_date is not None:
-                lower = dag.timetable.resolve_day_bound(args.start_date.date())
-                stmt = stmt.where(DagRun.partition_date >= lower)
-            if args.end_date is not None:
-                upper = dag.timetable.resolve_day_bound(args.end_date.date() + datetime.timedelta(days=1))
-                stmt = stmt.where(DagRun.partition_date < upper)
+            stmt = DagRun.apply_partition_date_window(
+                stmt,
+                timetable=dag.timetable,
+                start=args.start_date,
+                end=args.end_date,
+            )
     stmt = stmt.order_by(DagRun.partition_date, DagRun.run_id)
 
     clear_tis = bool(args.clear_task_instances)

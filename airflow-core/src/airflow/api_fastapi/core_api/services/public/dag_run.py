@@ -21,7 +21,6 @@ import asyncio
 import itertools
 import json
 import operator
-from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 import attrs
@@ -183,12 +182,12 @@ def clear_partition_fields(
         stmt = stmt.where(DagRun.partition_key == body.partition_key)
     else:
         stmt = stmt.where(or_(DagRun.partition_key.is_not(None), DagRun.partition_date.is_not(None)))
-        if body.partition_date_start is not None:
-            lower = dag.timetable.resolve_day_bound(body.partition_date_start.date())
-            stmt = stmt.where(DagRun.partition_date >= lower)
-        if body.partition_date_end is not None:
-            upper = dag.timetable.resolve_day_bound(body.partition_date_end.date() + timedelta(days=1))
-            stmt = stmt.where(DagRun.partition_date < upper)
+        stmt = DagRun.apply_partition_date_window(
+            stmt,
+            timetable=dag.timetable,
+            start=body.partition_date_start,
+            end=body.partition_date_end,
+        )
     stmt = stmt.order_by(DagRun.partition_date, DagRun.run_id)
 
     dag_runs_cleared = 0

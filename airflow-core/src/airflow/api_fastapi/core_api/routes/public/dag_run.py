@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import textwrap
-from datetime import timedelta
 from typing import Annotated, Literal, cast
 
 from fastapi import Depends, HTTPException, Query, Request, status
@@ -368,16 +367,17 @@ def clear_dag_runs(
             stmt = stmt.where(DagRun.partition_key == body.partition_key)
         else:
             stmt = stmt.where(DagRun.partition_date.is_not(None))
-            if body.partition_date_start is not None:
-                lower = dag.timetable.resolve_day_bound(body.partition_date_start.date())
-                stmt = stmt.where(DagRun.partition_date >= lower)
-            if body.partition_date_end is not None:
-                upper = dag.timetable.resolve_day_bound(body.partition_date_end.date() + timedelta(days=1))
-                stmt = stmt.where(DagRun.partition_date < upper)
+            stmt = DagRun.apply_partition_date_window(
+                stmt,
+                timetable=dag.timetable,
+                start=body.partition_date_start,
+                end=body.partition_date_end,
+            )
         stmt = stmt.order_by(DagRun.partition_date, DagRun.run_id)
 
-        run_ids = list(session.scalars(stmt))
-        runs_to_clear: dict[tuple[str, str], None] = {(dag_id, run_id): None for run_id in run_ids}
+        runs_to_clear: dict[tuple[str, str], None] = {
+            (dag_id, run_id): None for run_id in session.scalars(stmt)
+        }
     else:
         # No ordered set type in Python, using a dict with throwaway values as replacement.
         runs_to_clear = {}
