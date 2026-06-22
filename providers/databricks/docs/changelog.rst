@@ -26,6 +26,9 @@
 Changelog
 ---------
 
+7.16.1
+......
+
 .. note::
    ``DatabricksCreateJobsOperator``, ``DatabricksSubmitRunOperator`` and ``DatabricksRunNowOperator``
    now assemble and validate their Databricks request payload at task **execution** time instead of
@@ -37,6 +40,20 @@ Changelog
    payload types — now surface when the task runs. A templated ``json`` payload may now also resolve
    to a Python-dict-literal string (what classic Jinja produces when rendering a dict pulled from
    XCom), in addition to a mapping or a JSON string.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Databricks operators with templated json payloads (#68519)``
+
+Misc
+~~~~
+
+* ``Bump aiohttp>=3.14.0 (#67978)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment hint about pandas 3.0.0 (#67961)``
 
 7.16.0
 ......

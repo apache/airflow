@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 import asyncio
+import gc
+import threading
 from unittest import mock
 from uuid import UUID
 
@@ -28,6 +30,7 @@ from fastapi.testclient import TestClient
 from opentelemetry import context as otel_context, propagate as otel_propagate
 
 from airflow.api_fastapi.execution_api.app import (
+    InProcessExecutionAPI,
     _extract_w3c_trace_context,
     create_task_execution_api_app,
 )
@@ -89,6 +92,72 @@ def test_ct_self_routes_have_connection_test_id_param(client):
                 assert "connection_test_id" in route.dependant.path_param_names, (
                     f"Route {route.path} has ct:self scope but no {{connection_test_id}} path parameter"
                 )
+
+
+# Execution-API routes that expose a {task_instance_id} path parameter but intentionally do NOT
+# enforce the ti:self scope. Add a route here only with a clear justification.
+TI_ID_ROUTES_WITHOUT_TI_SELF: set[str] = set()
+
+
+def test_routes_with_task_instance_id_param_enforce_ti_self(client):
+    """Dual of :func:`test_ti_self_routes_have_task_instance_id_param`.
+
+    Every operation that exposes a ``{task_instance_id}`` path parameter must require the
+    ``ti:self`` scope, so a caller can only act on its own task instance -- unless the path is
+    explicitly listed in ``TI_ID_ROUTES_WITHOUT_TI_SELF``. This guards against a new endpoint
+    accepting a caller-supplied ``task_instance_id`` while silently skipping the ownership check
+    (the bug fixed alongside this test, where ``/task-reschedules/{task_instance_id}/start_date``
+    lacked it). Checked against the served OpenAPI spec of every API version, since the execution
+    API assembles its routes per version.
+    """
+    http_methods = {"get", "put", "post", "delete", "patch", "options", "head", "trace"}
+    offenders = []
+    checked = 0
+    for version in bundle.versions:
+        spec = client.get(f"/execution/openapi.json?version={version.value}").json()
+        for path, operations in spec.get("paths", {}).items():
+            if "{task_instance_id}" not in path or path in TI_ID_ROUTES_WITHOUT_TI_SELF:
+                continue
+            for method, operation in operations.items():
+                if method.lower() not in http_methods or not isinstance(operation, dict):
+                    continue
+                checked += 1
+                requirements = operation.get("security") or []
+                has_ti_self = any(
+                    "ti:self" in scopes for requirement in requirements for scopes in requirement.values()
+                )
+                if not has_ti_self:
+                    offenders.append(f"[{version.value}] {method.upper()} {path}")
+
+    assert checked, "Found no {task_instance_id} operations in any API version -- the test is vacuous."
+    assert not offenders, (
+        "These execution-API operations expose a {task_instance_id} path parameter without the "
+        "ti:self scope. Add `Security(require_auth, scopes=['ti:self'])` to the router, or add the "
+        "path to TI_ID_ROUTES_WITHOUT_TI_SELF with a justification:\n" + "\n".join(sorted(offenders))
+    )
+
+
+def test_in_process_execution_api_teardown():
+    """Accessing .transport spins up a daemon thread; dropping the instance must stop it via finalize.
+
+    Regression coverage for the a2wsgi background-thread leak.
+    """
+    before = {t for t in threading.enumerate() if t.name == "InProcessExecutionAPI-loop"}
+
+    api = InProcessExecutionAPI()
+    _ = api.transport  # trigger loop + thread creation
+
+    new_threads = {t for t in threading.enumerate() if t.name == "InProcessExecutionAPI-loop"} - before
+    assert len(new_threads) == 1
+    thread = new_threads.pop()
+    assert thread.is_alive()
+
+    # Drop the only strong reference; the weakref.finalize registered in .transport must stop
+    # the loop and join the daemon thread once the instance is collected.
+    del api
+    gc.collect()
+    thread.join(timeout=5)
+    assert not thread.is_alive()
 
 
 class TestCorrelationIdMiddleware:

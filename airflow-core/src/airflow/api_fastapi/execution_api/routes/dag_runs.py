@@ -26,7 +26,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import NoResultFound
 
 from airflow.api.common.trigger_dag import trigger_dag
-from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, resolve_run_on_latest_version
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
@@ -207,7 +207,8 @@ def clear_dag_run(
         )
     dag = get_dag_for_run(dag_bag, dag_run=dag_run, session=session)
 
-    dag.clear(run_id=run_id)
+    resolved_run_on_latest = resolve_run_on_latest_version(None, dag_id, session)
+    dag.clear(run_id=run_id, run_on_latest_version=resolved_run_on_latest)
 
 
 @router.get(
