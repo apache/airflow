@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
@@ -34,3 +36,9 @@ class ProviderCollectionResponse(BaseModel):
 
     providers: list[ProviderResponse]
     total_entries: int
+
+
+class ProviderDetailsResponse(ProviderResponse):
+    """Detailed provider serializer for responses."""
+
+    provider_info: dict[str, Any]
