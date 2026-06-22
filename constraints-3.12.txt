@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-19T06:23:05.382684
+# This constraints file was automatically generated on 2026-06-22T08:46:37.086640
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -56,7 +56,7 @@ PyNaCl==1.6.2
 PyYAML==6.0.3
 Pygments==2.20.0
 SQLAlchemy-Utils==0.42.1
-SQLAlchemy==2.0.50
+SQLAlchemy==2.0.51
 SecretStorage==3.5.0
 WTForms==3.2.2
 Werkzeug==3.1.8
@@ -78,7 +78,7 @@ aiosignal==1.4.0
 aiosmtplib==5.1.1
 aiosqlite==0.21.0
 airbyte-api==0.53.0
-akeyless==5.0.27
+akeyless==5.0.28
 alembic==1.18.4
 alibabacloud-adb20211201==3.7.0
 alibabacloud-credentials-api==1.0.0
@@ -94,7 +94,7 @@ alibabacloud_tea_xml==0.0.3
 amqp==5.3.1
 annotated-doc==0.0.4
 annotated-types==0.7.0
-anyio==4.13.0
+anyio==4.14.0
 apache-airflow-providers-airbyte==5.5.1
 apache-airflow-providers-akeyless==0.2.0
 apache-airflow-providers-apache-cassandra==3.9.5
@@ -211,7 +211,7 @@ backoff==2.2.1
 bcrypt==5.0.0
 beautifulsoup4==4.15.0
 billiard==4.2.4
-bitarray==3.8.1
+bitarray==3.8.2
 black==26.5.1
 bleach==6.4.0
 blinker==1.9.0
@@ -224,7 +224,7 @@ capi_param_builder_python==1.3.0
 cassandra-driver==3.30.0
 cattrs==26.1.0
 celery==5.6.3
-certifi==2026.5.20
+certifi==2026.6.17
 cffi==2.0.0
 chardet==6.0.0.post1
 charset-normalizer==3.4.7
@@ -262,7 +262,7 @@ docker==7.1.0
 docopt==0.6.2
 docstring_parser==0.18.0
 durationpy==0.10
-elastic-transport==9.4.1
+elastic-transport==9.4.2
 elasticsearch==9.4.1
 email-validator==2.3.0
 entrypoints==0.4
@@ -273,7 +273,7 @@ facebook_business==25.0.2
 fastapi-cli==0.0.24
 fastapi==0.136.3
 fastavro==1.12.2
-fastcore==1.13.3
+fastcore==1.13.6
 fastjsonschema==2.21.2
 fastuuid==0.14.0
 filelock==3.29.4
@@ -281,12 +281,12 @@ flask-appbuilder==5.2.1
 flask-babel==4.0.0
 flower==2.0.1
 frozenlist==1.8.0
-fsspec==2026.4.0
+fsspec==2026.6.0
 future==1.0.0
 gcloud-aio-auth==5.4.4
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.6.4
-gcsfs==2026.4.0
+gcsfs==2026.6.0
 genai-prices==0.0.66
 geomet==1.1.0
 gevent==26.5.0
@@ -297,7 +297,7 @@ google-api-core==2.31.0
 google-api-python-client==2.197.0
 google-auth-httplib2==0.4.0
 google-auth-oauthlib==1.4.0
-google-auth==2.54.0
+google-auth==2.55.0
 google-cloud-aiplatform==1.148.1
 google-cloud-alloydb==0.11.0
 google-cloud-appengine-logging==1.10.0
@@ -306,7 +306,7 @@ google-cloud-automl==2.20.0
 google-cloud-batch==0.22.0
 google-cloud-bigquery-datatransfer==3.23.0
 google-cloud-bigquery-storage==2.39.0
-google-cloud-bigquery==3.41.0
+google-cloud-bigquery==3.42.0
 google-cloud-bigtable==2.38.0
 google-cloud-build==3.37.0
 google-cloud-compute==1.48.0
@@ -349,7 +349,7 @@ google-resumable-media==2.10.0
 googleapis-common-protos==1.75.0
 graphviz==0.21
 greenback==1.3.0
-greenlet==3.5.1
+greenlet==3.5.2
 gremlinpython==3.8.1
 griffelib==2.0.2
 grpc-google-iam-v1==0.14.4
@@ -379,7 +379,7 @@ humanize==4.15.0
 hvac==2.4.0
 hyperframe==6.1.0
 ibm-cloud-sdk-core==3.24.4
-ibmcloudant==0.11.7
+ibmcloudant==0.11.8
 idna==3.18
 ijson==3.4.0.post0
 immutabledict==4.3.1
@@ -469,7 +469,7 @@ nest-asyncio2==1.7.2
 nest-asyncio==1.6.0
 numpy==2.4.6
 oauthlib==3.3.1
-openai==2.41.1
+openai==2.43.0
 opencensus-context==0.1.3
 opencensus==0.11.4
 openlineage-integration-common==1.49.0
@@ -494,7 +494,7 @@ ordered-set==4.1.0
 orjson==3.11.9
 outcome==1.3.0.post0
 packaging==26.2
-pagerduty==6.2.2
+pagerduty==6.3.0
 pandas-gbq==0.35.0
 pandas-stubs==3.0.3.260530
 pandas==2.3.3
@@ -593,7 +593,7 @@ rich==13.9.4
 rpds-py==2026.5.1
 rsa==4.9.1
 ruamel.yaml==0.19.1
-s3fs==2026.4.0
+s3fs==2026.6.0
 s3transfer==0.17.1
 sagemaker_studio==1.0.26
 scikit-learn==1.9.0
@@ -602,7 +602,7 @@ scramp==1.4.8
 scrapbook==0.5.0
 segment-analytics-python==2.3.6
 sendgrid==6.12.5
-sentry-sdk==2.62.0
+sentry-sdk==2.63.0
 setproctitle==1.3.7
 setuptools==82.0.1
 shellingham==1.5.4
@@ -615,7 +615,7 @@ smmap==5.0.3
 sniffio==1.3.1
 snowflake-connector-python==4.6.0
 snowflake-snowpark-python==1.52.0
-snowflake-sqlalchemy==1.10.0
+snowflake-sqlalchemy==1.10.1
 sortedcontainers==2.4.0
 soupsieve==2.8.4
 spython==0.3.14
@@ -646,7 +646,7 @@ tinycss2==1.5.1
 tokenizers==0.23.1
 tomlkit==0.15.0
 tornado==6.5.7
-tqdm==4.68.2
+tqdm==4.68.3
 traitlets==5.15.1
 trino==0.337.0
 truststore==0.10.4
@@ -657,7 +657,7 @@ typing-inspect==0.9.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
 tzdata==2026.2
-tzlocal==5.3.1
+tzlocal==5.4.3
 uc-micro-py==2.0.0
 universal_pathlib==0.3.10
 uritemplate==4.2.0
@@ -669,7 +669,7 @@ uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==21.5.0
+virtualenv==21.5.1
 watchfiles==1.2.0
 watchtower==3.4.0
 wcwidth==0.8.1
@@ -683,7 +683,7 @@ wrapt==2.2.1
 xmlsec==1.3.17
 xmltodict==1.0.4
 yandex-query-client==0.1.4
-yandexcloud==0.394.0
+yandexcloud==0.395.0
 yarl==1.24.2
 ydb-dbapi==0.1.22
 ydb==3.29.4
