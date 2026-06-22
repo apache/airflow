@@ -29,7 +29,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.error import HTTPError, URLError
 
-from packaging.utils import canonicalize_name
 from rich.console import Console
 from rich.syntax import Syntax
 
@@ -577,6 +576,8 @@ def parse_freeze(freeze_text: str) -> dict[str, str]:
     Lines that are not simple ``name==version`` pins (editable installs, ``@`` URLs,
     log noise emitted by uv) are ignored.
     """
+    from packaging.utils import canonicalize_name
+
     versions: dict[str, str] = {}
     for line in freeze_text.splitlines():
         match = re.match(r"^([A-Za-z0-9_.\-]+)==([\w.\-]+)$", line.strip())
@@ -659,6 +660,8 @@ def explain_package_upgrade(
         preserve_pyproject_file(AIRFLOW_ROOT_PATH / "pyproject.toml") as airflow_pyproject,
         preserve_pyproject_file(AIRFLOW_ROOT_PATH / "uv.lock"),
     ):
+        from packaging.utils import canonicalize_name
+
         canonical_pkg = str(canonicalize_name(pkg))
 
         shell_params = ShellParams(
