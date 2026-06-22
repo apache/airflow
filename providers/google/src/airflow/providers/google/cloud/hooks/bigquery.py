@@ -38,14 +38,29 @@ import pendulum
 from aiohttp import ClientSession as ClientSession
 from asgiref.sync import sync_to_async
 from gcloud.aio.bigquery import Job, Table as Table_async
-from google.cloud.bigquery import DEFAULT_RETRY, Client, CopyJob, ExtractJob, LoadJob, QueryJob, QueryJobConfig, SchemaField, UnknownJob
+from google.cloud.bigquery import (
+    DEFAULT_RETRY,
+    Client,
+    CopyJob,
+    ExtractJob,
+    LoadJob,
+    QueryJob,
+    SchemaField,
+    UnknownJob,
+)
 import httplib2
 from googleapiclient.http import set_user_agent
 from airflow import version
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
 from google.cloud.bigquery.retry import DEFAULT_JOB_RETRY
 from google.cloud.bigquery.routine import Routine, RoutineReference
-from google.cloud.bigquery.table import Row, RowIterator, Table, TableListItem, TableReference
+from google.cloud.bigquery.table import (
+    Row,
+    RowIterator,
+    Table,
+    TableListItem,
+    TableReference,
+)
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import build
 from pandas_gbq import read_gbq
@@ -61,7 +76,13 @@ from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
 from airflow.providers.google.cloud.utils.lineage import send_hook_lineage_for_bq_job
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import _UNSET, PROVIDE_PROJECT_ID, GoogleBaseAsyncHook, GoogleBaseHook, get_field
+from airflow.providers.google.common.hooks.base_google import (
+    _UNSET,
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+    get_field,
+)
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.helpers import convert_camel_to_snake
