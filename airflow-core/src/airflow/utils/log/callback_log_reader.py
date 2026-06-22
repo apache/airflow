@@ -33,7 +33,7 @@ from airflow.utils.log.file_task_handler import (
 )
 
 if TYPE_CHECKING:
-    from airflow._shared.logging.remote import LogSourceInfo, RawLogStream
+    from airflow._shared.logging.remote import LogSourceInfo, RawLogStream, StreamingLogResponse
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +111,7 @@ def read_callback_log(
 
 def _read_callback_remote_logs(
     relative_path: str,
-) -> tuple[list[str], list[RawLogStream]]:
+) -> StreamingLogResponse:
     """Read callback logs from the configured remote log storage."""
     from airflow.logging_config import get_remote_task_log
 
@@ -147,7 +147,7 @@ def _validate_path_component(component: str) -> str:
 
 def _read_callback_local_logs(
     relative_path: str,
-) -> tuple[list[str], list[RawLogStream]]:
+) -> StreamingLogResponse:
     """Read callback logs from the local filesystem."""
     base_log_folder = os.path.realpath(conf.get("logging", "base_log_folder"))
 
