@@ -82,9 +82,17 @@ during the local and CI smoke test.
 Wiring the keytab into the chart's sidecar
 ------------------------------------------
 
-The chart's kerberos sidecar (``workers.celery.kerberosInitContainer`,
-``workers.celery.kerberosSidecar``, ``workers.kubernetes.kerberosInitContainer`, ``workers.kubernetes.kerberosSidecar``) mounts a Secret named in
-``kerberos.keytab``. Point that at the Secret produced by this overlay:
+The chart's kerberos sidecar (``workers.celery.kerberosInitContainer``,
+``workers.celery.kerberosSidecar``, ``workers.kubernetes.kerberosInitContainer``,
+``workers.kubernetes.kerberosSidecar``) always mounts a keytab Secret whose
+name is fixed by the chart to ``<release>-kerberos-keytab`` (rendered by the
+``kerberos_keytab_secret`` helper from the release fullname). There is no
+chart value that points the sidecar at a differently named Secret.
+
+This overlay produces a Secret with exactly that name, so nothing in
+``values.yaml`` needs to reference it. Enable kerberos and leave
+``keytabBase64Content`` unset, so the chart does not render its own
+(competing) keytab Secret and instead mounts the one this overlay creates:
 
 .. code-block:: yaml
 
@@ -94,14 +102,13 @@ The chart's kerberos sidecar (``workers.celery.kerberosInitContainer`,
       ccacheMountPath: /var/kerberos-ccache
       keytabPath: /etc/airflow.keytab
       principal: airflow/airflow.airflow.svc.cluster.local@EXAMPLE.COM
+      # keytabBase64Content left unset on purpose: the overlay supplies the
+      # <release>-kerberos-keytab Secret that the sidecar mounts.
 
     workers:
       celery:
         kerberosSidecar:
           enabled: true
-
-    extraSecrets:
-      airflow-kerberos-keytab: {}   # exists from this overlay
 
 Migration guide from the chart
 ------------------------------

@@ -341,11 +341,12 @@ If that exits 0, edit ``chart/kustomize-overlays/<name>/STATUS.yaml`` to:
 Commit the change, push, and CI re-runs the same command via the
 ``kustomize-overlays-tests`` workflow.
 
-For iterative development, ``breeze k8s smoke-test-overlay`` accepts
-``--skip-cleanup`` to leave the overlay applied (so you can poke at
-resources with ``kubectl`` / ``k9s`` between runs) and ``--no-pytest`` to
-skip the per-overlay pytest module while you are still iterating on the
-``verify:`` block.
+For iterative development, ``breeze k8s smoke-test-overlay`` accepts flags
+such as ``--skip-cleanup`` (leave the overlay applied so you can poke at
+resources with ``kubectl`` / ``k9s`` between runs) and ``--no-pytest`` (skip
+the per-overlay pytest module while you iterate on the ``verify:`` block).
+Run ``breeze k8s smoke-test-overlay --help`` for the full, authoritative
+list of options.
 
 Adding a new overlay
 --------------------
