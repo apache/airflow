@@ -78,7 +78,7 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.BUNDLE_VERSION]: {
       hotkeyDisabled: true,
       icon: <MdCode />,
-      label: translate("common:bundleVersion"),
+      label: translate("components:versionDetails.bundleVersion"),
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.CONF_CONTAINS]: {
@@ -280,7 +280,7 @@ export const useFilterConfigs = () => {
       options: [
         { label: translate("hitl:filters.response.all"), value: "all" },
         {
-          label: <StateBadge state="deferred">{translate("hitl:filters.response.pending")}</StateBadge>,
+          label: <StateBadge state="awaiting_input">{translate("hitl:filters.response.pending")}</StateBadge>,
           value: "false",
         },
         {

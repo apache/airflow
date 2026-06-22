@@ -38,6 +38,7 @@ from airflow.api_fastapi.common.dagbag import (
     get_dag_for_run,
     get_dag_for_run_or_latest_version,
     get_latest_version_of_dag,
+    resolve_run_on_latest_version,
 )
 from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
@@ -96,7 +97,6 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
-from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
     _get_task_group_task_instances,
@@ -216,6 +216,13 @@ def get_mapped_task_instances(
                     "logical_date": DagRun.logical_date,
                     "data_interval_start": DagRun.data_interval_start,
                     "data_interval_end": DagRun.data_interval_end,
+                    # Compound sort: when _rendered_map_index is NULL (no map_index_template),
+                    # all primary values tie and the integer map_index is the effective key,
+                    # giving correct numeric ordering (0, 1, 2, 10…) rather than lexicographic
+                    # ("0", "1", "10", "2"…).  When _rendered_map_index is set (map_index_template
+                    # used), TIs are ordered by their human-readable label first, then by
+                    # map_index for identical labels.
+                    "rendered_map_index": [TI._rendered_map_index, TI.map_index],
                 },
             ).dynamic_depends(default="map_index")
         ),
@@ -508,6 +515,8 @@ def get_task_instances(
                     "run_after": DagRun.run_after,
                     "data_interval_start": DagRun.data_interval_start,
                     "data_interval_end": DagRun.data_interval_end,
+                    # Compound sort: see the listMapped endpoint comment for rationale.
+                    "rendered_map_index": [TI._rendered_map_index, TI.map_index],
                 },
             ).dynamic_depends(default="map_index")
         ),

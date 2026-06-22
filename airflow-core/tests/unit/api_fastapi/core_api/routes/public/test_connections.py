@@ -25,6 +25,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.core_api.datamodels.common import BulkActionResponse, BulkBody
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.services.public.connections import BulkConnectionService
@@ -1302,6 +1303,27 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
         assert ct is not None
         assert ct.commit_on_success is True
 
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.connections.get_auth_manager", autospec=True)
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_post_commit_on_success_existing_connection_requires_edit_permission(
+        self, mock_get_auth_manager, test_client, session
+    ):
+        """POST /connections/enqueue-test requires edit permission when it can update a connection."""
+        self.create_connection()
+        mock_auth_manager = mock.create_autospec(BaseAuthManager, instance=True)
+        mock_get_auth_manager.return_value = mock_auth_manager
+        mock_auth_manager.is_authorized_connection.side_effect = lambda *, method, details, user: (
+            method == "POST"
+        )
+        body = {**self.TEST_REQUEST_BODY, "commit_on_success": True}
+
+        response = test_client.post("/connections/enqueue-test", json=body)
+
+        assert response.status_code == 403
+        mock_auth_manager.is_authorized_connection.assert_called_once()
+        assert mock_auth_manager.is_authorized_connection.call_args.kwargs["method"] == "PUT"
+        assert session.scalar(select(ConnectionTestRequest)) is None
+
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_post_returns_409_for_duplicate_active_test(self, test_client, session):
         """POST returns 409 when there's already an active test for the same connection_id."""
@@ -1961,6 +1983,40 @@ class TestBulkConnections(TestConnectionEndpoint):
 
         expected_error_conn_ids = {err["input"]["connection_id"] for err in detail}
         assert sorted(expected_error_conn_ids) == ["test_conn_id_2", "test_conn_id_3"]
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_bulk_create_overwrite_preserves_unset_team_name(self, test_client, testing_team, session):
+        """A bulk create+overwrite that omits ``team_name`` must NOT reset an existing connection's
+        ``team_name`` to ``None`` (parity with the pools fix). Overwriting with only ``conn_type``
+        previously clobbered every unset field via ``model_dump(by_alias=True)`` — silently nulling
+        the connection's multi-team ownership. ``exclude_unset=True`` preserves omitted fields.
+        """
+        self.create_connection(team_name=testing_team.name)
+        before = session.scalar(select(Connection).where(Connection.conn_id == TEST_CONN_ID))
+        assert before.team_name == testing_team.name
+
+        response = test_client.patch(
+            "/connections",
+            json={
+                "actions": [
+                    {
+                        "action": "create",
+                        "action_on_existence": "overwrite",
+                        "entities": [{"connection_id": TEST_CONN_ID, "conn_type": "new_type"}],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["create"]["success"] == [TEST_CONN_ID]
+
+        session.expire_all()
+        after = session.scalar(select(Connection).where(Connection.conn_id == TEST_CONN_ID))
+        assert after.conn_type == "new_type"  # provided field is applied
+        assert after.team_name == testing_team.name, (
+            "bulk overwrite that omitted team_name must preserve existing ownership, "
+            f"got team_name={after.team_name!r}"
+        )
 
 
 class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):

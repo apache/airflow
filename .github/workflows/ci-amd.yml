@@ -54,11 +54,6 @@ env:
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_USERNAME: ${{ github.actor }}
-  # Keep these in sync:
-  # - jvmTarget, languageVersion, and sourceCompatibility in java-sdk/build.gradle.kts
-  # - TEMURIN_VERSION in scripts/docker/install_jdk.sh
-  # - JAVA_VERSION in .github/workflows/ci-amd.yml and .github/workflows/ci-arm.yml
-  # - java-version in .github/workflows/codeql-analysis.yml
   JAVA_VERSION: '11'
   SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
   VERBOSE: "true"
@@ -140,6 +135,8 @@ jobs:
       run-remote-logging-opensearch-e2e-tests: ${{ steps.selective-checks.outputs.run-remote-logging-opensearch-e2e-tests }}
       run-remote-logging-s3-e2e-tests: ${{ steps.selective-checks.outputs.run-remote-logging-s3-e2e-tests }}
       run-event-driven-e2e-tests: ${{ steps.selective-checks.outputs.run-event-driven-e2e-tests }}
+      run-java-sdk-e2e-tests: ${{ steps.selective-checks.outputs.run-java-sdk-e2e-tests }}
+      run-go-sdk-e2e-tests: ${{ steps.selective-checks.outputs.run-go-sdk-e2e-tests }}
       run-system-tests: ${{ steps.selective-checks.outputs.run-system-tests }}
       run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
       run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
@@ -166,13 +163,13 @@ jobs:
     steps:
       - name: "Cleanup repo"
         shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           persist-credentials: false
       - name: Fetch incoming commit ${{ github.sha }} with its parent
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           ref: ${{ github.sha }}
           fetch-depth: 2
@@ -363,9 +360,9 @@ jobs:
     steps:
       - name: "Cleanup repo"
         shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ needs.build-info.outputs.default-python-version }}"
@@ -405,9 +402,9 @@ jobs:
     steps:
       - name: "Cleanup repo"
         shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ needs.build-info.outputs.default-python-version }}"
@@ -878,6 +875,8 @@ jobs:
       run-remote-logging-opensearch-e2e-tests: ${{ needs.build-info.outputs.run-remote-logging-opensearch-e2e-tests }}
       run-remote-logging-s3-e2e-tests: ${{ needs.build-info.outputs.run-remote-logging-s3-e2e-tests }}
       run-event-driven-e2e-tests: ${{ needs.build-info.outputs.run-event-driven-e2e-tests }}
+      run-java-sdk-e2e-tests: ${{ needs.build-info.outputs.run-java-sdk-e2e-tests }}
+      run-go-sdk-e2e-tests: ${{ needs.build-info.outputs.run-go-sdk-e2e-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       run-ui-e2e-tests: ${{ needs.build-info.outputs.run-ui-e2e-tests }}
       run-airflow-ctl-integration-tests: ${{ needs.build-info.outputs.run-airflow-ctl-integration-tests }}
@@ -940,7 +939,7 @@ jobs:
       VERBOSE: "true"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           persist-credentials: false
       # keep this in sync with go.mod in go-sdk/
@@ -977,7 +976,7 @@ jobs:
       VERBOSE: "true"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           persist-credentials: false
       - name: Setup Java
@@ -1007,7 +1006,7 @@ jobs:
       VERBOSE: "true"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           persist-credentials: false
       - name: "Install Breeze"
@@ -1110,7 +1109,7 @@ jobs:
     runs-on: ["ubuntu-22.04"]
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           persist-credentials: false
       - name: "Get failing jobs"
@@ -1221,9 +1220,9 @@ jobs:
     steps:
       - name: "Cleanup repo"
         shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           persist-credentials: false
       - name: "Free up disk space"

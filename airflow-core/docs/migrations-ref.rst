@@ -39,7 +39,15 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``c9d4e5f6a7b8`` (head) | ``a7e6d4c3b2f1`` | ``3.3.0``         | Add allow_consumer_teams columns to                          |
+| ``9ff64e1c35d3`` (head) | ``dd5f3a8e2b91`` | ``3.3.0``         | Add indexes on dag_run.created_dag_version_id and            |
+|                         |                  |                   | task_instance.dag_version_id.                                |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``dd5f3a8e2b91``        | ``c20871fbf23a`` | ``3.3.0``         | Add rollup_fingerprint to AssetPartitionDagRun and index     |
+|                         |                  |                   | partitioned_asset_key_log.asset_partition_dag_run_id.        |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``c20871fbf23a``        | ``c9d4e5f6a7b8`` | ``3.3.0``         | Add partition_mapper_info to DagModel.                       |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``c9d4e5f6a7b8``        | ``a7e6d4c3b2f1`` | ``3.3.0``         | Add allow_consumer_teams columns to                          |
 |                         |                  |                   | task_outlet_asset_reference table.                           |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``a7e6d4c3b2f1``        | ``8812eb67b63c`` | ``3.3.0``         | Add connection_test_request table for the deferred           |
@@ -56,7 +64,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``b8f3e4a1d2c9``        | ``fde9ed84d07b`` | ``3.3.0``         | Add retry_delay_override and retry_reason to task_instance.  |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
-| ``fde9ed84d07b``        | ``9fabad868fdb`` | ``3.3.0``         | Add task_store and asset_store tables.                       |
+| ``fde9ed84d07b``        | ``9fabad868fdb`` | ``3.3.0``         | Add task_state_store and asset_state_store tables.           |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``9fabad868fdb``        | ``a4c2d171ae18`` | ``3.3.0``         | Add timetable_periodic to DagModel.                          |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
