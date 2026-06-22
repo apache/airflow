@@ -1389,6 +1389,45 @@ class TestKubernetesImportAvoidance:
 
         _has_kubernetes.cache_clear()
 
+    def test_deserialized_v1pod_does_not_capture_unpicklable_config(self, monkeypatch):
+        """A deserialized V1Pod must not capture the in-cluster Configuration.
+
+        In-cluster, the kubernetes client installs a process-global default ``Configuration`` whose
+        ``refresh_api_key_hook`` is an unpicklable local closure. Under kubernetes-client v36,
+        ``ApiClient.__deserialize_model`` copies that config onto the pod and every nested model, so a
+        naively deserialized ``pod_override`` cannot be pickled onto the KubernetesExecutor queue and
+        crashes the scheduler. Deserializing through a fresh ``Configuration`` keeps the pod picklable.
+        """
+        import pickle
+
+        k8s = pytest.importorskip("kubernetes.client.models")
+        from kubernetes.client import Configuration
+
+        def _make_unpicklable_hook():
+            def _refresh_api_key(config):
+                return None
+
+            return _refresh_api_key
+
+        dirty = Configuration()
+        dirty.refresh_api_key_hook = _make_unpicklable_hook()
+        monkeypatch.setattr(Configuration, "_default", dirty, raising=False)
+        _has_kubernetes.cache_clear()
+
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name="test-pod"),
+            spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base", image="airflow:3")]),
+        )
+        decoded = BaseSerialization.deserialize(BaseSerialization.serialize(pod))
+
+        assert isinstance(decoded, k8s.V1Pod)
+        # The top-level pod and every nested model must carry a clean, picklable Configuration.
+        pickle.dumps(decoded)
+        assert decoded.local_vars_configuration.refresh_api_key_hook is None
+        assert decoded.spec.containers[0].local_vars_configuration.refresh_api_key_hook is None
+
+        _has_kubernetes.cache_clear()
+
 
 @pytest.mark.db_test
 def test_serialized_dag_getitem_returns_task(dag_maker):

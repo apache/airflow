@@ -643,9 +643,9 @@ class BaseSerialization:
                     "Cannot deserialize POD objects without kubernetes libraries. "
                     "Please install the `kubernetes` package."
                 )
-            # kubernetes-client does not expose a public dict->model API; see https://github.com/kubernetes-client/python/issues/977.
-            pod = ApiClient()._ApiClient__deserialize_model(var, k8s.V1Pod)
-            return pod
+            from airflow.utils.sqlalchemy import deserialize_pod_dict
+
+            return deserialize_pod_dict(var)
         elif type_ == DAT.TIMEDELTA:
             return datetime.timedelta(seconds=var)
         elif type_ == DAT.TIMEZONE:
