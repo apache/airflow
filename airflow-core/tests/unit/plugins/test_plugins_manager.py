@@ -29,6 +29,7 @@ import pytest
 from airflow._shared.module_loading import qualname
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
+from airflow.partition_mappers.window import Window
 from airflow.plugins_manager import AirflowPlugin
 
 from tests_common.test_utils.config import conf_vars
@@ -79,7 +80,7 @@ class TestPluginsManager:
             example_plugins_module="airflow.example_dags.plugins",
         )
 
-        assert len(plugins) == 10
+        assert len(plugins) == 11
         assert not import_errors
         for plugin in plugins:
             if "AirflowTestOnLoadPlugin" in str(plugin):
@@ -102,7 +103,7 @@ class TestPluginsManager:
         ):
             plugins, import_errors = plugins_manager._get_plugins()
 
-        assert len(plugins) == 3  # three are loaded from examples
+        assert len(plugins) == 4  # four are loaded from examples
         assert len(import_errors) == 1
 
         received_logs = caplog.text
@@ -415,7 +416,6 @@ class TestWindowPluginRegistration:
 
     def test_windows_attribute_surfaces_via_getter(self):
         from airflow import plugins_manager
-        from airflow.partition_mappers.window import Window
 
         class MyCustomWindow(Window):
             name = "test_window_plugin"
