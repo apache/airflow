@@ -16,12 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Single source of truth for the ``airflow`` CLI commands migrated to ``airflowctl``.
+Single source of truth for the ``airflow`` CLI commands deprecated in favour of ``airflowctl``.
 
-Every command decorated with ``deprecated_for_airflowctl`` must have one entry below. When a new
-command is migrated, add a row to ``MIGRATED_CLI_COMMANDS`` -- the test then verifies the decorator
+Every command decorated with ``deprecated_for_airflowctl`` must have one entry below. When a
+command is deprecated, add a row to ``MIGRATED_CLI_COMMANDS`` -- the test then verifies the decorator
 recorded the right ``airflowctl`` replacement for maintainers. The commands stay in the ``airflow``
-CLI as supported entry points, so they emit no user-facing deprecation warning.
+CLI as supported entry points, so they emit no user-facing deprecation warning; they are simply no
+longer developed here -- new work belongs in ``airflowctl``. See
+``contributing-docs/27_cli_implementation_guide.rst`` for the CLI / ``airflowctl`` direction.
 """
 
 from __future__ import annotations
