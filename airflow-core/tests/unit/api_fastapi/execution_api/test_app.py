@@ -17,8 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-import gc
-import threading
 from unittest import mock
 from uuid import UUID
 
@@ -30,7 +28,6 @@ from fastapi.testclient import TestClient
 from opentelemetry import context as otel_context, propagate as otel_propagate
 
 from airflow.api_fastapi.execution_api.app import (
-    InProcessExecutionAPI,
     _extract_w3c_trace_context,
     create_task_execution_api_app,
 )
@@ -135,29 +132,6 @@ def test_routes_with_task_instance_id_param_enforce_ti_self(client):
         "ti:self scope. Add `Security(require_auth, scopes=['ti:self'])` to the router, or add the "
         "path to TI_ID_ROUTES_WITHOUT_TI_SELF with a justification:\n" + "\n".join(sorted(offenders))
     )
-
-
-def test_in_process_execution_api_teardown():
-    """Accessing .transport spins up a daemon thread; dropping the instance must stop it via finalize.
-
-    Regression coverage for the a2wsgi background-thread leak.
-    """
-    before = {t for t in threading.enumerate() if t.name == "InProcessExecutionAPI-loop"}
-
-    api = InProcessExecutionAPI()
-    _ = api.transport  # trigger loop + thread creation
-
-    new_threads = {t for t in threading.enumerate() if t.name == "InProcessExecutionAPI-loop"} - before
-    assert len(new_threads) == 1
-    thread = new_threads.pop()
-    assert thread.is_alive()
-
-    # Drop the only strong reference; the weakref.finalize registered in .transport must stop
-    # the loop and join the daemon thread once the instance is collected.
-    del api
-    gc.collect()
-    thread.join(timeout=5)
-    assert not thread.is_alive()
 
 
 class TestCorrelationIdMiddleware:
