@@ -44,22 +44,80 @@ enum class Level(
   INFO(20),
   DEBUG(10),
   NOTSET(0),
+  ;
+
+  internal companion object {
+    val accepted = entries.associateBy { it.name }
+
+    fun parse(s: String?): Level? = s?.let { Level.accepted[it.trim().uppercase()] }
+  }
 }
 
-private object LevelParser {
-  val levels = Level.entries.map { it.toString().uppercase() to it }.toMap()
+/**
+ * Parser for the namespace levels configuration.
+ *
+ * The value is a series of `<logger>=<level>` pairs separated by whitespaces and/or commas.
+ * Each `<level>` must name one of [Level]s (case-insensitive). When the same logger appears
+ * more than once, the last value wins.
+ */
+internal object NamespaceLevels {
+  const val ENV_VAR = "AIRFLOW__LOGGING__NAMESPACE_LEVELS"
+  private const val LOGGER_NAME = "org.apache.airflow.sdk.execution.NamespaceLevels"
 
-  fun parse(s: String?) = levels[s?.uppercase()]
+  /**
+   * Parse [raw] into per-logger [Level] overrides.
+   *
+   * Invalid entries are skipped — the affected logger then falls back to the global level — and
+   * reported once at [Level.ERROR], so a misconfiguration never takes down logging nor discards the
+   * valid overrides. A `null`, empty, or whitespace/comma-only value yields no overrides.
+   * Surrounding and repeated separators are ignored.
+   */
+  fun parse(raw: String?): Map<String, Level> {
+    if (raw.isNullOrBlank()) return emptyMap()
 
-  fun parseNamed(s: String?): Map<String, Level> {
-    if (s == null) return emptyMap()
-    return buildMap {
-      s.split(Regex("""[\s,]+""")).forEach {
-        val parts = it.split(Regex("""\s*=\s*"""), 2)
-        val level = parse(parts[1])
-        if (level != null) put(parts[0], level)
-      }
+    val levels = mutableMapOf<String, Level>()
+    val errors = mutableListOf<String>()
+    raw
+      .split(Regex("""[\s,]+"""))
+      .filter { it.isNotEmpty() }
+      .forEach { entry -> parseEntry(entry, levels)?.let { errors += it } }
+
+    if (errors.isNotEmpty()) {
+      LogSender.send(
+        LogMessage(
+          event = "Ignoring invalid $ENV_VAR entries: ${errors.joinToString("; ")}",
+          arguments = emptyMap(),
+          logger = LOGGER_NAME,
+          level = Level.ERROR,
+        ),
+      )
     }
+    return levels
+  }
+
+  /** Parse a single [entry] into [levels], or return a description of why it was skipped. */
+  private fun parseEntry(
+    entry: String,
+    levels: MutableMap<String, Level>,
+  ): String? {
+    val separator = entry.indexOf('=')
+    if (separator < 0) {
+      return "malformed entry \"$entry\", expected \"<logger>=<level>\""
+    }
+
+    val logger = entry.substring(0, separator).trim()
+    if (logger.isEmpty()) {
+      return "malformed entry \"$entry\", logger name is empty"
+    }
+
+    val levelName = entry.substring(separator + 1).trim()
+    val level =
+      Level.parse(levelName)
+        ?: return "invalid level \"$levelName\" for logger \"$logger\", " +
+          "expected one of: ${Level.entries.joinToString(", ") { it.name }}"
+
+    levels[logger] = level
+    return null
   }
 }
 
@@ -72,8 +130,10 @@ private object LevelParser {
  * Not intended for use by task code.
  */
 object Log {
-  internal var globalThreshold = LevelParser.parse(System.getenv("AIRFLOW__LOGGING__LOGGING_LEVEL")) ?: Level.INFO
-  internal var namedThresholds = LevelParser.parseNamed(System.getenv("AIRFLOW__LOGGING__NAMESPACE_LEVELS"))
+  private const val LOGGING_LEVEL_ENV = "AIRFLOW__LOGGING__LOGGING_LEVEL"
+
+  internal var globalThreshold = Level.parse(System.getenv(LOGGING_LEVEL_ENV)) ?: Level.INFO
+  internal var namedThresholds = NamespaceLevels.parse(System.getenv(NamespaceLevels.ENV_VAR))
 
   fun isEnabledForLevel(
     level: Level,
