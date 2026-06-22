@@ -21,7 +21,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ConnectionResponse } from "openapi/requests/types.gen";
-import type * as ComponentsUi from "src/components/ui";
+import type * as SystemComponents from "src/system-components";
+import type * as Utils from "src/utils";
 import { Wrapper } from "src/utils/Wrapper";
 
 import TestConnectionButton from "./TestConnectionButton";
@@ -45,8 +46,14 @@ vi.mock("src/queries/useConfig", () => ({
   useConfig: vi.fn(() => configValue),
 }));
 
-vi.mock("src/components/ui", async () => {
-  const actual = await vi.importActual<typeof ComponentsUi>("src/components/ui");
+vi.mock("src/utils", async () => {
+  const actual = await vi.importActual<typeof Utils>("src/utils");
+
+  return { ...actual, useAutoRefresh: vi.fn(() => 2000) };
+});
+
+vi.mock("src/system-components", async () => {
+  const actual = await vi.importActual<typeof SystemComponents>("src/system-components");
 
   return { ...actual, toaster: { create } };
 });
@@ -120,14 +127,21 @@ describe("TestConnectionButton", () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  it("shows an in-progress toast when an active test already exists (409)", () => {
+  it("shows the server error message when enqueuing fails", () => {
     renderButton();
 
     fireEvent.click(screen.getByRole("button"));
-    enqueueOptions.onError({ status: 409 });
+    enqueueOptions.onError({
+      message: "An active connection test already exists for connection_id `my_conn`.",
+      status: 409,
+    });
 
     expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "connections.testInProgress.title", type: "error" }),
+      expect.objectContaining({
+        description: "An active connection test already exists for connection_id `my_conn`.",
+        title: "connections.testError.title",
+        type: "error",
+      }),
     );
   });
 
