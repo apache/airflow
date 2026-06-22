@@ -280,14 +280,17 @@ def get_callback_logs(
             f"Callback `{callback_id}` is not associated with DagRun `{dag_run_id}` of Dag `{dag_id}`",
         )
 
+    # read_callback_log is a generator: path validation (which raises ValueError) runs lazily during
+    # iteration, not when the generator is created -- so list() must be inside the try for the 400 to fire.
     try:
-        log_stream = read_callback_log(
-            dag_id=dag_id,
-            run_id=dag_run_id,
-            callback_id=str(callback_id),
+        content = list(
+            read_callback_log(
+                dag_id=dag_id,
+                run_id=dag_run_id,
+                callback_id=str(callback_id),
+            )
         )
     except ValueError:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid callback log path")
 
-    content = list(log_stream)
     return TaskInstancesLogResponse.model_construct(content=content, continuation_token=None)
