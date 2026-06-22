@@ -1117,3 +1117,97 @@ class TestPartitionsClear:
         # 2026-02-19 (stored at 2026-02-18T16Z) equals the upper bound — strictly less than, NOT cleared.
         assert dates["taipei_2026_02_19"] == datetime(2026, 2, 18, 16, 0, 0, tzinfo=pendulum.UTC)
         assert dates["taipei_2026_02_20"] == datetime(2026, 2, 19, 16, 0, 0, tzinfo=pendulum.UTC)
+
+    def test_cross_dag_run_id_collision_does_not_clear_other_dag(self, parser, dag_maker):
+        """Clearing by run_id only affects the target Dag; a second Dag sharing the same run_id is untouched."""
+        shared_run_id = "cross_dag_shared_run"
+        dag_id_target = "cli_cross_dag_target"
+        dag_id_bystander = "cli_cross_dag_bystander"
+        clear_db_runs()
+        clear_db_dags()
+
+        with dag_maker(
+            dag_id_target,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime(2026, 1, 1),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        dag_maker.create_dagrun(
+            run_id=shared_run_id,
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 1, 1, tzinfo=pendulum.UTC),
+            partition_key="key-target",
+        )
+
+        with dag_maker(
+            dag_id_bystander,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime(2026, 1, 1),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        dag_maker.create_dagrun(
+            run_id=shared_run_id,
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 1, 1, tzinfo=pendulum.UTC),
+            partition_key="key-bystander",
+        )
+
+        dag_maker.sync_dagbag_to_db()
+
+        _set_tis_state(shared_run_id, TaskInstanceState.SUCCESS)
+
+        partition_command.clear(
+            parser.parse_args(
+                [
+                    "partitions",
+                    "clear",
+                    "--dag-id",
+                    dag_id_target,
+                    "--run-id",
+                    shared_run_id,
+                    "--clear-task-instances",
+                ]
+            )
+        )
+
+        with create_session() as session:
+            run_target = session.scalar(
+                select(DagRun).where(DagRun.dag_id == dag_id_target, DagRun.run_id == shared_run_id)
+            )
+            run_bystander = session.scalar(
+                select(DagRun).where(DagRun.dag_id == dag_id_bystander, DagRun.run_id == shared_run_id)
+            )
+            tis_bystander = list(
+                session.scalars(
+                    select(TaskInstance).where(
+                        TaskInstance.dag_id == dag_id_bystander,
+                        TaskInstance.run_id == shared_run_id,
+                    )
+                )
+            )
+
+        assert run_target.partition_key is None
+        assert run_target.partition_date is None
+
+        assert run_bystander.partition_key == "key-bystander"
+        assert run_bystander.partition_date is not None
+        assert all(ti.state == TaskInstanceState.SUCCESS for ti in tis_bystander)
+
+        # Target Dag's TIs must have been reset (clear_task_instances=True).
+        with create_session() as session:
+            tis_target = list(
+                session.scalars(
+                    select(TaskInstance).where(
+                        TaskInstance.dag_id == dag_id_target,
+                        TaskInstance.run_id == shared_run_id,
+                    )
+                )
+            )
+        assert all(ti.state is None for ti in tis_target)
+
+        clear_db_runs()
+        clear_db_dags()

@@ -2785,6 +2785,175 @@ class TestClearPartitions:
             else:
                 assert run.partition_key is not None
 
+    def test_cross_dag_run_id_collision_does_not_clear_other_dag(
+        self, test_client, session, dag_maker, configure_git_connection_for_dag_bundle
+    ):
+        """Clearing by run_id only affects the target Dag; a second Dag with the same run_id is untouched."""
+        shared_run_id = "shared_run_id"
+
+        # Build target Dag with the shared run_id.
+        dag_id_target = "cp_cross_dag_target"
+        with dag_maker(
+            dag_id_target,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            serialized=True,
+        ):
+            task_a = EmptyOperator(task_id="task_a")
+
+        run_target = dag_maker.create_dagrun(
+            run_id=shared_run_id,
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.REST_API,
+            logical_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        )
+        run_target.partition_key = "key-target"
+        run_target.partition_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        ti_target = run_target.get_task_instance(task_id=task_a.task_id)
+        ti_target.task = task_a
+        ti_target.state = State.SUCCESS
+        session.merge(ti_target)
+
+        # Build bystander Dag with the same run_id.
+        dag_id_bystander = "cp_cross_dag_bystander"
+        with dag_maker(
+            dag_id_bystander,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            serialized=True,
+        ):
+            task_b = EmptyOperator(task_id="task_b")
+
+        run_bystander = dag_maker.create_dagrun(
+            run_id=shared_run_id,
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.REST_API,
+            logical_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        )
+        run_bystander.partition_key = "key-bystander"
+        run_bystander.partition_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        ti_bystander = run_bystander.get_task_instance(task_id=task_b.task_id)
+        ti_bystander.task = task_b
+        ti_bystander.state = State.SUCCESS
+        session.merge(ti_bystander)
+
+        dag_maker.sync_dagbag_to_db()
+        session.flush()
+
+        response = test_client.post(
+            f"/dags/{dag_id_target}/clearPartitions",
+            json={"run_id": shared_run_id, "clear_task_instances": True, "dry_run": False},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["dag_runs_cleared"] == 1
+        assert body["task_instances_cleared"] == 1
+
+        # Target Dag's run and TI are cleared.
+        session.expire_all()
+        run_t = session.scalar(
+            select(DagRun).where(DagRun.dag_id == dag_id_target, DagRun.run_id == shared_run_id)
+        )
+        assert run_t.partition_key is None
+        assert run_t.partition_date is None
+
+        # Bystander Dag's run and TI are completely untouched.
+        run_b = session.scalar(
+            select(DagRun).where(DagRun.dag_id == dag_id_bystander, DagRun.run_id == shared_run_id)
+        )
+        assert run_b.partition_key == "key-bystander"
+        assert run_b.partition_date is not None
+
+        ti_b_after = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag_id_bystander, TaskInstance.run_id == shared_run_id
+            )
+        )
+        assert ti_b_after.state == State.SUCCESS
+
+    def test_cross_dag_run_id_collision_dry_run_counts_only_target_dag(
+        self, test_client, session, dag_maker, configure_git_connection_for_dag_bundle
+    ):
+        """dry_run=True TI count only includes the target Dag's TIs, not a bystander sharing the same run_id."""
+        shared_run_id = "shared_dry_run_id"
+
+        dag_id_target = "cp_cross_dag_dry_target"
+        with dag_maker(
+            dag_id_target,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            serialized=True,
+        ):
+            task_a = EmptyOperator(task_id="task_a")
+            task_b = EmptyOperator(task_id="task_b")
+
+        run_target = dag_maker.create_dagrun(
+            run_id=shared_run_id,
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.REST_API,
+            logical_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        )
+        run_target.partition_key = "key-target-dry"
+        run_target.partition_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        for task in (task_a, task_b):
+            ti = run_target.get_task_instance(task_id=task.task_id)
+            ti.task = task
+            ti.state = State.SUCCESS
+            session.merge(ti)
+
+        dag_id_bystander = "cp_cross_dag_dry_bystander"
+        with dag_maker(
+            dag_id_bystander,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            serialized=True,
+        ):
+            task_c = EmptyOperator(task_id="task_c")
+            task_d = EmptyOperator(task_id="task_d")
+            task_e = EmptyOperator(task_id="task_e")
+
+        run_bystander = dag_maker.create_dagrun(
+            run_id=shared_run_id,
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.REST_API,
+            logical_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        )
+        run_bystander.partition_key = "key-bystander-dry"
+        run_bystander.partition_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        for task in (task_c, task_d, task_e):
+            ti = run_bystander.get_task_instance(task_id=task.task_id)
+            ti.task = task
+            ti.state = State.SUCCESS
+            session.merge(ti)
+
+        dag_maker.sync_dagbag_to_db()
+        session.flush()
+
+        response = test_client.post(
+            f"/dags/{dag_id_target}/clearPartitions",
+            json={"run_id": shared_run_id, "clear_task_instances": True, "dry_run": True},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        # Only the 2 TIs from the target Dag count; the 3 bystander TIs must not be included.
+        assert body["task_instances_cleared"] == 2
+        assert body["dry_run"] is True
+
+        # Neither run is written to (dry_run=True).
+        session.expire_all()
+        run_t = session.scalar(
+            select(DagRun).where(DagRun.dag_id == dag_id_target, DagRun.run_id == shared_run_id)
+        )
+        assert run_t.partition_key == "key-target-dry"
+        run_b = session.scalar(
+            select(DagRun).where(DagRun.dag_id == dag_id_bystander, DagRun.run_id == shared_run_id)
+        )
+        assert run_b.partition_key == "key-bystander-dry"
+
 
 class TestTriggerDagRun:
     def _dags_for_trigger_tests(self, session=None):

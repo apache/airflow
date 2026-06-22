@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any
 import attrs
 import structlog
 from fastapi import HTTPException, status
-from sqlalchemy import or_, select, tuple_
+from sqlalchemy import func, or_, select, tuple_
 from sqlalchemy.orm import Session, joinedload
 
 from airflow.api.common.mark_tasks import (
@@ -201,7 +201,12 @@ def clear_partition_fields(
         flushed = 0
         if ti_buffer_run_ids:
             chunk_tis = list(
-                session.scalars(select(TaskInstance).where(TaskInstance.run_id.in_(ti_buffer_run_ids)))
+                session.scalars(
+                    select(TaskInstance).where(
+                        TaskInstance.dag_id == dag_id,
+                        TaskInstance.run_id.in_(ti_buffer_run_ids),
+                    )
+                )
             )
             ti_buffer_run_ids.clear()
             ti_carry.extend(chunk_tis)
@@ -215,8 +220,8 @@ def clear_partition_fields(
             flushed += len(ti_carry)
         return flushed
 
-    # For dry_run TI count
-    tis_dry_total = 0
+    # Collects run_ids matched during the loop for a single post-loop TI count (dry_run).
+    dry_run_matched_ids: list[str] = []
 
     for run in session.scalars(stmt).yield_per(100):
         fields_already_cleared = run.partition_key is None and run.partition_date is None
@@ -229,8 +234,7 @@ def clear_partition_fields(
             dag_runs_cleared += 1
         if body.clear_task_instances:
             if body.dry_run:
-                run_tis = list(session.scalars(select(TaskInstance).where(TaskInstance.run_id == run.run_id)))
-                tis_dry_total += len(run_tis)
+                dry_run_matched_ids.append(run.run_id)
             else:
                 ti_buffer_run_ids.append(run.run_id)
                 if len(ti_buffer_run_ids) >= _TI_CHUNK_SIZE:
@@ -240,7 +244,20 @@ def clear_partition_fields(
         tis_cleared_total += _flush_ti_buffer(drain=True)
 
     if body.dry_run and body.clear_task_instances:
-        tis_cleared_total = tis_dry_total
+        if dry_run_matched_ids:
+            for i in range(0, len(dry_run_matched_ids), _TI_CHUNK_SIZE):
+                chunk = dry_run_matched_ids[i : i + _TI_CHUNK_SIZE]
+                tis_cleared_total += (
+                    session.scalar(
+                        select(func.count())
+                        .select_from(TaskInstance)
+                        .where(
+                            TaskInstance.dag_id == dag_id,
+                            TaskInstance.run_id.in_(chunk),
+                        )
+                    )
+                    or 0
+                )
 
     return dag_runs_cleared, tis_cleared_total
 
