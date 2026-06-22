@@ -19,15 +19,15 @@
 
 from __future__ import annotations
 
-import contextlib
 import contextvars
 import functools
+import inspect
 import os
 import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
-from contextlib import suppress
-from datetime import datetime, timezone
+from contextlib import ExitStack, contextmanager, suppress
+from datetime import datetime, timedelta, timezone
 from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal
@@ -36,16 +36,22 @@ from urllib.parse import quote
 import attrs
 import lazy_object_proxy
 import structlog
+from opentelemetry import trace
+from opentelemetry.trace import INVALID_SPAN, Status, StatusCode
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
+from structlog.contextvars import bind_contextvars
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException, AirflowTaskTimeout
-from airflow.listeners.listener import get_listener_manager
+from airflow.sdk._shared.observability.metrics import stats
+from airflow.sdk._shared.observability.traces import get_task_span_detail_level
+from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     DagRun,
+    PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
     TIRunContext,
@@ -55,27 +61,47 @@ from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
+from airflow.sdk.definitions.asset import (
+    Asset,
+    AssetAlias,
+    AssetNameRef,
+    AssetUniqueKey,
+    AssetUriRef,
+)
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import (
+    AirflowException,
+    AirflowInactiveAssetInInletOrOutletException,
+    AirflowRescheduleException,
+    AirflowRuntimeError,
+    AirflowTaskTimeout,
+    ErrorType,
+    TaskAwaitingInput,
+    TaskDeferred,
+)
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventDagRunReferenceResult,
+    AwaitInputTask,
     CommsDecoder,
+    DagResult,
     DagRunStateResult,
     DeferTask,
     DRCount,
     ErrorResponse,
+    GetDag,
     GetDagRunState,
     GetDRCount,
     GetPreviousDagRun,
+    GetPreviousTI,
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
     GetTaskStates,
     GetTICount,
     InactiveAssetsResult,
     PreviousDagRunResult,
+    PreviousTIResult,
     RescheduleTask,
     ResendLoggingFD,
     RetryTask,
@@ -96,10 +122,12 @@ from airflow.sdk.execution_time.comms import (
     ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
+    AssetStateStoreAccessors,
     ConnectionAccessor,
     InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
+    TaskStateStoreAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     context_get_outlet_events,
@@ -109,18 +137,80 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
+from airflow.sdk.listener import get_listener_manager
+from airflow.sdk.observability.metrics import stats_utils
+from airflow.sdk.serde import allow_class, iter_pydantic_models
+from airflow.sdk.state import TaskScope
 from airflow.sdk.timezone import coerce_datetime
-from airflow.stats import Stats
 
 if TYPE_CHECKING:
     import jinja2
     from pendulum.datetime import DateTime
     from structlog.typing import FilteringBoundLogger as Logger
 
-    from airflow.exceptions import DagRunTriggerException, TaskDeferred
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.definitions.retry_policy import RetryDecision
+    from airflow.sdk.exceptions import DagRunTriggerException
     from airflow.sdk.types import OutletEventAccessorsProtocol
+
+log = structlog.get_logger("task")
+
+tracer = trace.get_tracer(__name__)
+
+
+class detail_span:
+    """Context manager and decorator that creates a child span when detail level > 1."""
+
+    def __init__(self, *args, **kwargs):
+        self._args = args
+        self._kwargs = kwargs
+        self._ctx = None
+
+    def _make_ctx(self):
+        parent_span = trace.get_current_span()
+        config_level = get_task_span_detail_level(span=parent_span)
+        if config_level > 1:
+            return tracer.start_as_current_span(*self._args, **self._kwargs)
+        return trace.INVALID_SPAN
+
+    def __enter__(self):
+        self._ctx = self._make_ctx()
+        return self._ctx.__enter__()
+
+    def __exit__(self, *exc_info):
+        return self._ctx.__exit__(*exc_info)
+
+    def __call__(self, f):
+        @functools.wraps(f)
+        def wrapper(*inner_args, **inner_kwargs):
+            with self._make_ctx():
+                return f(*inner_args, **inner_kwargs)
+
+        wrapper.__signature__ = inspect.signature(f)
+        return wrapper
+
+
+@contextmanager
+def _make_task_span(msg: StartupDetails):
+    parent_context = (
+        TraceContextTextMapPropagator().extract(msg.ti.context_carrier) if msg.ti.context_carrier else None
+    )
+    ti = msg.ti
+    span_name = f"worker.{ti.task_id}"
+    if ti.map_index is not None and ti.map_index >= 0:
+        span_name += f"[{ti.map_index}]"
+    with tracer.start_as_current_span(span_name, context=parent_context) as span:
+        span.set_attributes(
+            {
+                "airflow.dag_id": ti.dag_id,
+                "airflow.task_id": ti.task_id,
+                "airflow.dag_run.run_id": ti.run_id,
+                "airflow.task_instance.try_number": ti.try_number,
+                "airflow.task_instance.map_index": ti.map_index if ti.map_index is not None else -1,
+            }
+        )
+        yield span
 
 
 class TaskRunnerMarker:
@@ -135,8 +225,11 @@ class RuntimeTaskInstance(TaskInstance):
 
     task: BaseOperator
     bundle_instance: BaseDagBundle
-    _context: Context | None = None
-    """The Task Instance context."""
+    _cached_template_context: Context | None = None
+    """The Task Instance context. This is used to cache get_template_context."""
+
+    _terminal_state_send_failed: bool = False
+    """True when the supervisor IPC send for a non-success terminal state raised; signals main() to sys.exit(1) after finalize() so the supervisor doesn't misclassify the run as SUCCESS via exit code 0."""
 
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
@@ -156,6 +249,16 @@ class RuntimeTaskInstance(TaskInstance):
 
     rendered_map_index: str | None = None
 
+    sentry_integration: str = ""
+
+    @property
+    def stats_tags(self) -> dict[str, str]:
+        """Metric tags for this task instance, including team_name when available."""
+        tags: dict[str, str] = {"dag_id": self.dag_id, "task_id": self.task_id}
+        if self._ti_context_from_server and self._ti_context_from_server.dag_run.team_name:
+            tags["team_name"] = self._ti_context_from_server.dag_run.team_name
+        return tags
+
     def __rich_repr__(self):
         yield "id", self.id
         yield "task_id", self.task_id
@@ -167,10 +270,11 @@ class RuntimeTaskInstance(TaskInstance):
 
     __rich_repr__.angular = True  # type: ignore[attr-defined]
 
+    @detail_span("get_template_context")
     def get_template_context(self) -> Context:
         # TODO: Move this to `airflow.sdk.execution_time.context`
         #   once we port the entire context logic from airflow/utils/context.py ?
-        from airflow.plugins_manager import integrate_macros_plugins
+        from airflow.sdk.plugins_manager import integrate_macros_plugins
 
         integrate_macros_plugins()
 
@@ -182,33 +286,54 @@ class RuntimeTaskInstance(TaskInstance):
 
         # Cache the context object, which ensures that all calls to get_template_context
         # are operating on the same context object.
-        self._context: Context = self._context or {
-            # From the Task Execution interface
-            "dag": self.task.dag,
-            "inlets": self.task.inlets,
-            "map_index_template": self.task.map_index_template,
-            "outlets": self.task.outlets,
-            "run_id": self.run_id,
-            "task": self.task,
-            "task_instance": self,
-            "ti": self,
-            "outlet_events": OutletEventAccessors(),
-            "inlet_events": InletEventsAccessors(self.task.inlets),
-            "macros": MacrosAccessor(),
-            "params": validated_params,
-            # TODO: Make this go through Public API longer term.
-            # "test_mode": task_instance.test_mode,
-            "var": {
-                "json": VariableAccessor(deserialize_json=True),
-                "value": VariableAccessor(deserialize_json=False),
-            },
-            "conn": ConnectionAccessor(),
-        }
+        if self._cached_template_context is None:
+            self._cached_template_context = {
+                # From the Task Execution interface
+                "dag": self.task.dag,
+                "inlets": self.task.inlets,
+                "map_index_template": self.task.map_index_template,
+                "outlets": self.task.outlets,
+                "run_id": self.run_id,
+                "task": self.task,
+                "task_instance": self,
+                "ti": self,
+                "outlet_events": OutletEventAccessors(),
+                "inlet_events": InletEventsAccessors(self.task.inlets),
+                "macros": MacrosAccessor(),
+                "params": validated_params,
+                # TODO: Make this go through Public API longer term.
+                # "test_mode": task_instance.test_mode,
+                "var": {
+                    "json": VariableAccessor(deserialize_json=True),
+                    "value": VariableAccessor(deserialize_json=False),
+                },
+                "conn": ConnectionAccessor(),
+                "task_state_store": TaskStateStoreAccessor(
+                    ti_id=self.id,
+                    scope=TaskScope(
+                        dag_id=self.dag_id,
+                        run_id=self.run_id,
+                        task_id=self.task_id,
+                        map_index=self.map_index if self.map_index is not None else -1,
+                    ),
+                ),
+            }
+            _asset_types = (Asset, AssetNameRef, AssetUriRef, AssetAlias)
+            if any(isinstance(i, _asset_types) for i in self.task.inlets + self.task.outlets):
+                self._cached_template_context["asset_state_store"] = AssetStateStoreAccessors(
+                    self.task.inlets, self.task.outlets
+                )
+                # AssetAlias inlets are resolved to their concrete assets at context build time via
+                # GetAssetsByAlias comms. If an alias maps to no active assets, it doesn't contribute to
+                # asset_state. AssetAlias outlets are skipped downstream in context.py
+        if TYPE_CHECKING:
+            assert self._cached_template_context is not None
         if from_server:
             dag_run = from_server.dag_run
             context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
                 "dag_run": dag_run,  # type: ignore[typeddict-item]  # Removable after #46522
+                "partition_key": dag_run.partition_key,
                 "triggering_asset_events": TriggeringAssetEventsAccessor.build(
                     AssetEventDagRunReferenceResult.from_asset_event_dag_run_reference(event)
                     for event in dag_run.consumed_asset_events
@@ -222,7 +347,7 @@ class RuntimeTaskInstance(TaskInstance):
                     lambda: coerce_datetime(get_previous_dagrun_success(self.id).end_date)
                 ),
             }
-            self._context.update(context_from_server)
+            self._cached_template_context.update(context_from_server)
 
             if logical_date := coerce_datetime(dag_run.logical_date):
                 if TYPE_CHECKING:
@@ -233,7 +358,7 @@ class RuntimeTaskInstance(TaskInstance):
                 ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
                 ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
                 # logical_date and data_interval either coexist or be None together
-                self._context.update(
+                self._cached_template_context.update(
                     {
                         # keys that depend on logical_date
                         "logical_date": logical_date,
@@ -255,13 +380,14 @@ class RuntimeTaskInstance(TaskInstance):
                     }
                 )
 
-            if from_server.upstream_map_indexes is not None:
-                # We stash this in here for later use, but we purposefully don't want to document it's
-                # existence. Should this be a private attribute on RuntimeTI instead perhaps?
-                setattr(self, "_upstream_map_indexes", from_server.upstream_map_indexes)
+            # Backward compatibility: old servers may still send upstream_map_indexes
+            upstream_map_indexes = getattr(from_server, "upstream_map_indexes", None)
+            if upstream_map_indexes is not None:
+                setattr(self, "_upstream_map_indexes", upstream_map_indexes)
 
-        return self._context
+        return self._cached_template_context
 
+    @detail_span("render_templates")
     def render_templates(
         self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
     ) -> BaseOperator:
@@ -294,6 +420,57 @@ class RuntimeTaskInstance(TaskInstance):
         self.is_mapped = original_task.is_mapped
         return original_task
 
+    def _normalize_xcom_pull_params(
+        self,
+        task_ids: str | Iterable[str] | None,
+        dag_id: str | None,
+        map_indexes: int | Iterable[int] | None | ArgNotSet,
+        run_id: str | None,
+    ) -> tuple[str, str, list[str], bool, bool, Iterable[int | None] | ArgNotSet]:
+        """
+        Normalize and validate the parameters shared by ``xcom_pull`` and ``axcom_pull``.
+
+        :returns: A tuple of ``(dag_id, run_id, task_ids, single_task_requested,
+            single_map_index_requested, map_indexes_iterable)``.  When
+            ``map_indexes_iterable`` is ``NOTSET`` the caller should fetch *all*
+            map-indexes (i.e. use ``get_all`` / ``aget_all``); otherwise it is an
+            iterable of explicit map indexes to fetch one-by-one.
+        """
+        if dag_id is None:
+            dag_id = self.dag_id
+        if run_id is None:
+            run_id = self.run_id
+
+        single_task_requested = isinstance(task_ids, (str, type(None)))
+        single_map_index_requested = isinstance(map_indexes, (int, type(None)))
+
+        if task_ids is None:
+            task_ids = [self.task_id]
+        elif isinstance(task_ids, str):
+            task_ids = [task_ids]
+        else:
+            task_ids = list(task_ids)
+
+        if not is_arg_set(map_indexes):
+            map_indexes_iterable: Iterable[int | None] | ArgNotSet = NOTSET
+        elif isinstance(map_indexes, int) or map_indexes is None:
+            map_indexes_iterable = [map_indexes]
+        elif isinstance(map_indexes, Iterable):
+            map_indexes_iterable = map_indexes
+        else:
+            raise TypeError(
+                f"Invalid type for map_indexes: expected int, iterable of ints, or None, got {type(map_indexes)}"
+            )
+
+        return (
+            dag_id,
+            run_id,
+            task_ids,
+            single_task_requested,
+            single_map_index_requested,
+            map_indexes_iterable,
+        )
+
     def xcom_pull(
         self,
         task_ids: str | Iterable[str] | None = None,
@@ -314,9 +491,9 @@ class RuntimeTaskInstance(TaskInstance):
             keys will be returned. The default key is ``'return_value'``, also
             available as constant ``XCOM_RETURN_KEY``. This key is automatically
             given to XComs returned by tasks (as opposed to being pushed
-            manually). To remove the filter, pass *None*.
+            manually).
         :param task_ids: Only XComs from tasks with matching ids will be
-            pulled. Pass *None* to remove the filter.
+            pulled. If *None* (default), the task_id of the calling task is used.
         :param dag_id: If provided, only pulls XComs from this Dag. If *None*
             (default), the Dag of the calling task is used.
         :param map_indexes: If provided, only pull XComs with matching indexes.
@@ -345,23 +522,14 @@ class RuntimeTaskInstance(TaskInstance):
         a non-str iterable), a list of matching XComs is returned. Elements in
         the list is ordered by item ordering in ``task_id`` and ``map_index``.
         """
-        if dag_id is None:
-            dag_id = self.dag_id
-        if run_id is None:
-            run_id = self.run_id
+        dag_id, run_id, task_ids, single_task_requested, single_map_index_requested, map_indexes_iterable = (
+            self._normalize_xcom_pull_params(task_ids, dag_id, map_indexes, run_id)
+        )
 
-        single_task_requested = isinstance(task_ids, (str, type(None)))
-        single_map_index_requested = isinstance(map_indexes, (int, type(None)))
+        xcoms: list[Any] = []
 
-        if task_ids is None:
-            # default to the current task if not provided
-            task_ids = [self.task_id]
-        elif isinstance(task_ids, str):
-            task_ids = [task_ids]
-
-        # If map_indexes is not specified, pull xcoms from all map indexes for each task
-        if not is_arg_set(map_indexes):
-            xcoms: list[Any] = []
+        if not is_arg_set(map_indexes_iterable):
+            # map_indexes was not specified — fetch all map indexes for each task
             for t_id in task_ids:
                 values = XCom.get_all(
                     run_id=run_id,
@@ -370,28 +538,12 @@ class RuntimeTaskInstance(TaskInstance):
                     dag_id=dag_id,
                     include_prior_dates=include_prior_dates,
                 )
-
-                if values is None:
-                    xcoms.append(None)
-                else:
-                    xcoms.extend(values)
-            # For single task pulling from unmapped task, return single value
+                xcoms.append(None) if values is None else xcoms.extend(values)
+            # For a single task pulling from an unmapped task, return a single value
             if single_task_requested and len(xcoms) == 1:
                 return xcoms[0]
             return xcoms
 
-        # Original logic when map_indexes is explicitly specified
-        map_indexes_iterable: Iterable[int | None] = []
-        if isinstance(map_indexes, int) or map_indexes is None:
-            map_indexes_iterable = [map_indexes]
-        elif isinstance(map_indexes, Iterable):
-            map_indexes_iterable = map_indexes
-        else:
-            raise TypeError(
-                f"Invalid type for map_indexes: expected int, iterable of ints, or None, got {type(map_indexes)}"
-            )
-
-        xcoms = []
         for t_id, m_idx in product(task_ids, map_indexes_iterable):
             value = XCom.get_one(
                 run_id=run_id,
@@ -401,10 +553,56 @@ class RuntimeTaskInstance(TaskInstance):
                 map_index=m_idx,
                 include_prior_dates=include_prior_dates,
             )
-            if value is None:
-                xcoms.append(default)
-            else:
-                xcoms.append(value)
+            xcoms.append(default if value is None else value)
+
+        if single_task_requested and single_map_index_requested:
+            return xcoms[0]
+        return xcoms
+
+    async def axcom_pull(
+        self,
+        task_ids: str | Iterable[str] | None = None,
+        dag_id: str | None = None,
+        key: str = BaseXCom.XCOM_RETURN_KEY,
+        include_prior_dates: bool = False,
+        *,
+        map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
+        default: Any = None,
+        run_id: str | None = None,
+    ) -> Any:
+        """Async version of :meth:`xcom_pull`; see that method for full documentation."""
+        dag_id, run_id, task_ids, single_task_requested, single_map_index_requested, map_indexes_iterable = (
+            self._normalize_xcom_pull_params(task_ids, dag_id, map_indexes, run_id)
+        )
+
+        xcoms: list[Any] = []
+
+        if not is_arg_set(map_indexes_iterable):
+            # map_indexes was not specified — fetch all map indexes for each task
+            for t_id in task_ids:
+                values = await XCom.aget_all(
+                    run_id=run_id,
+                    key=key,
+                    task_id=t_id,
+                    dag_id=dag_id,
+                    include_prior_dates=include_prior_dates,
+                )
+                xcoms.append(None) if values is None else xcoms.extend(values)
+            # For a single task pulling from an unmapped task, return a single value
+            if single_task_requested and len(xcoms) == 1:
+                return xcoms[0]
+            return xcoms
+
+        for t_id, m_idx in product(task_ids, map_indexes_iterable):
+            value = await XCom.aget_one(
+                run_id=run_id,
+                key=key,
+                task_id=t_id,
+                dag_id=dag_id,
+                map_index=m_idx,
+                include_prior_dates=include_prior_dates,
+            )
+            xcoms.append(default if value is None else value)
 
         if single_task_requested and single_map_index_requested:
             return xcoms[0]
@@ -420,11 +618,47 @@ class RuntimeTaskInstance(TaskInstance):
         """
         _xcom_push(self, key, value)
 
+    async def axcom_push(self, key: str, value: Any):
+        """
+        Make an XCom available for tasks to pull asynchronously.
+
+        :param key: Key to store the value under.
+        :param value: Value to store. Only be JSON-serializable values may be used.
+        """
+        await _axcom_push(self, key, value)
+
     def get_relevant_upstream_map_indexes(
         self, upstream: BaseOperator, ti_count: int | None, session: Any
     ) -> int | range | None:
-        # TODO: Implement this method
-        return None
+        """
+        Compute the relevant upstream map indexes for XCom resolution.
+
+        :param upstream: The upstream operator
+        :param ti_count: The total count of task instances for this task's expansion
+        :param session: Not used (kept for API compatibility)
+        :return: None (use entire value), int (single index), or range (subset of indexes)
+        """
+        from airflow.sdk.execution_time.task_mapping import get_relevant_map_indexes, get_ti_count_for_task
+
+        map_index = self.map_index
+        if map_index is None or map_index < 0:
+            return None
+
+        # If ti_count not provided, we need to query it
+        if ti_count is None:
+            ti_count = get_ti_count_for_task(self.task_id, self.dag_id, self.run_id)
+
+        if not ti_count:
+            return None
+
+        return get_relevant_map_indexes(
+            task=self.task,
+            run_id=self.run_id,
+            map_index=map_index,
+            ti_count=ti_count,
+            relative=upstream,
+            dag_id=self.dag_id,
+        )
 
     def get_first_reschedule_date(self, context: Context) -> AwareDatetime | None:
         """Get the first reschedule date for the task instance if found, none otherwise."""
@@ -435,8 +669,6 @@ class RuntimeTaskInstance(TaskInstance):
         max_tries: int = self.max_tries
         retries: int = self.task.retries or 0
         first_try_number = max_tries - retries + 1
-
-        log = structlog.get_logger(logger_name="task")
 
         log.debug("Requesting first reschedule date from supervisor")
 
@@ -454,8 +686,6 @@ class RuntimeTaskInstance(TaskInstance):
         context = self.get_template_context()
         dag_run = context.get("dag_run")
 
-        log = structlog.get_logger(logger_name="task")
-
         log.debug("Getting previous Dag run", dag_run=dag_run)
 
         if dag_run is None:
@@ -472,6 +702,45 @@ class RuntimeTaskInstance(TaskInstance):
             assert isinstance(response, PreviousDagRunResult)
 
         return response.dag_run
+
+    def get_previous_ti(
+        self,
+        state: TaskInstanceState | None = None,
+        logical_date: AwareDatetime | None = None,
+        map_index: int = -1,
+    ) -> PreviousTIResponse | None:
+        """
+        Return the previous task instance matching the given criteria.
+
+        :param state: Filter by TaskInstance state
+        :param logical_date: Filter by logical date (returns TI before this date)
+        :param map_index: Filter by map_index (defaults to -1 for non-mapped tasks)
+        :return: Previous task instance or None if not found
+        """
+        context = self.get_template_context()
+        dag_run = context.get("dag_run")
+
+        log.debug("Getting previous task instance", task_id=self.task_id, state=state)
+
+        # Use current dag run's logical_date if not provided
+        effective_logical_date = logical_date
+        if effective_logical_date is None and dag_run and dag_run.logical_date:
+            effective_logical_date = dag_run.logical_date
+
+        response = SUPERVISOR_COMMS.send(
+            msg=GetPreviousTI(
+                dag_id=self.dag_id,
+                task_id=self.task_id,
+                logical_date=effective_logical_date,
+                map_index=map_index,
+                state=state,
+            )
+        )
+
+        if TYPE_CHECKING:
+            assert isinstance(response, PreviousTIResult)
+
+        return response.task_instance
 
     @staticmethod
     def get_ti_count(
@@ -567,6 +836,16 @@ class RuntimeTaskInstance(TaskInstance):
 
         return response.state
 
+    @staticmethod
+    def get_dag(dag_id: str) -> DagResult:
+        """Return the DAG with the given dag_id."""
+        response = SUPERVISOR_COMMS.send(msg=GetDag(dag_id=dag_id))
+
+        if TYPE_CHECKING:
+            assert isinstance(response, DagResult)
+
+        return response
+
     @property
     def log_url(self) -> str:
         run_id = quote(self.run_id)
@@ -588,7 +867,13 @@ class RuntimeTaskInstance(TaskInstance):
         return self.log_url
 
 
-def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
+def _xcom_push(
+    ti: RuntimeTaskInstance,
+    key: str,
+    value: Any,
+    *,
+    mapped_length: int | None = None,
+) -> None:
     """Push a XCom through XCom.set, which pushes to XCom Backend if configured."""
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
@@ -600,6 +885,30 @@ def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int
         task_id=ti.task_id,
         run_id=ti.run_id,
         map_index=ti.map_index,
+        dag_result=ti.task.returns_dag_result,
+        _mapped_length=mapped_length,
+    )
+
+
+async def _axcom_push(
+    ti: RuntimeTaskInstance,
+    key: str,
+    value: Any,
+    *,
+    mapped_length: int | None = None,
+) -> None:
+    """Push a XCom through XCom.aset, which pushes to XCom Backend if configured."""
+    # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
+    # consumers
+
+    await XCom.aset(
+        key=key,
+        value=value,
+        dag_id=ti.dag_id,
+        task_id=ti.task_id,
+        run_id=ti.run_id,
+        map_index=ti.map_index,
+        dag_result=ti.task.returns_dag_result,
         _mapped_length=mapped_length,
     )
 
@@ -616,31 +925,95 @@ def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
     )
 
 
+def _maybe_reschedule_startup_failure(
+    *,
+    ti_context: TIRunContext,
+    log: Logger,
+) -> None:
+    """
+    Attempt to reschedule the task when a startup failure occurs.
+
+    This does not count as a retry. If the reschedule limit is exceeded, this function
+    returns and the caller should fail the task.
+    """
+    missing_dag_retries = conf.getint("workers", "missing_dag_retries", fallback=3)
+    missing_dag_retry_delay = conf.getint("workers", "missing_dag_retry_delay", fallback=60)
+
+    reschedule_count = int(getattr(ti_context, "task_reschedule_count", 0) or 0)
+    if missing_dag_retries > 0 and reschedule_count < missing_dag_retries:
+        raise AirflowRescheduleException(
+            reschedule_date=datetime.now(tz=timezone.utc) + timedelta(seconds=missing_dag_retry_delay)
+        )
+
+    log.error(
+        "Startup reschedule limit exceeded",
+        reschedule_count=reschedule_count,
+        max_reschedules=missing_dag_retries,
+    )
+
+
+def _register_deserialization_allowed_classes(dag, log: Logger) -> None:
+    """
+    Register every operator-declared XCom model class in the deserialization allow-list.
+
+    Runs once per task-run startup, walking the whole DAG, so a consumer task can
+    deserialize a producer's structured output even though only the producer
+    constructs the value. Reads the declared classes off real operators
+    (``getattr``) and off not-yet-expanded mapped operators (``partial_kwargs``),
+    and works regardless of how the DAG was loaded -- a fresh parse, or a cache
+    that reconstructs operators without running ``__init__``.
+
+    Failures to register a single class are logged and skipped rather than failing
+    task startup; a genuinely undeserializable declaration surfaces later as the
+    normal allow-list ImportError at consume time.
+    """
+    for op in dag.tasks:
+        if isinstance(op, MappedOperator):
+            fields = getattr(op.operator_class, "deserialization_allowed_class_fields", ())
+            values = [op.partial_kwargs.get(field) for field in fields]
+        else:
+            fields = getattr(op, "deserialization_allowed_class_fields", ())
+            values = [getattr(op, field, None) for field in fields]
+        for value in values:
+            if value is None:
+                continue
+            for model_cls in iter_pydantic_models(value):
+                try:
+                    allow_class(model_cls)
+                except ValueError as exc:
+                    log.warning(
+                        "Skipping XCom deserialization registration for a model class",
+                        task_id=op.task_id,
+                        error=str(exc),
+                    )
+
+
+@detail_span("parse")
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
-    # Using DagBag here is about 98% wrong, but it'll do for now
-    from airflow.dag_processing.dagbag import DagBag
+    # Using BundleDagBag here is about 98% wrong, but it'll do for now
+    from airflow.dag_processing.dagbag import BundleDagBag
 
     bundle_info = what.bundle_info
+    bundle_prepare_start = time.monotonic()
     bundle_instance = DagBundlesManager().get_bundle(
         name=bundle_info.name,
         version=bundle_info.version,
     )
     bundle_instance.initialize()
-
-    # Put bundle root on sys.path if needed. This allows the dag bundle to add
-    # code in util modules to be shared between files within the same bundle.
-    if (bundle_root := os.fspath(bundle_instance.path)) not in sys.path:
-        sys.path.append(bundle_root)
+    _verify_bundle_access(bundle_instance, log)
+    bundle_prepare_ms = int((time.monotonic() - bundle_prepare_start) * 1000)
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
-    bag = DagBag(
+    dag_file_parse_start = time.monotonic()
+    bag = BundleDagBag(
         dag_folder=dag_absolute_path,
-        include_examples=False,
         safe_mode=False,
         load_op_links=False,
+        bundle_path=bundle_instance.path,
         bundle_name=bundle_info.name,
     )
+    dag_file_parse_ms = int((time.monotonic() - dag_file_parse_start) * 1000)
     if TYPE_CHECKING:
         assert what.ti.dag_id
 
@@ -650,6 +1023,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         log.error(
             "Dag not found during start up", dag_id=what.ti.dag_id, bundle=bundle_info, path=what.dag_rel_path
         )
+        _maybe_reschedule_startup_failure(ti_context=what.ti_context, log=log)
         sys.exit(1)
 
     # install_loader()
@@ -664,6 +1038,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
             bundle=bundle_info,
             path=what.dag_rel_path,
         )
+        _maybe_reschedule_startup_failure(ti_context=what.ti_context, log=log)
         sys.exit(1)
 
     if not isinstance(task, (BaseOperator, MappedOperator)):
@@ -671,6 +1046,26 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
             f"task is of the wrong type, got {type(task)}, wanted {BaseOperator} or {MappedOperator}"
         )
 
+    # Register operator-declared XCom model classes (e.g. ``output_type``) for
+    # the whole DAG so this task can deserialize structured output produced by
+    # any other task -- including mapped producers and DAGs loaded from a cache
+    # that bypasses operator ``__init__``.
+    _register_deserialization_allowed_classes(dag, log)
+
+    # Surface the post-RUNNING startup breakdown so support engineers and DAG authors can
+    # attribute apparent slow startup to bundle prep (Airflow-side, e.g. git fetch) vs.
+    # DAG file parse (user code). Emitted before return so it lands in the task log.
+    # Under `run_as_user` impersonation, parse() runs once pre-sudo and again post-sudo,
+    # so this event fires twice for those tasks -- the two entries show impersonation overhead.
+    log.info(
+        "Worker startup parse complete",
+        bundle_name=bundle_info.name,
+        bundle_version=bundle_info.version,
+        dag_file=what.dag_rel_path,
+        dag_id=what.ti.dag_id,
+        bundle_prepare_ms=bundle_prepare_ms,
+        dag_file_parse_ms=dag_file_parse_ms,
+    )
     return RuntimeTaskInstance.model_construct(
         **what.ti.model_dump(exclude_unset=True),
         task=task,
@@ -679,6 +1074,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         max_tries=what.ti_context.max_tries,
         start_date=what.start_date,
         state=TaskInstanceState.RUNNING,
+        sentry_integration=what.sentry_integration,
     )
 
 
@@ -701,10 +1097,46 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 # 3. Shutdown and report status
 
 
-def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
+@detail_span("_verify_bundle_access")
+def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
+    """
+    Verify bundle is accessible by the current user.
+
+    This is called after user impersonation (if any) to ensure the bundle
+    is actually accessible. Uses os.access() which works with any permission
+    scheme (standard Unix permissions, ACLs, SELinux, etc.).
+
+    :param bundle_instance: The bundle instance to check
+    :param log: Logger instance
+    :raises AirflowException: if bundle is not accessible
+    """
+    from getpass import getuser
+
+    from airflow.sdk.exceptions import AirflowException
+
+    bundle_path = bundle_instance.path
+
+    if not bundle_path.exists():
+        # Already handled by initialize() with a warning
+        return
+
+    # Check read permission (and execute for directories to list contents)
+    access_mode = os.R_OK
+    if bundle_path.is_dir():
+        access_mode |= os.X_OK
+
+    if not os.access(bundle_path, access_mode):
+        raise AirflowException(
+            f"Bundle '{bundle_instance.name}' path '{bundle_path}' is not accessible "
+            f"by user '{getuser()}'. When using run_as_user, ensure bundle directories "
+            f"are readable by the impersonated user. "
+            f"See: https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/dag-bundles.html"
+        )
+
+
+def get_startup_details() -> StartupDetails:
     # The parent sends us a StartupDetails message un-prompted. After this, every single message is only sent
     # in response to us sending a request.
-    log = structlog.get_logger(logger_name="task")
 
     if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and (
         msgjson := os.environ.get("_AIRFLOW__STARTUP_MSG")
@@ -725,7 +1157,11 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
 
         if not isinstance(msg, StartupDetails):
             raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
+    return msg
 
+
+@detail_span("startup")
+def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
     # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
     os_type = sys.platform
     if os_type == "darwin":
@@ -734,6 +1170,17 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         from setproctitle import setproctitle
 
         setproctitle(f"airflow worker -- {msg.ti.id}")
+
+    # Bind TI identifiers so every subsequent log line from this worker process
+    # carries ti_id, enabling single-grep lifecycle reconstruction across components.
+    bind_contextvars(
+        ti_id=str(msg.ti.id),
+        dag_id=msg.ti.dag_id,
+        task_id=msg.ti.task_id,
+        run_id=msg.ti.run_id,
+        try_number=msg.ti.try_number,
+        map_index=msg.ti.map_index,
+    )
 
     try:
         get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
@@ -775,13 +1222,138 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     return ti, ti.get_template_context(), log
 
 
-def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
-    # TODO: Port one of the following to Task SDK
-    #   airflow.serialization.helpers.serialize_template_field or
-    #   airflow.models.renderedtifields.get_serialized_template_fields
-    from airflow.serialization.helpers import serialize_template_field
+def _serialize_template_field(
+    template_field: Any, name: str
+) -> str | dict | list | int | float | bool | None:
+    """
+    Return a serializable representation of the templated field.
 
-    return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
+    The walk has two responsibilities:
+
+    1. **Make the template_field JSON-encodable** — every container is rebuilt
+       with primitive leaves (str/int/float/bool/None), tuples and sets are
+       flattened to lists, and unsupported objects fall through to ``str()``
+       so ``json.dumps`` never raises on the result.
+    2. **Keep the output deterministic across parses** — callables are replaced
+       with their qualified name (never the default ``<function ... at 0x...>``
+       repr), dicts are key-sorted, and (frozen)sets are sorted by element so
+       the same input always produces the same string.
+
+    Uses the SDK secrets masker to redact secrets in the serialized output.
+    """
+    import inspect
+
+    from airflow.sdk._shared.module_loading import qualname
+    from airflow.sdk._shared.secrets_masker import redact
+
+    def normalize_dict_key(key) -> str:
+        """Normalize a dict key to a serialized string type."""
+        # Serialized template_field keys must all be strings, not a mix of types, so that
+        # downstream json.dumps(..., sort_keys=True) does not raise on mixed-type keys.
+        return str(serialize_object(key))
+
+    def serialize_object(obj):
+        """Recursively rewrite ``obj`` into a JSON-encodable, hash-stable structure."""
+        if obj is None or isinstance(obj, (str, int, float, bool)):
+            return obj
+
+        if isinstance(obj, dict):
+            # Serialize keys/values first so each key is a string and the output is hash-stable,
+            # then sort by the serialized key to prevent hash inconsistencies when dict ordering varies.
+            serialized_pairs = [(normalize_dict_key(k), serialize_object(v)) for k, v in obj.items()]
+            return dict(sorted(serialized_pairs, key=lambda kv: kv[0]))
+
+        if isinstance(obj, (list, tuple)):
+            return [serialize_object(item) for item in obj]
+
+        if isinstance(obj, (set, frozenset)):
+            # JSON has no set type → flatten to a list with deterministic ordering
+            # so hash randomization on element types cannot shift cross-process iteration order.
+            serialized_set = [serialize_object(e) for e in obj]
+            return sorted(serialized_set, key=lambda x: (type(x).__name__, str(x)))
+
+        # Use inspect.getattr_static to bypass any custom __getattr__ / metaclass magic
+        if callable(inspect.getattr_static(obj, "serialize", None)):
+            return serialize_object(obj.serialize())
+
+        # Kubernetes client objects (V1Pod, V1Container, ...) expose their content via to_dict().
+        # Scope the branch to the kubernetes namespace so unrelated user classes that happen to
+        # define a to_dict() method fall through to str() instead of being treated as K8s payloads.
+        if getattr(type(obj), "__module__", "").startswith(
+            ("kubernetes.", "kubernetes_asyncio.")
+        ) and callable(inspect.getattr_static(obj, "to_dict", None)):
+            return serialize_object(obj.to_dict())
+
+        if callable(obj):
+            # Use qualified name; default repr embeds memory addresses, which would change the DAG hash on every parse
+            return f"<callable {qualname(obj, True)}>"
+
+        # A custom __str__ or __repr__ is treated as an intentional textual representation
+        # supplied by the author and used as-is.
+        if type(obj).__str__ is not object.__str__ or type(obj).__repr__ is not object.__repr__:
+            return str(obj)
+
+        # Otherwise fall back to a qualname marker. The default object repr is
+        # `<ClassName object at 0x...>`, which embeds a memory address that flips per process
+        # and would break DAG hash stability — use the class qualname instead.
+        return f"<{qualname(type(obj), True)} object>"
+
+    max_length = conf.getint("core", "max_templated_field_length")
+
+    serialized = serialize_object(template_field)
+
+    if len(str(serialized)) > max_length:
+        # Redact while still structured to preserve nested-key context (so values under
+        # documented sensitive keys such as `password`, `token`, `secret`, `api_key`
+        # are masked recursively); only stringify the redacted result for truncation.
+        rendered = redact(serialized, name)
+        return truncate_rendered_value(str(rendered), max_length)
+
+    return serialized
+
+
+@detail_span("_serialize_rendered_fields")
+def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
+    from airflow.sdk._shared.secrets_masker import redact
+
+    rendered_fields: dict[str, JsonValue] = {}
+    for field in task.template_fields:
+        value = getattr(task, field)
+        serialized = _serialize_template_field(value, field)
+        # Redact secrets in the task process itself before sending to API server
+        # This ensures that the secrets those are registered via mask_secret() on workers / dag processor are properly masked
+        # on the UI.
+        redacted = redact(serialized, field)
+        rendered_fields[field] = TypeAdapter(JsonValue).validate_python(redacted)
+
+    renderers = getattr(task, "template_fields_renderers", {})
+    for renderer_path in renderers:
+        if "." not in renderer_path:
+            continue
+
+        base_field, _, remainder = renderer_path.partition(".")
+        if base_field not in task.template_fields:
+            continue
+
+        base_value = getattr(task, base_field, None)
+        if base_value is None:
+            continue
+
+        current = base_value
+        for key in remainder.split("."):
+            if isinstance(current, dict):
+                current = current.get(key)
+            else:
+                current = getattr(current, key, None)
+            if current is None:
+                break
+
+        if current is not None:
+            serialized = _serialize_template_field(current, renderer_path)
+            redacted = redact(serialized, renderer_path)
+            rendered_fields[renderer_path] = TypeAdapter(JsonValue).validate_python(redacted)
+
+    return rendered_fields
 
 
 def _build_asset_profiles(lineage_objects: list) -> Iterator[AssetProfile]:
@@ -804,11 +1376,20 @@ def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[d
     # Further filtering will be done in the API server.
     for key, accessor in events._dict.items():
         if isinstance(key, AssetUniqueKey):
-            yield {"dest_asset_key": attrs.asdict(key), "extra": accessor.extra}
+            if accessor.partition_keys:
+                for partition_key in accessor.partition_keys:
+                    yield {
+                        "dest_asset_key": attrs.asdict(key),
+                        "extra": accessor.extra,
+                        "partition_key": partition_key,
+                    }
+            else:
+                yield {"dest_asset_key": attrs.asdict(key), "extra": accessor.extra}
         for alias_event in accessor.asset_alias_events:
             yield attrs.asdict(alias_event)
 
 
+@detail_span("_prepare")
 def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSupervisor | None:
     ti.hostname = get_hostname()
     ti.task = ti.task.prepare_for_execution()
@@ -850,6 +1431,7 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
     return None
 
 
+@detail_span("_validate_task_inlets_and_outlets")
 def _validate_task_inlets_and_outlets(*, ti: RuntimeTaskInstance, log: Logger) -> None:
     if not ti.task.inlets and not ti.task.outlets:
         return
@@ -868,24 +1450,63 @@ def _validate_task_inlets_and_outlets(*, ti: RuntimeTaskInstance, log: Logger) -
 def _defer_task(
     defer: TaskDeferred, ti: RuntimeTaskInstance, log: Logger
 ) -> tuple[ToSupervisor, TaskInstanceState]:
-    # TODO: Should we use structlog.bind_contextvars here for dag_id, task_id & run_id?
-
     log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
     classpath, trigger_kwargs = defer.trigger.serialize()
+    queue: str | None = None
+    # Currently, only task-associated BaseTrigger instances may have a non-None queue,
+    # and only when triggerer.queues_enabled conf is True.
+    if conf.getboolean("triggerer", "queues_enabled", fallback=False) and getattr(
+        defer.trigger, "supports_triggerer_queue", True
+    ):
+        queue = ti.task.queue
+
+    from airflow.sdk.serde import serialize as serde_serialize
+
+    trigger_kwargs = serde_serialize(trigger_kwargs)
+    next_kwargs = serde_serialize(defer.kwargs or {})
+
+    if TYPE_CHECKING:
+        assert isinstance(next_kwargs, dict)
+        assert isinstance(trigger_kwargs, dict)
 
     msg = DeferTask(
         classpath=classpath,
         trigger_kwargs=trigger_kwargs,
         trigger_timeout=defer.timeout,
+        queue=queue,
         next_method=defer.method_name,
-        next_kwargs=defer.kwargs or {},
+        next_kwargs=next_kwargs,
     )
     state = TaskInstanceState.DEFERRED
 
     return msg, state
 
 
+def _await_input_task(
+    awaiting: TaskAwaitingInput, ti: RuntimeTaskInstance, log: Logger
+) -> tuple[ToSupervisor, TaskInstanceState]:
+    """Build the message that parks a task in AWAITING_INPUT (HITL), with no trigger."""
+    log.info("Pausing task as AWAITING_INPUT.", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
+
+    from airflow.sdk.serde import serialize as serde_serialize
+
+    next_kwargs = serde_serialize(awaiting.kwargs or {})
+
+    if TYPE_CHECKING:
+        assert isinstance(next_kwargs, dict)
+
+    msg = AwaitInputTask(
+        timeout=awaiting.timeout,
+        next_method=awaiting.method_name,
+        next_kwargs=next_kwargs,
+    )
+    state = TaskInstanceState.AWAITING_INPUT
+
+    return msg, state
+
+
 @Sentry.enrich_errors
+@detail_span("run")
 def run(
     ti: RuntimeTaskInstance,
     context: Context,
@@ -894,8 +1515,7 @@ def run(
     """Run the task in this process."""
     import signal
 
-    from airflow.exceptions import (
-        AirflowException,
+    from airflow.sdk.exceptions import (
         AirflowFailException,
         AirflowRescheduleException,
         AirflowSensorTimeout,
@@ -903,6 +1523,7 @@ def run(
         AirflowTaskTerminated,
         DagRunTriggerException,
         DownstreamTasksSkipped,
+        TaskAwaitingInput,
         TaskDeferred,
     )
 
@@ -922,8 +1543,11 @@ def run(
     signal.signal(signal.SIGTERM, _on_term)
 
     msg: ToSupervisor | None = None
-    state: TaskInstanceState
+    state: TaskInstanceState | None = None
     error: BaseException | None = None
+
+    stats_tags = ti.stats_tags
+    stats.incr("ti.start", tags=stats_tags)
 
     try:
         # First, clear the xcom data sent from server
@@ -948,11 +1572,12 @@ def run(
 
             try:
                 result = _execute_task(context=context, ti=ti, log=log)
+                log.info("::group::Post Execute")
             except Exception:
                 import jinja2
 
                 # If the task failed, swallow rendering error so it doesn't mask the main error.
-                with contextlib.suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
+                with suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
                     previous_rendered_map_index = ti.rendered_map_index
                     ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
                     # Send update only if value changed (e.g., user set context variables during execution)
@@ -972,15 +1597,22 @@ def run(
 
         msg, state = _handle_current_task_success(context, ti)
     except DownstreamTasksSkipped as skip:
+        log.info("::group::Post Execute")
         log.info("Skipping downstream tasks.")
         tasks_to_skip = skip.tasks if isinstance(skip.tasks, list) else [skip.tasks]
         SUPERVISOR_COMMS.send(msg=SkipDownstreamTasks(tasks=tasks_to_skip))
         msg, state = _handle_current_task_success(context, ti)
     except DagRunTriggerException as drte:
+        log.info("::group::Post Execute")
         msg, state = _handle_trigger_dag_run(drte, context, ti, log)
     except TaskDeferred as defer:
+        log.info("::group::Post Execute")
         msg, state = _defer_task(defer, ti, log)
+    except TaskAwaitingInput as awaiting:
+        log.info("::group::Post Execute")
+        msg, state = _await_input_task(awaiting, ti, log)
     except AirflowSkipException as e:
+        log.info("::group::Post Execute")
         if e.args:
             log.info("Skipping task.", reason=e.args[0])
         msg = TaskState(
@@ -990,6 +1622,7 @@ def run(
         )
         state = TaskInstanceState.SKIPPED
     except AirflowRescheduleException as reschedule:
+        log.info("::group::Post Execute")
         log.info("Rescheduling task, marking task as UP_FOR_RESCHEDULE")
         msg = RescheduleTask(
             reschedule_date=reschedule.reschedule_date, end_date=datetime.now(tz=timezone.utc)
@@ -999,6 +1632,7 @@ def run(
         # If AirflowFailException is raised, task should not retry.
         # If a sensor in reschedule mode reaches timeout, task should not retry.
         log.exception("Task failed with exception")
+        log.info("::group::Post Execute")
         ti.end_date = datetime.now(tz=timezone.utc)
         msg = TaskState(
             state=TaskInstanceState.FAILED,
@@ -1010,13 +1644,15 @@ def run(
     except (AirflowTaskTimeout, AirflowException, AirflowRuntimeError) as e:
         # We should allow retries if the task has defined it.
         log.exception("Task failed with exception")
-        msg, state = _handle_current_task_failed(ti)
+        log.info("::group::Post Execute")
+        msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
     except AirflowTaskTerminated as e:
         # External state updates are already handled with `ti_heartbeat` and will be
         # updated already be another UI API. So, these exceptions should ideally never be thrown.
         # If these are thrown, we should mark the TI state as failed.
         log.exception("Task failed with exception")
+        log.info("::group::Post Execute")
         ti.end_date = datetime.now(tz=timezone.utc)
         msg = TaskState(
             state=TaskInstanceState.FAILED,
@@ -1028,15 +1664,52 @@ def run(
     except SystemExit as e:
         # SystemExit needs to be retried if they are eligible.
         log.error("Task exited", exit_code=e.code)
-        msg, state = _handle_current_task_failed(ti)
+        log.info("::group::Post Execute")
+        msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
     except BaseException as e:
         log.exception("Task failed with exception")
-        msg, state = _handle_current_task_failed(ti)
+        log.info("::group::Post Execute")
+        msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
     finally:
+        # `state` may still be unset if an exception handler above raised before
+        # binding it
+        if state is not None:
+            stats.incr("ti.finish", tags={**stats_tags, "state": state.value})
+
         if msg:
-            SUPERVISOR_COMMS.send(msg=msg)
+            # If the supervisor rejects the terminal-state report
+            # (e.g. the server already moved the TI to a terminal state and
+            # returns 409 - for example due to issue fixed by #65594),
+            # we still want to run finalize() so listeners observe the task state.
+            try:
+                SUPERVISOR_COMMS.send(msg=msg)
+            except Exception:
+                log.exception(
+                    "Failed to report terminal task state to supervisor",
+                    state=state.value if state is not None else None,
+                )
+                # Fail closed for FAILED / UP_FOR_RETRY: when the supervisor
+                # never receives the terminal-state message, exiting 0 would
+                # let the supervisor's final_state property default to
+                # SUCCESS (exit_code == 0 with no _terminal_state set),
+                # turning a real failure into a silent data-quality bug for
+                # every downstream task. We signal main() to sys.exit(1)
+                # AFTER finalize() runs, so on_failure_callback /
+                # on_retry_callback / listener hooks / email_on_failure /
+                # email_on_retry still fire. sys.exit(1) directly here would
+                # raise SystemExit, which is BaseException, not Exception —
+                # main()'s `except Exception:` would not catch it and
+                # finalize() at the call site would be skipped.
+                #
+                # SKIPPED / UP_FOR_RESCHEDULE / DEFERRED are intentionally
+                # not fail-closed: supervisor's final_state would misclassify
+                # them too, but exiting non-zero would map them to FAILED,
+                # which is strictly worse than the default. Those need a
+                # separate fix in supervisor's final_state.
+                if state in (TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY):
+                    ti._terminal_state_send_failed = True
 
     # Return the message to make unit tests easier too
     ti.state = state
@@ -1052,15 +1725,20 @@ def _handle_current_task_success(
 
     # Record operator and task instance success metrics
     operator = ti.task.__class__.__name__
-    stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+    stats_tags = ti.stats_tags
 
-    Stats.incr(f"operator_successes_{operator}", tags=stats_tags)
-    # Same metric with tagging
-    Stats.incr("operator_successes", tags={**stats_tags, "operator": operator})
-    Stats.incr("ti_successes", tags=stats_tags)
+    stats.incr("operator_successes", tags={**stats_tags, "operator_name": operator})
+    stats.incr("ti_successes", tags=stats_tags)
 
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
+
+    if conf.getboolean("state_store", "clear_on_success"):
+        log.info(
+            "Clearing task state from custom backend as clear_on_success is enabled. The database references will be cleared by the API server."
+        )
+        context["task_state_store"]._clear_backend_only()
+
     msg = SucceedTask(
         end_date=end_date,
         task_outlets=task_outlets,
@@ -1070,13 +1748,102 @@ def _handle_current_task_success(
     return msg, TaskInstanceState.SUCCESS
 
 
+def _evaluate_retry_policy(
+    ti: RuntimeTaskInstance,
+    exception: BaseException,
+    log: Logger,
+    context: Context | None = None,
+) -> RetryDecision | None:
+    """
+    Evaluate the task's retry policy if one is configured.
+
+    Returns ``None`` when no policy is configured so the caller falls through
+    to the standard retry logic.
+    """
+    policy = getattr(ti.task, "retry_policy", None)
+    if policy is None:
+        return None
+    try:
+        max_tries = ti._ti_context_from_server.max_tries if ti._ti_context_from_server else 0
+        decision = policy.evaluate(
+            exception=exception,
+            try_number=ti.try_number,
+            max_tries=max_tries,
+            context=context,
+        )
+        if decision.reason:
+            log.info("Retry policy decision", action=decision.action.value, reason=decision.reason)
+        return decision
+    except Exception:
+        log.exception("Retry policy evaluation failed, falling back to default behaviour")
+        return None
+
+
 def _handle_current_task_failed(
     ti: RuntimeTaskInstance,
+    exception: BaseException,
+    log: Logger,
+    context: Context | None = None,
+) -> tuple[RetryTask | TaskState, TaskInstanceState]:
+    """
+    Handle a failed task: evaluate the retry policy (if any) and decide the next state.
+
+    This is the entry point every failure path routes through. When the policy
+    returns FAIL the task is marked as failed immediately, bypassing the normal
+    retry-count check.  When it returns RETRY with a custom delay, that delay is
+    forwarded in the ``RetryTask`` message.  For DEFAULT (or when no policy is
+    configured), the standard ``_finalize_task_failure`` logic runs.
+    """
+    from airflow.sdk.definitions.retry_policy import RetryAction
+
+    decision = _evaluate_retry_policy(ti, exception, log, context)
+    if decision is not None and decision.action == RetryAction.FAIL:
+        ti.end_date = datetime.now(tz=timezone.utc)
+        return (
+            TaskState(
+                state=TaskInstanceState.FAILED,
+                end_date=ti.end_date,
+                rendered_map_index=ti.rendered_map_index,
+            ),
+            TaskInstanceState.FAILED,
+        )
+    if decision is not None and decision.action == RetryAction.RETRY:
+        return _finalize_task_failure(
+            ti, retry_delay_override=decision.retry_delay, retry_reason=decision.reason
+        )
+    return _finalize_task_failure(ti)
+
+
+def _finalize_task_failure(
+    ti: RuntimeTaskInstance,
+    retry_delay_override: timedelta | None = None,
+    retry_reason: str | None = None,
 ) -> tuple[RetryTask, TaskInstanceState] | tuple[TaskState, TaskInstanceState]:
+    """
+    Record failure metrics and build the standard retry-or-fail outcome.
+
+    Returns an ``UP_FOR_RETRY`` ``RetryTask`` when the server marked the task
+    retry-eligible (optionally carrying a policy-supplied delay/reason), else a
+    ``FAILED`` ``TaskState``. This is the default path; retry-policy overrides
+    are decided in :func:`_handle_current_task_failed` before this is called.
+    """
     end_date = datetime.now(tz=timezone.utc)
     ti.end_date = end_date
+
+    # Record operator and task instance failed metrics
+    operator = ti.task.__class__.__name__
+    stats_tags = ti.stats_tags
+
+    stats.incr("operator_failures", tags={**stats_tags, "operator_name": operator})
+    stats.incr("ti_failures", tags=stats_tags)
+
     if ti._ti_context_from_server and ti._ti_context_from_server.should_retry:
-        return RetryTask(end_date=end_date), TaskInstanceState.UP_FOR_RETRY
+        retry_kwargs: dict[str, Any] = {"end_date": end_date}
+        if retry_delay_override is not None:
+            retry_kwargs["retry_delay_seconds"] = retry_delay_override.total_seconds()
+        if retry_reason is not None:
+            retry_kwargs["retry_reason"] = retry_reason[:500]
+        return RetryTask(**retry_kwargs), TaskInstanceState.UP_FOR_RETRY
     return (
         TaskState(
             state=TaskInstanceState.FAILED, end_date=end_date, rendered_map_index=ti.rendered_map_index
@@ -1095,8 +1862,10 @@ def _handle_trigger_dag_run(
             dag_id=drte.trigger_dag_id,
             run_id=drte.dag_run_id,
             logical_date=drte.logical_date,
+            run_after=drte.run_after,
             conf=drte.conf,
             reset_dag_run=drte.reset_dag_run,
+            note=drte.note,
         ),
     )
 
@@ -1106,22 +1875,25 @@ def _handle_trigger_dag_run(
                 "Dag Run already exists, skipping task as skip_when_already_exists is set to True.",
                 dag_id=drte.trigger_dag_id,
             )
-            msg = TaskState(
-                state=TaskInstanceState.SKIPPED,
-                end_date=datetime.now(tz=timezone.utc),
-                rendered_map_index=ti.rendered_map_index,
+            return (
+                TaskState(
+                    state=TaskInstanceState.SKIPPED,
+                    end_date=datetime.now(tz=timezone.utc),
+                    rendered_map_index=ti.rendered_map_index,
+                ),
+                TaskInstanceState.SKIPPED,
             )
-            state = TaskInstanceState.SKIPPED
-        else:
-            log.error("Dag Run already exists, marking task as failed.", dag_id=drte.trigger_dag_id)
-            msg = TaskState(
-                state=TaskInstanceState.FAILED,
-                end_date=datetime.now(tz=timezone.utc),
-                rendered_map_index=ti.rendered_map_index,
-            )
-            state = TaskInstanceState.FAILED
-
-        return msg, state
+        # skip_when_already_exists=False: the run_id we requested already exists.
+        # This is the expected outcome when the trigger POST was retried after a
+        # transport-level ambiguity — the server created the run but the client
+        # observed an httpx.RequestError, so the retry received 409 Conflict.
+        # Treat as idempotent success: push the XCom and honour wait_for_completion
+        # as if the POST had succeeded on the first attempt.
+        log.info(
+            "Dag Run already exists for dag_id=%s run_id=%s; treating as idempotent success.",
+            drte.trigger_dag_id,
+            drte.dag_run_id,
+        )
 
     log.info("Dag Run triggered successfully.", trigger_dag_id=drte.trigger_dag_id)
 
@@ -1129,26 +1901,25 @@ def _handle_trigger_dag_run(
     # be used when creating the extra link on the webserver.
     ti.xcom_push(key="trigger_run_id", value=drte.dag_run_id)
 
-    if drte.deferrable:
-        from airflow.exceptions import TaskDeferred
-        from airflow.providers.standard.triggers.external_task import DagStateTrigger
-
-        defer = TaskDeferred(
-            trigger=DagStateTrigger(
-                dag_id=drte.trigger_dag_id,
-                states=drte.allowed_states + drte.failed_states,  # type: ignore[arg-type]
-                # Don't filter by execution_dates when run_ids is provided.
-                # run_id uniquely identifies a DAG run, and when reset_dag_run=True,
-                # drte.logical_date might be a newly calculated value that doesn't match
-                # the persisted logical_date in the database, causing the trigger to never find the run.
-                execution_dates=None,
-                run_ids=[drte.dag_run_id],
-                poll_interval=drte.poke_interval,
-            ),
-            method_name="execute_complete",
-        )
-        return _defer_task(defer, ti, log)
     if drte.wait_for_completion:
+        if drte.deferrable:
+            from airflow.providers.standard.triggers.external_task import DagStateTrigger
+
+            defer = TaskDeferred(
+                trigger=DagStateTrigger(
+                    dag_id=drte.trigger_dag_id,
+                    states=drte.allowed_states + drte.failed_states,  # type: ignore[arg-type]
+                    # Don't filter by execution_dates when run_ids is provided.
+                    # run_id uniquely identifies a DAG run, and when reset_dag_run=True,
+                    # drte.logical_date might be a newly calculated value that doesn't match
+                    # the persisted logical_date in the database, causing the trigger to never find the run.
+                    execution_dates=None,
+                    run_ids=[drte.dag_run_id],
+                    poll_interval=drte.poke_interval,
+                ),
+                method_name="execute_complete",
+            )
+            return _defer_task(defer, ti, log)
         while True:
             log.info(
                 "Waiting for dag run to complete execution in allowed state.",
@@ -1167,13 +1938,17 @@ def _handle_trigger_dag_run(
                 log.error(
                     "DagRun finished with failed state.", dag_id=drte.trigger_dag_id, state=comms_msg.state
                 )
-                msg = TaskState(
-                    state=TaskInstanceState.FAILED,
-                    end_date=datetime.now(tz=timezone.utc),
-                    rendered_map_index=ti.rendered_map_index,
+                # Mirror the deferrable path (DagStateTrigger -> execute_complete raises
+                # AirflowException), which flows through run()'s exception handler and
+                # therefore honours a configured retry_policy. Synthesize the same
+                # exception here so non-deferrable waits evaluate the policy too,
+                # falling back to the standard retry-count check when none is set.
+                return _handle_current_task_failed(
+                    ti,
+                    AirflowException(f"{drte.trigger_dag_id} failed with failed state {comms_msg.state}"),
+                    log,
+                    context,
                 )
-                state = TaskInstanceState.FAILED
-                return msg, state
             if comms_msg.state in drte.allowed_states:
                 log.info(
                     "DagRun finished with allowed state.", dag_id=drte.trigger_dag_id, state=comms_msg.state
@@ -1183,6 +1958,14 @@ def _handle_trigger_dag_run(
                 "DagRun not yet in allowed or failed state.",
                 dag_id=drte.trigger_dag_id,
                 state=comms_msg.state,
+            )
+    else:
+        # Fire-and-forget mode: wait_for_completion=False
+        if drte.deferrable:
+            log.info(
+                "Ignoring deferrable=True because wait_for_completion=False. "
+                "Task will complete immediately without waiting for the triggered DAG run.",
+                trigger_dag_id=drte.trigger_dag_id,
             )
 
     return _handle_current_task_success(context, ti)
@@ -1282,16 +2065,27 @@ def _send_error_email_notification(
         log.exception("Failed to send email notification")
 
 
+@detail_span("_execute_task")
 def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     task = ti.task
     execute = task.execute
 
     if ti._ti_context_from_server and (next_method := ti._ti_context_from_server.next_method):
-        from airflow.serialization.serialized_objects import BaseSerialization
+        from airflow.sdk.serde import deserialize
 
-        kwargs = BaseSerialization.deserialize(ti._ti_context_from_server.next_kwargs or {})
+        next_kwargs_data = ti._ti_context_from_server.next_kwargs or {}
+        try:
+            if TYPE_CHECKING:
+                assert isinstance(next_kwargs_data, dict)
+            kwargs = deserialize(next_kwargs_data)
+        except (ImportError, KeyError, AttributeError, TypeError):
+            from airflow.serialization.serialized_objects import BaseSerialization
 
+            kwargs = BaseSerialization.deserialize(next_kwargs_data)
+
+        if TYPE_CHECKING:
+            assert isinstance(kwargs, dict)
         execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
     ctx = contextvars.copy_context()
@@ -1310,6 +2104,8 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
         create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
 
     _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
+
+    log.info("::endgroup::")
 
     if task.execution_timeout:
         from airflow.sdk.execution_time.timeout import timeout
@@ -1393,6 +2189,7 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
     _xcom_push(ti, BaseXCom.XCOM_RETURN_KEY, result, mapped_length=mapped_length)
 
 
+@detail_span("finalize")
 def finalize(
     ti: RuntimeTaskInstance,
     state: TaskInstanceState,
@@ -1403,10 +2200,7 @@ def finalize(
     # Record task duration metrics for all terminal states
     if ti.start_date and ti.end_date:
         duration_ms = (ti.end_date - ti.start_date).total_seconds() * 1000
-        stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
-
-        Stats.timing(f"dag.{ti.dag_id}.{ti.task_id}.duration", duration_ms)
-        Stats.timing("task.duration", duration_ms, tags=stats_tags)
+        stats.timing("task.duration", duration_ms, tags=ti.stats_tags)
 
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.
@@ -1426,7 +2220,10 @@ def finalize(
     if getattr(ti.task, "overwrite_rtif_after_execution", False):
         log.debug("Overwriting Rendered template fields.")
         if ti.task.template_fields:
-            SUPERVISOR_COMMS.send(SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)))
+            try:
+                SUPERVISOR_COMMS.send(SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)))
+            except Exception:
+                log.exception("Failed to set rendered fields during finalization", ti=ti, task=ti.task)
 
     log.debug("Running finalizers", ti=ti)
     if state == TaskInstanceState.SUCCESS:
@@ -1439,6 +2236,12 @@ def finalize(
             log.exception("error calling listener")
     elif state == TaskInstanceState.SKIPPED:
         _run_task_state_change_callbacks(task, "on_skipped_callback", context, log)
+        try:
+            get_listener_manager().hook.on_task_instance_skipped(
+                previous_state=TaskInstanceState.RUNNING, task_instance=ti
+            )
+        except Exception:
+            log.exception("error calling listener")
     elif state == TaskInstanceState.UP_FOR_RETRY:
         _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
         try:
@@ -1465,34 +2268,93 @@ def finalize(
     except Exception:
         log.exception("error calling listener")
 
+    log.info("::endgroup::")
 
+
+@contextmanager
+def flush_spans():
+    try:
+        yield
+    finally:
+        provider = trace.get_tracer_provider()
+        if hasattr(provider, "force_flush"):
+            from airflow.sdk.configuration import conf
+
+            timeout_millis = conf.getint("traces", "task_runner_flush_timeout_milliseconds", fallback=30000)
+            provider.force_flush(timeout_millis=timeout_millis)
+
+
+@flush_spans()
 def main():
     log = structlog.get_logger(logger_name="task")
 
     global SUPERVISOR_COMMS
     SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
 
-    try:
-        ti, context, log = startup()
-        with BundleVersionLock(
-            bundle_name=ti.bundle_instance.name,
-            bundle_version=ti.bundle_instance.version,
-        ):
-            state, _, error = run(ti, context, log)
-            context["exception"] = error
-            finalize(ti, state, context, log, error)
-    except KeyboardInterrupt:
-        log.exception("Ctrl-c hit")
-        exit(2)
-    except Exception:
-        log.exception("Top level error")
-        exit(1)
-    finally:
-        # Ensure the request socket is closed on the child side in all circumstances
-        # before the process fully terminates.
-        if SUPERVISOR_COMMS and SUPERVISOR_COMMS.socket:
-            with suppress(Exception):
-                SUPERVISOR_COMMS.socket.close()
+    stats.initialize(
+        factory=stats_utils.get_stats_factory(),
+        export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+    )
+
+    stack = ExitStack()
+    span = INVALID_SPAN
+    with stack:
+        try:
+            try:
+                log.info("::group::Pre Execute")
+                startup_details = get_startup_details()
+
+                # On macOS fork+exec path, the structured log channel wasn't
+                # inherited (exec replaces the address space). Request it from
+                # the supervisor using the existing ResendLoggingFD mechanism.
+                # Must happen after get_startup_details() so we don't read the
+                # startup message as a ResendLoggingFD response.
+                if os.environ.pop("_AIRFLOW_FORK_EXEC", None) == "1":
+                    reinit_supervisor_comms()
+                span_ctx_mgr = _make_task_span(msg=startup_details)
+                span = stack.enter_context(span_ctx_mgr)
+                ti, context, log = startup(msg=startup_details)
+            except AirflowRescheduleException as reschedule:
+                log.warning("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
+                SUPERVISOR_COMMS.send(
+                    msg=RescheduleTask(
+                        reschedule_date=reschedule.reschedule_date,
+                        end_date=datetime.now(tz=timezone.utc),
+                    )
+                )
+                span.record_exception(reschedule)
+                span.set_status(
+                    Status(StatusCode.ERROR, description=f"Exception: {type(reschedule).__name__}")
+                )
+                sys.exit(0)
+            with BundleVersionLock(
+                bundle_name=ti.bundle_instance.name,
+                bundle_version=ti.bundle_instance.version,
+            ):
+                state, _, error = run(ti, context, log)
+                context["exception"] = error
+                finalize(ti, state, context, log, error)
+                # If run() couldn't deliver a FAILED / UP_FOR_RETRY terminal
+                # state to the supervisor, fail closed now — finalize() has
+                # already run, so callbacks and listeners observed the state.
+                if getattr(ti, "_terminal_state_send_failed", False):
+                    sys.exit(1)
+        except KeyboardInterrupt as e:
+            log.exception("Ctrl-c hit")
+            span.record_exception(e)
+            span.set_status(Status(StatusCode.ERROR, description=f"Exception: {type(e).__name__}"))
+            sys.exit(2)
+        except Exception as e:
+            log.exception("Top level error")
+            span.record_exception(e)
+            span.set_status(Status(StatusCode.ERROR, description=f"Exception: {type(e).__name__}"))
+            sys.exit(1)
+        finally:
+            # Ensure the request socket is closed on the child side in all circumstances
+            # before the process fully terminates.
+            if SUPERVISOR_COMMS and SUPERVISOR_COMMS.socket:
+                with suppress(Exception):
+                    SUPERVISOR_COMMS.socket.close()
 
 
 def reinit_supervisor_comms() -> None:
@@ -1507,7 +2369,6 @@ def reinit_supervisor_comms() -> None:
 
     if "SUPERVISOR_COMMS" not in globals():
         global SUPERVISOR_COMMS
-        log = structlog.get_logger(logger_name="task")
 
         fd = int(os.environ.get("__AIRFLOW_SUPERVISOR_FD", "0"))
 
