@@ -1,27 +1,10 @@
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
-"""``islo`` provider — islo.dev sandboxes (submit→poll exec model).
+"""``islo`` provider — islo.dev sandboxes via the ``islo`` SDK.
 
-islo's native shape is asynchronous: submit an exec and poll for the result by
-``exec_id`` — which is exactly the watcher's polling contract. Named sandboxes
-make adoption work. Requires ``ISLO_API_KEY``.
-
-The islo public SDK surface is still thin; this maps the documented
-create / exec / get-result / destroy verbs and degrades gracefully.
+islo's native exec model is asynchronous (submit ``exec_in_sandbox`` -> poll
+``get_exec_result`` by ``exec_id``), which maps directly onto the watcher's
+polling contract. Sandboxes are name-keyed, so adoption works. islo also
+supports pause/resume. Requires ``pip install 'airflow-provider-sandbox[islo]'``
+and ``ISLO_API_KEY`` (optionally ``ISLO_BASE_URL`` / ``ISLO_COMPUTE_URL``).
 """
 
 from __future__ import annotations
@@ -40,55 +23,98 @@ from airflow.providers.sandbox.backends.base import (
 class IsloProvider(SandboxProvider):
     capabilities = SandboxCapabilities(
         kind="delegated-run",
-        supports_file_upload=True,
-        supports_async_exec=True,   # native submit→poll
-        supports_kill=False,
-        supports_reattach=True,     # named sandboxes
+        # islo's upload_file is path-based (no in-band bytes), so the executor
+        # transfers workloads via image/snapshot/git sources rather than upload.
+        supports_file_upload=False,
+        supports_async_exec=True,    # native submit→poll
+        supports_kill=False,         # exec is not individually killable; sandbox stop/pause is
+        supports_reattach=True,      # name-keyed sandboxes
+        supports_pause_resume=True,  # pause_sandbox / resume_sandbox
     )
 
     def __init__(self) -> None:
         self._client = None
 
+    def _sandboxes(self):
+        return self._client.sandboxes
+
     def authenticate(self) -> None:
+        # A factory hook lets tests inject a fake client.
+        client_factory = getattr(self, "_client_factory", None)
+        if client_factory is not None:
+            self._client = client_factory()
+            return
         try:
-            from islo import Islo  # type: ignore
+            from islo import Islo
         except ImportError as exc:  # pragma: no cover
             raise RuntimeError(
                 "IsloProvider needs the islo SDK: pip install 'airflow-provider-sandbox[islo]'"
             ) from exc
-        self._client = Islo(api_key=os.environ["ISLO_API_KEY"])
+        kwargs: dict = {"api_key": os.environ["ISLO_API_KEY"]}
+        if os.environ.get("ISLO_BASE_URL"):
+            kwargs["base_url"] = os.environ["ISLO_BASE_URL"]
+        if os.environ.get("ISLO_COMPUTE_URL"):
+            kwargs["compute_url"] = os.environ["ISLO_COMPUTE_URL"]
+        self._client = Islo(**kwargs)
 
     def create_sandbox(self, spec: SandboxSpec) -> str:
-        sandbox = self._client.create_sandbox(name=spec.name, image=spec.image, env=spec.env)
-        return getattr(sandbox, "name", None) or getattr(sandbox, "id")
+        kwargs: dict = {}
+        if spec.name:
+            kwargs["name"] = spec.name
+        if spec.image:
+            kwargs["image"] = spec.image
+        if spec.env:
+            kwargs["env"] = spec.env
+        if spec.cpu:
+            kwargs["vcpus"] = spec.cpu
+        if spec.memory_mb:
+            kwargs["memory_mb"] = spec.memory_mb
+        if spec.disk_gb:
+            kwargs["disk_gb"] = spec.disk_gb
+        resp = self._sandboxes().create_sandbox(**kwargs)
+        # name is the stable handle (adoptable); fall back to id.
+        return getattr(resp, "name", None) or resp.id
 
     def upload_workload(self, handle: str, payload: bytes, dest: str) -> None:
-        self._client.upload_file(handle, dest, payload)
+        # Not used: capabilities.supports_file_upload is False (path-based API).
+        raise NotImplementedError("islo workloads are provisioned via image/snapshot/git sources")
 
     def run(self, handle, command, env, cwd=None, timeout=None) -> str:
-        resp = self._client.exec_in_sandbox(handle, command=command, env=env, cwd=cwd)
-        return getattr(resp, "exec_id", None) or getattr(resp, "id")
+        resp = self._sandboxes().exec_in_sandbox(
+            handle,
+            command=list(command),
+            env=env or None,
+            timeout_secs=timeout,
+            workdir=cwd,
+        )
+        return resp.exec_id
 
     def poll_status(self, handle: str, exec_ref: str) -> ExecResult:
         try:
-            res = self._client.get_exec_result(handle, exec_ref)
+            res = self._sandboxes().get_exec_result(handle, exec_ref)
         except Exception:
             return ExecResult(state=SandboxState.UNKNOWN)
-        if res is None or getattr(res, "finished", False) is False:
+        exit_code = getattr(res, "exit_code", None)
+        if exit_code is None:
             return ExecResult(state=SandboxState.RUNNING)
-        rc = getattr(res, "exit_code", 0)
-        state = SandboxState.SUCCEEDED if rc == 0 else SandboxState.FAILED
-        return ExecResult(state=state, exit_code=rc, stdout=getattr(res, "stdout", ""))
+        state = SandboxState.SUCCEEDED if exit_code == 0 else SandboxState.FAILED
+        return ExecResult(
+            state=state,
+            exit_code=exit_code,
+            stdout=getattr(res, "stdout", "") or "",
+            stderr=getattr(res, "stderr", "") or "",
+        )
 
     def fetch_logs(self, handle: str, exec_ref: str) -> tuple[list[str], list[str]]:
         try:
-            res = self._client.get_exec_result(handle, exec_ref)
+            res = self._sandboxes().get_exec_result(handle, exec_ref)
         except Exception:
             return [], []
-        return [f"islo sandbox {handle}"], str(getattr(res, "stdout", "")).splitlines()
+        out = (getattr(res, "stdout", "") or "") + (getattr(res, "stderr", "") or "")
+        return [f"islo sandbox {handle}"], out.splitlines()
 
     def destroy(self, handle: str) -> None:
         try:
-            self._client.destroy_sandbox(handle)
+            self._sandboxes().delete_sandbox(handle)
         except Exception:
             pass

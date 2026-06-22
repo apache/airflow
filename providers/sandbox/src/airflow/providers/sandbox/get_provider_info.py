@@ -31,6 +31,12 @@ def get_provider_info():
         "source-date-epoch": 0,
         "versions": ["0.1.0"],
         "executors": ["airflow.providers.sandbox.executors.sandbox_executor.SandboxExecutor"],
+        "task-decorators": [
+            {
+                "name": "sandbox",
+                "class-name": "airflow.providers.sandbox.decorators.sandbox.sandbox_task",
+            },
+        ],
         "config": {
             "sandbox": {
                 "description": "SandboxExecutor configuration.",
