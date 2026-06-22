@@ -38,15 +38,17 @@ F = TypeVar("F", bound=Callable[..., object])
 
 def deprecated_for_airflowctl(replacement: str) -> Callable[[F], F]:
     """
-    Mark an ``airflow`` CLI command as migrated to its ``airflowctl`` equivalent.
+    Mark an ``airflow`` CLI command as deprecated in favour of an ``airflowctl`` equivalent.
 
-    The decorated command now reaches Airflow through the API server via the ``airflowctl``
-    client. It is intentionally kept in the ``airflow`` CLI as a supported entry point, so it
-    emits **no user-facing deprecation warning** at runtime. The migration is recorded for
-    maintainers only: the equivalent ``airflowctl`` command is stored on the
-    ``_migrated_to_airflowctl`` attribute (the migration registry test in
-    ``test_command_deprecations.py`` reads it). The decorator at the command's definition site is
+    The command keeps its existing implementation and stays in the ``airflow`` CLI as a supported
+    entry point, so it emits **no user-facing deprecation warning** at runtime. The intent is to
+    point future development at ``airflowctl``: the equivalent ``airflowctl`` command is recorded
+    for maintainers only, on the ``_migrated_to_airflowctl`` attribute (the migration registry test
+    in ``test_command_deprecations.py`` reads it). The decorator at the command's definition site is
     the developer-facing trace -- it is source-only and never rendered to users.
+
+    See ``contributing-docs/27_cli_implementation_guide.rst`` for the CLI / ``airflowctl``
+    development guidance.
 
     :param replacement: The equivalent ``airflowctl`` command, e.g. ``airflowctl dags trigger``.
     """
