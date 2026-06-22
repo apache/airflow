@@ -26,6 +26,19 @@
 Changelog
 ---------
 
+2.18.1
+......
+
+Misc
+~~~~
+
+* ``Add openlineage system tests for missing use cases (#68664)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Small operator improvements in openlineage system tests (#68677)``
+   * ``Load example DAGs from providers via ProvidersManager (continuation of #57320) (#66161)``
+
 2.18.0
 ......
 

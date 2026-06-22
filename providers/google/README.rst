@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``22.1.0``
+Release: ``22.2.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/22.1.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/22.2.0/>`_.
 
 Installation
 ------------
@@ -166,6 +166,7 @@ Dependent package                                                               
 `apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                          ``http``
 `apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_    ``microsoft.azure``
 `apache-airflow-providers-microsoft-mssql <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql>`_    ``microsoft.mssql``
+`apache-airflow-providers-mongo <https://airflow.apache.org/docs/apache-airflow-providers-mongo>`_                        ``mongo``
 `apache-airflow-providers-mysql <https://airflow.apache.org/docs/apache-airflow-providers-mysql>`_                        ``mysql``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_            ``openlineage``
 `apache-airflow-providers-oracle <https://airflow.apache.org/docs/apache-airflow-providers-oracle>`_                      ``oracle``
@@ -193,6 +194,7 @@ Extra                 Dependencies
 ``apache.cassandra``  ``apache-airflow-providers-apache-cassandra``
 ``microsoft.azure``   ``apache-airflow-providers-microsoft-azure>=13.0.0``
 ``microsoft.mssql``   ``apache-airflow-providers-microsoft-mssql``
+``mongo``             ``apache-airflow-providers-mongo``
 ``mysql``             ``apache-airflow-providers-mysql``
 ``openlineage``       ``apache-airflow-providers-openlineage``
 ``postgres``          ``apache-airflow-providers-postgres``
@@ -207,4 +209,4 @@ Extra                 Dependencies
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.1.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.2.0/changelog.html>`_.
