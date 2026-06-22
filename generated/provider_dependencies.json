@@ -145,6 +145,17 @@
     "excluded-platforms": [],
     "state": "ready"
   },
+  "apache.datafusion": {
+    "deps": [
+      "apache-airflow>=2.11.0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "excluded-platforms": [],
+    "state": "ready"
+  },
   "apache.drill": {
     "deps": [
       "apache-airflow-providers-common-compat>=1.8.0",

@@ -117,6 +117,7 @@ body:
         - amazon
         - apache-beam
         - apache-cassandra
+        - apache-datafusion
         - apache-drill
         - apache-druid
         - apache-flink
