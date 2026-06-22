@@ -5757,6 +5757,54 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/providers/{provider_name}:
+    get:
+      tags:
+      - Provider
+      summary: Get Provider
+      description: Get detailed information about an installed provider.
+      operationId: get_provider
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: provider_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Provider Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderDetailsResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/assets/{asset_id}/state-store:
     get:
       tags:
@@ -15292,6 +15340,35 @@ components:
       - total_entries
       title: ProviderCollectionResponse
       description: Provider Collection serializer for responses.
+    ProviderDetailsResponse:
+      properties:
+        package_name:
+          type: string
+          title: Package Name
+        description:
+          type: string
+          title: Description
+        version:
+          type: string
+          title: Version
+        documentation_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Documentation Url
+        provider_info:
+          additionalProperties: true
+          type: object
+          title: Provider Info
+      type: object
+      required:
+      - package_name
+      - description
+      - version
+      - documentation_url
+      - provider_info
+      title: ProviderDetailsResponse
+      description: Detailed provider serializer for responses.
     ProviderResponse:
       properties:
         package_name:
