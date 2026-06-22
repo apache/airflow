@@ -849,6 +849,11 @@ NUMBER_OF_LOW_DEP_SLICES = 5
 # Number of slices for core test types (splitting reduces memory per xdist collection)
 NUMBER_OF_CORE_SLICES = 2
 
+# Number of chunks the big "all other providers" group is split into for the parallel
+# (non-xdist) provider DB test run, so the parallel slots stay balanced instead of one
+# serial group becoming the bottleneck. Tunable.
+NUMBER_OF_PARALLEL_PROVIDER_SLICES = 4
+
 # Milestone Tag Assistant configuration
 # Labels indicating a bug fix PR that should have a milestone
 MILESTONE_BUG_LABELS: frozenset[str] = frozenset({"kind:bug", "type:bug-fix"})

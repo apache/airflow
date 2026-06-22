@@ -530,7 +530,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | postgres-versions                                       | Which versions of Postgres to use for tests as JSON array                                               | \['12'\]                                 |      |
 | prod-image-build                                        | Whether PROD image build is needed                                                                      | true                                     |      |
 | providers-compatibility-tests-matrix                    | Matrix of providers compatibility tests: (python_version, airflow_version, removed_providers)           | \[{}\]                                   |      |
-| providers-test-types-list-as-strings-in-json            | Which test types should be run for unit tests for providers                                             | Providers Providers\[-google\]           | *    |
+| providers-test-types-list-as-strings-in-json            | Which test types should be run for unit tests for providers (big providers isolated; the rest split into balanced chunks — see note below) | Providers\[amazon\] Providers\[a,b,c\] Providers\[d,e,f\] | *    |
 | pyproject-toml-changed                                  | When pyproject.toml changed in the PR.                                                                  | false                                    |      |
 | python-versions                                         | List of python versions to use for that build                                                           | \['3.10'\]                               |      |
 | python-versions-list-as-string                          | Which versions of MySQL to use for tests as space-separated string                                      | 3.10                                     | *    |
@@ -572,6 +572,21 @@ or when new Hook class is added), we do not need to run full tests.
 That's why we do not base our `full tests needed` decision on changes in dependency files that are generated
 from the `provider.yaml` files, but on `generated/provider_dependencies.json` and `pyproject.toml` files being
 modified. This can be overridden by setting `full tests needed` label in the PR.
+
+[2] Note on how `providers-test-types-list-as-strings-in-json` is split.
+
+The provider DB tests run as parallel test-type *groups* (`breeze testing providers-tests
+--run-in-parallel`), but each group runs **without xdist** — its tests run serially. To keep all
+parallel slots busy, the big "all other providers" group is **not** emitted as one
+`Providers[-amazon,celery,google]` monolith (which would be the serial bottleneck while the other slots
+idle); instead every provider except the few isolated big ones (`amazon`, `celery`, `google`) is split
+into `NUMBER_OF_PARALLEL_PROVIDER_SLICES` balanced chunks (`Providers[a,b,c] Providers[d,e,f] …`). The
+union of the isolated groups and the chunks always covers exactly the same providers, so nothing is
+dropped.
+
+`standard` used to be isolated too (its `PythonVirtualenvOperator` tests dominated the suite), but those
+tests are now DB-free and parallelize under xdist, so `standard` is no longer a slow group and is left
+in the chunks.
 
 ## Committer vs. Non-committer PRs
 

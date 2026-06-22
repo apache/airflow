@@ -31,6 +31,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     NUMBER_OF_CORE_SLICES,
     NUMBER_OF_LOW_DEP_SLICES,
+    NUMBER_OF_PARALLEL_PROVIDER_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     PUBLIC_AMD_RUNNERS,
     GithubEvents,
@@ -80,14 +81,24 @@ ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON = json.dumps(
     _get_test_list_as_json(_split_list(sorted(ALL_CI_SELECTIVE_TEST_TYPES.split()), NUMBER_OF_CORE_SLICES))
 )
 
+# The four big providers run as isolated groups; every *other* provider is split into
+# NUMBER_OF_PARALLEL_PROVIDER_SLICES balanced chunks (the parallel provider DB run has no
+# xdist, so a single "all other providers" group would be the serial bottleneck). Built the
+# same way the production code does so the union still covers every provider.
+_LONG_PROVIDER_TEST_TYPES = ["Providers[amazon]", "Providers[celery]", "Providers[google]"]
+_REBALANCED_OTHER_PROVIDER_TEST_TYPES = [
+    f"Providers[{','.join(chunk)}]"
+    for chunk in _split_list(
+        sorted(
+            provider
+            for provider in get_available_distributions(include_not_ready=True)
+            if provider not in ("amazon", "celery", "google")
+        ),
+        NUMBER_OF_PARALLEL_PROVIDER_SLICES,
+    )
+]
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON = json.dumps(
-    [
-        {
-            "description": "-amazon,celer...standard",
-            "test_types": "Providers[-amazon,celery,google,standard] "
-            "Providers[amazon] Providers[celery] Providers[google] Providers[standard]",
-        }
-    ]
+    _get_test_list_as_json([sorted(_LONG_PROVIDER_TEST_TYPES + _REBALANCED_OTHER_PROVIDER_TEST_TYPES)])
 )
 
 LIST_OF_ALL_PROVIDER_TESTS = [
@@ -2408,13 +2419,12 @@ def test_expected_output_push(
                 "providers-test-types-list-as-strings-in-json": json.dumps(
                     [
                         {
-                            "description": "amazon...standard",
+                            "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.cassandra,"
                             "apache.kafka,cncf.kubernetes,common.compat,common.messaging,common.sql,databricks,facebook,"
                             "hashicorp,http,microsoft.azure,microsoft.mssql,mongo,mysql,"
-                            "openlineage,oracle,postgres,presto,salesforce,samba,sftp,ssh,trino] "
-                            "Providers[google] "
-                            "Providers[standard]",
+                            "openlineage,oracle,postgres,presto,salesforce,samba,sftp,ssh,standard,trino] "
+                            "Providers[google]",
                         }
                     ]
                 ),
@@ -2501,10 +2511,10 @@ def test_expected_output_push(
                 "providers-test-types-list-as-strings-in-json": json.dumps(
                     [
                         {
-                            "description": "amazon...standard",
+                            "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[common.compat,common.io,common.sql,"
                             "databricks,dbt.cloud,ftp,jdbc,microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,"
-                            "postgres,sftp,snowflake,trino] Providers[google] Providers[standard]",
+                            "postgres,sftp,snowflake,standard,trino] Providers[google]",
                         }
                     ]
                 ),
@@ -3972,3 +3982,28 @@ def test_helm_test_kubernetes_versions(
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+def test_full_provider_tests_rebalanced_and_cover_all_providers():
+    """The parallel (non-xdist) provider DB run must split providers into balanced groups
+    whose union still covers every provider: no monolithic "all other providers" negation
+    group, and nothing dropped or duplicated."""
+    sc = SelectiveChecks(
+        files=(),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=("full tests needed",),
+        default_branch="main",
+    )
+    test_types = json.loads(sc.providers_test_types_list_as_strings_in_json)[0]["test_types"].split()
+    # The monolithic "Providers[-amazon,celery,google]" negation must be split away.
+    assert not any(tt.startswith("Providers[-") for tt in test_types), test_types
+    # Union of every group covers exactly all providers (no coverage gap, no duplicate).
+    covered: set[str] = set()
+    for tt in test_types:
+        covered |= {p for p in tt[len("Providers[") : -1].split(",") if p}
+    all_providers = {tt[len("Providers[") : -1] for tt in sc._get_individual_providers_list()}
+    assert covered == all_providers, sorted(all_providers ^ covered)
+    # The "all other providers" pool is split into the configured number of balanced chunks.
+    chunk_groups = [tt for tt in test_types if "," in tt[len("Providers[") : -1]]
+    assert len(chunk_groups) == NUMBER_OF_PARALLEL_PROVIDER_SLICES, test_types

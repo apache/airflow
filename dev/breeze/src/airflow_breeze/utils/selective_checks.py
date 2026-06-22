@@ -47,6 +47,7 @@ from airflow_breeze.global_constants import (
     KIND_VERSION,
     NUMBER_OF_CORE_SLICES,
     NUMBER_OF_LOW_DEP_SLICES,
+    NUMBER_OF_PARALLEL_PROVIDER_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     PUBLIC_AMD_RUNNERS,
     PUBLIC_ARM_RUNNERS,
@@ -1267,9 +1268,13 @@ class SelectiveChecks:
         In case of celery tests we want to isolate them from the rest, because they seem to be hanging
         infrequently when running together with other tests
 
+        NOTE: ``standard`` used to be here too (its PythonVirtualenvOperator tests dominated the
+        suite), but those tests are now DB-free and parallelize under xdist, so ``standard`` is no
+        longer a slow group and is left in the rebalanced "all other providers" chunks.
+
         :param current_test_types: The set of test types to run
         """
-        long_tests = ["amazon", "celery", "google", "standard"]
+        long_tests = ["amazon", "celery", "google"]
         for original_test_type in tuple(current_test_types):
             if original_test_type == "Providers":
                 current_test_types.remove(original_test_type)
@@ -1287,6 +1292,36 @@ class SelectiveChecks:
                             current_test_types.add(f"Providers[{long_test}]")
                             provider_tests_to_run.remove(long_test)
                     current_test_types.add(f"Providers[{','.join(provider_tests_to_run)}]")
+
+    def _rebalance_negated_provider_tests(self, current_test_types: set[str]) -> None:
+        """Split the big negated "all other providers" group into balanced chunks.
+
+        The provider DB tests run with ``--run-in-parallel`` but WITHOUT xdist, so each
+        parallel slot runs a whole test type serially. A single
+        ``Providers[-amazon,celery,google]`` group bundles ~all providers and
+        becomes the serial bottleneck while the other parallel slots go idle once their
+        (smaller) groups finish. Splitting it into ``NUMBER_OF_PARALLEL_PROVIDER_SLICES``
+        explicit, evenly-sized chunks keeps every slot busy.
+
+        The chunks are enumerated from the same source as the negation
+        (``_get_individual_providers_list``, which is already platform-filtered) minus the
+        negated providers, so the union of the chunks covers *exactly* the same providers
+        the negation would have — no provider's tests are dropped or duplicated.
+        """
+        for negation in [tt for tt in current_test_types if tt.startswith("Providers[-")]:
+            excluded = {p for p in negation[len("Providers[-") : -1].split(",") if p}
+            remaining = sorted(
+                provider_id
+                for provider_id in (
+                    tt[len("Providers[") : -1] for tt in self._get_individual_providers_list()
+                )
+                if provider_id not in excluded
+            )
+            if len(remaining) <= NUMBER_OF_PARALLEL_PROVIDER_SLICES:
+                continue
+            current_test_types.discard(negation)
+            for chunk in _split_list(remaining, NUMBER_OF_PARALLEL_PROVIDER_SLICES):
+                current_test_types.add(f"Providers[{','.join(chunk)}]")
 
     @cached_property
     def core_test_types_list_as_strings_in_json(self) -> str | None:
@@ -1361,6 +1396,9 @@ class SelectiveChecks:
                     test_types_to_remove.add(test_type)
             current_test_types = current_test_types - test_types_to_remove
         self._extract_long_provider_tests(current_test_types)
+        # Split the big "all other providers" group into balanced chunks so the parallel
+        # (non-xdist) provider DB run keeps every slot busy instead of one serial monolith.
+        self._rebalance_negated_provider_tests(current_test_types)
         self._filter_platform_excluded_test_types(current_test_types)
         return json.dumps(_get_test_list_as_json([sorted(current_test_types)]))
 
