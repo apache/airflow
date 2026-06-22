@@ -823,12 +823,7 @@ def requires_access_dag_run_clear_bulk() -> Callable[[BulkDAGRunClearBody, BaseU
                 continue
             entity_methods.append((entity_dag_id, "PUT"))
 
-        partition_selectors_present = (
-            body.partition_key is not None
-            or body.partition_date_start is not None
-            or body.partition_date_end is not None
-        )
-        if not body.dag_runs and partition_selectors_present:
+        if not body.dag_runs and body.has_partition_selectors:
             if dag_id and dag_id != "~":
                 entity_methods.append((dag_id, "PUT"))
 

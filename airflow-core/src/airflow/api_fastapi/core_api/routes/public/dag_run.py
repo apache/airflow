@@ -353,11 +353,7 @@ def clear_dag_runs(
     """Clear multiple Dag Runs in a single request."""
     url_dag_id_is_wildcard = dag_id == "~"
 
-    partition_mode = not body.dag_runs and (
-        body.partition_key is not None
-        or body.partition_date_start is not None
-        or body.partition_date_end is not None
-    )
+    partition_mode = not body.dag_runs and body.has_partition_selectors
 
     if partition_mode:
         if url_dag_id_is_wildcard:
