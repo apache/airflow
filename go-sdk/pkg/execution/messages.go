@@ -116,8 +116,18 @@ func apiErrorFromFrame(f IncomingFrame) *ApiError {
 
 	var resp genmodels.ErrorResponse
 	if err := msgpack.Unmarshal(raw, &resp); err != nil {
+		// detail is off-contract (schema types it as object|null); still recover
+		// the error code so callers get the typed error, not a generic one.
+		var code struct {
+			Error genmodels.ErrorType `msgpack:"error"`
+		}
+		_ = msgpack.Unmarshal(raw, &code)
+		errCode := string(code.Error)
+		if errCode == "" {
+			errCode = string(genmodels.ErrorTypeGENERICERROR)
+		}
 		return &ApiError{
-			Err:    string(genmodels.ErrorTypeGENERICERROR),
+			Err:    errCode,
 			Detail: fmt.Sprintf("undecodable error frame: %v", err),
 		}
 	}

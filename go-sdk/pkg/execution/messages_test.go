@@ -535,6 +535,53 @@ func TestApiErrorFromFrame(t *testing.T) {
 		}
 		assert.Nil(t, apiErrorFromFrame(f))
 	})
+
+	t.Run("off-contract detail still recovers the error code", func(t *testing.T) {
+		// detail is a string instead of the schema's object|null; the typed
+		// error code must survive so translateApiError maps it correctly.
+		f := IncomingFrame{
+			Err: marshalBody(
+				t,
+				map[string]any{"error": "VARIABLE_NOT_FOUND", "detail": "not a map"},
+			),
+		}
+		apiErr := apiErrorFromFrame(f)
+		require.NotNil(t, apiErr)
+		assert.Equal(t, "VARIABLE_NOT_FOUND", apiErr.Err)
+	})
+}
+
+func TestIfaceInt(t *testing.T) {
+	for _, v := range []any{
+		int(42), int8(42), int16(42), int32(42), int64(42),
+		uint(42), uint8(42), uint16(42), uint32(42), uint64(42),
+		float32(42), float64(42),
+	} {
+		assert.Equal(t, 42, ifaceInt(v, -1))
+	}
+	assert.Equal(t, -1, ifaceInt(nil, -1))
+	assert.Equal(t, -1, ifaceInt("not a number", -1))
+}
+
+func TestIfaceStringHelpers(t *testing.T) {
+	assert.Equal(t, "v", ifaceString("v"))
+	assert.Equal(t, "", ifaceString(nil))
+	assert.Equal(t, "", ifaceString(42))
+
+	assert.Nil(t, ifaceStringPtr(nil))
+	assert.Nil(t, ifaceStringPtr(42))
+	if p := ifaceStringPtr(""); assert.NotNil(t, p) {
+		assert.Equal(t, "", *p) // explicit "" stays distinct from "not set"
+	}
+}
+
+func TestIfaceTimePtr(t *testing.T) {
+	assert.Nil(t, ifaceTimePtr(nil))
+	assert.Nil(t, ifaceTimePtr("not a time"))
+	now := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	if p := ifaceTimePtr(now); assert.NotNil(t, p) {
+		assert.Equal(t, now, *p)
+	}
 }
 
 func TestIsNilRaw(t *testing.T) {

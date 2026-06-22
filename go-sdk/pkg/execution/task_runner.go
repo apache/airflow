@@ -36,8 +36,8 @@ import (
 // RunTask executes a task based on StartupDetails received from the supervisor.
 //
 // It looks up the task in the bundle, creates a CoordinatorClient for SDK
-// calls, executes the task, and returns a terminal message body
-// (SucceedTaskMsg or TaskStateMsg) ready to ship as the final response frame.
+// calls, executes the task, and returns the terminal body to ship as the final
+// response frame: one of genmodels.SucceedTask, TaskState, or RetryTask.
 //
 // The supervisor owns the Execution-API state transitions in coordinator
 // mode, so we deliberately bypass worker.ExecuteTaskWorkload (which drives
@@ -139,7 +139,7 @@ func mapIndexPtr(mapIndex int) *int {
 }
 
 // executeTask runs the task, handling success, failure, and panics, and returns
-// the terminal message body to ship as the final response frame.
+// the terminal body: genmodels.SucceedTask, TaskState, or RetryTask.
 func executeTask(
 	ctx context.Context,
 	task bundlev1.Task,

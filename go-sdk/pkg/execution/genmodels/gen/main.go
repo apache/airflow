@@ -78,10 +78,11 @@ func main() {
 	}
 }
 
-// stripDeadTypes removes top-level `type X_N ...` declarations that are not
-// referenced anywhere else in the file, and returns the set of remaining struct
-// type names that declare a string "Type" field (the bodies that carry a wire
-// discriminator).
+// stripDeadTypes removes top-level `type X_N ...` declarations whose name is the
+// only occurrence in the file, and returns the set of remaining struct type names
+// that declare a string "Type" field (the bodies that carry a wire discriminator).
+// A dead type referenced only by another dead type survives, but go-jsonschema's
+// anyOf output is flat so that does not arise here.
 func stripDeadTypes(path string) (map[string]bool, error) {
 	src, err := os.ReadFile(path)
 	if err != nil {
@@ -93,6 +94,7 @@ func stripDeadTypes(path string) (map[string]bool, error) {
 		return nil, err
 	}
 
+	uses := identUseCounts(file)
 	typed := map[string]bool{}
 	kept := file.Decls[:0]
 	for _, decl := range file.Decls {
@@ -101,9 +103,13 @@ func stripDeadTypes(path string) (map[string]bool, error) {
 			kept = append(kept, decl)
 			continue
 		}
-		spec := gen.Specs[0].(*ast.TypeSpec)
+		spec, ok := gen.Specs[0].(*ast.TypeSpec)
+		if !ok {
+			kept = append(kept, decl)
+			continue
+		}
 		name := spec.Name.Name
-		if deadTypeName.MatchString(name) && referenceCount(src, name) == 1 {
+		if deadTypeName.MatchString(name) && uses[name] == 1 {
 			continue // declared once, never used: drop it
 		}
 		if st, ok := spec.Type.(*ast.StructType); ok && hasStringTypeField(st) {
@@ -136,11 +142,17 @@ func hasStringTypeField(st *ast.StructType) bool {
 	return false
 }
 
-// referenceCount counts whole-word occurrences of name in src. A dead typedef
-// appears exactly once (its own declaration); anything used elsewhere appears
-// more than once and is kept.
-func referenceCount(src []byte, name string) int {
-	return len(regexp.MustCompile(`\b`+regexp.QuoteMeta(name)+`\b`).FindAll(src, -1))
+// identUseCounts counts identifier occurrences across the file in one pass. A
+// dead typedef's name occurs once (its declaration); used names occur more.
+func identUseCounts(file *ast.File) map[string]int {
+	counts := map[string]int{}
+	ast.Inspect(file, func(n ast.Node) bool {
+		if id, ok := n.(*ast.Ident); ok {
+			counts[id.Name]++
+		}
+		return true
+	})
+	return counts
 }
 
 type binding struct {
@@ -232,6 +244,8 @@ var discriminatorTmpl = template.Must(
 
 package {{.Package}}
 
+import "reflect"
+
 // Message-type discriminator constants, generated from each body's "type" const
 // in the supervisor wire-schema: the single source of truth for the "type"
 // field's value, so callers never hand-write strings that could drift.
@@ -241,10 +255,10 @@ const (
 {{- end}}
 )
 
-// EnsureType returns m with its "type" discriminator set to the constant bound
-// to its Go type; bodies of an unknown type are returned unchanged. The frame
-// encoder runs every outbound body through it, so the binding lives only here
-// and call sites can't pair the wrong constant with a struct.
+// EnsureType returns m with its "type" discriminator set to the constant bound to
+// its Go type, dereferencing a pointer body first; non-body values pass through.
+// The frame encoder runs every outbound body through it, so the binding lives
+// only here and call sites can't pair the wrong constant with a struct.
 func EnsureType(m any) any {
 	switch b := m.(type) {
 {{- range .Bindings}}
@@ -253,6 +267,11 @@ func EnsureType(m any) any {
 		return b
 {{- end}}
 	default:
+		// Stamp the pointee of a pointer body (e.g. &GetVariable{}) so it isn't
+		// silently left without a discriminator.
+		if rv := reflect.ValueOf(m); rv.Kind() == reflect.Pointer && !rv.IsNil() {
+			return EnsureType(rv.Elem().Interface())
+		}
 		return m
 	}
 }

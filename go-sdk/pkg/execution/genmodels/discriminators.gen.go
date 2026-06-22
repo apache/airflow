@@ -18,6 +18,8 @@
 
 package genmodels
 
+import "reflect"
+
 // Message-type discriminator constants, generated from each body's "type" const
 // in the supervisor wire-schema: the single source of truth for the "type"
 // field's value, so callers never hand-write strings that could drift.
@@ -113,10 +115,10 @@ const (
 	TypeXComSequenceSliceResult     = "XComSequenceSliceResult"
 )
 
-// EnsureType returns m with its "type" discriminator set to the constant bound
-// to its Go type; bodies of an unknown type are returned unchanged. The frame
-// encoder runs every outbound body through it, so the binding lives only here
-// and call sites can't pair the wrong constant with a struct.
+// EnsureType returns m with its "type" discriminator set to the constant bound to
+// its Go type, dereferencing a pointer body first; non-body values pass through.
+// The frame encoder runs every outbound body through it, so the binding lives
+// only here and call sites can't pair the wrong constant with a struct.
 func EnsureType(m any) any {
 	switch b := m.(type) {
 	case AssetEventsResult:
@@ -387,6 +389,11 @@ func EnsureType(m any) any {
 		b.Type = TypeXComSequenceSliceResult
 		return b
 	default:
+		// Stamp the pointee of a pointer body (e.g. &GetVariable{}) so it isn't
+		// silently left without a discriminator.
+		if rv := reflect.ValueOf(m); rv.Kind() == reflect.Pointer && !rv.IsNil() {
+			return EnsureType(rv.Elem().Interface())
+		}
 		return m
 	}
 }
