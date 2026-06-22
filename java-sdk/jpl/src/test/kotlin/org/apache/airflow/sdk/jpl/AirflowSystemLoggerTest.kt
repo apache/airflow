@@ -64,7 +64,7 @@ class AirflowSystemLoggerTest {
 
   @Test
   fun `message and logger name are forwarded`() {
-    logger.log(System.Logger.Level.INFO, null as ResourceBundle?, "hello", null)
+    logger.log(System.Logger.Level.INFO, null as ResourceBundle?, "hello", null as Array<out Any?>?)
     val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
     assertEquals(Level.INFO, msg.level)
     assertEquals("com.example.Task", msg.logger)
@@ -73,10 +73,15 @@ class AirflowSystemLoggerTest {
 
   @Test
   fun `null params array is tolerated (matches JDK default method delegation)`() {
-    // System.Logger.log(Level, String) is a default method that delegates to
-    // log(Level, ResourceBundle, String, Object...) passing (Object[]) null for params.
-    // Kotlin's vararg would null-check and throw; the explicit nullable array must not.
-    logger.log(System.Logger.Level.INFO, null as ResourceBundle?, "hello", null)
+    logger.log(System.Logger.Level.INFO, null as ResourceBundle?, "hello", null as Array<out Any?>?)
+    val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
+    assertEquals("hello", msg.event)
+    assertEquals(emptyMap<String, Any?>(), msg.arguments)
+  }
+
+  @Test
+  fun `null throwable is tolerated (matches JDK contract)`() {
+    logger.log(System.Logger.Level.INFO, null as ResourceBundle?, "hello", null as Throwable?)
     val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
     assertEquals("hello", msg.event)
     assertEquals(emptyMap<String, Any?>(), msg.arguments)
@@ -107,7 +112,7 @@ class AirflowSystemLoggerTest {
 
         override fun getKeys() = java.util.Collections.enumeration(listOf("greeting"))
       }
-    logger.log(System.Logger.Level.INFO, bundle, "greeting", null)
+    logger.log(System.Logger.Level.INFO, bundle, "greeting", null as Array<out Any?>?)
     val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
     assertEquals("hello", msg.event)
   }
@@ -120,7 +125,7 @@ class AirflowSystemLoggerTest {
 
         override fun getKeys() = java.util.Collections.emptyEnumeration<String>()
       }
-    logger.log(System.Logger.Level.INFO, bundle, "unknown.key", null)
+    logger.log(System.Logger.Level.INFO, bundle, "unknown.key", null as Array<out Any?>?)
     val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
     assertEquals("unknown.key", msg.event)
   }

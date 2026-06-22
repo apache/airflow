@@ -50,11 +50,11 @@ internal class AirflowSystemLogger(
     level: System.Logger.Level,
     bundle: ResourceBundle?,
     msg: String?,
-    thrown: Throwable,
+    thrown: Throwable?,
   ) {
     if (!isLoggable(level)) return
     Log.send(level.convert(), name, bundle.resolve(msg)) {
-      put("exception", thrown.toString())
+      thrown?.let { put("exception", it.stackTraceToString()) }
     }
   }
 
