@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import string
-import unittest
 from unittest.mock import MagicMock, patch
 
 from airflow.providers.teradata.utils.encryption_utils import (
@@ -102,7 +101,3 @@ class TestEncryptionUtils:
         assert exit_status == 0
         assert output == "decrypted output"
         assert err == ""
-
-
-if __name__ == "__main__":
-    unittest.main()
