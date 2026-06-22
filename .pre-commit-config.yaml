@@ -1117,8 +1117,7 @@ repos:
           (?x)
           ^dev/breeze/.*$|
           ^\.pre-commit-config\.yaml$|
-          ^scripts/ci/prek/breeze_cmd_line\.py$|
-          ^generated/provider_dependencies\.json$
+          ^scripts/ci/prek/breeze_cmd_line\.py$$
         require_serial: true
         pass_filenames: false
       - id: check-example-dags-urls
