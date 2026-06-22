@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import re
 
-from airflow.api_fastapi.core_api.datamodels.providers import ProviderResponse
+from airflow.api_fastapi.core_api.datamodels.providers import ProviderDetailsResponse, ProviderResponse
 from airflow.providers_manager import ProviderInfo
 
 
@@ -32,4 +32,14 @@ def _provider_mapper(provider: ProviderInfo) -> ProviderResponse:
         description=_remove_rst_syntax(provider.data["description"]),
         version=provider.version,
         documentation_url=provider.data["documentation-url"],
+    )
+
+
+def map_provider_details(provider: ProviderInfo) -> ProviderDetailsResponse:
+    """Map provider information to a detailed API response."""
+    provider_info = dict(provider.data)
+    provider_info["description"] = _remove_rst_syntax(provider_info["description"])
+    return ProviderDetailsResponse(
+        **_provider_mapper(provider).model_dump(),
+        provider_info=provider_info,
     )

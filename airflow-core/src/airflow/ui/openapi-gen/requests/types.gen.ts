@@ -1736,6 +1736,19 @@ export type ProviderCollectionResponse = {
 };
 
 /**
+ * Detailed provider serializer for responses.
+ */
+export type ProviderDetailsResponse = {
+    package_name: string;
+    description: string;
+    version: string;
+    documentation_url: string | null;
+    provider_info: {
+        [key: string]: unknown;
+    };
+};
+
+/**
  * Provider serializer for responses.
  */
 export type ProviderResponse = {
@@ -4466,6 +4479,12 @@ export type GetProvidersData = {
 };
 
 export type GetProvidersResponse = ProviderCollectionResponse;
+
+export type GetProviderData = {
+    providerName: string;
+};
+
+export type GetProviderResponse = ProviderDetailsResponse;
 
 export type ListAssetStateStoreData = {
     assetId: number;
@@ -7871,6 +7890,33 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/providers/{provider_name}': {
+        get: {
+            req: GetProviderData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ProviderDetailsResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
