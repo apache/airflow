@@ -52,10 +52,9 @@ MIGRATED_CLI_COMMANDS = [
 def test_migrated_cli_command_records_airflowctl_replacement(command, replacement):
     """Each migrated command records its ``airflowctl`` counterpart for maintainers.
 
-    The marker (and the appended docstring note) is the maintainer-facing trace of the migration;
-    users see no runtime deprecation warning. The command body itself is exercised by the
-    per-command test modules. ``functools.wraps`` on the outer ``action_cli`` decorator propagates
-    both the attribute and the docstring up to the command object imported here.
+    The marker is the maintainer-facing trace of the migration; users see no runtime deprecation
+    warning. The command body itself is exercised by the per-command test modules.
+    ``functools.wraps`` on the outer ``action_cli`` decorator propagates the attribute up to the
+    command object imported here.
     """
     assert getattr(command, "_migrated_to_airflowctl", None) == replacement
-    assert replacement in (command.__doc__ or "")

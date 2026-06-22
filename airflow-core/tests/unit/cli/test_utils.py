@@ -36,9 +36,8 @@ class TestDeprecatedForAirflowctl:
         assert result == "result"
         # The replacement is recorded for maintainers, not shown to users.
         assert command._migrated_to_airflowctl == "airflowctl dags trigger"
-        assert "airflowctl dags trigger" in command.__doc__
 
-    def test_passes_through_args_and_appends_maintainer_note(self):
+    def test_passes_through_args_and_leaves_function_untouched(self):
         @deprecated_for_airflowctl("airflowctl pools create")
         def command(a, b, *, c):
             """Original docstring."""
@@ -47,6 +46,5 @@ class TestDeprecatedForAirflowctl:
         assert command(1, 2, c=3) == (1, 2, 3)
         # The decorator returns the original function untouched apart from the metadata it records.
         assert command.__name__ == "command"
-        assert command.__doc__.startswith("Original docstring.")
-        assert "airflowctl pools create" in command.__doc__
+        assert command.__doc__ == "Original docstring."
         assert command._migrated_to_airflowctl == "airflowctl pools create"

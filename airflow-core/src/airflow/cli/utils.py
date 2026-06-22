@@ -42,22 +42,16 @@ def deprecated_for_airflowctl(replacement: str) -> Callable[[F], F]:
 
     The decorated command now reaches Airflow through the API server via the ``airflowctl``
     client. It is intentionally kept in the ``airflow`` CLI as a supported entry point, so it
-    emits **no user-facing deprecation warning** at runtime. Instead, the migration is recorded
-    for maintainers: a note is appended to the command's docstring and the equivalent
-    ``airflowctl`` command is stored on the ``_migrated_to_airflowctl`` attribute (the migration
-    registry test in ``test_command_deprecations.py`` reads it).
+    emits **no user-facing deprecation warning** at runtime. The migration is recorded for
+    maintainers only: the equivalent ``airflowctl`` command is stored on the
+    ``_migrated_to_airflowctl`` attribute (the migration registry test in
+    ``test_command_deprecations.py`` reads it). The decorator at the command's definition site is
+    the developer-facing trace -- it is source-only and never rendered to users.
 
     :param replacement: The equivalent ``airflowctl`` command, e.g. ``airflowctl dags trigger``.
     """
 
     def decorator(func: F) -> F:
-        maintainer_note = (
-            "\n\n.. note::\n\n"
-            "   **Maintainers:** this command has been migrated to the ``airflowctl`` HTTP API "
-            "client and now reaches Airflow through the API server. The equivalent ``airflowctl`` "
-            f"command is ``{replacement}``."
-        )
-        func.__doc__ = (func.__doc__ or "") + maintainer_note
         func._migrated_to_airflowctl = replacement  # type: ignore[attr-defined]
         return func
 
