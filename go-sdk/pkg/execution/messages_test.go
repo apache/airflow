@@ -162,6 +162,44 @@ func TestDecodeStartupDetails_MissingOptionalTimestamps(t *testing.T) {
 	assert.Nil(t, ifaceTimePtr(details.TIContext.DagRun.DataIntervalEnd))
 }
 
+func TestDecodeStartupDetails_MapIndexDefault(t *testing.T) {
+	// An omitted map_index must decode to -1 (unmapped), not 0 (mapped index 0).
+	tests := []struct {
+		name string
+		ti   map[string]any
+		want int
+	}{
+		{
+			name: "omitted map_index decodes to the unmapped sentinel",
+			ti: map[string]any{
+				"id":      "550e8400-e29b-41d4-a716-446655440000",
+				"task_id": "t", "dag_id": "d", "run_id": "r", "try_number": 1,
+			},
+			want: -1,
+		},
+		{
+			name: "explicit map_index overrides the seeded default",
+			ti: map[string]any{
+				"id":      "550e8400-e29b-41d4-a716-446655440000",
+				"task_id": "t", "dag_id": "d", "run_id": "r", "try_number": 1,
+				"map_index": 3,
+			},
+			want: 3,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			body, err := decodeIncomingBody(marshalBody(t, map[string]any{
+				"type": "StartupDetails",
+				"ti":   tc.ti,
+			}))
+			require.NoError(t, err)
+			details := body.(*genmodels.StartupDetails)
+			assert.Equal(t, tc.want, details.TI.MapIndex)
+		})
+	}
+}
+
 func TestDecodeConnectionResult(t *testing.T) {
 	raw := marshalBody(t, map[string]any{
 		"type":      "ConnectionResult",

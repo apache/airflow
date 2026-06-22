@@ -67,7 +67,9 @@ func decodeIncomingBody(raw msgpack.RawMessage) (any, error) {
 	typ := peekBodyType(raw)
 	switch typ {
 	case genmodels.TypeStartupDetails:
-		var msg genmodels.StartupDetails
+		// Seed map_index's schema default (-1, unmapped); msgpack applies no
+		// defaults, so an omitted value would decode to 0 and look mapped.
+		msg := genmodels.StartupDetails{TI: genmodels.TaskInstance{MapIndex: -1}}
 		if err := msgpack.Unmarshal(raw, &msg); err != nil {
 			return nil, fmt.Errorf("decoding StartupDetails: %w", err)
 		}
