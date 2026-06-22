@@ -3835,7 +3835,7 @@ def test_fetch_remote_logging_conn_does_not_cache_none_result(mocker):
             schema_=None,
             login=None,
             password=None,
-            port=None,
+            port=0,
             extra=None,
         ),
     ]
@@ -3846,6 +3846,7 @@ def test_fetch_remote_logging_conn_does_not_cache_none_result(mocker):
     second_call_result = supervisor._fetch_remote_logging_conn(conn_id, client)
     assert second_call_result is not None
     assert second_call_result.conn_id == conn_id
+    assert second_call_result.port == 0
     assert supervisor._REMOTE_LOGGING_CONN_CACHE[conn_id] is not None
     # The first call resulted in None and was not cached, so the second fetch calls the API again.
     assert client.connections.get.call_count == 2

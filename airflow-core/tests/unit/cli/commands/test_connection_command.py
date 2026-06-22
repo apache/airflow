@@ -687,6 +687,21 @@ class TestCliAddConnections:
                 self.parser.parse_args(["connections", "add", conn_id, f"--conn-uri={TEST_URL}"])
             )
 
+    def test_cli_connections_add_rejects_non_integer_port(self):
+        with pytest.raises(SystemExit):
+            self.parser.parse_args(
+                ["connections", "add", "new1", "--conn-type=postgres", "--conn-port=not-a-port"]
+            )
+
+    @pytest.mark.parametrize("port", ["-1", "0", "65536"])
+    def test_cli_connections_add_rejects_invalid_port(self, port):
+        with pytest.raises(SystemExit, match="Connection port must be between 1 and 65535"):
+            connection_command.connections_add(
+                self.parser.parse_args(
+                    ["connections", "add", "new1", "--conn-type=postgres", f"--conn-port={port}"]
+                )
+            )
+
     def test_cli_connections_add_delete_with_missing_parameters(self):
         # Attempt to add without providing conn_uri
         with pytest.raises(
@@ -814,6 +829,17 @@ class TestCliImportConnections:
             ),
         ):
             connection_command.connections_import(self.parser.parse_args(["connections", "import", filepath]))
+
+    def test_cli_connections_import_rejects_invalid_port(self, mocker):
+        mocker.patch(
+            "airflow.secrets.local_filesystem._parse_secret_file",
+            return_value={"new0": {"conn_type": "postgres", "host": "host", "port": 0}},
+        )
+        mocker.patch("os.path.exists", return_value=True)
+        with pytest.raises(SystemExit, match="Connection port must be between 1 and 65535"):
+            connection_command.connections_import(
+                self.parser.parse_args(["connections", "import", "sample.json"])
+            )
 
     def test_cli_connections_import_should_load_connections(self, mocker):
         # Sample connections to import

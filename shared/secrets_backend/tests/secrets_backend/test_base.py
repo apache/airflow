@@ -31,6 +31,26 @@ class MockConnection:
         self._kwargs = kwargs
 
     @classmethod
+    def from_json(cls, value: str, conn_id: str, validate_port: bool = True):
+        import json
+
+        data = json.loads(value)
+        return cls(conn_id=conn_id, validate_port=validate_port, **data)
+
+    @classmethod
+    def from_uri(cls, conn_id: str, uri: str, validate_port: bool = True):
+        return cls(conn_id=conn_id, uri=uri, validate_port=validate_port)
+
+
+class MockConnectionWithoutValidationParameter:
+    """Mock Connection class that simulates older deserialization signatures."""
+
+    def __init__(self, conn_id: str, uri: str | None = None, **kwargs):
+        self.conn_id = conn_id
+        self.uri = uri
+        self._kwargs = kwargs
+
+    @classmethod
     def from_json(cls, value: str, conn_id: str):
         import json
 
@@ -123,6 +143,7 @@ class TestBaseSecretsBackend:
         assert isinstance(conn, MockConnection)
         assert conn.conn_id == "test_conn"
         assert conn._kwargs["conn_type"] == "mysql"
+        assert conn._kwargs["validate_port"] is False
 
     def test_deserialize_connection_uri(self, sample_conn_uri):
         """Test deserialize_connection with URI format through _TestBackend."""
@@ -133,6 +154,27 @@ class TestBaseSecretsBackend:
         assert isinstance(conn, MockConnection)
         assert conn.conn_id == "test_conn"
         assert conn.uri == sample_conn_uri
+        assert conn._kwargs["validate_port"] is False
+
+    def test_deserialize_connection_json_without_validate_port_parameter(self, sample_conn_json):
+        backend = _TestBackend()
+        backend._set_connection_class(MockConnectionWithoutValidationParameter)
+
+        conn = backend.deserialize_connection("test_conn", sample_conn_json)
+
+        assert isinstance(conn, MockConnectionWithoutValidationParameter)
+        assert conn._kwargs["conn_type"] == "mysql"
+        assert "validate_port" not in conn._kwargs
+
+    def test_deserialize_connection_uri_without_validate_port_parameter(self, sample_conn_uri):
+        backend = _TestBackend()
+        backend._set_connection_class(MockConnectionWithoutValidationParameter)
+
+        conn = backend.deserialize_connection("test_conn", sample_conn_uri)
+
+        assert isinstance(conn, MockConnectionWithoutValidationParameter)
+        assert conn.uri == sample_conn_uri
+        assert "validate_port" not in conn._kwargs
 
 
 class _LegacyConnValueBackend(BaseSecretsBackend):

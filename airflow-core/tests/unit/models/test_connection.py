@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import re
 import sys
 from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
+from sqlalchemy import select
 from structlog.testing import capture_logs
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
@@ -220,6 +222,53 @@ class TestConnection:
             assert conn.port == expected_port
             assert conn.schema == expected_schema
             assert conn.extra_dejson == expected_extra_dict
+
+    @pytest.mark.parametrize(
+        ("port", "expected_port"),
+        [
+            (None, None),
+            (1, 1),
+            ("1", 1),
+            (65535, 65535),
+            ("65535", 65535),
+        ],
+    )
+    def test_connection_accepts_valid_ports(self, port, expected_port):
+        connection = Connection(conn_id="test_conn", conn_type="test", port=port)
+
+        assert connection.port == expected_port
+
+    @pytest.mark.parametrize("port", [-1, 0, 65536, "0", "65536", "not-a-port", True])
+    def test_connection_rejects_invalid_ports(self, port):
+        with pytest.raises(ValueError, match="port"):
+            Connection(conn_id="test_conn", conn_type="test", port=port)
+
+    def test_validate_port_false_allows_legacy_port(self):
+        from_uri = Connection(conn_id="test_conn", uri="type://host:0/schema", _validate_port=False)
+        from_values = Connection(conn_id="test_conn", conn_type="test", port=0, _validate_port=False)
+
+        assert from_uri.port == 0
+        assert from_values.port == 0
+
+    @pytest.mark.parametrize("port", [0, "0", 65536, "65536"])
+    def test_from_json_rejects_invalid_ports(self, port):
+        json_data = {
+            "conn_type": "postgresql",
+            "host": "localhost",
+            "port": port,
+        }
+
+        with pytest.raises(ValueError, match="port"):
+            Connection.from_json(json.dumps(json_data), conn_id="test_conn")
+
+    def test_from_json_validate_port_false_allows_legacy_port(self):
+        connection = Connection.from_json(
+            json.dumps({"conn_type": "postgresql", "host": "localhost", "port": 0}),
+            conn_id="test_conn",
+            validate_port=False,
+        )
+
+        assert connection.port == 0
 
     @pytest.mark.parametrize(
         ("connection", "expected_uri"),
@@ -539,4 +588,17 @@ class TestConnection:
             "test_conn1": "testing",
             "test_conn2": None,
         }
+        clear_db_connections()
+
+    @pytest.mark.db_test
+    def test_existing_connection_with_invalid_port_can_be_loaded(self, session: Session):
+        clear_db_connections()
+        session.add(Connection(conn_id="legacy_invalid_port", conn_type="test", port=0, _validate_port=False))
+        session.flush()
+
+        connection = session.scalar(select(Connection).where(Connection.conn_id == "legacy_invalid_port"))
+
+        assert connection is not None
+        assert connection.port == 0
+        assert connection.to_dict()["port"] == 0
         clear_db_connections()
