@@ -2045,13 +2045,29 @@ sdk:
         multiple times under different names with different ``kwargs`` (for
         example, two ``JavaCoordinator`` instances pinned to different JDK
         versions).
+
+        An entry may also carry an optional ``extra`` object for additional
+        information associated with the coordinator that the coordinator itself
+        does not receive; other components read it as needed. For example,
+        KubernetesExecutor reads ``extra.pod_template_file`` to launch a queue's
+        worker pod from a specific pod template, and
+        ``extra.worker_container_repository`` + ``extra.worker_container_tag`` to
+        override the worker base image for that queue (both are required).
       version_added: 3.3.0
       type: string
       example: |
         {
           "jdk-17": {
             "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-            "kwargs": {"java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java", "jvm_args": ["-Xmx1024m"]}
+            "kwargs": {
+              "java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java",
+              "jvm_args": ["-Xmx1024m"]
+            },
+            "extra": {
+              "pod_template_file": "/opt/airflow/pod_templates/java.yaml",
+              "worker_container_repository": "apache/airflow",
+              "worker_container_tag": "3.3.0"
+            }
           }
         }
       default: ~
@@ -2453,7 +2469,8 @@ smtp:
       default: "30"
     smtp_retry_limit:
       description: |
-        Defines the maximum number of times Airflow will attempt to connect to the SMTP server.
+        Defines the number of times Airflow will attempt to connect to the SMTP server after the first
+        attempt.
       version_added: 2.0.0
       type: integer
       example: ~

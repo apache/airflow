@@ -57,6 +57,7 @@ from airflow.models.dagbag import DBDagBag
 from airflow.models.trigger import Trigger
 from airflow.observability.metrics import stats_utils
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
+from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.execution_time.comms import (
     CommsDecoder,
     ConnectionResult,
@@ -88,12 +89,13 @@ from airflow.sdk.execution_time.comms import (
     _new_encoder,
     _RequestFrame,
 )
+from airflow.sdk.execution_time.context import AssetStateStoreAccessors
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.serialization.serialized_objects import DagSerialization
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, DiscrimatedTriggerEvent, TriggerEvent
 from airflow.triggers.shared_stream import SharedStreamManager
-from airflow.utils.helpers import log_filename_template_renderer
+from airflow.utils.helpers import log_filename_template_renderer, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session, provide_session
 
@@ -632,7 +634,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         perform_heartbeat(self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True)
 
     def heartbeat_callback(self, session: Session | None = None) -> None:
-        stats.incr("triggerer_heartbeat", 1, 1)
+        stats.incr("triggerer_heartbeat", 1, 1, tags=prune_dict({"team_name": self.team_name}))
 
     def load_triggers(self) -> None:
         """Assign triggers to this triggerer and update the runner with the IDs it should run."""
@@ -663,7 +665,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if entry.persist_seq is not None:
                 self.persisted_event_seqs.append(entry.persist_seq)
             # Emit stat event
-            stats.incr("triggers.succeeded")
+            stats.incr("triggers.succeeded", tags=prune_dict({"team_name": self.team_name}))
 
     def on_trigger_event(self, trigger_id: int, event: TriggerEvent) -> None:
         """Record that a trigger fired an event."""
@@ -684,7 +686,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             trigger_id, exc = self.failed_triggers.popleft()
             self.on_trigger_failure(trigger_id=trigger_id, exc=exc)
             # Emit stat event
-            stats.incr("triggers.failed")
+            stats.incr("triggers.failed", tags=prune_dict({"team_name": self.team_name}))
 
     def on_trigger_failure(self, trigger_id: int, exc: list[str] | None) -> None:
         """Record that a trigger failed."""
@@ -706,7 +708,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 "TriggerRunnerSupervisor.metric_tags() requires a Job with a hostname; "
                 "subclasses without a metadata-DB Job must override this method."
             )
-        return {"hostname": hostname}
+        return prune_dict({"hostname": hostname, "team_name": self.team_name})
 
     def emit_metrics(self):
         tags = self.metric_tags()
@@ -731,10 +733,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         session: Session,
     ) -> workloads.RunTrigger | None:
         if trigger.task_instance is None:
+            watched_assets: dict[str, str] | None = None
+
+            if trigger.assets:
+                watched_assets = {a.name: a.uri for a in trigger.assets}
+
             return workloads.RunTrigger(
                 id=trigger.id,
                 classpath=trigger.classpath,
                 encrypted_kwargs=trigger.encrypted_kwargs,
+                watched_assets=watched_assets,
             )
 
         if not trigger.task_instance.dag_version_id:
@@ -1265,6 +1273,11 @@ class TriggerRunner:
             trigger_instance.trigger_id = trigger_id
             trigger_instance.triggerer_job_id = self.job_id
             trigger_instance.timeout_after = workload.timeout_after
+
+            if isinstance(trigger_instance, BaseEventTrigger) and workload.watched_assets:
+                trigger_instance.asset_state_store = AssetStateStoreAccessors(
+                    inlets=[Asset(name=name, uri=uri) for name, uri in workload.watched_assets.items()]
+                )
 
             self.triggers[trigger_id] = {
                 "task": asyncio.create_task(

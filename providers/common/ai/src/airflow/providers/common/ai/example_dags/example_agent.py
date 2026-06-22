@@ -24,7 +24,7 @@ from pydantic import BaseModel
 
 from airflow.providers.common.ai.operators.agent import AgentOperator
 from airflow.providers.common.ai.toolsets.hook import HookToolset
-from airflow.providers.common.compat.sdk import dag, task
+from airflow.providers.common.compat.sdk import ObjectStoragePath, dag, task
 
 try:
     from airflow.providers.common.ai.toolsets.sql import SQLToolset
@@ -247,3 +247,57 @@ def example_agent_operator_code_mode():
 # [END howto_operator_agent_code_mode]
 
 example_agent_operator_code_mode()
+
+
+# ---------------------------------------------------------------------------
+# 8. Multi-turn session — resume a conversation across DAG runs
+# ---------------------------------------------------------------------------
+
+
+# [START howto_agent_session]
+@dag(tags=["example"], params={"session_id": "demo-session"})
+def example_agent_session():
+    """Resume a conversation across runs via ``message_history``.
+
+    The agent step seeds itself with the prior transcript and re-emits the
+    updated transcript to XCom (key ``message_history``). Loading and storing
+    that transcript under a session key is the DAG's job -- here, a JSON file in
+    object storage keyed by ``session_id``. Swap the path for ``s3://`` /
+    ``gs://`` in a deployment.
+    """
+    sessions_root = ObjectStoragePath("file:///tmp/airflow_agent_sessions")
+
+    @task
+    def load_history(session_id: str) -> str:
+        path = sessions_root / f"{session_id}.json"
+        # First turn: no file yet -> start a fresh session (empty transcript).
+        return path.read_text() if path.exists() else "[]"
+
+    @task.agent(
+        llm_conn_id="pydanticai_default",
+        system_prompt="You are a helpful assistant. Use the earlier turns for context.",
+        # The XComArg both wires the dependency and resolves to the JSON transcript.
+        message_history=load_history("{{ params.session_id }}"),
+    )
+    def ask(question: str) -> str:
+        return question
+
+    @task
+    def save_history(session_id: str, transcript: str) -> None:
+        # Local/fsspec object storage does not auto-create parent dirs on write.
+        sessions_root.mkdir(parents=True, exist_ok=True)
+        (sessions_root / f"{session_id}.json").write_text(transcript)
+
+    answer = ask("And what did I ask you a moment ago?")
+    saved = save_history(
+        "{{ params.session_id }}",
+        # The agent step pushes the post-run transcript under this XCom key.
+        "{{ ti.xcom_pull(task_ids='ask', key='message_history') }}",
+    )
+    # save runs after the agent so the pulled transcript is the fresh one.
+    answer >> saved
+
+
+# [END howto_agent_session]
+
+example_agent_session()

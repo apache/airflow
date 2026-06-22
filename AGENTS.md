@@ -440,6 +440,22 @@ block under the AI-disclosure checkbox; commit messages still follow
 the no-self-as-co-author rule above). Do not skip the footer to
 shorten a message — attribution applies regardless of message length.
 
+#### Do not tag individuals
+
+AI agents MUST NOT mention or tag individual contributors, committers,
+PMC members, or maintainers using GitHub usernames (e.g. `@user`) unless
+explicitly instructed by a human reviewer. When suggesting who might be
+relevant to a discussion, refer to roles, teams, code ownership
+information, labels, or components instead of individuals. This keeps
+notification noise down and avoids pulling people into threads they have
+not chosen to join.
+
+The only exceptions are mentions a human has explicitly authorized —
+including the `@<github-handle>` in the `Drafted-by: … reviewed by
+@<handle>` footer above, which names the reviewer who approved the
+message — and replying within a thread to people already actively
+participating in that same PR/issue discussion.
+
 ## apache-steward framework
 
 This repo adopts the [`apache/airflow-steward`](https://github.com/apache/airflow-steward)
