@@ -470,13 +470,17 @@ class SerializedDAG:
         earliest to latest.
 
         For partitioned timetables, the iteration axis is ``partition_date``
-        rather than ``logical_date``. ``earliest`` and ``latest`` bound
-        ``partition_date`` directly (both ends inclusive) and the iteration
-        granularity follows the timetable's own partition cadence — the window
-        is *not* rounded up to whole calendar days. A sub-day window therefore
-        yields only the partitions inside it (an hourly timetable backfilled for
-        08:00–09:00 yields the 08:00 and 09:00 partitions, not the whole day).
-        Each yielded :class:`~airflow.timetables.base.DagRunInfo` has
+        rather than ``logical_date``. The wall-clock reading of *earliest* and
+        *latest* (year, month, day, hour, minute, second) is re-interpreted in
+        the timetable's own timezone before alignment, so a UTC-midnight bound
+        supplied by the production backfill path is treated as the
+        timetable-local midnight — a cross-timezone daily backfill therefore
+        includes the first day rather than silently dropping it. The window
+        granularity follows the timetable's own partition cadence and is *not*
+        rounded up to whole calendar days, so a single-hour window on an hourly
+        timetable yields only the partitions inside it (08:00 and 09:00, not the
+        full day's 24).  Each yielded
+        :class:`~airflow.timetables.base.DagRunInfo` has
         ``logical_date=None``, ``data_interval=None``, and
         ``run_after == partition_date``; see
         :meth:`~airflow.timetables.base.Timetable.iter_partition_dagrun_infos`

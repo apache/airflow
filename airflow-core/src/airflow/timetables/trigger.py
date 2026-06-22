@@ -26,7 +26,13 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
-from airflow._shared.timezones.timezone import coerce_datetime, make_aware, parse_timezone, utcnow
+from airflow._shared.timezones.timezone import (
+    coerce_datetime,
+    convert_to_utc,
+    make_aware,
+    parse_timezone,
+    utcnow,
+)
 from airflow.exceptions import InvalidPartitionKeyError
 from airflow.timetables._cron import CronMixin
 from airflow.timetables._delta import DeltaMixin
@@ -462,6 +468,24 @@ class CronPartitionTimetable(CronTriggerTimetable):
         partition_key = self._format_key(partition_date)
         return partition_date, partition_key
 
+    def _localize_wall_clock_to_timetable_timezone(self, dt: datetime.datetime) -> DateTime:
+        """
+        Re-interpret *dt*'s wall-clock reading as a moment in this timetable's timezone.
+
+        The production backfill path attaches ``default_timezone`` (UTC) to the
+        bounds it passes in, but the user's intent is the same wall-clock time in
+        the timetable's local timezone. This method extracts the naive
+        year/month/day/hour/minute/second from *dt* (regardless of whatever
+        tzinfo it currently carries) and re-localises that wall-clock to
+        ``self._timezone``, returning a UTC instant.
+
+        Crucially it preserves sub-day precision — the hour, minute, and second
+        are kept intact — so a narrow hourly window is not widened to a whole day.
+        """
+        aware = coerce_datetime(dt)
+        naive = aware.replace(tzinfo=None)
+        return convert_to_utc(make_aware(naive, self._timezone))
+
     def iter_partition_dagrun_infos(
         self,
         *,
@@ -490,15 +514,19 @@ class CronPartitionTimetable(CronTriggerTimetable):
         final tiebreaker).  Setting ``run_after = partition_date`` is the simplest
         correct choice and avoids the need for a reverse mapping.
 
-        :param earliest: inclusive lower bound on ``partition_date``; iteration starts at
-            the first cron tick at or after it (``_align_to_next``).
-        :param latest: inclusive upper bound on ``partition_date``; the tick equal to it
-            is included.
+        :param earliest: inclusive lower bound on ``partition_date``; the wall-clock
+            reading of *earliest* is re-interpreted in the timetable's timezone before
+            alignment, so a UTC-midnight bound from the production backfill path is
+            treated as the timetable-local midnight rather than the UTC midnight.
+            Iteration starts at the first cron tick at or after that localized instant.
+        :param latest: inclusive upper bound on ``partition_date``; the same wall-clock
+            localization applies; the tick equal to the localized *latest* is included.
 
-        Both bounds must be timezone-aware; a naive datetime is coerced to UTC.
+        Both bounds must be timezone-aware; a naive datetime is coerced to UTC before
+        the wall-clock localization step.
         """
-        current = self._align_to_next(coerce_datetime(earliest))
-        latest_dt = coerce_datetime(latest)
+        current = self._align_to_next(self._localize_wall_clock_to_timetable_timezone(earliest))
+        latest_dt = self._localize_wall_clock_to_timetable_timezone(latest)
         while current <= latest_dt:
             partition_key = self._format_key(current)
             yield DagRunInfo(

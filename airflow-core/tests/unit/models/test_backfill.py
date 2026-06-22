@@ -1085,24 +1085,24 @@ def test_do_dry_run_with_partition_window(dag_maker, session):
 @pytest.mark.db_test
 def test_create_backfill_partitioned_non_utc_boundary(dag_maker, session):
     """
-    Regression: partition_date selection axis must use calendar-date comparison in the
-    timetable timezone, not a UTC-instant comparison.
+    Guard: the production backfill path supplies UTC-midnight bounds; the first
+    partition-day must not be dropped even when the timetable timezone is UTC+8.
 
-    Asia/Taipei is UTC+8.  A partition labelled "2026-02-15" has
-    partition_date = 2026-02-14T16:00:00Z (the UTC instant of Taipei midnight).
-    Passing that UTC instant through an instant comparison against the user's
-    --partition-date-start 2026-02-15 (parsed as 2026-02-15T00:00:00Z) would
-    yield 2026-02-14T16:00Z < 2026-02-15T00:00Z, dropping the boundary day.
-    The date-label comparison avoids this by converting to timetable timezone
-    before calling .date().
+    The CLI/API parses ``--from-date 2026-02-15`` as ``2026-02-15T00:00:00Z``
+    (UTC midnight) because ``default_timezone`` is UTC on a standard deployment.
+    Without wall-clock localization, ``_align_to_next`` would see this UTC instant and
+    return the first Taipei-midnight tick *after* UTC midnight — skipping the
+    2026-02-15 partition (Taipei midnight = 2026-02-14T16:00Z) and starting from
+    2026-02-15T16:00Z instead. The localization step re-interprets the UTC-midnight
+    wall-clock as a Taipei-midnight before alignment, so the first day is included.
     """
     with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei")) as dag:
         PythonOperator(task_id="hi", python_callable=print)
 
     b = _create_backfill(
         dag_id=dag.dag_id,
-        from_date=pendulum.datetime(2026, 2, 15, tz="Asia/Taipei"),
-        to_date=pendulum.datetime(2026, 2, 24, tz="Asia/Taipei"),
+        from_date=pendulum.datetime(2026, 2, 15, tz="UTC"),
+        to_date=pendulum.datetime(2026, 2, 24, tz="UTC"),
         max_active_runs=10,
         reverse=False,
         triggering_user_name="pytest",
@@ -1131,6 +1131,55 @@ def test_create_backfill_partitioned_non_utc_boundary(dag_maker, session):
     # over-cap: 2026-02-25 (one past end) and 2026-02-14 (one before start) must not appear.
     assert "2026-02-25" not in partition_date_labels
     assert "2026-02-14" not in partition_date_labels
+
+
+@pytest.mark.db_test
+def test_create_backfill_partitioned_sub_day_window_not_widened(dag_maker, session):
+    """
+    Guard: a narrow hourly window must not be widened to a full day after the
+    wall-clock localization fix.
+
+    The production backfill path supplies UTC-midnight-style bounds. For an
+    hourly Taipei timetable (``0 * * * *``) the user's intent for a two-hour
+    window is exactly two partitions. If localization discarded sub-day precision
+    (e.g. by flooring to midnight), the result would be 24 partitions instead.
+
+    Window: 2026-02-15 08:00 UTC → 2026-02-15 09:00 UTC (production-path form).
+    Localized to Taipei these are 2026-02-15T08:00+08:00 and 2026-02-15T09:00+08:00,
+    i.e. UTC instants 2026-02-15T00:00Z and 2026-02-15T01:00Z — exactly two ticks.
+    """
+    with dag_maker(schedule=CronPartitionTimetable("0 * * * *", timezone="Asia/Taipei")) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    # Production-path bounds: UTC wall-clock (what CLI/API delivers on a UTC host).
+    # The user intended "2026-02-15 08:00 Taipei" and "2026-02-15 09:00 Taipei"
+    # — written as the corresponding UTC-wall-clock values a UTC machine produces.
+    from_date = pendulum.datetime(2026, 2, 15, 8, 0, 0, tz="UTC")
+    to_date = pendulum.datetime(2026, 2, 15, 9, 0, 0, tz="UTC")
+
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=from_date,
+        to_date=to_date,
+        max_active_runs=10,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf=None,
+    )
+    query = (
+        select(DagRun)
+        .join(BackfillDagRun.dag_run)
+        .where(BackfillDagRun.backfill_id == b.id)
+        .order_by(BackfillDagRun.sort_ordinal)
+    )
+    dag_runs = session.scalars(query).all()
+    partition_hour_labels = [
+        pendulum.instance(x.partition_date).in_timezone("Asia/Taipei").strftime("%Y-%m-%dT%H:%M")
+        for x in dag_runs
+    ]
+
+    # Full-sequence equality: exactly the two requested partitions (in Taipei local time).
+    assert partition_hour_labels == ["2026-02-15T08:00", "2026-02-15T09:00"]
 
 
 @pytest.mark.db_test
