@@ -272,7 +272,7 @@ def get_partitioned_dag_runs(
     readable_dag_ids = readable_dags_filter.value
     if readable_dag_ids is not None:
         query = query.where(AssetPartitionDagRun.target_dag_id.in_(readable_dag_ids))
-    query = query.order_by(AssetPartitionDagRun.created_at.desc())
+    query = query.order_by(AssetPartitionDagRun.created_at.desc(), AssetPartitionDagRun.id.desc())
 
     query, total_entries = paginated_select(
         statement=query,
