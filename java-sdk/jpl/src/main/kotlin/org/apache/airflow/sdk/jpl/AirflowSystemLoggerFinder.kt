@@ -23,7 +23,6 @@ import org.apache.airflow.sdk.execution.Level
 import org.apache.airflow.sdk.execution.Log
 import java.util.MissingResourceException
 import java.util.ResourceBundle
-import kotlin.collections.set
 
 /**
  * [System.LoggerFinder] that routes [System.Logger] calls to the Airflow task log store.
