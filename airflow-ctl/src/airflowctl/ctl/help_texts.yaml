@@ -81,6 +81,7 @@ pools:
   update: "Update an existing pool"
 
 providers:
+  get: "Retrieve an installed provider by its package name"
   list: "List all installed Airflow providers"
 
 variables:
