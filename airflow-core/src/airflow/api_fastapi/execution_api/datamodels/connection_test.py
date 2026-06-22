@@ -46,13 +46,5 @@ class ConnectionTestConnectionResponse(BaseModel):
     login: str | None = None
     password: str | None = None
     schema_: str | None = Field(None, alias="schema")
-    port: int | None = None
+    port: int | None = Field(default=None, ge=0, le=65535)
     extra: str | None = None
-
-    @field_validator("port")
-    @classmethod
-    def validate_port(cls, v: int | None) -> int | None:
-        """Validate that port is within the valid TCP/UDP range (0-65535)."""
-        if v is not None and not (0 <= v <= 65535):
-            raise ValueError(f"Port must be between 0 and 65535, got {v}")
-        return v

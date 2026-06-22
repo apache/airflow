@@ -187,7 +187,6 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
             self.login = login
             self.password = password
             self.schema = schema
-            self._validate_port(port, conn_id)
             self.port = port
             self.extra = extra
 
@@ -265,7 +264,6 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         self.login = unquote(uri_parts.username) if uri_parts.username else uri_parts.username
         self.password = unquote(uri_parts.password) if uri_parts.password else uri_parts.password
         self.port = uri_parts.port
-        self._validate_port(self.port, self.conn_id)
         if uri_parts.query:
             query = dict(parse_qsl(uri_parts.query, keep_blank_values=True))
             if self.EXTRA_KEY in query:
@@ -600,7 +598,6 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
                 kwargs["port"] = int(port)
             except ValueError:
                 raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
-        cls._validate_port(kwargs.get("port"), conn_id)
         return Connection(conn_id=conn_id, **kwargs)
 
     def as_json(self) -> str:
