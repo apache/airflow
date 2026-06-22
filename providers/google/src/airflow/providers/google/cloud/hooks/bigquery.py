@@ -31,32 +31,21 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal, NoReturn, cast, overload
 from urllib.parse import urlparse
-
+import requests
+from google.auth.transport.requests import AuthorizedSession, Request
 import google_auth_httplib2
 import pendulum
 from aiohttp import ClientSession as ClientSession
 from asgiref.sync import sync_to_async
 from gcloud.aio.bigquery import Job, Table as Table_async
-from google.cloud.bigquery import (
-    DEFAULT_RETRY,
-    Client,
-    CopyJob,
-    ExtractJob,
-    LoadJob,
-    QueryJob,
-    SchemaField,
-    UnknownJob,
-)
+from google.cloud.bigquery import DEFAULT_RETRY, Client, CopyJob, ExtractJob, LoadJob, QueryJob, QueryJobConfig, SchemaField, UnknownJob
+import httplib2
+from googleapiclient.http import set_user_agent
+from airflow import version
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
 from google.cloud.bigquery.retry import DEFAULT_JOB_RETRY
 from google.cloud.bigquery.routine import Routine, RoutineReference
-from google.cloud.bigquery.table import (
-    Row,
-    RowIterator,
-    Table,
-    TableListItem,
-    TableReference,
-)
+from google.cloud.bigquery.table import Row, RowIterator, Table, TableListItem, TableReference
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import build
 from pandas_gbq import read_gbq
@@ -72,13 +61,7 @@ from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
 from airflow.providers.google.cloud.utils.lineage import send_hook_lineage_for_bq_job
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import (
-    _UNSET,
-    PROVIDE_PROJECT_ID,
-    GoogleBaseAsyncHook,
-    GoogleBaseHook,
-    get_field,
-)
+from airflow.providers.google.common.hooks.base_google import _UNSET, PROVIDE_PROJECT_ID, GoogleBaseAsyncHook, GoogleBaseHook, get_field
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.helpers import convert_camel_to_snake
@@ -246,7 +229,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             "v2",
             http=http_authorized,
             cache_discovery=False,
-            client_options=getattr(self, "get_client_options", lambda: None)(),
+            client_options=self.get_client_options(),
         )
         return BigQueryConnection(
             service=service,
@@ -262,12 +245,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         proxy_url = self.http_proxy or self.https_proxy
         if not proxy_url:
             return super()._authorize()
-
-        import httplib2
-        from googleapiclient.http import set_user_agent
-
-        from airflow import version
-
         parsed = urlparse(proxy_url)
         proxy_info = httplib2.ProxyInfo(
             proxy_type=httplib2.socks.PROXY_TYPE_HTTP,
@@ -295,9 +272,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             "client_options": getattr(self, "get_client_options", lambda: None)(),
         }
         if self.http_proxy or self.https_proxy:
-            import requests
-            from google.auth.transport.requests import AuthorizedSession, Request
-
             session = requests.Session()
             session.proxies = {}
             if self.http_proxy:
@@ -394,13 +368,15 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         sql: str,
         parameters: Iterable | Mapping[str, Any] | None = None,
         dialect: str | None = None,
+        timeout: float | None = None,
         **kwargs,
     ) -> pd.DataFrame:
         if dialect is None:
             dialect = "legacy" if self.use_legacy_sql else "standard"
 
         if self.http_proxy or self.https_proxy:
-            return self.get_client().query(sql, timeout=10).to_dataframe(create_bqstorage_client=False)
+            job_config = QueryJobConfig(use_legacy_sql=(dialect == "legacy"))
+            return (self.get_client().query(sql, job_config=job_config, timeout=timeout, **kwargs).to_dataframe(create_bqstorage_client=False))
 
         credentials, project_id = self.get_credentials_and_project_id()
 
