@@ -27,6 +27,32 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+.. note::
+    The worker-bound ``TaskInstance`` fields exchanged over the Edge worker API are now
+    defined by the versioned execution API schema instead of a duplicated ``TaskInstanceDTO``
+    (#68390). The regenerated Edge worker API spec drops ``parent_context_carrier`` and sources
+    the ``queue`` field from the shared schema. Upgrade your Edge workers together with the
+    Airflow API server so both sides of the worker API agree on the contract.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Version the worker-bound TaskInstance fields in the execution API schema (#68390)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix typo and restore SVG diagram headers (#68435)``
+* ``Fix Typo in EdgeExecutor Architecture diagram (#68401)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix BackfillDagRun.partition_key type annotation (str, not datetime) (#68432)``
+   * ``Bump the edge-ui-package-updates group across 1 directory with 14 updates (#68469)``
+
 3.8.0
 .....
 
@@ -37,11 +63,15 @@ Features
 ~~~~~~~~
 
 * ``Fix edge executor to support handling execute callback workload (#67679)``
+* ``Add 'awaiting_input' task state for Human-in-the-loop, off the triggerer (#68028)``
+* ``Add async connection testing via workers for security isolation (#62343)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Fix Edge worker fork mode reporting supervisor failures as success (#67887)``
+* ``Fix team name authorization bypass in edgeworker (#64556)``
+* ``Remove unnecessarily added logging in edge worker (#68019)``
 
 Misc
 ~~~~
@@ -52,6 +82,8 @@ Misc
 * ``Add prek hook to enforce HTTPException is imported from fastapi (#67367)``
 * ``Remove dead auth code from Airflow2 times in Edge (#67374)``
 * ``Add prek hook enforcing the "example" tag on example DAGs (#67354)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 7 updates (#68087)``
+* ``Bump aiohttp regarding dependabot warning (#67978)``
 
 Doc-only
 ~~~~~~~~

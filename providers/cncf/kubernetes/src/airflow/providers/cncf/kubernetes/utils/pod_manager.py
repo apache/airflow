@@ -174,8 +174,15 @@ async def await_pod_start(
         else:
             remote_pod = pod_manager.read_pod(pod)
         pod_status = remote_pod.status
+
+        if pod_status.phase == PodPhase.FAILED and pod_status.container_statuses is None:
+            pod_manager.stop_watching_events = True
+            pod_manager.log.info("::endgroup::")
+            raise PodLaunchFailedException("Pod failed before containers started")
+
         if pod_status.phase not in (PodPhase.PENDING, PodPhase.UNKNOWN):
             pod_manager.stop_watching_events = True
+            pod_manager.log.info("Pod has reached %s phase before launch timeout", pod_status.phase)
             pod_manager.log.info("::endgroup::")
             break
 

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import sys
+from unittest import mock
 
 import pytest
 
@@ -54,7 +55,7 @@ def load_examples():
 
 @pytest.fixture(scope="session")
 def dagbag():
-    return DagBag(include_examples=True)
+    return DagBag()
 
 
 @pytest.fixture(scope="session")
@@ -66,6 +67,25 @@ def parser():
 
 # The "*_capture" fixtures all ensure that the `caplog` fixture is loaded so that they don't get polluted with
 # log messages
+
+
+@pytest.fixture
+def mock_cli_api_client():
+    """Mock the CLI airflowctl client and neutralize ``action_cli``'s DB touch points.
+
+    CLI commands that go through the airflowctl client only need the mocked client; the
+    ``@action_cli`` audit logging and log-template sync would otherwise open a database
+    session. Patching them lets these command tests run without a database or API server.
+    """
+    client = mock.MagicMock()
+    with (
+        mock.patch("airflow.cli.api_client.get_cli_api_client", return_value=client),
+        mock.patch("airflow.utils.cli_action_loggers.on_pre_execution"),
+        mock.patch("airflow.utils.cli_action_loggers.on_post_execution"),
+        mock.patch("airflow.utils.db.synchronize_log_template"),
+        mock.patch("airflow.utils.db.check_and_run_migrations"),
+    ):
+        yield client
 
 
 @pytest.fixture

@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from airflow.sdk.api.client import Client
-    from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
+    from airflow.sdk.api.datamodels._generated import TaskInstance
 
 __all__ = [
     "BaseCoordinator",
@@ -89,7 +89,7 @@ class BaseCoordinator:
     def execute_task(
         self,
         *,
-        what: TaskInstanceDTO,
+        what: TaskInstance,
         dag_rel_path: str | PathLike[str],
         bundle_info,
         client: Client,
@@ -109,6 +109,9 @@ class BaseCoordinator:
 class _CoordinatorSpec(pydantic.BaseModel):
     classpath: str
     kwargs: dict[str, Any] = pydantic.Field(default_factory=dict)
+    # Optional metadata read by other components; kept separate from ``kwargs``
+    # so it is never passed to the coordinator constructor.
+    extra: dict[str, Any] | None = None
 
 
 class _PythonCoordinator(BaseCoordinator):
@@ -122,7 +125,7 @@ class _PythonCoordinator(BaseCoordinator):
     def execute_task(
         self,
         *,
-        what: TaskInstanceDTO,
+        what: TaskInstance,
         dag_rel_path: str | PathLike[str],
         bundle_info,
         client: Client,
@@ -184,6 +187,18 @@ class CoordinatorManager:
     routed to a JDK 11 coordinator, and a ``"modern-java"`` queue routed to a
     JDK 17 coordinator).
 
+    A coordinator entry may also carry an optional ``extra`` mapping: metadata
+    that other components read as needed. It is kept separate from ``kwargs`` and
+    never passed to the coordinator constructor::
+
+        {
+            "java": {
+                "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+                "kwargs": {...},
+                "extra": {"pod_template_file": "/opt/airflow/pod_templates/java.yaml"},
+            }
+        }
+
     :meta private:
     """
 
@@ -233,6 +248,20 @@ class CoordinatorManager:
             raise InvalidCoordinatorError(f"Cannot instantiate coordinator {key!r}")
         log.debug("Coordinator found for queue", coordinator=coordinator, queue=queue)
         return coordinator
+
+    def extra_for_queue(self, queue: str) -> dict[str, Any] | None:
+        """
+        Return the optional ``extra`` mapping configured for *queue*'s coordinator.
+
+        Returns ``None`` when the queue is not routed to a coordinator or its
+        coordinator declares no ``extra``. Only the declarative spec is read; the
+        coordinator is never instantiated.
+        """
+        if (key := self._queue_to_coordinator.get(queue)) is None:
+            return None
+        if (spec := self._coordinator_specs.get(key)) is None:
+            return None
+        return spec.extra
 
 
 @functools.cache

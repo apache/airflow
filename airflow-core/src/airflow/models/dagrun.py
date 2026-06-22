@@ -501,7 +501,9 @@ class DagRun(Base, LoggingMixin):
 
     @property
     def stats_tags(self) -> dict[str, str]:
-        return prune_dict({"dag_id": self.dag_id, "run_type": self.run_type})
+        return prune_dict(
+            {"dag_id": self.dag_id, "run_type": self.run_type, "team_name": getattr(self, "_team_name", None)}
+        )
 
     def get_state(self):
         return self._state
@@ -1089,6 +1091,16 @@ class DagRun(Base, LoggingMixin):
         ctx = TraceContextTextMapPropagator().extract(self.context_carrier)
         span = trace.get_current_span(context=ctx)
         span_context = span.get_span_context()
+
+        # Skip if the run was head-sampled out. Unlike the task spans, this guard is
+        # required (not just an optimization): the span below is forced to be a root span
+        # (context=context.Context()), so the configured sampler never sees the carrier's
+        # flag. A valid-but-unsampled carrier means head-sampled out; an invalid/empty
+        # carrier (legacy DagRun) recorded no decision, so it falls through and still
+        # emits — prior behavior we may want to reconsider.
+        if span_context.is_valid and not span_context.trace_flags.sampled:
+            return
+
         with override_ids(span_context.trace_id, span_context.span_id):
             attributes: dict[str, str] = {
                 "airflow.dag_id": str(self.dag_id),
@@ -1106,13 +1118,14 @@ class DagRun(Base, LoggingMixin):
                 attributes["airflow.dag_run.logical_date"] = str(self.logical_date)
             if self.partition_key:
                 attributes["airflow.dag_run.partition_key"] = str(self.partition_key)
+
             # TODO: make the empty parent context optional. Default should be to
-            # nest the dag run span under the currently active parent span (by
-            # omitting `context` here); only use the empty `context.Context()` to
-            # force a root span when Airflow itself initiates the run (e.g. dag
-            # triggered via API, scheduler, or backfill). Today this forces a
-            # root span unconditionally.
-            # Tracked at https://github.com/apache/airflow/issues/67210
+            #  nest the dag run span under the currently active parent span (by
+            #  omitting `context` here); only use the empty `context.Context()` to
+            #  force a root span when Airflow itself initiates the run (e.g. dag
+            #  triggered via API, scheduler, or backfill). Today this forces a
+            #  root span unconditionally.
+            #  Tracked at https://github.com/apache/airflow/issues/67210
             span = tracer.start_span(
                 name=f"dag_run.{self.dag_id}",
                 start_time=int((self.queued_at or self.start_date or timezone.utcnow()).timestamp() * 1e9),
@@ -1395,6 +1408,18 @@ class DagRun(Base, LoggingMixin):
         execute: bool = False,
     ) -> DagCallbackRequest | None:
         """Create a callback request for the DAG, or execute the callbacks directly if instructed, and return None."""
+        # Historical task instances created before the dag_version table existed (migration
+        # 0047_3_0_0_add_dag_versioning) have dag_version_id=None. The TaskInstance datamodel used to
+        # build the callback context requires a non-null UUID, so passing such a TI as last_ti would
+        # raise a ValidationError and crash the scheduler. Drop last_ti in that case; the callback still
+        # fires with a minimal context (dag, run_id, reason).
+        if relevant_ti is not None and relevant_ti.dag_version_id is None:
+            self.log.warning(
+                "Task instance %s has no dag_version_id (pre-versioning record); "
+                "omitting last_ti from the dag callback context.",
+                relevant_ti,
+            )
+            relevant_ti = None
         if not execute:
             return DagCallbackRequest(
                 filepath=self.dag_model.relative_fileloc,
@@ -1425,6 +1450,7 @@ class DagRun(Base, LoggingMixin):
             TaskInstance as TIDataModel,
             TIRunContext,
         )
+        from airflow.models.dag import DagModel
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
         if relevant_ti:
@@ -1468,7 +1494,19 @@ class DagRun(Base, LoggingMixin):
                 callback(context)
             except Exception:
                 self.log.exception("Callback failed for %s", dag.dag_id)
-                stats.incr("dag.callback_exceptions", tags={"dag_id": dag.dag_id})
+                stats.incr(
+                    "dag.callback_exceptions",
+                    tags=prune_dict(
+                        {
+                            "dag_id": dag.dag_id,
+                            "team_name": (
+                                DagModel.get_team_name(dag.dag_id)
+                                if airflow_conf.getboolean("core", "multi_team")
+                                else None
+                            ),
+                        }
+                    ),
+                )
 
     def _get_ready_tis(
         self,
@@ -1729,7 +1767,7 @@ class DagRun(Base, LoggingMixin):
         # check for removed or restored tasks
         task_ids = set()
         for ti in tis:
-            ti_mutation_hook(ti)
+            ti_mutation_hook(ti, dag_run=self)
             task_ids.add(ti.task_id)
             try:
                 task = dag.get_task(ti.task_id)
@@ -1848,7 +1886,7 @@ class DagRun(Base, LoggingMixin):
             def create_ti(task: Operator, indexes: Iterable[int]) -> Iterator[TI]:
                 for map_index in indexes:
                     ti = TI(task, run_id=self.run_id, map_index=map_index, dag_version_id=dag_version_id)
-                    ti_mutation_hook(ti)
+                    ti_mutation_hook(ti, dag_run=self)
                     if ti.operator:
                         created_counts[ti.operator] += 1
                     yield ti
@@ -1987,9 +2025,9 @@ class DagRun(Base, LoggingMixin):
                 continue
             ti = TI(task, run_id=self.run_id, map_index=index, state=None, dag_version_id=dag_version_id)
             self.log.debug("Expanding TIs upserted %s", ti)
-            task_instance_mutation_hook(ti)
+            task_instance_mutation_hook(ti, dag_run=self)
             ti = session.merge(ti)
-            ti.refresh_from_task(task)
+            ti.refresh_from_task(task, dag_run=self)
             session.flush()
             yield ti
 
