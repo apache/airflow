@@ -45,6 +45,7 @@ from google.cloud.bigquery import (
     ExtractJob,
     LoadJob,
     QueryJob,
+    QueryJobConfig,
     SchemaField,
     UnknownJob,
 )
@@ -61,7 +62,6 @@ from google.cloud.bigquery.table import (
     TableListItem,
     TableReference,
 )
-from google.cloud.bigquery import QueryJobConfig
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import build
 from pandas_gbq import read_gbq
