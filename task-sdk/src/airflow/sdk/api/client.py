@@ -861,6 +861,7 @@ class AssetEventOperations:
         alias_name: str | None = None,
         after: datetime | None = None,
         before: datetime | None = None,
+        partition_key: str | None = None,
         ascending: bool = True,
         limit: int | None = None,
     ) -> AssetEventsResponse:
@@ -870,6 +871,8 @@ class AssetEventOperations:
             common_params["after"] = after.isoformat()
         if before:
             common_params["before"] = before.isoformat()
+        if partition_key is not None:
+            common_params["partition_key"] = partition_key
         common_params["ascending"] = ascending
         if limit:
             common_params["limit"] = limit

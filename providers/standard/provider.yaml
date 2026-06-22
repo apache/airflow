@@ -105,6 +105,7 @@ sensors:
       - airflow.providers.standard.sensors.python
       - airflow.providers.standard.sensors.filesystem
       - airflow.providers.standard.sensors.external_task
+      - airflow.providers.standard.sensors.asset
 hooks:
   - integration-name: Standard
     python-modules:
@@ -119,6 +120,7 @@ triggers:
       - airflow.providers.standard.triggers.file
       - airflow.providers.standard.triggers.temporal
       - airflow.providers.standard.triggers.hitl
+      - airflow.providers.standard.triggers.asset
 
 extra-links:
   - airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunLink

@@ -1099,6 +1099,7 @@ class GetAssetsByAlias(BaseModel):
 class GetAssetEventByAsset(BaseModel):
     name: str | None
     uri: str | None
+    partition_key: str | None = None
     after: AwareDatetime | None = None
     before: AwareDatetime | None = None
     limit: int | None = None
@@ -1108,6 +1109,7 @@ class GetAssetEventByAsset(BaseModel):
 
 class GetAssetEventByAssetAlias(BaseModel):
     alias_name: str
+    partition_key: str | None = None
     after: AwareDatetime | None = None
     before: AwareDatetime | None = None
     limit: int | None = None

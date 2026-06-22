@@ -1177,6 +1177,8 @@ class TestAssetEventOperations:
         [
             ({"name": "this_asset", "uri": "s3://bucket/key"}),
             ({"alias_name": "this_asset_alias"}),
+            ({"name": "this_asset", "uri": "s3://bucket/key", "partition_key": "2021-01-02"}),
+            ({"alias_name": "this_asset_alias", "partition_key": "2021-01-02"}),
         ],
     )
     def test_by_name_get_success(self, request_params):
@@ -1189,6 +1191,8 @@ class TestAssetEventOperations:
                 assert params.get("name") == request_params.get("alias_name")
             else:
                 return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+            if partition_key := request_params.get("partition_key"):
+                assert params.get("partition_key") == partition_key
 
             return httpx.Response(
                 status_code=200,
