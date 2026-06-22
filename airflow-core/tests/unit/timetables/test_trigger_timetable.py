@@ -59,7 +59,7 @@ DELTA_FROM_MIDNIGHT = datetime.timedelta(minutes=30, hours=16)
     [
         pytest.param(
             None,
-            YESTERDAY + DELTA_FROM_MIDNIGHT,
+            CURRENT_TIME + DELTA_FROM_MIDNIGHT,
             id="first-run",
         ),
         pytest.param(
@@ -79,11 +79,11 @@ def test_daily_cron_trigger_no_catchup_first_starts_at_next_schedule(
     last_automated_data_interval: DataInterval | None,
     next_start_time: pendulum.DateTime,
 ) -> None:
-    """If ``catchup=False`` and start_date is a day before"""
+    """If ``catchup=False`` and start_date is a day before, run_immediately=False skips the past run"""
     timetable = CronTriggerTimetable(
         "30 16 * * *",
         timezone=utc,
-        run_immediately=False,  # Should have no effect since earliest is not None
+        run_immediately=False,
     )
     next_info = timetable.next_dagrun_info(
         last_automated_data_interval=last_automated_data_interval,
@@ -504,7 +504,8 @@ NEXT = DagRunInfo.exact(pendulum.datetime(year=2024, month=8, day=16, hour=3))
     ("run_immediately", "current_time", "correct_interval"),
     [
         (True, WAY_AFTER, PREVIOUS),
-        (False, JUST_AFTER, PREVIOUS),
+        (True, JUST_AFTER, PREVIOUS),
+        (False, JUST_AFTER, NEXT),
         (False, WAY_AFTER, NEXT),
         (datetime.timedelta(minutes=10), JUST_AFTER, PREVIOUS),
         (datetime.timedelta(minutes=10), WAY_AFTER, NEXT),
@@ -525,18 +526,20 @@ def test_run_immediately(catchup, run_immediately, current_time, correct_interva
 
 
 @pytest.mark.parametrize("catchup", [True, False])
-def test_run_immediately_fast_dag(catchup):
+def test_run_immediately_false_skips_to_next(catchup):
+    """With run_immediately=False, always skip to the next cron point regardless of how close now is."""
     timetable = CronTriggerTimetable(
-        "*/10 3 * * *",  # Runs every 10 minutes, so falls back to 5 min hardcoded limit on buffer time
+        "*/10 3 * * *",
         timezone=utc,
         run_immediately=False,
     )
+    next_10min = DagRunInfo.exact(pendulum.datetime(year=2024, month=8, day=15, hour=3, minute=10))
     with time_machine.travel(JUST_AFTER, tick=False):
         next_info = timetable.next_dagrun_info(
             last_automated_data_interval=None,
             restriction=TimeRestriction(earliest=None, latest=None, catchup=catchup),
         )
-        assert next_info == PREVIOUS
+        assert next_info == next_10min
 
 
 @pytest.mark.parametrize(
@@ -617,7 +620,7 @@ def test_multi_serialization():
         "expressions": ["@every 30s", "*/2 * * * *"],
         "timezone": "UTC",
         "interval": 600.0,
-        "run_immediately": False,
+        "run_immediately": True,
     }
 
     tt = MultipleCronTriggerTimetable.deserialize(data)
@@ -627,7 +630,7 @@ def test_multi_serialization():
     assert tt._timetables[1]._expression == "*/2 * * * *"
     assert tt._timetables[0]._timezone == tt._timetables[1]._timezone == utc
     assert tt._timetables[0]._interval == tt._timetables[1]._interval == datetime.timedelta(minutes=10)
-    assert tt._timetables[0]._run_immediately == tt._timetables[1]._run_immediately is False
+    assert tt._timetables[0]._run_immediately == tt._timetables[1]._run_immediately is True
 
 
 @pytest.mark.db_test
@@ -840,6 +843,75 @@ def test_next_run_info_from_dag_model(schedule, partition_key, expected, dag_mak
     dm = dag_maker.dag_model
     info = dag_maker.serialized_dag.timetable.next_run_info_from_dag_model(dag_model=dm)
     assert info == expected
+
+
+def test_run_immediately_false_with_start_date():
+    """run_immediately=False should be respected even when start_date (earliest) is set.
+
+    With run_immediately=False, the timetable always skips the past cron point
+    and waits for the next future one — regardless of how recently the boundary fired.
+    """
+    timetable = CronTriggerTimetable(
+        "*/10 * * * *",
+        timezone=utc,
+        run_immediately=False,
+    )
+    # 4 minutes past the 7:10 boundary — should still skip to 7:20
+    current_time = pendulum.datetime(2024, 1, 1, 7, 14, tz=utc)
+    with time_machine.travel(current_time):
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=None,
+            restriction=TimeRestriction(
+                earliest=pendulum.datetime(2024, 1, 1, tz=utc),
+                latest=None,
+                catchup=False,
+            ),
+        )
+    assert next_info == DagRunInfo.exact(pendulum.datetime(2024, 1, 1, 7, 20, tz=utc))
+
+
+def test_run_immediately_true_with_start_date():
+    """run_immediately=True (default) runs the most recent past cron point even when start_date is set."""
+    timetable = CronTriggerTimetable(
+        "*/10 * * * *",
+        timezone=utc,
+        run_immediately=True,
+    )
+    # Unpause at 7:14 — should run 7:10 immediately
+    current_time = pendulum.datetime(2024, 1, 1, 7, 14, tz=utc)
+    with time_machine.travel(current_time):
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=None,
+            restriction=TimeRestriction(
+                earliest=pendulum.datetime(2024, 1, 1, tz=utc),
+                latest=None,
+                catchup=False,
+            ),
+        )
+    assert next_info == DagRunInfo.exact(pendulum.datetime(2024, 1, 1, 7, 10, tz=utc))
+
+
+def test_run_immediately_false_after_unpause():
+    """After a pause/resume, run_immediately=False skips the past boundary and waits for the next."""
+    timetable = CronTriggerTimetable(
+        "0 0 * * *",  # @daily
+        timezone=utc,
+        run_immediately=False,
+    )
+    # Last run was Jan 31 midnight, unpause at 3PM Feb 2
+    last_interval = DataInterval.exact(pendulum.datetime(2024, 1, 31, tz=utc))
+    current_time = pendulum.datetime(2024, 2, 2, 15, tz=utc)
+    with time_machine.travel(current_time):
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=last_interval,
+            restriction=TimeRestriction(
+                earliest=pendulum.datetime(2024, 1, 1, tz=utc),
+                latest=None,
+                catchup=False,
+            ),
+        )
+    # run_immediately=False: skip Feb 2 (most recent past boundary) and wait for Feb 3
+    assert next_info == DagRunInfo.exact(pendulum.datetime(2024, 2, 3, tz=utc))
 
 
 def test_generate_run_id_without_partition_key() -> None:

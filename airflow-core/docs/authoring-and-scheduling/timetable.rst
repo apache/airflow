@@ -151,6 +151,63 @@ must be a :class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta`
     def example_dag():
         pass
 
+.. versionadded:: 3.0.0
+    The ``run_immediately`` argument was introduced in Airflow 3.
+
+The optional ``run_immediately`` argument controls which cron point is scheduled when a Dag is first
+enabled or re-enabled after a pause. It has no effect when ``catchup=True`` (in that case the
+scheduler always continues from where it left off).
+
+* ``run_immediately=True`` *(default)* — schedule the **most recent past** cron point immediately.
+* ``run_immediately=False`` — skip the past cron point and wait for the **next future** cron point.
+* ``run_immediately=timedelta(...)`` — schedule the most recent past cron point only if it fired
+  within the given window; otherwise wait for the **next future** cron point.
+
+.. code-block:: python
+
+    from datetime import datetime, timedelta
+
+    from airflow.timetables.trigger import CronTriggerTimetable
+
+
+    @dag(
+        # Runs every 10 minutes.
+        # run_immediately=False: always skip the most recent past slot and wait
+        # for the next 10-minute boundary.
+        schedule=CronTriggerTimetable(
+            "*/10 * * * *",
+            timezone="UTC",
+            run_immediately=False,
+        ),
+        start_date=datetime(2024, 1, 1),
+        catchup=False,
+        ...,
+    )
+    def example_dag():
+        pass
+
+
+    @dag(
+        # Runs hourly.
+        # run_immediately=timedelta(minutes=10): run the most recent past slot
+        # only if it fired within the last 10 minutes; otherwise wait for next.
+        schedule=CronTriggerTimetable(
+            "0 * * * *",
+            timezone="UTC",
+            run_immediately=timedelta(minutes=10),
+        ),
+        start_date=datetime(2024, 1, 1),
+        catchup=False,
+        ...,
+    )
+    def example_dag_with_buffer():
+        pass
+
+.. note::
+
+    ``run_immediately`` is a parameter of ``CronTriggerTimetable``, **not** of the ``DAG``
+    constructor. Passing it directly to ``DAG(run_immediately=...)`` has no effect.
+
 
 .. _MultipleCronTriggerTimetable:
 
@@ -169,7 +226,7 @@ This is similar to CronTriggerTimetable_ except it takes multiple cron expressio
     def example_dag():
         pass
 
-The same optional ``interval`` argument as CronTriggerTimetable_ is also available.
+The same optional ``interval`` and ``run_immediately`` arguments as CronTriggerTimetable_ are also available.
 
 .. code-block:: python
 
@@ -350,10 +407,11 @@ The following is another example showing the difference in the case of skipping 
 
 Suppose there are two running Dags with a cron expression ``@daily`` or ``0 0 * * *`` that use the two different timetables. If you pause the Dags at 3PM on January 31st and re-enable them at 3PM on February 2nd,
 
-- `CronTriggerTimetable`_ skips the Dag runs that were supposed to trigger on February 1st and 2nd. The next Dag run will be triggered at 12AM on February 3rd.
-- `CronDataIntervalTimetable`_ skips the Dag runs that were supposed to trigger on February 1st only. A Dag run for February 2nd is immediately triggered after you re-enable the Dag.
+- Both `CronTriggerTimetable`_ and `CronDataIntervalTimetable`_ skip the Dag run that was supposed to trigger on February 1st. A Dag run for February 2nd is immediately triggered after you re-enable the Dag.
 
-In these examples, you see how a trigger timetable creates Dag runs more intuitively and similar to what
+The difference between the two timetables in this scenario is the ``run_id`` timestamp: for ``CronTriggerTimetable``, the ``run_id`` reflects midnight on February 2nd (the trigger time), while for ``CronDataIntervalTimetable``, the ``run_id`` reflects midnight on February 1st (the start of the data interval being processed).
+
+In the first example (enabling a new Dag), you see how a trigger timetable creates Dag runs more intuitively and similar to what
 people expect a workflow to behave, while a data interval timetable is designed heavily around the data
 interval it processes, and does not reflect a workflow's own properties.
 

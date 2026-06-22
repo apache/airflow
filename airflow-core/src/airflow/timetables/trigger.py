@@ -91,12 +91,15 @@ class _TriggerTimetable(Timetable):
             else:
                 next_start_time = self._align_to_next(restriction.earliest)
         else:
-            start_time_candidates = [self._align_to_prev(coerce_datetime(utcnow()))]
             if last_automated_data_interval is not None:
-                start_time_candidates.append(self._get_next(last_automated_data_interval.end))
-            elif restriction.earliest is None:
-                # Run immediately has no effect if there is restriction on earliest
-                start_time_candidates.append(self._calc_first_run())
+                # _calc_first_run respects run_immediately to decide between the
+                # most recent past cron point and the next future one.
+                start_time_candidates = [
+                    self._calc_first_run(),
+                    self._get_next(last_automated_data_interval.end),
+                ]
+            else:
+                start_time_candidates = [self._calc_first_run()]
             if restriction.earliest is not None:
                 start_time_candidates.append(self._align_to_next(restriction.earliest))
             next_start_time = max(start_time_candidates)
@@ -169,19 +172,17 @@ class CronTriggerTimetable(CronMixin, _TriggerTimetable):
     :param timezone: Which timezone to use to interpret the cron string
     :param interval: timedelta that defines the data interval start. Default 0.
 
-    *run_immediately* controls, if no *start_time* is given to the DAG, when
-    the first run of the DAG should be scheduled. It has no effect if there
-    already exist runs for this DAG.
+    *run_immediately* controls which cron point is scheduled when a Dag is
+    first enabled or re-enabled after a pause. It always takes effect
+    regardless of whether ``start_date`` is set, but has no effect when
+    ``catchup=True``.
 
-    * If *True*, always run immediately the most recent possible DAG run.
-    * If *False*, wait to run until the next scheduled time in the future.
-    * If passed a ``timedelta``, will run the most recent possible DAG run
-      if that run's ``data_interval_end`` is within timedelta of now.
-    * If *None*, the timedelta is calculated as 10% of the time between the
-      most recent past scheduled time and the next scheduled time. E.g. if
-      running every hour, this would run the previous time if less than 6
-      minutes had past since the previous run time, otherwise it would wait
-      until the next hour.
+    .. versionadded:: 3.0.0
+
+    * If *True* (default), always run the most recent past cron point immediately.
+    * If *False*, skip the past cron point and wait for the next future one.
+    * If passed a ``timedelta``, run the most recent past cron point only if it
+      is within that timedelta of now; otherwise wait for the next future one.
     """
 
     def __init__(
@@ -190,7 +191,7 @@ class CronTriggerTimetable(CronMixin, _TriggerTimetable):
         *,
         timezone: str | Timezone | FixedTimezone,
         interval: datetime.timedelta | relativedelta = datetime.timedelta(),
-        run_immediately: bool | datetime.timedelta = False,
+        run_immediately: bool | datetime.timedelta = True,
     ) -> None:
         super().__init__(cron, timezone)
         self._interval = interval
@@ -204,7 +205,7 @@ class CronTriggerTimetable(CronMixin, _TriggerTimetable):
             data["expression"],
             timezone=parse_timezone(data["timezone"]),
             interval=decode_interval(data["interval"]),
-            run_immediately=decode_run_immediately(data.get("run_immediately", False)),
+            run_immediately=decode_run_immediately(data.get("run_immediately", True)),
         )
 
     def serialize(self) -> dict[str, Any]:
@@ -219,26 +220,21 @@ class CronTriggerTimetable(CronMixin, _TriggerTimetable):
 
     def _calc_first_run(self) -> DateTime:
         """
-        If no start_time is set, determine the start.
+        Determine which cron point to schedule next based on ``run_immediately``.
 
-        If True, always prefer past run, if False, never. If None, if within 10% of next run,
-        if timedelta, if within that timedelta from past run.
+        If *True*, always run the most recent past cron point.
+        If *False*, always wait for the next future cron point.
+        If a ``timedelta``, run the most recent past cron point only if it falls
+          within that window of now; otherwise wait for the next future cron point.
         """
         now = coerce_datetime(utcnow())
         past_run_time = self._align_to_prev(now)
-        next_run_time = self._align_to_next(now)
         if self._run_immediately is True:  # Check for 'True' exactly because deltas also evaluate to true.
             return past_run_time
-
-        gap_between_runs = next_run_time - past_run_time
-        gap_to_past = now - past_run_time
         if isinstance(self._run_immediately, datetime.timedelta):
-            buffer_between_runs = self._run_immediately
-        else:
-            buffer_between_runs = max(gap_between_runs / 10, datetime.timedelta(minutes=5))
-        if gap_to_past <= buffer_between_runs:
-            return past_run_time
-        return next_run_time
+            if now - past_run_time <= self._run_immediately:
+                return past_run_time
+        return self._align_to_next(now)
 
 
 class MultipleCronTriggerTimetable(Timetable):
@@ -257,7 +253,7 @@ class MultipleCronTriggerTimetable(Timetable):
         *crons: str,
         timezone: str | Timezone | FixedTimezone,
         interval: datetime.timedelta | relativedelta = datetime.timedelta(),
-        run_immediately: bool | datetime.timedelta = False,
+        run_immediately: bool | datetime.timedelta = True,
     ) -> None:
         if not crons:
             raise ValueError("cron expression required")
@@ -377,19 +373,15 @@ class CronPartitionTimetable(CronTriggerTimetable):
         The partition key will be derived from the partition date.
     :param key_format: How to translate the partition date into a string partition key.
 
-    *run_immediately* controls, if no *start_time* is given to the Dag, when
-    the first run of the Dag should be scheduled. It has no effect if there
-    already exist runs for this Dag.
+    *run_immediately* controls which cron point is scheduled when a Dag is
+    first enabled or re-enabled after a pause. It always takes effect
+    regardless of whether ``start_date`` is set, but has no effect when
+    ``catchup=True``.
 
-    * If *True*, always run immediately the most recent possible Dag run.
-    * If *False*, wait to run until the next scheduled time in the future.
-    * If passed a ``timedelta``, will run the most recent possible Dag run
-      if that run's ``data_interval_end`` is within timedelta of now.
-    * If *None*, the timedelta is calculated as 10% of the time between the
-      most recent past scheduled time and the next scheduled time. E.g. if
-      running every hour, this would run the previous time if less than 6
-      minutes had past since the previous run time, otherwise it would wait
-      until the next hour.
+    * If *True* (default), always run the most recent past cron point immediately.
+    * If *False*, skip the past cron point and wait for the next future one.
+    * If passed a ``timedelta``, run the most recent past cron point only if it
+      is within that timedelta of now; otherwise wait for the next future one.
 
     # todo: AIP-76 talk about how we can have auto-reprocessing of partitions
     # todo: AIP-76 we could allow a tuple of integer + time-based
@@ -403,7 +395,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
         *,
         timezone: str | Timezone | FixedTimezone,
         run_offset: int | datetime.timedelta | relativedelta | None = None,
-        run_immediately: bool | datetime.timedelta = False,
+        run_immediately: bool | datetime.timedelta = True,
         # todo: AIP-76 we can't infer partition date from this, so we need to store it separately.
         key_format: str = r"%Y-%m-%dT%H:%M:%S",
     ) -> None:
@@ -430,7 +422,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
             cron=data["expression"],
             timezone=parse_timezone(data["timezone"]),
             run_offset=offset,
-            run_immediately=decode_run_immediately(data.get("run_immediately", False)),
+            run_immediately=decode_run_immediately(data.get("run_immediately", True)),
             key_format=data["key_format"],
         )
 
@@ -557,15 +549,15 @@ class CronPartitionTimetable(CronTriggerTimetable):
             else:
                 next_start_time = self._align_to_next(restriction.earliest)
         else:
-            prev_candidate = self._align_to_prev(coerce_datetime(utcnow()))
-            start_time_candidates = [prev_candidate]
             if last_dagrun_info is not None:
-                next_candidate = self._get_next(last_dagrun_info.run_after)
-                start_time_candidates.append(next_candidate)
-            elif restriction.earliest is None:
-                # Run immediately has no effect if there is restriction on earliest
-                first_run = self._calc_first_run()
-                start_time_candidates.append(first_run)
+                # _calc_first_run respects run_immediately to decide between the
+                # most recent past cron point and the next future one.
+                start_time_candidates = [
+                    self._calc_first_run(),
+                    self._get_next(last_dagrun_info.run_after),
+                ]
+            else:
+                start_time_candidates = [self._calc_first_run()]
             if restriction.earliest is not None:
                 earliest = self._align_to_next(restriction.earliest)
                 start_time_candidates.append(earliest)
