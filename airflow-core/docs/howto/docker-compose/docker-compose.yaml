@@ -139,6 +139,11 @@ services:
   airflow-scheduler:
     <<: *airflow-common
     command: scheduler
+    # ``airflow jobs check`` (run by the healthcheck) talks to the API server; point the CLI
+    # at it here rather than globally so the api-server keeps its host-facing base_url.
+    environment:
+      <<: *airflow-common-env
+      AIRFLOW__API__BASE_URL: http://airflow-apiserver:8080
     healthcheck:
       test: ["CMD-SHELL", 'airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}"']
       interval: 30s
@@ -148,12 +153,19 @@ services:
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
+      airflow-apiserver:
+        condition: service_healthy
       airflow-init:
         condition: service_completed_successfully
 
   airflow-dag-processor:
     <<: *airflow-common
     command: dag-processor
+    # ``airflow jobs check`` (run by the healthcheck) talks to the API server; point the CLI
+    # at it here rather than globally so the api-server keeps its host-facing base_url.
+    environment:
+      <<: *airflow-common-env
+      AIRFLOW__API__BASE_URL: http://airflow-apiserver:8080
     healthcheck:
       test: ["CMD-SHELL", 'airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}"']
       interval: 30s
@@ -163,6 +175,8 @@ services:
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
+      airflow-apiserver:
+        condition: service_healthy
       airflow-init:
         condition: service_completed_successfully
 
@@ -192,6 +206,11 @@ services:
   airflow-triggerer:
     <<: *airflow-common
     command: triggerer
+    # ``airflow jobs check`` (run by the healthcheck) talks to the API server; point the CLI
+    # at it here rather than globally so the api-server keeps its host-facing base_url.
+    environment:
+      <<: *airflow-common-env
+      AIRFLOW__API__BASE_URL: http://airflow-apiserver:8080
     healthcheck:
       test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"']
       interval: 30s
@@ -201,6 +220,8 @@ services:
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
+      airflow-apiserver:
+        condition: service_healthy
       airflow-init:
         condition: service_completed_successfully
 

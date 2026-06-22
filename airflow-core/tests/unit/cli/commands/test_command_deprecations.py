@@ -30,7 +30,7 @@ import re
 
 import pytest
 
-from airflow.cli.commands import asset_command, dag_command, pool_command
+from airflow.cli.commands import asset_command, dag_command, jobs_command, pool_command
 from airflow.exceptions import RemovedInAirflow4Warning
 
 # (command callable, argv to parse, expected airflowctl replacement named in the warning)
@@ -52,6 +52,7 @@ DEPRECATED_CLI_COMMANDS = [
         ["assets", "materialize", "--name=foo"],
         "airflowctl assets materialize",
     ),
+    (jobs_command.check, ["jobs", "check"], "airflowctl jobs check"),
 ]
 
 
