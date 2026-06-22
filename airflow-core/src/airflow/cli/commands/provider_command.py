@@ -21,7 +21,9 @@ from __future__ import annotations
 import re
 import sys
 
+from airflow.cli.api_client import NEW_API_CLIENT, Client, provide_api_client
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import deprecated_for_airflowctl
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -33,26 +35,34 @@ def _remove_rst_syntax(value: str) -> str:
     return re.sub("[`_<>]", "", value.strip(" \n."))
 
 
+@deprecated_for_airflowctl("airflowctl providers get")
 @suppress_logs_and_warning
 @providers_configuration_loaded
-def provider_get(args):
+@provide_api_client
+def provider_get(args, api_client: Client = NEW_API_CLIENT):
     """Get a provider info."""
-    providers = ProvidersManager().providers
-    if args.provider_name in providers:
-        provider_version = providers[args.provider_name].version
-        provider_info = providers[args.provider_name].data
-        if args.full:
-            provider_info["description"] = _remove_rst_syntax(provider_info["description"])
-            AirflowConsole().print_as(
-                data=[provider_info],
-                output=args.output,
-            )
-        else:
-            AirflowConsole().print_as(
-                data=[{"Provider": args.provider_name, "Version": provider_version}], output=args.output
-            )
-    else:
+    # No single-provider API endpoint exists, so filter the providers collection by name.
+    providers = {provider.package_name: provider for provider in api_client.providers.list().providers}
+    provider = providers.get(args.provider_name)
+    if provider is None:
         raise SystemExit(f"No such provider installed: {args.provider_name}")
+
+    if args.full:
+        AirflowConsole().print_as(
+            data=[
+                {
+                    "package_name": provider.package_name,
+                    "version": provider.version,
+                    "description": _remove_rst_syntax(provider.description),
+                    "documentation_url": provider.documentation_url,
+                }
+            ],
+            output=args.output,
+        )
+    else:
+        AirflowConsole().print_as(
+            data=[{"Provider": provider.package_name, "Version": provider.version}], output=args.output
+        )
 
 
 @suppress_logs_and_warning
