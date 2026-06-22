@@ -135,10 +135,26 @@ object Log {
   internal var globalThreshold = Level.parse(System.getenv(LOGGING_LEVEL_ENV)) ?: Level.INFO
   internal var namedThresholds = NamespaceLevels.parse(System.getenv(NamespaceLevels.ENV_VAR))
 
+  /**
+   * Whether a [level] message from the logger called [name] should be emitted.
+   *
+   * Thresholds cascade down the dotted-name hierarchy, mirroring Java logging
+   * convention. A logger inherits the level of its nearest configured
+   * ancestor, so with `foo=WARNING` configured, loggers named e.g. `foo.bar`
+   * also resolves to `WARNING` without additional configuration. A logger with
+   * no configured ancestor falls back to [globalThreshold].
+   */
   fun isEnabledForLevel(
     level: Level,
     name: String?,
-  ) = level.value >= (namedThresholds[name] ?: globalThreshold).value
+  ): Boolean {
+    var threshold = name
+    while (threshold != null) {
+      namedThresholds[threshold]?.let { return level.value >= it.value }
+      threshold = threshold.substringBeforeLast('.', missingDelimiterValue = "").ifEmpty { null }
+    }
+    return level.value >= globalThreshold.value
+  }
 
   fun send(
     level: Level,
