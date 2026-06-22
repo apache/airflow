@@ -330,6 +330,19 @@ ARG_CONFIG_VERBOSE = Arg(
     action="store_true",
 )
 
+# Provider arguments
+ARG_PROVIDER_NAME = Arg(
+    flags=("provider_name",),
+    type=str,
+    help="The package name of the provider",
+)
+ARG_PROVIDER_FULL = Arg(
+    flags=("--full",),
+    help="Show the complete provider metadata",
+    default=False,
+    action="store_true",
+)
+
 # Version Command Args
 ARG_REMOTE = Arg(
     flags=("--remote",),
@@ -859,7 +872,9 @@ def merge_commands(
     base_commands: list[CLICommand], commands_will_be_merged: list[CLICommand]
 ) -> list[CLICommand]:
     """
-    Merge group commands with existing commands which extends base_commands with will_be_merged commands.
+    Merge custom commands into generated commands.
+
+    Custom subcommands replace generated subcommands with the same name.
 
     Args:
         base_commands: List of base commands to be extended.
@@ -881,8 +896,12 @@ def merge_commands(
         if command.name in merge_command_map.keys():
             merged_command = merge_command_map[command.name]
             if isinstance(command, GroupCommand):
-                # Merge common group command with existing group command
-                current_subcommands = list(command.subcommands)
+                replacement_names = {subcommand.name for subcommand in merged_command.subcommands}
+                current_subcommands = [
+                    subcommand
+                    for subcommand in command.subcommands
+                    if subcommand.name not in replacement_names
+                ]
                 current_subcommands.extend(list(merged_command.subcommands))
                 new_commands.append(
                     GroupCommand(
@@ -1043,6 +1062,19 @@ VARIABLE_COMMANDS = (
     ),
 )
 
+PROVIDER_COMMANDS = (
+    ActionCommand(
+        name="get",
+        help="Retrieve an installed provider by its package name",
+        func=lazy_load_command("airflowctl.ctl.commands.provider_command.get_provider"),
+        args=(
+            ARG_PROVIDER_NAME,
+            ARG_PROVIDER_FULL,
+            ARG_OUTPUT,
+        ),
+    ),
+)
+
 core_commands: list[CLICommand] = [
     GroupCommand(
         name="auth",
@@ -1069,6 +1101,11 @@ core_commands: list[CLICommand] = [
         name="pools",
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
+    ),
+    GroupCommand(
+        name="providers",
+        help="Manage installed Airflow providers",
+        subcommands=PROVIDER_COMMANDS,
     ),
     ActionCommand(
         name="version",
