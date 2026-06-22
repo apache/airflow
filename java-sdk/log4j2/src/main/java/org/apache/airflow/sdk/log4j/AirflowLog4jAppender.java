@@ -32,6 +32,8 @@ import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.appender.AbstractAppender;
 import org.apache.logging.log4j.core.config.Property;
 import org.apache.logging.log4j.core.config.plugins.Plugin;
+import org.apache.logging.log4j.core.config.plugins.PluginAttribute;
+import org.apache.logging.log4j.core.config.plugins.PluginElement;
 import org.apache.logging.log4j.core.config.plugins.PluginFactory;
 import org.apache.logging.log4j.spi.StandardLevel;
 
@@ -53,8 +55,9 @@ public final class AirflowLog4jAppender extends AbstractAppender {
   }
 
   @PluginFactory
-  public static AirflowLog4jAppender createAppender() {
-    return new AirflowLog4jAppender("AirflowAppender", null);
+  public static AirflowLog4jAppender createAppender(
+      @PluginAttribute("name") String name, @PluginElement("Filter") Filter filter) {
+    return new AirflowLog4jAppender(name == null ? "AirflowAppender" : name, filter);
   }
 
   @Override

@@ -43,7 +43,7 @@ class AirflowLog4jAppenderTest {
 
   @BeforeEach
   fun setUp() {
-    appender = AirflowLog4jAppender.createAppender()
+    appender = AirflowLog4jAppender.createAppender("AirflowAppender", null)
     mockkObject(Log)
     every { Log.isEnabledForLevel(any(), any()) } returns true
     every { Log.send(any(), any(), any(), any<Map<String, Any?>>()) } just runs
@@ -52,6 +52,12 @@ class AirflowLog4jAppenderTest {
   @AfterEach
   fun tearDown() {
     unmockkAll()
+  }
+
+  @Test
+  fun `factory honors the configured name and defaults when absent`() {
+    assertEquals("Airflow", AirflowLog4jAppender.createAppender("Airflow", null).name)
+    assertEquals("AirflowAppender", AirflowLog4jAppender.createAppender(null, null).name)
   }
 
   @Test
