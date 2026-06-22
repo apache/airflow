@@ -785,15 +785,17 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if trigger.assets:
                 watched_assets = {a.name: a.uri for a in trigger.assets}
 
+            # ``callback`` is an attribute of the Trigger model, not of the BaseEventTrigger
+            # protocol — asset-only triggers (and spec'd test mocks) may not expose it, so read
+            # it defensively. Only callback triggers fetch DagRun context.
+            callback = getattr(trigger, "callback", None)
             # Only fetch DagRun data for callback triggers (not all non-task triggers).
-            dag_run_data = (
-                self._fetch_callback_dag_run_data(trigger, session=session) if trigger.callback else None
-            )
-            if trigger.callback and dag_run_data is None:
+            dag_run_data = self._fetch_callback_dag_run_data(trigger, session=session) if callback else None
+            if callback and dag_run_data is None:
                 # Only skip when routing data was present but the DagRun lookup failed
                 # (transient DB/API issue). Old 3.2.x callbacks without dag_id/run_id
                 # pass through — their trigger's run() falls back to stored kwargs["context"].
-                callback_data = trigger.callback.data or {}
+                callback_data = callback.data or {}
                 if callback_data.get("dag_id") and callback_data.get("run_id"):
                     log.warning(
                         "Skipping callback trigger — DagRun not found for context",
