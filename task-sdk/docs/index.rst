@@ -96,6 +96,7 @@ Why use ``airflow.sdk``?
 - :class:`airflow.sdk.RetryDecision`
 - :class:`airflow.sdk.RetryPolicy`
 - :class:`airflow.sdk.RetryRule`
+- :class:`airflow.sdk.SkippedIntervalsCallbackContext`
 - :class:`airflow.sdk.TaskGroup`
 - :class:`airflow.sdk.TaskInstanceState`
 - :class:`airflow.sdk.DagRunState`
