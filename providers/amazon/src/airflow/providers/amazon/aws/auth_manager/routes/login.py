@@ -23,6 +23,7 @@ from urllib.parse import urlparse
 
 import anyio
 from fastapi import HTTPException, Request, status
+from fastapi.datastructures import FormData
 from fastapi.responses import RedirectResponse
 
 from airflow.api_fastapi.app import (
@@ -101,7 +102,7 @@ def login_callback(request: Request):
     url = conf.get("api", "base_url", fallback="/")
     token = get_auth_manager().generate_jwt(user)
 
-    form_data = anyio.from_thread.run(request.form)
+    form_data: FormData = anyio.from_thread.run(lambda: request.form())
     relay_state = form_data["RelayState"]
 
     if relay_state == "login-redirect":
@@ -151,7 +152,7 @@ def _prepare_request(request: Request) -> dict:
         "get_data": request.query_params,
         "post_data": {},
     }
-    form_data = anyio.from_thread.run(request.form)
+    form_data: FormData = anyio.from_thread.run(lambda: request.form())
     if "SAMLResponse" in form_data:
         data["post_data"]["SAMLResponse"] = form_data["SAMLResponse"]
     if "RelayState" in form_data:
