@@ -198,6 +198,25 @@ it from the give-up branch of your ``on_failure_callback`` before returning.
    see duplicate API calls. For stricter guarantees, use a backend with
    compare-and-swap semantics.
 
+Guarding automated remediation Dags
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Dag-level retry patterns can also be used in automated remediation Dags that
+run actions affecting external systems, such as clearing failed work, replaying
+messages, or restarting an external job. These actions should have guardrails
+so that a persistent failure does not cause the same recovery action to run
+repeatedly across Dag runs.
+
+Pools can limit how many recovery tasks run at the same time, but they do not
+limit how often the same recovery action is attempted. For automated remediation
+workflows, consider adding a small cooldown marker for each target and a maximum
+automatic action count before requiring manual review.
+
+For small guard values, such as a cooldown timestamp or attempt counter, an
+Airflow Variable may be sufficient. Do not use Variables as a high-volume state
+store or as a strongly consistent locking mechanism. If the workflow needs
+atomic updates, strict concurrency control, or many per-target state records,
+use an external store designed for that purpose.
 
 .. _clear-retry-caveats:
 

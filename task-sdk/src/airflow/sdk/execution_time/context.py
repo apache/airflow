@@ -52,7 +52,7 @@ from airflow.sdk.exceptions import (
     AirflowSecretsBackendAccessDenied,
     ErrorType,
 )
-from airflow.sdk.log import mask_secret
+from airflow.sdk.log import amask_secret, mask_secret
 
 if TYPE_CHECKING:
     from pydantic.types import JsonValue
@@ -160,6 +160,14 @@ def _mask_connection_secrets(conn: Connection) -> None:
         mask_secret(conn.extra)
 
 
+async def _amask_connection_secrets(conn: Connection) -> None:
+    """Async version: mask sensitive connection fields from logs."""
+    if conn.password:
+        await amask_secret(conn.password)
+    if conn.extra:
+        await amask_secret(conn.extra)
+
+
 def _convert_variable_result_to_variable(var_result: VariableResult, deserialize_json: bool) -> Variable:
     from airflow.sdk.definitions.variable import Variable
 
@@ -226,7 +234,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
     preset = _preset_connections.get()
     if preset is not None and conn_id in preset:
         conn = preset[conn_id]
-        _mask_connection_secrets(conn)
+        await _amask_connection_secrets(conn)
         return conn
 
     from asgiref.sync import sync_to_async
@@ -239,7 +247,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
         from airflow.sdk.definitions.connection import Connection
 
         conn = Connection.from_uri(uri, conn_id=conn_id)
-        _mask_connection_secrets(conn)
+        await _amask_connection_secrets(conn)
         return conn
     except SecretCache.NotPresentException:
         pass  # continue to backends
@@ -261,7 +269,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
 
             if conn:
                 SecretCache.save_connection_uri(conn_id, conn.get_uri())
-                _mask_connection_secrets(conn)
+                await _amask_connection_secrets(conn)
                 return conn
         except AirflowSecretsBackendAccessDenied:
             # Authoritative deny — must NOT fall through to a less-restrictive backend.
