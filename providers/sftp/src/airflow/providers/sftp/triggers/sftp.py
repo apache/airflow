@@ -25,6 +25,7 @@ from typing import Any
 from dateutil.parser import parse as parse_date
 
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.sftp.constants import SFTPOperation
 from airflow.providers.sftp.hooks.sftp import SFTPHookAsync
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.timezone import convert_to_utc
@@ -202,10 +203,15 @@ class SFTPOperatorTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Run the file transfer asynchronously and yield a TriggerEvent when done."""
         try:
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(
-                None,
-                self._do_transfer,
+            hook = SFTPHookAsync(sftp_conn_id=self.ssh_conn_id)
+            await hook.transfer(
+                operation=self.operation,
+                local_filepath=self.local_filepath,
+                remote_filepath=self.remote_filepath,
+                confirm=self.confirm,
+                create_intermediate_dirs=self.create_intermediate_dirs,
+                concurrency=self.concurrency,
+                prefetch=self.prefetch,
             )
             yield TriggerEvent(
                 {
@@ -215,53 +221,3 @@ class SFTPOperatorTrigger(BaseTrigger):
             )
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
-
-    def _do_transfer(self) -> None:
-        """Run the actual synchronous SFTP transfer in a thread executor."""
-        sftp_hook = SFTPHook(
-            ssh_conn_id=self.ssh_conn_id,
-            remote_host=self.remote_host,
-        )
-
-        if isinstance(self.local_filepath, str):
-            local_filepath_array = [self.local_filepath] if self.local_filepath else []
-        else:
-            local_filepath_array = self.local_filepath or []
-
-        if isinstance(self.remote_filepath, str):
-            remote_filepath_array = [self.remote_filepath]
-        else:
-            remote_filepath_array = list(self.remote_filepath)
-
-        if self.operation.lower() == SFTPOperation.GET:
-            for local, remote in zip(local_filepath_array, remote_filepath_array):
-                if self.create_intermediate_dirs:
-                    Path(os.path.dirname(local)).mkdir(parents=True, exist_ok=True)
-                if sftp_hook.isdir(remote):
-                    if self.concurrency > 1:
-                        sftp_hook.retrieve_directory_concurrently(
-                            remote, local, workers=self.concurrency, prefetch=self.prefetch
-                        )
-                    else:
-                        sftp_hook.retrieve_directory(remote, local)
-                else:
-                    sftp_hook.retrieve_file(remote, local, prefetch=self.prefetch)
-        elif self.operation.lower() == SFTPOperation.PUT:
-            for local, remote in zip(local_filepath_array, remote_filepath_array):
-                if self.create_intermediate_dirs:
-                    sftp_hook.create_directory(os.path.dirname(remote))
-                if os.path.isdir(local):
-                    if self.concurrency > 1:
-                        sftp_hook.store_directory_concurrently(
-                            remote, local, confirm=self.confirm, workers=self.concurrency
-                        )
-                    else:
-                        sftp_hook.store_directory(remote, local, confirm=self.confirm)
-                else:
-                    sftp_hook.store_file(remote, local, confirm=self.confirm)
-        elif self.operation.lower() == SFTPOperation.DELETE:
-            for remote in remote_filepath_array:
-                if sftp_hook.isdir(remote):
-                    sftp_hook.delete_directory(remote, include_files=True)
-                else:
-                    sftp_hook.delete_file(remote)
