@@ -27,7 +27,13 @@ from sqlalchemy import and_, func, select
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.dagbag import DagBag
 from airflow.models import DagModel, DagRun
-from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
+from airflow.models.backfill import (
+    Backfill,
+    BackfillDagRun,
+    NoBackfillRunsToCreate,
+    ReprocessBehavior,
+    _create_backfill,
+)
 from airflow.models.dag import DAG
 from airflow.models.dagbundle import DagBundleModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -964,6 +970,56 @@ class TestCreateBackfillPartitioned(TestBackfillEndpoint):
         }
         response = test_client.post(url=url, json=data)
         assert response.status_code == 422
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.backfills._create_backfill", autospec=True)
+    def test_empty_window_create_returns_422(self, mock_create, session, dag_maker, test_client):
+        """POST /backfills with an empty window raises NoBackfillRunsToCreate → 422."""
+        mock_create.side_effect = NoBackfillRunsToCreate(
+            "No runs to create for Dag TEST_PARTITIONED_DAG in the range [...]"
+        )
+        with dag_maker(
+            session=session,
+            dag_id="TEST_PARTITIONED_DAG",
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei"),
+        ):
+            EmptyOperator(task_id="mytask")
+        session.commit()
+
+        data = {
+            "dag_id": "TEST_PARTITIONED_DAG",
+            "from_date": "2026-02-18T00:00:00+00:00",
+            "to_date": "2026-02-18T00:00:00+00:00",
+            "max_active_runs": 5,
+            "run_backwards": False,
+        }
+        response = test_client.post(url="/backfills", json=data)
+        assert response.status_code == 422
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.backfills._do_dry_run", autospec=True)
+    def test_empty_window_dry_run_returns_200_with_zero_entries(
+        self, mock_dry_run, session, dag_maker, test_client
+    ):
+        """POST /backfills/dry_run with an empty window returns 200 with total_entries == 0."""
+        mock_dry_run.return_value = iter([])
+        with dag_maker(
+            session=session,
+            dag_id="TEST_PARTITIONED_DAG",
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei"),
+        ):
+            EmptyOperator(task_id="mytask")
+        session.commit()
+
+        data = {
+            "dag_id": "TEST_PARTITIONED_DAG",
+            "from_date": "2026-02-18T00:00:00+00:00",
+            "to_date": "2026-02-18T00:00:00+00:00",
+            "max_active_runs": 5,
+            "run_backwards": False,
+        }
+        response = test_client.post(url="/backfills/dry_run", json=data)
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 0
+        assert response.json()["backfills"] == []
 
 
 class TestCancelBackfill(TestBackfillEndpoint):
