@@ -23,31 +23,25 @@ import {
   useConnectionServiceEnqueueConnectionTest,
   useConnectionServiceGetConnectionTest,
 } from "openapi/queries";
-import type { ApiError } from "openapi/requests";
 import type { ConnectionTestRequestBody } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
+import { createErrorToaster, useAutoRefresh } from "src/utils";
 
 type ConnectionStatus = boolean | undefined;
 
 const ACTIVE_STATES = new Set(["pending", "queued", "running"]);
-const POLL_INTERVAL = 2000;
 
 const isActive = (state: string | undefined) => state !== undefined && ACTIVE_STATES.has(state);
 
 export const useTestConnection = (setConnected: (status: ConnectionStatus) => void) => {
   const { t: translate } = useTranslation("admin");
   const [token, setToken] = useState<string | undefined>(undefined);
+  const refetchInterval = useAutoRefresh({});
 
   const enqueue = useConnectionServiceEnqueueConnectionTest({
     onError: (error) => {
       setConnected(false);
-      toaster.create({
-        title:
-          (error as ApiError).status === 409
-            ? translate("connections.testInProgress.title")
-            : translate("connections.testError.title"),
-        type: "error",
-      });
+      createErrorToaster(error, { titleKey: "connections.testError.title" }, translate);
     },
     onSuccess: (response) => {
       setToken(response.token);
@@ -59,7 +53,7 @@ export const useTestConnection = (setConnected: (status: ConnectionStatus) => vo
     undefined,
     {
       enabled: token !== undefined,
-      refetchInterval: (query) => (isActive(query.state.data?.state) ? POLL_INTERVAL : false),
+      refetchInterval: (query) => isActive(query.state.data?.state) && refetchInterval,
     },
   );
 
@@ -85,12 +79,12 @@ export const useTestConnection = (setConnected: (status: ConnectionStatus) => vo
     setToken(undefined);
   }, [state, resultMessage, setConnected, translate]);
 
-  const test = (requestBody: ConnectionTestRequestBody) => {
+  const mutate = (requestBody: ConnectionTestRequestBody) => {
     setConnected(undefined);
     enqueue.mutate({ requestBody });
   };
 
   const isPending = enqueue.isPending || (token !== undefined && (state === undefined || isActive(state)));
 
-  return { isPending, test };
+  return { isPending, mutate };
 };
