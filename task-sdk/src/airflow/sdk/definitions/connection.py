@@ -25,6 +25,8 @@ from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 import attrs
 
+from airflow.sdk.exceptions import AirflowException
+
 from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException, AirflowRuntimeError, ErrorType
 from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
@@ -123,6 +125,25 @@ class Connection:
 
     EXTRA_KEY = "__extra__"
 
+    @staticmethod
+    def _validate_port(port: int | None) -> None:
+        """
+        Validate that the port number is a valid TCP/UDP port (0-65535).
+
+        :param port: The port number to validate.
+        :raises AirflowException: If the port is outside the valid range.
+        """
+        if port is None:
+            return
+        if not isinstance(port, int):
+            raise AirflowException(
+                f"Port must be an integer, got {type(port).__name__}. port: {port!r}"
+            )
+        if port < 0 or port > 65535:
+            raise AirflowException(
+                f"Port must be between 0 and 65535, got {port}. port: {port!r}"
+            )
+
     @overload
     def __init__(self, *, conn_id: str, uri: str) -> None: ...
 
@@ -149,6 +170,10 @@ class Connection:
                 "You can't mix these two ways to create this object."
             )
         if uri is None:
+            # Validate port before creating the object
+            port = kwargs.get('port')
+            if port is not None:
+                self._validate_port(port)
             self.__attrs_init__(conn_id=conn_id, **kwargs)  # type: ignore[attr-defined]
         else:
             self.__dict__.update(attrs.asdict(self.from_uri(uri, conn_id=conn_id), recurse=False))
@@ -398,6 +423,8 @@ class Connection:
         login = unquote(uri_parts.username) if uri_parts.username else uri_parts.username
         password = unquote(uri_parts.password) if uri_parts.password else uri_parts.password
         port = uri_parts.port
+        # Validate port is a valid TCP/UDP port (0-65535)
+        cls._validate_port(port)
         extra = None
         if uri_parts.query:
             query = dict(parse_qsl(uri_parts.query, keep_blank_values=True))
