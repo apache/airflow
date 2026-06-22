@@ -2220,6 +2220,79 @@ class TestDagFileProcessorManager:
         manager._refresh_dag_bundles(known_files={})
         mock_bundle_manager.return_value.reassign_dags_with_unconfigured_bundles.assert_called_once()
 
+    @pytest.mark.parametrize(
+        "apply_patch",
+        [False, True],
+        ids=["without_patch", "with_patch"],
+    )
+    def test_sync_bundles_repairs_legacy_bundle_before_parsing_loop(
+        self, apply_patch, session, tmp_path, configure_dag_bundles
+    ):
+        """DFP initial setup alone re-homes a 2.x->3.x legacy Dag to its configured bundle.
+
+        Window right after ``airflow db migrate`` but before the parsing loop: the ``0082``
+        migration left the row with ``bundle_name='dags-folder'`` and NULL ``relative_fileloc``,
+        and ``0047`` emptied ``serialized_dag``/``dag_version`` (so the Dag is unserialized and
+        ``get_bundle`` -- what the worker calls at run time -- is the probe, not the REST trigger).
+        ``sync_bundles()`` runs ``sync_bundles_to_db`` and, on the patched build,
+        ``reassign_dags_with_unconfigured_bundles``; without it (reassign mocked off) the row stays
+        on the unconfigured ``dags-folder`` and ``get_bundle`` raises. See
+        https://github.com/apache/airflow/issues/63323.
+        """
+        dags_folder = tmp_path / "dags"
+        dags_folder.mkdir()
+        legacy_file = dags_folder / "af2_upgrade_af3_dag.py"
+        legacy_file.write_text("# 2.x dag")
+
+        # State right after the 0082 migration: the ``dags-folder`` row exists in dag_bundle but the
+        # operator's bundle is not registered yet (sync_bundles_to_db does that below), and
+        # serialized_dag/dag_version are empty (0047 wiped them; setup_method clears them too).
+        legacy_default_bundle = DagBundleModel(name="dags-folder")
+        legacy_default_bundle.active = True
+        session.add(legacy_default_bundle)
+        session.flush()
+        legacy_dag = DagModel(
+            dag_id="legacy_dag",
+            bundle_name="dags-folder",
+            fileloc=str(legacy_file),
+        )
+        legacy_dag.relative_fileloc = None
+        session.add(legacy_dag)
+        session.commit()
+
+        bundle_name = "upgrade_test_dag_bundle"
+        with configure_dag_bundles({bundle_name: dags_folder}):
+            manager = DagFileProcessorManager(max_runs=1)
+            if apply_patch:
+                manager.sync_bundles()
+            else:
+                # Pre-patch sync_bundles ran sync_bundles_to_db only; mocking reassign to a no-op
+                # reproduces that build without forking the source under test.
+                with mock.patch.object(
+                    DagBundlesManager,
+                    "reassign_dags_with_unconfigured_bundles",
+                    return_value=0,
+                ):
+                    manager.sync_bundles()
+
+            session.expire_all()
+            refreshed = session.get(DagModel, "legacy_dag")
+
+            if apply_patch:
+                assert refreshed.bundle_name == bundle_name
+                assert refreshed.relative_fileloc == "af2_upgrade_af3_dag.py"
+                # The worker can now resolve the bundle: the symptom is gone.
+                assert DagBundlesManager().get_bundle(bundle_name).name == bundle_name
+            else:
+                assert refreshed.bundle_name == "dags-folder"
+                assert refreshed.relative_fileloc is None
+                # The worker would hit the original incident at run time.
+                with pytest.raises(
+                    ValueError,
+                    match=re.escape("Requested bundle 'dags-folder' is not configured."),
+                ):
+                    DagBundlesManager().get_bundle(refreshed.bundle_name)
+
     def test_dag_with_assets(self, session, configure_testing_dag_bundle):
         """'Integration' test to ensure that the assets get parsed and stored correctly for parsed dags."""
         test_dag_path = str(TEST_DAG_FOLDER / "test_assets.py")
