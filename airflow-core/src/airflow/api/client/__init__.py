@@ -20,7 +20,32 @@
 from __future__ import annotations
 
 from airflow.api.client.local_client import Client
+from airflow.api.client.local_rest_client import LocalRESTClient
 
 
 def get_current_api_client() -> Client:
     return Client()
+
+
+def get_local_rest_client(*, process_type: str = "unknown") -> LocalRESTClient:
+    """
+    Get a REST API client for use inside trusted Airflow processes.
+
+    This client automatically authenticates using a ``SystemUser`` and
+    requires no user credentials. It is intended for plugins and Airflow
+    component code running in processes that have metadata database access
+    (scheduler, Dag processor, triggerer). It is **not** available from
+    workers or task code, which do not have direct database access in
+    Airflow 3.
+
+    Example::
+
+        from airflow.api.client import get_local_rest_client
+
+        client = get_local_rest_client()
+        client.pools.create(name="my_pool", slots=5)
+        pools = client.pools.list()
+
+    :param process_type: Identifier for the calling process (e.g. ``"dag_processor"``).
+    """
+    return LocalRESTClient(process_type=process_type)
