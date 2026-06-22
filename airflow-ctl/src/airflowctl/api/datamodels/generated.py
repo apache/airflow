@@ -904,6 +904,18 @@ class PoolResponse(BaseModel):
     team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
+class ProviderDetailsResponse(BaseModel):
+    """
+    Detailed provider serializer for responses.
+    """
+
+    package_name: Annotated[str, Field(title="Package Name")]
+    description: Annotated[str, Field(title="Description")]
+    version: Annotated[str, Field(title="Version")]
+    documentation_url: Annotated[str | None, Field(title="Documentation Url")] = None
+    provider_info: Annotated[dict[str, Any], Field(title="Provider Info")]
+
+
 class ProviderResponse(BaseModel):
     """
     Provider serializer for responses.

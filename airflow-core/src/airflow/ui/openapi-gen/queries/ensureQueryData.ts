@@ -1531,6 +1531,17 @@ export const ensureUseProviderServiceGetProvidersData = (queryClient: QueryClien
   offset?: number;
 } = {}) => queryClient.ensureQueryData({ queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }), queryFn: () => ProviderService.getProviders({ limit, offset }) });
 /**
+* Get Provider
+* Get detailed information about an installed provider.
+* @param data The data for the request.
+* @param data.providerName
+* @returns ProviderDetailsResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseProviderServiceGetProviderData = (queryClient: QueryClient, { providerName }: {
+  providerName: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseProviderServiceGetProviderKeyFn({ providerName }), queryFn: () => ProviderService.getProvider({ providerName }) });
+/**
 * List Asset State Store
 * List all state store entries for an asset.
 * @param data The data for the request.
