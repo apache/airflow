@@ -641,7 +641,6 @@ def smoke_test_overlay(
     cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
     bootstrap_hint = (
         f"[error]Run first:\n"
-        f"  breeze k8s setup-env\n"
         f"  breeze k8s deploy-cluster --python {python} --kubernetes-version {kubernetes_version}"
         f" --rebuild-base-image  # --rebuild-base-image only needed first run\n"
         f"  breeze k8s deploy-airflow --python {python} --kubernetes-version {kubernetes_version}"
@@ -707,6 +706,7 @@ def smoke_test_overlay(
             )
         sys.exit(0)
 
+    # Reached only on a non-zero exit (the success branch above always exits).
     if soft_fail_in_ci:
         console_print(
             f"[warning]Smoke test for overlay {overlay_name} failed (exit={exit_code}), "
