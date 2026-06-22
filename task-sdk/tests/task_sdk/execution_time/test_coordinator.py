@@ -43,7 +43,7 @@ class _CoordinatorB(BaseCoordinator):
 
 class _ExplodingCoordinator(BaseCoordinator):
     def __init__(self):
-        raise RuntimeError("coordinator must not be instantiated")
+        raise RuntimeError("This coordinator must not be instantiated")
 
 
 @pytest.fixture

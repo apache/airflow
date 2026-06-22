@@ -2065,7 +2065,7 @@ sdk:
             },
             "extra": {
               "pod_template_file": "/opt/airflow/pod_templates/java.yaml",
-              "worker_container_repository": "myrepo/airflow-java",
+              "worker_container_repository": "apache/airflow",
               "worker_container_tag": "3.3.0"
             }
           }
