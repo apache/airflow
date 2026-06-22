@@ -84,3 +84,43 @@ class TestGetProviders:
     def test_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/providers")
         assert response.status_code == 403
+
+
+class TestGetProvider:
+    @mock.patch(
+        "airflow.providers_manager.ProvidersManager.providers",
+        new_callable=mock.PropertyMock,
+        return_value=MOCK_PROVIDERS,
+    )
+    def test_should_respond_200(self, mock_provider, test_client):
+        with assert_queries_count(0):
+            response = test_client.get("/providers/apache-airflow-providers-amazon")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["package_name"] == "apache-airflow-providers-amazon"
+        assert body["version"] == "1.0.0"
+        assert body["description"] == "Amazon Web Services (AWS) https://aws.amazon.com/"
+        assert body["provider_info"] == {
+            **MOCK_PROVIDERS["apache-airflow-providers-amazon"].data,
+            "description": "Amazon Web Services (AWS) https://aws.amazon.com/",
+        }
+
+    @mock.patch(
+        "airflow.providers_manager.ProvidersManager.providers",
+        new_callable=mock.PropertyMock,
+        return_value=MOCK_PROVIDERS,
+    )
+    def test_should_respond_404(self, mock_provider, test_client):
+        response = test_client.get("/providers/missing-provider")
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Provider 'missing-provider' was not found"}
+
+    def test_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/providers/apache-airflow-providers-amazon")
+        assert response.status_code == 401
+
+    def test_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/providers/apache-airflow-providers-amazon")
+        assert response.status_code == 403
