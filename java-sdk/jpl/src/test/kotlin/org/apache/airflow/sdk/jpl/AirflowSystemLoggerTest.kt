@@ -88,10 +88,19 @@ class AirflowSystemLoggerTest {
   }
 
   @Test
-  fun `parameters are added to the map indexed by position`() {
+  fun `message parameters are rendered into the message`() {
     logger.log(System.Logger.Level.INFO, null as ResourceBundle?, "{0} {1}", arrayOf<Any?>("alpha", 42))
     val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
-    assertEquals("{0} {1}", msg.event)
+    assertEquals("alpha 42", msg.event)
+    assertEquals(emptyMap<String, Any?>(), msg.arguments)
+  }
+
+  @Test
+  fun `malformed pattern keeps the template and preserves parameters as metadata`() {
+    // "{0" is an unterminated MessageFormat element, so rendering throws and we fall back.
+    logger.log(System.Logger.Level.INFO, null as ResourceBundle?, "{0", arrayOf<Any?>("alpha", 42))
+    val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
+    assertEquals("{0", msg.event)
     assertEquals("alpha", msg.arguments["0"])
     assertEquals(42, msg.arguments["1"])
   }

@@ -21,6 +21,7 @@ package org.apache.airflow.sdk.jpl
 
 import org.apache.airflow.sdk.execution.Level
 import org.apache.airflow.sdk.execution.Log
+import java.text.MessageFormat
 import java.util.MissingResourceException
 import java.util.ResourceBundle
 
@@ -64,9 +65,27 @@ internal class AirflowSystemLogger(
     params: Array<out Any?>?,
   ) {
     if (!isLoggable(level)) return
-    Log.send(level.convert(), name, bundle.resolve(format)) {
-      params?.forEachIndexed { i, v -> put(i.toString(), v) }
+
+    var message = bundle.resolve(format)
+
+    fun renderEvent(): Pair<String, Map<String, Any?>> {
+      if (params.isNullOrEmpty()) return message to emptyMap()
+      val arguments =
+        buildMap {
+          message =
+            try {
+              MessageFormat.format(message, *params)
+            } catch (e: IllegalArgumentException) {
+              params.forEachIndexed { i, v -> put(i.toString(), v) }
+              put("exception", e.stackTraceToString())
+              message
+            }
+        }
+      return message to arguments
     }
+
+    val (event, arguments) = renderEvent()
+    Log.send(level.convert(), name, event, arguments)
   }
 }
 

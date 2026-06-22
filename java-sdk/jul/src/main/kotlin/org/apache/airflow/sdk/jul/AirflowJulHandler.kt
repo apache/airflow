@@ -24,6 +24,7 @@ import org.apache.airflow.sdk.execution.Log
 import java.util.logging.Handler
 import java.util.logging.LogRecord
 import java.util.logging.Logger
+import java.util.logging.SimpleFormatter
 import java.util.logging.Level as JLevel
 
 /**
@@ -55,13 +56,17 @@ private fun JLevel.convert() =
  * log pipeline to Airflow's task log store.
  */
 class AirflowJulHandler : Handler() {
+  // Used only for [java.util.logging.Formatter.formatMessage]: it localizes
+  // and substitutes  parameters but, unlike format(), never appends the
+  // throwable's stack trace, which we send separately instead, to the text.
+  private val formatter = SimpleFormatter()
+
   override fun publish(record: LogRecord) {
     if (!isLoggable(record)) return
     val level = record.level.convert()
     val logger = record.loggerName
     if (!Log.isEnabledForLevel(level, logger)) return
-    Log.send(level, logger ?: "", record.message) {
-      record.parameters?.forEachIndexed { i, v -> put(i.toString(), v) }
+    Log.send(level, logger ?: "", formatter.formatMessage(record)) {
       record.thrown?.run { put("exception", stackTraceToString()) }
     }
   }

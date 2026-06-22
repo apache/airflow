@@ -74,11 +74,11 @@ class AirflowSlf4jLoggerTest {
   }
 
   @Test
-  fun `arguments are added to the map indexed by position`() {
+  fun `message parameters are rendered into the message`() {
     logger.info("{} {}", "alpha", 42 as Any)
     val msg = LogCapture.drain().single { it.logger == "com.example.Task" }
-    assertEquals("alpha", msg.arguments["0"])
-    assertEquals(42, msg.arguments["1"])
+    assertEquals("alpha 42", msg.event)
+    assertFalse(msg.arguments.containsKey("0"))
   }
 
   @Test

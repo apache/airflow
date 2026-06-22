@@ -94,17 +94,13 @@ class AirflowJulHandlerTest {
   }
 
   @Test
-  fun `parameters are added to the map indexed by position`() {
-    val lambdaSlot = slot<MutableMap<String, Any?>.() -> Unit>()
-    every { Log.send(any(), any(), any(), capture(lambdaSlot)) } just runs
+  fun `message parameters are rendered into the message`() {
     val rec =
-      LogRecord(JLevel.INFO, "msg {0} {1}").also {
+      record("msg {0} {1}", JLevel.INFO).also {
         it.parameters = arrayOf<Any>("alpha", 42)
       }
     handler.publish(rec)
-    val args = mutableMapOf<String, Any?>().also { lambdaSlot.captured.invoke(it) }
-    assertEquals("alpha", args["0"])
-    assertEquals(42, args["1"])
+    verify { Log.send(Level.INFO, "test.Logger", "msg alpha 42", any<MutableMap<String, Any?>.() -> Unit>()) }
   }
 
   @Test

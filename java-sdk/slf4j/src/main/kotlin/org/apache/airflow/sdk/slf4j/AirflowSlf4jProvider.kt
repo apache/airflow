@@ -27,6 +27,7 @@ import org.slf4j.Logger
 import org.slf4j.Marker
 import org.slf4j.helpers.AbstractLogger
 import org.slf4j.helpers.BasicMarkerFactory
+import org.slf4j.helpers.MessageFormatter
 import org.slf4j.helpers.NOPMDCAdapter
 import org.slf4j.spi.MDCAdapter
 import org.slf4j.spi.SLF4JServiceProvider
@@ -58,12 +59,8 @@ internal class AirflowSlf4jLogger(
     arguments: Array<out Any?>?,
     throwable: Throwable?,
   ) {
-    // Since the Python side is using a structlog pattern, let's just send the message pattern as-is
-    // with unrendered placeholders and put all arguments under keys "0", "1", "2" and so on.
-    // If there's an error attached, put it (as string) under "exception" like how structlog does it.
-    // A marker (if any) rides along as metadata under "marker"; it does not affect level filtering.
-    Log.send(level.convert(), name, messagePattern ?: "") {
-      arguments?.forEachIndexed { i, v -> put(i.toString(), v) }
+    val event = MessageFormatter.basicArrayFormat(messagePattern ?: "", arguments)
+    Log.send(level.convert(), name, event) {
       throwable?.run { put("exception", stackTraceToString()) }
       marker?.let { put("marker", it.name) }
     }
