@@ -18,8 +18,11 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
+
+if TYPE_CHECKING:
+    from starlette.datastructures import FormData
 
 import anyio
 from fastapi import HTTPException, Request, status
@@ -101,7 +104,7 @@ def login_callback(request: Request):
     url = conf.get("api", "base_url", fallback="/")
     token = get_auth_manager().generate_jwt(user)
 
-    form_data = anyio.from_thread.run(request.form)
+    form_data = anyio.from_thread.run(_fetch_form, request)
     relay_state = form_data["RelayState"]
 
     if relay_state == "login-redirect":
@@ -151,12 +154,16 @@ def _prepare_request(request: Request) -> dict:
         "get_data": request.query_params,
         "post_data": {},
     }
-    form_data = anyio.from_thread.run(request.form)
+    form_data = anyio.from_thread.run(_fetch_form, request)
     if "SAMLResponse" in form_data:
         data["post_data"]["SAMLResponse"] = form_data["SAMLResponse"]
     if "RelayState" in form_data:
         data["post_data"]["RelayState"] = form_data["RelayState"]
     return data
+
+
+async def _fetch_form(request: Request) -> FormData:
+    return await request.form()
 
 
 def _get_idp_data() -> dict:
