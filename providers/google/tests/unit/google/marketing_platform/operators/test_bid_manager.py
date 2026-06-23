@@ -145,6 +145,226 @@ class TestGoogleBidManagerDownloadReportOperator:
             key="report_name", value=REPORT_NAME + ".gz"
         )
 
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.os")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.shutil")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.urllib.request")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.tempfile")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.GCSHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerHook")
+    def test_execute_cleans_up_temp_file(
+        self,
+        mock_hook,
+        mock_gcs_hook,
+        mock_temp,
+        mock_request,
+        mock_shutil,
+        mock_os,
+    ):
+        mock_temp.NamedTemporaryFile.return_value.__enter__.return_value.name = FILENAME
+        mock_hook.return_value.get_report.return_value = {
+            "metadata": {
+                "status": {"state": "DONE"},
+                "googleCloudStoragePath": "https://storage.googleapis.com/bucket/report.csv",
+            }
+        }
+        mock_context = {"task_instance": mock.Mock()}
+
+        op = GoogleBidManagerDownloadReportOperator(
+            query_id=QUERY_ID,
+            report_id=REPORT_ID,
+            bucket_name=BUCKET_NAME,
+            report_name=REPORT_NAME,
+            task_id="test_task",
+        )
+        op.execute(context=mock_context)
+
+        # The unencrypted report must not be left behind in the temp directory.
+        mock_os.unlink.assert_called_once_with(FILENAME)
+
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.os")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.shutil")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.urllib.request")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.tempfile")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.GCSHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerHook")
+    def test_execute_cleans_up_temp_file_on_upload_failure(
+        self,
+        mock_hook,
+        mock_gcs_hook,
+        mock_temp,
+        mock_request,
+        mock_shutil,
+        mock_os,
+    ):
+        mock_temp.NamedTemporaryFile.return_value.__enter__.return_value.name = FILENAME
+        mock_hook.return_value.get_report.return_value = {
+            "metadata": {
+                "status": {"state": "DONE"},
+                "googleCloudStoragePath": "https://storage.googleapis.com/bucket/report.csv",
+            }
+        }
+        mock_gcs_hook.return_value.upload.side_effect = RuntimeError("upload failed")
+        mock_context = {"task_instance": mock.Mock()}
+
+        op = GoogleBidManagerDownloadReportOperator(
+            query_id=QUERY_ID,
+            report_id=REPORT_ID,
+            bucket_name=BUCKET_NAME,
+            report_name=REPORT_NAME,
+            task_id="test_task",
+        )
+        # The exception from the upload must still propagate ...
+        with pytest.raises(RuntimeError, match="upload failed"):
+            op.execute(context=mock_context)
+
+        # ... and the temp file must still be cleaned up on the failure path.
+        mock_os.unlink.assert_called_once_with(FILENAME)
+
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.os")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.shutil")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.urllib.request")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.tempfile")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.GCSHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerHook")
+    def test_execute_closes_temp_file_before_unlink(
+        self,
+        mock_hook,
+        mock_gcs_hook,
+        mock_temp,
+        mock_request,
+        mock_shutil,
+        mock_os,
+    ):
+        """The temp file handle must be closed BEFORE ``os.unlink`` is called.
+
+        Windows raises ``PermissionError`` on ``os.unlink`` while another handle
+        on the same path is still open, and that error is an ``OSError`` subclass
+        which the surrounding ``contextlib.suppress(OSError)`` would silently
+        swallow — leaving the unencrypted report on disk. Enforce close→unlink
+        order so the cleanup is real on every platform.
+        """
+        # Share a single parent mock so we can compare call order across the
+        # tempfile-handle close and the module-level os.unlink calls.
+        parent = mock.MagicMock()
+        temp_handle = parent.temp_handle
+        temp_handle.name = FILENAME
+        mock_temp.NamedTemporaryFile.return_value.__enter__.return_value = temp_handle
+        mock_os.unlink = parent.unlink
+
+        mock_hook.return_value.get_report.return_value = {
+            "metadata": {
+                "status": {"state": "DONE"},
+                "googleCloudStoragePath": "https://storage.googleapis.com/bucket/report.csv",
+            }
+        }
+        mock_context = {"task_instance": mock.Mock()}
+
+        op = GoogleBidManagerDownloadReportOperator(
+            query_id=QUERY_ID,
+            report_id=REPORT_ID,
+            bucket_name=BUCKET_NAME,
+            report_name=REPORT_NAME,
+            task_id="test_task",
+        )
+        op.execute(context=mock_context)
+
+        # Inspect the recorded call order on the shared parent. The first
+        # close() must come before the unlink() — otherwise Windows would
+        # PermissionError on the unlink.
+        ordered = [c[0] for c in parent.mock_calls if c[0] in ("temp_handle.close", "unlink")]
+        assert "temp_handle.close" in ordered, "temp_file.close() must be called"
+        assert "unlink" in ordered, "os.unlink must be called"
+        assert ordered.index("temp_handle.close") < ordered.index("unlink"), (
+            f"close() must precede unlink(); observed order: {ordered}"
+        )
+
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.os")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.shutil")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.urllib.request")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.tempfile")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.GCSHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerHook")
+    def test_execute_logs_warning_on_unexpected_unlink_failure(
+        self,
+        mock_hook,
+        mock_gcs_hook,
+        mock_temp,
+        mock_request,
+        mock_shutil,
+        mock_os,
+        caplog,
+    ):
+        """Unexpected OSError on cleanup must surface as a log.warning, not be silently swallowed."""
+        mock_temp.NamedTemporaryFile.return_value.__enter__.return_value.name = FILENAME
+        # Simulate the case shahar1 flagged: PermissionError fires on Windows
+        # because something still holds a handle on the temp file.
+        mock_os.unlink.side_effect = PermissionError(13, "Permission denied", FILENAME)
+        mock_hook.return_value.get_report.return_value = {
+            "metadata": {
+                "status": {"state": "DONE"},
+                "googleCloudStoragePath": "https://storage.googleapis.com/bucket/report.csv",
+            }
+        }
+        mock_context = {"task_instance": mock.Mock()}
+
+        op = GoogleBidManagerDownloadReportOperator(
+            query_id=QUERY_ID,
+            report_id=REPORT_ID,
+            bucket_name=BUCKET_NAME,
+            report_name=REPORT_NAME,
+            task_id="test_task",
+        )
+        with caplog.at_level("WARNING"):
+            op.execute(context=mock_context)
+
+        # The execute must not raise (cleanup failure is non-fatal) ...
+        # ... but the warning must mention the file path so the failure is observable.
+        assert any(
+            FILENAME in record.message and "Failed to remove temporary report file" in record.message
+            for record in caplog.records
+        ), f"Expected a warning about cleanup failure; got: {[r.message for r in caplog.records]}"
+
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.os")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.shutil")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.urllib.request")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.tempfile")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.GCSHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerHook")
+    def test_execute_swallows_filenotfound_on_unlink(
+        self,
+        mock_hook,
+        mock_gcs_hook,
+        mock_temp,
+        mock_request,
+        mock_shutil,
+        mock_os,
+        caplog,
+    ):
+        """A FileNotFoundError on unlink (file already gone) is benign and must not warn."""
+        mock_temp.NamedTemporaryFile.return_value.__enter__.return_value.name = FILENAME
+        mock_os.unlink.side_effect = FileNotFoundError(2, "No such file", FILENAME)
+        mock_hook.return_value.get_report.return_value = {
+            "metadata": {
+                "status": {"state": "DONE"},
+                "googleCloudStoragePath": "https://storage.googleapis.com/bucket/report.csv",
+            }
+        }
+        mock_context = {"task_instance": mock.Mock()}
+
+        op = GoogleBidManagerDownloadReportOperator(
+            query_id=QUERY_ID,
+            report_id=REPORT_ID,
+            bucket_name=BUCKET_NAME,
+            report_name=REPORT_NAME,
+            task_id="test_task",
+        )
+        with caplog.at_level("WARNING"):
+            op.execute(context=mock_context)
+
+        assert not any(
+            "Failed to remove temporary report file" in record.message for record in caplog.records
+        ), "FileNotFoundError on cleanup must be silent (file already gone is benign)"
+
     @pytest.mark.parametrize(
         "test_bucket_name",
         [BUCKET_NAME, f"gs://{BUCKET_NAME}", "XComArg", "{{ ti.xcom_pull(task_ids='taskflow_op') }}"],

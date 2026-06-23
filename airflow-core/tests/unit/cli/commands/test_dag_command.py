@@ -25,13 +25,14 @@ from datetime import datetime, timedelta
 from unittest import mock
 from unittest.mock import MagicMock
 
+import httpx
 import msgspec
 import pendulum
 import pytest
 import time_machine
-from sqlalchemy import func, select
+from airflowctl.api.operations import ServerResponseError
+from sqlalchemy import select
 
-from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
@@ -41,14 +42,16 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun
 from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import DAG, BaseOperator, CronPartitionTimetable, task
+from airflow.sdk import DAG, Asset, BaseOperator, CronPartitionTimetable, PartitionedAssetTimetable, task
 from airflow.sdk.definitions.dag import _run_inline_trigger
 from airflow.sdk.execution_time.comms import _RequestFrame, _ResponseFrame
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
+from airflow.timetables.base import Timetable
 from airflow.triggers.base import TriggerEvent
+from airflow.utils.cli import get_db_dag
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -83,7 +86,8 @@ class TestCliDags:
 
     @classmethod
     def setup_class(cls):
-        parse_and_sync_to_db(os.devnull, include_examples=True)
+        with conf_vars({("core", "load_examples"): "True"}):
+            parse_and_sync_to_db(os.devnull)
         cls.parser = cli_parser.get_parser()
 
     @classmethod
@@ -254,7 +258,7 @@ class TestCliDags:
         print(file_content)
         with time_machine.travel(DEFAULT_DATE):
             clear_db_dags()
-            parse_and_sync_to_db(tmp_path, include_examples=False)
+            parse_and_sync_to_db(tmp_path)
 
         # Test num-executions = 1 (default)
         args = self.parser.parse_args(["dags", "next-execution", dag_id])
@@ -272,9 +276,47 @@ class TestCliDags:
 
         # Rebuild Test DB for other tests
         clear_db_dags()
-        parse_and_sync_to_db(os.devnull, include_examples=True)
+        self.setup_class()
 
-    @conf_vars({("core", "load_examples"): "true"})
+    @conf_vars({("core", "load_examples"): "false"})
+    @pytest.mark.parametrize(
+        ("dag_id", "schedule"),
+        [
+            pytest.param("table_none_schedule", "None", id="schedule_none"),
+            pytest.param("table_once_schedule", "'@once'", id="schedule_once_with_two_executions"),
+        ],
+    )
+    def test_next_execution_table_flag_with_no_next_run(
+        self, dag_id, schedule, tmp_path, stdout_capture, stderr_capture
+    ):
+        """Regression test for #67394: --table must not crash when schedule yields None."""
+        file_content = os.linesep.join(
+            [
+                "from airflow import DAG",
+                "from airflow.providers.standard.operators.empty import EmptyOperator",
+                "from datetime import timedelta; from pendulum import today",
+                f"dag = DAG('{dag_id}', start_date=today(tz='UTC') + timedelta(days=-5), schedule={schedule})",
+                "task = EmptyOperator(task_id='empty_task', dag=dag)",
+            ]
+        )
+        dag_file = tmp_path / f"{dag_id}.py"
+        dag_file.write_text(file_content)
+
+        with time_machine.travel(DEFAULT_DATE):
+            clear_db_dags()
+            parse_and_sync_to_db(tmp_path)
+
+        args = self.parser.parse_args(["dags", "next-execution", dag_id, "--table", "--num-executions", "2"])
+        # Must not raise AttributeError on None DagRunInfo
+        with stdout_capture:
+            with stderr_capture as temp_stderr:
+                dag_command.dag_next_execution(args)
+        assert "No following schedule" in temp_stderr.getvalue()
+
+        # Rebuild Test DB for other tests
+        clear_db_dags()
+        self.setup_class()
+
     def test_cli_report(self, stdout_capture):
         args = self.parser.parse_args(["dags", "report", "--output", "json"])
         with stdout_capture as temp_stdout:
@@ -285,7 +327,6 @@ class TestCliDags:
         assert any(item["file"].endswith("example_complex.py") for item in data)
         assert any("example_complex" in item["dags"] for item in data)
 
-    @conf_vars({("core", "load_examples"): "true"})
     def test_cli_get_dag_details(self, stdout_capture):
         args = self.parser.parse_args(["dags", "details", "example_complex", "--output", "yaml"])
         with stdout_capture as temp_stdout:
@@ -302,7 +343,6 @@ class TestCliDags:
         for value in dag_details_values:
             assert value in out
 
-    @conf_vars({("core", "load_examples"): "true"})
     def test_cli_list_dags(self, stdout_capture):
         args = self.parser.parse_args(["dags", "list", "--output", "json"])
         with stdout_capture as temp_stdout:
@@ -313,11 +353,12 @@ class TestCliDags:
             assert key in dag_list[0]
         assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
 
-    @conf_vars({("core", "load_examples"): "true"})
     def test_cli_list_local_dags(self, stdout_capture):
         # Clear the database
         clear_db_dags()
-        args = self.parser.parse_args(["dags", "list", "--output", "json", "--local"])
+        args = self.parser.parse_args(
+            ["dags", "list", "--output", "json", "--local", "--bundle-name", "example_dags"]
+        )
         with stdout_capture as temp_stdout:
             dag_command.dag_list_dags(args)
             out = temp_stdout.getvalue()
@@ -326,7 +367,7 @@ class TestCliDags:
             assert key in dag_list[0]
         assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
         # Rebuild Test DB for other tests
-        parse_and_sync_to_db(os.devnull, include_examples=True)
+        self.setup_class()
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_cli_list_local_dags_with_bundle_name(self, configure_testing_dag_bundle, stdout_capture):
@@ -347,9 +388,8 @@ class TestCliDags:
                 str(TEST_DAGS_FOLDER / "test_example_bash_operator.py") in d["fileloc"] for d in dag_list
             )
         # Rebuild Test DB for other tests
-        parse_and_sync_to_db(os.devnull, include_examples=True)
+        self.setup_class()
 
-    @conf_vars({("core", "load_examples"): "true"})
     def test_cli_list_dags_custom_cols(self, stdout_capture):
         args = self.parser.parse_args(
             ["dags", "list", "--output", "json", "--columns", "dag_id,last_parsed_time"]
@@ -363,7 +403,6 @@ class TestCliDags:
         for key in ["fileloc", "owners", "is_paused"]:
             assert key not in dag_list[0]
 
-    @conf_vars({("core", "load_examples"): "true"})
     def test_cli_list_dags_invalid_cols(self, stderr_capture):
         args = self.parser.parse_args(["dags", "list", "--output", "json", "--columns", "dag_id,invalid_col"])
         with stderr_capture as temp_stderr:
@@ -407,9 +446,8 @@ class TestCliDags:
 
         assert "Failed to load all files." in out
         # Rebuild Test DB for other tests
-        parse_and_sync_to_db(os.devnull, include_examples=True)
+        self.setup_class()
 
-    @conf_vars({("core", "load_examples"): "true"})
     @mock.patch("airflow.models.DagModel.get_dagmodel")
     def test_list_dags_none_get_dagmodel(self, mock_get_dagmodel, stdout_capture):
         mock_get_dagmodel.return_value = None
@@ -422,7 +460,6 @@ class TestCliDags:
             assert key in dag_list[0]
         assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
 
-    @conf_vars({("core", "load_examples"): "true"})
     def test_dagbag_dag_col(self, session):
         dagbag = DBDagBag()
         dag_details = dag_command._get_dagbag_dag_details(
@@ -449,21 +486,19 @@ class TestCliDags:
         assert str(path_to_parse) in log_output
         assert "[0 100 * * *] is not acceptable, out of range" in log_output
 
-    def test_cli_list_dag_runs(self):
-        dag_command.dag_trigger(
-            self.parser.parse_args(
-                [
-                    "dags",
-                    "trigger",
-                    "example_bash_operator",
-                ]
-            )
-        )
+    def test_cli_list_dag_runs(self, dag_maker):
+        # Seed a run directly in the DB; ``dags trigger`` now goes through the API server
+        # (airflowctl client) and cannot be used as an in-process fixture here.
+        with dag_maker("test_list_dag_runs", start_date=DEFAULT_DATE, serialized=True):
+            EmptyOperator(task_id="t1")
+        dag_maker.create_dagrun(state=DagRunState.SUCCESS, logical_date=DEFAULT_DATE)
+        dag_maker.sync_dagbag_to_db()
+
         args = self.parser.parse_args(
             [
                 "dags",
                 "list-runs",
-                "example_bash_operator",
+                "test_list_dag_runs",
                 "--no-backfill",
                 "--start-date",
                 DEFAULT_DATE.isoformat(),
@@ -555,206 +590,6 @@ class TestCliDags:
             dag_command.dag_pause(args)
         out = temp_stdout.splitlines()[-1]
         assert out == "No unpaused DAGs were found"
-
-    def test_trigger_dag(self):
-        dag_command.dag_trigger(
-            self.parser.parse_args(
-                [
-                    "dags",
-                    "trigger",
-                    "example_bash_operator",
-                    "--run-id=test_trigger_dag",
-                    '--conf={"foo": "bar"}',
-                ],
-            ),
-        )
-        with create_session() as session:
-            dagrun = session.scalars(select(DagRun).where(DagRun.run_id == "test_trigger_dag")).one()
-
-        assert dagrun, "DagRun not created"
-        assert dagrun.run_type == DagRunType.MANUAL
-        assert dagrun.conf == {"foo": "bar"}
-
-        # logical_date is None as it's not provided
-        assert dagrun.logical_date is None
-
-        # data_interval is None as logical_date is None
-        assert dagrun.data_interval_start is None
-        assert dagrun.data_interval_end is None
-
-    def test_trigger_dag_empty_object_conf(self):
-        dag_command.dag_trigger(
-            self.parser.parse_args(
-                [
-                    "dags",
-                    "trigger",
-                    "example_bash_operator",
-                    "--run-id=test_trigger_dag_empty_object_conf",
-                    "--conf={}",
-                ],
-            ),
-        )
-        with create_session() as session:
-            dagrun = session.scalars(
-                select(DagRun).where(DagRun.run_id == "test_trigger_dag_empty_object_conf")
-            ).one()
-
-        assert dagrun.conf == {}
-
-    def test_trigger_dag_json_null_conf(self):
-        dag_command.dag_trigger(
-            self.parser.parse_args(
-                [
-                    "dags",
-                    "trigger",
-                    "example_bash_operator",
-                    "--run-id=test_trigger_dag_json_null_conf",
-                    "--conf=null",
-                ],
-            ),
-        )
-        with create_session() as session:
-            dagrun = session.scalars(
-                select(DagRun).where(DagRun.run_id == "test_trigger_dag_json_null_conf")
-            ).one()
-
-        assert dagrun.conf == {}
-
-    def test_trigger_dag_with_microseconds(self):
-        dag_command.dag_trigger(
-            self.parser.parse_args(
-                [
-                    "dags",
-                    "trigger",
-                    "example_bash_operator",
-                    "--run-id=test_trigger_dag_with_micro",
-                    "--logical-date=2021-06-04T09:00:00.000001+08:00",
-                    "--no-replace-microseconds",
-                ],
-            )
-        )
-
-        with create_session() as session:
-            dagrun = session.scalars(
-                select(DagRun).where(DagRun.run_id == "test_trigger_dag_with_micro")
-            ).one()
-
-        assert dagrun, "DagRun not created"
-        assert dagrun.run_type == DagRunType.MANUAL
-        assert dagrun.logical_date.isoformat(timespec="microseconds") == "2021-06-04T01:00:00.000001+00:00"
-
-    @pytest.mark.parametrize("conf", ["NOT JSON", ""])
-    def test_trigger_dag_invalid_conf(self, conf):
-        with pytest.raises(ValueError, match=r"Expecting value: line \d+ column \d+ \(char \d+\)"):
-            dag_command.dag_trigger(
-                self.parser.parse_args(
-                    [
-                        "dags",
-                        "trigger",
-                        "example_bash_operator",
-                        "--run-id",
-                        "trigger_dag_xxx",
-                        "--conf",
-                        conf,
-                    ]
-                ),
-            )
-
-    @pytest.mark.parametrize("conf", ["[]", '"str"', "1", "false"])
-    def test_trigger_dag_rejects_non_object_conf(self, conf):
-        with pytest.raises(ValueError, match="DagRun conf must be a JSON object or null"):
-            dag_command.dag_trigger(
-                self.parser.parse_args(
-                    [
-                        "dags",
-                        "trigger",
-                        "example_bash_operator",
-                        "--run-id",
-                        "trigger_dag_xxx",
-                        "--conf",
-                        conf,
-                    ]
-                ),
-            )
-
-    def test_trigger_dag_output_as_json(self, stdout_capture):
-        args = self.parser.parse_args(
-            [
-                "dags",
-                "trigger",
-                "example_bash_operator",
-                "--run-id",
-                "trigger_dag_xxx",
-                "--conf",
-                '{"conf1": "val1", "conf2": "val2"}',
-                "--output=json",
-            ]
-        )
-        with stdout_capture as temp_stdout:
-            dag_command.dag_trigger(args)
-            # get the last line from the logs ignoring all logging lines
-            out = temp_stdout.getvalue().strip().splitlines()[-1]
-        parsed_out = json.loads(out)
-
-        assert len(parsed_out) == 1
-        assert parsed_out[0]["dag_id"] == "example_bash_operator"
-        assert parsed_out[0]["dag_run_id"] == "trigger_dag_xxx"
-        assert parsed_out[0]["conf"] == {"conf1": "val1", "conf2": "val2"}
-
-    def test_delete_dag(self):
-        DM = DagModel
-        key = "my_dag_id"
-        session = settings.Session()
-        session.add(DM(dag_id=key, bundle_name="dags-folder"))
-        session.commit()
-        dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
-        assert session.scalar(select(func.count()).select_from(DM).where(DM.dag_id == key)) == 0
-        with pytest.raises(AirflowException):
-            dag_command.dag_delete(
-                self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]),
-            )
-
-    def test_dag_delete_when_backfill_and_dagrun_exist(self):
-        # Test to check that the DAG should be deleted even if
-        # there are backfill records associated with it.
-        from airflow.models.backfill import Backfill
-
-        DM = DagModel
-        key = "my_dag_id"
-        session = settings.Session()
-        session.add(DM(dag_id=key, bundle_name="dags-folder"))
-        _backfill = Backfill(dag_id=key, from_date=DEFAULT_DATE, to_date=DEFAULT_DATE + timedelta(days=1))
-        session.add(_backfill)
-        # To create the backfill_id in DagRun
-        session.flush()
-        session.add(
-            DagRun(
-                dag_id=key,
-                run_id="backfill__" + key,
-                state=DagRunState.SUCCESS,
-                run_type="backfill",
-                backfill_id=_backfill.id,
-            )
-        )
-        session.commit()
-        dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
-        assert session.scalar(select(func.count()).select_from(DM).where(DM.dag_id == key)) == 0
-        with pytest.raises(AirflowException):
-            dag_command.dag_delete(
-                self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]),
-            )
-
-    def test_delete_dag_existing_file(self, tmp_path):
-        # Test to check that the DAG should be deleted even if
-        # the file containing it is not deleted
-        path = tmp_path / "testfile"
-        DM = DagModel
-        key = "my_dag_id"
-        session = settings.Session()
-        session.add(DM(dag_id=key, bundle_name="dags-folder", fileloc=os.fspath(path)))
-        session.commit()
-        dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
-        assert session.scalar(select(func.count()).select_from(DM).where(DM.dag_id == key)) == 0
 
     def test_cli_list_jobs(self):
         args = self.parser.parse_args(["dags", "list-jobs"])
@@ -978,7 +813,7 @@ class TestCliDags:
         path_to_parse = TEST_DAGS_FOLDER / "test_dag_parsing_context.py"
 
         with configure_testing_dag_bundle(path_to_parse):
-            bag = DagBag(dag_folder=path_to_parse, include_examples=False)
+            bag = DagBag(dag_folder=path_to_parse)
             sync_bag_to_db(bag, "testing", None)
             cli_args = self.parser.parse_args(
                 ["dags", "test", "test_dag_parsing_context", DEFAULT_DATE.isoformat()]
@@ -1072,7 +907,7 @@ class TestCliDags:
             from airflow.utils.cli import get_dag as get_bagged_dag  # type: ignore
 
         with configure_testing_dag_bundle(TEST_DAGS_FOLDER / "test_sensor.py"):
-            # example DAG should not be found since include_examples=False
+            # example DAG should not be found since the testing bundle only exposes test_sensor.py
             with pytest.raises(AirflowException, match="could not be found"):
                 get_bagged_dag(bundle_names=["testing"], dag_id="example_simplest_dag")
 
@@ -1160,6 +995,15 @@ class TestCliDagsReserialize:
         assert dag_processor_parsing_result.serialized_dags[0].hash == serialized_dag_hash[0]
 
 
+class _NoTzTimetable(Timetable):
+    """Stub timetable: partitioned=True but no timezone attribute.
+
+    Used by tests that exercise the no-tz fallback branch in dag_clear.
+    """
+
+    partitioned = True
+
+
 class TestCliDagsClear:
     """Tests for the `airflow dags clear` partition-range subcommand."""
 
@@ -1219,6 +1063,13 @@ class TestCliDagsClear:
         with create_session() as session:
             return {
                 row.run_id: row.state
+                for row in session.scalars(select(DagRun).where(DagRun.dag_id == self.DAG_ID)).all()
+            }
+
+    def _get_run_clear_numbers(self):
+        with create_session() as session:
+            return {
+                row.run_id: row.clear_number
                 for row in session.scalars(select(DagRun).where(DagRun.dag_id == self.DAG_ID)).all()
             }
 
@@ -1461,6 +1312,570 @@ class TestCliDagsClear:
         with pytest.raises(AirflowException, match="could not be found in the database"):
             dag_command.dag_clear(args)
 
+    @pytest.fixture
+    def seeded_taipei_runs(self, dag_maker):
+        """Seed DagRuns for a Asia/Taipei (UTC+8) CronPartitionTimetable.
+
+        Local midnight in Taipei is stored as UTC-8h in partition_date.
+        Written as explicit UTC instants so the oracle is independent of the
+        timetable under test:
+
+          local 2026-02-18 midnight  → datetime(2026, 2, 17, 16, 0, 0, UTC)
+          local 2026-02-19 midnight  → datetime(2026, 2, 18, 16, 0, 0, UTC)
+          local 2026-02-20 midnight  → datetime(2026, 2, 19, 16, 0, 0, UTC)  (outside window)
+        """
+        with dag_maker(
+            self.DAG_ID,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei"),
+            start_date=datetime(2026, 2, 1, tzinfo=pendulum.UTC),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        runs = [
+            (
+                "taipei_2026_02_18",
+                datetime(2026, 2, 17, 16, 0, 0, tzinfo=pendulum.UTC),
+                "2026-02-18T00:00:00",
+            ),
+            (
+                "taipei_2026_02_19",
+                datetime(2026, 2, 18, 16, 0, 0, tzinfo=pendulum.UTC),
+                "2026-02-19T00:00:00",
+            ),
+            (
+                "taipei_2026_02_20",
+                datetime(2026, 2, 19, 16, 0, 0, tzinfo=pendulum.UTC),
+                "2026-02-20T00:00:00",
+            ),
+        ]
+        for run_id, partition_date, partition_key in runs:
+            dag_maker.create_dagrun(
+                run_id=run_id,
+                state=DagRunState.SUCCESS,
+                logical_date=None,
+                partition_date=partition_date,
+                partition_key=partition_key,
+            )
+        dag_maker.sync_dagbag_to_db()
+
+    @pytest.mark.usefixtures("seeded_taipei_runs")
+    def test_taipei_lower_bound_selects_correct_partition(self, parser):
+        """--partition-date-start 2026-02-19 must match the run stored at 2026-02-18T16Z.
+
+        Without the timezone fix, parsedate("2026-02-19") yields 2026-02-19T00:00:00Z
+        under the UTC default timezone.  The old filter compares
+        partition_date >= 2026-02-19T00:00Z; the run for the local 2026-02-19 partition
+        is stored as 2026-02-18T16:00Z, which is *before* that UTC boundary, so the run
+        is NOT selected and the requested boundary day is silently missed.  Converting
+        the bound through the timetable timezone fixes the off-by-one: the run whose
+        partition_date is the UTC representation of Taipei 2026-02-19 midnight is
+        selected, the earlier run is not.
+        """
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-start",
+                "2026-02-19",
+                "--yes",
+            ]
+        )
+        dag_command.dag_clear(args)
+
+        states = self._get_run_states()
+        # 2026-02-19 local midnight stored as 2026-02-18T16Z — must be cleared.
+        assert states["taipei_2026_02_19"] == DagRunState.QUEUED
+        # 2026-02-20 local midnight stored as 2026-02-19T16Z — also in window (no upper bound).
+        assert states["taipei_2026_02_20"] == DagRunState.QUEUED
+        # 2026-02-18 local midnight stored as 2026-02-17T16Z — before the start, must NOT be cleared.
+        assert states["taipei_2026_02_18"] == DagRunState.SUCCESS
+
+    @pytest.mark.usefixtures("seeded_taipei_runs")
+    def test_taipei_upper_bound_at_cap(self, parser):
+        """--partition-date-end 2026-02-19 must include the run stored at 2026-02-18T16Z (at-cap)."""
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-end",
+                "2026-02-19",
+                "--yes",
+            ]
+        )
+        dag_command.dag_clear(args)
+
+        states = self._get_run_states()
+        # Both 2026-02-18 and 2026-02-19 local dates are within the window.
+        assert states["taipei_2026_02_18"] == DagRunState.QUEUED
+        assert states["taipei_2026_02_19"] == DagRunState.QUEUED
+        # 2026-02-20 is outside the half-open upper bound — must NOT be cleared.
+        assert states["taipei_2026_02_20"] == DagRunState.SUCCESS
+
+    @pytest.mark.usefixtures("seeded_taipei_runs")
+    def test_taipei_upper_bound_over_cap(self, parser):
+        """--partition-date-end 2026-02-18 must NOT include the run stored at 2026-02-18T16Z (over-cap).
+
+        The half-open upper bound is strictly less than 2026-02-19 midnight in
+        Taipei (= 2026-02-18T16Z), so the run for local 2026-02-19 falls outside
+        the window.
+        """
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-end",
+                "2026-02-18",
+                "--yes",
+            ]
+        )
+        dag_command.dag_clear(args)
+
+        states = self._get_run_states()
+        # Only the 2026-02-18 local date run is within the window.
+        assert states["taipei_2026_02_18"] == DagRunState.QUEUED
+        # 2026-02-19 and 2026-02-20 are outside — must NOT be cleared.
+        assert states["taipei_2026_02_19"] == DagRunState.SUCCESS
+        assert states["taipei_2026_02_20"] == DagRunState.SUCCESS
+
+    @pytest.fixture
+    def seeded_ny_runs(self, dag_maker):
+        """Seed DagRuns for an America/New_York (UTC-5, EST in February) CronPartitionTimetable.
+
+        Local midnight in New York is stored as UTC+5h in partition_date, so for a
+        west-of-UTC timetable the pre-fix off-by-one lands on the *upper* bound (the
+        end day's run sits later in the UTC day than the user-typed boundary) rather
+        than the lower bound exercised by the Asia/Taipei cases.  Explicit UTC instants
+        keep the oracle independent of the timetable under test:
+
+          local 2026-02-18 midnight  → datetime(2026, 2, 18, 5, 0, 0, UTC)
+          local 2026-02-19 midnight  → datetime(2026, 2, 19, 5, 0, 0, UTC)
+          local 2026-02-20 midnight  → datetime(2026, 2, 20, 5, 0, 0, UTC)  (outside window)
+        """
+        with dag_maker(
+            self.DAG_ID,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="America/New_York"),
+            start_date=datetime(2026, 2, 1, tzinfo=pendulum.UTC),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        runs = [
+            ("ny_2026_02_18", datetime(2026, 2, 18, 5, 0, 0, tzinfo=pendulum.UTC), "2026-02-18T00:00:00"),
+            ("ny_2026_02_19", datetime(2026, 2, 19, 5, 0, 0, tzinfo=pendulum.UTC), "2026-02-19T00:00:00"),
+            ("ny_2026_02_20", datetime(2026, 2, 20, 5, 0, 0, tzinfo=pendulum.UTC), "2026-02-20T00:00:00"),
+        ]
+        for run_id, partition_date, partition_key in runs:
+            dag_maker.create_dagrun(
+                run_id=run_id,
+                state=DagRunState.SUCCESS,
+                logical_date=None,
+                partition_date=partition_date,
+                partition_key=partition_key,
+            )
+        dag_maker.sync_dagbag_to_db()
+
+    @pytest.mark.usefixtures("seeded_ny_runs")
+    def test_ny_upper_bound_includes_end_day(self, parser):
+        """--partition-date-end 2026-02-19 must include the local 2026-02-19 run (stored 2026-02-19T05Z).
+
+        parsedate("2026-02-19") yields 2026-02-19T00:00Z, so the pre-fix filter compares
+        partition_date <= 2026-02-19T00:00Z.  The local 2026-02-19 run is stored at
+        2026-02-19T05:00Z, which is *after* that UTC boundary, so the old code wrongly
+        drops the requested end day.  The timezone-aware half-open bound includes it.
+        """
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-end",
+                "2026-02-19",
+                "--yes",
+            ]
+        )
+        dag_command.dag_clear(args)
+
+        states = self._get_run_states()
+        # local 2026-02-18 and 2026-02-19 are within the window (no lower bound).
+        assert states["ny_2026_02_18"] == DagRunState.QUEUED
+        # The end-day run: dropped by the pre-fix code, included after the fix.
+        assert states["ny_2026_02_19"] == DagRunState.QUEUED
+        # local 2026-02-20 is outside the half-open upper bound.
+        assert states["ny_2026_02_20"] == DagRunState.SUCCESS
+
+    @pytest.fixture
+    def seeded_no_tz_runs(self, dag_maker):
+        """Seed runs with UTC midnight partition_dates for the no-tz fallback path.
+
+        The Dag is created with CronPartitionTimetable(timezone=UTC) so that
+        serialization works normally.  The tests monkeypatch get_db_dag to swap
+        the timetable for a stub that has partitioned=True but no timezone
+        attribute, forcing the else-branch in dag_clear.
+
+        Stored partition_dates are plain UTC midnights:
+          2026-03-08 → datetime(2026, 3, 8, 0, 0, 0, UTC)
+          2026-03-09 → datetime(2026, 3, 9, 0, 0, 0, UTC)
+        """
+        with dag_maker(
+            self.DAG_ID,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime(2026, 3, 1, tzinfo=pendulum.UTC),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        runs = [
+            ("no_tz_2026_03_08", datetime(2026, 3, 8, tzinfo=pendulum.UTC), "2026-03-08T00:00:00"),
+            ("no_tz_2026_03_09", datetime(2026, 3, 9, tzinfo=pendulum.UTC), "2026-03-09T00:00:00"),
+        ]
+        for run_id, partition_date, partition_key in runs:
+            dag_maker.create_dagrun(
+                run_id=run_id,
+                state=DagRunState.SUCCESS,
+                logical_date=None,
+                partition_date=partition_date,
+                partition_key=partition_key,
+            )
+        dag_maker.sync_dagbag_to_db()
+
+    @pytest.mark.usefixtures("seeded_no_tz_runs")
+    def test_no_tz_lower_bound_honours_time_of_day(self, parser, monkeypatch):
+        """--partition-date-start with a non-midnight time-of-day is honoured, not truncated.
+
+        A start of 2026-03-08T12:00:00 passes through as lower = 2026-03-08T12:00Z
+        (no-tz fallback keeps the wall-clock as UTC).  The stored 2026-03-08T00:00Z
+        run is *before* that bound and is excluded; the 2026-03-09T00:00Z run is
+        after it and is cleared.
+        """
+
+        def _patched(*, bundle_names, dag_id):
+            dag = get_db_dag(bundle_names=bundle_names, dag_id=dag_id)
+            dag.timetable = _NoTzTimetable()
+            return dag
+
+        monkeypatch.setattr(dag_command, "get_db_dag", _patched)
+
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-start",
+                "2026-03-08T12:00:00",
+                "--yes",
+            ]
+        )
+        dag_command.dag_clear(args)
+
+        states = self._get_run_states()
+        # 2026-03-08T00Z is before the 12:00Z lower bound → excluded.
+        assert states["no_tz_2026_03_08"] == DagRunState.SUCCESS
+        # 2026-03-09T00Z is after the lower bound (no upper bound) → cleared.
+        assert states["no_tz_2026_03_09"] == DagRunState.QUEUED
+
+    @pytest.mark.usefixtures("seeded_no_tz_runs")
+    def test_no_tz_upper_bound_is_half_open(self, parser, monkeypatch):
+        """--partition-date-end 2026-03-08T00:00:00 must include 2026-03-08 and exclude 2026-03-09.
+
+        The end date truncates to 2026-03-08; next_day = 2026-03-09, upper =
+        2026-03-09T00:00Z (half-open).  The 2026-03-08T00Z run satisfies
+        partition_date < 2026-03-09T00Z (included).  The 2026-03-09T00Z run
+        does NOT satisfy partition_date < 2026-03-09T00Z (excluded).
+        """
+
+        def _patched(*, bundle_names, dag_id):
+            dag = get_db_dag(bundle_names=bundle_names, dag_id=dag_id)
+            dag.timetable = _NoTzTimetable()
+            return dag
+
+        monkeypatch.setattr(dag_command, "get_db_dag", _patched)
+
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-end",
+                "2026-03-08T00:00:00",
+                "--yes",
+            ]
+        )
+        dag_command.dag_clear(args)
+
+        states = self._get_run_states()
+        # 2026-03-08T00Z < 2026-03-09T00Z (upper, half-open) → included.
+        assert states["no_tz_2026_03_08"] == DagRunState.QUEUED
+        # 2026-03-09T00Z is NOT < 2026-03-09T00Z → excluded.
+        assert states["no_tz_2026_03_09"] == DagRunState.SUCCESS
+
+    @pytest.fixture
+    def seeded_asset_partitioned_runs(self, dag_maker):
+        """Seed DagRuns for a PartitionedAssetTimetable Dag.
+
+        PartitionedAssetTimetable has partitioned=True but is NOT a CronMixin
+        subclass, so isinstance(dag.timetable, CronMixin) is False and
+        tt_tz=None.  partition_date values are plain UTC midnights (just like
+        the no-tz fallback path).
+
+        Runs:
+          asset_2026_04_10 → partition_date = 2026-04-10T00:00:00Z  (at lower boundary)
+          asset_2026_04_12 → partition_date = 2026-04-12T00:00:00Z  (within window)
+          asset_2026_04_14 → partition_date = 2026-04-14T00:00:00Z  (at upper boundary)
+          asset_2026_04_15 → partition_date = 2026-04-15T00:00:00Z  (just outside upper boundary)
+          asset_non_part   → partition_date = None                   (never cleared)
+        """
+        with dag_maker(
+            self.DAG_ID,
+            schedule=PartitionedAssetTimetable(assets=Asset("test_asset_for_clear")),
+            start_date=datetime(2026, 4, 1, tzinfo=pendulum.UTC),
+            catchup=False,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        runs = [
+            (
+                "asset_2026_04_10",
+                DagRunState.SUCCESS,
+                datetime(2026, 4, 10, tzinfo=pendulum.UTC),
+                "2026-04-10T00:00:00",
+            ),
+            (
+                "asset_2026_04_12",
+                DagRunState.FAILED,
+                datetime(2026, 4, 12, tzinfo=pendulum.UTC),
+                "2026-04-12T00:00:00",
+            ),
+            (
+                "asset_2026_04_14",
+                DagRunState.SUCCESS,
+                datetime(2026, 4, 14, tzinfo=pendulum.UTC),
+                "2026-04-14T00:00:00",
+            ),
+            (
+                "asset_2026_04_15",
+                DagRunState.SUCCESS,
+                datetime(2026, 4, 15, tzinfo=pendulum.UTC),
+                "2026-04-15T00:00:00",
+            ),
+        ]
+        for run_id, state, partition_date, partition_key in runs:
+            dag_maker.create_dagrun(
+                run_id=run_id,
+                state=state,
+                logical_date=None,
+                partition_date=partition_date,
+                partition_key=partition_key,
+            )
+        dag_maker.create_dagrun(
+            run_id="asset_non_part",
+            state=DagRunState.SUCCESS,
+            logical_date=datetime(2026, 4, 11, tzinfo=pendulum.UTC),
+            partition_date=None,
+        )
+        dag_maker.sync_dagbag_to_db()
+
+    @pytest.mark.usefixtures("seeded_asset_partitioned_runs")
+    def test_asset_timetable_clears_window_inclusive(self, parser):
+        """PartitionedAssetTimetable uses the base (UTC) localization; datetime-precision bounds are correct.
+
+        PartitionedAssetTimetable has no local timezone, so localize_partition_datetime
+        is a UTC pass-through.  The full window 2026-04-10 to 2026-04-14 (inclusive)
+        should clear the at-boundary and within-window runs; 2026-04-15 and
+        partition_date=None must not be touched.
+        """
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-start",
+                "2026-04-10",
+                "--partition-date-end",
+                "2026-04-14",
+                "--yes",
+            ]
+        )
+        dag_command.dag_clear(args)
+
+        states = self._get_run_states()
+        assert states == {
+            "asset_2026_04_10": DagRunState.QUEUED,
+            "asset_2026_04_12": DagRunState.QUEUED,
+            "asset_2026_04_14": DagRunState.QUEUED,
+            # Beyond the inclusive upper bound — must NOT be cleared.
+            "asset_2026_04_15": DagRunState.SUCCESS,
+            # NULL partition_date is never matched by the date-range filter.
+            "asset_non_part": DagRunState.SUCCESS,
+        }
+
+    @pytest.mark.usefixtures("seeded_asset_partitioned_runs")
+    def test_asset_timetable_upper_bound_at_cap(self, parser):
+        """--partition-date-end 2026-04-14 includes the run at exactly that UTC midnight (at-cap, inclusive)."""
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-end",
+                "2026-04-14",
+                "--yes",
+            ]
+        )
+        dag_command.dag_clear(args)
+
+        states = self._get_run_states()
+        # All runs on or before 2026-04-14 UTC midnight must be cleared.
+        assert states["asset_2026_04_10"] == DagRunState.QUEUED
+        assert states["asset_2026_04_12"] == DagRunState.QUEUED
+        assert states["asset_2026_04_14"] == DagRunState.QUEUED
+        # 2026-04-15 is beyond the inclusive upper bound.
+        assert states["asset_2026_04_15"] == DagRunState.SUCCESS
+        assert states["asset_non_part"] == DagRunState.SUCCESS
+
+    @pytest.mark.usefixtures("seeded_asset_partitioned_runs")
+    def test_asset_timetable_upper_bound_over_cap(self, parser):
+        """--partition-date-end 2026-04-13 must NOT include the 2026-04-14 run (over-cap).
+
+        Inclusive upper bound: end=2026-04-13T00:00Z → partition_date <= 2026-04-13T00:00Z.
+        The run stored at 2026-04-14T00:00Z is excluded because Apr 14 > Apr 13.
+        """
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-end",
+                "2026-04-13",
+                "--yes",
+            ]
+        )
+        dag_command.dag_clear(args)
+
+        states = self._get_run_states()
+        assert states["asset_2026_04_10"] == DagRunState.QUEUED
+        assert states["asset_2026_04_12"] == DagRunState.QUEUED
+        # 2026-04-14 is beyond the inclusive end (Apr 13) — must NOT be cleared.
+        assert states["asset_2026_04_14"] == DagRunState.SUCCESS
+        assert states["asset_2026_04_15"] == DagRunState.SUCCESS
+        assert states["asset_non_part"] == DagRunState.SUCCESS
+
+    @pytest.mark.usefixtures("seeded_partitioned_runs")
+    @pytest.mark.parametrize(
+        ("chunk_size", "expected_calls"),
+        [
+            pytest.param(500, 1, id="single-chunk"),
+            pytest.param(2, 2, id="multiple-chunks"),
+        ],
+    )
+    def test_clears_each_matching_run_once_across_chunks(self, parser, chunk_size, expected_calls):
+        """Every matching run is cleared exactly once, however run_ids split into chunks.
+
+        clear_task_instances is called once per chunk (not once per run), every matching
+        run is re-queued, and each run's clear_number advances by exactly 1 — proving a
+        run's TIs are never split across chunks.
+        """
+        call_count = 0
+
+        def counting_clear(tis, session, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            return clear_task_instances(tis, session, **kwargs)
+
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-start",
+                "2026-03-08T00:00:00",
+                "--partition-date-end",
+                "2026-03-14T00:00:00",
+                "--yes",
+            ]
+        )
+        with (
+            mock.patch.object(dag_command, "_RUN_CHUNK_SIZE", chunk_size),
+            mock.patch(
+                "airflow.cli.commands.dag_command.clear_task_instances",
+                side_effect=counting_clear,
+            ),
+        ):
+            dag_command.dag_clear(args)
+
+        assert call_count == expected_calls
+
+        states = self._get_run_states()
+        assert states["part_2026_03_08"] == DagRunState.QUEUED
+        assert states["part_2026_03_10"] == DagRunState.QUEUED
+        assert states["part_2026_03_14"] == DagRunState.QUEUED
+        assert states["non_partitioned"] == DagRunState.SUCCESS
+
+        clear_numbers = self._get_run_clear_numbers()
+        assert clear_numbers["part_2026_03_08"] == 1
+        assert clear_numbers["part_2026_03_10"] == 1
+        assert clear_numbers["part_2026_03_14"] == 1
+        assert clear_numbers["non_partitioned"] == 0
+
+    @pytest.mark.usefixtures("seeded_partitioned_runs")
+    def test_does_not_clear_runs_of_other_dags(self, parser, dag_maker):
+        """A run_id collision across DAGs must not clear the other DAG's task instances."""
+        other_dag_id = "test_dags_clear_other_dag"
+        with dag_maker(
+            other_dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime(2026, 3, 1, tzinfo=pendulum.UTC),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        # Same run_id and partition_date as a run cleared below, but a different DAG.
+        dag_maker.create_dagrun(
+            run_id="part_2026_03_08",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 3, 8, tzinfo=pendulum.UTC),
+            partition_key="2026-03-08T00:00:00",
+        )
+        dag_maker.sync_dagbag_to_db()
+        # If dag_id is not filtered, clearing the other DAG would reset this TI to None.
+        with create_session() as session:
+            session.execute(
+                TaskInstance.__table__.update()
+                .where(TaskInstance.dag_id == other_dag_id)
+                .values(state=TaskInstanceState.SUCCESS)
+            )
+
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-date-start",
+                "2026-03-08T00:00:00",
+                "--partition-date-end",
+                "2026-03-14T00:00:00",
+                "--yes",
+            ]
+        )
+        dag_command.dag_clear(args)
+
+        # The target DAG's same-named run must be cleared.
+        assert self._get_run_states()["part_2026_03_08"] == DagRunState.QUEUED
+
+        # The other DAG's same-named run must be left untouched.
+        with create_session() as session:
+            other_run = session.scalars(
+                select(DagRun).where(DagRun.dag_id == other_dag_id, DagRun.run_id == "part_2026_03_08")
+            ).one()
+            assert other_run.state == DagRunState.SUCCESS
+            assert other_run.clear_number == 0
+            other_ti = session.scalars(select(TaskInstance).where(TaskInstance.dag_id == other_dag_id)).one()
+            assert other_ti.state == TaskInstanceState.SUCCESS
+
 
 class TestDagDetailsIsBackfillable:
     """Tests for the is_backfillable computation in _get_dagbag_dag_details."""
@@ -1493,3 +1908,142 @@ class TestDagDetailsIsBackfillable:
         )
         dag_details = dag_command._get_dagbag_dag_details(dag)
         assert dag_details["is_backfillable"] is expected
+
+
+def _server_error(status_code: int) -> ServerResponseError:
+    request = httpx.Request("DELETE", "http://testserver/api/v2/dags/foo")
+    response = httpx.Response(status_code, request=request, json={"detail": "boom"})
+    return ServerResponseError(message="boom", request=request, response=response)
+
+
+@pytest.mark.non_db_test_override
+class TestCliDagsApiClientCommands:
+    """Dag CLI commands that talk to the API server through the airflowctl client.
+
+    These are unit tests: the airflowctl client is mocked so no API server (or
+    database) is required.
+    """
+
+    @classmethod
+    def setup_class(cls):
+        cls.parser = cli_parser.get_parser()
+
+    @pytest.fixture(autouse=True)
+    def _default_trigger_response(self, mock_cli_api_client):
+        """Give the mocked ``dags.trigger`` a dict response so ``print_as`` can render it."""
+        mock_cli_api_client.dags.trigger.return_value.model_dump.return_value = {
+            "dag_id": "example_bash_operator",
+            "dag_run_id": "test_run",
+        }
+
+    def test_trigger_dag(self, mock_cli_api_client):
+        dag_command.dag_trigger(
+            self.parser.parse_args(
+                [
+                    "dags",
+                    "trigger",
+                    "example_bash_operator",
+                    "--run-id=test_trigger_dag",
+                    '--conf={"foo": "bar"}',
+                ]
+            ),
+        )
+        mock_cli_api_client.dags.trigger.assert_called_once()
+        call = mock_cli_api_client.dags.trigger.call_args
+        assert call.kwargs["dag_id"] == "example_bash_operator"
+        body = call.kwargs["trigger_dag_run"]
+        assert body.dag_run_id == "test_trigger_dag"
+        assert body.conf == {"foo": "bar"}
+        # logical_date is None as it's not provided
+        assert body.logical_date is None
+
+    def test_trigger_dag_empty_object_conf(self, mock_cli_api_client):
+        dag_command.dag_trigger(
+            self.parser.parse_args(
+                ["dags", "trigger", "example_bash_operator", "--run-id=empty_conf", "--conf={}"]
+            ),
+        )
+        body = mock_cli_api_client.dags.trigger.call_args.kwargs["trigger_dag_run"]
+        assert body.conf == {}
+
+    def test_trigger_dag_json_null_conf(self, mock_cli_api_client):
+        dag_command.dag_trigger(
+            self.parser.parse_args(
+                ["dags", "trigger", "example_bash_operator", "--run-id=null_conf", "--conf=null"]
+            ),
+        )
+        # ``null`` conf resolves to None on the client; the API server coerces it to {}.
+        body = mock_cli_api_client.dags.trigger.call_args.kwargs["trigger_dag_run"]
+        assert body.conf is None
+
+    def test_trigger_dag_with_microseconds(self, mock_cli_api_client):
+        dag_command.dag_trigger(
+            self.parser.parse_args(
+                [
+                    "dags",
+                    "trigger",
+                    "example_bash_operator",
+                    "--run-id=micro",
+                    "--logical-date=2021-06-04T09:00:00.000001+08:00",
+                ]
+            )
+        )
+        body = mock_cli_api_client.dags.trigger.call_args.kwargs["trigger_dag_run"]
+        assert body.logical_date.isoformat(timespec="microseconds") == "2021-06-04T09:00:00.000001+08:00"
+
+    @pytest.mark.parametrize("conf", ["NOT JSON", ""])
+    def test_trigger_dag_invalid_conf(self, mock_cli_api_client, conf):
+        with pytest.raises(ValueError, match=r"Expecting value: line \d+ column \d+ \(char \d+\)"):
+            dag_command.dag_trigger(
+                self.parser.parse_args(
+                    ["dags", "trigger", "example_bash_operator", "--run-id", "xxx", "--conf", conf]
+                ),
+            )
+        mock_cli_api_client.dags.trigger.assert_not_called()
+
+    @pytest.mark.parametrize("conf", ["[]", '"str"', "1", "false"])
+    def test_trigger_dag_rejects_non_object_conf(self, mock_cli_api_client, conf):
+        with pytest.raises(ValueError, match="DagRun conf must be a JSON object or null"):
+            dag_command.dag_trigger(
+                self.parser.parse_args(
+                    ["dags", "trigger", "example_bash_operator", "--run-id", "xxx", "--conf", conf]
+                ),
+            )
+        mock_cli_api_client.dags.trigger.assert_not_called()
+
+    def test_trigger_dag_output_as_json(self, mock_cli_api_client, stdout_capture):
+        mock_cli_api_client.dags.trigger.return_value.model_dump.return_value = {
+            "dag_id": "example_bash_operator",
+            "dag_run_id": "trigger_dag_xxx",
+            "conf": {"conf1": "val1", "conf2": "val2"},
+        }
+        args = self.parser.parse_args(
+            [
+                "dags",
+                "trigger",
+                "example_bash_operator",
+                "--run-id",
+                "trigger_dag_xxx",
+                "--conf",
+                '{"conf1": "val1", "conf2": "val2"}',
+                "--output=json",
+            ]
+        )
+        with stdout_capture as temp_stdout:
+            dag_command.dag_trigger(args)
+            out = temp_stdout.getvalue().strip().splitlines()[-1]
+        parsed_out = json.loads(out)
+
+        assert len(parsed_out) == 1
+        assert parsed_out[0]["dag_id"] == "example_bash_operator"
+        assert parsed_out[0]["dag_run_id"] == "trigger_dag_xxx"
+        assert parsed_out[0]["conf"] == {"conf1": "val1", "conf2": "val2"}
+
+    def test_delete_dag(self, mock_cli_api_client):
+        dag_command.dag_delete(self.parser.parse_args(["dags", "delete", "my_dag_id", "--yes"]))
+        mock_cli_api_client.dags.delete.assert_called_once_with(dag_id="my_dag_id")
+
+    def test_delete_dag_missing(self, mock_cli_api_client):
+        mock_cli_api_client.dags.delete.side_effect = _server_error(404)
+        with pytest.raises(ServerResponseError):
+            dag_command.dag_delete(self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]))

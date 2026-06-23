@@ -1,4 +1,6 @@
 {
+  "deferredSlotsNotCounted": "المؤجّلة غير محتسبة ضمن الحصص: {{count}}",
+  "deferredSlotsNotCountedTooltip": "المهام المؤجّلة الظاهرة داخل الشريط تُحتسب ضمن حصص مجموعة الموارد. المهام المؤجّلة الظاهرة أسفل الشريط تأتي من مجموعات موارد لا تحتسب المهام المؤجّلة ضمن الحصص.",
   "favorite": {
     "favoriteDags_few": "أول {{count}} Dags مفضلة",
     "favoriteDags_many": "أول {{count}} Dags مفضلة",

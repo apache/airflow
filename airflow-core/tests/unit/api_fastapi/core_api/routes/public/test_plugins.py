@@ -34,11 +34,12 @@ class TestGetPlugins:
             # Filters
             (
                 {},
-                15,
+                16,
                 [
                     "InformaticaProviderPlugin",
                     "MetadataCollectionPlugin",
                     "OpenLineageProviderPlugin",
+                    "business_day_window_plugin",
                     "databricks_workflow",
                     "decreasing_priority_weight_strategy_plugin",
                     "edge_executor",
@@ -55,10 +56,14 @@ class TestGetPlugins:
             ),
             (
                 {"limit": 3, "offset": 3},
-                15,
-                ["databricks_workflow", "decreasing_priority_weight_strategy_plugin", "edge_executor"],
+                16,
+                [
+                    "business_day_window_plugin",
+                    "databricks_workflow",
+                    "decreasing_priority_weight_strategy_plugin",
+                ],
             ),
-            ({"limit": 1}, 15, ["InformaticaProviderPlugin"]),
+            ({"limit": 1}, 16, ["InformaticaProviderPlugin"]),
         ],
     )
     def test_should_respond_200(
@@ -90,6 +95,7 @@ class TestGetPlugins:
                 "url_route": "test_iframe_plugin",
                 "destination": "nav",
                 "category": "browse",
+                "nav_top_level": False,
             },
         ]
 
@@ -106,6 +112,7 @@ class TestGetPlugins:
                         "icon": None,
                         "icon_dark_mode": None,
                         "name": "Google",
+                        "nav_top_level": False,
                         "url_route": None,
                     },
                     {
@@ -116,6 +123,7 @@ class TestGetPlugins:
                         "icon_dark_mode": None,
                         "label": "The Apache Software Foundation",
                         "name": "apache",
+                        "nav_top_level": False,
                         "url_route": None,
                     },
                 ]
@@ -155,10 +163,10 @@ class TestGetPlugins:
         plugins_page = body["plugins"]
 
         # Even though limit=7, only 6 valid plugins should come back
-        assert len(plugins_page) == 6
+        assert len(plugins_page) == 7
         assert "test_plugin_invalid" not in [p["name"] for p in plugins_page]
 
-        assert body["total_entries"] == 15
+        assert body["total_entries"] == 16
 
 
 @skip_if_force_lowest_dependencies_marker

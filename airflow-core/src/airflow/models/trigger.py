@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import ForeignKey, Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Mapped, Session, mapped_column, relationship, selectinload
+from sqlalchemy.orm import Mapped, Session, joinedload, mapped_column, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
 
 from airflow._shared.timezones import timezone
@@ -204,7 +204,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def bulk_fetch(cls, ids: Iterable[int], session: Session = NEW_SESSION) -> dict[int, Trigger]:
+    def bulk_fetch(cls, ids: Iterable[int], *, session: Session = NEW_SESSION) -> dict[int, Trigger]:
         """Fetch all the Triggers by ID and return a dict mapping ID -> Trigger instance."""
         stmt = (
             select(cls)
@@ -212,14 +212,15 @@ class Trigger(Base):
             .options(
                 selectinload(cls.task_instance)
                 .joinedload(TaskInstance.trigger)
-                .joinedload(Trigger.triggerer_job)
+                .joinedload(Trigger.triggerer_job),
+                joinedload(cls.callback),
             )
         )
         return {obj.id: obj for obj in session.scalars(stmt)}
 
     @classmethod
     @provide_session
-    def fetch_trigger_ids_with_non_task_associations(cls, session: Session = NEW_SESSION) -> set[int]:
+    def fetch_trigger_ids_with_non_task_associations(cls, *, session: Session = NEW_SESSION) -> set[int]:
         """Fetch all trigger IDs actively associated with non-task entities like assets and callbacks."""
         from airflow.models.callback import Callback  # to avoid circular import: Callback -> Trigger
 
@@ -231,7 +232,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def clean_unused(cls, session: Session = NEW_SESSION) -> None:
+    def clean_unused(cls, *, session: Session = NEW_SESSION) -> None:
         """
         Delete all triggers that have no tasks dependent on them and are not associated to an asset.
 
@@ -270,7 +271,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def submit_event(cls, trigger_id, event: TriggerEvent, session: Session = NEW_SESSION) -> None:
+    def submit_event(cls, trigger_id, event: TriggerEvent, *, session: Session = NEW_SESSION) -> None:
         """
         Fire an event.
 
@@ -301,7 +302,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def submit_failure(cls, trigger_id, exc=None, session: Session = NEW_SESSION) -> None:
+    def submit_failure(cls, trigger_id, exc=None, *, session: Session = NEW_SESSION) -> None:
         """
         When a trigger has failed unexpectedly, mark everything that depended on it as failed.
 
@@ -334,6 +335,32 @@ class Trigger(Base):
             task_instance.state = TaskInstanceState.SCHEDULED
             task_instance.scheduled_dttm = timezone.utcnow()
 
+        # A deadline callback trigger has a ``callback`` row instead of a deferred TaskInstance.
+        # ``submit_event`` terminalises that row (``trigger.callback.handle_event``) on the success
+        # path, but the failure path historically only handled TaskInstances — so a CallbackTrigger
+        # that failed to inflate/run (landing in ``failed_triggers`` → here) left its Callback stuck
+        # in QUEUED/RUNNING forever (a zombie: never SUCCESS/FAILED, re-warned, never reaped, since
+        # callback rows terminalise ONLY via an event, never via submit_failure's TI path). Emit a
+        # terminal FAILED event so the callback is marked FAILED — mirroring ``submit_event`` and the
+        # FAILED-event the triggerer's BaseException handler emits. ``handle_event`` is terminal-
+        # absorbing, so this is a no-op if the callback already reached a terminal state.
+        trigger = session.scalars(select(cls).where(cls.id == trigger_id)).one_or_none()
+        if trigger is not None and trigger.callback is not None:
+            from airflow.triggers.base import TriggerEvent
+            from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY
+            from airflow.utils.state import CallbackState
+
+            if isinstance(exc, BaseException):
+                body = "".join(format_exception(type(exc), exc, exc.__traceback__))
+            elif exc:
+                body = "".join(exc) if isinstance(exc, list) else str(exc)
+            else:
+                body = "Trigger failed before sending any event"
+            trigger.callback.handle_event(
+                TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.FAILED, PAYLOAD_BODY_KEY: body}),
+                session,
+            )
+
     @classmethod
     @provide_session
     def ids_for_triggerer(
@@ -341,6 +368,7 @@ class Trigger(Base):
         triggerer_id,
         queues: set[str] | None = None,
         team_name: str | None = None,
+        *,
         session: Session = NEW_SESSION,
     ) -> list[int]:
         """Retrieve a list of trigger ids."""
@@ -372,6 +400,7 @@ class Trigger(Base):
         health_check_threshold,
         queues: set[str] | None = None,
         team_name: str | None = None,
+        *,
         session: Session = NEW_SESSION,
     ) -> None:
         """

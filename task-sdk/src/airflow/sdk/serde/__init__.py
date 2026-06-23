@@ -22,10 +22,11 @@ import functools
 import logging
 import re
 import sys
+from collections.abc import Iterator
 from fnmatch import fnmatch
 from importlib import import_module
 from re import Pattern
-from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, TypeVar, cast, get_args, get_origin, overload
 
 import attr
 
@@ -55,6 +56,12 @@ MAX_RECURSION_DEPTH = sys.getrecursionlimit() - 1
 PYDANTIC_MODEL_QUALNAME = "pydantic.main.BaseModel"
 
 DEFAULT_VERSION = 0
+
+# Signals that this Airflow registers operator-declared deserialization classes
+# from a worker-side walk over the loaded DAG (see the task runner), so operators
+# do not need to register them as an ``__init__`` side effect. Providers probe
+# this to drop their back-compat ``__init__`` registration on new enough cores.
+SUPPORTS_OPERATOR_DESERIALIZATION_WALKER = True
 
 T = TypeVar("T", bool, float, int, dict, list, str, tuple, set)
 U = bool | float | int | dict | list | str | tuple | set
@@ -115,6 +122,44 @@ def allow_class(cls: type) -> None:
             "Bind the class to an attribute matching its __name__ at module scope."
         )
     _extra_allowed.add(qn)
+
+
+def iter_pydantic_models(annotation: Any) -> Iterator[type]:
+    """
+    Yield every Pydantic model class reachable from a type annotation.
+
+    Handles a bare model class, ``Optional`` / ``Union`` of models, and
+    parameterized containers such as ``list[MyModel]`` -- the shapes accepted as
+    an operator ``output_type`` -- and recurses into a model's own fields so
+    models nested inside it (e.g. ``SubQuestion`` reachable via
+    ``DecomposedQuestion.sub_questions``) are yielded too. A task may push a
+    nested model on to XCom by itself, so each reachable model must be registered
+    for deserialization, not just the top-level type.
+    """
+    seen: set[Any] = set()
+    stack: list[Any] = [annotation]
+    while stack:
+        tp = stack.pop()
+        # ``list[A]`` answers ``True`` to ``isinstance(tp, type)`` on 3.10+ yet
+        # carries a non-None ``get_origin``; recurse into its args first so the
+        # container itself is not mistaken for a leaf type.
+        origin = get_origin(tp)
+        if origin is not None:
+            stack.extend(get_args(tp))
+            continue
+        if isinstance(tp, type):
+            if tp in seen:
+                continue
+            seen.add(tp)
+            if is_pydantic_model(tp):
+                yield tp
+                # A model's fields may reference further models; walk them so a
+                # value nested inside the declared type is deserializable too.
+                # ``seen`` makes self-referential models terminate. ``getattr``
+                # because ``is_pydantic_model`` guarantees ``model_fields`` exists
+                # but does not narrow ``tp`` (typed ``type``) for the type checker.
+                for field in getattr(tp, "model_fields", {}).values():
+                    stack.append(field.annotation)
 
 
 def decode(d: dict[str, Any]) -> tuple[str, int, Any]:

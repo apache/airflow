@@ -25,6 +25,7 @@ from datetime import datetime
 from functools import cache
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
+from urllib.parse import quote
 
 import certifi
 import httpx
@@ -47,9 +48,12 @@ from airflow.sdk.api.datamodels._generated import (
     API_VERSION,
     AssetEventsResponse,
     AssetResponse,
-    AssetStatePutBody,
-    AssetStateResponse,
+    AssetStateStorePutBody,
+    AssetStateStoreResponse,
     ConnectionResponse,
+    ConnectionTestConnectionResponse,
+    ConnectionTestResultBody,
+    ConnectionTestState,
     DagResponse,
     DagRun,
     DagRunStateResponse,
@@ -59,12 +63,14 @@ from airflow.sdk.api.datamodels._generated import (
     HITLUser,
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
+    ResultMessage,
     TaskBreadcrumbsResponse,
     TaskInstanceState,
-    TaskStatePutBody,
-    TaskStateResponse,
     TaskStatesResponse,
+    TaskStateStorePutBody,
+    TaskStateStoreResponse,
     TerminalStateNonSuccess,
+    TIAwaitingInputStatePayload,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
@@ -301,6 +307,11 @@ class TaskInstanceOperations:
         body = TIDeferredStatePayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
 
         # Create a deferred state payload from msg
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
+    def await_input(self, id: uuid.UUID, msg):
+        """Tell the API server that this TI is parked awaiting human input (Human-in-the-loop)."""
+        body = TIAwaitingInputStatePayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def reschedule(self, id: uuid.UUID, msg: RescheduleTask):
@@ -704,42 +715,41 @@ class XComOperations:
         return XComSequenceSliceResponse.model_validate_json(resp.read())
 
 
-class TaskStateOperations:
+class TaskStateStoreOperations:
     __slots__ = ("client",)
 
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, ti_id: uuid.UUID, key: str) -> TaskStateResponse | ErrorResponse:
-        """Get a task state value from the API server."""
+    def get(self, ti_id: uuid.UUID, key: str) -> TaskStateStoreResponse | ErrorResponse:
+        """Get a task store value from the API server."""
         try:
-            resp = self.client.get(f"state/ti/{ti_id}/{key}")
+            resp = self.client.get(f"store/ti/{ti_id}/{key}")
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
-                log.debug("Task state key not found", ti_id=ti_id, key=key)
-                return ErrorResponse(error=ErrorType.TASK_STATE_NOT_FOUND, detail={"key": key})
+                log.debug("Task store key not found", ti_id=ti_id, key=key)
+                return ErrorResponse(error=ErrorType.TASK_STORE_NOT_FOUND, detail={"key": key})
             raise
-        return TaskStateResponse.model_validate_json(resp.read())
+        return TaskStateStoreResponse.model_validate_json(resp.read())
 
     def set(self, ti_id: uuid.UUID, key: str, value: JsonValue, expires_at: datetime | None) -> OKResponse:
-        """Set a task state value via the API server."""
-        body = TaskStatePutBody(value=value, expires_at=expires_at)
-        self.client.put(f"state/ti/{ti_id}/{key}", content=body.model_dump_json())
+        """Set a task store value via the API server."""
+        body = TaskStateStorePutBody(value=value, expires_at=expires_at)
+        self.client.put(f"store/ti/{ti_id}/{key}", content=body.model_dump_json())
         return OKResponse(ok=True)
 
     def delete(self, ti_id: uuid.UUID, key: str) -> OKResponse:
-        """Delete a single task state key via the API server."""
-        self.client.delete(f"state/ti/{ti_id}/{key}")
+        """Delete a single task store key via the API server."""
+        self.client.delete(f"store/ti/{ti_id}/{key}")
         return OKResponse(ok=True)
 
-    def clear(self, ti_id: uuid.UUID, all_map_indices: bool = False) -> OKResponse:
-        """Clear all task state keys for a task instance via the API server."""
-        params = {"all_map_indices": "true"} if all_map_indices else {}
-        self.client.delete(f"state/ti/{ti_id}", params=params)
+    def clear(self, ti_id: uuid.UUID) -> OKResponse:
+        """Clear all task store keys for a task instance via the API server."""
+        self.client.delete(f"store/ti/{ti_id}")
         return OKResponse(ok=True)
 
 
-class AssetStateOperations:
+class AssetStateStoreOperations:
     __slots__ = ("client",)
 
     def __init__(self, client: Client):
@@ -750,10 +760,10 @@ class AssetStateOperations:
     ) -> tuple[str, dict[str, str]]:
         if name:
             params: dict[str, str] = {"name": name}
-            endpoint = f"state/asset/by-name/{op}"
+            endpoint = f"store/asset/by-name/{op}"
         elif uri:
             params = {"uri": uri}
-            endpoint = f"state/asset/by-uri/{op}"
+            endpoint = f"store/asset/by-uri/{op}"
         else:
             raise ValueError("Either `name` or `uri` must be provided")
         if key is not None:
@@ -762,34 +772,36 @@ class AssetStateOperations:
 
     def get(
         self, key: str, *, name: str | None = None, uri: str | None = None
-    ) -> AssetStateResponse | ErrorResponse:
-        """Get an asset state value from the API server."""
+    ) -> AssetStateStoreResponse | ErrorResponse:
+        """Get an asset store value from the API server."""
         endpoint, params = self._resolve_endpoint("value", key=key, name=name, uri=uri)
         try:
             resp = self.client.get(endpoint, params=params)
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
-                log.debug("Asset state key not found", name=name, uri=uri, key=key)
-                return ErrorResponse(error=ErrorType.ASSET_STATE_NOT_FOUND, detail={"key": key})
+                log.debug("Asset store key not found", name=name, uri=uri, key=key)
+                return ErrorResponse(error=ErrorType.ASSET_STORE_NOT_FOUND, detail={"key": key})
             raise
-        return AssetStateResponse.model_validate_json(resp.read())
+        return AssetStateStoreResponse.model_validate_json(resp.read())
 
     def set(
         self, key: str, value: JsonValue, *, name: str | None = None, uri: str | None = None
     ) -> OKResponse:
-        """Set an asset state value via the API server."""
+        """Set an asset store value via the API server."""
         endpoint, params = self._resolve_endpoint("value", key=key, name=name, uri=uri)
-        self.client.put(endpoint, params=params, content=AssetStatePutBody(value=value).model_dump_json())
+        self.client.put(
+            endpoint, params=params, content=AssetStateStorePutBody(value=value).model_dump_json()
+        )
         return OKResponse(ok=True)
 
     def delete(self, key: str, *, name: str | None = None, uri: str | None = None) -> OKResponse:
-        """Delete a single asset state key via the API server."""
+        """Delete a single asset store key via the API server."""
         endpoint, params = self._resolve_endpoint("value", key=key, name=name, uri=uri)
         self.client.delete(endpoint, params=params)
         return OKResponse(ok=True)
 
     def clear(self, *, name: str | None = None, uri: str | None = None) -> OKResponse:
-        """Clear all state keys for an asset via the API server."""
+        """Clear all store keys for an asset via the API server."""
         endpoint, params = self._resolve_endpoint("clear", name=name, uri=uri)
         self.client.delete(endpoint, params=params)
         return OKResponse(ok=True)
@@ -977,7 +989,7 @@ class DagsOperations:
 
     def get(self, dag_id: str) -> DagResponse:
         """Get a DAG via the API server."""
-        resp = self.client.get(f"dags/{dag_id}")
+        resp = self.client.get(f"dags/{quote(dag_id, safe='')}")
         return DagResponse.model_validate_json(resp.read())
 
 
@@ -1045,6 +1057,30 @@ class HITLOperations:
         """Get content part of a Human-in-the-loop response for a specific Task Instance."""
         resp = self.client.get(f"/hitlDetails/{ti_id}")
         return HITLDetailResponse.model_validate_json(resp.read())
+
+
+class ConnectionTestOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get_connection(self, connection_test_id: uuid.UUID) -> ConnectionTestConnectionResponse:
+        """Fetch connection data for a test request from the API server."""
+        resp = self.client.get(f"connection-tests/{connection_test_id}/connection")
+        return ConnectionTestConnectionResponse.model_validate_json(resp.read())
+
+    def update_state(
+        self, id: uuid.UUID, state: ConnectionTestState, result_message: str | None = None
+    ) -> None:
+        """Report the state of a connection test to the API server."""
+        if result_message is not None:
+            result_message = result_message[:2000]
+        body = ConnectionTestResultBody(
+            state=state,
+            result_message=ResultMessage(result_message) if result_message is not None else None,
+        )
+        self.client.patch(f"connection-tests/{id}", content=body.model_dump_json())
 
 
 class BearerAuth(httpx.Auth):
@@ -1232,21 +1268,27 @@ class Client(httpx.Client):
 
     @lru_cache()  # type: ignore[misc]
     @property
-    def task_state(self) -> TaskStateOperations:
-        """Operations related to task state."""
-        return TaskStateOperations(self)
+    def task_state_store(self) -> TaskStateStoreOperations:
+        """Operations related to task store."""
+        return TaskStateStoreOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property
-    def asset_state(self) -> AssetStateOperations:
-        """Operations related to asset state."""
-        return AssetStateOperations(self)
+    def asset_state_store(self) -> AssetStateStoreOperations:
+        """Operations related to asset store."""
+        return AssetStateStoreOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property
     def hitl(self):
         """Operations related to HITL Responses."""
         return HITLOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def connection_tests(self) -> ConnectionTestOperations:
+        """Operations related to Connection Tests."""
+        return ConnectionTestOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property

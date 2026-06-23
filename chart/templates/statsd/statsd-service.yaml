@@ -55,4 +55,10 @@ spec:
       protocol: TCP
       port: {{ .Values.ports.statsdScrape }}
       targetPort: {{ .Values.ports.statsdScrape }}
+  {{- if .Values.ipFamilyPolicy }}
+  ipFamilyPolicy: {{ .Values.ipFamilyPolicy }}
+  {{- end }}
+  {{- if .Values.ipFamilies }}
+  ipFamilies: {{- toYaml .Values.ipFamilies | nindent 4 }}
+  {{- end }}
 {{- end }}

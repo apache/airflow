@@ -160,6 +160,35 @@ def _validate_executor_fields(dag: DAG, bundle_name: str | None = None) -> None:
                 "executor to use one of the configured executors."
             )
 
+    # Validate executors on deadline (SLA-style) callbacks too. A SyncCallback may pin an
+    # executor; if it names one that doesn't exist, the scheduler can't route the queued
+    # ExecutorCallback — it would sit PENDING forever, re-warning every loop. Catch it here at
+    # parse time (like tasks) so the author gets immediate, actionable feedback. AsyncCallbacks
+    # run on the triggerer and have no executor field, so only SyncCallbacks are checked.
+    deadlines = dag.deadline or []
+    if not isinstance(deadlines, list):
+        deadlines = [deadlines]
+    for deadline_alert in deadlines:
+        callback = getattr(deadline_alert, "callback", None)
+        callback_executor = getattr(callback, "executor", None)
+        if not callback_executor:
+            continue
+
+        if not _executor_exists(callback_executor, dag_team_name):
+            if dag_team_name:
+                raise UnknownExecutorException(
+                    f"A deadline callback on DAG '{dag.dag_id}' specifies executor '{callback_executor}', "
+                    f"which is not available for team '{dag_team_name}' or as a global executor. Make sure "
+                    f"'{callback_executor}' is configured for team '{dag_team_name}' or globally in your "
+                    "[core] executors configuration, or update the callback's executor to use one of the "
+                    f"configured executors for team '{dag_team_name}' or available global executors."
+                )
+            raise UnknownExecutorException(
+                f"A deadline callback on DAG '{dag.dag_id}' specifies executor '{callback_executor}', "
+                "which is not available. Make sure it is listed in your [core] executors configuration, "
+                "or update the callback's executor to use one of the configured executors."
+            )
+
 
 class DagBag(LoggingMixin):
     """
@@ -172,8 +201,6 @@ class DagBag(LoggingMixin):
     that one system can run multiple, independent settings sets.
 
     :param dag_folder: the folder to scan to find DAGs
-    :param include_examples: whether to include the examples that ship
-        with airflow or not
     :param safe_mode: when ``False``, scans all python modules for dags.
         When ``True`` uses heuristics (files containing ``DAG`` and ``airflow`` strings)
         to filter python modules to scan for dags.
@@ -187,7 +214,6 @@ class DagBag(LoggingMixin):
     def __init__(
         self,
         dag_folder: str | Path | None = None,  # todo AIP-66: rename this to path
-        include_examples: bool | ArgNotSet = NOTSET,
         safe_mode: bool | ArgNotSet = NOTSET,
         load_op_links: bool = True,
         collect_dags: bool = True,
@@ -218,11 +244,6 @@ class DagBag(LoggingMixin):
         if collect_dags:
             self.collect_dags(
                 dag_folder=dag_folder,
-                include_examples=(
-                    include_examples
-                    if is_arg_set(include_examples)
-                    else conf.getboolean("core", "LOAD_EXAMPLES")
-                ),
                 safe_mode=(
                     safe_mode if is_arg_set(safe_mode) else conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE")
                 ),
@@ -245,7 +266,7 @@ class DagBag(LoggingMixin):
         return list(self.dags)
 
     @provide_session
-    def get_dag(self, dag_id, session: Session = NEW_SESSION):
+    def get_dag(self, dag_id, *, session: Session = NEW_SESSION):
         """
         Get the DAG out of the dictionary, and refreshes it if expired.
 
@@ -451,7 +472,6 @@ class DagBag(LoggingMixin):
         self,
         dag_folder: str | Path | None = None,
         only_if_updated: bool = True,
-        include_examples: bool = conf.getboolean("core", "LOAD_EXAMPLES"),
         safe_mode: bool = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE"),
     ):
         """
@@ -476,13 +496,6 @@ class DagBag(LoggingMixin):
 
         registry = get_importer_registry()
         files_to_parse = registry.list_dag_files(dag_folder, safe_mode=safe_mode)
-
-        if include_examples:
-            from airflow import example_dags
-
-            example_dag_folder = next(iter(example_dags.__path__))
-
-            files_to_parse.extend(registry.list_dag_files(example_dag_folder, safe_mode=safe_mode))
 
         for filepath in files_to_parse:
             try:
@@ -554,17 +567,7 @@ class BundleDagBag(DagBag):
         if str(bundle_path) not in sys.path:
             sys.path.append(str(bundle_path))
 
-        # Warn if user explicitly set include_examples=True, since bundles never contain examples
-        if kwargs.get("include_examples") is True:
-            warnings.warn(
-                "include_examples=True is ignored for BundleDagBag. "
-                "Bundles do not contain example DAGs, so include_examples is always False.",
-                UserWarning,
-                stacklevel=2,
-            )
-
         kwargs["bundle_path"] = bundle_path
-        kwargs["include_examples"] = False
         super().__init__(*args, **kwargs)
 
 

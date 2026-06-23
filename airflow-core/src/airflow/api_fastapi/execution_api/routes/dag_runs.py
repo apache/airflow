@@ -21,27 +21,27 @@ import logging
 from typing import Annotated
 
 from cadwyn import VersionedAPIRouter
-from fastapi import HTTPException, Query, status
+from fastapi import HTTPException, Query, Security, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import NoResultFound
 
 from airflow.api.common.trigger_dag import trigger_dag
-from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, resolve_run_on_latest_version
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateResponse, TriggerDAGRunPayload
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
-from airflow.api_fastapi.execution_api.security import CurrentTIToken
-from airflow.exceptions import DagRunAlreadyExists
+from airflow.api_fastapi.execution_api.security import CurrentTIToken, ExecutionAPIRoute, require_auth
+from airflow.exceptions import DagNotPartitionedError, DagRunAlreadyExists, InvalidPartitionKeyError
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DagRunModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-router = VersionedAPIRouter()
+router = VersionedAPIRouter(route_class=ExecutionAPIRoute)
 
 log = logging.getLogger(__name__)
 
@@ -66,6 +66,7 @@ def get_previous_dagrun_compat(
 
 @router.get(
     "/{dag_id}/{run_id}",
+    dependencies=[Security(require_auth, scopes=["token:execution", "token:workload"])],
     responses={status.HTTP_404_NOT_FOUND: {"description": "Dag run not found"}},
 )
 def get_dag_run(dag_id: str, run_id: str, session: SessionDep) -> DagRun:
@@ -153,6 +154,16 @@ def trigger_dag_run(
                 "message": f"A run already exists for Dag '{dag_id}' with run_id '{run_id}'",
             },
         )
+    except DagNotPartitionedError as e:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail={"reason": "not_partitioned", "message": str(e)},
+        )
+    except InvalidPartitionKeyError as e:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail={"reason": "invalid_partition_key", "message": str(e)},
+        ) from e
 
 
 @router.post(
@@ -197,7 +208,8 @@ def clear_dag_run(
         )
     dag = get_dag_for_run(dag_bag, dag_run=dag_run, session=session)
 
-    dag.clear(run_id=run_id)
+    resolved_run_on_latest = resolve_run_on_latest_version(None, dag_id, session)
+    dag.clear(run_id=run_id, run_on_latest_version=resolved_run_on_latest)
 
 
 @router.get(

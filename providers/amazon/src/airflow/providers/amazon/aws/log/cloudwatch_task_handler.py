@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, Any
 
 import attrs
 import watchtower
+from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
@@ -166,7 +167,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
 
         self.handler.flush()
 
-    def upload(self, path: os.PathLike | str, ti: RuntimeTI):
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI | None = None) -> None:
         """Upload the given log path to the remote storage."""
         # No batch upload — logs stream in real-time. Flush pending events and clean up.
         self.close()
@@ -229,11 +230,34 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             if (end_date := getattr(task_instance, "end_date", None)) is None
             else datetime_to_epoch_utc_ms(end_date + timedelta(seconds=30))
         )
-        return self.hook.get_log_events(
+        events = self.hook.get_log_events(
             log_group=self.log_group,
             log_stream_name=stream_name,
             end_time=end_time,
         )
+
+        def _iter_events() -> Generator[CloudWatchLogEvent, None, None]:
+            try:
+                yield from events
+            except ClientError as e:
+                # A missing log stream means no logs were written for this stream
+                # (e.g. the task logged to stdout instead of remote storage, or has
+                # not produced any logs). Surface a hint instead of a 500 error, and
+                # instead of an empty view that looks like remote logging silently failed.
+                if e.response.get("Error", {}).get("Code") != "ResourceNotFoundException":
+                    raise
+                notice_ts = end_time or datetime_to_epoch_utc_ms(datetime.now(tz=timezone.utc))
+                yield {
+                    "timestamp": notice_ts,
+                    "ingestionTime": notice_ts,
+                    "message": (
+                        f"No log stream found in CloudWatch (log_group={self.log_group}, "
+                        f"log_stream={stream_name}). The task may have logged to stdout only, "
+                        f"not produced any logs yet, or remote logging may be misconfigured."
+                    ),
+                }
+
+        return _iter_events()
 
     def _parse_log_event_as_dumped_json(self, event: CloudWatchLogEvent) -> str:
         event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc).isoformat()

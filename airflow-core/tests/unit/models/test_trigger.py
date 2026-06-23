@@ -37,8 +37,10 @@ from airflow.models.callback import Callback, TriggererCallback
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.callback import AsyncCallback
+from airflow.serialization.encoders import encode_trigger
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import (
+    BaseEventTrigger,
     BaseTrigger,
     TaskFailedEvent,
     TaskSkippedEvent,
@@ -250,6 +252,39 @@ def test_submit_failure(session, create_task_instance):
     updated_task_instance = session.scalar(select(TaskInstance))
     assert updated_task_instance.state == State.SCHEDULED
     assert updated_task_instance.next_method == "__fail__"
+
+
+def test_submit_failure_terminalizes_callback(session):
+    """A CallbackTrigger that fails (lands in failed_triggers → submit_failure) must terminalize
+    its Callback row as FAILED. ``submit_failure`` previously only handled deferred TaskInstances,
+    so a callback trigger's row was left stuck QUEUED/RUNNING forever (a zombie — callback rows
+    terminalise only via an event, never via the TI failure path). This mirrors ``submit_event``'s
+    callback handling on the success side."""
+    from airflow.utils.state import CallbackState
+
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    callback = TriggererCallback(callback_def=AsyncCallback("classpath.callback"))
+    callback.trigger = trigger
+    callback.state = CallbackState.QUEUED  # state handle_miss leaves it in
+    session.add(callback)
+    session.commit()
+
+    Trigger.submit_failure(trigger.id, exc=["boom\n"], session=session)
+    session.flush()
+    session.refresh(callback)
+
+    assert callback.state == CallbackState.FAILED, (
+        "submit_failure must mark a CallbackTrigger's callback FAILED, not leave it stuck QUEUED"
+    )
+    assert callback.output is not None
+    assert "boom" in callback.output
+
+    # Terminal-absorbing: a second submit_failure must NOT flip it away from FAILED.
+    Trigger.submit_failure(trigger.id, exc=["again\n"], session=session)
+    session.flush()
+    session.refresh(callback)
+    assert callback.state == CallbackState.FAILED
 
 
 @pytest.mark.parametrize(
@@ -930,6 +965,25 @@ def test_kwargs_not_encrypted():
 
     assert trigger.kwargs["param1"] == "value1"
     assert trigger.kwargs["param2"] == "value2"
+
+
+def test_decrypt_kwargs_roundtrips_datetime():
+    """
+    A datetime kwarg encoded via BaseSerialization (the asset-watcher path) must survive
+    the encrypt/decrypt round-trip through serde without crashing, and the DAG-side and
+    DB-side trigger hashes must match so the trigger is not needlessly recreated.
+
+    Regression: serde lacked a legacy-compat mapping for the bare ``datetime`` timestamp,
+    so ``_decrypt_kwargs`` raised and the asset-watcher trigger could not be read back.
+    """
+    classpath = "airflow.providers.standard.triggers.temporal.DateTimeTrigger"
+    moment = datetime.datetime(2026, 1, 15, 12, 30, tzinfo=datetime.timezone.utc)
+
+    dag_kwargs = encode_trigger({"classpath": classpath, "kwargs": {"moment": moment}})["kwargs"]
+    decrypted = Trigger._decrypt_kwargs(Trigger.encrypt_kwargs(dag_kwargs))
+
+    assert decrypted["moment"].timestamp() == moment.timestamp()
+    assert BaseEventTrigger.hash(classpath, dag_kwargs) == BaseEventTrigger.hash(classpath, decrypted)
 
 
 def test_asset_trigger_unassigned_included(session):

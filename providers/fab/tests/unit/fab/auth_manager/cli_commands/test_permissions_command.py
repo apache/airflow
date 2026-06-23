@@ -96,7 +96,7 @@ class TestPermissionsCommand:
             permissions_command.permissions_cleanup(args)
 
         # Verify function calls - it should be called exactly once for the orphaned DAG
-        mock_cleanup_dag_permissions.assert_called_once_with("orphaned_dag", mock_session)
+        mock_cleanup_dag_permissions.assert_called_once_with("orphaned_dag", session=mock_session)
 
     @patch("airflow.providers.fab.auth_manager.cli_commands.permissions_command.cleanup_dag_permissions")
     @patch("airflow.providers.fab.auth_manager.models.Resource")
@@ -180,7 +180,7 @@ class TestPermissionsCommand:
             permissions_command.permissions_cleanup(args)
 
         # Should call cleanup_dag_permissions specifically for test_dag
-        mock_cleanup_dag_permissions.assert_called_once_with("test_dag", mock_session)
+        mock_cleanup_dag_permissions.assert_called_once_with("test_dag", session=mock_session)
 
     @patch("airflow.providers.fab.auth_manager.cli_commands.permissions_command.cleanup_dag_permissions")
     @patch("airflow.providers.fab.auth_manager.models.Resource")
@@ -280,7 +280,7 @@ class TestDagPermissions:
             session.commit()
 
             # Execute cleanup
-            cleanup_dag_permissions("target_dag", session)
+            cleanup_dag_permissions("target_dag", session=session)
 
             # Verify: target resource deleted, keep resource remains
             assert not session.get(Resource, target_resource.id)
@@ -300,7 +300,7 @@ class TestDagPermissions:
 
         with create_session() as session:
             initial_count = session.scalar(select(func.count(Resource.id)))
-            cleanup_dag_permissions("non_existent_dag", session)
+            cleanup_dag_permissions("non_existent_dag", session=session)
             assert session.scalar(select(func.count(Resource.id))) == initial_count
 
     def test_cleanup_dag_permissions_handles_resources_without_permissions(self):
@@ -319,7 +319,7 @@ class TestDagPermissions:
             session.commit()
             resource_id = resource.id
 
-            cleanup_dag_permissions("test_dag", session)
+            cleanup_dag_permissions("test_dag", session=session)
             assert not session.get(Resource, resource_id)
 
     def test_cleanup_dag_permissions_with_default_session(self):

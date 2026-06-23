@@ -18,10 +18,14 @@
   "asset_other": "Assets",
   "assetEvent_one": "Esdeveniment d'Asset",
   "assetEvent_other": "Esdeveniments d'Asset",
+  "assetInactive": {
+    "tooltip": "L'Asset aigües amunt s'ha desactivat; el programador reté l'avaluació de particions fins que es torni a activar."
+  },
   "backfill_one": "Reompliment",
   "backfill_other": "Reompliments",
   "browse": {
     "auditLog": "Registre d'auditoria",
+    "deadlines": "Terminis",
     "jobs": "Processos",
     "requiredActions": "Accions requerides",
     "xcoms": "XComs"
@@ -142,6 +146,7 @@
     "startTime": "Hora d'inici"
   },
   "generateToken": "Generar token",
+  "key": "Clau",
   "logicalDate": "Data Lògica",
   "logout": "Tancar sessió",
   "logoutConfirmation": "Està a punt de tancar sessió de l'aplicació.",
@@ -225,6 +230,7 @@
   "startDate": "Data d'inici",
   "state": "Estat",
   "states": {
+    "awaiting_input": "Esperant entrada",
     "deferred": "Diferit",
     "failed": "Fallit",
     "no_status": "Sense estat",
@@ -257,7 +263,8 @@
       "any": "Qualsevol"
     },
     "tagPlaceholder": "Filtrar per etiqueta",
-    "to": "A"
+    "to": "A",
+    "updatedAt": "Actualitzat a"
   },
   "task": {
     "documentation": "Documentació de la tasca",
@@ -268,7 +275,7 @@
   "task_one": "Tasca",
   "task_other": "Tasques",
   "taskGroup": {
-    "documentation": "Task Group Documentation"
+    "documentation": "Documentació del grup de tasques"
   },
   "taskGroup_one": "Grup de tasques",
   "taskGroup_other": "Grups de tasques",
@@ -285,6 +292,7 @@
     "priorityWeight": "Pes de prioritat",
     "queue": "Cua",
     "queuedWhen": "Enviat a cua a les",
+    "renderedMapIndex": "Índex del mapa renderitzat",
     "scheduledWhen": "Programat a les",
     "triggerer": {
       "assigned": "Triggerer assignat",
@@ -387,6 +395,7 @@
     "mustBeAtLeast": "Ha de ser com a mínim {{min}}.",
     "mustBeValidNumber": "Ha de ser un número vàlid."
   },
+  "value": "Valor",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Premeu {{hotkey}} per alternar l'ajust de línia",

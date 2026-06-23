@@ -39,7 +39,7 @@ const BulkClearDagRunsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
   const [note, setNote] = useState<string | null>(null);
-  const { bulkClear, data, isPending } = useBulkClearDagRuns({
+  const { bulkClear, error, isPending } = useBulkClearDagRuns({
     deselectKeys,
     onSuccessConfirm: onClose,
   });
@@ -97,13 +97,13 @@ const BulkClearDagRunsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
               />
             </Flex>
             <ActionAccordion affectedTasks={affectedTasks} groupByRunId note={note} setNote={setNote} />
-            <ActionErrors actionResponse={data?.clear} error={undefined} />
+            <ActionErrors error={error} />
             <Flex justifyContent="end" mt={3}>
               <Button
                 disabled={affectedTasks.total_entries === 0}
                 loading={isPending || isFetching}
                 onClick={() => {
-                  void bulkClear(selectedDagRuns, { note, onlyFailed, onlyNew });
+                  bulkClear(selectedDagRuns, { note, onlyFailed, onlyNew });
                 }}
               >
                 <CgRedo />

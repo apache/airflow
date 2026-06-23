@@ -45,11 +45,13 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from pydantic import TypeAdapter
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
 from airflow.executors import workloads
 from airflow.executors.workloads.task import TaskInstanceDTO
+from airflow.executors.workloads.trigger import RunTrigger
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
     _USER_ACTION_CANCEL_MSG,
@@ -57,6 +59,7 @@ from airflow.jobs.triggerer_job_runner import (
     ToTriggerSupervisor,
     TriggerCommsDecoder,
     TriggererJobRunner,
+    TriggerEventEntry,
     TriggerLoggingFactory,
     TriggerRunner,
     TriggerRunnerSupervisor,
@@ -72,10 +75,20 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import DAG, BaseHook, BaseOperator
-from airflow.sdk.execution_time.comms import ToSupervisor, ToTask, _RequestFrame, _ResponseFrame
+from airflow.sdk import DAG, Asset, BaseHook, BaseOperator
+from airflow.sdk.execution_time.comms import (
+    AssetStateStoreResult,
+    GetAssetStateStoreByName,
+    SetAssetStateStoreByName,
+    ToSupervisor,
+    ToTask,
+    _RequestFrame,
+    _ResponseFrame,
+)
+from airflow.sdk.execution_time.context import AssetStateStoreAccessors
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
+from airflow.triggers.shared_stream import SharedStreamProducer
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -558,6 +571,269 @@ def test_create_workload_uses_supervisor_id_without_job(jobless_supervisor, mock
     assert factory.log_path == f"/logs/ti.trigger.{jobless_supervisor.id}.log"
 
 
+def test_create_workload_sets_watched_assets_for_asset_only_trigger(jobless_supervisor, mocker):
+    """_create_workload() should populate watched_assets when trigger.task_instance is None and assets exist."""
+    asset1 = mocker.Mock(spec=Asset)
+    asset1.name = "my_asset"
+    asset1.uri = "s3://bucket/key"
+
+    asset2 = mocker.Mock(spec=Asset)
+    asset2.name = "other_asset"
+    asset2.uri = "gs://bucket/path"
+
+    trigger = mocker.Mock(spec=BaseEventTrigger)
+    trigger.id = 42
+    trigger.classpath = "some.path.Trigger"
+    trigger.encrypted_kwargs = "encrypted"
+    trigger.task_instance = None  # Not tied to a Task (similar to a BaseEventTrigger)
+    trigger.assets = [asset1, asset2]
+
+    workload = jobless_supervisor._create_workload(
+        trigger=trigger,
+        dag_bag=mocker.Mock(),
+        render_log_fname=mocker.Mock(),
+        session=mocker.Mock(),
+    )
+
+    assert workload is not None
+    assert workload.watched_assets == {"my_asset": "s3://bucket/key", "other_asset": "gs://bucket/path"}
+
+
+def test_create_workload_watched_assets_none_when_no_assets(jobless_supervisor, mocker):
+    """_create_workload() should set watched_assets=None when trigger.task_instance is None and assets is empty."""
+    trigger = mocker.Mock(spec=BaseEventTrigger)
+    trigger.id = 43
+    trigger.classpath = "some.path.Trigger"
+    trigger.encrypted_kwargs = "encrypted"
+    trigger.task_instance = None
+    trigger.assets = []  # No Assets are attached to the trigger
+
+    workload = jobless_supervisor._create_workload(
+        trigger=trigger,
+        dag_bag=mocker.Mock(),
+        render_log_fname=mocker.Mock(),
+        session=mocker.Mock(),
+    )
+
+    assert workload is not None
+    assert workload.watched_assets is None
+
+
+def test_run_trigger_workload_includes_watched_assets_field():
+    """RunTrigger workload should accept and store watched_assets."""
+    workload = RunTrigger(
+        id=1,
+        classpath="airflow.triggers.testing.SuccessTrigger",
+        encrypted_kwargs="fake",
+        watched_assets={"asset_a": "s3://a", "asset_b": "gs://b"},
+    )
+    assert workload.watched_assets == {"asset_a": "s3://a", "asset_b": "gs://b"}
+
+
+def test_run_trigger_workload_watched_assets_defaults_to_none():
+    """RunTrigger workload watched_assets should default to None."""
+    workload = RunTrigger(
+        id=1,
+        classpath="airflow.triggers.testing.SuccessTrigger",
+        encrypted_kwargs="fake",
+    )
+    assert workload.watched_assets is None
+
+
+@pytest.fixture
+def make_watcher_trigger():
+    """Factory fixture: call with a list to get a BaseEventTrigger subclass that appends each new instance."""
+
+    def factory(injected_instances):
+        class WatcherTrigger(BaseEventTrigger):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                injected_instances.append(self)
+
+            def serialize(self):
+                return (f"{type(self).__module__}.{type(self).__qualname__}", {})
+
+            async def run(self):
+                yield TriggerEvent("done")
+
+        return WatcherTrigger
+
+    return factory
+
+
+@pytest.mark.asyncio
+@patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
+async def test_create_triggers_injects_asset_state_store_for_base_event_trigger(
+    mock_get_classpath, session, make_watcher_trigger
+):
+    """asset_state_store is populated on BaseEventTrigger instances when watched_assets is set."""
+    injected_instances = []
+    mock_get_classpath.return_value = make_watcher_trigger(injected_instances)
+
+    runner = TriggerRunner()
+    runner.to_create.append(
+        workloads.RunTrigger.model_construct(
+            id=10,
+            ti=None,
+            classpath="fake.WatcherTrigger",
+            encrypted_kwargs="{}",
+            watched_assets={"my_asset": "s3://bucket/key"},
+        )
+    )
+
+    await runner.create_triggers()
+
+    # This is only testing that an exception was NOT thrown when creating the Trigger
+    assert 10 in runner.triggers
+
+    assert len(injected_instances) == 1
+    assert injected_instances[0].asset_state_store is not None
+    assert isinstance(injected_instances[0].asset_state_store, AssetStateStoreAccessors)
+
+    runner.triggers[10]["task"].cancel()
+    await runner.cleanup_finished_triggers()
+
+
+@pytest.mark.asyncio
+@patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
+async def test_create_triggers_asset_state_store_none_when_no_watched_assets(
+    mock_get_classpath, session, make_watcher_trigger
+):
+    """asset_state_store stays None when watched_assets is not set on the workload."""
+    injected_instances = []
+    mock_get_classpath.return_value = make_watcher_trigger(injected_instances)
+
+    runner = TriggerRunner()
+    runner.to_create.append(
+        workloads.RunTrigger.model_construct(
+            id=11,
+            ti=None,
+            classpath="fake.WatcherTrigger",
+            encrypted_kwargs="{}",
+            watched_assets=None,
+        )
+    )
+
+    await runner.create_triggers()
+
+    assert len(injected_instances) == 1
+    assert injected_instances[0].asset_state_store is None
+
+    runner.triggers[11]["task"].cancel()
+    await runner.cleanup_finished_triggers()
+
+
+@pytest.mark.asyncio
+@patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
+async def test_create_triggers_skips_asset_state_store_for_non_event_trigger(mock_get_classpath, session):
+    """asset_state_store injection is skipped for plain BaseTrigger (non-BaseEventTrigger) instances."""
+    injected_instances: list[BaseTrigger] = []
+
+    class PlainTrigger(BaseTrigger):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            injected_instances.append(self)
+
+        def serialize(self):
+            return (f"{type(self).__module__}.{type(self).__qualname__}", {})
+
+        async def run(self):
+            yield TriggerEvent("done")
+
+    mock_get_classpath.return_value = PlainTrigger
+
+    runner = TriggerRunner()
+    runner.to_create.append(
+        workloads.RunTrigger.model_construct(
+            id=12, ti=None, classpath="fake.PlainTrigger", encrypted_kwargs="{}"
+        )
+    )
+
+    await runner.create_triggers()
+
+    assert 12 in runner.triggers
+    assert len(injected_instances) == 1
+    assert not hasattr(injected_instances[0], "asset_state_store")
+
+    runner.triggers[12]["task"].cancel()
+    await runner.cleanup_finished_triggers()
+
+
+@pytest.mark.asyncio
+@patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
+async def test_create_triggers_asset_state_store_contains_correct_assets(
+    mock_get_classpath, session, make_watcher_trigger
+):
+    """AssetStateStoreAccessors built from watched_assets has entries for all provided name/URI pairs."""
+    injected_instances = []
+    mock_get_classpath.return_value = make_watcher_trigger(injected_instances)
+
+    runner = TriggerRunner()
+    runner.to_create.append(
+        workloads.RunTrigger.model_construct(
+            id=13,
+            ti=None,
+            classpath="fake.WatcherTrigger",
+            encrypted_kwargs="{}",
+            watched_assets={"asset_a": "s3://bucket/a", "asset_b": "gs://bucket/b"},
+        )
+    )
+
+    await runner.create_triggers()
+
+    assert len(injected_instances) == 1
+    state_store = injected_instances[0].asset_state_store
+
+    assert state_store is not None
+    assert isinstance(state_store, AssetStateStoreAccessors)
+    assert state_store[Asset(name="asset_a", uri="s3://bucket/a")] is not None
+    assert state_store[Asset(name="asset_b", uri="gs://bucket/b")] is not None
+
+    runner.triggers[13]["task"].cancel()
+    await runner.cleanup_finished_triggers()
+
+
+@pytest.mark.asyncio
+@patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
+async def test_create_triggers_asset_state_store_accessor_reads_and_writes(
+    mock_get_classpath, session, mock_supervisor_comms, make_watcher_trigger
+):
+    """asset_state_store accessor sends correct SUPERVISOR_COMMS messages on get() and set()."""
+    injected_instances = []
+    mock_get_classpath.return_value = make_watcher_trigger(injected_instances)
+
+    runner = TriggerRunner()
+    runner.to_create.append(
+        workloads.RunTrigger.model_construct(
+            id=14,
+            ti=None,
+            classpath="fake.WatcherTrigger",
+            encrypted_kwargs="{}",
+            watched_assets={"asset_a": "s3://bucket/a"},
+        )
+    )
+
+    await runner.create_triggers()
+
+    assert len(injected_instances) == 1
+    state_store = injected_instances[0].asset_state_store
+    accessor = state_store[Asset(name="asset_a", uri="s3://bucket/a")]
+
+    mock_supervisor_comms.send.return_value = AssetStateStoreResult(value="2026-01-01")
+    result = accessor.get("watermark")
+    assert result == "2026-01-01"
+
+    mock_supervisor_comms.send.assert_called_with(GetAssetStateStoreByName(name="asset_a", key="watermark"))
+
+    accessor.set("watermark", "2026-06-11")
+    mock_supervisor_comms.send.assert_called_with(
+        SetAssetStateStoreByName(name="asset_a", key="watermark", value="2026-06-11")
+    )
+
+    runner.triggers[14]["task"].cancel()
+    await runner.cleanup_finished_triggers()
+
+
 def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
     """
     Checks that the triggerer will correctly see a new Trigger in the database
@@ -708,6 +984,12 @@ class TestTriggerRunner:
             trigger_runner = TriggerRunner()
 
         assert trigger_runner.blocked_main_thread_warning_threshold == 0.5
+
+    @conf_vars({("triggerer", "shared_stream_ack_timeout"): "60.0"})
+    def test_shared_stream_ack_timeout_config_wiring(self) -> None:
+        """[triggerer] shared_stream_ack_timeout is wired into SharedStreamManager.ack_timeout."""
+        trigger_runner = TriggerRunner()
+        assert trigger_runner._shared_streams._ack_timeout == 60.0
 
     @pytest.mark.asyncio
     async def test_block_watchdog_does_not_log_when_threshold_is_not_exceeded(self) -> None:
@@ -901,9 +1183,104 @@ class TestTriggerRunner:
 
         events = list(trigger_runner.events)
         assert len(events) == 1
-        trigger_id, event = events[0]
+        trigger_id, event, _seq = events[0]
         assert trigger_id == 1
         assert event.payload == {"region": "us"}
+        # Group is torn down on unsubscribe.
+        assert trigger_runner._shared_streams._groups == {}
+
+    def test_shared_stream_ack_mode_integration(self) -> None:
+        """A BaseEventTrigger whose producer factory is overridden advances only after the event's derived trigger event is confirmed persisted."""
+        advanced: list[Any] = []
+        # Container lets _drive() write trigger_runner back for post-run assertions.
+        state: dict[str, Any] = {}
+
+        class _AckSharedProducer(SharedStreamProducer):
+            async def open_stream(self):
+                yield {"region": "us"}, "receipt-handle-1"
+                # Stay alive so the manager can tear us down on unsubscribe.
+                await asyncio.Event().wait()
+
+            async def advance(self, batch):
+                advanced.extend(item.broker_payload for item in batch)
+                state["advance_called"].set()
+
+        class _AckSharedTrigger(BaseEventTrigger):
+            def __init__(self, queue_url: str, region: str | None = None):
+                super().__init__()
+                self.queue_url = queue_url
+                self.region = region
+
+            def serialize(self):
+                return (
+                    f"{type(self).__module__}.{type(self).__qualname__}",
+                    {"queue_url": self.queue_url, "region": self.region},
+                )
+
+            def shared_stream_key(self):
+                return ("ack-queue", self.queue_url)
+
+            @classmethod
+            def create_shared_stream_producer(cls, kwargs):
+                return _AckSharedProducer()
+
+            async def filter_shared_stream(self, shared_stream):
+                async for raw in shared_stream:
+                    if self.region is None or raw["region"] == self.region:
+                        yield TriggerEvent(raw)
+
+            async def run(self):  # pragma: no cover - replaced by filter_shared_stream
+                yield TriggerEvent({})
+
+        async def _drive():
+            advance_called = asyncio.Event()
+            state["advance_called"] = advance_called
+
+            trigger_runner = TriggerRunner()
+            trigger_runner.triggers = {
+                1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": True, "name": "us", "events": 0}
+            }
+            trigger = _AckSharedTrigger(queue_url="https://ack-q", region="us")
+            trigger.task_instance = MagicMock()
+            trigger.task_instance.map_index = -1
+            state["trigger_runner"] = trigger_runner
+
+            run_task = asyncio.create_task(trigger_runner.run_trigger(1, trigger))
+            # Wait until the event lands on the outbound queue with its
+            # persist-confirmation seq.
+            for _ in range(100):
+                if trigger_runner.events:
+                    break
+                await asyncio.sleep(0.01)
+            assert trigger_runner.events, "the trigger event must reach the outbound queue"
+            _trigger_id, _event, seq = trigger_runner.events[0]
+            assert seq is not None, "a shared ack trigger's event must carry a seq"
+
+            # The subscriber moved past the event, but the advance is gated
+            # on persistence: nothing may advance before the confirmation arrives.
+            assert advanced == [], "advance must not run before the persist confirmation"
+
+            # Simulate the supervisor confirming the persist on the next sync.
+            trigger_runner._shared_streams.confirm_persisted([seq])
+            await asyncio.wait_for(advance_called.wait(), timeout=2.0)
+
+            run_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await run_task
+
+        asyncio.run(_drive())
+        trigger_runner = state["trigger_runner"]
+
+        events = list(trigger_runner.events)
+        assert len(events) == 1
+        trigger_id, event, _seq = events[0]
+        assert trigger_id == 1
+        assert event.payload == {"region": "us"}
+
+        # The producer's advance must have been called with the broker_payload.
+        assert advanced == ["receipt-handle-1"], (
+            "producer.advance must be called once the event's persistence is confirmed"
+        )
         # Group is torn down on unsubscribe.
         assert trigger_runner._shared_streams._groups == {}
 
@@ -955,6 +1332,43 @@ class TestTriggerRunner:
         err = cap_structlog[0]["error"]
         assert isinstance(err, TypeError)
         assert "got an unexpected keyword argument 'not_exists_arg'" in str(err)
+
+    @patch(
+        "airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath",
+        return_value=SuccessTrigger,  # no required kwargs, so inflation reaches the context-build step
+    )
+    @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs", return_value={})
+    @patch(
+        "airflow.jobs.triggerer_job_runner.TriggerRunner._build_context_from_dag_run_data",
+        side_effect=ValueError("simulated DRDataModel ValidationError (extra=forbid / version skew)"),
+    )
+    @pytest.mark.asyncio
+    async def test_callback_context_build_failure_fails_only_that_trigger(
+        self, mock_build_ctx, mock_decrypt, mock_get_class, session
+    ):
+        """A non-TypeError raised while inflating a callback trigger (e.g. a ``pydantic.ValidationError``
+        — a ``ValueError`` — from the strict ``DRDataModel(**dag_run_data)`` on a version-skewed /
+        malformed ``dag_run_data``) must fail ONLY that trigger, not escape ``create_triggers`` and
+        shut down the whole triggerer via ``arun()``'s ``except Exception: self.stop = True``."""
+        trigger_runner = TriggerRunner()
+        # A callback workload (ti=None) with dag_run_data routes through _build_context_from_dag_run_data.
+        trigger_runner.to_create.append(
+            workloads.RunTrigger.model_construct(
+                id=7,
+                ti=None,
+                classpath="airflow.triggers.callback.CallbackTrigger",
+                encrypted_kwargs="fake",
+                dag_run_data={"dag_id": "d", "run_id": "r", "_unexpected_extra_field": "x"},
+            )
+        )
+
+        # Must NOT raise (the bug: ValueError escaped except TypeError -> arun -> triggerer shutdown).
+        await trigger_runner.create_triggers()
+
+        # The bad trigger is failed in isolation, not silently inflated.
+        assert (7, ANY) in trigger_runner.failed_triggers
+        assert 7 not in trigger_runner.triggers
+        mock_build_ctx.assert_called_once()
 
     @pytest.mark.asyncio
     @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
@@ -1030,9 +1444,11 @@ class TestTriggerRunner:
     async def test_sync_state_to_supervisor(self, supervisor_builder):
         trigger_runner = TriggerRunner()
         trigger_runner.comms_decoder = AsyncMock(spec=TriggerCommsDecoder)
-        trigger_runner.events.append((1, TriggerEvent(payload={"status": "SUCCESS"})))
-        trigger_runner.events.append((2, TriggerEvent(payload={"status": "FAILED"})))
-        trigger_runner.events.append((3, TriggerEvent(payload={"status": "SUCCESS", "data": object()})))
+        trigger_runner.events.append(TriggerEventEntry(1, TriggerEvent(payload={"status": "SUCCESS"}), None))
+        trigger_runner.events.append(TriggerEventEntry(2, TriggerEvent(payload={"status": "FAILED"}), None))
+        trigger_runner.events.append(
+            TriggerEventEntry(3, TriggerEvent(payload={"status": "SUCCESS", "data": object()}), None)
+        )
 
         async def asend_side_effect(msg):
             if msg.events and len(msg.events) == 3:
@@ -1125,7 +1541,7 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     # This calls Trigger.submit_event, which will unlink the trigger from the task instance
 
     # Simulate this call: supervisor1._service_subprocess()
-    supervisor1.events.append((trigger_orm.id, TriggerEvent(True)))
+    supervisor1.events.append(TriggerEventEntry(trigger_orm.id, TriggerEvent(True), None))
     supervisor1.handle_events()
     trigger_orm = session.get(Trigger, trigger_orm.id)
     # This is the "pre"-condition we need to assert to test the race condition
@@ -1149,13 +1565,19 @@ def test_trigger_runner_exception_stops_triggerer():
     import signal
 
     job_runner = TriggererJobRunner(Job())
-    time.sleep(0.1)
 
     # Wait 4 seconds for the triggerer to stop
     try:
 
         def on_timeout(signum, frame):
-            os.kill(job_runner.trigger_runner.pid, signal.SIGKILL)
+            # _execute() sets up trigger_runner asynchronously; on a slow runner the
+            # timer can fire before the subprocess exists. Re-arm and try again rather
+            # than dereferencing a not-yet-started runner.
+            runner = job_runner.trigger_runner
+            if runner is None:
+                signal.setitimer(signal.ITIMER_REAL, 0.1)
+                return
+            os.kill(runner.pid, signal.SIGKILL)
 
         signal.signal(signal.SIGALRM, on_timeout)
         signal.setitimer(signal.ITIMER_REAL, 0.1)
@@ -1189,7 +1611,7 @@ async def test_trigger_firing():
             await asyncio.sleep(0.1)
             finished = await runner.cleanup_finished_triggers()
             if runner.events:
-                assert list(runner.events) == [(1, TriggerEvent(True))]
+                assert list(runner.events) == [(1, TriggerEvent(True), None)]
                 assert finished == [1]
                 break
             await asyncio.sleep(0.1)
@@ -1706,7 +2128,7 @@ def test_update_triggers_prevents_duplicate_creation_queue_entries(session, supe
 
     # Verify that the trigger is not in any other tracking sets
     assert trigger_orm.id not in supervisor.cancelling_triggers
-    assert not any(trigger_id == trigger_orm.id for trigger_id, _ in supervisor.events)
+    assert not any(entry.trigger_id == trigger_orm.id for entry in supervisor.events)
     assert not any(trigger_id == trigger_orm.id for trigger_id, _ in supervisor.failed_triggers)
 
 
@@ -1880,6 +2302,55 @@ class TestTriggererJobRunner:
         call_kwargs = stats_init_mock.call_args.kwargs
         assert "factory" in call_kwargs
 
+    @patch.object(TriggerRunnerSupervisor, "start")
+    def test_execute_sets_server_process_context(self, mock_supervisor_start, session, monkeypatch):
+        """_execute marks triggerer as server context for secrets backend detection."""
+        captured_context = {}
+
+        def capture_env(*args, **kwargs):
+            captured_context["value"] = os.environ.get("_AIRFLOW_PROCESS_CONTEXT")
+            mock_supervisor = MagicMock(spec=TriggerRunnerSupervisor)
+            mock_supervisor._exit_code = 0
+            return mock_supervisor
+
+        mock_supervisor_start.side_effect = capture_env
+
+        job = Job()
+        session.add(job)
+        session.flush()
+
+        monkeypatch.delenv("_AIRFLOW_PROCESS_CONTEXT", raising=False)
+        job_runner = TriggererJobRunner(job)
+
+        with (
+            patch.object(job_runner, "register_signals"),
+            patch("airflow.jobs.triggerer_job_runner.stats.initialize"),
+        ):
+            job_runner._execute()
+
+        assert captured_context["value"] == "server"
+        # Verify env var is restored after _execute() returns.
+        assert os.environ.get("_AIRFLOW_PROCESS_CONTEXT") is None
+
+    def test_trigger_runner_sets_client_process_context(self, monkeypatch):
+        """TriggerRunner.run() marks subprocess as client context to prevent inheriting server privileges."""
+        captured_context = {}
+
+        async def capture_env(*args, **kwargs):
+            captured_context["value"] = os.environ.get("_AIRFLOW_PROCESS_CONTEXT")
+
+        monkeypatch.delenv("_AIRFLOW_PROCESS_CONTEXT", raising=False)
+        runner = TriggerRunner()
+        with (
+            patch.object(runner, "arun", side_effect=capture_env),
+            patch("signal.signal"),
+        ):
+            runner.run()
+
+        assert captured_context["value"] == "client"
+        # Verify env var is restored after run() returns.
+        assert os.environ.get("_AIRFLOW_PROCESS_CONTEXT") is None
+
 
 class TestTriggererMessageTypes:
     def test_message_types_in_triggerer(self):
@@ -1901,6 +2372,7 @@ class TestTriggererMessageTypes:
         trigger_runner_types = get_type_names(ToTriggerRunner)
 
         in_supervisor_but_not_in_trigger_supervisor = {
+            "AwaitInputTask",
             "DeferTask",
             "GetAssetByName",
             "GetAssetByUri",
@@ -1927,19 +2399,19 @@ class TestTriggererMessageTypes:
             "CreateHITLDetailPayload",
             "SetRenderedMapIndex",
             "GetDag",
-            # AIP-103 task/asset state — triggerer has no task execution context.
-            "GetTaskState",
-            "SetTaskState",
-            "DeleteTaskState",
-            "ClearTaskState",
-            "GetAssetStateByName",
-            "GetAssetStateByUri",
-            "SetAssetStateByName",
-            "SetAssetStateByUri",
-            "DeleteAssetStateByName",
-            "DeleteAssetStateByUri",
-            "ClearAssetStateByName",
-            "ClearAssetStateByUri",
+            # AIP-103 task/asset store — triggerer has no task execution context.
+            "GetTaskStateStore",
+            "SetTaskStateStore",
+            "DeleteTaskStateStore",
+            "ClearTaskStateStore",
+            "GetAssetStateStoreByName",
+            "GetAssetStateStoreByUri",
+            "SetAssetStateStoreByName",
+            "SetAssetStateStoreByUri",
+            "DeleteAssetStateStoreByName",
+            "DeleteAssetStateStoreByUri",
+            "ClearAssetStateStoreByName",
+            "ClearAssetStateStoreByUri",
         }
 
         in_task_but_not_in_trigger_runner = {
@@ -1961,9 +2433,9 @@ class TestTriggererMessageTypes:
             "PreviousTIResult",
             "HITLDetailRequestResult",
             "DagResult",
-            # AIP-103 task/asset state results — worker-only responses to the above messages.
-            "TaskStateResult",
-            "AssetStateResult",
+            # AIP-103 task/asset store results — worker-only responses to the above messages.
+            "TaskStateStoreResult",
+            "AssetStateStoreResult",
         }
 
         supervisor_diff = (
@@ -2242,3 +2714,249 @@ async def test_unknown_frame_id_doesnt_crash_reader(decoder_pair):
 
     assert decoder._reader_task is not None
     assert not decoder._reader_task.done(), "reader loop crashed unexpectedly"
+
+
+def test_trigger_state_messages_round_trip_with_seqs():
+    """Event triples and persist confirmations survive the wire encode/decode."""
+    changes_adapter = TypeAdapter(ToTriggerSupervisor)
+    changes = messages.TriggerStateChanges(
+        events=[(1, TriggerEvent(True), 3), (2, TriggerEvent("x"), None)],
+        failures=None,
+        finished=None,
+    )
+    decoded = changes_adapter.validate_json(changes_adapter.dump_json(changes))
+    assert isinstance(decoded, messages.TriggerStateChanges)
+    assert decoded.events == [(1, TriggerEvent(True), 3), (2, TriggerEvent("x"), None)]
+
+    sync_adapter = TypeAdapter(ToTriggerRunner)
+    sync = messages.TriggerStateSync(to_create=[], to_cancel={5}, events_persisted=[3, 9])
+    decoded_sync = sync_adapter.validate_json(sync_adapter.dump_json(sync))
+    assert isinstance(decoded_sync, messages.TriggerStateSync)
+    assert decoded_sync.events_persisted == [3, 9]
+    assert decoded_sync.to_cancel == {5}
+
+
+def test_handle_events_records_persist_confirmations(jobless_supervisor):
+    """handle_events confirms the seq of a persisted event; events without a seq are not confirmed."""
+    event_with_seq = TriggerEvent(True)
+    event_without_seq = TriggerEvent("x")
+    jobless_supervisor.events.append(TriggerEventEntry(1, event_with_seq, 7))
+    jobless_supervisor.events.append(TriggerEventEntry(2, event_without_seq, None))
+
+    with mock.patch.object(TriggerRunnerSupervisor, "on_trigger_event", autospec=True) as mock_event:
+        jobless_supervisor.handle_events()
+
+    assert mock_event.mock_calls == [
+        mock.call(jobless_supervisor, trigger_id=1, event=event_with_seq),
+        mock.call(jobless_supervisor, trigger_id=2, event=event_without_seq),
+    ]
+    assert list(jobless_supervisor.persisted_event_seqs) == [7]
+    assert len(jobless_supervisor.events) == 0
+
+
+def test_handle_events_does_not_confirm_seq_when_persist_fails(jobless_supervisor):
+    """A seq whose event failed to persist is never confirmed, so the broker advance fails out."""
+    jobless_supervisor.events.append(TriggerEventEntry(1, TriggerEvent(True), 7))
+
+    with mock.patch.object(
+        TriggerRunnerSupervisor,
+        "on_trigger_event",
+        autospec=True,
+        side_effect=RuntimeError("db down"),
+    ):
+        with pytest.raises(RuntimeError, match="db down"):
+            jobless_supervisor.handle_events()
+
+    assert list(jobless_supervisor.persisted_event_seqs) == []
+
+
+@pytest.mark.parametrize(
+    ("team_name", "expected_tags"),
+    [
+        pytest.param("team_alpha", {"team_name": "team_alpha"}, id="with_team"),
+        pytest.param(None, {}, id="without_team"),
+    ],
+)
+def test_handle_events_emits_team_name(jobless_supervisor, team_name, expected_tags):
+    """triggers.succeeded carries the triggerer's team_name (omitted when the triggerer has none)."""
+    jobless_supervisor.team_name = team_name
+    jobless_supervisor.events.append(TriggerEventEntry(1, TriggerEvent(True), 7))
+
+    with (
+        mock.patch.object(TriggerRunnerSupervisor, "on_trigger_event", autospec=True),
+        mock.patch("airflow.jobs.triggerer_job_runner.stats.incr") as mock_incr,
+    ):
+        jobless_supervisor.handle_events()
+
+    mock_incr.assert_called_once_with("triggers.succeeded", tags=expected_tags)
+
+
+@pytest.mark.parametrize(
+    ("team_name", "expected_tags"),
+    [
+        pytest.param("team_alpha", {"team_name": "team_alpha"}, id="with_team"),
+        pytest.param(None, {}, id="without_team"),
+    ],
+)
+def test_handle_failed_triggers_emits_team_name(jobless_supervisor, team_name, expected_tags):
+    """triggers.failed carries the triggerer's team_name (omitted when the triggerer has none)."""
+    jobless_supervisor.team_name = team_name
+    jobless_supervisor.failed_triggers.append((1, None))
+
+    with (
+        mock.patch.object(TriggerRunnerSupervisor, "on_trigger_failure", autospec=True),
+        mock.patch("airflow.jobs.triggerer_job_runner.stats.incr") as mock_incr,
+    ):
+        jobless_supervisor.handle_failed_triggers()
+
+    mock_incr.assert_called_once_with("triggers.failed", tags=expected_tags)
+
+
+@pytest.mark.parametrize(
+    ("team_name", "expected_tags"),
+    [
+        pytest.param("team_alpha", {"team_name": "team_alpha"}, id="with_team"),
+        pytest.param(None, {}, id="without_team"),
+    ],
+)
+def test_heartbeat_callback_emits_team_name(jobless_supervisor, team_name, expected_tags):
+    jobless_supervisor.team_name = team_name
+
+    with mock.patch("airflow.jobs.triggerer_job_runner.stats.incr") as mock_incr:
+        jobless_supervisor.heartbeat_callback()
+
+    mock_incr.assert_called_once_with("triggerer_heartbeat", 1, 1, tags=expected_tags)
+
+
+@pytest.mark.parametrize(
+    ("team_name", "expected_extra"),
+    [
+        pytest.param("team_alpha", {"team_name": "team_alpha"}, id="with_team"),
+        pytest.param(None, {}, id="without_team"),
+    ],
+)
+def test_emit_metrics_includes_team_name(supervisor_builder, mocker, team_name, expected_extra):
+    supervisor = supervisor_builder()
+    supervisor.team_name = team_name
+    gauge = mocker.patch("airflow.jobs.triggerer_job_runner.stats.gauge")
+
+    supervisor.emit_metrics()
+
+    expected_tags = {"hostname": supervisor.job.hostname, **expected_extra}
+    gauge.assert_any_call("triggers.running", mock.ANY, tags=expected_tags)
+    gauge.assert_any_call("triggerer.capacity_left", mock.ANY, tags=expected_tags)
+
+
+def test_state_sync_carries_and_drains_persist_confirmations(jobless_supervisor):
+    """The state-sync response carries pending confirmations once, then None when there are none."""
+    jobless_supervisor.persisted_event_seqs.extend([3, 9])
+
+    with mock.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True) as mock_send:
+        jobless_supervisor._handle_request(
+            messages.TriggerStateChanges(events=None, failures=None, finished=None),
+            log=MagicMock(spec=FilteringBoundLogger),
+            req_id=1,
+        )
+
+    assert len(mock_send.mock_calls) == 1
+    response = mock_send.call_args.args[1]
+    assert isinstance(response, messages.TriggerStateSync)
+    assert response.events_persisted == [3, 9]
+    assert len(jobless_supervisor.persisted_event_seqs) == 0
+
+    # The next sync has nothing pending and carries None.
+    with mock.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True) as mock_send:
+        jobless_supervisor._handle_request(
+            messages.TriggerStateChanges(events=None, failures=None, finished=None),
+            log=MagicMock(spec=FilteringBoundLogger),
+            req_id=2,
+        )
+
+    response = mock_send.call_args.args[1]
+    assert isinstance(response, messages.TriggerStateSync)
+    assert response.events_persisted is None
+
+
+def test_run_trigger_appends_none_seq_for_non_shared_trigger():
+    """An event from a trigger outside any shared stream carries no persist-confirmation seq."""
+    trigger_runner = TriggerRunner()
+    trigger_runner.triggers = {
+        1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "t", "events": 0}
+    }
+    trigger = SuccessTrigger()
+    trigger.task_instance = MagicMock()
+    trigger.task_instance.map_index = -1
+
+    async def _drive():
+        # greenback.ensure_portal() inside run_trigger needs a real asyncio
+        # task, like the shared-stream tests above.
+        await asyncio.create_task(trigger_runner.run_trigger(1, trigger))
+
+    asyncio.run(_drive())
+
+    events = list(trigger_runner.events)
+    assert len(events) == 1
+    trigger_id, _event, seq = events[0]
+    assert trigger_id == 1
+    assert seq is None
+
+
+class TestFetchCallbackDagRunData:
+    """Tests for TriggerRunnerSupervisor._fetch_callback_dag_run_data (the PRODUCER of the
+    ``_deadline`` passthrough that ``_build_context_from_dag_run_data`` consumes). Without this,
+    the deadline-metadata flow on the async path was only half-covered: a producer that failed to
+    pack ``_deadline`` (or read the wrong callback.data keys) would silently drop the metadata and
+    the consumer test would still pass.
+    """
+
+    def _supervisor(self, mocker):
+        import psutil
+
+        job = Job()
+        process = mocker.Mock(spec=psutil.Process, pid=99)
+        return TriggerRunnerSupervisor(
+            process_log=mocker.Mock(spec=FilteringBoundLogger),
+            id=job.id,
+            job=job,
+            pid=process.pid,
+            stdin=mocker.Mock(spec=socket),
+            process=process,
+            capacity=10,
+        )
+
+    def test_packs_deadline_metadata_from_callback_data(self, session, dag_maker, mocker):
+        """deadline_id/deadline_time stored on callback.data (by Deadline.handle_miss) must be
+        packed into the returned dag_run_data as ``_deadline`` for the consumer to surface."""
+        from airflow.models.callback import TriggererCallback
+        from airflow.models.deadline import Deadline
+        from airflow.sdk.definitions.callback import AsyncCallback
+
+        with dag_maker(dag_id="fetch_cb_dag", session=session):
+            EmptyOperator(task_id="t")
+        dr = dag_maker.create_dagrun()
+
+        # Build a deadline -> TriggererCallback and run handle_miss so callback.data carries the
+        # routing + deadline metadata exactly as it would in production.
+        deadline = Deadline(
+            deadline_time=dr.logical_date,
+            callback=AsyncCallback("airflow.models.deadline.Deadline.prune_deadlines"),
+            dagrun_id=dr.id,
+            deadline_alert_id=None,
+        )
+        session.add(deadline)
+        session.flush()
+        deadline.handle_miss(session)
+        session.flush()
+
+        callback = deadline.callback
+        assert isinstance(callback, TriggererCallback)
+        trigger = callback.trigger
+        assert trigger is not None
+
+        supervisor = self._supervisor(mocker)
+        data = supervisor._fetch_callback_dag_run_data(trigger, session=session)
+
+        assert data is not None
+        assert "_deadline" in data
+        assert data["_deadline"]["id"] == str(deadline.id)
+        assert data["_deadline"]["deadline_time"] == deadline.deadline_time.isoformat()

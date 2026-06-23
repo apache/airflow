@@ -33,8 +33,6 @@ type Alias = {
   };
 };
 
-export type NextRunEvent = { id: number; lastUpdate: string | null; name: string | null; uri: string };
-
 export type AssetSummary = Alias | Asset;
 
 export type ExpressionType =

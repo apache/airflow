@@ -62,18 +62,19 @@ from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
-    AssetStateResult,
-    ClearAssetStateByName,
-    ClearAssetStateByUri,
-    ClearTaskState,
+    AssetStateStoreResult,
+    AwaitInputTask,
+    ClearAssetStateStoreByName,
+    ClearAssetStateStoreByUri,
+    ClearTaskStateStore,
     ConnectionResult,
     CreateHITLDetailPayload,
     DagResult,
     DagRunResult,
     DeferTask,
-    DeleteAssetStateByName,
-    DeleteAssetStateByUri,
-    DeleteTaskState,
+    DeleteAssetStateStoreByName,
+    DeleteAssetStateStoreByUri,
+    DeleteTaskStateStore,
     DeleteVariable,
     DeleteXCom,
     ErrorResponse,
@@ -82,8 +83,8 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetAssetsByAlias,
-    GetAssetStateByName,
-    GetAssetStateByUri,
+    GetAssetStateStoreByName,
+    GetAssetStateStoreByUri,
     GetConnection,
     GetDag,
     GetDagRun,
@@ -94,8 +95,8 @@ from airflow.sdk.execution_time.comms import (
     GetPrevSuccessfulDagRun,
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
-    GetTaskState,
     GetTaskStates,
+    GetTaskStateStore,
     GetTICount,
     GetVariable,
     GetVariableKeys,
@@ -112,18 +113,18 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
-    SetAssetStateByName,
-    SetAssetStateByUri,
+    SetAssetStateStoreByName,
+    SetAssetStateStoreByUri,
     SetRenderedFields,
     SetRenderedMapIndex,
-    SetTaskState,
+    SetTaskStateStore,
     SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
     TaskState,
-    TaskStateResult,
+    TaskStateStoreResult,
     ToSupervisor,
     TriggerDagRun,
     ValidateInletsAndOutlets,
@@ -171,7 +172,6 @@ if TYPE_CHECKING:
     from airflow.executors.workloads import BundleInfo
     from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
     from airflow.sdk.definitions.connection import Connection
-    from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
 __all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise", "supervise_task"]
@@ -197,6 +197,7 @@ SERVER_TERMINATED = "SERVER_TERMINATED"
 STATES_SENT_DIRECTLY: frozenset[TaskInstanceState | str] = frozenset(
     {
         TaskInstanceState.DEFERRED,
+        TaskInstanceState.AWAITING_INPUT,
         TaskInstanceState.UP_FOR_RESCHEDULE,
         TaskInstanceState.UP_FOR_RETRY,
         TaskInstanceState.SUCCESS,
@@ -1179,10 +1180,10 @@ def _fetch_remote_logging_conn(conn_id: str, client: Client) -> Connection | Non
         from airflow.sdk.definitions.connection import Connection
 
         result: Connection | None = Connection(**conn_result.model_dump(exclude={"type"}, by_alias=True))
+        _REMOTE_LOGGING_CONN_CACHE[conn_id] = result
     else:
         result = None
 
-    _REMOTE_LOGGING_CONN_CACHE[conn_id] = result
     return result
 
 
@@ -1289,9 +1290,9 @@ class ActivitySubprocess(WatchedSubprocess):
     # falling back to `finish()`, which doesn't accept SUCCESS / DEFERRED /
     # SERVER_TERMINATED on the server side. Cleared (and `_terminal_state`
     # set) only after the API call returns successfully.
-    _pending_terminal_state_msg: SucceedTask | RetryTask | DeferTask | RescheduleTask | None = attrs.field(
-        default=None, init=False
-    )
+    _pending_terminal_state_msg: (
+        SucceedTask | RetryTask | DeferTask | RescheduleTask | AwaitInputTask | None
+    ) = attrs.field(default=None, init=False)
 
     _last_successful_heartbeat: float = attrs.field(default=0, init=False)
     _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
@@ -1315,7 +1316,7 @@ class ActivitySubprocess(WatchedSubprocess):
     def start(  # type: ignore[override]
         cls,
         *,
-        what: TaskInstanceDTO,
+        what: TaskInstance,
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
         client: Client,
@@ -1344,7 +1345,7 @@ class ActivitySubprocess(WatchedSubprocess):
     def _on_child_started(
         self,
         *,
-        ti: TaskInstanceDTO,
+        ti: TaskInstance,
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
         sentry_integration: str,
@@ -1391,20 +1392,43 @@ class ActivitySubprocess(WatchedSubprocess):
         if self._exit_code is not None:
             return self._exit_code
 
+        # Forward termination signals to the task subprocess so the operator's
+        # on_kill() hook runs on graceful shutdown (e.g. K8s pod SIGTERM).
+        # Without this the supervisor exits on SIGTERM without notifying the
+        # child, leaving spawned resources (pods, subprocesses, etc.) running.
+        prev_sigterm = signal.getsignal(signal.SIGTERM)
+        prev_sigint = signal.getsignal(signal.SIGINT)
+
+        def _forward_signal(signum, frame):
+            log.info(
+                "Received signal, forwarding to task subprocess",
+                signal=signal.Signals(signum).name,
+                pid=self.pid,
+            )
+            with suppress(ProcessLookupError):
+                os.kill(self.pid, signum)
+
+        signal.signal(signal.SIGTERM, _forward_signal)
+        signal.signal(signal.SIGINT, _forward_signal)
+
         try:
             self._monitor_subprocess()
         finally:
             self.selector.close()
+            signal.signal(signal.SIGTERM, prev_sigterm)
+            signal.signal(signal.SIGINT, prev_sigint)
 
         # self._monitor_subprocess() will set the exit code when the process has finished
         # If it hasn't, assume it's failed
         self._exit_code = self._exit_code if self._exit_code is not None else 1
 
-        self.update_task_state_if_needed()
-
-        # Now at the last possible moment, when all logs and comms with the subprocess has finished, lets
-        # upload the remote logs
-        self._upload_logs()
+        try:
+            self.update_task_state_if_needed()
+        finally:
+            # Now at the last possible moment, when all logs and comms with the subprocess has finished,
+            # lets upload the remote logs. Run this in a `finally` so the logs are uploaded even if the
+            # state update above raised — a failed state update is exactly when the logs matter most.
+            self._upload_logs()
 
         return self._exit_code
 
@@ -1434,7 +1458,9 @@ class ActivitySubprocess(WatchedSubprocess):
                 rendered_map_index=self._rendered_map_index,
             )
 
-    def _send_terminal_state_msg(self, msg: SucceedTask | RetryTask | DeferTask | RescheduleTask) -> None:
+    def _send_terminal_state_msg(
+        self, msg: SucceedTask | RetryTask | DeferTask | RescheduleTask | AwaitInputTask
+    ) -> None:
         # Capture the message BEFORE the API call so the recovery dispatcher
         # in `update_task_state_if_needed` can re-issue it if the call raises
         # (network blip, transient server 5xx). Clear the pending slot and
@@ -1464,6 +1490,9 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, RescheduleTask):
             self.client.task_instances.reschedule(self.id, msg)
             self._terminal_state = TaskInstanceState.UP_FOR_RESCHEDULE
+        elif isinstance(msg, AwaitInputTask):
+            self.client.task_instances.await_input(self.id, msg)
+            self._terminal_state = TaskInstanceState.AWAITING_INPUT
         self._pending_terminal_state_msg = None
 
     def _replay_pending_terminal_state_msg(self) -> None:
@@ -1686,6 +1715,9 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, DeferTask):
             self._rendered_map_index = msg.rendered_map_index
             self._send_terminal_state_msg(msg)
+        elif isinstance(msg, AwaitInputTask):
+            self._rendered_map_index = msg.rendered_map_index
+            self._send_terminal_state_msg(msg)
         elif isinstance(msg, RescheduleTask):
             self._send_terminal_state_msg(msg)
         elif isinstance(msg, SkipDownstreamTasks):
@@ -1801,53 +1833,53 @@ class ActivitySubprocess(WatchedSubprocess):
                 dag_id=msg.dag_id,
             )
             resp = DagResult.from_api_response(dag)
-        elif isinstance(msg, GetTaskState):
-            task_state = self.client.task_state.get(msg.ti_id, msg.key)
+        elif isinstance(msg, GetTaskStateStore):
+            task_store = self.client.task_state_store.get(msg.ti_id, msg.key)
             resp = (
-                task_state
-                if isinstance(task_state, ErrorResponse)
-                else TaskStateResult.from_task_state_response(task_state)
+                task_store
+                if isinstance(task_store, ErrorResponse)
+                else TaskStateStoreResult.from_task_state_store_response(task_store)
             )
-        elif isinstance(msg, SetTaskState):
-            self.client.task_state.set(msg.ti_id, msg.key, msg.value, expires_at=msg.expires_at)
+        elif isinstance(msg, SetTaskStateStore):
+            self.client.task_state_store.set(msg.ti_id, msg.key, msg.value, expires_at=msg.expires_at)
             resp = OKResponse(ok=True)
-        elif isinstance(msg, DeleteTaskState):
-            self.client.task_state.delete(msg.ti_id, msg.key)
+        elif isinstance(msg, DeleteTaskStateStore):
+            self.client.task_state_store.delete(msg.ti_id, msg.key)
             resp = OKResponse(ok=True)
-        elif isinstance(msg, ClearTaskState):
-            self.client.task_state.clear(msg.ti_id, all_map_indices=msg.all_map_indices)
+        elif isinstance(msg, ClearTaskStateStore):
+            self.client.task_state_store.clear(msg.ti_id)
             resp = OKResponse(ok=True)
-        elif isinstance(msg, GetAssetStateByName):
-            asset_state = self.client.asset_state.get(msg.key, name=msg.name)
+        elif isinstance(msg, GetAssetStateStoreByName):
+            asset_store = self.client.asset_state_store.get(msg.key, name=msg.name)
             resp = (
-                asset_state
-                if isinstance(asset_state, ErrorResponse)
-                else AssetStateResult.from_asset_state_response(asset_state)
+                asset_store
+                if isinstance(asset_store, ErrorResponse)
+                else AssetStateStoreResult.from_asset_state_store_response(asset_store)
             )
-        elif isinstance(msg, GetAssetStateByUri):
-            asset_state = self.client.asset_state.get(msg.key, uri=msg.uri)
+        elif isinstance(msg, GetAssetStateStoreByUri):
+            asset_store = self.client.asset_state_store.get(msg.key, uri=msg.uri)
             resp = (
-                asset_state
-                if isinstance(asset_state, ErrorResponse)
-                else AssetStateResult.from_asset_state_response(asset_state)
+                asset_store
+                if isinstance(asset_store, ErrorResponse)
+                else AssetStateStoreResult.from_asset_state_store_response(asset_store)
             )
-        elif isinstance(msg, SetAssetStateByName):
-            self.client.asset_state.set(msg.key, msg.value, name=msg.name)
+        elif isinstance(msg, SetAssetStateStoreByName):
+            self.client.asset_state_store.set(msg.key, msg.value, name=msg.name)
             resp = OKResponse(ok=True)
-        elif isinstance(msg, SetAssetStateByUri):
-            self.client.asset_state.set(msg.key, msg.value, uri=msg.uri)
+        elif isinstance(msg, SetAssetStateStoreByUri):
+            self.client.asset_state_store.set(msg.key, msg.value, uri=msg.uri)
             resp = OKResponse(ok=True)
-        elif isinstance(msg, DeleteAssetStateByName):
-            self.client.asset_state.delete(msg.key, name=msg.name)
+        elif isinstance(msg, DeleteAssetStateStoreByName):
+            self.client.asset_state_store.delete(msg.key, name=msg.name)
             resp = OKResponse(ok=True)
-        elif isinstance(msg, DeleteAssetStateByUri):
-            self.client.asset_state.delete(msg.key, uri=msg.uri)
+        elif isinstance(msg, DeleteAssetStateStoreByUri):
+            self.client.asset_state_store.delete(msg.key, uri=msg.uri)
             resp = OKResponse(ok=True)
-        elif isinstance(msg, ClearAssetStateByName):
-            self.client.asset_state.clear(name=msg.name)
+        elif isinstance(msg, ClearAssetStateStoreByName):
+            self.client.asset_state_store.clear(name=msg.name)
             resp = OKResponse(ok=True)
-        elif isinstance(msg, ClearAssetStateByUri):
-            self.client.asset_state.clear(uri=msg.uri)
+        elif isinstance(msg, ClearAssetStateStoreByUri):
+            self.client.asset_state_store.clear(uri=msg.uri)
             resp = OKResponse(ok=True)
         else:
             log.error("Unhandled request", msg=msg)
@@ -1987,6 +2019,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
         what: TaskInstance,
         task,
         logger: FilteringBoundLogger | None = None,
+        client: Client | None = None,
         **kwargs,
     ) -> TaskRunResult:
         """
@@ -1998,6 +2031,9 @@ class InProcessTestSupervisor(ActivitySubprocess):
         Dag is already parsed in memory.
 
         Supervisor state and communications are simulated in-memory via `InProcessSupervisorComms`.
+
+        :param client: optional Execution-API client to use. Defaults to the DB-backed
+            in-process API server; pass an in-memory/dry-run client to run without a metadata DB.
         """
         # Create supervisor instance
         supervisor = cls(
@@ -2005,7 +2041,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
             pid=os.getpid(),  # Use current process
             process=psutil.Process(),  # Current process
             process_log=logger or structlog.get_logger(logger_name="task").bind(),
-            client=cls._api_client(task.dag),
+            client=client if client is not None else cls._api_client(task.dag),
             **kwargs,
         )
 
@@ -2148,10 +2184,15 @@ def set_supervisor_comms(temp_comms):
             task_runner.SUPERVISOR_COMMS = old
 
 
-def run_task_in_process(ti: TaskInstance, task) -> TaskRunResult:
-    """Run a task in-process for testing."""
+def run_task_in_process(ti: TaskInstance, task, client: Client | None = None) -> TaskRunResult:
+    """
+    Run a task in-process for testing.
+
+    :param client: optional Execution-API client (e.g. an in-memory/dry-run client to run
+        without a metadata DB). Defaults to the DB-backed in-process API server.
+    """
     # Run the task
-    return InProcessTestSupervisor.start(what=ti, task=task)
+    return InProcessTestSupervisor.start(what=ti, task=task, client=client)
 
 
 # Sockets, even the `.makefile()` function don't correctly do line buffering on reading. If a chunk is read
@@ -2318,8 +2359,8 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     2. _AIRFLOW_PROCESS_CONTEXT=server env var → server chain (MetastoreBackend)
     3. Neither → fallback chain (only env vars + external backends, no MetastoreBackend)
 
-    Client contexts: task runner in worker (has SUPERVISOR_COMMS)
-    Server contexts: API server, scheduler (set _AIRFLOW_PROCESS_CONTEXT=server)
+    Client contexts: task runner in worker (has SUPERVISOR_COMMS), triggerer runner subprocess (set _AIRFLOW_PROCESS_CONTEXT=client)
+    Server contexts: API server, scheduler, triggerer supervisor (set _AIRFLOW_PROCESS_CONTEXT=server)
     Fallback contexts: supervisor, unknown contexts (no SUPERVISOR_COMMS, no env var)
 
     The fallback chain ensures supervisor can use external secrets (AWS Secrets Manager,
@@ -2342,7 +2383,7 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
 
     # 2. Check for explicit server context
     if os.environ.get("_AIRFLOW_PROCESS_CONTEXT") == "server":
-        # Server context: API server, scheduler
+        # Server context: API server, scheduler, triggerer
         # uses the default server list
         return ensure_secrets_loaded()
 
@@ -2381,7 +2422,7 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
 
 def supervise_task(
     *,
-    ti: TaskInstanceDTO,
+    ti: TaskInstance,
     bundle_info: BundleInfo,
     dag_rel_path: str | os.PathLike[str],
     token: str,
@@ -2451,7 +2492,7 @@ def supervise_task(
         raise ValueError("dag_path is required")
 
     try:
-        coordinator = get_coordinator_manager().for_queue(ti.queue)
+        coordinator = get_coordinator_manager().for_queue(ti.queue or "default")
     except:
         log.exception(
             "Failed to initialize coordinator for task",

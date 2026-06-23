@@ -22,12 +22,16 @@
   "assetEvent_many": "Zdarzeń zasobów",
   "assetEvent_one": "Zdarzenie Zasobu",
   "assetEvent_other": "Zdarzenia Zasobów",
+  "assetInactive": {
+    "tooltip": "Zasób nadrzędny został deaktywowany; harmonogram wstrzymuje ocenę partycji do czasu jego ponownej aktywacji."
+  },
   "backfill_few": "Wypełnienia wsteczne",
   "backfill_many": "Wypełnień wstecznych",
   "backfill_one": "Wypełnienie wsteczne",
   "backfill_other": "Wypełnienia wsteczne",
   "browse": {
     "auditLog": "Log audytu",
+    "deadlines": "Terminy",
     "jobs": "Zadania",
     "requiredActions": "Wymagane akcje",
     "xcoms": "XComy"
@@ -154,6 +158,7 @@
     "startTime": "Czas rozpoczęcia"
   },
   "generateToken": "Wygeneruj token",
+  "key": "Klucz",
   "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
   "logoutConfirmation": "Zamierzasz wylogować się z aplikacji.",
@@ -187,6 +192,7 @@
     "placeholder": "Dodaj notatkę...",
     "taskInstance": "Notatka instancji zadania"
   },
+  "overallStatus": "Stan ogólny",
   "partitionedDagRun_few": "Partycjonowane wykonania Dagów",
   "partitionedDagRun_many": "Partycjonowanych wykonań Dagów",
   "partitionedDagRun_one": "Partycjonowane wykonanie Daga",
@@ -243,6 +249,7 @@
   "startDate": "Data rozpoczęcia",
   "state": "Stan",
   "states": {
+    "awaiting_input": "Oczekuje na dane wejściowe",
     "deferred": "Odłożone",
     "failed": "Niepowodzenie",
     "no_status": "Brak stanu",
@@ -277,20 +284,24 @@
       "any": "Dowolne"
     },
     "tagPlaceholder": "Filtruj według etykiety",
-    "to": "Do"
+    "to": "Do",
+    "updatedAt": "Zaktualizowano"
   },
   "task": {
+    "dependsOnPast": "Zależy od przeszłych uruchomień",
     "documentation": "Dokumentacja zadania",
     "lastInstance": "Ostatnia instancja zadania",
     "operator": "Operator",
-    "triggerRule": "Reguła zależności"
+    "retries": "Ponowne próby",
+    "triggerRule": "Reguła zależności",
+    "waitForDownstream": "Czekaj na zadania podrzędne"
   },
   "task_few": "Zadania",
   "task_many": "Zadań",
   "task_one": "Zadanie",
   "task_other": "Zadania",
   "taskGroup": {
-    "documentation": "Task Group Documentation"
+    "documentation": "Dokumentacja grupy zadań"
   },
   "taskGroup_few": "Grupy zadań",
   "taskGroup_many": "Grup zadań",
@@ -309,6 +320,7 @@
     "priorityWeight": "Waga priorytetu",
     "queue": "Kolejka",
     "queuedWhen": "Zakolejkowano o",
+    "renderedMapIndex": "Wyrenderowany indeks mapowania",
     "scheduledWhen": "Zaplanowano o",
     "triggerer": {
       "assigned": "Przypisany wyzwalacz",
@@ -413,6 +425,7 @@
     "mustBeAtLeast": "Musi wynosić co najmniej {{min}}.",
     "mustBeValidNumber": "Musi być prawidłową liczbą."
   },
+  "value": "Wartość",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Wybierz {{hotkey}} aby przełączyć zawijanie",

@@ -29,18 +29,31 @@ from airflow.providers.common.ai.mixins.approval import (
 )
 from airflow.providers.common.ai.operators.llm import LLMOperator
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 try:
-    from airflow.sdk.serde import allow_class
-
-    _allow_class: object | None = allow_class
+    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
 except ImportError:
-    _allow_class = None
+    _CORE_WALKER = False
 
-requires_allow_class = pytest.mark.skipif(
-    _allow_class is None,
-    reason="Requires airflow.sdk.serde.allow_class (Airflow with typed-XCom support).",
+from airflow.providers.common.compat.sdk import TaskDeferred
+
+if AIRFLOW_V_3_3_PLUS:
+    # On 3.3+ cores require_approval pauses the task in AWAITING_INPUT; older cores defer
+    # to HITLTrigger. Both exceptions carry method_name/kwargs/timeout, so the approval
+    # tests assert against whichever pause signal the running core uses.
+    from airflow.sdk.exceptions import TaskAwaitingInput as ApprovalPauseSignal
+else:
+    ApprovalPauseSignal = TaskDeferred  # type: ignore[assignment, misc]
+
+AWAIT_INPUT_FLAG_PATH = "airflow.providers.common.ai.mixins.approval.AIRFLOW_V_3_3_PLUS"
+
+# Returning the Pydantic instance through XCom (rather than a dict) only happens
+# on cores that register declared ``output_type`` classes from the worker-side
+# DAG walk. On older cores the operator dumps to a dict, so these tests skip.
+requires_typed_xcom = pytest.mark.skipif(
+    not _CORE_WALKER,
+    reason="Requires a core with the worker-side deserialization-class walk.",
 )
 
 
@@ -56,9 +69,7 @@ def _make_mock_run_result(output):
     """Create a mock AgentRunResult compatible with log_run_summary."""
     mock_result = MagicMock()
     mock_result.output = output
-    mock_result.usage.return_value = MagicMock(
-        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
-    )
+    mock_result.usage = MagicMock(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
     mock_result.response = MagicMock(model_name="test-model")
     mock_result.all_messages.return_value = []
     return mock_result
@@ -104,7 +115,7 @@ class TestLLMOperator:
 
         mock_agent.run_sync.assert_called_once_with("Summarize", usage_limits=limits)
 
-    @requires_allow_class
+    @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_structured_output_with_all_params(self, mock_hook_cls):
         """Structured output returns the Pydantic instance unchanged so downstream tasks keep the type."""
@@ -133,27 +144,13 @@ class TestLLMOperator:
             model_settings={"temperature": 0.9},
         )
 
-    @requires_allow_class
-    def test_init_rejects_nested_output_type(self):
-        """output_type defined inside a function carries ``<locals>`` and can't survive XCom."""
+    def test_declares_output_type_for_deserialization(self):
+        """Declares ``output_type`` so the worker-side DAG walk registers it for deserialization.
 
-        def _build_op():
-            class Nested(BaseModel):
-                v: int
-
-            return LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Nested)
-
-        with pytest.raises(ValueError, match="defined inside a function"):
-            _build_op()
-
-    @requires_allow_class
-    def test_init_registers_output_type_in_extra_allowed(self):
-        """A module-scope BaseModel output_type is auto-registered for XCom deserialization."""
-        from airflow.sdk.module_loading import qualname
-        from airflow.sdk.serde import _extra_allowed
-
-        LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Entities)
-        assert qualname(Entities) in _extra_allowed
+        Registration happens in the core walk over the loaded DAG (covered by the
+        task-runner tests), not as an ``__init__`` side effect.
+        """
+        assert "output_type" in LLMOperator.deserialization_allowed_class_fields
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_serialize_output_returns_dict(self, mock_hook_cls):
@@ -202,8 +199,6 @@ class TestLLMOperatorApproval:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_with_approval_defers(self, mock_hook_cls, mock_upsert, mock_trigger_cls):
         """When require_approval=True, execute() defers instead of returning output."""
-        from airflow.providers.common.compat.sdk import TaskDeferred
-
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("LLM response")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
@@ -216,11 +211,36 @@ class TestLLMOperatorApproval:
         )
         ctx = _make_context()
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with pytest.raises(ApprovalPauseSignal) as exc_info:
             op.execute(context=ctx)
 
         assert exc_info.value.method_name == "execute_complete"
         assert exc_info.value.kwargs["generated_output"] == "LLM response"
+        mock_upsert.assert_called_once()
+
+    @patch(AWAIT_INPUT_FLAG_PATH, False)
+    @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
+    @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_with_approval_defers_on_legacy_core(self, mock_hook_cls, mock_upsert, mock_trigger_cls):
+        """On cores < 3.3 (flag pinned), execute() falls back to deferring to HITLTrigger."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result("LLM response")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(
+            task_id="legacy_approval_test",
+            prompt="Summarize this",
+            llm_conn_id="my_llm",
+            require_approval=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            op.execute(context=_make_context())
+
+        assert exc_info.value.method_name == "execute_complete"
+        assert exc_info.value.kwargs["generated_output"] == "LLM response"
+        mock_trigger_cls.assert_called_once()
         mock_upsert.assert_called_once()
 
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
@@ -228,8 +248,6 @@ class TestLLMOperatorApproval:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_with_approval_and_modifications(self, mock_hook_cls, mock_upsert, mock_trigger_cls):
         """allow_modifications=True passes an editable 'output' param."""
-        from airflow.providers.common.compat.sdk import TaskDeferred
-
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("draft output")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
@@ -243,7 +261,7 @@ class TestLLMOperatorApproval:
         )
         ctx = _make_context()
 
-        with pytest.raises(TaskDeferred):
+        with pytest.raises(ApprovalPauseSignal):
             op.execute(context=ctx)
 
         upsert_kwargs = mock_upsert.call_args[1]
@@ -254,8 +272,6 @@ class TestLLMOperatorApproval:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_with_approval_and_timeout(self, mock_hook_cls, mock_upsert, mock_trigger_cls):
         """approval_timeout is passed to the trigger."""
-        from airflow.providers.common.compat.sdk import TaskDeferred
-
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("output")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
@@ -270,7 +286,7 @@ class TestLLMOperatorApproval:
         )
         ctx = _make_context()
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with pytest.raises(ApprovalPauseSignal) as exc_info:
             op.execute(context=ctx)
 
         assert exc_info.value.timeout == timeout
@@ -280,8 +296,6 @@ class TestLLMOperatorApproval:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_with_approval_structured_output(self, mock_hook_cls, mock_upsert, mock_trigger_cls):
         """Structured (BaseModel) output is serialized before deferring."""
-        from airflow.providers.common.compat.sdk import TaskDeferred
-
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result(Summary(text="hello"))
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
@@ -295,7 +309,7 @@ class TestLLMOperatorApproval:
         )
         ctx = _make_context()
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with pytest.raises(ApprovalPauseSignal) as exc_info:
             op.execute(context=ctx)
 
         assert exc_info.value.kwargs["generated_output"] == '{"text":"hello"}'
@@ -354,7 +368,7 @@ class TestLLMOperatorApproval:
 
         assert result == "edited"
 
-    @requires_allow_class
+    @requires_typed_xcom
     def test_execute_complete_rehydrates_pydantic_for_structured_output(self):
         """When output_type is a BaseModel, execute_complete returns the model, not the JSON string."""
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Summary)

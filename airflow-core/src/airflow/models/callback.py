@@ -33,10 +33,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from airflow._shared.module_loading import accepts_context as _accepts_context  # noqa: F401
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
+from airflow.configuration import conf
 from airflow.executors.workloads import BaseWorkload
 from airflow.executors.workloads.callback import CallbackFetchMethod
 from airflow.models import Base
 from airflow.models.base import StringID
+from airflow.models.dagbundle import DagBundleModel
+from airflow.utils.helpers import prune_dict
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 from airflow.utils.state import CallbackState
 
@@ -151,12 +154,14 @@ class Callback(Base, BaseWorkload):
         if prefix:
             self.data["prefix"] = prefix
 
-    def queue(self):
+    def queue(self, *, session: Session) -> None:
         self.state = CallbackState.QUEUED
 
-    def get_metric_info(self, status: CallbackState, result: Any) -> dict:
+    def get_metric_info(self, status: CallbackState, result: Any, team_name: str | None = None) -> dict:
         tags = {"result": result, **self.data}
         tags.pop("prefix", None)
+        for key in ("dag_id", "run_id", "deadline_id", "deadline_time", "dag_run_id"):
+            tags.pop(key, None)
 
         if "kwargs" in tags:
             # Remove the context (if exists) to keep the tags simple
@@ -174,6 +179,10 @@ class Callback(Base, BaseWorkload):
             else json.dumps(v, default=str, sort_keys=True)
             for k, v in tags.items()
         }
+
+        # team_name is omitted entirely when not in a multi-team deployment or when the
+        # callback's bundle is not mapped to a team.
+        tags = prune_dict({**tags, "team_name": team_name})
 
         prefix = self.data.get("prefix", "")
         name = f"{prefix}.callback_{status}" if prefix else f"callback_{status}"
@@ -225,27 +234,70 @@ class TriggererCallback(Callback):
     def __repr__(self):
         return f"{self.data['path']}({self.data['kwargs'] or ''}) on a triggerer"
 
-    def queue(self):
+    def queue(self, *, session: Session) -> None:
+        from airflow.models.dag import DagModel
         from airflow.models.trigger import Trigger
         from airflow.triggers.callback import CallbackTrigger
 
-        self.trigger = Trigger.from_object(
+        team_name: str | None = None
+        if self.bundle_name and conf.getboolean("core", "multi_team"):
+            team_name = DagBundleModel.get_team_name(self.bundle_name, session=session)
+        elif dag_id := self.data.get("dag_id"):
+            team_name = DagModel.get_team_name(dag_id, session=session)
+
+        trigger = Trigger.from_object(
             CallbackTrigger(
                 callback_path=self.data["path"],
                 callback_kwargs=self.data["kwargs"],
             )
         )
-        super().queue()
+        trigger.team_name = team_name
+        self.trigger = trigger
+        super().queue(session=session)
 
     def handle_event(self, event: TriggerEvent, session: Session):
         from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY
 
+        # Terminal states are absorbing: once a callback is SUCCESS/FAILED it must never be
+        # moved again. In the normal flow CallbackTrigger yields RUNNING then a single terminal
+        # event in order, but at-least-once / duplicate delivery (a re-run trigger, or an HA
+        # triggerer replica reprocessing a stale queued event) could otherwise resurrect a
+        # completed callback back to an active state — or silently overwrite a FAILED outcome
+        # with a late SUCCESS (and vice versa). Ignore any further events once terminal.
+        if self.state in TERMINAL_STATES:
+            log.debug(
+                "Ignoring event for already-terminal callback %s (state=%s): %s",
+                self.id,
+                self.state,
+                event.payload,
+            )
+            return
+
         if (status := event.payload.get(PAYLOAD_STATUS_KEY)) and status in (ACTIVE_STATES | TERMINAL_STATES):
             self.state = status
             if status in TERMINAL_STATES:
+                team_name: str | None = None
+                if self.bundle_name and conf.getboolean("core", "multi_team"):
+                    team_name = DagBundleModel.get_team_name(self.bundle_name, session=session)
                 self.trigger = None
-                self.output = event.payload.get(PAYLOAD_BODY_KEY)
-                stats.incr(**self.get_metric_info(status, self.output))
+                body = event.payload.get(PAYLOAD_BODY_KEY)
+                if body is not None and not isinstance(body, str):
+                    try:
+                        body = json.dumps(body, default=str, sort_keys=True)
+                    except Exception:
+                        # The callback returned a value json.dumps cannot encode even
+                        # with default=str (e.g. a circular reference, a dict with
+                        # mutually uncomparable keys under sort_keys, or a value whose
+                        # str()/repr() raises). handle_event runs in the triggerer
+                        # supervisor's synchronous run loop with no surrounding guard,
+                        # so an exception here would crash the triggerer. Fall back to
+                        # a best-effort repr and never let coercion fail the process.
+                        try:
+                            body = repr(body)
+                        except Exception:
+                            body = f"<uncoercible callback result of type {type(body).__name__}>"
+                self.output = body
+                stats.incr(**self.get_metric_info(status, self.output, team_name=team_name))
 
             session.add(self)
         else:

@@ -117,6 +117,37 @@ class TestDeadlineAlert:
         assert "interval=1m" in repr_str
         assert repr(deadline_alert_orm.callback_def) in repr_str
 
+    @pytest.mark.parametrize(
+        ("interval", "expected"),
+        [
+            # The PRODUCTION shape after migration 0117: ``interval`` is a JSON dict holding the
+            # Airflow-serialized form, NOT a bare number. A fixed timedelta serializes to
+            # ``{"__classname__": "datetime.timedelta", "__data__": <seconds>}``.
+            pytest.param(
+                {"__classname__": "datetime.timedelta", "__data__": 7200.0}, "interval=2h", id="timedelta_2h"
+            ),
+            # A corrupted dict without ``__data__`` must still render (no raise) as dynamic.
+            pytest.param({"unexpected": "shape"}, "interval=dynamic", id="corrupted_dict_dynamic"),
+        ],
+    )
+    def test_deadline_alert_repr_does_not_raise_on_json_dict_interval(
+        self, deadline_alert_orm, interval, expected
+    ):
+        """``DeadlineAlert.__repr__`` must never raise for the PRODUCTION (JSON-dict) ``interval`` shape.
+
+        Regression for a bug where ``__repr__`` did ``isinstance(self.interval, datetime.timedelta)``
+        while ``datetime`` is imported as the *class* (``from datetime import datetime``), so
+        ``datetime.timedelta`` raised ``AttributeError`` — and since ``interval`` is *always* a JSON
+        dict in production (post-migration-0117), every real ``repr()`` hit that branch and raised
+        (a ``__repr__`` that raises breaks logs/tracebacks/debuggers — the same class as the
+        ``Deadline.__repr__`` None-deref fix). The old ``test_deadline_alert_repr`` used a *bare int*
+        fixture (``DEADLINE_INTERVAL = 60``) which only exercised the int/float branch and masked it.
+        """
+        deadline_alert_orm.interval = interval
+        repr_str = repr(deadline_alert_orm)  # must not raise
+        assert "[DeadlineAlert]" in repr_str
+        assert expected in repr_str
+
     def test_deadline_alert_matches_definition(self, session, deadline_reference):
         alert1 = DeadlineAlert(
             serialized_dag_id=SERIALIZED_DAG_ID,

@@ -44,10 +44,18 @@ func TestDecodeStartupDetails(t *testing.T) {
 		},
 		"start_date":         "2024-01-15T10:30:00Z",
 		"sentry_integration": "",
+		// The supervisor nests the scheduling timestamps under dag_run, matching
+		// task-sdk's TIRunContext / DagRun schema.
 		"ti_context": map[string]any{
-			"logical_date":        "2024-01-15T00:00:00Z",
-			"data_interval_start": "2024-01-14T00:00:00Z",
-			"data_interval_end":   "2024-01-15T00:00:00Z",
+			"dag_run": map[string]any{
+				"dag_id":              "tutorial_dag",
+				"run_id":              "manual__2024-01-15",
+				"logical_date":        "2024-01-15T00:00:00Z",
+				"data_interval_start": "2024-01-14T00:00:00Z",
+				"data_interval_end":   "2024-01-15T00:00:00Z",
+			},
+			"max_tries":    int64(3),
+			"should_retry": true,
 		},
 	}
 
@@ -63,7 +71,22 @@ func TestDecodeStartupDetails(t *testing.T) {
 	assert.Equal(t, "dags/tutorial.go", details.DagRelPath)
 	assert.Equal(t, "example_dags", details.BundleInfo.Name)
 	assert.Equal(t, "1.0.0", details.BundleInfo.Version)
-	assert.NotNil(t, details.TIContext.LogicalDate)
+	require.NotNil(t, details.TIContext.LogicalDate)
+	assert.Equal(t, time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC), *details.TIContext.LogicalDate)
+	require.NotNil(t, details.TIContext.DataIntervalStart)
+	assert.Equal(
+		t,
+		time.Date(2024, 1, 14, 0, 0, 0, 0, time.UTC),
+		*details.TIContext.DataIntervalStart,
+	)
+	require.NotNil(t, details.TIContext.DataIntervalEnd)
+	assert.Equal(
+		t,
+		time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+		*details.TIContext.DataIntervalEnd,
+	)
+	assert.Equal(t, 3, details.TIContext.MaxTries)
+	assert.True(t, details.TIContext.ShouldRetry)
 }
 
 func TestDecodeStartupDetails_MalformedStartDate(t *testing.T) {
@@ -93,7 +116,9 @@ func TestDecodeStartupDetails_MalformedTIRunContext(t *testing.T) {
 			"try_number": int64(1),
 		},
 		"ti_context": map[string]any{
-			"logical_date": "garbage",
+			"dag_run": map[string]any{
+				"logical_date": "garbage",
+			},
 		},
 	}
 	_, err := decodeStartupDetails(m)
@@ -173,9 +198,95 @@ func TestDecodeConnectionResult(t *testing.T) {
 	assert.Equal(t, "postgres", result.ConnType)
 	assert.Equal(t, "db.example.com", result.Host)
 	assert.Equal(t, "mydb", result.Schema)
-	assert.Equal(t, "user", result.Login)
-	assert.Equal(t, "secret", result.Password)
+	require.NotNil(t, result.Login)
+	assert.Equal(t, "user", *result.Login)
+	require.NotNil(t, result.Password)
+	assert.Equal(t, "secret", *result.Password)
 	assert.Equal(t, 5432, result.Port)
+}
+
+// TestDecodeConnectionResultNullableCredentials covers the four shapes login /
+// password can take on the wire: absent, explicit None, explicit "", and a
+// real value. Empty-string and absent must be distinguishable so URI building
+// in sdk.Connection picks the same branch the HTTP-backed SDK would.
+func TestDecodeConnectionResultNullableCredentials(t *testing.T) {
+	empty := ""
+	user := "user"
+	tests := []struct {
+		name         string
+		body         map[string]any
+		wantLogin    *string
+		wantPassword *string
+	}{
+		{
+			name: "absent keys decode to nil",
+			body: map[string]any{
+				"type":    "ConnectionResult",
+				"conn_id": "c",
+			},
+			wantLogin:    nil,
+			wantPassword: nil,
+		},
+		{
+			name: "explicit nil decodes to nil",
+			body: map[string]any{
+				"type":     "ConnectionResult",
+				"conn_id":  "c",
+				"login":    nil,
+				"password": nil,
+			},
+			wantLogin:    nil,
+			wantPassword: nil,
+		},
+		{
+			name: "empty string is preserved",
+			body: map[string]any{
+				"type":     "ConnectionResult",
+				"conn_id":  "c",
+				"login":    "",
+				"password": "",
+			},
+			wantLogin:    &empty,
+			wantPassword: &empty,
+		},
+		{
+			name: "non-empty string is preserved",
+			body: map[string]any{
+				"type":     "ConnectionResult",
+				"conn_id":  "c",
+				"login":    "user",
+				"password": "secret",
+			},
+			wantLogin:    &user,
+			wantPassword: nil, // checked below
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := decodeConnectionResult(tc.body)
+			require.NoError(t, err)
+
+			if tc.wantLogin == nil {
+				assert.Nil(t, result.Login)
+			} else {
+				require.NotNil(t, result.Login)
+				assert.Equal(t, *tc.wantLogin, *result.Login)
+			}
+
+			if tc.name == "non-empty string is preserved" {
+				require.NotNil(t, result.Password)
+				assert.Equal(t, "secret", *result.Password)
+				return
+			}
+			if tc.wantPassword == nil {
+				assert.Nil(t, result.Password)
+			} else {
+				require.NotNil(t, result.Password)
+				assert.Equal(t, *tc.wantPassword, *result.Password)
+			}
+		})
+	}
 }
 
 func TestDecodeVariableResult(t *testing.T) {
@@ -309,6 +420,15 @@ func TestTaskStateMsgToMap_PreservesSubsecondPrecision(t *testing.T) {
 	msg := TaskStateMsg{State: TaskStateFailed, EndDate: endDate}
 	m := msg.toMap()
 	assert.Equal(t, "2024-01-15T10:30:00.123456789Z", m["end_date"])
+}
+
+func TestRetryTaskMsgToMap(t *testing.T) {
+	endDate := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+	msg := RetryTaskMsg{EndDate: endDate, Reason: "test error"}
+	m := msg.toMap()
+	assert.Equal(t, "RetryTask", m["type"])
+	assert.Equal(t, "test error", m["retry_reason"])
+	assert.Equal(t, "2024-01-15T10:30:00Z", m["end_date"])
 }
 
 func TestTaskStateConstants_WireValues(t *testing.T) {

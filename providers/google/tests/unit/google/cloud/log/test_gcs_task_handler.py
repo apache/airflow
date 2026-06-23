@@ -191,17 +191,23 @@ class TestGCSRemoteLogIO:
         result = gcs_remote_log_io.write(new_log_content, remote_log_location)
 
         # verify
-        assert result == upload_success
-
-        # verify the content that was uploaded
-        if upload_success:
-            call_args = mock_blob.from_string.return_value.upload_from_string.call_args
-            if call_args:
-                uploaded_content = call_args[0][0]
-                if old_log_exists and not old_log_read_error:
-                    assert uploaded_content == f"{old_log_content}\n{new_log_content}"
-                else:
-                    assert uploaded_content == new_log_content
+        # If reading the existing blob failed for a reason other than "not found", the
+        # handler now fails closed (returns False without uploading) rather than overwriting
+        # the existing blob with only the new content. The 404 case still proceeds to upload.
+        if old_log_read_error is not None:
+            assert result is False
+            mock_blob.from_string.return_value.upload_from_string.assert_not_called()
+        else:
+            assert result == upload_success
+            # verify the content that was uploaded
+            if upload_success:
+                call_args = mock_blob.from_string.return_value.upload_from_string.call_args
+                if call_args:
+                    uploaded_content = call_args[0][0]
+                    if old_log_exists:
+                        assert uploaded_content == f"{old_log_content}\n{new_log_content}"
+                    else:
+                        assert uploaded_content == new_log_content
 
     @pytest.mark.parametrize(
         "is_stream_method",
@@ -541,18 +547,14 @@ class TestGCSTaskHandler:
         )
         self.gcs_task_handler.close()
 
-        mock_blob.from_string.assert_has_calls(
-            [
-                mock.call("gs://bucket/remote/log/location/1.log", mock_client.return_value),
-                mock.call().download_as_bytes(),
-                mock.call("gs://bucket/remote/log/location/1.log", mock_client.return_value),
-                mock.call().upload_from_string(
-                    "MESSAGE\n",
-                    content_type="text/plain",
-                ),
-            ],
-            any_order=False,
+        # Fail-closed contract: when reading the existing blob fails for a reason other than
+        # "object does not exist", the handler must not overwrite the remote log with only
+        # the new content. Expect the read attempt but no upload.
+        mock_blob.from_string.assert_called_once_with(
+            "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )
+        mock_blob.from_string.return_value.download_as_bytes.assert_called_once()
+        mock_blob.from_string.return_value.upload_from_string.assert_not_called()
 
     @pytest.mark.parametrize(
         ("delete_local_copy", "expected_existence_of_local_copy"),

@@ -74,4 +74,4 @@ For example:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_HTTP_DEFAULT='http://username:password@servvice.com:80/https?headers=header'
+   export AIRFLOW_CONN_HTTP_DEFAULT='http://username:password@service.com:80/https?headers=header'

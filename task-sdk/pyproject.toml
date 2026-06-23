@@ -90,6 +90,7 @@ dependencies = [
     # Start of shared observability dependencies
     "opentelemetry-api>=1.27.0",
     # End of shared observability dependencies
+    "isoduration>=20.11.0"
 ]
 
 [project.optional-dependencies]
@@ -122,12 +123,12 @@ YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [build-system]
 requires = [
-    "hatchling==1.29.0",
+    "hatchling==1.30.1",
     "packaging==26.2",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.5.22.10",
+    "trove-classifiers==2026.6.1.19",
 ]
 build-backend = "hatchling.build"
 
@@ -323,4 +324,5 @@ shared_distributions = [
     "apache-airflow-shared-observability",
     "apache-airflow-shared-plugins-manager",
     "apache-airflow-shared-providers-discovery",
+    "apache-airflow-shared-template-rendering",
 ]
