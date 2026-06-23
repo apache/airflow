@@ -75,12 +75,6 @@ images:
     # Specifying digest takes precedence over tag.
     digest: ~
     pullPolicy: IfNotPresent
-    # Optional per-component image (repository, tag, digest). Omitted fields inherit from
-    # this images.airflow block and defaultAirflowRepository / defaultAirflowTag / defaultAirflowDigest.
-    apiServer: {}
-    scheduler: {}
-    triggerer: {}
-    dagProcessor: {}
   # To avoid images with user code, you can turn this to 'true' and
   # all the 'run-airflow-migrations' and 'wait-for-airflow-migrations' jobs/containers
   # will use the images from 'defaultAirflowRepository:defaultAirflowTag' values
@@ -1220,6 +1214,18 @@ workers:
 # Airflow scheduler settings
 scheduler:
   enabled: true
+
+  # Override the Airflow image for the scheduler main container.
+  # Omitted fields inherit from images.airflow
+  # and defaultAirflowRepository/defaultAirflowTag/defaultAirflowDigest.
+  # When applyToSidecars is true, sidecars use the same override.
+  image:
+    repository: ~
+    tag: ~
+    digest: ~
+    pullPolicy: ~
+    applyToSidecars: false
+
   #  hostAliases for the scheduler pod
   hostAliases: []
   #  - ip: "127.0.0.1"
@@ -1655,6 +1661,17 @@ migrateDatabaseJob:
 apiServer:
   enabled: true
 
+  # Override the Airflow image for the API server main container.
+  # Omitted fields inherit from images.airflow
+  # and defaultAirflowRepository/defaultAirflowTag/defaultAirflowDigest.
+  # When applyToSidecars is true, sidecars use the same override.
+  image:
+    repository: ~
+    tag: ~
+    digest: ~
+    pullPolicy: ~
+    applyToSidecars: false
+
   # Number of Airflow API servers in the Deployment.
   # Omitted from the Deployment, when HPA is enabled.
   replicas: 1
@@ -1865,6 +1882,17 @@ apiServer:
 # Airflow Triggerer Config
 triggerer:
   enabled: true
+
+  # Override the Airflow image for the triggerer main container.
+  # Omitted fields inherit from images.airflow
+  # and defaultAirflowRepository/defaultAirflowTag/defaultAirflowDigest.
+  # When applyToSidecars is true, sidecars use the same override.
+  image:
+    repository: ~
+    tag: ~
+    digest: ~
+    pullPolicy: ~
+    applyToSidecars: false
 
   # Number of Airflow triggerers in the Deployment
   replicas: 1
@@ -2118,6 +2146,17 @@ triggerer:
 # Airflow Dag Processor Config
 dagProcessor:
   enabled: true
+
+  # Override the Airflow image for the DAG processor main container.
+  # Omitted fields inherit from images.airflow
+  # and defaultAirflowRepository/defaultAirflowTag/defaultAirflowDigest.
+  # When applyToSidecars is true, sidecars use the same override.
+  image:
+    repository: ~
+    tag: ~
+    digest: ~
+    pullPolicy: ~
+    applyToSidecars: false
 
   # Dag Bundle Configuration
   # Define Dag bundles in a structured YAML format. This will be automatically

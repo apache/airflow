@@ -1169,23 +1169,49 @@ Usage:
 {{- end -}}
 
 {{/*
-Configure the image for the different components.
+Per-component image helpers. Set ``component`` to the values key (apiServer, scheduler,
+dagProcessor, triggerer). Pass ``isSidecar`` true for log-groomer and wait-for-migrations containers.
 
 Usage:
-  {{ include "airflow_component_image" (merge (dict "component" "apiServer") .) }}
+  {{ include "airflow_component_image" (merge (dict "component" $airflowComponent) .) }}
+  {{ include "airflow_component_image" (merge (dict "component" $airflowComponent "isSidecar" true) .) }}
 */}}
 {{- define "airflow_component_image" -}}
-  {{- $override := index .Values.images.airflow .component | default dict -}}
-  {{- $repository := $override.repository | default .Values.images.airflow.repository | default .Values.defaultAirflowRepository -}}
-  {{- $defaultTag := .Values.images.airflow.tag | default .Values.defaultAirflowTag -}}
-  {{- $defaultDigest := .Values.images.airflow.digest | default .Values.defaultAirflowDigest -}}
-  {{- if $override.digest }}
-    {{- printf "%s@%s" $repository $override.digest -}}
-  {{- else if $override.tag }}
-    {{- printf "%s:%s" $repository $override.tag -}}
-  {{- else if $defaultDigest }}
-    {{- printf "%s@%s" $repository $defaultDigest -}}
-  {{- else }}
-    {{- printf "%s:%s" $repository $defaultTag -}}
-  {{- end }}
-{{- end }}
+  {{- $componentImage := index (index .Values .component) "image" | default dict -}}
+  {{- $applyToSidecars := $componentImage.applyToSidecars | default false -}}
+  {{- if and .isSidecar (not $applyToSidecars) -}}
+    {{- include "airflow_image" . -}}
+  {{- else -}}
+    {{- $override := $componentImage -}}
+    {{- $repository := $override.repository | default .Values.images.airflow.repository | default .Values.defaultAirflowRepository -}}
+    {{- $defaultTag := .Values.images.airflow.tag | default .Values.defaultAirflowTag -}}
+    {{- $defaultDigest := .Values.images.airflow.digest | default .Values.defaultAirflowDigest -}}
+    {{- if $override.digest -}}
+      {{- printf "%s@%s" $repository $override.digest -}}
+    {{- else if $override.tag -}}
+      {{- printf "%s:%s" $repository $override.tag -}}
+    {{- else if $defaultDigest -}}
+      {{- printf "%s@%s" $repository $defaultDigest -}}
+    {{- else -}}
+      {{- printf "%s:%s" $repository $defaultTag -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- define "airflow_component_image_pull_policy" -}}
+  {{- $componentImage := index (index .Values .component) "image" | default dict -}}
+  {{- $applyToSidecars := $componentImage.applyToSidecars | default false -}}
+  {{- if and .isSidecar (not $applyToSidecars) -}}
+    {{- .Values.images.airflow.pullPolicy -}}
+  {{- else -}}
+    {{- $componentImage.pullPolicy | default .Values.images.airflow.pullPolicy -}}
+  {{- end -}}
+{{- end -}}
+
+{{- define "airflow_component_image_for_migrations" -}}
+  {{- if .Values.images.useDefaultImageForMigration -}}
+    {{- include "default_airflow_image" . -}}
+  {{- else -}}
+    {{- include "airflow_component_image" . -}}
+  {{- end -}}
+{{- end -}}

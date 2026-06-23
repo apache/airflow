@@ -321,14 +321,17 @@ details on how you can extend, customize and test the modifications of Airflow i
 Per-component image overrides
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You can set a different image for the API server, scheduler, DAG processor, and triggerer
-main containers under ``images.airflow``. This is useful when you build component-specific
-images (for example slimmer images per role) while keeping a shared default for other
-Airflow containers.
+You can set a different Airflow image for the API server, scheduler, DAG processor, and
+triggerer under each component's ``image`` block. This is useful when you build
+component-specific images (for example slimmer images per role) while keeping a shared default
+in ``images.airflow`` for jobs, workers, and other containers.
 
-Omitted fields in a component block inherit from ``images.airflow`` and then from
+Omitted fields in a component ``image`` block inherit from ``images.airflow`` and then from
 ``defaultAirflowRepository``, ``defaultAirflowTag``, and ``defaultAirflowDigest``.
-When both tag and digest are set for a component, digest takes precedence.
+When both tag and digest are set, digest takes precedence.
+
+Set ``applyToSidecars: true`` on a component to use the same override for log-groomer and
+wait-for-migrations containers in that pod. The default is ``false``.
 
 .. code-block:: yaml
    :caption: values.yaml
@@ -337,19 +340,21 @@ When both tag and digest are set for a component, digest takes precedence.
      airflow:
        repository: my-registry/airflow
        tag: "3.1.0"
-       scheduler:
-         repository: my-registry/airflow-scheduler
-         tag: "3.1.0-slim"
-       apiServer:
-         tag: "3.1.0-api"
+   scheduler:
+     image:
+       repository: my-registry/airflow-scheduler
+       tag: "3.1.0-slim"
+   apiServer:
+     image:
+       tag: "3.1.0-api"
 
 .. code-block:: bash
 
    helm upgrade --install my-release apache-airflow/airflow \
-     --set images.airflow.scheduler.repository=my-registry/airflow-scheduler \
-     --set images.airflow.scheduler.tag=3.1.0-slim
+     --set scheduler.image.repository=my-registry/airflow-scheduler \
+     --set scheduler.image.tag=3.1.0-slim
 
-See :doc:`parameters-ref` for the full list of ``images.airflow`` parameters.
+See :doc:`parameters-ref` for the full list of per-component ``image`` parameters.
 
 Managing Dag Files
 ------------------

@@ -144,8 +144,8 @@ spec:
         {{- if .Values.scheduler.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations
           resources: {{- toYaml .Values.scheduler.resources | nindent 12 }}
-          image: {{ template "airflow_image_for_migrations" . }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          image: {{ include "airflow_component_image_for_migrations" (merge (dict "component" "scheduler" "isSidecar" true) .) }}
+          imagePullPolicy: {{ include "airflow_component_image_pull_policy" (merge (dict "component" "scheduler" "isSidecar" true) .) }}
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
           volumeMounts:
             - name: logs
@@ -178,7 +178,7 @@ spec:
       containers:
         - name: scheduler
           image: {{ include "airflow_component_image" (merge (dict "component" "scheduler") .) }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          imagePullPolicy: {{ include "airflow_component_image_pull_policy" (merge (dict "component" "scheduler") .) }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
           {{- if $containerLifecycleHooks }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
@@ -252,8 +252,8 @@ spec:
         {{- if .Values.scheduler.logGroomerSidecar.enabled }}
         - name: scheduler-log-groomer
           resources: {{- toYaml .Values.scheduler.logGroomerSidecar.resources | nindent 12 }}
-          image: {{ template "airflow_image" . }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          image: {{ include "airflow_component_image" (merge (dict "component" "scheduler" "isSidecar" true) .) }}
+          imagePullPolicy: {{ include "airflow_component_image_pull_policy" (merge (dict "component" "scheduler" "isSidecar" true) .) }}
           securityContext: {{ $containerSecurityContextLogGroomerSidecar | nindent 12 }}
           {{- if $containerLifecycleHooksLogGroomerSidecar  }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksLogGroomerSidecar) . | nindent 12 }}

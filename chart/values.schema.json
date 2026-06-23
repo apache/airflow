@@ -865,133 +865,6 @@
                                 "IfNotPresent"
                             ],
                             "default": "IfNotPresent"
-                        },
-                        "apiServer": {
-                            "description": "Optional image override for the API server deployment main container. Omitted fields inherit from ``images.airflow`` and then ``defaultAirflowRepository`` / ``defaultAirflowTag`` / ``defaultAirflowDigest``.",
-                            "type": "object",
-                            "additionalProperties": false,
-                            "properties": {
-                                "repository": {
-                                    "description": "The image repository for the API server main container. If omitted, inherits from ``images.airflow.repository`` or ``defaultAirflowRepository``.",
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
-                                },
-                                "tag": {
-                                    "description": "The image tag for the API server main container. If omitted, inherits from ``images.airflow.tag`` or ``defaultAirflowTag``.",
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
-                                },
-                                "digest": {
-                                    "description": "The image digest for the API server main container. If set, it overrides the tag. If omitted, inherits from ``images.airflow.digest`` or ``defaultAirflowDigest``.",
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
-                                }
-                            }
-                        },
-                        "scheduler": {
-                            "description": "Optional image override for the scheduler deployment main container. Omitted fields inherit from ``images.airflow`` and then ``defaultAirflowRepository`` / ``defaultAirflowTag`` / ``defaultAirflowDigest``.",
-                            "type": "object",
-                            "additionalProperties": false,
-                            "properties": {
-                                "repository": {
-                                    "description": "The image repository for the scheduler main container. If omitted, inherits from ``images.airflow.repository`` or ``defaultAirflowRepository``.",
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null,
-                                    "examples": [
-                                        "my-registry/airflow-scheduler"
-                                    ]
-                                },
-                                "tag": {
-                                    "description": "The image tag for the scheduler main container. If omitted, inherits from ``images.airflow.tag`` or ``defaultAirflowTag``.",
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
-                                },
-                                "digest": {
-                                    "description": "The image digest for the scheduler main container. If set, it overrides the tag. If omitted, inherits from ``images.airflow.digest`` or ``defaultAirflowDigest``.",
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
-                                }
-                            }
-                        },
-                        "triggerer": {
-                            "description": "Optional image override for the triggerer deployment main container. Omitted fields inherit from ``images.airflow`` and then ``defaultAirflowRepository`` / ``defaultAirflowTag`` / ``defaultAirflowDigest``.",
-                            "type": "object",
-                            "additionalProperties": false,
-                            "properties": {
-                                "repository": {
-                                    "description": "The image repository for the triggerer main container. If omitted, inherits from ``images.airflow.repository`` or ``defaultAirflowRepository``.",
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
-                                },
-                                "tag": {
-                                    "description": "The image tag for the triggerer main container. If omitted, inherits from ``images.airflow.tag`` or ``defaultAirflowTag``.",
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
-                                },
-                                "digest": {
-                                    "description": "The image digest for the triggerer main container. If set, it overrides the tag. If omitted, inherits from ``images.airflow.digest`` or ``defaultAirflowDigest``.",
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
-                                }
-                            }
-                        },
-                        "dagProcessor": {
-                            "description": "Optional image override for the DAG processor deployment main container. Omitted fields inherit from ``images.airflow`` and then ``defaultAirflowRepository`` / ``defaultAirflowTag`` / ``defaultAirflowDigest``.",
-                            "type": "object",
-                            "additionalProperties": false,
-                            "properties": {
-                                "repository": {
-                                    "description": "The image repository for the DAG processor main container. If omitted, inherits from ``images.airflow.repository`` or ``defaultAirflowRepository``.",
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
-                                },
-                                "tag": {
-                                    "description": "The image tag for the DAG processor main container. If omitted, inherits from ``images.airflow.tag`` or ``defaultAirflowTag``.",
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
-                                },
-                                "digest": {
-                                    "description": "The image digest for the DAG processor main container. If set, it overrides the tag. If omitted, inherits from ``images.airflow.digest`` or ``defaultAirflowDigest``.",
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
-                                }
-                            }
                         }
                     }
                 },
@@ -3436,6 +3309,10 @@
                     "type": "boolean",
                     "default": true
                 },
+                "image": {
+                    "description": "Optional image override for the scheduler. Omitted fields inherit from ``images.airflow`` and ``defaultAirflowRepository`` / ``defaultAirflowTag`` / ``defaultAirflowDigest``. Set ``applyToSidecars`` to propagate the override to log-groomer and wait-for-migrations containers in the same pod.",
+                    "$ref": "#/definitions/airflow.componentImage"
+                },
                 "hostAliases": {
                     "description": "HostAliases for the scheduler pod.",
                     "items": {
@@ -4021,6 +3898,10 @@
                     "description": "Enable triggerer",
                     "type": "boolean",
                     "default": true
+                },
+                "image": {
+                    "description": "Optional image override for the triggerer. Omitted fields inherit from ``images.airflow`` and ``defaultAirflowRepository`` / ``defaultAirflowTag`` / ``defaultAirflowDigest``. Set ``applyToSidecars`` to propagate the override to log-groomer and wait-for-migrations containers in the same pod.",
+                    "$ref": "#/definitions/airflow.componentImage"
                 },
                 "hostAliases": {
                     "description": "HostAliases for the triggerer pod.",
@@ -4648,6 +4529,10 @@
                     "description": "Enable standalone dag processor.",
                     "type": "boolean",
                     "default": true
+                },
+                "image": {
+                    "description": "Optional image override for the DAG processor. Omitted fields inherit from ``images.airflow`` and ``defaultAirflowRepository`` / ``defaultAirflowTag`` / ``defaultAirflowDigest``. Set ``applyToSidecars`` to propagate the override to log-groomer and wait-for-migrations containers in the same pod.",
+                    "$ref": "#/definitions/airflow.componentImage"
                 },
                 "dagBundleConfigList": {
                     "description": "Define Dag bundles in a structured YAML format. This will be automatically converted to JSON string format for config.dag_processor.dag_bundle_config_list.",
@@ -5860,6 +5745,10 @@
                     "description": "Enable Airflow API server deployment.",
                     "type": "boolean",
                     "default": true
+                },
+                "image": {
+                    "description": "Optional image override for the API server. Omitted fields inherit from ``images.airflow`` and ``defaultAirflowRepository`` / ``defaultAirflowTag`` / ``defaultAirflowDigest``. Set ``applyToSidecars`` to propagate the override to wait-for-migrations in the same pod.",
+                    "$ref": "#/definitions/airflow.componentImage"
                 },
                 "configMapAnnotations": {
                     "description": "Extra annotations to apply to the API server configmap.",
@@ -10240,6 +10129,56 @@
         }
     },
     "definitions": {
+        "airflow.componentImage": {
+            "description": "Per-component Airflow image override.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "repository": {
+                    "description": "Image repository. If omitted, inherits from ``images.airflow.repository`` or ``defaultAirflowRepository``.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "tag": {
+                    "description": "Image tag. If omitted, inherits from ``images.airflow.tag`` or ``defaultAirflowTag``.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "digest": {
+                    "description": "Image digest. If set, overrides tag. If omitted, inherits from ``images.airflow.digest`` or ``defaultAirflowDigest``.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "pullPolicy": {
+                    "description": "Image pull policy. If omitted, inherits from ``images.airflow.pullPolicy``.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "enum": [
+                        "Always",
+                        "Never",
+                        "IfNotPresent",
+                        null
+                    ],
+                    "default": null
+                },
+                "applyToSidecars": {
+                    "description": "When true, log-groomer and wait-for-migrations containers in the same pod use this image override.",
+                    "type": "boolean",
+                    "default": false
+                }
+            }
+        },
         "io.k8s.api.apps.v1.DeploymentStrategy": {
             "description": "DeploymentStrategy describes how to replace existing pods with new ones.",
             "properties": {
