@@ -43,7 +43,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import StaleDataError
 
-import airflow.models.dagrun as dagrun_module
 from airflow import settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.observability.traces import OverrideableRandomIdGenerator
@@ -4503,27 +4502,14 @@ class TestClearPartitionRuns:
             serialized=True,
         ):
             EmptyOperator(task_id="t1")
-        dag_maker.create_dagrun(
-            run_id="cpr_run_1",
-            state=DagRunState.SUCCESS,
-            logical_date=None,
-            partition_date=datetime.datetime(2026, 1, 1, tzinfo=pendulum.UTC),
-            partition_key="2026-01-01T00:00:00",
-        )
-        dag_maker.create_dagrun(
-            run_id="cpr_run_2",
-            state=DagRunState.SUCCESS,
-            logical_date=None,
-            partition_date=datetime.datetime(2026, 1, 2, tzinfo=pendulum.UTC),
-            partition_key="2026-01-02T00:00:00",
-        )
-        dag_maker.create_dagrun(
-            run_id="cpr_run_3",
-            state=DagRunState.SUCCESS,
-            logical_date=None,
-            partition_date=datetime.datetime(2026, 1, 3, tzinfo=pendulum.UTC),
-            partition_key="2026-01-03T00:00:00",
-        )
+        for day in (1, 2, 3):
+            dag_maker.create_dagrun(
+                run_id=f"cpr_run_{day}",
+                state=DagRunState.SUCCESS,
+                logical_date=None,
+                partition_date=datetime.datetime(2026, 1, day, tzinfo=pendulum.UTC),
+                partition_key=f"2026-01-0{day}T00:00:00",
+            )
         dag_maker.sync_dagbag_to_db()
         self._serialized_dag = SerializedDagModel.get_dag("test_cpr_dag")
         yield
@@ -4743,7 +4729,7 @@ class TestClearPartitionRuns:
         serialized_dag = SerializedDagModel.get_dag("test_cpr_chunk_at_cap")
 
         with (
-            mock.patch.object(dagrun_module, "_TI_CHUNK_SIZE", 6),
+            mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", 6),
             mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
         ):
             cleared, tis = clear_partition_runs(
@@ -4789,7 +4775,7 @@ class TestClearPartitionRuns:
         serialized_dag = SerializedDagModel.get_dag("test_cpr_chunk_over_cap")
 
         with (
-            mock.patch.object(dagrun_module, "_TI_CHUNK_SIZE", 6),
+            mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", 6),
             mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
         ):
             clear_partition_runs(

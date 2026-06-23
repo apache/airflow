@@ -2393,27 +2393,44 @@ class TestBulkClearDagRunsPartitionSelector:
         state = session.scalar(select(DagRun.state).where(DagRun.run_id == partition_dag["run_a_id"]))
         assert state == DagRunState.SUCCESS
 
-    def test_mutual_exclusion_dag_runs_and_partition_key_returns_422(self, test_client, partition_dag):
-        """Providing both dag_runs and partition_key must be rejected with 422."""
+    @pytest.mark.parametrize(
+        "build_body",
+        [
+            pytest.param(
+                lambda d: {
+                    "dry_run": True,
+                    "dag_runs": [{"dag_run_id": d["run_a_id"]}],
+                    "partition_key": "2026-01-01|us",
+                },
+                id="dag_runs_and_partition_key",
+            ),
+            pytest.param(
+                lambda d: {
+                    "dry_run": True,
+                    "partition_key": "2026-01-01|us",
+                    "partition_date_start": "2026-01-01T00:00:00Z",
+                },
+                id="two_partition_selectors",
+            ),
+            pytest.param(
+                lambda d: {"dry_run": True},
+                id="no_selector",
+            ),
+            pytest.param(
+                lambda d: {
+                    "dry_run": True,
+                    "partition_date_start": "2026-01-03T00:00:00Z",
+                    "partition_date_end": "2026-01-01T00:00:00Z",
+                },
+                id="start_after_end",
+            ),
+        ],
+    )
+    def test_invalid_selector_combination_returns_422(self, test_client, partition_dag, build_body):
+        """Invalid selector combinations must be rejected with 422."""
         response = test_client.post(
             f"/dags/{partition_dag['dag_id']}/clearDagRuns",
-            json={
-                "dry_run": True,
-                "dag_runs": [{"dag_run_id": partition_dag["run_a_id"]}],
-                "partition_key": "2026-01-01|us",
-            },
-        )
-        assert response.status_code == 422
-
-    def test_mutual_exclusion_two_partition_selectors_returns_422(self, test_client, partition_dag):
-        """Providing both partition_key and partition_date_start must be rejected with 422."""
-        response = test_client.post(
-            f"/dags/{partition_dag['dag_id']}/clearDagRuns",
-            json={
-                "dry_run": True,
-                "partition_key": "2026-01-01|us",
-                "partition_date_start": "2026-01-01T00:00:00Z",
-            },
+            json=build_body(partition_dag),
         )
         assert response.status_code == 422
 
@@ -2440,26 +2457,6 @@ class TestBulkClearDagRunsPartitionSelector:
             json={"dry_run": True, "partition_key": "2026-01-01|us"},
         )
         assert response.status_code == 403
-
-    def test_no_selector_returns_422(self, test_client, partition_dag):
-        """Empty body with no selectors must be rejected with 422."""
-        response = test_client.post(
-            f"/dags/{partition_dag['dag_id']}/clearDagRuns",
-            json={"dry_run": True},
-        )
-        assert response.status_code == 422
-
-    def test_start_after_end_returns_422(self, test_client, partition_dag):
-        """partition_date_start > partition_date_end must be rejected with 422."""
-        response = test_client.post(
-            f"/dags/{partition_dag['dag_id']}/clearDagRuns",
-            json={
-                "dry_run": True,
-                "partition_date_start": "2026-01-03T00:00:00Z",
-                "partition_date_end": "2026-01-01T00:00:00Z",
-            },
-        )
-        assert response.status_code == 422
 
     def test_partition_key_no_match_returns_200_empty(self, test_client, session, partition_dag):
         """A partition_key matching no run returns 200 with an empty result, not 404."""
@@ -2677,36 +2674,35 @@ class TestClearPartitions:
         run_a = session.scalar(select(DagRun).where(DagRun.run_id == info["run_a_id"]))
         assert run_a.partition_key == "key-a"  # not cleared (dry_run)
 
-    def test_mutual_exclusion_run_id_and_partition_key_returns_422(
-        self, test_client, partitioned_dag_with_runs
+    @pytest.mark.parametrize(
+        "build_body",
+        [
+            pytest.param(
+                lambda d: {"run_id": d["run_a_id"], "partition_key": "key-a", "dry_run": True},
+                id="run_id_and_partition_key",
+            ),
+            pytest.param(
+                lambda d: {"dry_run": True},
+                id="no_selector",
+            ),
+            pytest.param(
+                lambda d: {
+                    "partition_date_start": "2026-01-03T00:00:00Z",
+                    "partition_date_end": "2026-01-01T00:00:00Z",
+                    "dry_run": True,
+                },
+                id="start_after_end",
+            ),
+        ],
+    )
+    def test_invalid_selector_combination_returns_422(
+        self, test_client, partitioned_dag_with_runs, build_body
     ):
-        """Providing both run_id and partition_key must be rejected with 422."""
+        """Invalid selector combinations must be rejected with 422."""
         info = partitioned_dag_with_runs
         response = test_client.post(
             f"/dags/{info['dag_id']}/clearPartitions",
-            json={"run_id": info["run_a_id"], "partition_key": "key-a", "dry_run": True},
-        )
-        assert response.status_code == 422
-
-    def test_mutual_exclusion_no_selector_returns_422(self, test_client, partitioned_dag_with_runs):
-        """Empty body with no selectors must be rejected with 422."""
-        info = partitioned_dag_with_runs
-        response = test_client.post(
-            f"/dags/{info['dag_id']}/clearPartitions",
-            json={"dry_run": True},
-        )
-        assert response.status_code == 422
-
-    def test_start_after_end_returns_422(self, test_client, partitioned_dag_with_runs):
-        """partition_date_start > partition_date_end must be rejected with 422."""
-        info = partitioned_dag_with_runs
-        response = test_client.post(
-            f"/dags/{info['dag_id']}/clearPartitions",
-            json={
-                "partition_date_start": "2026-01-03T00:00:00Z",
-                "partition_date_end": "2026-01-01T00:00:00Z",
-                "dry_run": True,
-            },
+            json=build_body(info),
         )
         assert response.status_code == 422
 

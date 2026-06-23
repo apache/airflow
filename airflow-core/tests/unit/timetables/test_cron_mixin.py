@@ -16,10 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
-
-import pendulum
-
 from airflow.timetables._cron import CronMixin
 
 SAMPLE_TZ = "UTC"
@@ -43,5 +39,3 @@ def test_dom_and_dow_conflict():
     assert "(or)" in desc
     assert "Every minute, on day 1 of the month" in desc
     assert "Every minute, only on Monday" in desc
-
-

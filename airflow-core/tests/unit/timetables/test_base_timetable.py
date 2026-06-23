@@ -24,7 +24,6 @@ from airflow.timetables.simple import NullTimetable
 
 def test_builtin_timetable_type_name_returns_class_name():
     """Built-in timetables should return just the class name as type_name."""
-    from airflow.timetables.simple import NullTimetable
 
     tt = NullTimetable()
     assert tt.type_name == "NullTimetable"
@@ -55,7 +54,6 @@ def test_custom_timetable_type_name_returns_qualname():
 def test_compute_rollup_fingerprint_non_partitioned_returns_empty():
     """Non-partitioned timetables return an empty dict."""
     from airflow.timetables.base import compute_rollup_fingerprint
-    from airflow.timetables.simple import NullTimetable
 
     assert compute_rollup_fingerprint(NullTimetable()) == {}
 
@@ -178,5 +176,3 @@ def test_compute_rollup_fingerprint_key_format(asset_or_ref, expected_key):
     )
     fp = compute_rollup_fingerprint(tt)
     assert expected_key in fp
-
-

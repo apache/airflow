@@ -23,7 +23,6 @@ import pendulum
 import pytest
 from sqlalchemy import select
 
-import airflow.models.dagrun as dagrun_module
 from airflow.cli import cli_parser
 from airflow.cli.commands import partition_command
 from airflow.models.dagrun import DagRun
@@ -435,7 +434,7 @@ class TestPartitionsClear:
         dag_maker.sync_dagbag_to_db()
 
         with (
-            mock.patch.object(dagrun_module, "_TI_CHUNK_SIZE", ti_cap),
+            mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", ti_cap),
             mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
         ):
             partition_command.clear(
@@ -486,7 +485,7 @@ class TestPartitionsClear:
         dag_maker.sync_dagbag_to_db()
 
         with (
-            mock.patch.object(dagrun_module, "_TI_CHUNK_SIZE", ti_cap),
+            mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", ti_cap),
             mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
         ):
             partition_command.clear(
@@ -538,7 +537,7 @@ class TestPartitionsClear:
         dag_maker.sync_dagbag_to_db()
 
         with (
-            mock.patch.object(dagrun_module, "_TI_CHUNK_SIZE", ti_cap),
+            mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", ti_cap),
             mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
         ):
             partition_command.clear(
@@ -611,7 +610,7 @@ class TestPartitionsClear:
         dag_maker.sync_dagbag_to_db()
 
         with (
-            mock.patch.object(dagrun_module, "_TI_CHUNK_SIZE", ti_cap),
+            mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", ti_cap),
             mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
         ):
             partition_command.clear(
