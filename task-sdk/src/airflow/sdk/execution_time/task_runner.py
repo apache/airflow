@@ -130,6 +130,7 @@ from airflow.sdk.execution_time.context import (
     TaskStateStoreAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
+    _get_worker_state_store_backend,
     context_get_outlet_events,
     context_to_airflow_vars,
     get_previous_dagrun_success,
@@ -1733,7 +1734,7 @@ def _handle_current_task_success(
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
 
-    if conf.getboolean("state_store", "clear_on_success"):
+    if conf.getboolean("state_store", "clear_on_success") and _get_worker_state_store_backend() is not None:
         log.info(
             "Clearing task state from custom backend as clear_on_success is enabled. The database references will be cleared by the API server."
         )
