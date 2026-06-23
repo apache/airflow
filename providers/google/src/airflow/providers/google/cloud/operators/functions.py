@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from googleapiclient.errors import HttpError
 
+from airflow.configuration import conf
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.functions import CloudFunctionsHook
 from airflow.providers.google.cloud.links.cloud_functions import (
@@ -498,3 +499,166 @@ class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
             )
 
         return result
+
+class CloudFunctionInvokeOperator(GoogleCloudBaseOperator):
+    """
+    Invokes a deployed Cloud Function via its HTTP Trigger URL.
+
+    Unlike CloudFunctionInvokeFunctionOperator which uses the testing-only `functions.call` API,
+    this operator makes an authenticated HTTP request to the function's URL. This makes it
+    suitable for production workloads.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudFunctionInvokeOperator`
+
+    :param function_id: ID of the function to be called
+    :param input_data: Input to be passed to the function
+    :param location: The location where the function is located.
+    :param project_id: Optional, Google Cloud Project project_id where the function belongs.
+    :param deferrable: Run operator in the deferrable mode
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+    """
+
+    template_fields: Sequence[str] = (
+        "function_id",
+        "input_data",
+        "location",
+        "project_id",
+        "impersonation_chain",
+    )
+    operator_extra_links = (CloudFunctionsDetailsLink(),)
+
+    def __init__(
+        self,
+        *,
+        function_id: str,
+        input_data: dict | None = None,
+        location: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.function_id = function_id
+        self.input_data = input_data or {}
+        self.location = location
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.api_version = api_version
+        self.deferrable = deferrable
+        self.impersonation_chain = impersonation_chain
+
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location": self.location,
+            "function_name": self.function_id,
+        }
+
+    def _get_id_token(self, hook, audience: str) -> str:
+        import google.auth.transport.requests
+        from google.oauth2 import service_account, id_token
+
+        credentials = hook.get_credentials()
+        request = google.auth.transport.requests.Request()
+
+        if isinstance(credentials, service_account.Credentials):
+            if hasattr(credentials, "with_target_audience"):
+                jwt_creds = credentials.with_target_audience(audience)
+                jwt_creds.refresh(request)
+                return jwt_creds.token
+            elif hasattr(credentials, "with_claims"):
+                jwt_creds = credentials.with_claims({"aud": audience})
+                jwt_creds.refresh(request)
+                return jwt_creds.token
+
+        try:
+            from google.auth import compute_engine
+            if isinstance(credentials, compute_engine.Credentials):
+                from google.auth.compute_engine import _metadata
+                return _metadata.get_service_account_id_token(request, audience=audience)
+        except ImportError:
+            pass
+            
+        try:
+            from google.auth import impersonated
+            if isinstance(credentials, impersonated.Credentials):
+                from google.auth.impersonated import IDTokenCredentials
+                id_token_creds = IDTokenCredentials(
+                    credentials,
+                    target_principal=credentials.target_principal,
+                    target_audience=audience,
+                    include_email=True,
+                )
+                id_token_creds.refresh(request)
+                return id_token_creds.token
+        except ImportError:
+            pass
+
+        # Fallback to fetch_id_token (ADC)
+        return id_token.fetch_id_token(request, audience)
+
+    def execute(self, context: Context):
+        from airflow.providers.google.cloud.triggers.functions import CloudFunctionInvokeTrigger
+        import requests
+
+        hook = CloudFunctionsHook(
+            api_version=self.api_version,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        project_id = self.project_id or hook.project_id
+        self.log.info("Fetching function details for %s.", self.function_id)
+        function = hook.get_function(name=f"projects/{project_id}/locations/{self.location}/functions/{self.function_id}")
+        
+        url = None
+        if "httpsTrigger" in function and "url" in function["httpsTrigger"]:
+            url = function["httpsTrigger"]["url"]
+        elif "serviceConfig" in function and "uri" in function["serviceConfig"]:
+            url = function["serviceConfig"]["uri"]
+            
+        if not url:
+            raise AirflowException(f"Function {self.function_id} does not have an HTTP trigger URL.")
+
+        self.log.info("Function HTTP URL: %s", url)
+        
+        # Get ID token for authentication
+        token = self._get_id_token(hook, url)
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+        if project_id:
+            CloudFunctionsDetailsLink.persist(
+                context=context,
+                project_id=project_id,
+            )
+
+        if self.deferrable:
+            self.log.info("Deferring execution to CloudFunctionInvokeTrigger.")
+            self.defer(
+                trigger=CloudFunctionInvokeTrigger(
+                    function_uri=url,
+                    json_payload=self.input_data,
+                    headers=headers,
+                ),
+                method_name="execute_complete",
+            )
+        else:
+            self.log.info("Invoking function synchronously.")
+            response = requests.post(url, json=self.input_data, headers=headers)
+            try:
+                response.raise_for_status()
+                return response.json()
+            except requests.exceptions.JSONDecodeError:
+                return response.text
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+        self.log.info("Function invoked successfully.")
+        return event["response"]
