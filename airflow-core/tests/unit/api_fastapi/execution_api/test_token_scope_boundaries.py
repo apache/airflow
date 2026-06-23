@@ -37,6 +37,7 @@ Maintenance:
 from __future__ import annotations
 
 import pytest
+from fastapi.routing import APIRoute
 
 from airflow.api_fastapi.execution_api.routes import execution_api_router
 
@@ -55,10 +56,11 @@ def _all_route_policies() -> dict[str, set[str]]:
     """Return a map of all API routes and their allowed token types."""
     policy_map: dict[str, set[str]] = {}
     for route in execution_api_router.routes:
-        allowed_tokens = set(getattr(route, "allowed_token_types", {"execution"}))
-        if route.methods:
-            for method in route.methods:
-                policy_map[f"{method} {route.path}"] = allowed_tokens
+        if isinstance(route, APIRoute):
+            allowed_tokens = set(getattr(route, "allowed_token_types", {"execution"}))
+            if route.methods:
+                for method in route.methods:
+                    policy_map[f"{method} {route.path}"] = allowed_tokens
     return policy_map
 
 
