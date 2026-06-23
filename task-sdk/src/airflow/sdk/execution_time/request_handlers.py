@@ -512,7 +512,7 @@ def handle_delete_task_state_store(
 def handle_clear_task_state_store(
     client: Client, msg: ClearTaskStateStore
 ) -> tuple[BaseModel | None, dict[str, bool]]:
-    client.task_state_store.clear(msg.ti_id, all_map_indices=msg.all_map_indices)
+    client.task_state_store.clear(msg.ti_id)
     return OKResponse(ok=True), {}
 
 
