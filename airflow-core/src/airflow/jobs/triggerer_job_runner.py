@@ -648,25 +648,28 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             resp = HITLDetailResponseResult.from_api_response(response=api_resp)
         elif isinstance(msg, MaskSecret):
             handle_mask_secret(msg)
-
-        # Adding AssetStateStore functionality
         elif isinstance(msg, ClearAssetStateStoreByName):
-            resp, dump_opts = handle_clear_asset_state_store_by_name(self.client, msg)
+            handle_clear_asset_state_store_by_name(self.client, msg)
+            resp = OKResponse(ok=True)
         elif isinstance(msg, ClearAssetStateStoreByUri):
-            resp, dump_opts = handle_clear_asset_state_store_by_uri(self.client, msg)
+            handle_clear_asset_state_store_by_uri(self.client, msg)
+            resp = OKResponse(ok=True)
         elif isinstance(msg, DeleteAssetStateStoreByName):
-            resp, dump_opts = handle_delete_asset_state_store_by_name(self.client, msg)
+            handle_delete_asset_state_store_by_name(self.client, msg)
+            resp = OKResponse(ok=True)
         elif isinstance(msg, DeleteAssetStateStoreByUri):
-            resp, dump_opts = handle_delete_asset_state_store_by_uri(self.client, msg)
+            handle_delete_asset_state_store_by_uri(self.client, msg)
+            resp = OKResponse(ok=True)
         elif isinstance(msg, GetAssetStateStoreByName):
             resp, dump_opts = handle_get_asset_state_store_by_name(self.client, msg)
         elif isinstance(msg, GetAssetStateStoreByUri):
             resp, dump_opts = handle_get_asset_state_store_by_uri(self.client, msg)
         elif isinstance(msg, SetAssetStateStoreByName):
-            resp, dump_opts = handle_set_asset_state_store_by_name(self.client, msg)
+            handle_set_asset_state_store_by_name(self.client, msg)
+            resp = OKResponse(ok=True)
         elif isinstance(msg, SetAssetStateStoreByUri):
-            resp, dump_opts = handle_set_asset_state_store_by_uri(self.client, msg)
-
+            handle_set_asset_state_store_by_uri(self.client, msg)
+            resp = OKResponse(ok=True)
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 
