@@ -775,6 +775,7 @@ class DagRun(BaseModel):
     triggering_user_name: Annotated[str | None, Field(title="Triggering User Name")] = None
     consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    partition_date: Annotated[AwareDatetime | None, Field(title="Partition Date")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     team_name: Annotated[str | None, Field(title="Team Name")] = None
 
