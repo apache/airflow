@@ -37,9 +37,7 @@ class TaskScope:
 
     ``map_index`` defaults to ``-1`` for non-mapped tasks. For mapped tasks,
     set it to the actual mapped index. ``get``/``set``/``delete`` always match
-    on ``(dag_id, run_id, task_id, map_index)`` exactly. To wipe state across
-    every map index of the task, call ``clear``/``aclear`` with
-    ``all_map_indices=True``.
+    on ``(dag_id, run_id, task_id, map_index)`` exactly.
     """
 
     dag_id: str
@@ -184,8 +182,9 @@ class BaseStoreBackend(ABC):
 
         For ``TaskScope``: by default, only keys for the exact ``map_index`` on the
         scope are cleared. Pass ``all_map_indices=True`` to drop the ``map_index``
-        filter entirely and wipe state across every mapped instance of the task.
-        For ``AssetScope`` the flag has no effect.
+        filter and wipe state across every mapped instance of the task - intended for
+        external callers (UI, CLI) acting on a completed task group, not for use inside
+        a running task. For ``AssetScope`` the flag has no effect.
         """
 
     @abstractmethod
@@ -232,7 +231,8 @@ class BaseStoreBackend(ABC):
 
         For ``TaskScope``: by default, only keys for the exact ``map_index`` on the
         scope are cleared. Pass ``all_map_indices=True`` to wipe state across every
-        mapped instance of the task. For ``AssetScope`` the flag has no effect.
+        mapped instance of the task - intended for external callers (UI, CLI), not for
+        use inside a running task. For ``AssetScope`` the flag has no effect.
 
         ``session`` is optional. If provided, implementations should use it directly.
         If ``None``, implementations manage their own async session internally.
