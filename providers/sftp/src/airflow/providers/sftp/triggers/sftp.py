@@ -142,7 +142,7 @@ class SFTPTrigger(BaseTrigger):
         return SFTPHookAsync(sftp_conn_id=self.sftp_conn_id)
 
 
-class SFTPOperatorTrigger(BaseTrigger):
+class SFTPOperationTrigger(BaseTrigger):
     """
     Trigger for SFTPOperator deferrable mode.
 
