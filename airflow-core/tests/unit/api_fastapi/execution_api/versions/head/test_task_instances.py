@@ -4050,7 +4050,14 @@ class TestTokenTypeValidation:
         assert "Token type 'workload' not allowed" in resp.json()["detail"]
 
     def test_workload_scope_accepted_on_connections_endpoint(self, client, session, create_task_instance):
-        """Workload scoped tokens are accepted on GET /connections for deadline callback subprocesses."""
+        """Workload scoped tokens are accepted on GET /connections (read access for callbacks).
+
+        The connections router declares ``token:workload`` on its read route and sets
+        ``route_class=ExecutionAPIRoute`` so the scope is enforced; deadline callback
+        subprocesses (which carry workload tokens) must be able to read connections.
+        A missing connection therefore returns 404 (the request reached the route),
+        not a 403 token-type rejection.
+        """
         ti = create_task_instance(task_id="test_workload_conn", state=State.RUNNING)
         session.commit()
 
@@ -4059,6 +4066,7 @@ class TestTokenTypeValidation:
         resp = client.get("/execution/connections/test_conn")
         # Workload tokens are now accepted; 404 because the connection doesn't exist in the test DB.
         assert resp.status_code == 404
+        assert "Token type 'workload' not allowed" not in str(resp.json())
 
     def test_execution_scope_accepted_on_all_endpoints(self, client, session, create_task_instance):
         """Execution scoped tokens should be accepted on all endpoints."""
