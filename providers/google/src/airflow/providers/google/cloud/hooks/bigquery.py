@@ -401,7 +401,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             job_config = QueryJobConfig(use_legacy_sql=(dialect == "legacy"))
             return (
                 self.get_client()
-                .query(sql, job_config=job_config, timeout=timeout, **kwargs)
+                .query(sql, job_config=job_config, timeout=timeout if timeout is not None else 60)
                 .to_dataframe(create_bqstorage_client=False)
             )
 

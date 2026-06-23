@@ -32,6 +32,7 @@ from google.cloud.bigquery import (
     CopyJob,
     DatasetReference,
     QueryJob,
+    QueryJobConfig,
     Table,
     TableReference,
 )
@@ -2387,8 +2388,8 @@ class TestBigQueryHookProxy:
         hook.get_client(project_id=PROJECT_ID)
         assert "_http" not in mock_client.call_args.kwargs
 
-    @mock.patch("google.auth.transport.requests.Request")
-    @mock.patch("google.auth.transport.requests.AuthorizedSession")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Request")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.AuthorizedSession")
     @mock.patch("requests.Session")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_get_client_with_http_proxy_sets_session_http_proxy(
@@ -2401,8 +2402,8 @@ class TestBigQueryHookProxy:
         assert session_instance.proxies["http"] == "http://proxy.example.com:3128"
         assert mock_client.call_args.kwargs.get("_http") == mock_authorized_session_cls.return_value
 
-    @mock.patch("google.auth.transport.requests.Request")
-    @mock.patch("google.auth.transport.requests.AuthorizedSession")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Request")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.AuthorizedSession")
     @mock.patch("requests.Session")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_get_client_with_https_proxy_sets_session_https_proxy(
@@ -2426,7 +2427,10 @@ class TestBigQueryHookProxy:
         result = hook._get_pandas_df("SELECT 1")
 
         mock_get_client.assert_called_once()
-        mock_get_client.return_value.query.assert_called_once_with("SELECT 1", timeout=10)
+        call_args = mock_get_client.return_value.query.call_args
+        assert call_args.args == ("SELECT 1",)
+        assert call_args.kwargs["timeout"] == 60
+        assert isinstance(call_args.kwargs["job_config"], QueryJobConfig)
         mock_get_client.return_value.query.return_value.to_dataframe.assert_called_once_with(
             create_bqstorage_client=False
         )
