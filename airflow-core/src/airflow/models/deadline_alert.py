@@ -57,11 +57,15 @@ class DeadlineAlert(Base):
 
         interval_seconds = None
 
+        # ``interval`` is the serialized interval (a dict with ``__data__``, or a bare number for
+        # legacy rows). Extract seconds for the fixed case, else show "dynamic". __repr__ must not raise.
         if isinstance(self.interval, (int, float)):
             interval_seconds = int(self.interval)
 
-        elif isinstance(self.interval, datetime.timedelta):
-            interval_seconds = int(self.interval.total_seconds())
+        elif isinstance(self.interval, dict):
+            data = self.interval.get("__data__")
+            if isinstance(data, (int, float)):
+                interval_seconds = int(data)
 
         if interval_seconds is None:
             interval_display = "dynamic"
