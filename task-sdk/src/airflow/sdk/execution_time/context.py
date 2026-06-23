@@ -636,23 +636,17 @@ class TaskStateStoreAccessor:
         if backend is not None:
             backend.delete(self._scope, key)
 
-    def clear(self, all_map_indices: bool = False) -> None:
-        """
-        Delete all keys for this task instance.
-
-        Pass ``all_map_indices=True`` to wipe state across every mapped
-        instance of the task (fleet-wide reset). Defaults to clearing only
-        this task instance's own state.
-        """
+    def clear(self) -> None:
+        """Delete all keys for this task instance."""
         from airflow.sdk.execution_time.comms import ClearTaskStateStore
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         # cleanup the DB ref first, if backend cleanup fails after this, the ref is gone and
         # deterministic keys are recoverable on next set().
-        SUPERVISOR_COMMS.send(ClearTaskStateStore(ti_id=self._ti_id, all_map_indices=all_map_indices))
+        SUPERVISOR_COMMS.send(ClearTaskStateStore(ti_id=self._ti_id))
         backend = _get_worker_state_store_backend()
         if backend is not None:
-            backend.clear(self._scope, all_map_indices=all_map_indices)
+            backend.clear(self._scope)
 
     def _clear_backend_only(self) -> None:
         """

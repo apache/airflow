@@ -350,9 +350,9 @@ def get_extra_schemas() -> dict[str, dict]:
     }
 
 
-# Note: _shutdown_loop is used as a finalizer for :class:`InProcessExecutionAPI`. As such, its arguments must
-# not directly or indirectly reference the instance itself, as this will prevent the instance from being
-# garbage collected.
+# Note: _shutdown_loop is used as a finalizer for the WSGI transport returned by
+# ``InProcessExecutionAPI.transport``. As such, its arguments must not directly or indirectly reference that
+# transport, as this would prevent the transport from being garbage collected.
 def _shutdown_loop(
     loop: asyncio.AbstractEventLoop,
     thread: threading.Thread,
@@ -432,10 +432,16 @@ class InProcessExecutionAPI:
         # safely aclose() a context whose __aenter__ has actually run.
         asyncio.run_coroutine_threadsafe(start_lifespan(cm, self.app), loop).result()
 
-        # Stop the loop + thread and unwind the lifespan when this instance is garbage collected.
-        weakref.finalize(self, _shutdown_loop, loop, thread, cm)
+        transport = httpx.WSGITransport(app=middleware)  # type: ignore[arg-type]
 
-        return httpx.WSGITransport(app=middleware)  # type: ignore[arg-type]
+        # Stop the loop + thread and unwind the lifespan when the *transport* is garbage collected, not
+        # this InProcessExecutionAPI instance. Callers commonly build a Client from ``.transport`` and drop
+        # the factory object (e.g. ``Client(transport=InProcessExecutionAPI().transport)``); finalizing on
+        # ``self`` would stop the loop while the transport is still in use, so every later request would
+        # hang on the now-dead loop.
+        weakref.finalize(transport, _shutdown_loop, loop, thread, cm)
+
+        return transport
 
     @cached_property
     def atransport(self) -> httpx.ASGITransport:
