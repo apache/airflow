@@ -28,7 +28,7 @@ from kubernetes.client import models as k8s
 # does not re-pull on every task — protecting CI and disconnected
 # deployments from Docker Hub anonymous-pull rate limits. Tracked by
 # scripts/ci/prek/upgrade_important_versions.py.
-XCOM_SIDECAR_IMAGE = "alpine:3.24.0"
+XCOM_SIDECAR_IMAGE = "alpine:3.24.1"
 
 
 class PodDefaults:
