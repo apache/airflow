@@ -9126,16 +9126,9 @@ export const $DeadlineAlertResponse = {
             title: 'Reference Type'
         },
         interval: {
-            anyOf: [
-                {
-                    type: 'number'
-                },
-                {
-                    type: 'null'
-                }
-            ],
+            type: 'number',
             title: 'Interval',
-            description: 'Interval in seconds between the reference time and the deadline. Null for a dynamic interval (e.g. a VariableInterval) whose value is only resolved at scheduler evaluation time.'
+            description: 'Interval in seconds between deadline evaluations.'
         },
         created_at: {
             type: 'string',
@@ -9144,7 +9137,7 @@ export const $DeadlineAlertResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'reference_type', 'created_at'],
+    required: ['id', 'reference_type', 'interval', 'created_at'],
     title: 'DeadlineAlertResponse',
     description: 'DeadlineAlert serializer for responses.'
 } as const;
