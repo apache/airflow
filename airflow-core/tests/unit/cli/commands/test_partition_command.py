@@ -778,12 +778,12 @@ class TestPartitionsClear:
             )
         assert excinfo.value.code == "--date cannot be combined with --start-date / --end-date."
 
-    def test_date_range_end_date_is_day_granular(self, parser, dag_maker):
-        """Pin day-granular semantics: --date right side covers the whole local calendar day.
+    def test_date_range_date_only_endpoints_default_to_midnight(self, parser, dag_maker):
+        """Date-only --date endpoints default to local midnight; the time component is honoured.
 
-        '2026-01-02~2026-01-02' resolves to [Jan 2 00:00Z, Jan 3 00:00Z), so both
-        the midnight run and a 15:00 run on the same local day are cleared.
-        The time-of-day component of the input is ignored; only the calendar date is used.
+        '2026-01-02~2026-01-02' resolves to the inclusive window [Jan 2 00:00Z, Jan 2 00:00Z],
+        so only the midnight run is cleared.  A 15:00 run on the same calendar day falls
+        after the upper bound and is left untouched.
         """
         dag_maker.create_dagrun(
             run_id="part_run_2_midday_date",
@@ -811,22 +811,21 @@ class TestPartitionsClear:
         run_2 = _get_run("part_run_2")
         assert run_2.partition_key is None
         assert run_2.partition_date is None
-        # 15:00 on the same local day is also cleared (whole-day upper bound Jan 3 midnight).
+        # 15:00 is after the Jan 2 00:00Z upper bound → untouched.
         run_midday = _get_run("part_run_2_midday_date")
-        assert run_midday.partition_key is None
-        assert run_midday.partition_date is None
+        assert run_midday.partition_key == "2026-01-02T15:00:00"
         # Runs outside the date range are untouched.
         run_1 = _get_run("part_run_1")
         assert run_1.partition_key == "2026-01-01T00:00:00"
         run_3 = _get_run("part_run_3")
         assert run_3.partition_key == "2026-01-03T00:00:00"
 
-    def test_clear_datetime_input_time_component_ignored(self, parser, dag_maker):
-        """Time-of-day component in --start-date / --end-date is stripped; only the date is used.
+    def test_clear_end_date_time_component_honoured(self, parser, dag_maker):
+        """The time-of-day in --end-date is honoured; runs after it are not cleared.
 
-        --end-date 2026-01-02T10:00:00 strips to Jan 2, making the half-open upper
-        bound Jan 3 00:00Z.  Both the 10:00 and 15:00 runs on Jan 2 fall within
-        [start, Jan 3 00:00Z) and are cleared.
+        --end-date 2026-01-02T10:00:00 gives the inclusive upper bound Jan 2 10:00Z.
+        The 10:00 run is at the bound and cleared; the 15:00 run is after it and
+        left untouched.
         """
         dag_maker.create_dagrun(
             run_id="part_run_h10",
@@ -857,21 +856,20 @@ class TestPartitionsClear:
             )
         )
 
-        # 10:00 on Jan 2 is within [start, Jan 3 00:00Z) — cleared.
+        # 10:00 on Jan 2 is at the inclusive upper bound — cleared.
         run_h10 = _get_run("part_run_h10")
         assert run_h10.partition_key is None
         assert run_h10.partition_date is None
-        # 15:00 on Jan 2 is also within the half-open day bound — cleared.
+        # 15:00 on Jan 2 is after the upper bound — untouched.
         run_h15 = _get_run("part_run_h15")
-        assert run_h15.partition_key is None
-        assert run_h15.partition_date is None
+        assert run_h15.partition_key == "2026-01-02T15:00:00"
 
-    def test_clear_datetime_inputs_use_date_part_only(self, parser, dag_maker):
-        """Datetime --start-date / --end-date inputs are day-granular; the time part is ignored.
+    def test_clear_datetime_inputs_honour_time_window(self, parser, dag_maker):
+        """Datetime --start-date / --end-date define a sub-day window; the time part is honoured.
 
-        --start-date 2026-01-02T03:00:00 strips to Jan 2 → lower = Jan 2 00:00Z.
-        --end-date   2026-01-02T10:00:00 strips to Jan 2 → upper = Jan 3 00:00Z.
-        All three runs on Jan 2 (02:00, 05:00, 11:00) fall within that window.
+        --start-date 2026-01-02T03:00:00 → lower = Jan 2 03:00Z.
+        --end-date   2026-01-02T10:00:00 → upper = Jan 2 10:00Z.
+        Only the 05:00 run sits inside [03:00Z, 10:00Z]; the 02:00 and 11:00 runs are outside.
         """
         dag_maker.create_dagrun(
             run_id="part_run_h02",
@@ -911,14 +909,16 @@ class TestPartitionsClear:
             )
         )
 
-        # All three runs on Jan 2 fall within [Jan 2 00:00Z, Jan 3 00:00Z) — cleared.
-        for run_id in ("part_run_h02", "part_run_h05", "part_run_h11b"):
-            run = _get_run(run_id)
-            assert run.partition_key is None
-            assert run.partition_date is None
+        # Only the 05:00 run is inside [Jan 2 03:00Z, Jan 2 10:00Z] — cleared.
+        run_h05 = _get_run("part_run_h05")
+        assert run_h05.partition_key is None
+        assert run_h05.partition_date is None
+        # 02:00 (before lower) and 11:00 (after upper) are outside the window — untouched.
+        assert _get_run("part_run_h02").partition_key == "2026-01-02T02:00:00"
+        assert _get_run("part_run_h11b").partition_key == "2026-01-02T11:00:00"
 
-    def test_clear_via_date_range_datetime_endpoints_use_date_part_only(self, parser, dag_maker):
-        """--date with ISO datetime endpoints strips the time part; the full local day is covered."""
+    def test_clear_via_date_range_datetime_endpoints_honour_time(self, parser, dag_maker):
+        """--date with ISO datetime endpoints honours the time part; only the in-window run clears."""
         dag_maker.create_dagrun(
             run_id="part_run_h02b",
             state=DagRunState.SUCCESS,
@@ -942,7 +942,7 @@ class TestPartitionsClear:
         )
         dag_maker.sync_dagbag_to_db()
 
-        # Both sides strip to Jan 2 → window is [Jan 2 00:00Z, Jan 3 00:00Z).
+        # Window is the inclusive [Jan 2 03:00Z, Jan 2 10:00Z].
         partition_command.clear(
             parser.parse_args(
                 [
@@ -956,11 +956,13 @@ class TestPartitionsClear:
             )
         )
 
-        # All three runs on Jan 2 are within the day window — cleared.
-        for run_id in ("part_run_h02b", "part_run_h05b", "part_run_h11c"):
-            run = _get_run(run_id)
-            assert run.partition_key is None
-            assert run.partition_date is None
+        # Only the 05:00 run is inside the window — cleared.
+        run_h05b = _get_run("part_run_h05b")
+        assert run_h05b.partition_key is None
+        assert run_h05b.partition_date is None
+        # 02:00 (before lower) and 11:00 (after upper) are untouched.
+        assert _get_run("part_run_h02b").partition_key == "2026-01-02T02:00:00"
+        assert _get_run("part_run_h11c").partition_key == "2026-01-02T11:00:00"
 
     TAIPEI_DAG_ID = "test_partitions_clear_taipei_dag"
 

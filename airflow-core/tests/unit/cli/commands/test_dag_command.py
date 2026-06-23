@@ -1543,13 +1543,13 @@ class TestCliDagsClear:
         dag_maker.sync_dagbag_to_db()
 
     @pytest.mark.usefixtures("seeded_no_tz_runs")
-    def test_no_tz_lower_bound_truncates_time_of_day(self, parser, monkeypatch):
-        """--partition-date-start with a non-midnight time-of-day must still match the day.
+    def test_no_tz_lower_bound_honours_time_of_day(self, parser, monkeypatch):
+        """--partition-date-start with a non-midnight time-of-day is honoured, not truncated.
 
-        A start of 2026-03-08T12:00:00 truncates to 2026-03-08 via .date(),
-        giving lower = 2026-03-08T00:00Z, which is <= the stored 2026-03-08T00:00Z
-        run (so it is included).  Without truncation the raw-instant comparison
-        would be 2026-03-08T12:00Z > 2026-03-08T00:00Z and the run would be missed.
+        A start of 2026-03-08T12:00:00 passes through as lower = 2026-03-08T12:00Z
+        (no-tz fallback keeps the wall-clock as UTC).  The stored 2026-03-08T00:00Z
+        run is *before* that bound and is excluded; the 2026-03-09T00:00Z run is
+        after it and is cleared.
         """
 
         def _patched(*, bundle_names, dag_id):
@@ -1572,9 +1572,9 @@ class TestCliDagsClear:
         dag_command.dag_clear(args)
 
         states = self._get_run_states()
-        # 2026-03-08T12 truncates to 2026-03-08 → lower = 2026-03-08T00Z; run is included.
-        assert states["no_tz_2026_03_08"] == DagRunState.QUEUED
-        # 2026-03-09 is also >= 2026-03-08T00Z (no upper bound).
+        # 2026-03-08T00Z is before the 12:00Z lower bound → excluded.
+        assert states["no_tz_2026_03_08"] == DagRunState.SUCCESS
+        # 2026-03-09T00Z is after the lower bound (no upper bound) → cleared.
         assert states["no_tz_2026_03_09"] == DagRunState.QUEUED
 
     @pytest.mark.usefixtures("seeded_no_tz_runs")

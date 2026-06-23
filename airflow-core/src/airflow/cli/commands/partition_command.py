@@ -38,11 +38,11 @@ def clear(args, *, session: Session = NEW_SESSION) -> None:
     """
     Clear the partition_key and partition_date of matching DagRuns.
 
-    When a partition_date window is given, both bounds are **day-granular** and
-    anchored in the timetable's timezone for tz-aware partitioned timetables.
-    --start-date is the inclusive start local calendar day; --end-date is the
-    inclusive end local calendar day (any time-of-day or timezone-offset
-    component in either value is ignored; only the calendar date is used).
+    When a partition_date window is given, both bounds are inclusive and their
+    wall-clock value is re-interpreted in the Dag's timetable timezone. The time
+    component is honoured, so sub-day windows on sub-daily schedules select only
+    the matching partitions; a date-only value (no time) is treated as local
+    midnight.
     """
     has_range = args.start_date is not None or args.end_date is not None or args.date is not None
     selectors_used = sum([args.run_id is not None, args.partition_key is not None, has_range])
