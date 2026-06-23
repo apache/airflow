@@ -13704,6 +13704,12 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
+        partition_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date
       type: object
       required:
       - dag_run_id
@@ -13727,6 +13733,7 @@ components:
       - bundle_version
       - dag_display_name
       - partition_key
+      - partition_date
       title: DAGRunResponse
       description: Dag Run serializer for responses.
     DAGRunsBatchBody:
