@@ -292,10 +292,10 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         try:
             self.socket.sendall(frame_bytes)
             if isinstance(msg, ResendLoggingFD):
-                # We need special handling here! The server can't send us the fd number, as the number on the
-                # supervisor will be different to in this process, so we have to mutate the message ourselves here.
                 if recv_fds is None:
                     return None
+                # We need special handling here! The server can't send us the fd number, as the number on the
+                # supervisor will be different to in this process, so we have to mutate the message ourselves here.
                 frame, fds = self._read_frame(maxfds=1)
                 resp = self._from_frame(frame)
                 if TYPE_CHECKING:
