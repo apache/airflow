@@ -140,12 +140,19 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
 
   const resetDateError = () => setErrors((prev) => ({ ...prev, date: undefined }));
   const affectedTasks = data ?? { backfills: [], total_entries: 0 };
+  const isPartitioned = Boolean(dag.timetable_partitioned);
 
   // Check if the dry run error is a permission error (403)
   const isPermissionError =
     dryRunError !== undefined && dryRunError !== null && (dryRunError as ExpandedApiError).status === 403;
 
-  const inlineMessage = getInlineMessage(isPendingDryRun, affectedTasks.total_entries, translate);
+  const inlineMessage = getInlineMessage({
+    backfills: affectedTasks.backfills,
+    isPartitioned,
+    isPendingDryRun,
+    totalEntries: affectedTasks.total_entries,
+    translate,
+  });
 
   return (
     <>
@@ -158,7 +165,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
         <Alert status="info">{translate("backfill.schedulerPriorityHint")}</Alert>
         <Box>
           <Text fontSize="md" fontWeight="semibold" mb={3}>
-            {translate("backfill.dateRange")}
+            {isPartitioned ? translate("backfill.partitionRange") : translate("backfill.dateRange")}
           </Text>
           <HStack alignItems="flex-start" w="full">
             <Controller
