@@ -73,8 +73,6 @@ from airflow.sdk import (
 )
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
-from airflow.sdk.definitions.variable import Variable
-from airflow.sdk.exceptions import AirflowRuntimeError
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.settings import get_policy_plugin_manager
@@ -1386,16 +1384,27 @@ class TestDagRun:
             VariableInterval("my_key"),
         ],
     )
-    @mock.patch.object(Variable, "get")
     @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_success_deadline(self, _, mock_get, interval, session, deadline_test_dag):
+    def test_dagrun_success_deadline(self, _, interval, session, deadline_test_dag):
         def on_success_callable(context):
             assert context["dag_run"].dag_id == "test_dag"
 
-        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
+        # Fixed future date (repo standard: no datetime.now() in tests). Far enough ahead that the
+        # FIXED_DATETIME deadline never fires, but within MySQL's TIMESTAMP range (< 2038-01-19) so
+        # the deadline_time UtcDateTime column accepts it on all backends.
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
 
-        # First value used during resolution
-        mock_get.return_value = "5"
+        # Seed a REAL Variable row so the VariableInterval resolves through the actual
+        # secrets chain (metastore backend) on the scheduler's session -- the code under test no
+        # longer calls Variable.get, so mocking it would be a false green (see regression: reading
+        # only the variable table bypassed env/secrets resolution).
+        if isinstance(interval, VariableInterval):
+            # Seed via the metastore model (not the SDK Variable imported above, whose set() routes
+            # through SUPERVISOR_COMMS) so the row really lands in the variable table on this session.
+            from airflow.models.variable import Variable as VariableModel
+
+            VariableModel.set(key="my_key", value="5", session=session)
+            session.flush()
 
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
@@ -1505,71 +1514,122 @@ class TestDagRun:
         mock_prune.assert_not_called()
         assert dag_run.state == DagRunState.SUCCESS
 
-    @mock.patch.object(Variable, "get")
     @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_deadline_variable_interval_stable(self, _, mock_get, session, deadline_test_dag):
-        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
+    def test_dagrun_deadline_variable_interval_missing_variable_is_isolated(
+        self, _, session, deadline_test_dag
+    ):
+        """A VariableInterval whose backing Variable is missing must NOT abort DagRun creation.
 
-        # First value used during resolution.
-        mock_get.return_value = "60"
+        ``VariableInterval.resolve()`` raises ``ValueError`` for a missing/invalid Variable.
+        That resolution happens inside ``_process_dagrun_deadline_alerts`` during
+        ``create_dagrun``; previously the error propagated out and aborted the whole run,
+        silently stopping the DAG from scheduling. The per-alert ``try``/``except`` now isolates
+        the failure: the DagRun is created, the bad deadline is skipped (logged), and no Deadline
+        row is written. (Isolation must NOT use ``begin_nested`` here -- ``create_dagrun`` runs
+        under the scheduler ``prohibit_commit`` guard, where a SAVEPOINT release would raise
+        ``UNEXPECTED COMMIT`` and skip every scheduled DagRun's deadlines.)
+        """
+        # No Variable named "missing_key" is seeded in any backend, so the scheduler-side resolver
+        # returns None -> ValueError(...could not be resolved...), isolated by the per-alert except.
+        # Fixed future date (repo standard: no datetime.now() in tests). Far enough ahead that the
+        # FIXED_DATETIME deadline never fires, but within MySQL's TIMESTAMP range (< 2038-01-19) so
+        # the deadline_time UtcDateTime column accepts it on all backends.
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
 
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
                 reference=DeadlineReference.FIXED_DATETIME(future_date),
-                interval=VariableInterval("my_key"),
+                interval=VariableInterval("missing_key"),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        # DagRun creation must succeed despite the unresolvable VariableInterval.
+        dag_run = self.create_dag_run(
+            dag=scheduler_dag,
+            task_states={"task_1": TaskInstanceState.SUCCESS},
+            session=session,
+        )
+        assert dag_run is not None
+
+        # The bad deadline was skipped — no Deadline row created.
+        deadline = session.execute(select(Deadline)).scalars().one_or_none()
+        assert deadline is None
+
+    @mock.patch.object(Deadline, "prune_deadlines")
+    def test_dagrun_deadline_variable_interval_resolves_from_env_var(
+        self, _, session, deadline_test_dag, monkeypatch
+    ):
+        """A VariableInterval backed by an ``AIRFLOW_VAR_*`` env var (no DB row) must resolve.
+
+        Regression guard: the scheduler-side resolver must go through the full secrets chain
+        (env vars + secrets backends + metadata DB), not read only the ``variable`` table. A
+        table-only read returns None for an env/secrets-backed Variable, and the per-alert
+        ``except`` then silently drops the deadline. Here the Variable lives ONLY in the
+        environment, so a correct resolver creates the Deadline and a regressed one drops it.
+        """
+        # Variable exists only as an env var — never written to the variable table.
+        # VariableInterval values are interpreted as SECONDS (see coerce_to_timedelta).
+        monkeypatch.setenv("AIRFLOW_VAR_ENV_INTERVAL_KEY", "7")
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
+
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=VariableInterval("env_interval_key"),
                 callback=AsyncCallback(empty_callback_for_deadline),
             ),
         )
 
         dag_run = self.create_dag_run(
             dag=scheduler_dag,
-            task_states={"task_1": TaskInstanceState.SUCCESS, "task_2": TaskInstanceState.SUCCESS},
+            task_states={"task_1": TaskInstanceState.SUCCESS},
             session=session,
         )
-        dag_run.dag = scheduler_dag
+        assert dag_run is not None
 
-        # First update resolve interval to "5".
-        dag_run.update_state(session=session)
-
+        # The env-var-backed interval resolved (7 seconds) -> a Deadline row WAS created.
         deadline = session.execute(select(Deadline)).scalars().one_or_none()
-        first_deadline_time = deadline.deadline_time
-
-        # Change Variable value after resolution.
-        mock_get.return_value = "120"
-
-        # Run again (This should not change existing deadline).
-        dag_run.update_state(session=session)
-
-        deadline = session.execute(select(Deadline)).scalars().one_or_none()
-        assert deadline.deadline_time == first_deadline_time
+        assert deadline is not None
+        assert deadline.deadline_time == future_date + datetime.timedelta(seconds=7)
 
     @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_deadline_variable_interval_missing_variable_fails(self, _, session, deadline_test_dag):
-        mock_err = mock.Mock()
-        mock_err.error.value = "MISSING_DEADLINE"
-        mock_err.detail = "missing deadline"
+    def test_dagrun_deadline_decode_failure_is_isolated(self, _, session, deadline_test_dag):
+        """A deadline alert that fails to *decode* must NOT abort DagRun creation either.
 
-        with mock.patch.object(
-            Variable,
-            "get",
-            side_effect=AirflowRuntimeError(mock_err),
+        ``decode_deadline_alert`` can raise for a malformed/legacy serialized blob (e.g. a
+        None interval after a partial downgrade, an invalid interval type, or a corrupt
+        reference dict). That decode happens inside the per-alert ``try``/``except``, so the
+        failure is isolated just like a resolve-time failure: the DagRun is created and the bad
+        deadline skipped, rather than the corrupt row taking down scheduling for the whole DAG.
+        """
+        # Fixed future date (repo standard: no datetime.now() in tests). Far enough ahead that the
+        # FIXED_DATETIME deadline never fires, but within MySQL's TIMESTAMP range (< 2038-01-19) so
+        # the deadline_time UtcDateTime column accepts it on all backends.
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=datetime.timedelta(hours=1),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        # Simulate a corrupt/legacy blob: decoding the alert raises.
+        with mock.patch(
+            "airflow.serialization.definitions.dag.decode_deadline_alert",
+            side_effect=ValueError("corrupt deadline alert blob"),
         ):
-            future_date = datetime.datetime.now() + datetime.timedelta(days=365)
-
-            scheduler_dag = deadline_test_dag(
-                deadline=DeadlineAlert(
-                    reference=DeadlineReference.FIXED_DATETIME(future_date),
-                    interval=VariableInterval("missing_key"),
-                    callback=AsyncCallback(empty_callback_for_deadline),
-                ),
+            dag_run = self.create_dag_run(
+                dag=scheduler_dag,
+                task_states={"task_1": TaskInstanceState.SUCCESS},
+                session=session,
             )
 
-            with pytest.raises(ValueError, match="not found"):
-                self.create_dag_run(
-                    dag=scheduler_dag,
-                    task_states={"task_1": TaskInstanceState.SUCCESS},
-                    session=session,
-                )
+        assert dag_run is not None
+        # No Deadline row — the undecodable alert was skipped, not fatal.
+        deadline = session.execute(select(Deadline)).scalars().one_or_none()
+        assert deadline is None
 
 
 @pytest.mark.parametrize(
