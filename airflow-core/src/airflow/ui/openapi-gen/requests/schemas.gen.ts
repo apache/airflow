@@ -1160,7 +1160,7 @@ export const $BulkDAGRunClearBody = {
                 }
             ],
             title: 'Partition Date Start',
-            description: 'Inclusive start of the partition date window (calendar-day granular). Mutually exclusive with the other partition selectors.'
+            description: "Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors."
         },
         partition_date_end: {
             anyOf: [
@@ -1173,7 +1173,7 @@ export const $BulkDAGRunClearBody = {
                 }
             ],
             title: 'Partition Date End',
-            description: 'Inclusive end of the partition date window (calendar-day granular). Mutually exclusive with the other partition selectors.'
+            description: "Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors."
         },
         dry_run: {
             type: 'boolean',
@@ -1768,7 +1768,7 @@ export const $ClearPartitionsBody = {
                 }
             ],
             title: 'Partition Date Start',
-            description: 'Inclusive start of the partition date window (calendar-day granular). Mutually exclusive with the other partition selectors.'
+            description: "Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors."
         },
         partition_date_end: {
             anyOf: [
@@ -1781,7 +1781,7 @@ export const $ClearPartitionsBody = {
                 }
             ],
             title: 'Partition Date End',
-            description: 'Inclusive end of the partition date window (calendar-day granular). Mutually exclusive with the other partition selectors.'
+            description: "Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors."
         },
         run_id: {
             anyOf: [

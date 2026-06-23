@@ -352,11 +352,11 @@ export type BulkDAGRunClearBody = {
      */
     partition_key?: string | null;
     /**
-     * Inclusive start of the partition date window (calendar-day granular). Mutually exclusive with the other partition selectors.
+     * Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.
      */
     partition_date_start?: string | null;
     /**
-     * Inclusive end of the partition date window (calendar-day granular). Mutually exclusive with the other partition selectors.
+     * Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.
      */
     partition_date_end?: string | null;
     dry_run?: boolean;
@@ -560,11 +560,11 @@ export type ClearPartitionsBody = {
      */
     partition_key?: string | null;
     /**
-     * Inclusive start of the partition date window (calendar-day granular). Mutually exclusive with the other partition selectors.
+     * Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.
      */
     partition_date_start?: string | null;
     /**
-     * Inclusive end of the partition date window (calendar-day granular). Mutually exclusive with the other partition selectors.
+     * Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.
      */
     partition_date_end?: string | null;
     /**
