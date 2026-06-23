@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
 import { useDeadlinesServiceGetDeadlines } from "openapi/queries";
-import type { TaskInstanceState } from "openapi/requests/types.gen";
+import type { DeadlineAlertResponse, TaskInstanceState } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { Dialog } from "src/components/ui";

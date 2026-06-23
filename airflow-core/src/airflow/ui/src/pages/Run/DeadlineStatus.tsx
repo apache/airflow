@@ -25,7 +25,7 @@ import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiCheck, FiClock } from "react-icons/fi";
 
 import { useDeadlinesServiceGetDagDeadlineAlerts, useDeadlinesServiceGetDeadlines } from "openapi/queries";
-import type { TaskInstanceState } from "openapi/requests/types.gen";
+import type { DeadlineAlertResponse, TaskInstanceState } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui/Tooltip";
 import { CallbackLogViewer } from "src/pages/Run/CallbackLogViewer";
