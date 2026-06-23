@@ -42,8 +42,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk.definitions.asset import Asset
-from airflow.sdk.definitions.param import Param
+from airflow.sdk import Asset, Param, result, task
 from airflow.settings import _configure_async_session
 from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.timetables.simple import PartitionAtRuntime, PartitionedAssetTimetable
@@ -64,6 +63,7 @@ from tests_common.test_utils.db import (
     clear_db_serialized_dags,
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
+from tests_common.test_utils.taskinstance import run_task_instance
 from unit.listeners.class_listener import ClassBasedListener
 
 if TYPE_CHECKING:
@@ -167,15 +167,18 @@ def setup(request, dag_maker, *, session=None):
     # The value uses the ProductMapper default delimiter (|) to form a composite key so we can
     # verify that the filter treats | as a literal character, not an OR separator.
     dag_run1.partition_key = "2026-01-01|us"
+    # Set a real partition_date so the GET/list responses exercise the serialized
+    # (non-None) partition_date path, not just the None case.
+    dag_run1.partition_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
     dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
     # Set end_date for testing duration filter
     dag_run1.end_date = dag_run1.start_date + timedelta(seconds=101)
     # Set conf for testing conf_contains filter (values ordered for predictable sorting)
     dag_run1.conf = {"env": "development", "version": "1.0"}
 
-    for i, task in enumerate([task1, task2], start=1):
-        ti = dag_run1.get_task_instance(task_id=task.task_id)
-        ti.task = task
+    for i, t in enumerate([task1, task2], start=1):
+        ti = dag_run1.get_task_instance(task_id=t.task_id)
+        ti.task = t
         ti.state = State.SUCCESS
         session.merge(ti)
         XComModel.set(
@@ -185,7 +188,7 @@ def setup(request, dag_maker, *, session=None):
             dag_id=ti.dag_id,
             run_id=ti.run_id,
             map_index=ti.map_index,
-            dag_result=task.returns_dag_result,
+            dag_result=t.returns_dag_result,
             session=session,
         )
 
@@ -317,6 +320,9 @@ def get_dag_run_dict(run: DagRun):
         "note": run.note,
         "dag_versions": get_dag_versions_dict(run.dag_versions),
         "partition_key": run.partition_key,
+        "partition_date": from_datetime_to_zulu_without_ms(run.partition_date)
+        if run.partition_date
+        else None,
     }
 
 
@@ -2371,6 +2377,7 @@ class TestTriggerDagRun:
             "triggered_by": "rest_api",
             "triggering_user_name": "test",
             "partition_key": None,
+            "partition_date": None,
         }
 
         assert response.json() == expected_response_json
@@ -2601,6 +2608,7 @@ class TestTriggerDagRun:
             "conf": {},
             "note": note,
             "partition_key": None,
+            "partition_date": None,
         }
 
         assert response_2.status_code == 409
@@ -2690,6 +2698,7 @@ class TestTriggerDagRun:
             "conf": {},
             "note": None,
             "partition_key": None,
+            "partition_date": None,
         }
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -3162,6 +3171,37 @@ class TestWaitDagRun:
         assert response.status_code == 200
         data = response.json()
         assert data == {"state": DagRunState.SUCCESS}
+
+    def test_collect_mapped_task_dag_result(self, test_client, dag_maker, session):
+        """XComs from a mapped @result task are aggregated into a list ordered by map_index."""
+        with dag_maker("dag_mapped_result"):
+
+            @result
+            @task(task_id="a")
+            def double(v):
+                return v * 2
+
+            mapped = double.expand(v=[1, 2])
+
+        mapped_op = mapped.operator  # MappedOperator with returns_dag_result=True
+
+        dag_run = dag_maker.create_dagrun(
+            run_id="mapped_run_1",
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.UI,
+            logical_date=LOGICAL_DATE1,
+        )
+        for ti in dag_run.task_instances:
+            run_task_instance(ti, mapped_op, session=session)
+        session.commit()
+
+        response = test_client.get(
+            f"/dags/dag_mapped_result/dagRuns/{dag_run.run_id}/wait",
+            params={"interval": "1"},
+        )
+        assert response.status_code == 200
+        assert response.json() == {"state": DagRunState.SUCCESS, "results": {"a": [2, 4]}}
 
 
 class TestBulkDagRuns:
