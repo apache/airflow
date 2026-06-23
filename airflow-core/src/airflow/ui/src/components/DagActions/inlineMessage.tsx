@@ -16,18 +16,67 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text, Skeleton } from "@chakra-ui/react";
+import { Text, Skeleton, VStack } from "@chakra-ui/react";
 import type { TFunction } from "i18next";
 
-export const getInlineMessage = (isPendingDryRun: boolean, totalEntries: number, translate: TFunction) =>
-  isPendingDryRun ? (
-    <Skeleton height="20px" width="100px" />
-  ) : totalEntries === 0 ? (
-    <Text color="fg.error" fontSize="sm" fontWeight="medium">
-      {translate("backfill.affectedNone")}
-    </Text>
-  ) : (
+import type { DryRunBackfillResponse } from "openapi/requests/types.gen";
+import { LimitedItemsList } from "src/components/LimitedItemsList";
+
+const PARTITION_PREVIEW_LIMIT = 10;
+
+type InlineMessageOptions = {
+  readonly backfills?: Array<DryRunBackfillResponse>;
+  readonly isPartitioned?: boolean;
+  readonly isPendingDryRun: boolean;
+  readonly totalEntries: number;
+  readonly translate: TFunction;
+};
+
+export const getInlineMessage = ({
+  backfills = [],
+  isPartitioned = false,
+  isPendingDryRun,
+  totalEntries,
+  translate,
+}: InlineMessageOptions) => {
+  if (isPendingDryRun) {
+    return <Skeleton height="20px" width="100px" />;
+  }
+
+  if (isPartitioned) {
+    if (totalEntries === 0) {
+      return (
+        <Text color="fg.error" fontSize="sm" fontWeight="medium">
+          {translate("backfill.partitionsNone")}
+        </Text>
+      );
+    }
+
+    const keys = backfills
+      .map((backfill) => backfill.partition_key)
+      .filter((key): key is string => key !== null);
+
+    return (
+      <VStack alignItems="flex-start" gap={1}>
+        <Text color="fg.success" fontSize="sm">
+          {translate("backfill.partitionsAffected", { count: totalEntries })}
+        </Text>
+        <LimitedItemsList items={keys} maxItems={PARTITION_PREVIEW_LIMIT} orientation="vertical" />
+      </VStack>
+    );
+  }
+
+  if (totalEntries === 0) {
+    return (
+      <Text color="fg.error" fontSize="sm" fontWeight="medium">
+        {translate("backfill.affectedNone")}
+      </Text>
+    );
+  }
+
+  return (
     <Text color="fg.success" fontSize="sm">
       {translate("backfill.affected", { count: totalEntries })}
     </Text>
   );
+};
