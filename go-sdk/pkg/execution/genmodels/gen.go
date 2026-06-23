@@ -19,16 +19,18 @@
 // messages (msgpack-over-socket) exchanged between the Airflow supervisor and a
 // Go SDK bundle in coordinator mode.
 //
-// Both files are generated from the supervisor wire-schema snapshot owned by the
+// These files are generated from the supervisor wire-schema snapshot owned by the
 // Python Task SDK (task-sdk/src/airflow/sdk/execution_time/schema/schema.json):
 // models.gen.go holds the struct types, discriminators.gen.go the Type<Name>
-// constants and EnsureType. Don't edit them by hand; change the Pydantic models,
+// constants and EnsureType, defaults.gen.go the DecodeMsgpack methods that seed
+// non-zero schema defaults. Don't edit them by hand; change the Pydantic models,
 // let the generate-supervisor-schemas-snapshot prek hook refresh the snapshot,
 // then re-run `just generate-models` (go generate).
 //
 // go generate runs go-jsonschema, then the local gen tool, which strips
-// go-jsonschema's dead anyOf-branch typedefs and emits discriminators.gen.go.
+// go-jsonschema's dead anyOf-branch typedefs and emits discriminators.gen.go and
+// defaults.gen.go.
 package genmodels
 
 //go:generate go run github.com/atombender/go-jsonschema@v0.23.1 --only-models --struct-name-from-title --tags msgpack --capitalization ID --capitalization URI --capitalization TI -p genmodels -o models.gen.go ../../../../task-sdk/src/airflow/sdk/execution_time/schema/schema.json
-//go:generate go run ./gen -schema ../../../../task-sdk/src/airflow/sdk/execution_time/schema/schema.json -models models.gen.go -out discriminators.gen.go
+//go:generate go run ./gen -schema ../../../../task-sdk/src/airflow/sdk/execution_time/schema/schema.json -models models.gen.go -out discriminators.gen.go -defaults defaults.gen.go

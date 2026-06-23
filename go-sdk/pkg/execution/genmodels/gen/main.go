@@ -16,7 +16,7 @@
 // under the License.
 
 // Command gen post-processes the genmodels package after go-jsonschema, doing
-// three things it cannot:
+// four things it cannot:
 //
 //  1. Strips the dead `<Type>_<N>` typedefs emitted for each branch of a nullable
 //     `anyOf` (e.g. AssetEventResponsePartitionKey_0); the structs use `any`, so
@@ -25,6 +25,10 @@
 //     single source of truth for the wire discriminator value.
 //  3. Generates EnsureType, which stamps a body's "type" field from its Go type,
 //     so the binding lives only in generated code and call sites can't mismatch.
+//  4. Generates a DecodeMsgpack per struct carrying a schema default the Go zero
+//     value would not satisfy (a non-zero builtin scalar, or any non-null default
+//     on a nullable interface{}/enum field), seeding it before decode since
+//     msgpack applies no defaults.
 //
 // Constants and cases key on the generated struct names (read from models.gen.go)
 // matched to the schema's wire values case-insensitively, since go-jsonschema may
@@ -43,8 +47,10 @@ import (
 	"go/token"
 	"log"
 	"os"
+	"reflect"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"text/template"
 )
@@ -63,27 +69,53 @@ func main() {
 		"discriminators.gen.go",
 		"path to write the generated discriminators file",
 	)
+	defaultsPath := flag.String(
+		"defaults",
+		"defaults.gen.go",
+		"path to write the generated default-seeding decoders file",
+	)
 	pkg := flag.String("package", "genmodels", "package name for the generated files")
 	flag.Parse()
 
 	if *schemaPath == "" {
 		log.Fatal("gen: -schema is required")
 	}
-	typed, err := stripDeadTypes(*modelsPath)
+	doc, err := loadSchema(*schemaPath)
 	if err != nil {
-		log.Fatalf("gen: stripping dead types from %s: %v", *modelsPath, err)
+		log.Fatalf("gen: reading schema %s: %v", *schemaPath, err)
 	}
-	if err := writeDiscriminators(*schemaPath, *outPath, *pkg, typed); err != nil {
+	structs, err := parseModels(*modelsPath)
+	if err != nil {
+		log.Fatalf("gen: parsing %s: %v", *modelsPath, err)
+	}
+	structByKey, err := indexByUpperName(structs)
+	if err != nil {
+		log.Fatalf("gen: %v", err)
+	}
+	if err := writeDiscriminators(doc, *outPath, *pkg, structByKey); err != nil {
 		log.Fatalf("gen: writing %s: %v", *outPath, err)
+	}
+	if err := writeDefaults(doc, *defaultsPath, *pkg, structs, structByKey); err != nil {
+		log.Fatalf("gen: writing %s: %v", *defaultsPath, err)
 	}
 }
 
-// stripDeadTypes removes top-level `type X_N ...` declarations whose name is the
-// only occurrence in the file, and returns the set of remaining struct type names
-// that declare a string "Type" field (the bodies that carry a wire discriminator).
-// A dead type referenced only by another dead type survives, but go-jsonschema's
-// anyOf output is flat so that does not arise here.
-func stripDeadTypes(path string) (map[string]bool, error) {
+type fieldInfo struct {
+	GoName string // Go field name, e.g. "MapIndex"
+	Tag    string // msgpack wire name, e.g. "map_index"
+	GoType string // builtin scalar ("int"/"string"/"bool"/...); "any" for interface{}; a named enum type; "" otherwise
+}
+
+type structInfo struct {
+	Fields  []fieldInfo
+	HasType bool // declares a `Type string` field (carries a wire discriminator)
+}
+
+// parseModels strips dead `type X_N ...` typedefs in place and returns the
+// surviving structs keyed by name with their field metadata. A dead type
+// referenced only by another dead type survives, but go-jsonschema's anyOf
+// output is flat so that does not arise here.
+func parseModels(path string) (map[string]*structInfo, error) {
 	src, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -95,7 +127,7 @@ func stripDeadTypes(path string) (map[string]bool, error) {
 	}
 
 	uses := identUseCounts(file)
-	typed := map[string]bool{}
+	structs := map[string]*structInfo{}
 	kept := file.Decls[:0]
 	for _, decl := range file.Decls {
 		gen, ok := decl.(*ast.GenDecl)
@@ -112,8 +144,8 @@ func stripDeadTypes(path string) (map[string]bool, error) {
 		if deadTypeName.MatchString(name) && uses[name] == 1 {
 			continue // declared once, never used: drop it
 		}
-		if st, ok := spec.Type.(*ast.StructType); ok && hasStringTypeField(st) {
-			typed[name] = true
+		if st, ok := spec.Type.(*ast.StructType); ok {
+			structs[name] = structFromAST(st)
 		}
 		kept = append(kept, decl)
 	}
@@ -123,23 +155,62 @@ func stripDeadTypes(path string) (map[string]bool, error) {
 	if err := format.Node(&buf, fset, file); err != nil {
 		return nil, err
 	}
-	return typed, os.WriteFile(path, buf.Bytes(), 0o644)
+	return structs, os.WriteFile(path, buf.Bytes(), 0o644)
 }
 
-// hasStringTypeField reports whether a struct declares a `Type string` field.
-func hasStringTypeField(st *ast.StructType) bool {
+// structFromAST records each field's Go name, msgpack wire name, and (for scalar
+// idents) Go type, plus whether the struct carries a `Type string` discriminator.
+func structFromAST(st *ast.StructType) *structInfo {
+	info := &structInfo{}
 	for _, field := range st.Fields.List {
-		ident, ok := field.Type.(*ast.Ident)
-		if !ok || ident.Name != "string" {
-			continue
+		goType := ""
+		switch t := field.Type.(type) {
+		case *ast.Ident:
+			goType = t.Name // builtin scalar, or a named enum like EmailRequestEmailType
+		case *ast.InterfaceType:
+			if t.Methods == nil || len(t.Methods.List) == 0 {
+				goType = "any" // go-jsonschema renders a nullable scalar as interface{}
+			}
 		}
-		for _, name := range field.Names {
-			if name.Name == "Type" {
-				return true
+		tag := ""
+		if field.Tag != nil {
+			tag = msgpackName(field.Tag.Value)
+		}
+		for _, n := range field.Names {
+			info.Fields = append(info.Fields, fieldInfo{GoName: n.Name, Tag: tag, GoType: goType})
+			if n.Name == "Type" && goType == "string" {
+				info.HasType = true
 			}
 		}
 	}
-	return false
+	return info
+}
+
+// msgpackName extracts the wire name from a raw struct-tag literal (backticks
+// included), e.g. `msgpack:"map_index,omitempty"` -> "map_index".
+func msgpackName(lit string) string {
+	tag := reflect.StructTag(strings.Trim(lit, "`"))
+	name, _, _ := strings.Cut(tag.Get("msgpack"), ",")
+	return name
+}
+
+// indexByUpperName maps each struct's upper-cased name to its real name so a
+// schema $def can be paired with its struct even when go-jsonschema capitalized
+// it differently.
+func indexByUpperName(structs map[string]*structInfo) (map[string]string, error) {
+	idx := make(map[string]string, len(structs))
+	for name := range structs {
+		key := strings.ToUpper(name)
+		if existing, dup := idx[key]; dup {
+			return nil, fmt.Errorf(
+				"ambiguous struct names %q and %q normalise alike",
+				existing,
+				name,
+			)
+		}
+		idx[key] = name
+	}
+	return idx, nil
 }
 
 // identUseCounts counts identifier occurrences across the file in one pass. A
@@ -155,45 +226,40 @@ func identUseCounts(file *ast.File) map[string]int {
 	return counts
 }
 
+type schemaProp struct {
+	Const   string          `json:"const"`
+	Default json.RawMessage `json:"default"`
+}
+
+type schemaDoc struct {
+	Defs map[string]struct {
+		Properties map[string]schemaProp `json:"properties"`
+	} `json:"$defs"`
+}
+
+func loadSchema(path string) (*schemaDoc, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var doc schemaDoc
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil, err
+	}
+	return &doc, nil
+}
+
 type binding struct {
 	Struct string // generated Go struct name, e.g. "GetConnection"
 	Const  string // wire value of the "type" property's const
 }
 
-// writeDiscriminators reads the schema's "type" consts, pairs each with its
-// generated struct, and emits the Type<Struct> constants plus EnsureType.
-func writeDiscriminators(schemaPath, outPath, pkg string, typed map[string]bool) error {
-	raw, err := os.ReadFile(schemaPath)
-	if err != nil {
-		return err
-	}
-	var doc struct {
-		Defs map[string]struct {
-			Properties struct {
-				Type struct {
-					Const string `json:"const"`
-				} `json:"type"`
-			} `json:"properties"`
-		} `json:"$defs"`
-	}
-	if err := json.Unmarshal(raw, &doc); err != nil {
-		return err
-	}
-
-	// Index the typed structs by an upper-cased key so a $def name can be paired
-	// with its struct even when go-jsonschema capitalized it differently.
-	structByKey := make(map[string]string, len(typed))
-	for name := range typed {
-		key := strings.ToUpper(name)
-		if existing, dup := structByKey[key]; dup {
-			return fmt.Errorf("ambiguous struct names %q and %q normalise alike", existing, name)
-		}
-		structByKey[key] = name
-	}
-
+// writeDiscriminators pairs each schema "type" const with its generated struct
+// and emits the Type<Struct> constants plus EnsureType.
+func writeDiscriminators(doc *schemaDoc, outPath, pkg string, structByKey map[string]string) error {
 	var bindings []binding
 	for defName, def := range doc.Defs {
-		c := def.Properties.Type.Const
+		c := def.Properties["type"].Const
 		if c == "" {
 			continue
 		}
@@ -221,6 +287,164 @@ func writeDiscriminators(schemaPath, outPath, pkg string, typed map[string]bool)
 		return fmt.Errorf("formatting generated source: %w", err)
 	}
 	return os.WriteFile(outPath, formatted, 0o644)
+}
+
+type postFill struct {
+	Field string // Go field name of a nullable interface{} field
+	Lit   string // Go literal for its schema default
+}
+
+type decoder struct {
+	Struct    string     // generated Go struct name
+	PreInits  string     // composite-literal seeds for concrete fields, e.g. `MapIndex: -1, Queue: "default"`
+	PostFills []postFill // interface{} fields set after decode when still nil
+}
+
+// writeDefaults emits a DecodeMsgpack per struct with at least one seedable
+// schema default (see defaultLiteral). A concrete field is pre-seeded in the
+// composite literal so msgpack overwrites only keys present on the wire; a
+// nullable interface{} field cannot be pre-seeded (msgpack decodes a present key
+// in place and panics on the unaddressable interface value), so its default is
+// applied after decode when the field is still nil (i.e. the key was absent).
+func writeDefaults(
+	doc *schemaDoc,
+	outPath, pkg string,
+	structs map[string]*structInfo,
+	structByKey map[string]string,
+) error {
+	var decoders []decoder
+	for defName, def := range doc.Defs {
+		structName, ok := structByKey[strings.ToUpper(defName)]
+		if !ok {
+			continue
+		}
+		fieldByTag := map[string]fieldInfo{}
+		for _, f := range structs[structName].Fields {
+			if f.Tag != "" && f.Tag != "-" {
+				fieldByTag[f.Tag] = f
+			}
+		}
+		var preSeeds []string
+		var postFills []postFill
+		for propName, prop := range def.Properties {
+			if propName == "type" {
+				continue // discriminator const, owned by EnsureType
+			}
+			f, ok := fieldByTag[propName]
+			if !ok {
+				continue
+			}
+			lit, ok := defaultLiteral(f.GoType, prop.Default)
+			if !ok {
+				continue
+			}
+			if f.GoType == "any" {
+				postFills = append(postFills, postFill{Field: f.GoName, Lit: lit})
+			} else {
+				preSeeds = append(preSeeds, f.GoName+": "+lit)
+			}
+		}
+		if len(preSeeds) == 0 && len(postFills) == 0 {
+			continue
+		}
+		sort.Strings(preSeeds)
+		sort.Slice(
+			postFills,
+			func(i, j int) bool { return postFills[i].Field < postFills[j].Field },
+		)
+		decoders = append(decoders, decoder{
+			Struct:    structName,
+			PreInits:  strings.Join(preSeeds, ", "),
+			PostFills: postFills,
+		})
+	}
+	sort.Slice(decoders, func(i, j int) bool { return decoders[i].Struct < decoders[j].Struct })
+
+	var buf bytes.Buffer
+	if err := defaultsTmpl.Execute(&buf, map[string]any{
+		"Package":  pkg,
+		"Decoders": decoders,
+	}); err != nil {
+		return err
+	}
+	formatted, err := format.Source(buf.Bytes())
+	if err != nil {
+		return fmt.Errorf("formatting generated source: %w", err)
+	}
+	return os.WriteFile(outPath, formatted, 0o644)
+}
+
+// defaultLiteral renders raw as a Go literal to seed a field of type goType, or
+// reports false when there is nothing to seed: no default, a null default, an
+// unsupported kind, or a builtin scalar whose default already equals its Go zero.
+// A nullable field (go-jsonschema's interface{}) and a named enum field have a
+// nil/typed-zero Go default, so a 0/false/"" schema default on them is still
+// seeded to stay distinct from an absent value.
+func defaultLiteral(goType string, raw json.RawMessage) (string, bool) {
+	if len(raw) == 0 {
+		return "", false
+	}
+	var v any
+	if err := json.Unmarshal(raw, &v); err != nil || v == nil {
+		return "", false
+	}
+	switch goType {
+	case "int", "int8", "int16", "int32", "int64":
+		f, ok := v.(float64)
+		if !ok || int64(f) == 0 {
+			return "", false
+		}
+		return strconv.FormatInt(int64(f), 10), true
+	case "float32", "float64":
+		f, ok := v.(float64)
+		if !ok || f == 0 {
+			return "", false
+		}
+		return strconv.FormatFloat(f, 'g', -1, 64), true
+	case "string":
+		s, ok := v.(string)
+		if !ok || s == "" {
+			return "", false
+		}
+		return strconv.Quote(s), true
+	case "bool":
+		b, ok := v.(bool)
+		if !ok || !b {
+			return "", false
+		}
+		return "true", true
+	case "any":
+		return interfaceLiteral(v)
+	case "":
+		return "", false
+	default:
+		// Named enum type (e.g. EmailRequestEmailType): seed a non-empty string
+		// default through a conversion that compiles for any string-based enum.
+		s, ok := v.(string)
+		if !ok || s == "" {
+			return "", false
+		}
+		return goType + "(" + strconv.Quote(s) + ")", true
+	}
+}
+
+// interfaceLiteral renders a scalar default for an interface{} field. Its Go zero
+// is nil, so unlike a typed scalar a 0/false/"" default is still seeded. An
+// integral number renders as an int literal (the common case: map_index = -1).
+func interfaceLiteral(v any) (string, bool) {
+	switch x := v.(type) {
+	case float64:
+		if x == float64(int64(x)) {
+			return strconv.FormatInt(int64(x), 10), true
+		}
+		return strconv.FormatFloat(x, 'g', -1, 64), true
+	case string:
+		return strconv.Quote(x), true
+	case bool:
+		return strconv.FormatBool(x), true
+	default:
+		return "", false
+	}
 }
 
 var discriminatorTmpl = template.Must(
@@ -276,4 +500,45 @@ func EnsureType(m any) any {
 	}
 }
 `),
+)
+
+var defaultsTmpl = template.Must(
+	template.New("def").Parse(`// Code generated by genmodels/gen, DO NOT EDIT.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+package {{.Package}}
+{{if .Decoders}}
+import "github.com/vmihailenco/msgpack/v5"
+{{range .Decoders}}
+// DecodeMsgpack applies {{.Struct}}'s schema defaults that msgpack would otherwise skip.
+func (m *{{.Struct}}) DecodeMsgpack(dec *msgpack.Decoder) error {
+	type alias {{.Struct}}
+	v := alias{ {{.PreInits}} }
+	if err := dec.Decode(&v); err != nil {
+		return err
+	}
+{{- range .PostFills}}
+	if v.{{.Field}} == nil {
+		v.{{.Field}} = {{.Lit}}
+	}
+{{- end}}
+	*m = {{.Struct}}(v)
+	return nil
+}
+{{end}}{{end}}`),
 )
