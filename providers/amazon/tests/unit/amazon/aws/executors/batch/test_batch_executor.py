@@ -805,6 +805,7 @@ class TestAwsBatchExecutor:
             task.task_id = f"task_{idx}"
             task.dag_id = "test_dag"
             task.run_id = "test_run"
+            task.hostname = "host"
             task.map_index = -1
             task.pool_slots = 1
             task.priority_weight = 1
