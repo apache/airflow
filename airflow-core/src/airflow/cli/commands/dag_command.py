@@ -128,7 +128,7 @@ def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
     Clear Dag runs selected by run_id, partition_key, or a partition_date window.
 
     When a partition_date window is given, both bounds are interpreted in the
-    timetable's local timezone and sub-day precision is preserved.
+    timetable's local timezone.
     --partition-date-start is the inclusive start; --partition-date-end is the
     inclusive end.  A date-only value (no time component) is treated as local
     midnight of that date.

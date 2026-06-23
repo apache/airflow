@@ -2281,6 +2281,8 @@ def clear_partition_runs(
     ``on_run_matched`` is called once per matched run, before any mutation, with
     ``(run, had_partition_fields)`` where ``had_partition_fields`` is True when the run's
     partition fields are non-None at the time of the call (i.e. they will be reset).
+
+    :meta private:
     """
     stmt = select(DagRun).where(DagRun.dag_id == dag_id)
     if run_id is not None:

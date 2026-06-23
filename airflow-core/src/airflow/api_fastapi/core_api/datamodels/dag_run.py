@@ -68,11 +68,19 @@ class PartitionSelectorMixin(StrictBaseModel):
     )
     partition_date_start: datetime | None = Field(
         default=None,
-        description="Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.",
+        description=(
+            "Inclusive start of the partition date window. "
+            "The value is interpreted in the Dag's timetable timezone. "
+            "Mutually exclusive with the other partition selectors."
+        ),
     )
     partition_date_end: datetime | None = Field(
         default=None,
-        description="Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.",
+        description=(
+            "Inclusive end of the partition date window. "
+            "The value is interpreted in the Dag's timetable timezone. "
+            "Mutually exclusive with the other partition selectors."
+        ),
     )
 
     @property
@@ -83,7 +91,7 @@ class PartitionSelectorMixin(StrictBaseModel):
             or self.partition_date_end is not None
         )
 
-    def validate_partition_date_window_order(self) -> None:
+    def _validate_partition_date_window_order(self) -> None:
         if (
             self.partition_date_start is not None
             and self.partition_date_end is not None
@@ -104,7 +112,7 @@ class PartitionSelectorMixin(StrictBaseModel):
                 f"Exactly one of {extra_selector_name}, partition_key, or a partition date window "
                 "(partition_date_start / partition_date_end) must be provided."
             )
-        self.validate_partition_date_window_order()
+        self._validate_partition_date_window_order()
 
 
 class BaseDAGRunClear(StrictBaseModel):

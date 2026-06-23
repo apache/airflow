@@ -189,7 +189,7 @@ ARG_PARTITION_DATE_START = Arg(
     ("--partition-date-start",),
     help=(
         "Inclusive lower bound of the partition_date window. The wall-clock value is "
-        "re-interpreted in the Dag's timetable timezone, so sub-day precision is preserved. "
+        "re-interpreted in the Dag's timetable timezone. "
         "A date-only value (no time) is treated as local midnight. "
         "Accepts the same datetime formats as --start-date."
     ),
@@ -199,7 +199,7 @@ ARG_PARTITION_DATE_END = Arg(
     ("--partition-date-end",),
     help=(
         "Inclusive upper bound of the partition_date window. The wall-clock value is "
-        "re-interpreted in the Dag's timetable timezone, so sub-day precision is preserved. "
+        "re-interpreted in the Dag's timetable timezone. "
         "A date-only value (no time) is treated as local midnight. "
         "Accepts the same datetime formats as --end-date."
     ),
@@ -1206,7 +1206,7 @@ DAGS_COMMANDS = (
             "of the following selectors must be provided: --run-id (single run); --partition-key "
             "(every run with that exact partition_key); or a partition_date window via "
             "--partition-date-start and/or --partition-date-end (both bounds are inclusive, "
-            "interpreted in the Dag's timetable timezone with sub-day precision preserved). "
+            "interpreted in the Dag's timetable timezone). "
             "Intended for partitioned Dags, whose runs are keyed by partition_date / "
             "partition_key instead of logical_date. For traditional, non-partitioned Dags, use "
             "`airflow tasks clear --start-date / --end-date`."
