@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 
+import httpx
 import pytest
 from airbyte_api.api import CancelJobRequest, GetJobRequest
 from airbyte_api.models import JobResponse, JobStatusEnum, JobTypeEnum
@@ -239,8 +240,6 @@ class TestAirbyteHook:
         """
         Test the creation of the API session with proxy settings.
         """
-        import httpx
-
         # Create a new AirbyteHook instance
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id_with_proxy)
 
