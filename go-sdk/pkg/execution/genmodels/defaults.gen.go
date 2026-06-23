@@ -24,10 +24,20 @@ import "github.com/vmihailenco/msgpack/v5"
 func (m *AwaitInputTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias AwaitInputTask
 	v := alias{}
-	if err := dec.Decode(&v); err != nil {
+	// Decode once into raw bytes so a nullable default applies only on an absent
+	// wire key, never overwriting an explicit null (both decode to nil).
+	var raw msgpack.RawMessage
+	if err := dec.Decode(&raw); err != nil {
 		return err
 	}
-	if v.State == nil {
+	if err := msgpack.Unmarshal(raw, &v); err != nil {
+		return err
+	}
+	var present map[string]msgpack.RawMessage
+	if err := msgpack.Unmarshal(raw, &present); err != nil {
+		return err
+	}
+	if _, ok := present["state"]; !ok {
 		v.State = "awaiting_input"
 	}
 	*m = AwaitInputTask(v)
@@ -38,10 +48,20 @@ func (m *AwaitInputTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 func (m *CreateHITLDetailPayload) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias CreateHITLDetailPayload
 	v := alias{}
-	if err := dec.Decode(&v); err != nil {
+	// Decode once into raw bytes so a nullable default applies only on an absent
+	// wire key, never overwriting an explicit null (both decode to nil).
+	var raw msgpack.RawMessage
+	if err := dec.Decode(&raw); err != nil {
 		return err
 	}
-	if v.Multiple == nil {
+	if err := msgpack.Unmarshal(raw, &v); err != nil {
+		return err
+	}
+	var present map[string]msgpack.RawMessage
+	if err := msgpack.Unmarshal(raw, &present); err != nil {
+		return err
+	}
+	if _, ok := present["multiple"]; !ok {
 		v.Multiple = false
 	}
 	*m = CreateHITLDetailPayload(v)
@@ -52,10 +72,20 @@ func (m *CreateHITLDetailPayload) DecodeMsgpack(dec *msgpack.Decoder) error {
 func (m *DagCallbackRequest) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias DagCallbackRequest
 	v := alias{}
-	if err := dec.Decode(&v); err != nil {
+	// Decode once into raw bytes so a nullable default applies only on an absent
+	// wire key, never overwriting an explicit null (both decode to nil).
+	var raw msgpack.RawMessage
+	if err := dec.Decode(&raw); err != nil {
 		return err
 	}
-	if v.IsFailureCallback == nil {
+	if err := msgpack.Unmarshal(raw, &v); err != nil {
+		return err
+	}
+	var present map[string]msgpack.RawMessage
+	if err := msgpack.Unmarshal(raw, &present); err != nil {
+		return err
+	}
+	if _, ok := present["is_failure_callback"]; !ok {
 		v.IsFailureCallback = true
 	}
 	*m = DagCallbackRequest(v)
@@ -66,10 +96,20 @@ func (m *DagCallbackRequest) DecodeMsgpack(dec *msgpack.Decoder) error {
 func (m *DagRunResult) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias DagRunResult
 	v := alias{}
-	if err := dec.Decode(&v); err != nil {
+	// Decode once into raw bytes so a nullable default applies only on an absent
+	// wire key, never overwriting an explicit null (both decode to nil).
+	var raw msgpack.RawMessage
+	if err := dec.Decode(&raw); err != nil {
 		return err
 	}
-	if v.ClearNumber == nil {
+	if err := msgpack.Unmarshal(raw, &v); err != nil {
+		return err
+	}
+	var present map[string]msgpack.RawMessage
+	if err := msgpack.Unmarshal(raw, &present); err != nil {
+		return err
+	}
+	if _, ok := present["clear_number"]; !ok {
 		v.ClearNumber = 0
 	}
 	*m = DagRunResult(v)
@@ -80,10 +120,20 @@ func (m *DagRunResult) DecodeMsgpack(dec *msgpack.Decoder) error {
 func (m *DeferTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias DeferTask
 	v := alias{}
-	if err := dec.Decode(&v); err != nil {
+	// Decode once into raw bytes so a nullable default applies only on an absent
+	// wire key, never overwriting an explicit null (both decode to nil).
+	var raw msgpack.RawMessage
+	if err := dec.Decode(&raw); err != nil {
 		return err
 	}
-	if v.State == nil {
+	if err := msgpack.Unmarshal(raw, &v); err != nil {
+		return err
+	}
+	var present map[string]msgpack.RawMessage
+	if err := msgpack.Unmarshal(raw, &present); err != nil {
+		return err
+	}
+	if _, ok := present["state"]; !ok {
 		v.State = "deferred"
 	}
 	*m = DeferTask(v)
@@ -171,10 +221,20 @@ func (m *GetVariableKeys) DecodeMsgpack(dec *msgpack.Decoder) error {
 func (m *HITLDetailRequestResult) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias HITLDetailRequestResult
 	v := alias{}
-	if err := dec.Decode(&v); err != nil {
+	// Decode once into raw bytes so a nullable default applies only on an absent
+	// wire key, never overwriting an explicit null (both decode to nil).
+	var raw msgpack.RawMessage
+	if err := dec.Decode(&raw); err != nil {
 		return err
 	}
-	if v.Multiple == nil {
+	if err := msgpack.Unmarshal(raw, &v); err != nil {
+		return err
+	}
+	var present map[string]msgpack.RawMessage
+	if err := msgpack.Unmarshal(raw, &present); err != nil {
+		return err
+	}
+	if _, ok := present["multiple"]; !ok {
 		v.Multiple = false
 	}
 	*m = HITLDetailRequestResult(v)
@@ -185,10 +245,20 @@ func (m *HITLDetailRequestResult) DecodeMsgpack(dec *msgpack.Decoder) error {
 func (m *PreviousTIResponse) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias PreviousTIResponse
 	v := alias{}
-	if err := dec.Decode(&v); err != nil {
+	// Decode once into raw bytes so a nullable default applies only on an absent
+	// wire key, never overwriting an explicit null (both decode to nil).
+	var raw msgpack.RawMessage
+	if err := dec.Decode(&raw); err != nil {
 		return err
 	}
-	if v.MapIndex == nil {
+	if err := msgpack.Unmarshal(raw, &v); err != nil {
+		return err
+	}
+	var present map[string]msgpack.RawMessage
+	if err := msgpack.Unmarshal(raw, &present); err != nil {
+		return err
+	}
+	if _, ok := present["map_index"]; !ok {
 		v.MapIndex = -1
 	}
 	*m = PreviousTIResponse(v)
@@ -199,10 +269,20 @@ func (m *PreviousTIResponse) DecodeMsgpack(dec *msgpack.Decoder) error {
 func (m *RescheduleTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias RescheduleTask
 	v := alias{}
-	if err := dec.Decode(&v); err != nil {
+	// Decode once into raw bytes so a nullable default applies only on an absent
+	// wire key, never overwriting an explicit null (both decode to nil).
+	var raw msgpack.RawMessage
+	if err := dec.Decode(&raw); err != nil {
 		return err
 	}
-	if v.State == nil {
+	if err := msgpack.Unmarshal(raw, &v); err != nil {
+		return err
+	}
+	var present map[string]msgpack.RawMessage
+	if err := msgpack.Unmarshal(raw, &present); err != nil {
+		return err
+	}
+	if _, ok := present["state"]; !ok {
 		v.State = "up_for_reschedule"
 	}
 	*m = RescheduleTask(v)
@@ -213,10 +293,20 @@ func (m *RescheduleTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 func (m *RetryTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias RetryTask
 	v := alias{}
-	if err := dec.Decode(&v); err != nil {
+	// Decode once into raw bytes so a nullable default applies only on an absent
+	// wire key, never overwriting an explicit null (both decode to nil).
+	var raw msgpack.RawMessage
+	if err := dec.Decode(&raw); err != nil {
 		return err
 	}
-	if v.State == nil {
+	if err := msgpack.Unmarshal(raw, &v); err != nil {
+		return err
+	}
+	var present map[string]msgpack.RawMessage
+	if err := msgpack.Unmarshal(raw, &present); err != nil {
+		return err
+	}
+	if _, ok := present["state"]; !ok {
 		v.State = "up_for_retry"
 	}
 	*m = RetryTask(v)
@@ -227,10 +317,20 @@ func (m *RetryTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 func (m *SucceedTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias SucceedTask
 	v := alias{}
-	if err := dec.Decode(&v); err != nil {
+	// Decode once into raw bytes so a nullable default applies only on an absent
+	// wire key, never overwriting an explicit null (both decode to nil).
+	var raw msgpack.RawMessage
+	if err := dec.Decode(&raw); err != nil {
 		return err
 	}
-	if v.State == nil {
+	if err := msgpack.Unmarshal(raw, &v); err != nil {
+		return err
+	}
+	var present map[string]msgpack.RawMessage
+	if err := msgpack.Unmarshal(raw, &present); err != nil {
+		return err
+	}
+	if _, ok := present["state"]; !ok {
 		v.State = "success"
 	}
 	*m = SucceedTask(v)
@@ -252,10 +352,20 @@ func (m *TaskInstance) DecodeMsgpack(dec *msgpack.Decoder) error {
 func (m *TriggerDagRun) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias TriggerDagRun
 	v := alias{}
-	if err := dec.Decode(&v); err != nil {
+	// Decode once into raw bytes so a nullable default applies only on an absent
+	// wire key, never overwriting an explicit null (both decode to nil).
+	var raw msgpack.RawMessage
+	if err := dec.Decode(&raw); err != nil {
 		return err
 	}
-	if v.ResetDagRun == nil {
+	if err := msgpack.Unmarshal(raw, &v); err != nil {
+		return err
+	}
+	var present map[string]msgpack.RawMessage
+	if err := msgpack.Unmarshal(raw, &present); err != nil {
+		return err
+	}
+	if _, ok := present["reset_dag_run"]; !ok {
 		v.ResetDagRun = false
 	}
 	*m = TriggerDagRun(v)

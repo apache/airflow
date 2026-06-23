@@ -291,6 +291,7 @@ func writeDiscriminators(doc *schemaDoc, outPath, pkg string, structByKey map[st
 
 type postFill struct {
 	Field string // Go field name of a nullable interface{} field
+	Tag   string // its msgpack wire key, used to test presence on the wire
 	Lit   string // Go literal for its schema default
 }
 
@@ -305,7 +306,8 @@ type decoder struct {
 // composite literal so msgpack overwrites only keys present on the wire; a
 // nullable interface{} field cannot be pre-seeded (msgpack decodes a present key
 // in place and panics on the unaddressable interface value), so its default is
-// applied after decode when the field is still nil (i.e. the key was absent).
+// applied after decode only when its wire key was absent, leaving an explicit
+// null as nil (decoding to nil and "absent" are otherwise indistinguishable).
 func writeDefaults(
 	doc *schemaDoc,
 	outPath, pkg string,
@@ -339,7 +341,7 @@ func writeDefaults(
 				continue
 			}
 			if f.GoType == "any" {
-				postFills = append(postFills, postFill{Field: f.GoName, Lit: lit})
+				postFills = append(postFills, postFill{Field: f.GoName, Tag: propName, Lit: lit})
 			} else {
 				preSeeds = append(preSeeds, f.GoName+": "+lit)
 			}
@@ -529,12 +531,28 @@ import "github.com/vmihailenco/msgpack/v5"
 func (m *{{.Struct}}) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias {{.Struct}}
 	v := alias{ {{.PreInits}} }
-	if err := dec.Decode(&v); err != nil {
+{{- if .PostFills}}
+	// Decode once into raw bytes so a nullable default applies only on an absent
+	// wire key, never overwriting an explicit null (both decode to nil).
+	var raw msgpack.RawMessage
+	if err := dec.Decode(&raw); err != nil {
+		return err
+	}
+	if err := msgpack.Unmarshal(raw, &v); err != nil {
+		return err
+	}
+	var present map[string]msgpack.RawMessage
+	if err := msgpack.Unmarshal(raw, &present); err != nil {
 		return err
 	}
 {{- range .PostFills}}
-	if v.{{.Field}} == nil {
+	if _, ok := present["{{.Tag}}"]; !ok {
 		v.{{.Field}} = {{.Lit}}
+	}
+{{- end}}
+{{- else}}
+	if err := dec.Decode(&v); err != nil {
+		return err
 	}
 {{- end}}
 	*m = {{.Struct}}(v)

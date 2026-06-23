@@ -165,6 +165,40 @@ func TestInterfaceScalarDefaultsAreSeeded(t *testing.T) {
 	})
 }
 
+// A nullable defaulted field decodes to nil for both an explicit null and an
+// absent key, so the default must seed only on absence and leave an explicit
+// null as nil.
+func TestNullableDefault_ExplicitNullPreservedNotSeeded(t *testing.T) {
+	t.Run("DagRunResult clear_number: explicit null stays nil", func(t *testing.T) {
+		raw, err := msgpack.Marshal(map[string]any{"clear_number": nil})
+		require.NoError(t, err)
+		var msg DagRunResult
+		require.NoError(t, msgpack.Unmarshal(raw, &msg))
+		assert.Nil(t, msg.ClearNumber)
+	})
+	t.Run("PreviousTIResponse map_index: explicit null stays nil", func(t *testing.T) {
+		raw, err := msgpack.Marshal(map[string]any{"map_index": nil})
+		require.NoError(t, err)
+		var msg PreviousTIResponse
+		require.NoError(t, msgpack.Unmarshal(raw, &msg))
+		assert.Nil(t, msg.MapIndex)
+	})
+	t.Run("CreateHITLDetailPayload multiple: explicit null stays nil", func(t *testing.T) {
+		raw, err := msgpack.Marshal(map[string]any{"multiple": nil})
+		require.NoError(t, err)
+		var msg CreateHITLDetailPayload
+		require.NoError(t, msgpack.Unmarshal(raw, &msg))
+		assert.Nil(t, msg.Multiple)
+	})
+	t.Run("DagRunResult clear_number: absent seeds the default", func(t *testing.T) {
+		raw, err := msgpack.Marshal(map[string]any{})
+		require.NoError(t, err)
+		var msg DagRunResult
+		require.NoError(t, msgpack.Unmarshal(raw, &msg))
+		assert.EqualValues(t, 0, msg.ClearNumber)
+	})
+}
+
 // A named enum field (string-based) is seeded through a type conversion.
 func TestEmailRequestDecodeMsgpack_SeedsEnumDefault(t *testing.T) {
 	tests := []struct {
