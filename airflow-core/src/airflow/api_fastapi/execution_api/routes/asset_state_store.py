@@ -51,8 +51,8 @@ from airflow.state.metastore import MetastoreBackend
 _TIWriterFields = tuple[str, str, str, int]
 
 
-def _fetch_ti_writer_fields(token: TIToken, session: SessionDep) -> _TIWriterFields:
-    """Return (dag_id, run_id, task_id, map_index) for the TI identified by the token."""
+def _fetch_ti_writer_fields(token: TIToken, session: SessionDep) -> _TIWriterFields | None:
+    """Return (dag_id, run_id, task_id, map_index) for the TI identified by the token, or None."""
     row = session.execute(
         select(
             TaskInstance.dag_id,
@@ -62,10 +62,7 @@ def _fetch_ti_writer_fields(token: TIToken, session: SessionDep) -> _TIWriterFie
         ).where(TaskInstance.id == token.id)
     ).one_or_none()
     if row is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"reason": "not_found", "message": f"Task instance {token.id!r} not found"},
-        )
+        return None
     return row.dag_id, row.run_id, row.task_id, row.map_index
 
 
@@ -130,18 +127,30 @@ def _put_asset_state_store(
 ) -> None:
     backend = get_state_backend()
     if isinstance(backend, MetastoreBackend):
-        dag_id, run_id, task_id, map_index = _fetch_ti_writer_fields(token, session)
-        backend.set_asset_state_store(
-            scope,
-            key,
-            json.dumps(body.value),
-            kind=AssetStateStoreWriterKind.TASK,
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            map_index=map_index,
-            session=session,
-        )
+        ti_fields = _fetch_ti_writer_fields(token, session)
+        if ti_fields is None:
+            # No task instance backs this token (e.g. a watcher trigger writing via the
+            # triggerer's in-process client, which carries the null-UUID sentinel).
+            backend.set_asset_state_store(
+                scope,
+                key,
+                json.dumps(body.value),
+                kind=AssetStateStoreWriterKind.WATCHER,
+                session=session,
+            )
+        else:
+            dag_id, run_id, task_id, map_index = ti_fields
+            backend.set_asset_state_store(
+                scope,
+                key,
+                json.dumps(body.value),
+                kind=AssetStateStoreWriterKind.TASK,
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                map_index=map_index,
+                session=session,
+            )
     else:
         backend.set(scope, key, json.dumps(body.value), session=session)
 
