@@ -2060,6 +2060,46 @@ class TestProviderConfigPriority:
         with conf_vars({("celery", "celery_app_name"): custom_value}):
             assert conf.get("celery", "celery_app_name") == custom_value
 
+    def test_getsection_returns_env_var_only_provider_section(self, monkeypatch):
+        """Env vars are picked up for a provider section whose keys all default to None.
+
+        Regression test for the 3.2.0 lazy-registration gap: sections declared
+        only in provider metadata (e.g. ``celery_broker_transport_options``) used
+        to be eager-registered in ``_default_values``, so the env-var loop in
+        ``getsection()`` ran. After the move to lazy loading via
+        ``configuration_description`` / provider fallbacks, the early-exit guard
+        returned ``None`` and silently dropped every env-var override on those
+        sections — breaking celery worker startup with
+        ``'master_name' transport option must be specified``.
+        """
+        from airflow.settings import conf
+
+        monkeypatch.setenv("AIRFLOW__CELERY_BROKER_TRANSPORT_OPTIONS__VISIBILITY_TIMEOUT", "21600")
+        monkeypatch.setenv("AIRFLOW__CELERY_BROKER_TRANSPORT_OPTIONS__MASTER_NAME", "mymaster")
+
+        section = conf.getsection("celery_broker_transport_options")
+
+        assert section is not None
+        assert section["visibility_timeout"] == 21600
+        assert section["master_name"] == "mymaster"
+
+    def test_getsection_returns_env_var_only_provider_section_via_cfg_fallback(self, monkeypatch):
+        """Env vars are picked up for a section that lives only in provider cfg fallback defaults."""
+        from airflow.settings import conf
+
+        monkeypatch.setenv("AIRFLOW__ELASTICSEARCH__END_OF_LOG_MARK", "env_override_mark")
+
+        section = conf.getsection("elasticsearch")
+
+        assert section is not None
+        assert section["end_of_log_mark"] == "env_override_mark"
+
+    def test_getsection_returns_none_for_truly_unknown_section(self):
+        """Sections not declared anywhere and with no env vars still return None."""
+        from airflow.settings import conf
+
+        assert conf.getsection("section_that_does_not_exist_anywhere") is None
+
 
 # Technically it's not a DB test, but we want to make sure it's not interfering with xdist non-db tests
 # Because the `_cleanup` method might cause side-effect for parallel-run tests
