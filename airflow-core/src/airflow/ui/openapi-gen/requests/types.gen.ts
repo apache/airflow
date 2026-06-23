@@ -2141,6 +2141,11 @@ export type CalendarTimeRangeResponse = {
     count: number;
 };
 
+/**
+ * All possible states of callbacks.
+ */
+export type CallbackState = 'scheduled' | 'pending' | 'queued' | 'running' | 'success' | 'failed';
+
 export type state = 'queued' | 'running' | 'success' | 'failed' | 'planned';
 
 /**
@@ -2339,7 +2344,7 @@ export type DeadlineResponse = {
     alert_id?: string | null;
     alert_name?: string | null;
     callback_id?: string | null;
-    callback_state?: string | null;
+    callback_state?: CallbackState | null;
 };
 
 /**

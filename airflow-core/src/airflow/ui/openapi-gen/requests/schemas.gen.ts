@@ -8437,6 +8437,13 @@ export const $CalendarTimeRangeResponse = {
     description: 'Represents a summary of DAG runs for a specific calendar time range.'
 } as const;
 
+export const $CallbackState = {
+    type: 'string',
+    enum: ['scheduled', 'pending', 'queued', 'running', 'success', 'failed'],
+    title: 'CallbackState',
+    description: 'All possible states of callbacks.'
+} as const;
+
 export const $ConfigResponse = {
     properties: {
         fallback_page_limit: {
@@ -9236,13 +9243,12 @@ export const $DeadlineResponse = {
         callback_state: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/CallbackState'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Callback State'
+            ]
         }
     },
     type: 'object',
