@@ -116,7 +116,7 @@ Airflow provides several built-in reference points that you can use with Deadlin
     If insufficient historical data exists, no deadline is created.
 
     Parameters:
-        * ``max_runs`` (int, optional): Maximum number of recent Dag runs to analyze. Defaults to 10.
+        * ``max_runs`` (int, optional): Maximum number of successful recent Dag runs to analyze. Defaults to 10.
         * ``min_runs`` (int, optional): Minimum number of successful runs required to calculate average. Defaults to same value as ``max_runs``.
 
     Example usage:
