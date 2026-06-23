@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import func, select
 
+from airflow._shared.observability.traces import cli_span
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.dag_run import TriggerDAGRunPostBody
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
@@ -86,21 +87,27 @@ _RUN_CHUNK_SIZE = 500
 @provide_api_client
 def dag_trigger(args, api_client: Client = NEW_API_CLIENT) -> None:
     """Create a dag run for the specified dag."""
-    run_conf = json.loads(args.conf) if args.conf is not None else None
-    if run_conf is not None and not isinstance(run_conf, dict):
-        raise ValueError("DagRun conf must be a JSON object or null")
-    # The core_api request models are the source of truth; they are wire-compatible with
-    # the airflowctl client's generated models (the API server uses populate_by_name).
-    trigger_body = TriggerDAGRunPostBody(
-        dag_run_id=args.run_id,
-        conf=run_conf,
-        logical_date=args.logical_date,
-    )
-    dag_run = api_client.dags.trigger(dag_id=args.dag_id, trigger_dag_run=trigger_body)  # type: ignore[arg-type]
-    AirflowConsole().print_as(
-        data=[dag_run.model_dump(mode="json")],
-        output=args.output,
-    )
+    span_attributes: dict[str, str | int | float | bool] = {"airflow.dag_id": args.dag_id}
+    if args.run_id:
+        span_attributes["airflow.dag_run.run_id"] = args.run_id
+    if args.logical_date:
+        span_attributes["airflow.dag_run.logical_date"] = args.logical_date.isoformat()
+    with cli_span("cli.dags.trigger", attributes=span_attributes):
+        run_conf = json.loads(args.conf) if args.conf is not None else None
+        if run_conf is not None and not isinstance(run_conf, dict):
+            raise ValueError("DagRun conf must be a JSON object or null")
+        # The core_api request models are the source of truth; they are wire-compatible with
+        # the airflowctl client's generated models (the API server uses populate_by_name).
+        trigger_body = TriggerDAGRunPostBody(
+            dag_run_id=args.run_id,
+            conf=run_conf,
+            logical_date=args.logical_date,
+        )
+        dag_run = api_client.dags.trigger(dag_id=args.dag_id, trigger_dag_run=trigger_body)  # type: ignore[arg-type]
+        AirflowConsole().print_as(
+            data=[dag_run.model_dump(mode="json")],
+            output=args.output,
+        )
 
 
 @cli_utils.action_cli
@@ -795,57 +802,61 @@ def dag_list_dag_runs(args, dag: DAG | None = None, *, session: Session = NEW_SE
 @provide_session
 def dag_test(args, dag: DAG | None = None, *, session: Session = NEW_SESSION) -> None:
     """Execute one single DagRun for a given DAG and logical date."""
-    run_conf = None
-    if args.conf:
-        try:
-            run_conf = json.loads(args.conf)
-        except ValueError as e:
-            raise SystemExit(f"Configuration {args.conf!r} is not valid JSON. Error: {e}")
-    logical_date = args.logical_date or timezone.utcnow()
-    use_executor = args.use_executor
+    span_attributes: dict[str, str | int | float | bool] = {"airflow.dag_id": args.dag_id}
+    if args.logical_date:
+        span_attributes["airflow.dag_run.logical_date"] = args.logical_date.isoformat()
+    with cli_span("cli.dags.test", attributes=span_attributes):
+        run_conf = None
+        if args.conf:
+            try:
+                run_conf = json.loads(args.conf)
+            except ValueError as e:
+                raise SystemExit(f"Configuration {args.conf!r} is not valid JSON. Error: {e}")
+        logical_date = args.logical_date or timezone.utcnow()
+        use_executor = args.use_executor
 
-    mark_success_pattern = (
-        re.compile(args.mark_success_pattern) if args.mark_success_pattern is not None else None
-    )
-
-    dag = dag or get_bagged_dag(
-        bundle_names=args.bundle_name,
-        dag_id=args.dag_id,
-        dagfile_path=args.dagfile_path,
-    )
-    if not dag:
-        raise AirflowException(
-            f"Dag {args.dag_id!r} could not be found; either it does not exist or it failed to parse."
+        mark_success_pattern = (
+            re.compile(args.mark_success_pattern) if args.mark_success_pattern is not None else None
         )
 
-    dr: DagRun = dag.test(
-        logical_date=logical_date,
-        run_conf=run_conf,
-        use_executor=use_executor,
-        mark_success_pattern=mark_success_pattern,
-    )
-    show_dagrun = args.show_dagrun
-    imgcat = args.imgcat_dagrun
-    filename = args.save_dagrun
-    if show_dagrun or imgcat or filename:
-        tis = session.scalars(
-            select(TaskInstance).where(
-                TaskInstance.dag_id == args.dag_id,
-                TaskInstance.run_id == dr.run_id,
+        dag = dag or get_bagged_dag(
+            bundle_names=args.bundle_name,
+            dag_id=args.dag_id,
+            dagfile_path=args.dagfile_path,
+        )
+        if not dag:
+            raise AirflowException(
+                f"Dag {args.dag_id!r} could not be found; either it does not exist or it failed to parse."
             )
-        ).all()
 
-        dot_graph = render_dag(cast("SerializedDAG", dag), tis=list(tis))
-        print()
-        if filename:
-            _save_dot_to_file(dot_graph, filename)
-        if imgcat:
-            _display_dot_via_imgcat(dot_graph)
-        if show_dagrun:
-            print(dot_graph.source)
+        dr: DagRun = dag.test(
+            logical_date=logical_date,
+            run_conf=run_conf,
+            use_executor=use_executor,
+            mark_success_pattern=mark_success_pattern,
+        )
+        show_dagrun = args.show_dagrun
+        imgcat = args.imgcat_dagrun
+        filename = args.save_dagrun
+        if show_dagrun or imgcat or filename:
+            tis = session.scalars(
+                select(TaskInstance).where(
+                    TaskInstance.dag_id == args.dag_id,
+                    TaskInstance.run_id == dr.run_id,
+                )
+            ).all()
 
-    if dr and dr.state == DagRunState.FAILED:
-        raise SystemExit("DagRun failed")
+            dot_graph = render_dag(cast("SerializedDAG", dag), tis=list(tis))
+            print()
+            if filename:
+                _save_dot_to_file(dot_graph, filename)
+            if imgcat:
+                _display_dot_via_imgcat(dot_graph)
+            if show_dagrun:
+                print(dot_graph.source)
+
+        if dr and dr.state == DagRunState.FAILED:
+            raise SystemExit("DagRun failed")
 
 
 @cli_utils.action_cli
