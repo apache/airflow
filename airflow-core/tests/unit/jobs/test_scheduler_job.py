@@ -67,6 +67,7 @@ from airflow.models.asset import (
     AssetPartitionDagRun,
     PartitionedAssetKeyLog,
 )
+from airflow.models.asset_state_store import AssetStateStoreModel
 from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
 from airflow.models.callback import Callback, ExecutorCallback
 from airflow.models.connection_test import (
@@ -11492,6 +11493,77 @@ def _set_asset_active(*, name: str, uri: str, session: Session, active: bool) ->
     elif not active and row is not None:
         session.delete(row)
     session.commit()
+
+
+@mock.patch("airflow.jobs.scheduler_job_runner.ORPHANED_ASSET_STATE_STORE_CLEANUP_BATCH_SIZE", 2)
+def test_cleanup_orphaned_asset_state_store_batches_deletes(session: Session) -> None:
+    """
+    Orphaned ``asset_state_store`` rows drain in bounded batches across ticks.
+
+    One active asset and three orphaned assets each get a state-store row. With the
+    per-tick cap patched to two, the first cleanup leaves exactly one orphan pending
+    and the second drains it; the active asset is never touched. Guards against a
+    single unbounded bulk delete inside the scheduler loop.
+    """
+    active = AssetModel(name="ss-active", uri="test://ss-active", group="asset")
+    orphaned = [
+        AssetModel(name=f"ss-orphan-{index}", uri=f"test://ss-orphan-{index}", group="asset")
+        for index in range(3)
+    ]
+    session.add_all([active, *orphaned])
+    session.flush()
+    session.add(AssetActive(name=active.name, uri=active.uri))
+    session.add_all(
+        AssetStateStoreModel(asset_id=asset.id, key="k", value="v") for asset in (active, *orphaned)
+    )
+    session.flush()
+
+    orphan_ids = {asset.id for asset in orphaned}
+
+    SchedulerJobRunner._cleanup_orphaned_asset_state_store(session=session)
+    remaining = set(session.scalars(select(AssetStateStoreModel.asset_id)).all())
+    assert active.id in remaining
+    assert len(remaining & orphan_ids) == 1
+
+    SchedulerJobRunner._cleanup_orphaned_asset_state_store(session=session)
+    assert set(session.scalars(select(AssetStateStoreModel.asset_id)).all()) == {active.id}
+
+
+@mock.patch("airflow.jobs.scheduler_job_runner.ORPHANED_ASSET_STATE_STORE_CLEANUP_BATCH_SIZE", 2)
+def test_cleanup_orphaned_asset_state_store_bounds_rows_not_assets(session: Session) -> None:
+    """
+    The per-tick cap bounds ``asset_state_store`` rows, not orphaned assets.
+
+    ``asset_state_store`` is keyed by ``(asset_id, key)``, so one orphaned asset can own
+    many rows. A single orphaned asset holding five keys must still drain two rows per
+    tick (cap patched to two), not all five at once — otherwise one asset with many keys
+    is an unbounded delete in the scheduler loop. The active asset is never touched.
+    """
+    active = AssetModel(name="ss-active", uri="test://ss-active", group="asset")
+    orphan = AssetModel(name="ss-orphan", uri="test://ss-orphan", group="asset")
+    session.add_all([active, orphan])
+    session.flush()
+    session.add(AssetActive(name=active.name, uri=active.uri))
+    session.add_all(
+        AssetStateStoreModel(asset_id=orphan.id, key=f"k{index}", value="v") for index in range(5)
+    )
+    session.add(AssetStateStoreModel(asset_id=active.id, key="k", value="v"))
+    session.flush()
+
+    def orphan_row_count() -> int:
+        return len(
+            session.scalars(
+                select(AssetStateStoreModel.key).where(AssetStateStoreModel.asset_id == orphan.id)
+            ).all()
+        )
+
+    for expected_remaining in (3, 1, 0):
+        SchedulerJobRunner._cleanup_orphaned_asset_state_store(session=session)
+        assert orphan_row_count() == expected_remaining
+
+    assert session.scalars(
+        select(AssetStateStoreModel.key).where(AssetStateStoreModel.asset_id == active.id)
+    ).all() == ["k"]
 
 
 @pytest.mark.need_serialized_dag

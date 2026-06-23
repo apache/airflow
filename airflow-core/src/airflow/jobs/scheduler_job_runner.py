@@ -161,6 +161,13 @@ TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 # safety bound, not a behavioural knob operators need to tune.
 MAX_PARTITION_DAG_RUNS_PER_LOOP = 500
 
+# Cap on orphaned asset_state_store rows cleaned per scheduler orphanage tick; the
+# remainder drain on later ticks. The bound is on rows, not assets: asset_state_store is
+# keyed by (asset_id, key), so a single orphaned asset can own arbitrarily many rows. The
+# delete uses a composite-key IN list — 2 bound parameters per row — so 450 stays under
+# SQLite's 999-parameter limit. Not a tuned value.
+ORPHANED_ASSET_STATE_STORE_CLEANUP_BATCH_SIZE = 450
+
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
     """
@@ -3761,16 +3768,30 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         Delete asset_state_store rows for assets no longer active in any Dag.
 
-        When _orphan_unreferenced_assets removes an asset from asset_active, its
-        asset_state_store rows become unreachable — no task can write to them anymore.
-        This runs in the same pass as asset orphanage to keep the table clean.
+        Bounded to ORPHANED_ASSET_STATE_STORE_CLEANUP_BATCH_SIZE rows per tick so a
+        large backlog cannot become one unbounded delete in the scheduler loop; the
+        remainder drains on later orphanage ticks. The bound is on rows, not assets:
+        asset_state_store is keyed by (asset_id, key), so one orphaned asset can own
+        arbitrarily many rows.
         """
         active_asset_ids = select(AssetModel.id).join(
             AssetActive,
             (AssetActive.name == AssetModel.name) & (AssetActive.uri == AssetModel.uri),
         )
+        orphaned_rows = session.execute(
+            select(AssetStateStoreModel.asset_id, AssetStateStoreModel.key)
+            .where(AssetStateStoreModel.asset_id.not_in(active_asset_ids))
+            .order_by(AssetStateStoreModel.asset_id, AssetStateStoreModel.key)
+            .limit(ORPHANED_ASSET_STATE_STORE_CLEANUP_BATCH_SIZE)
+        ).all()
+        if not orphaned_rows:
+            return
         session.execute(
-            delete(AssetStateStoreModel).where(AssetStateStoreModel.asset_id.not_in(active_asset_ids))
+            delete(AssetStateStoreModel).where(
+                tuple_(AssetStateStoreModel.asset_id, AssetStateStoreModel.key).in_(
+                    [(row.asset_id, row.key) for row in orphaned_rows]
+                )
+            )
         )
 
     def _enqueue_connection_tests(self, *, session: Session) -> None:
