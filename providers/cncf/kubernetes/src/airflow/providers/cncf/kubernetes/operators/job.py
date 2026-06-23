@@ -378,9 +378,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
             job = None
             log.warning("Template file %s does not exist", path)
 
-        # A fresh Configuration() keeps the deserialized model picklable: in-cluster, the kubernetes
-        # client (v36) would otherwise stamp the global Configuration, whose refresh_api_key_hook is
-        # an unpicklable local closure, onto the model and every nested object.
+        # A fresh Configuration() keeps the deserialized model picklable
         api_client = ApiClient(configuration=Configuration())
         return api_client._ApiClient__deserialize_model(job, k8s.V1Job)
 

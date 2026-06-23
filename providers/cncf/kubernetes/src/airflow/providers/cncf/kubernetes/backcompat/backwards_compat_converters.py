@@ -36,9 +36,7 @@ def _convert_from_dict(obj, new_class):
     if isinstance(obj, new_class):
         return obj
     if isinstance(obj, dict):
-        # A fresh Configuration() keeps the deserialized model picklable: in-cluster, the kubernetes
-        # client (v36) would otherwise stamp the global Configuration, whose refresh_api_key_hook is
-        # an unpicklable local closure, onto the model and every nested object.
+        # A fresh Configuration() keeps the deserialized model picklabled
         api_client = ApiClient(configuration=Configuration())
         return api_client._ApiClient__deserialize_model(obj, new_class)
     raise AirflowException(f"Expected dict or {new_class}, got {type(obj)}")
