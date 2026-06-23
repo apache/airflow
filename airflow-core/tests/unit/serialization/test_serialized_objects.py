@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import math
+import pickle
 import sys
 from collections.abc import Iterator
 from datetime import datetime, timedelta
@@ -27,7 +28,7 @@ from typing import TYPE_CHECKING
 import pendulum
 import pytest
 from dateutil import relativedelta
-from kubernetes.client import models as k8s
+from kubernetes.client import Configuration, models as k8s
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from uuid6 import uuid7
 
@@ -1398,10 +1399,7 @@ class TestKubernetesImportAvoidance:
         naively deserialized ``pod_override`` cannot be pickled onto the KubernetesExecutor queue and
         crashes the scheduler. Deserializing through a fresh ``Configuration`` keeps the pod picklable.
         """
-        import pickle
-
         k8s = pytest.importorskip("kubernetes.client.models")
-        from kubernetes.client import Configuration
 
         def _make_unpicklable_hook():
             def _refresh_api_key(config):
@@ -1412,7 +1410,6 @@ class TestKubernetesImportAvoidance:
         dirty = Configuration()
         dirty.refresh_api_key_hook = _make_unpicklable_hook()
         monkeypatch.setattr(Configuration, "_default", dirty, raising=False)
-        _has_kubernetes.cache_clear()
 
         pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(name="test-pod"),
@@ -1425,8 +1422,6 @@ class TestKubernetesImportAvoidance:
         pickle.dumps(decoded)
         assert decoded.local_vars_configuration.refresh_api_key_hook is None
         assert decoded.spec.containers[0].local_vars_configuration.refresh_api_key_hook is None
-
-        _has_kubernetes.cache_clear()
 
 
 @pytest.mark.db_test

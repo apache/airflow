@@ -23,7 +23,7 @@ from copy import deepcopy
 from unittest import mock
 
 import pytest
-from kubernetes.client import models as k8s
+from kubernetes.client import Configuration, models as k8s
 from sqlalchemy import text
 from sqlalchemy.exc import StatementError
 
@@ -355,7 +355,6 @@ class TestExecutorConfigType:
         the pod it must round-trip through a fresh ``Configuration`` so it stays picklable onto the
         KubernetesExecutor queue.
         """
-        from kubernetes.client import Configuration
 
         def _make_unpicklable_hook():
             def _refresh_api_key(config):

@@ -109,6 +109,7 @@ from airflow.timetables.base import DagRunInfo, Timetable
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.db import LazySelectSequence
+from airflow.utils.sqlalchemy import deserialize_pod_dict
 
 if TYPE_CHECKING:
     from inspect import Parameter
@@ -643,8 +644,6 @@ class BaseSerialization:
                     "Cannot deserialize POD objects without kubernetes libraries. "
                     "Please install the `kubernetes` package."
                 )
-            from airflow.utils.sqlalchemy import deserialize_pod_dict
-
             return deserialize_pod_dict(var)
         elif type_ == DAT.TIMEDELTA:
             return datetime.timedelta(seconds=var)
