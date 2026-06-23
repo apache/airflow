@@ -181,10 +181,10 @@ class BaseStoreBackend(ABC):
         Must handle both ``TaskScope`` and ``AssetScope``.
 
         For ``TaskScope``: by default, only keys for the exact ``map_index`` on the
-        scope are cleared. Pass ``all_map_indices=True`` to drop the ``map_index``
-        filter and wipe state across every mapped instance of the task - intended for
-        external callers (UI, CLI) acting on a completed task group, not for use inside
-        a running task. For ``AssetScope`` the flag has no effect.
+        scope are cleared. When ``all_map_indices=True``, the ``map_index`` filter is
+        dropped and state is wiped across every mapped instance — for use by external
+        callers (UI, CLI) only, not from within a running task.
+        For ``AssetScope`` the flag has no effect.
         """
 
     @abstractmethod
@@ -230,9 +230,10 @@ class BaseStoreBackend(ABC):
         Async variant of clear. Must handle both ``TaskScope`` and ``AssetScope``.
 
         For ``TaskScope``: by default, only keys for the exact ``map_index`` on the
-        scope are cleared. Pass ``all_map_indices=True`` to wipe state across every
-        mapped instance of the task - intended for external callers (UI, CLI), not for
-        use inside a running task. For ``AssetScope`` the flag has no effect.
+        scope are cleared. When ``all_map_indices=True``, the ``map_index`` filter is
+        dropped and state is wiped across every mapped instance — for use by external
+        callers (UI, CLI) only, not from within a running task.
+        For ``AssetScope`` the flag has no effect.
 
         ``session`` is optional. If provided, implementations should use it directly.
         If ``None``, implementations manage their own async session internally.
