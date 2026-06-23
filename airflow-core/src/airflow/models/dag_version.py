@@ -24,12 +24,14 @@ from uuid import UUID
 
 import sqlalchemy as sa
 import uuid6
-from sqlalchemy import ForeignKey, Integer, UniqueConstraint, select
+from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint, select
 from sqlalchemy.orm import Mapped, joinedload, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.base import Base, StringID
+from airflow.settings import json
+from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 
@@ -54,6 +56,7 @@ class DagVersion(Base):
     bundle_name: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     bundle_version: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     version_data: Mapped[dict | None] = mapped_column(sa.JSON(), nullable=True)
+    version_data_hash: Mapped[str | None] = mapped_column(String(32), nullable=True)
     bundle = relationship(
         "DagBundleModel",
         primaryjoin="foreign(DagVersion.bundle_name) == DagBundleModel.name",
@@ -104,6 +107,20 @@ class DagVersion(Base):
         except ValueError:
             return None
 
+    @staticmethod
+    def compute_version_data_hash(version_data: dict | None) -> str | None:
+        """
+        Compute a deterministic hash of *version_data*.
+
+        Uses md5 of the JSON sorted by key so two equivalent dicts always
+        produce the same hash. Returns ``None`` when *version_data* is
+        ``None`` (the common case for built-in bundles).
+        """
+        if version_data is None:
+            return None
+        data_json = json.dumps(version_data, sort_keys=True).encode("utf-8")
+        return md5(data_json).hexdigest()
+
     @classmethod
     @provide_session
     def write_dag(
@@ -141,6 +158,7 @@ class DagVersion(Base):
             bundle_name=bundle_name,
             bundle_version=bundle_version,
             version_data=version_data,
+            version_data_hash=cls.compute_version_data_hash(version_data),
         )
         log.debug("Writing DagVersion %s to the DB", dag_version)
         session.add(dag_version)

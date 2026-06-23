@@ -29,7 +29,7 @@ from uuid import UUID
 import uuid6
 from sqlalchemy import JSON, ForeignKey, LargeBinary, String, Uuid, exists, select, tuple_, update
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
+from sqlalchemy.orm import Mapped, backref, foreign, load_only, mapped_column, relationship
 from sqlalchemy.sql.expression import func, literal
 
 from airflow._shared.timezones import timezone
@@ -580,7 +580,19 @@ class SerializedDagModel(Base):
             .subquery()
         )
         dag_versions = session.scalars(
-            select(DagVersion).join(dv_subq, DagVersion.id == dv_subq.c.id).where(dv_subq.c.rn == 1)
+            select(DagVersion)
+            .options(
+                load_only(
+                    DagVersion.id,
+                    DagVersion.dag_id,
+                    DagVersion.bundle_name,
+                    DagVersion.bundle_version,
+                    DagVersion.version_data_hash,
+                    DagVersion.version_number,
+                )
+            )
+            .join(dv_subq, DagVersion.id == dv_subq.c.id)
+            .where(dv_subq.c.rn == 1)
         ).all()
         dv_by_dag_id: dict[str, DagVersion] = {dv.dag_id: dv for dv in dag_versions}
 
@@ -694,12 +706,15 @@ class SerializedDagModel(Base):
             # But if the bundle advanced, refresh the latest version's pointer in place — tasks resolve
             # their code from ``ti.dag_version.bundle_version`` at run time, so a stale
             # pointer makes runs execute an outdated commit.
+            incoming_version_data_hash = DagVersion.compute_version_data_hash(version_data)
             bundle_metadata_changed = (
-                dag_version.bundle_version != bundle_version or dag_version.version_data != version_data
+                dag_version.bundle_version != bundle_version
+                or dag_version.version_data_hash != incoming_version_data_hash
             )
             if bundle_metadata_changed:
                 dag_version.bundle_version = bundle_version
                 dag_version.version_data = version_data
+                dag_version.version_data_hash = incoming_version_data_hash
                 session.merge(dag_version)
                 DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
             if name_updated or bundle_metadata_changed:
@@ -759,6 +774,7 @@ class SerializedDagModel(Base):
             dag_version.bundle_name = bundle_name
             dag_version.bundle_version = bundle_version
             dag_version.version_data = version_data
+            dag_version.version_data_hash = DagVersion.compute_version_data_hash(version_data)
             session.merge(dag_version)
             # Update the latest DagCode
             DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
