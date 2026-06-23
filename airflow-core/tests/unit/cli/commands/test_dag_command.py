@@ -1680,13 +1680,12 @@ class TestCliDagsClear:
 
     @pytest.mark.usefixtures("seeded_asset_partitioned_runs")
     def test_asset_timetable_clears_window_inclusive(self, parser):
-        """PartitionedAssetTimetable uses the base default; day-granular UTC bounds are correct.
+        """PartitionedAssetTimetable uses the base (UTC) localization; datetime-precision bounds are correct.
 
-        PartitionedAssetTimetable has no local timezone, so
-        resolve_day_bound returns midnight UTC for each calendar day.
-        The full window 2026-04-10 to 2026-04-14 (inclusive) should clear the
-        at-boundary and within-window runs; 2026-04-15 and partition_date=None
-        must not be touched.
+        PartitionedAssetTimetable has no local timezone, so localize_partition_datetime
+        is a UTC pass-through.  The full window 2026-04-10 to 2026-04-14 (inclusive)
+        should clear the at-boundary and within-window runs; 2026-04-15 and
+        partition_date=None must not be touched.
         """
         args = parser.parse_args(
             [
@@ -1707,7 +1706,7 @@ class TestCliDagsClear:
             "asset_2026_04_10": DagRunState.QUEUED,
             "asset_2026_04_12": DagRunState.QUEUED,
             "asset_2026_04_14": DagRunState.QUEUED,
-            # Outside the half-open upper bound — must NOT be cleared.
+            # Beyond the inclusive upper bound — must NOT be cleared.
             "asset_2026_04_15": DagRunState.SUCCESS,
             # NULL partition_date is never matched by the date-range filter.
             "asset_non_part": DagRunState.SUCCESS,
@@ -1715,7 +1714,7 @@ class TestCliDagsClear:
 
     @pytest.mark.usefixtures("seeded_asset_partitioned_runs")
     def test_asset_timetable_upper_bound_at_cap(self, parser):
-        """--partition-date-end 2026-04-14 must include the run at exactly that UTC midnight (at-cap)."""
+        """--partition-date-end 2026-04-14 includes the run at exactly that UTC midnight (at-cap, inclusive)."""
         args = parser.parse_args(
             [
                 "dags",
@@ -1733,7 +1732,7 @@ class TestCliDagsClear:
         assert states["asset_2026_04_10"] == DagRunState.QUEUED
         assert states["asset_2026_04_12"] == DagRunState.QUEUED
         assert states["asset_2026_04_14"] == DagRunState.QUEUED
-        # 2026-04-15 is outside the half-open upper bound.
+        # 2026-04-15 is beyond the inclusive upper bound.
         assert states["asset_2026_04_15"] == DagRunState.SUCCESS
         assert states["asset_non_part"] == DagRunState.SUCCESS
 
@@ -1741,9 +1740,8 @@ class TestCliDagsClear:
     def test_asset_timetable_upper_bound_over_cap(self, parser):
         """--partition-date-end 2026-04-13 must NOT include the 2026-04-14 run (over-cap).
 
-        Half-open upper bound: end=2026-04-13 → upper = 2026-04-14T00:00Z.
-        The run stored at 2026-04-14T00:00Z satisfies partition_date < 2026-04-14T00:00Z
-        as False, so it is excluded.
+        Inclusive upper bound: end=2026-04-13T00:00Z → partition_date <= 2026-04-13T00:00Z.
+        The run stored at 2026-04-14T00:00Z is excluded because Apr 14 > Apr 13.
         """
         args = parser.parse_args(
             [
@@ -1760,7 +1758,7 @@ class TestCliDagsClear:
         states = self._get_run_states()
         assert states["asset_2026_04_10"] == DagRunState.QUEUED
         assert states["asset_2026_04_12"] == DagRunState.QUEUED
-        # 2026-04-14 is exactly at the half-open boundary — must NOT be cleared.
+        # 2026-04-14 is beyond the inclusive end (Apr 13) — must NOT be cleared.
         assert states["asset_2026_04_14"] == DagRunState.SUCCESS
         assert states["asset_2026_04_15"] == DagRunState.SUCCESS
         assert states["asset_non_part"] == DagRunState.SUCCESS

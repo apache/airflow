@@ -23,7 +23,7 @@ import os
 import re
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 from uuid import UUID
 
@@ -2204,13 +2204,13 @@ class DagRun(Base, LoggingMixin):
         start: datetime | None,
         end: datetime | None,
     ) -> Select:
-        """Filter stmt to the half-open interval [lower, upper) on partition_date."""
+        """Filter stmt to the inclusive interval [lower, upper] on partition_date."""
         if start is not None:
-            lower = timetable.resolve_day_bound(start.date())
+            lower = timetable.localize_partition_datetime(start)
             stmt = stmt.where(DagRun.partition_date >= lower)
         if end is not None:
-            upper = timetable.resolve_day_bound(end.date() + timedelta(days=1))
-            stmt = stmt.where(DagRun.partition_date < upper)
+            upper = timetable.localize_partition_datetime(end)
+            stmt = stmt.where(DagRun.partition_date <= upper)
         return stmt
 
 
@@ -2269,8 +2269,8 @@ def clear_partition_runs(
     """
     Reset partition_key and partition_date to None on matching Dag runs.
 
-    Selector priority: run_id → partition_key → date-window (day-granular, resolved through
-    the timetable timezone). Runs already cleared (both fields None) are skipped unless
+    Selector priority: run_id → partition_key → date-window (datetime-precision, localized
+    through the timetable timezone). Runs already cleared (both fields None) are skipped unless
     clear_tis is True.
 
     The date-window selector requires a non-None ``dag`` to resolve the timetable timezone.

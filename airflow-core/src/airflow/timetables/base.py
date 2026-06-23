@@ -297,6 +297,23 @@ class Timetable(Protocol):
             datetime.datetime(day.year, day.month, day.day, tzinfo=datetime.timezone.utc)
         )
 
+    def localize_partition_datetime(self, dt: datetime.datetime) -> DateTime:
+        """
+        Re-interpret *dt*'s wall-clock reading as a moment in this timetable's timezone.
+
+        The base implementation treats the timetable as UTC: the wall-clock is kept
+        as-is and the result is simply a timezone-aware UTC instant (a no-op for
+        already-UTC inputs). Timetables with a local timezone (e.g.
+        :class:`~airflow.timetables._cron.CronMixin` subclasses) override this to
+        re-localise the wall-clock to their own timezone before converting to UTC,
+        preserving sub-day precision for narrow windows on sub-daily schedules.
+
+        Used by :meth:`~airflow.models.dagrun.DagRun.apply_partition_date_window` to
+        convert user-supplied ``partition_date`` filter bounds without truncating the
+        time component.
+        """
+        return timezone.coerce_datetime(dt)
+
     def resolve_partition_date(self, partition_key: str | None) -> datetime.datetime | None:
         """
         Decode *partition_key* into the period-start datetime it represents.

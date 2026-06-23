@@ -4820,3 +4820,70 @@ class TestClearPartitionRuns:
                 dry_run=False,
                 session=session,
             )
+
+
+@pytest.mark.db_test
+class TestApplyPartitionDateWindowSubDay:
+    """apply_partition_date_window preserves sub-day precision for hourly partitioned Dags."""
+
+    @pytest.fixture(autouse=True)
+    def setup_hourly_dag(self, dag_maker):
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            "test_subday_dag",
+            schedule=CronPartitionTimetable("0 * * * *", timezone=pendulum.UTC),
+            start_date=datetime.datetime(2026, 1, 1),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        for hour in (6, 8, 10):
+            dag_maker.create_dagrun(
+                run_id=f"subday_run_{hour:02d}",
+                state=DagRunState.SUCCESS,
+                logical_date=None,
+                partition_date=datetime.datetime(2026, 1, 1, hour, tzinfo=pendulum.UTC),
+                partition_key=f"2026-01-01T{hour:02d}:00:00",
+            )
+        dag_maker.sync_dagbag_to_db()
+        self._serialized_dag = SerializedDagModel.get_dag("test_subday_dag")
+        yield
+        clear_db_runs()
+        clear_db_dags()
+
+    def _get_run(self, run_id: str, session) -> DagRun:
+        return session.scalar(select(DagRun).where(DagRun.run_id == run_id))
+
+    def test_narrow_window_selects_only_matching_partition(self, session):
+        """A one-hour window clears exactly the matching tick, not the entire day."""
+        cleared, _ = clear_partition_runs(
+            dag=self._serialized_dag,
+            dag_id="test_subday_dag",
+            run_id=None,
+            partition_key=None,
+            partition_date_start=datetime.datetime(2026, 1, 1, 8, tzinfo=pendulum.UTC),
+            partition_date_end=datetime.datetime(2026, 1, 1, 8, tzinfo=pendulum.UTC),
+            clear_tis=False,
+            dry_run=False,
+            session=session,
+        )
+        assert cleared == 1
+        assert self._get_run("subday_run_06", session).partition_key == "2026-01-01T06:00:00"
+        assert self._get_run("subday_run_08", session).partition_key is None
+        assert self._get_run("subday_run_10", session).partition_key == "2026-01-01T10:00:00"
+
+    def test_multi_hour_window_selects_range(self, session):
+        """A window spanning 06:00–10:00 clears all three hourly partitions."""
+        cleared, _ = clear_partition_runs(
+            dag=self._serialized_dag,
+            dag_id="test_subday_dag",
+            run_id=None,
+            partition_key=None,
+            partition_date_start=datetime.datetime(2026, 1, 1, 6, tzinfo=pendulum.UTC),
+            partition_date_end=datetime.datetime(2026, 1, 1, 10, tzinfo=pendulum.UTC),
+            clear_tis=False,
+            dry_run=False,
+            session=session,
+        )
+        assert cleared == 3

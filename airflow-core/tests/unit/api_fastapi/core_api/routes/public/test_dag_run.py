@@ -2361,9 +2361,9 @@ class TestBulkClearDagRunsPartitionSelector:
         assert state_c == DagRunState.SUCCESS
 
     def test_partition_date_end_boundary_excludes_next_day(self, test_client, session, partition_dag):
-        """Upper bound is exclusive (end+1 day): run on end day is included, run on end+1 is not."""
+        """Upper bound is inclusive: run on end datetime is included, run after end is not."""
         dag_id = partition_dag["dag_id"]
-        # Window: start=Jan 1, end=Jan 1 → only run_a selected (run_b on Jan 2 excluded)
+        # Window: start=Jan 1, end=Jan 1T00:00Z → only run_a selected (run_b on Jan 2 excluded)
         response = test_client.post(
             f"/dags/{dag_id}/clearDagRuns",
             json={
