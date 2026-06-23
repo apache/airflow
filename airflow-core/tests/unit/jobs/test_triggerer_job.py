@@ -77,8 +77,16 @@ from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import DAG, BaseHook, BaseOperator
 from airflow.sdk.api.client import Client
-from airflow.sdk.execution_time.comms import ToSupervisor, ToTask, _RequestFrame, _ResponseFrame
-from airflow.sdk.execution_time.context import AssetStateStoreAccessors
+from airflow.sdk.execution_time.comms import (
+    AssetStateStoreResult,
+    GetAssetStateStoreByName,
+    SetAssetStateStoreByName,
+    ToSupervisor,
+    ToTask,
+    _RequestFrame,
+    _ResponseFrame,
+)
+from airflow.sdk.execution_time.context import Asset, AssetStateStoreAccessors
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
 from airflow.triggers.shared_stream import SharedStreamProducer
