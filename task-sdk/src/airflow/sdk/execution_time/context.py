@@ -636,23 +636,17 @@ class TaskStateStoreAccessor:
         if backend is not None:
             backend.delete(self._scope, key)
 
-    def clear(self, all_map_indices: bool = False) -> None:
-        """
-        Delete all keys for this task instance.
-
-        Pass ``all_map_indices=True`` to wipe state across every mapped
-        instance of the task (fleet-wide reset). Defaults to clearing only
-        this task instance's own state.
-        """
+    def clear(self) -> None:
+        """Delete all keys for this task instance."""
         from airflow.sdk.execution_time.comms import ClearTaskStateStore
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         # cleanup the DB ref first, if backend cleanup fails after this, the ref is gone and
         # deterministic keys are recoverable on next set().
-        SUPERVISOR_COMMS.send(ClearTaskStateStore(ti_id=self._ti_id, all_map_indices=all_map_indices))
+        SUPERVISOR_COMMS.send(ClearTaskStateStore(ti_id=self._ti_id))
         backend = _get_worker_state_store_backend()
         if backend is not None:
-            backend.clear(self._scope, all_map_indices=all_map_indices)
+            backend.clear(self._scope)
 
     def _clear_backend_only(self) -> None:
         """
@@ -1418,3 +1412,46 @@ def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
     except KeyError:
         outlet_events = context["outlet_events"] = OutletEventAccessors()
     return outlet_events
+
+
+def build_context_from_dag_run(dag_run, deadline: dict | None = None) -> dict:
+    """
+    Build a standard callback Context dict from a DagRun-like object.
+
+    Accepts any object with logical_date, run_id, data_interval_start, data_interval_end
+    attributes (e.g. DRDataModel from the execution API or DagRunResult from comms).
+
+    Returns a context dict with dag_run, run_id, logical_date, ds, ts, etc.
+    Task-specific fields are absent since callbacks are not tied to a task.
+
+    :param deadline: Optional ``{"id": ..., "deadline_time": ...}`` dict exposed as
+        ``context["deadline"]`` (for templates such as ``{{ deadline.deadline_time }}``).
+        Assembled here so the executor and triggerer callback paths produce identical context.
+    """
+    from airflow.sdk.timezone import coerce_datetime
+
+    context: dict = {"dag_run": dag_run}
+
+    if logical_date := coerce_datetime(dag_run.logical_date):
+        ds = logical_date.strftime("%Y-%m-%d")
+        ts = logical_date.isoformat()
+        context.update(
+            {
+                "logical_date": logical_date,
+                "run_id": dag_run.run_id,
+                "ds": ds,
+                "ds_nodash": ds.replace("-", ""),
+                "ts": ts,
+                "ts_nodash": logical_date.strftime("%Y%m%dT%H%M%S"),
+                "ts_nodash_with_tz": ts.replace("-", "").replace(":", ""),
+                "data_interval_start": coerce_datetime(dag_run.data_interval_start),
+                "data_interval_end": coerce_datetime(dag_run.data_interval_end),
+            }
+        )
+    else:
+        context["run_id"] = dag_run.run_id
+
+    if deadline:
+        context["deadline"] = deadline
+
+    return context
