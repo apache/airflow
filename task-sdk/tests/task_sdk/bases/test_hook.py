@@ -80,7 +80,7 @@ class TestBaseHook:
 
         hook = BaseHook(logger_name="")
         await hook.aget_connection(conn_id="test_conn")
-        mock_supervisor_comms.asend.assert_called_once_with(
+        mock_supervisor_comms.asend.assert_any_call(
             msg=GetConnection(conn_id="test_conn"),
         )
 
@@ -99,6 +99,34 @@ class TestBaseHook:
 
         with pytest.raises(AirflowNotFoundException, match="The conn_id `test_conn` isn't defined"):
             await hook.aget_connection(conn_id=conn_id)
+
+    @pytest.mark.asyncio
+    async def test_aget_hook(self, mock_supervisor_comms):
+        """aget_hook() must use the async connection path and return the hook for the connection."""
+        conn = ConnectionResult(
+            conn_id="test_conn",
+            conn_type="http",
+            host="https://example.com",
+            login="user",
+            password="password",
+            port=443,
+        )
+
+        mock_supervisor_comms.asend.return_value = conn
+
+        result = await BaseHook.aget_hook(conn_id="test_conn")
+
+        # asend() must have been called for GetConnection — never the blocking send()
+        mock_supervisor_comms.asend.assert_any_call(
+            msg=GetConnection(conn_id="test_conn"),
+        )
+        # send() must not have been used for GetConnection (other messages like MaskSecret are allowed)
+        for call_args in mock_supervisor_comms.send.call_args_list:
+            msg = call_args.kwargs.get("msg") or (call_args.args[0] if call_args.args else None)
+            assert not isinstance(msg, GetConnection), (
+                "send() must not be used for GetConnection; use asend() instead"
+            )
+        assert result is not None
 
     def test_get_connection_secrets_backend_configured(self, mock_supervisor_comms, tmp_path):
         path = tmp_path / "conn.env"

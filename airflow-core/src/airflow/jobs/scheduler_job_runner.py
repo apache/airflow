@@ -2395,11 +2395,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
         existing_dagruns = {(x.dag_id, x.logical_date): x for x in existing_dagrun_objects}
 
-        # todo: AIP-76 we may want to update check existing to also check partitioned dag runs,
-        #  but the thing is, there is not actually a restriction that
-        #  we don't create new runs with the same partition key
-        #  so it's unclear whether we should / need to.
-
         # backfill runs are not created by scheduler and their concurrency is separate
         # so we exclude them here
         active_runs_of_dags = Counter(
