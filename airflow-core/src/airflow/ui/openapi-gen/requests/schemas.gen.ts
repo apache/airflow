@@ -5784,6 +5784,43 @@ export const $ProviderCollectionResponse = {
     description: 'Provider Collection serializer for responses.'
 } as const;
 
+export const $ProviderDetailsResponse = {
+    properties: {
+        package_name: {
+            type: 'string',
+            title: 'Package Name'
+        },
+        description: {
+            type: 'string',
+            title: 'Description'
+        },
+        version: {
+            type: 'string',
+            title: 'Version'
+        },
+        documentation_url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Documentation Url'
+        },
+        provider_info: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Provider Info'
+        }
+    },
+    type: 'object',
+    required: ['package_name', 'description', 'version', 'documentation_url', 'provider_info'],
+    title: 'ProviderDetailsResponse',
+    description: 'Detailed provider serializer for responses.'
+} as const;
+
 export const $ProviderResponse = {
     properties: {
         package_name: {

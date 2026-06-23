@@ -66,6 +66,7 @@ from airflowctl.api.datamodels.generated import (
     PoolPatchBody,
     PoolResponse,
     ProviderCollectionResponse,
+    ProviderDetailsResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
     TriggerDAGRunPostBody,
@@ -719,6 +720,14 @@ class PoolsOperations(BaseOperations):
 
 class ProvidersOperations(BaseOperations):
     """Provider operations."""
+
+    def get(self, provider_name: str) -> ProviderDetailsResponse | ServerResponseError:
+        """Get detailed information for a provider."""
+        try:
+            self.response = self.client.get(f"providers/{provider_name}")
+            return ProviderDetailsResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
 
     def list(self) -> ProviderCollectionResponse | ServerResponseError:
         """List all providers."""

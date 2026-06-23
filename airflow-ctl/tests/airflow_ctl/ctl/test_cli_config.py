@@ -563,6 +563,27 @@ class TestCliConfigMethods:
                 assert "subcommand3" in sub_command_names
                 assert "subcommand4" in sub_command_names
 
+    def test_merge_commands_replaces_duplicate_subcommand(self, no_op_method):
+        generated = GroupCommand(
+            name="providers",
+            help="Generated providers commands",
+            subcommands=(
+                ActionCommand(name="get", help="Generated get", func=no_op_method, args=()),
+                ActionCommand(name="list", help="Generated list", func=no_op_method, args=()),
+            ),
+        )
+        custom = GroupCommand(
+            name="providers",
+            help="Custom providers commands",
+            subcommands=(ActionCommand(name="get", help="Custom get", func=no_op_method, args=()),),
+        )
+
+        merged = merge_commands(base_commands=[generated], commands_will_be_merged=[custom])
+
+        subcommands = list(merged[0].subcommands)
+        assert [command.name for command in subcommands] == ["list", "get"]
+        assert subcommands[-1].help == "Custom get"
+
     def test_add_auth_token_to_all_commands(self, no_op_method):
         """Test the add_auth_token_to_all_commands method."""
         ARG_1 = Arg(
