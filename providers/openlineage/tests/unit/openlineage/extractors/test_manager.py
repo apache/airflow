@@ -317,6 +317,48 @@ def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(
 
 
 @pytest.mark.parametrize("hook_lineage", [True, False])
+def test_extract_metadata_extractor_empty_result_uses_hook_lineage_when_enabled(hook_lineage):
+    """
+    Extractor found but returned empty inputs/outputs: hook lineage should be merged when
+    ``hook_lineage=True`` and skipped (falling back to inlets/outlets) when ``hook_lineage=False``.
+    """
+    from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
+
+    class FakeSupportedOperator(BaseOperator):
+        def execute(self, context: Context) -> Any:
+            pass
+
+        def get_openlineage_facets_on_complete(self, task_instance):
+            return OperatorLineage()
+
+    hook_input = OpenLineageDataset(namespace="s3://bucket", name="hook_input")
+    dagrun = MagicMock()
+    task = FakeSupportedOperator(task_id="test_task_hook_lineage_policy")
+    ti = MagicMock()
+
+    controls = EmissionPolicy(
+        emit=True,
+        extract_operator_metadata=True,
+        include_source_code=True,
+        hook_lineage=hook_lineage,
+        include_full_task_info=False,
+    )
+
+    with mock.patch.object(
+        ExtractorManager, "get_hook_lineage", return_value=OperatorLineage(inputs=[hook_input])
+    ):
+        extractor_manager = ExtractorManager()
+        metadata = extractor_manager.extract_metadata(
+            dagrun=dagrun, task=task, task_instance_state=None, task_instance=ti, controls=controls
+        )
+
+    if hook_lineage:
+        assert hook_input in metadata.inputs
+    else:
+        assert hook_input not in metadata.inputs
+
+
+@pytest.mark.parametrize("hook_lineage", [True, False])
 def test_extract_metadata_no_extractor_emits_unknown_source_and_inlets_outlets(
     hook_lineage, hook_lineage_collector
 ):

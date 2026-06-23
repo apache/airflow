@@ -257,6 +257,7 @@ def build_task_event_run_facets(
     parent_job_name: str | None = None,
     dr_conf: dict | None = None,
     additional_run_facets: dict[str, RunFacet] | None = None,
+    include_full_task_info: bool = False,
 ) -> dict[str, RunFacet]:
     """Build the task-event run-facet dict."""
     if dr_conf is None:
@@ -287,7 +288,12 @@ def build_task_event_run_facets(
             dr_conf=dr_conf,
         ),
         **get_airflow_run_facet(
-            dag_run=dag_run, dag=dag, task_instance=task_instance, task=task, task_uuid=task_uuid
+            dag_run=dag_run,
+            dag=dag,
+            task_instance=task_instance,
+            task=task,
+            task_uuid=task_uuid,
+            include_full_task_info=include_full_task_info,
         ),
         **get_airflow_debug_facet(),
         **get_processing_engine_facet(),
