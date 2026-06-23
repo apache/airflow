@@ -534,6 +534,23 @@ class TestCliDb:
         with pytest.raises(AirflowException, match=r"Unknown driver: invalid\+psycopg"):
             db_command.shell(self.parser.parse_args(["db", "shell"]))
 
+    @mock.patch(
+        "airflow.cli.commands.db_command.settings.engine.url",
+        make_url("postgresql+psycopg2://postgres:airflow@postgres/"),
+    )
+    @pytest.mark.parametrize(
+        "conn_uri",
+        [
+            pytest.param("postgresql://postgres:postgres@postgres:5432", id="db-name-none"),
+            pytest.param("postgresql://postgres:postgres@postgres:5432/", id="db-name-empty"),
+        ],
+    )
+    def test_db_shell_missing_database_name(self, conn_uri):
+        """Assert that an explicit ValueError is raised when the database name is missing."""
+        with mock.patch("airflow.cli.commands.db_command.settings.engine.url", make_url(conn_uri)):
+            with pytest.raises(ValueError, match="The metadata database name is missing"):
+                db_command.shell(self.parser.parse_args(["db", "shell"]))
+
     def test_run_db_downgrade_command_success_and_messages(self, capsys):
         class Args:
             to_revision = "abc"
