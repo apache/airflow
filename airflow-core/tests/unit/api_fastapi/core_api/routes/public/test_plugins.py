@@ -34,12 +34,11 @@ class TestGetPlugins:
             # Filters
             (
                 {},
-                16,
+                15,
                 [
                     "InformaticaProviderPlugin",
                     "MetadataCollectionPlugin",
                     "OpenLineageProviderPlugin",
-                    "business_day_window_plugin",
                     "databricks_workflow",
                     "decreasing_priority_weight_strategy_plugin",
                     "edge_executor",
@@ -56,14 +55,10 @@ class TestGetPlugins:
             ),
             (
                 {"limit": 3, "offset": 3},
-                16,
-                [
-                    "business_day_window_plugin",
-                    "databricks_workflow",
-                    "decreasing_priority_weight_strategy_plugin",
-                ],
+                15,
+                ["databricks_workflow", "decreasing_priority_weight_strategy_plugin", "edge_executor"],
             ),
-            ({"limit": 1}, 16, ["InformaticaProviderPlugin"]),
+            ({"limit": 1}, 15, ["InformaticaProviderPlugin"]),
         ],
     )
     def test_should_respond_200(
@@ -163,10 +158,10 @@ class TestGetPlugins:
         plugins_page = body["plugins"]
 
         # Even though limit=7, only 6 valid plugins should come back
-        assert len(plugins_page) == 7
+        assert len(plugins_page) == 6
         assert "test_plugin_invalid" not in [p["name"] for p in plugins_page]
 
-        assert body["total_entries"] == 16
+        assert body["total_entries"] == 15
 
 
 @skip_if_force_lowest_dependencies_marker

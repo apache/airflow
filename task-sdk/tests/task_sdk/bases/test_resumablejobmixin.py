@@ -206,35 +206,6 @@ class TestNoneExternalId:
         assert task_state._store == {}
 
 
-class TestResumeOnRetryDisabled:
-    def test_submits_and_polls_without_task_store_interaction(self):
-        op = ConcreteResumableOperator(task_id="test_task", durable=False)
-        task_store = FakeTaskState()
-        op.execute_resumable(make_context(task_store))
-
-        assert op.submitted_ids == ["job-001"]
-        assert op.polled_ids == ["job-001"]
-        assert task_store._store == {}, "task_store must not be written when durable=False"
-
-    def test_does_not_reconnect_when_prior_id_exists(self):
-        op = ConcreteResumableOperator(task_id="test_task", durable=False)
-        op._status_map["job-001"] = "RUNNING"
-        task_store = FakeTaskState({"test_job_id": "job-001"})
-
-        op.execute_resumable(make_context(task_store))
-
-        assert op.submitted_ids == ["job-001"], "should submit fresh even with a prior ID stored"
-
-    def test_returns_result(self):
-        op = ConcreteResumableOperator(task_id="test_task", durable=False)
-        result = op.execute_resumable(make_context(FakeTaskState()))
-        assert result == "result-of-job-001"
-
-    def test_default_is_true(self):
-        op = ConcreteResumableOperator(task_id="test_task")
-        assert op.durable is True
-
-
 class TestExternalIdKey:
     def test_custom_key_used_for_storage_and_retrieval(self):
         class CustomKeyOp(ConcreteResumableOperator):

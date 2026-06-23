@@ -29,7 +29,7 @@ repositories {
 dependencies {
     annotationProcessor("org.apache.airflow:airflow-sdk-processor:${projectVersion}")
     implementation("org.apache.airflow:airflow-sdk:${projectVersion}")
-    implementation("org.apache.airflow:airflow-sdk-jpl:${projectVersion}")
+    implementation("org.slf4j:slf4j-simple:2.0.17")
 }
 
 java {

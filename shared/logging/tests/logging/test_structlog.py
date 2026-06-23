@@ -34,11 +34,7 @@ from structlog.dev import BLUE, BRIGHT, CYAN, DIM, GREEN, MAGENTA, RESET_ALL as 
 from structlog.processors import CallsiteParameter
 
 from airflow_shared.logging import structlog as structlog_module
-from airflow_shared.logging.structlog import (
-    NAME_TO_LEVEL,
-    configure_logging,
-    parse_namespace_log_levels,
-)
+from airflow_shared.logging.structlog import configure_logging
 
 # We avoid the caplog fixture for most tests here; the main purpose of this file is to capture the
 # _rendered_ output of the tests to make sure it is correct.
@@ -732,57 +728,3 @@ def test_named_write_logger_preserves_name():
 
     assert NamedWriteLogger("my.logger").name == "my.logger"
     assert NamedWriteLogger().name is None
-
-
-class TestParseNamespaceLogLevels:
-    """Unit tests for the best-effort ``namespace_levels`` parser."""
-
-    @pytest.mark.parametrize("value", (None, "", "   ", " , , "))
-    def test_blank_yields_no_overrides(self, value):
-        assert parse_namespace_log_levels(value) == {}
-
-    def test_parses_string_pairs(self):
-        assert parse_namespace_log_levels("sqlalchemy=INFO sqlalchemy.engine=DEBUG") == {
-            "sqlalchemy": NAME_TO_LEVEL["info"],
-            "sqlalchemy.engine": NAME_TO_LEVEL["debug"],
-        }
-
-    def test_accepts_commas_and_mixed_separators(self):
-        expected = {"a": NAME_TO_LEVEL["info"], "b": NAME_TO_LEVEL["debug"]}
-        assert parse_namespace_log_levels("a=INFO,b=DEBUG") == expected
-        assert parse_namespace_log_levels("  a=INFO ,, b=DEBUG ") == expected
-
-    def test_level_names_are_case_insensitive(self):
-        assert parse_namespace_log_levels("a=info") == {"a": NAME_TO_LEVEL["info"]}
-
-    def test_last_value_wins(self):
-        assert parse_namespace_log_levels("a=INFO a=ERROR") == {"a": NAME_TO_LEVEL["error"]}
-
-    def test_accepts_mapping_input(self):
-        assert parse_namespace_log_levels({"my.logger": "warning"}) == {
-            "my.logger": NAME_TO_LEVEL["warning"],
-        }
-
-    def test_valid_input_logs_nothing(self, caplog):
-        with caplog.at_level(logging.ERROR):
-            parse_namespace_log_levels("a=INFO")
-        assert not caplog.records
-
-    def test_entry_without_equals_is_skipped(self, caplog):
-        with caplog.at_level(logging.ERROR):
-            result = parse_namespace_log_levels("sqlalchemy=INFO botocore")
-        assert result == {"sqlalchemy": NAME_TO_LEVEL["info"]}
-        assert "botocore" in caplog.text
-        assert "<logger>=<level>" in caplog.text
-
-    def test_empty_logger_name_is_skipped(self, caplog):
-        with caplog.at_level(logging.ERROR):
-            result = parse_namespace_log_levels("=INFO a=DEBUG")
-        assert result == {"a": NAME_TO_LEVEL["debug"]}
-        assert "logger name is empty" in caplog.text
-
-    def test_unknown_level_is_skipped(self, caplog):
-        with caplog.at_level(logging.ERROR):
-            result = parse_namespace_log_levels("sqlalchemy=VERBOSE")
-        assert result == {}
-        assert "VERBOSE" in caplog.text

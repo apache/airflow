@@ -38,7 +38,6 @@ __all__ = [
     "TaskDecorator",
     "TaskDecoratorCollection",
     "dag",
-    "result",
     "task",
     "task_group",
     "setup",
@@ -949,4 +948,3 @@ class TaskDecoratorCollection:
 task: TaskDecoratorCollection
 setup: Callable
 teardown: Callable
-result: Callable

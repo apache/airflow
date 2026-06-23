@@ -146,7 +146,6 @@
     "startTime": "Startzeitpunkt"
   },
   "generateToken": "Zugriffstoken erzeugen",
-  "key": "Schlüssel",
   "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
   "logoutConfirmation": "Sie sind dabei sich von dem System abzumelden.",
@@ -180,7 +179,6 @@
     "placeholder": "Eine Notiz hinzufügen...",
     "taskInstance": "Notizen zu Task Instanzen"
   },
-  "overallStatus": "Gesamtstatus",
   "partitionedDagRun_one": "Partitionierter Dag Lauf",
   "partitionedDagRun_other": "Partitionierte Dag Läufe",
   "partitionedDagRunDetail": {
@@ -264,17 +262,13 @@
       "any": "Einer"
     },
     "tagPlaceholder": "Dags nach Markierung filtern",
-    "to": "Zu",
-    "updatedAt": "Aktualisiert um"
+    "to": "Zu"
   },
   "task": {
-    "dependsOnPast": "Abhängig von vorherigen Läufen",
     "documentation": "Task Dokumentation",
     "lastInstance": "Letzte Task Instanz",
     "operator": "Operator",
-    "retries": "Wiederholungen",
-    "triggerRule": "Auslöse-Regel",
-    "waitForDownstream": "Auf nachgelagerte Tasks warten"
+    "triggerRule": "Auslöse-Regel"
   },
   "task_one": "Task",
   "task_other": "Tasks",
@@ -399,7 +393,6 @@
     "mustBeAtLeast": "Muss mindestens einen Wert von {{min}} haben.",
     "mustBeValidNumber": "Muss eine gültige Zahl sein."
   },
-  "value": "Wert",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Buchstabe {{hotkey}} drücken um den Zeilenumbruch umzuschalten",

@@ -17,14 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, cast
 
 import requests
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.apache.spark.hooks.spark_submit import _K8S_WAIT_APP_COMPLETION_CONF, SparkSubmitHook
 from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_parent_job_information_into_spark_properties,
@@ -47,11 +45,6 @@ except ImportError:
         """Airflow 2 stub — no task_state_store, always submits fresh."""
 
         external_id_key: str = "remote_job_id"
-
-        def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
-            # Accept durable so the kwarg doesn't leak to BaseOperator; crash recovery is a no-op here.
-            super().__init__(**kwargs)
-            self.durable = durable
 
         def execute_resumable(self, context):
             external_id = self.submit_job(context)
@@ -146,9 +139,6 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         omitted, Kerberos-enabled Spark connections with both ``keytab`` and
         ``principal`` configured use ``requests-kerberos`` automatically.
         Defaults to ``None`` (no auth for non-Kerberos connections).
-    :param durable: When ``True`` (the default), the external job ID is persisted to task state
-        store before polling begins so that a worker crash and retry reconnects to the existing job
-        instead of submitting a fresh one. Set to ``False`` to always submit a new job on retry.
     """
 
     # Generic key used across all Spark deployment modes (standalone driver ID,
@@ -213,6 +203,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         deploy_mode: str | None = None,
         use_krb5ccache: bool = False,
         post_submit_commands: list[str] | None = None,
+        reconnect_on_retry: bool = True,
         track_driver_via_k8s_api: bool = False,
         yarn_track_via_rm_api: bool = False,
         yarn_rm_auth: AuthBase | None = None,
@@ -222,16 +213,8 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         openlineage_inject_transport_info: bool = conf.getboolean(
             "openlineage", "spark_inject_transport_info", fallback=False
         ),
-        reconnect_on_retry: bool | None = None,
         **kwargs: Any,
     ) -> None:
-        if reconnect_on_retry is not None:
-            warnings.warn(
-                "reconnect_on_retry is renamed to durable.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            kwargs.setdefault("durable", reconnect_on_retry)
         super().__init__(**kwargs)
         self.application = application
         self.conf = conf
@@ -269,6 +252,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         self._yarn_track_via_rm_api = yarn_track_via_rm_api
         self._yarn_rm_auth = yarn_rm_auth
 
+        self.reconnect_on_retry = reconnect_on_retry
         self._track_driver_via_k8s_api = track_driver_via_k8s_api
         self._openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self._openlineage_inject_transport_info = openlineage_inject_transport_info
@@ -288,18 +272,33 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if self._track_driver_via_k8s_api:
             hook._validate_track_driver_via_k8s_api_config()
         if hook._should_track_driver_status:
-            return self.execute_resumable(context)
+            if self.reconnect_on_retry:
+                return self.execute_resumable(context)
+            # reconnect_on_retry=False: still submit-and-poll, just skip task_state_store persistence.
+            driver_id = self.submit_job(context)
+            self.poll_until_complete(driver_id, context)
+            return self.get_job_result(driver_id, context)
         if hook._should_track_driver_via_k8s_api():
-            return self.execute_resumable(context)
+            if self.reconnect_on_retry:
+                return self.execute_resumable(context)
+            # reconnect_on_retry=False: still submit-and-poll, just skip task_state persistence.
+            driver_id = self.submit_job(context)
+            self.poll_until_complete(driver_id, context)
+            return self.get_job_result(driver_id, context)
         if hook._is_yarn_cluster_mode:
-            if self.durable and not hook._yarn_track_via_rm_api:
+            if self.reconnect_on_retry and not hook._yarn_track_via_rm_api:
                 raise ValueError(
-                    "YARN cluster mode with durable=True requires yarn_track_via_rm_api=True. "
+                    "YARN cluster mode with reconnect_on_retry=True requires yarn_track_via_rm_api=True. "
                     "The RM REST API is needed to check application status on retry."
                 )
             if hook._yarn_track_via_rm_api:
                 hook._validate_yarn_track_via_rm_api_config()
-                return self.execute_resumable(context)
+                if self.reconnect_on_retry:
+                    return self.execute_resumable(context)
+                # reconnect_on_retry=False: still submit-and-poll, just skip task_state_store persistence.
+                driver_id = self.submit_job(context)
+                self.poll_until_complete(driver_id, context)
+                return self.get_job_result(driver_id, context)
         hook.submit(self.application)
 
     def submit_job(self, context: Context) -> str | None:
@@ -320,7 +319,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
                 raise ValueError(
                     "spark.yarn.submit.waitAppCompletion=true cannot be set for cluster mode as it conflicts"
                     "with the need to exit spark-submit immediately to persist the application ID for tracking. "
-                    "Either remove the explicit conf or set durable=False."
+                    "Either remove the explicit conf or set reconnect_on_retry=False."
                 )
             self._hook._conf["spark.yarn.submit.waitAppCompletion"] = "false"
             self._hook.submit(self.application)
@@ -446,7 +445,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             # Cache only when the pod actually reached Succeeded, the 404/vanished path
             # returns None for cases like: pod deleted by on_kill or garbage collected after failure)
             # and must not be cached, otherwise a retry would see "Succeeded" and skip resubmission.
-            if terminal_phase == "Succeeded" and self.durable:
+            if terminal_phase == "Succeeded" and self.reconnect_on_retry:
                 if (task_state_store := context.get("task_state_store")) is not None:
                     task_state_store.set(self._K8S_DRIVER_STATUS_KEY, "Succeeded")
             return

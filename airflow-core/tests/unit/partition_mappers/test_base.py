@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
 
 import pytest
 
@@ -28,17 +27,6 @@ from airflow.partition_mappers.window import DayWindow
 from airflow.serialization.decoders import decode_partition_mapper
 from airflow.serialization.encoders import encode_partition_mapper
 from airflow.serialization.enums import Encoding
-
-
-class TestCarryPartitionDate:
-    def test_base_returns_none_by_default(self):
-        """Non-identity mappers don't carry the producer's date; it's derived from the key instead."""
-        dt = datetime(2026, 5, 20, 1, 0, 0, tzinfo=timezone.utc)
-        assert StartOfDayMapper().carry_partition_date(dt) is None
-        assert (
-            RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow()).carry_partition_date(dt)
-            is None
-        )
 
 
 class TestPartitionMapperInitSubclass:

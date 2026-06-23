@@ -414,7 +414,15 @@ class AwsBatchExecutor(BaseExecutor):
             if isinstance(command[0], workloads.ExecuteTask) or (
                 AIRFLOW_V_3_3_PLUS and isinstance(command[0], workloads.ExecuteCallback)
             ):
-                command = self._serialize_workload_to_command(command[0])
+                workload = command[0]
+                ser_input = workload.model_dump_json()
+                command = [
+                    "python",
+                    "-m",
+                    "airflow.sdk.execution_time.execute_workload",
+                    "--json-string",
+                    ser_input,
+                ]
             else:
                 raise ValueError(
                     f"BatchExecutor doesn't know how to handle workload of type: {type(command[0])}"
@@ -501,39 +509,6 @@ class AwsBatchExecutor(BaseExecutor):
             )
         return submit_kwargs
 
-    @staticmethod
-    def _serialize_workload_to_command(workload) -> CommandType:
-        """
-        Serialize a workload into a command for the Task SDK.
-
-        :param workload: ExecuteTask or ExecuteCallback workload to serialize
-        :return: Command as list of strings for Task SDK execution
-        """
-        return [
-            "python",
-            "-m",
-            "airflow.sdk.execution_time.execute_workload",
-            "--json-string",
-            workload.model_dump_json(),
-        ]
-
-    def _build_task_command(self, ti: TaskInstance) -> CommandType:
-        """
-        Build task command for execution based on Airflow version.
-
-        For Airflow 3.x+, generates an ExecuteTask workload with JSON serialization.
-        For Airflow 2.x, uses the legacy command_as_list() method.
-
-        :param ti: TaskInstance to build command for
-        :return: Command as list of strings
-        """
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.executors.workloads import ExecuteTask
-
-            workload = ExecuteTask.make(ti)
-            return self._serialize_workload_to_command(workload)
-        return ti.command_as_list()
-
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """
         Adopt task instances which have an external_executor_id (the Batch job ID).
@@ -548,12 +523,10 @@ class AwsBatchExecutor(BaseExecutor):
 
                 for batch_job in batch_jobs:
                     ti = next(ti for ti in tis if ti.external_executor_id == batch_job.job_id)
-                    command = self._build_task_command(ti)
-
                     self.active_workers.add_job(
                         job_id=batch_job.job_id,
                         airflow_workload_key=ti.key,
-                        airflow_cmd=command,
+                        airflow_cmd=ti.command_as_list(),
                         queue=ti.queue,
                         exec_config=ti.executor_config,
                         attempt_number=ti.try_number,

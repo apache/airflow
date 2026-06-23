@@ -1278,12 +1278,23 @@ class TestTaskStateStoreAccessor:
             DeleteTaskStateStore(ti_id=self.TI_ID, key="job_id")
         )
 
-    def test_clear_sends_comms_message(self, mock_supervisor_comms):
+    def test_clear_default_sends_all_map_indices_false(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
         TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).clear()
 
-        mock_supervisor_comms.send.assert_called_once_with(ClearTaskStateStore(ti_id=self.TI_ID))
+        mock_supervisor_comms.send.assert_called_once_with(
+            ClearTaskStateStore(ti_id=self.TI_ID, all_map_indices=False)
+        )
+
+    def test_clear_all_map_indices_sends_flag_true(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).clear(all_map_indices=True)
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            ClearTaskStateStore(ti_id=self.TI_ID, all_map_indices=True)
+        )
 
     def test_set_datetime_raises_validation_error(self, mock_supervisor_comms):
         """datetime is not JSON-serializable; callers must use .isoformat() first."""
@@ -1777,7 +1788,9 @@ class TestTaskStateStoreAccessorWithCustomBackend:
 
         assert "job_id" not in backend._actual_key_value_store
         assert "checkpoint" not in backend._actual_key_value_store
-        mock_supervisor_comms.send.assert_any_call(ClearTaskStateStore(ti_id=self.TI_ID))
+        mock_supervisor_comms.send.assert_any_call(
+            ClearTaskStateStore(ti_id=self.TI_ID, all_map_indices=False)
+        )
 
 
 class TestAssetStateStoreAccessorWithCustomBackend:

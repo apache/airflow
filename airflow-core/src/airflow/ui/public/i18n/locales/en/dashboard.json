@@ -1,10 +1,4 @@
 {
-  "alerts": {
-    "seeLessContext": "See less",
-    "seeMoreContext": "See more",
-    "showMoreAlerts_one": "+{{count}} more alert",
-    "showMoreAlerts_other": "+{{count}} more alerts"
-  },
   "deadlines": {
     "pending": {
       "empty": "No upcoming deadlines",

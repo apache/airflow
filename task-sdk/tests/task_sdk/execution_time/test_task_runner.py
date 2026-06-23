@@ -536,6 +536,45 @@ def test_run_signals_fail_closed_when_failure_terminal_send_fails(create_runtime
     assert state == TaskInstanceState.FAILED
     assert runtime_ti._terminal_state_send_failed is True
 
+@time_machine.travel("2025-01-01 00:00:00", tick=False)
+def test_run_reschedule_includes_rendered_map_index(create_runtime_ti, mock_supervisor_comms):
+    """Regression test for #67521.
+
+    When a mapped sensor sets ``context["map_index_template"]`` and then raises
+    ``AirflowRescheduleException``, the ``RescheduleTask`` message sent to the
+    supervisor must carry ``rendered_map_index`` so the UI can show the human-readable
+    label on each up_for_reschedule row — not the raw integer map_index.
+    """
+    from datetime import datetime, timezone as dt_timezone
+
+    from airflow.sdk.exceptions import AirflowRescheduleException
+
+    reschedule_date = datetime(2025, 1, 1, 0, 1, 0, tzinfo=dt_timezone.utc)
+
+    def _execute_with_reschedule(context):
+        context["map_index_template"] = "item-{{ ti.map_index }}"
+        raise AirflowRescheduleException(reschedule_date=reschedule_date)
+
+    from airflow.sdk.bases.operator import BaseOperator
+
+    class _ReschedulingSensor(BaseOperator):
+        def execute(self, context):
+            _execute_with_reschedule(context)
+
+    task = _ReschedulingSensor(task_id="sensor")
+    ti = create_runtime_ti(dag_id="test_reschedule_map_index", task=task)
+
+    run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+    assert ti.state == TaskInstanceState.UP_FOR_RESCHEDULE
+
+    send_call = mock_supervisor_comms.send.call_args
+    msg = send_call.kwargs.get("msg") or send_call[1].get("msg") or send_call[0][0]
+    assert isinstance(msg, RescheduleTask), f"Expected RescheduleTask, got {type(msg)}"
+    assert msg.reschedule_date == reschedule_date
+    assert msg.rendered_map_index is None  # non-mapped task has no rendered_map_index
+
+
 
 @pytest.mark.parametrize(
     ("state_when_send_fails", "should_fail_closed"),

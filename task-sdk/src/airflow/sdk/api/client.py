@@ -743,9 +743,10 @@ class TaskStateStoreOperations:
         self.client.delete(f"store/ti/{ti_id}/{key}")
         return OKResponse(ok=True)
 
-    def clear(self, ti_id: uuid.UUID) -> OKResponse:
+    def clear(self, ti_id: uuid.UUID, all_map_indices: bool = False) -> OKResponse:
         """Clear all task store keys for a task instance via the API server."""
-        self.client.delete(f"store/ti/{ti_id}")
+        params = {"all_map_indices": "true"} if all_map_indices else {}
+        self.client.delete(f"store/ti/{ti_id}", params=params)
         return OKResponse(ok=True)
 
 

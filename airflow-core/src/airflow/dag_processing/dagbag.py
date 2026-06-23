@@ -160,35 +160,6 @@ def _validate_executor_fields(dag: DAG, bundle_name: str | None = None) -> None:
                 "executor to use one of the configured executors."
             )
 
-    # Validate executors on deadline (SLA-style) callbacks too. A SyncCallback may pin an
-    # executor; if it names one that doesn't exist, the scheduler can't route the queued
-    # ExecutorCallback — it would sit PENDING forever, re-warning every loop. Catch it here at
-    # parse time (like tasks) so the author gets immediate, actionable feedback. AsyncCallbacks
-    # run on the triggerer and have no executor field, so only SyncCallbacks are checked.
-    deadlines = dag.deadline or []
-    if not isinstance(deadlines, list):
-        deadlines = [deadlines]
-    for deadline_alert in deadlines:
-        callback = getattr(deadline_alert, "callback", None)
-        callback_executor = getattr(callback, "executor", None)
-        if not callback_executor:
-            continue
-
-        if not _executor_exists(callback_executor, dag_team_name):
-            if dag_team_name:
-                raise UnknownExecutorException(
-                    f"A deadline callback on DAG '{dag.dag_id}' specifies executor '{callback_executor}', "
-                    f"which is not available for team '{dag_team_name}' or as a global executor. Make sure "
-                    f"'{callback_executor}' is configured for team '{dag_team_name}' or globally in your "
-                    "[core] executors configuration, or update the callback's executor to use one of the "
-                    f"configured executors for team '{dag_team_name}' or available global executors."
-                )
-            raise UnknownExecutorException(
-                f"A deadline callback on DAG '{dag.dag_id}' specifies executor '{callback_executor}', "
-                "which is not available. Make sure it is listed in your [core] executors configuration, "
-                "or update the callback's executor to use one of the configured executors."
-            )
-
 
 class DagBag(LoggingMixin):
     """

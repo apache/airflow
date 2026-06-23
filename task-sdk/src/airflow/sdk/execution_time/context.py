@@ -52,7 +52,7 @@ from airflow.sdk.exceptions import (
     AirflowSecretsBackendAccessDenied,
     ErrorType,
 )
-from airflow.sdk.log import amask_secret, mask_secret
+from airflow.sdk.log import mask_secret
 
 if TYPE_CHECKING:
     from pydantic.types import JsonValue
@@ -160,14 +160,6 @@ def _mask_connection_secrets(conn: Connection) -> None:
         mask_secret(conn.extra)
 
 
-async def _amask_connection_secrets(conn: Connection) -> None:
-    """Async version: mask sensitive connection fields from logs."""
-    if conn.password:
-        await amask_secret(conn.password)
-    if conn.extra:
-        await amask_secret(conn.extra)
-
-
 def _convert_variable_result_to_variable(var_result: VariableResult, deserialize_json: bool) -> Variable:
     from airflow.sdk.definitions.variable import Variable
 
@@ -234,7 +226,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
     preset = _preset_connections.get()
     if preset is not None and conn_id in preset:
         conn = preset[conn_id]
-        await _amask_connection_secrets(conn)
+        _mask_connection_secrets(conn)
         return conn
 
     from asgiref.sync import sync_to_async
@@ -247,7 +239,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
         from airflow.sdk.definitions.connection import Connection
 
         conn = Connection.from_uri(uri, conn_id=conn_id)
-        await _amask_connection_secrets(conn)
+        _mask_connection_secrets(conn)
         return conn
     except SecretCache.NotPresentException:
         pass  # continue to backends
@@ -269,7 +261,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
 
             if conn:
                 SecretCache.save_connection_uri(conn_id, conn.get_uri())
-                await _amask_connection_secrets(conn)
+                _mask_connection_secrets(conn)
                 return conn
         except AirflowSecretsBackendAccessDenied:
             # Authoritative deny — must NOT fall through to a less-restrictive backend.
@@ -636,17 +628,23 @@ class TaskStateStoreAccessor:
         if backend is not None:
             backend.delete(self._scope, key)
 
-    def clear(self) -> None:
-        """Delete all keys for this task instance."""
+    def clear(self, all_map_indices: bool = False) -> None:
+        """
+        Delete all keys for this task instance.
+
+        Pass ``all_map_indices=True`` to wipe state across every mapped
+        instance of the task (fleet-wide reset). Defaults to clearing only
+        this task instance's own state.
+        """
         from airflow.sdk.execution_time.comms import ClearTaskStateStore
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         # cleanup the DB ref first, if backend cleanup fails after this, the ref is gone and
         # deterministic keys are recoverable on next set().
-        SUPERVISOR_COMMS.send(ClearTaskStateStore(ti_id=self._ti_id))
+        SUPERVISOR_COMMS.send(ClearTaskStateStore(ti_id=self._ti_id, all_map_indices=all_map_indices))
         backend = _get_worker_state_store_backend()
         if backend is not None:
-            backend.clear(self._scope)
+            backend.clear(self._scope, all_map_indices=all_map_indices)
 
     def _clear_backend_only(self) -> None:
         """
@@ -1412,46 +1410,3 @@ def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
     except KeyError:
         outlet_events = context["outlet_events"] = OutletEventAccessors()
     return outlet_events
-
-
-def build_context_from_dag_run(dag_run, deadline: dict | None = None) -> dict:
-    """
-    Build a standard callback Context dict from a DagRun-like object.
-
-    Accepts any object with logical_date, run_id, data_interval_start, data_interval_end
-    attributes (e.g. DRDataModel from the execution API or DagRunResult from comms).
-
-    Returns a context dict with dag_run, run_id, logical_date, ds, ts, etc.
-    Task-specific fields are absent since callbacks are not tied to a task.
-
-    :param deadline: Optional ``{"id": ..., "deadline_time": ...}`` dict exposed as
-        ``context["deadline"]`` (for templates such as ``{{ deadline.deadline_time }}``).
-        Assembled here so the executor and triggerer callback paths produce identical context.
-    """
-    from airflow.sdk.timezone import coerce_datetime
-
-    context: dict = {"dag_run": dag_run}
-
-    if logical_date := coerce_datetime(dag_run.logical_date):
-        ds = logical_date.strftime("%Y-%m-%d")
-        ts = logical_date.isoformat()
-        context.update(
-            {
-                "logical_date": logical_date,
-                "run_id": dag_run.run_id,
-                "ds": ds,
-                "ds_nodash": ds.replace("-", ""),
-                "ts": ts,
-                "ts_nodash": logical_date.strftime("%Y%m%dT%H%M%S"),
-                "ts_nodash_with_tz": ts.replace("-", "").replace(":", ""),
-                "data_interval_start": coerce_datetime(dag_run.data_interval_start),
-                "data_interval_end": coerce_datetime(dag_run.data_interval_end),
-            }
-        )
-    else:
-        context["run_id"] = dag_run.run_id
-
-    if deadline:
-        context["deadline"] = deadline
-
-    return context

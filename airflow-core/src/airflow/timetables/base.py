@@ -261,16 +261,11 @@ class Timetable(Protocol):
     def iter_partition_dagrun_infos(
         self,
         *,
-        earliest: datetime.datetime,
-        latest: datetime.datetime,
+        earliest_date: datetime.date,
+        latest_date: datetime.date,
     ) -> Iterable[DagRunInfo]:
         """
-        Yield one DagRunInfo per partition whose ``partition_date`` lies in ``[earliest, latest]`` (both inclusive).
-
-        The iteration granularity follows the timetable's own partition cadence
-        (e.g. one tick per hour for ``CronPartitionTimetable("0 * * * *")``), so a
-        sub-day window yields only the partitions inside it rather than every
-        partition of the surrounding calendar day.
+        Yield one DagRunInfo per partition for calendar days in ``[earliest_date, latest_date]`` (both inclusive).
 
         Only called for partitioned timetables (``partitioned is True``). The default
         implementation raises :exc:`NotImplementedError`; timetables that set
