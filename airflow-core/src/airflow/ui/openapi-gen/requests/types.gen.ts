@@ -2141,12 +2141,12 @@ export type CalendarTimeRangeResponse = {
     count: number;
 };
 
+export type state = 'queued' | 'running' | 'success' | 'failed' | 'planned';
+
 /**
  * All possible states of callbacks.
  */
 export type CallbackState = 'scheduled' | 'pending' | 'queued' | 'running' | 'success' | 'failed';
-
-export type state = 'queued' | 'running' | 'success' | 'failed' | 'planned';
 
 /**
  * configuration serializer.
