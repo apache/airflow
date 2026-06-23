@@ -228,6 +228,7 @@ class KubernetesExecutor(BaseExecutor):
             pod_template_file = None
         self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
         self.task_queue.put(KubernetesJob(key, command, kube_executor_config, pod_template_file))
+        self.running.add(key)
         # We keep a temporary local record that we've handled this so we don't
         # try and remove it from the QUEUED state while we process it
         self.last_handled[key] = time.time()
@@ -256,7 +257,6 @@ class KubernetesExecutor(BaseExecutor):
 
             del self.queued_tasks[key]
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
-            self.running.add(key)
 
     def sync(self) -> None:
         """Synchronize task state."""

@@ -68,7 +68,7 @@ There are two files there:
 
 The ``KUBECONFIG`` file is automatically used when you enter any of the ``breeze k8s`` commands that use
 ``kubectl`` or when you run ``kubectl`` in the k8s shell. The ``KINDCONFIG`` file is used when cluster is
-started but You and the ``k8s`` command can inspect it to know for example what port is forwarded to the
+started but you can use the ``k8s`` command to inspect and know for example what port is forwarded to the
 webserver running in the cluster.
 
 The files are deleted by ``breeze k8s delete-cluster`` command.
@@ -672,7 +672,7 @@ Airflow to KinD cluster.
 
 10. Dumping logs
 
-Sometimes You want to see the logs of the clister. This can be done with ``breeze k8s logs``.
+Sometimes you want to see the logs of the cluster. This can be done with ``breeze k8s logs``.
 
 .. code-block:: bash
 
