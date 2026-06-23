@@ -816,6 +816,21 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             # protocol — asset-only triggers (and spec'd test mocks) may not expose it, so read
             # it defensively. Only callback triggers fetch DagRun context.
             callback = getattr(trigger, "callback", None)
+
+            # Set up dedicated logging for callback triggers first so their output is captured
+            # to a file the UI log endpoint can read — regardless of whether context fetch below
+            # succeeds (we still want logs for a callback that ends up skipped/failed).
+            if callback:
+                callback_data = callback.data or {}
+                dag_id = callback_data.get("dag_id", "unknown")
+                run_id = callback_data.get("run_id", "unknown")
+                callback_id = str(callback.id)
+                log_path = f"triggerer_callbacks/{dag_id}/{run_id}/{callback_id}"
+                self.logger_cache[trigger.id] = TriggerLoggingFactory(
+                    log_path=log_path,
+                    ti=None,
+                )
+
             # Only fetch DagRun data for callback triggers (not all non-task triggers).
             dag_run_data = self._fetch_callback_dag_run_data(trigger, session=session) if callback else None
             if callback and dag_run_data is None:
@@ -829,18 +844,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                         trigger_id=trigger.id,
                     )
                     return None
-            # Set up dedicated logging for callback triggers so their output is
-            # captured to a file that the UI log endpoint can later read.
-            if callback:
-                callback_data = callback.data or {}
-                dag_id = callback_data.get("dag_id", "unknown")
-                run_id = callback_data.get("run_id", "unknown")
-                callback_id = str(callback.id)
-                log_path = f"triggerer_callbacks/{dag_id}/{run_id}/{callback_id}"
-                self.logger_cache[trigger.id] = TriggerLoggingFactory(
-                    log_path=log_path,
-                    ti=None,
-                )
             return workloads.RunTrigger(
                 id=trigger.id,
                 classpath=trigger.classpath,

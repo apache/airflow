@@ -1006,7 +1006,7 @@ def test_trigger_logging_factory_upload_callback_log_to_remote():
         mock_upload.assert_called_once()
 
 
-def test_create_workload_sets_up_logger_cache_for_callback_triggers(session):
+def test_create_workload_sets_up_logger_cache_for_callback_triggers(session, mocker):
     """_create_workload populates logger_cache when trigger has a callback but no task_instance."""
     from airflow.jobs.job import Job
 
@@ -1024,6 +1024,11 @@ def test_create_workload_sets_up_logger_cache_for_callback_triggers(session):
 
     supervisor = TriggerRunnerSupervisor.start(job=Job(id=123), capacity=10)
     try:
+        # The callback carries dag_id/run_id, so _create_workload fetches DagRun context;
+        # stub it to a live result so the workload is built (a missing DagRun would skip it).
+        mocker.patch.object(
+            TriggerRunnerSupervisor, "_fetch_callback_dag_run_data", return_value={"dag_id": "test_dag"}
+        )
         workload = supervisor._create_workload(
             trigger=trigger_orm,
             dag_bag=MagicMock(),
