@@ -111,14 +111,11 @@ def test_convert_from_dict_is_picklable_in_cluster(monkeypatch):
     through a fresh ``Configuration`` so the model (and every nested object) stays picklable.
     """
 
-    def _make_unpicklable_hook():
-        def _refresh_api_key(config):
-            return None
-
-        return _refresh_api_key
+    def _refresh_api_key(config):
+        return None
 
     dirty = Configuration()
-    dirty.refresh_api_key_hook = _make_unpicklable_hook()
+    dirty.refresh_api_key_hook = _refresh_api_key
     monkeypatch.setattr(Configuration, "_default", dirty, raising=False)
 
     result = _convert_from_dict({"name": "vol", "emptyDir": {}}, k8s.V1Volume)

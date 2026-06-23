@@ -708,14 +708,11 @@ class TestPodGenerator:
         picklable onto the KubernetesExecutor multiprocessing queue.
         """
 
-        def _make_unpicklable_hook():
-            def _refresh_api_key(config):
-                return None
-
-            return _refresh_api_key
+        def _refresh_api_key(config):
+            return None
 
         dirty = Configuration()
-        dirty.refresh_api_key_hook = _make_unpicklable_hook()
+        dirty.refresh_api_key_hook = _refresh_api_key
         monkeypatch.setattr(Configuration, "_default", dirty, raising=False)
 
         pod_dict = {

@@ -36,7 +36,6 @@ def _convert_from_dict(obj, new_class):
     if isinstance(obj, new_class):
         return obj
     if isinstance(obj, dict):
-        # A fresh Configuration() keeps the deserialized model picklabled
         api_client = ApiClient(configuration=Configuration())
         return api_client._ApiClient__deserialize_model(obj, new_class)
     raise AirflowException(f"Expected dict or {new_class}, got {type(obj)}")

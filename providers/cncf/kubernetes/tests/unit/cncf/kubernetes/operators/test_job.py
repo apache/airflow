@@ -209,14 +209,11 @@ class TestKubernetesJobOperator:
         deserialize through a fresh ``Configuration`` so the job (and every nested model) stays picklable.
         """
 
-        def _make_unpicklable_hook():
-            def _refresh_api_key(config):
-                return None
-
-            return _refresh_api_key
+        def _refresh_api_key(config):
+            return None
 
         dirty = Configuration()
-        dirty.refresh_api_key_hook = _make_unpicklable_hook()
+        dirty.refresh_api_key_hook = _refresh_api_key
         monkeypatch.setattr(Configuration, "_default", dirty, raising=False)
 
         template = tmp_path / "job.yaml"

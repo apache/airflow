@@ -378,7 +378,6 @@ class KubernetesJobOperator(KubernetesPodOperator):
             job = None
             log.warning("Template file %s does not exist", path)
 
-        # A fresh Configuration() keeps the deserialized model picklable
         api_client = ApiClient(configuration=Configuration())
         return api_client._ApiClient__deserialize_model(job, k8s.V1Job)
 
