@@ -74,6 +74,15 @@ def clear_assets():
 
 
 @pytest.fixture
+def clear_teams():
+    from tests_common.test_utils.db import clear_db_teams
+
+    clear_db_teams()
+    yield
+    clear_db_teams()
+
+
+@pytest.fixture
 def mock_task_instance():
     # TODO: Fixme - some mock_task_instance is needed here
     return None
@@ -678,6 +687,7 @@ def _make_asset_model(
 
 
 class TestAssetMetricsTeamName:
+    @pytest.mark.usefixtures("clear_teams")
     @pytest.mark.parametrize(
         ("multi_team", "expect_team_tag"),
         [
