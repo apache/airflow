@@ -52,7 +52,7 @@ skip_non_fork_mp_start = pytest.mark.skipif(
 
 
 class TestLocalExecutorMpStartMethod:
-    @mock.patch("airflow.executors.local_executor.multiprocessing.get_start_method")
+    @mock.patch("airflow.executors.local_executor.multiprocessing.get_start_method", autospec=True)
     def test_is_mp_using_fork_resolved_per_instance(self, mock_get_start_method):
         """``is_mp_using_fork`` is resolved at ``__init__`` (reflecting any configured start
         method) rather than once at import time."""

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import multiprocessing
 import os
 import signal
 import subprocess
@@ -253,13 +254,13 @@ class TestResolveMpStartMethod:
 
 
 class TestSetComponentMpStartMethod:
-    @mock.patch("airflow.utils.process_utils.multiprocessing")
+    @mock.patch("airflow.utils.process_utils.multiprocessing", spec=multiprocessing)
     def test_noop_when_unset(self, mock_mp):
         process_utils.set_component_mp_start_method("scheduler")
         mock_mp.set_start_method.assert_not_called()
 
     @conf_vars({("core", "mp_start_method"): "fork"})
-    @mock.patch("airflow.utils.process_utils.multiprocessing")
+    @mock.patch("airflow.utils.process_utils.multiprocessing", spec=multiprocessing)
     def test_sets_method_from_core(self, mock_mp):
         mock_mp.get_all_start_methods.return_value = ALL_MP_METHODS
         process_utils.set_component_mp_start_method("scheduler")
@@ -267,14 +268,14 @@ class TestSetComponentMpStartMethod:
         mock_mp.set_forkserver_preload.assert_not_called()
 
     @conf_vars({("core", "mp_start_method"): "spawn", ("triggerer", "mp_start_method"): "fork"})
-    @mock.patch("airflow.utils.process_utils.multiprocessing")
+    @mock.patch("airflow.utils.process_utils.multiprocessing", spec=multiprocessing)
     def test_component_override_applied(self, mock_mp):
         mock_mp.get_all_start_methods.return_value = ALL_MP_METHODS
         process_utils.set_component_mp_start_method("triggerer")
         mock_mp.set_start_method.assert_called_once_with("fork", force=True)
 
     @conf_vars({("core", "mp_start_method"): "fork"})
-    @mock.patch("airflow.utils.process_utils.multiprocessing")
+    @mock.patch("airflow.utils.process_utils.multiprocessing", spec=multiprocessing)
     def test_noop_when_method_unavailable(self, mock_mp):
         mock_mp.get_all_start_methods.return_value = ["spawn"]
         process_utils.set_component_mp_start_method("scheduler")
@@ -286,7 +287,7 @@ class TestSetComponentMpStartMethod:
             ("core", "mp_forkserver_preload"): "airflow, airflow.executors.local_executor ,",
         }
     )
-    @mock.patch("airflow.utils.process_utils.multiprocessing")
+    @mock.patch("airflow.utils.process_utils.multiprocessing", spec=multiprocessing)
     def test_forkserver_sets_preload(self, mock_mp):
         mock_mp.get_all_start_methods.return_value = ALL_MP_METHODS
         process_utils.set_component_mp_start_method("triggerer")
@@ -296,8 +297,22 @@ class TestSetComponentMpStartMethod:
         )
 
     @conf_vars({("core", "mp_start_method"): "fork", ("core", "mp_forkserver_preload"): "airflow"})
-    @mock.patch("airflow.utils.process_utils.multiprocessing")
+    @mock.patch("airflow.utils.process_utils.multiprocessing", spec=multiprocessing)
     def test_preload_ignored_for_non_forkserver(self, mock_mp):
         mock_mp.get_all_start_methods.return_value = ALL_MP_METHODS
+        process_utils.set_component_mp_start_method("scheduler")
+        mock_mp.set_forkserver_preload.assert_not_called()
+
+    @conf_vars(
+        {
+            ("core", "mp_start_method"): "forkserver",
+            ("core", "mp_forkserver_preload"): "airflow",
+        }
+    )
+    @pytest.mark.parametrize("exc", [RuntimeError("already set"), ValueError("bad method")])
+    @mock.patch("airflow.utils.process_utils.multiprocessing", spec=multiprocessing)
+    def test_set_start_method_failure_is_swallowed(self, mock_mp, exc):
+        mock_mp.get_all_start_methods.return_value = ALL_MP_METHODS
+        mock_mp.set_start_method.side_effect = exc
         process_utils.set_component_mp_start_method("scheduler")
         mock_mp.set_forkserver_preload.assert_not_called()
