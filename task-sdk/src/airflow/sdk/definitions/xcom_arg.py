@@ -420,10 +420,8 @@ class MapXComArg(XComArg):
     callables: MapCallables
 
     def __attrs_post_init__(self) -> None:
-        from airflow.sdk.bases.decorator import is_decorated_task
-
         for c in self.callables:
-            if is_decorated_task(c):
+            if getattr(c, "_airflow_is_task_decorator", False):
                 raise ValueError("map() argument must be a plain function, not a @task operator")
 
     def __repr__(self) -> str:

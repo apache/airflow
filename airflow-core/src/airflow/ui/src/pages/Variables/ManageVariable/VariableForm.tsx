@@ -16,14 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Field, HStack, Input, Spacer, Textarea } from "@chakra-ui/react";
+import { Box, Button, Field, HStack, Input, Spacer, Text, Textarea } from "@chakra-ui/react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { TeamSelector } from "src/components/TeamSelector.tsx";
-import { Alert } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig.tsx";
 
 export type VariableBody = {
@@ -107,9 +106,9 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
               </Field.Label>
               <Textarea {...field} size="sm" />
               {showJsonWarning ? (
-                <Alert mt={2} status="warning">
+                <Text color="fg.warning" fontSize="xs">
                   {translate("variables.form.invalidJson")}
-                </Alert>
+                </Text>
               ) : undefined}
               {fieldState.error ? <Field.ErrorText>{fieldState.error.message}</Field.ErrorText> : undefined}
             </Field.Root>

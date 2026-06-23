@@ -315,7 +315,6 @@ class MappedOperator(AbstractOperator):
     start_trigger_args: StartTriggerArgs | None
     start_from_trigger: bool
     _needs_expansion: bool = True
-    returns_dag_result: bool = False
 
     dag: DAG | None
     task_group: TaskGroup | None
@@ -362,7 +361,7 @@ class MappedOperator(AbstractOperator):
     @classmethod
     def get_serialized_fields(cls):
         # Not using 'cls' here since we only want to serialize base fields.
-        return frozenset(attrs.fields_dict(MappedOperator)) - {
+        return (frozenset(attrs.fields_dict(MappedOperator))) - {
             "_is_empty",
             "_can_skip_downstream",
             "dag",
@@ -377,7 +376,6 @@ class MappedOperator(AbstractOperator):
             "_needs_expansion",
             "partial_kwargs",
             "operator_extra_links",
-            "returns_dag_result",
         }
 
     @property
@@ -794,7 +792,6 @@ class MappedOperator(AbstractOperator):
         op.is_setup = is_setup
         op.is_teardown = is_teardown
         op.on_failure_fail_dagrun = on_failure_fail_dagrun
-        op.returns_dag_result = self.returns_dag_result
         op.downstream_task_ids = self.downstream_task_ids
         op.upstream_task_ids = self.upstream_task_ids
         return op

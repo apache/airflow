@@ -17,8 +17,6 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
-
 import pytest
 from sqlalchemy import select
 
@@ -28,7 +26,7 @@ from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.callback import AsyncCallback
-from airflow.sdk.definitions.deadline import DeadlineReference, VariableInterval
+from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -509,17 +507,6 @@ class TestGetDagDeadlineAlerts:
         response = test_client.get("/dags/nonexistent_dag/deadlineAlerts")
         assert response.status_code == 404
 
-    @pytest.mark.parametrize("order_by", ["interval", "-interval"])
-    def test_order_by_interval_is_rejected(self, test_client, order_by):
-        """``interval`` is a serialized-JSON column (timedelta/VariableInterval dict), so DB-level
-        ordering by it is meaningless (sorts by JSON structure, not duration). It must NOT be an
-        allowed sort key — the endpoint should reject it with a 400 rather than silently returning
-        an arbitrarily-ordered list.
-        """
-        response = test_client.get(f"/dags/{DAG_ID}/deadlineAlerts", params={"order_by": order_by})
-        assert response.status_code == 400
-        assert "interval" in response.json()["detail"]
-
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/dags/{DAG_ID}/deadlineAlerts")
         assert response.status_code == 401
@@ -527,71 +514,3 @@ class TestGetDagDeadlineAlerts:
     def test_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get(f"/dags/{DAG_ID}/deadlineAlerts")
         assert response.status_code == 403
-
-
-class TestDeadlineAlertsIntervalSerialization:
-    """Regression tests for the ``interval`` column shape on the deadlineAlerts endpoint.
-
-    ``DeadlineAlert.interval`` is a JSON column that, in production, holds the
-    Airflow-*serialized* interval — ``encode_deadline_alert`` stores
-    ``serialize(self.interval)``, not a plain number. A fixed ``timedelta`` becomes
-    ``{"__classname__": "datetime.timedelta", "__version__": 2, "__data__": <seconds>}``
-    and a dynamic ``VariableInterval`` becomes
-    ``{"__classname__": ".../VariableInterval", "__data__": {"key": ...}}``.
-
-    The response model originally typed ``interval`` as a bare ``float``, so Pydantic
-    raised on that dict and the endpoint returned 500 — which broke the run-page
-    ``DeadlineStatus`` badge. The existing fixtures masked this by seeding a bare float
-    (``interval=3600.0``), a value the real creation path never produces. These tests
-    seed the realistic serialized forms.
-    """
-
-    @pytest.fixture
-    def dag_with_serialized_intervals(self, dag_maker, session):
-        from airflow.sdk.serde import serialize
-
-        dag_id = "dag_serialized_interval"
-        with dag_maker(dag_id, serialized=True, session=session):
-            EmptyOperator(task_id="task")
-        dag_maker.sync_dagbag_to_db()
-        session.commit()
-
-        serialized_dag = session.scalar(select(SerializedDagModel).where(SerializedDagModel.dag_id == dag_id))
-        # Fixed interval: stored as the serialized timedelta dict, exactly as
-        # encode_deadline_alert would persist it.
-        session.add(
-            DeadlineAlert(
-                serialized_dag_id=serialized_dag.id,
-                name="fixed_interval_alert",
-                reference=DeadlineReference.DAGRUN_QUEUED_AT.serialize_reference(),
-                interval=serialize(timedelta(seconds=300)),
-                callback_def={"path": _CALLBACK_PATH},
-            )
-        )
-        # Dynamic interval: a VariableInterval serializes to a dict with no fixed
-        # seconds — the value is only resolved at scheduler evaluation time.
-        session.add(
-            DeadlineAlert(
-                serialized_dag_id=serialized_dag.id,
-                name="dynamic_interval_alert",
-                reference=DeadlineReference.DAGRUN_QUEUED_AT.serialize_reference(),
-                interval=serialize(VariableInterval("deadline_seconds")),
-                callback_def={"path": _CALLBACK_PATH},
-            )
-        )
-        session.commit()
-        return dag_id
-
-    def test_serialized_timedelta_interval_does_not_500(self, test_client, dag_with_serialized_intervals):
-        """A fixed timedelta interval is coerced to its seconds value (not a 500)."""
-        response = test_client.get(f"/dags/{dag_with_serialized_intervals}/deadlineAlerts")
-        assert response.status_code == 200
-        alerts = {a["name"]: a for a in response.json()["deadline_alerts"]}
-        assert alerts["fixed_interval_alert"]["interval"] == 300.0
-
-    def test_dynamic_variable_interval_serializes_as_null(self, test_client, dag_with_serialized_intervals):
-        """A dynamic VariableInterval has no fixed seconds, so interval is null (not a 500)."""
-        response = test_client.get(f"/dags/{dag_with_serialized_intervals}/deadlineAlerts")
-        assert response.status_code == 200
-        alerts = {a["name"]: a for a in response.json()["deadline_alerts"]}
-        assert alerts["dynamic_interval_alert"]["interval"] is None

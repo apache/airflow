@@ -636,7 +636,12 @@ def _create_ti_state_update_query_and_update_state(
         updated_state = TaskInstanceState(ti_patch_payload.state.value)
         if session.bind is not None:
             query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
-        query = query.values(state=updated_state, next_method=None, next_kwargs=None)
+        query = query.values(
+            state=updated_state,
+            next_method=None,
+            next_kwargs=None,
+            _rendered_map_index=ti_patch_payload.rendered_map_index,
+        )
 
         if updated_state == TaskInstanceState.FAILED:
             # This is the only case needs extra handling for TITerminalStatePayload

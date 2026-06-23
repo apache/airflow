@@ -107,20 +107,8 @@ def _run_worker(
             )
             output.put((workload.key, workload.success_state, None))
         except Exception as e:
-            # A transient callback context-fetch failure should requeue (not terminally fail), so
-            # the scheduler retries it next loop — mirroring the triggerer path. The workload
-            # exposes ``retry_state`` (PENDING for callbacks) for exactly this case.
-            from airflow.sdk.execution_time.callback_supervisor import (  # noqa: SDK001
-                CallbackContextFetchError,
-            )
-
-            retry_state = getattr(workload, "retry_state", None)
-            if isinstance(e, CallbackContextFetchError) and retry_state is not None:
-                log.warning("Callback context fetch failed transiently; requeueing for retry.")
-                output.put((workload.key, retry_state, e))
-            else:
-                log.exception("Workload execution failed.", workload_type=type(workload).__name__)
-                output.put((workload.key, workload.failure_state, e))
+            log.exception("Workload execution failed.", workload_type=type(workload).__name__)
+            output.put((workload.key, workload.failure_state, e))
 
 
 class LocalExecutor(BaseExecutor):
@@ -133,7 +121,7 @@ class LocalExecutor(BaseExecutor):
     """
 
     is_local: bool = True
-    is_mp_using_fork: bool
+    is_mp_using_fork: bool = multiprocessing.get_start_method() == "fork"
 
     supports_multi_team: bool = True
     serve_logs: bool = True
@@ -147,10 +135,6 @@ class LocalExecutor(BaseExecutor):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        # Resolve the start method at instantiation, not at import: the component CLI entry may have
-        # set it via [<component>]/[core] mp_start_method before the executor is created.
-        self.is_mp_using_fork = multiprocessing.get_start_method() == "fork"
 
         # Check if self has the ExecutorConf set on the self.conf attribute, and if not, set it to the global
         # configuration object. This allows the changes to be backwards compatible with older versions of

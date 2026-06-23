@@ -117,21 +117,6 @@ class PartitionMapper(ABC):
         """
         return None
 
-    def carry_partition_date(self, source_partition_date: datetime | None) -> datetime | None:
-        """
-        Return the producer's ``partition_date`` to carry onto the consumer APDR.
-
-        Captured at queue time as an asset event arrives, *source_partition_date*
-        is the producing run's ``partition_date``. The base implementation returns
-        ``None``: for most mappers the consumer's date is derived from its own
-        downstream key by :meth:`to_partition_date` at run creation, not carried
-        from the producer.
-        :class:`~airflow.partition_mappers.identity.IdentityMapper` overrides to
-        pass it through, since the consumer's key equals the producer's and the
-        key carries no temporal meaning to decode.
-        """
-        return None
-
     def serialize(self) -> dict[str, Any]:
         if self.max_downstream_keys is None:
             return {}

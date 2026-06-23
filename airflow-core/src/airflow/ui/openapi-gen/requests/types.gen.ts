@@ -917,7 +917,6 @@ export type DAGRunResponse = {
     bundle_version: string | null;
     dag_display_name: string;
     partition_key: string | null;
-    partition_date: string | null;
 };
 
 /**
@@ -2261,9 +2260,9 @@ export type DeadlineAlertResponse = {
     name?: string | null;
     reference_type: string;
     /**
-     * Interval in seconds between the reference time and the deadline. Null for a dynamic interval (e.g. a VariableInterval) whose value is only resolved at scheduler evaluation time.
+     * Interval in seconds between deadline evaluations.
      */
-    interval?: number | null;
+    interval: number;
     created_at: string;
 };
 
@@ -4454,7 +4453,7 @@ export type GetDagDeadlineAlertsData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name, interval`
      */
     orderBy?: Array<(string)>;
 };

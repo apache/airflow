@@ -74,7 +74,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.edges import EdgeInfoType
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
-    from airflow.sdk.definitions.xcom_arg import PlainXComArg
     from airflow.sdk.execution_time.supervisor import TaskRunResult
     from airflow.timetables.base import DataInterval, Timetable as CoreTimetable
 
@@ -302,13 +301,6 @@ def _default_task_group(instance: DAG) -> TaskGroup:
     from airflow.sdk.definitions.taskgroup import TaskGroup
 
     return TaskGroup.create_root(dag=instance)
-
-
-def _is_valid_dag_result(value: Any) -> TypeIs[PlainXComArg]:
-    from airflow.sdk.bases.xcom import BaseXCom
-    from airflow.sdk.definitions.xcom_arg import PlainXComArg
-
-    return isinstance(value, PlainXComArg) and value.key == BaseXCom.XCOM_RETURN_KEY
 
 
 # TODO: Task-SDK: look at re-enabling slots after we remove pickling
@@ -1124,8 +1116,12 @@ class DAG:
             tg._remove(task)
 
     def add_result(self, xcom_arg: X) -> X:
-        if not _is_valid_dag_result(xcom_arg):
+        from airflow.sdk.bases.xcom import BaseXCom
+        from airflow.sdk.definitions.xcom_arg import PlainXComArg
+
+        if not isinstance(xcom_arg, PlainXComArg) or xcom_arg.key != BaseXCom.XCOM_RETURN_KEY:
             raise ValueError("Only plain return value can be used as dag result")
+
         xcom_arg.operator.returns_dag_result = True
         return xcom_arg
 
@@ -1678,15 +1674,7 @@ def dag(dag_id_or_func=None, __DAG_class=DAG, __warnings_stacklevel_delta=2, **d
                 dag_obj.fileloc = back.f_code.co_filename if back else ""
 
                 # Invoke function to create operators in the Dag scope.
-                r = f(**f_kwargs)
-
-                if _is_valid_dag_result(r):
-                    log.debug(
-                        "Automatically adding function return value %r as result for dag %s",
-                        r,
-                        dag_obj.dag_id,
-                    )
-                    dag_obj.add_result(r)
+                f(**f_kwargs)
 
             # Return dag object such that it's accessible in Globals.
             return dag_obj

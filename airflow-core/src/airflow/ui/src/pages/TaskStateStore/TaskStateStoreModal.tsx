@@ -117,17 +117,6 @@ export const TaskStateStoreModal = ({
     }),
   );
 
-  const getExpiresAt = () => {
-    if (expiresAt === "never") {
-      return null;
-    }
-    if (expiresAt === "custom") {
-      return dayjs.tz(customExpiresAt, selectedTimezone).toISOString();
-    }
-
-    return "default";
-  };
-
   const onSave = () => {
     setTaskStore({
       dagId,
@@ -135,7 +124,7 @@ export const TaskStateStoreModal = ({
       key: isEditMode ? (storeKey ?? "") : key,
       mapIndex,
       requestBody: {
-        expires_at: getExpiresAt(),
+        expires_at: expiresAt === "never" ? null : expiresAt === "custom" ? customExpiresAt : "default",
         value: JSON.parse(value),
       },
       taskId,

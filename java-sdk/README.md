@@ -263,6 +263,9 @@ task-sdk/tests/coordinators/java/             # Python-side unit and integration
 
 # Run a specific test class
 ./gradlew :sdk:test --tests "org.apache.airflow.sdk.execution.CommTest"
+
+# Smoke-check the example bundle
+./gradlew :example:bundle
 ```
 
 For the Python coordinator, use Breeze (never run pytest on the host directly):

@@ -54,21 +54,14 @@ confirms:
 
 from __future__ import annotations
 
-import time
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
 
 import pytest
 
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
 # The Java extract task sleeps 6 s + coordinator startup; allow plenty of room.
 _JAVA_TASK_TIMEOUT = 600
-# Logs can lag slightly behind the task reaching a terminal state.
-_LOG_FETCH_TIMEOUT = 60
 
 
 class TestJavaSDKAnnotationExample:
@@ -172,72 +165,4 @@ class TestJavaSDKAnnotationExample:
         assert load_ti.get("try_number") == 2, (
             f"Java 'load' task should have run twice (fail then retry); "
             f"try_number={load_ti.get('try_number')!r}, ti: {load_ti}"
-        )
-
-    def _wait_for_transform_log_record(
-        self, run_id: str, try_number: int, match: Callable[[dict], bool]
-    ) -> tuple[dict | None, list[dict]]:
-        """Poll the ``transform`` task logs until a record matching *match* appears.
-
-        Logs can lag behind the terminal task state, and earlier records (e.g. the
-        first transform line) arrive before the one under test, so returning on any
-        record would race. Keep polling until the target record shows up or the
-        deadline passes. Returns the matching record (or ``None``) and the last
-        batch of records seen for diagnostics.
-        """
-        deadline = time.monotonic() + _LOG_FETCH_TIMEOUT
-        records: list[dict] = []
-        while True:
-            resp = self.airflow_client.get_task_logs(
-                dag_id="java_annotation_example", run_id=run_id, task_id="transform", try_number=try_number
-            )
-            records = [entry for entry in resp.get("content", []) if isinstance(entry, dict)]
-            record = next((r for r in records if match(r)), None)
-            if record is not None or time.monotonic() > deadline:
-                return record, records
-            time.sleep(3)
-
-    def test_application_logs_preserve_their_level(self):
-        """A Java task's SLF4J ``logger.info`` must reach the UI as INFO, not ERROR.
-
-        Without the SDK's SLF4J binding the application's logs fall through to
-        stderr and the supervisor tags every line ERROR. The binding routes them
-        over the logs socket carrying the real level instead.
-        """
-        resp = self.airflow_client.trigger_dag(
-            "java_annotation_example",
-            json={"logical_date": datetime.now(timezone.utc).isoformat()},
-        )
-        run_id = resp["dag_run_id"]
-        dag_state = self.airflow_client.wait_for_dag_run(
-            dag_id="java_annotation_example",
-            run_id=run_id,
-            timeout=_JAVA_TASK_TIMEOUT,
-        )
-
-        # The log under test is emitted only if transform actually ran; assert it
-        # succeeded and fetch the attempt that produced the logs (transform does
-        # not retry, but read try_number rather than assuming attempt 1).
-        ti_resp = self.airflow_client.get_task_instances(dag_id="java_annotation_example", run_id=run_id)
-        ti_map = {ti["task_id"]: ti for ti in ti_resp.get("task_instances", [])}
-        transform_ti = ti_map.get("transform", {})
-        assert transform_ti.get("state") == "success", (
-            f"Java 'transform' task must succeed to emit the log under test.\n"
-            f"  task state : {transform_ti.get('state')!r}\n"
-            f"  dag state  : {dag_state!r}\n"
-            f"  all tasks  : { {k: v.get('state') for k, v in ti_map.items()} }"
-        )
-
-        # transform logs `logger.info("Got variable {}", variable)` -> "Got variable 123".
-        record, records = self._wait_for_transform_log_record(
-            run_id,
-            transform_ti.get("try_number", 1),
-            lambda r: str(r.get("event", "")).startswith("Got variable"),
-        )
-        assert record is not None, (
-            f"transform should emit a 'Got variable' INFO record; "
-            f"events seen: {[r.get('event') for r in records]}"
-        )
-        assert str(record.get("level", "")).lower() == "info", (
-            f"application INFO log should keep its level, got {record.get('level')!r}; record: {record}"
         )

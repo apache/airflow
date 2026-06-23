@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 from airflow.partition_mappers.identity import IdentityMapper
 from airflow.serialization.decoders import decode_partition_mapper
 from airflow.serialization.encoders import encode_partition_mapper
@@ -28,13 +26,6 @@ class TestIdentityMapper:
     def test_to_downstream(self):
         pm = IdentityMapper()
         assert pm.to_downstream("key") == "key"
-
-    def test_carry_partition_date_passes_source_through(self):
-        """IdentityMapper carries the producer's date through (its key can't reconstruct one)."""
-        pm = IdentityMapper()
-        dt = datetime(2026, 5, 20, 1, 0, 0, tzinfo=timezone.utc)
-        assert pm.carry_partition_date(dt) == dt
-        assert pm.carry_partition_date(None) is None
 
     def test_serialize(self):
         pm = IdentityMapper()

@@ -18,14 +18,12 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from datetime import timedelta
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
@@ -592,17 +590,8 @@ class TestSparkSubmitOperatorResumable:
         operator._hook.submit.assert_called_once_with("test.jar")
         assert polled == ["driver-001"]
 
-    def test_reconnect_on_retry_deprecated_alias(self):
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            operator = self._make_operator(reconnect_on_retry=False)
-        assert len(w) == 1
-        assert issubclass(w[0].category, AirflowProviderDeprecationWarning)
-        assert "reconnect_on_retry" in str(w[0].message)
-        assert operator.durable is False
-
-    def test_durable_false_submits_fresh_and_polls(self):
-        operator = self._make_operator(durable=False)
+    def test_reconnect_on_retry_false_submits_fresh_and_polls(self):
+        operator = self._make_operator(reconnect_on_retry=False)
         operator._hook = self._make_hook(should_track=True)
         operator._hook.submit.return_value = "driver-new"
         task_store = FakeTaskStateStore({"spark_job_id": "driver-old"})
@@ -610,7 +599,7 @@ class TestSparkSubmitOperatorResumable:
         operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
 
         operator.execute(context={"task_state_store": task_store})
-        # durable=False: ignores prior driver ID, submits fresh, but still polls
+        # reconnect_on_retry=False: ignores prior driver ID, submits fresh, but still polls
         operator._hook.submit.assert_called_once_with("test.jar")
         assert polled == ["driver-new"]
 
@@ -874,8 +863,8 @@ class TestSparkSubmitOperatorResumable:
         hook._kill_yarn_application.assert_called_once_with("application_1234_0001")
 
     def test_yarn_cluster_reconnect_without_rm_api_raises(self):
-        """durable=True + yarn_track_via_rm_api=False must raise - RM API is required for resume."""
-        operator = self._make_operator(durable=True)
+        """reconnect_on_retry=True + yarn_track_via_rm_api=False must raise - RM API is required for resume."""
+        operator = self._make_operator(reconnect_on_retry=True)
         hook = self._make_hook(is_yarn_cluster=True)
         hook._yarn_track_via_rm_api = False
         operator._hook = hook
@@ -884,8 +873,8 @@ class TestSparkSubmitOperatorResumable:
             operator.execute(context={})
 
     def test_yarn_cluster_without_rm_api_reconnect_false_falls_through_to_hook_submit(self):
-        """durable=False + yarn_track_via_rm_api=False falls through to hook.submit() - no RM polling."""
-        operator = self._make_operator(durable=False)
+        """reconnect_on_retry=False + yarn_track_via_rm_api=False falls through to hook.submit() - no RM polling."""
+        operator = self._make_operator(reconnect_on_retry=False)
         hook = self._make_hook(is_yarn_cluster=True)
         hook._yarn_track_via_rm_api = False
         operator._hook = hook
@@ -1039,7 +1028,6 @@ class TestSparkSubmitOperatorK8sTracking:
         assert hook._kubernetes_driver_pod == "spark-abc-driver"
         hook._poll_k8s_driver_via_api.assert_called_once()
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task_state_store requires Airflow 3.3+")
     def test_k8s_poll_until_complete_writes_succeeded_to_task_store(self):
         operator = self._make_operator(track_driver_via_k8s_api=True)
         hook = self._make_k8s_hook()
@@ -1051,9 +1039,8 @@ class TestSparkSubmitOperatorK8sTracking:
 
         assert task_store.get("k8s_driver_status") == "Succeeded"
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task_state_store requires Airflow 3.3+")
     def test_k8s_polling_does_not_write_task_store_when_reconnect_disabled(self):
-        operator = self._make_operator(track_driver_via_k8s_api=True, durable=False)
+        operator = self._make_operator(track_driver_via_k8s_api=True, reconnect_on_retry=False)
         hook = self._make_k8s_hook()
         hook._poll_k8s_driver_via_api.return_value = "Succeeded"
         operator._hook = hook
@@ -1085,9 +1072,9 @@ class TestSparkSubmitOperatorK8sTracking:
         not AIRFLOW_V_3_3_PLUS,
         reason="ResumableJobMixin reconnect requires task_state, available in Airflow 3.3+",
     )
-    def test_k8s_execute_persists_pod_id_when_durable(self):
-        """execute() with durable=True stores the pod ID in task_store before polling."""
-        operator = self._make_operator(track_driver_via_k8s_api=True, durable=True)
+    def test_k8s_execute_persists_pod_id_when_reconnect_on_retry(self):
+        """execute() with reconnect_on_retry=True stores the pod ID in task_store before polling."""
+        operator = self._make_operator(track_driver_via_k8s_api=True, reconnect_on_retry=True)
         hook = self._make_k8s_hook()
         hook._kubernetes_driver_pod = "spark-abc-driver"
         hook._connection = {"namespace": "mynamespace"}
@@ -1108,9 +1095,9 @@ class TestSparkSubmitOperatorK8sTracking:
         not AIRFLOW_V_3_3_PLUS,
         reason="ResumableJobMixin reconnect requires task_state, available in Airflow 3.3+",
     )
-    def test_k8s_execute_durable_false_does_not_persist_pod_id(self):
-        """execute() with durable=False does not write spark_job_id to task_store."""
-        operator = self._make_operator(track_driver_via_k8s_api=True, durable=False)
+    def test_k8s_execute_reconnect_on_retry_false_does_not_persist_pod_id(self):
+        """execute() with reconnect_on_retry=False does not write spark_job_id to task_store."""
+        operator = self._make_operator(track_driver_via_k8s_api=True, reconnect_on_retry=False)
         hook = self._make_k8s_hook()
         hook._kubernetes_driver_pod = "spark-abc-driver"
         hook._connection = {"namespace": "mynamespace"}

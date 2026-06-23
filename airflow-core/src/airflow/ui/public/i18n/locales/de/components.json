@@ -15,7 +15,6 @@
     "reprocessBehavior": "Auffüll-Modus",
     "run": "Auffüllung starten",
     "scheduleNotBackfillable": "Der Zeitplan des Dags unterstützt keine Auffüllungen.",
-    "schedulerPriorityHint": "Dag Läufe von Auffüllungen werden in jedem Planungszyklus nach anderen Dag-Läufen geordnet. Auffüllungs-Läufe können daher länger in der Warteschlange bleiben, wenn andere Läufe aktiv sind.",
     "selectDescription": "Dieses Dag für einen Datumsbereich in der Vergangenheit ausführen",
     "selectLabel": "Auffüllen",
     "title": "Auffüllung starten",

@@ -17,12 +17,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from unittest import mock
 
 import pytest
 
-from airflow import plugins_manager
-from airflow._shared.module_loading import qualname
 from airflow.partition_mappers.base import RollupMapper
 from airflow.partition_mappers.temporal import (
     StartOfDayMapper,
@@ -43,7 +40,7 @@ from airflow.partition_mappers.window import (
     YearWindow,
 )
 from airflow.serialization.decoders import decode_partition_mapper, decode_window
-from airflow.serialization.encoders import _serializer, encode_partition_mapper, encode_window
+from airflow.serialization.encoders import encode_partition_mapper, encode_window
 from airflow.serialization.enums import Encoding
 from airflow.serialization.helpers import WindowNotSupported
 
@@ -510,62 +507,22 @@ class TestSegmentWindow:
         assert frozenset(restored.to_upstream("any")) == frozenset({"us", "eu", "apac"})
 
 
-class CustomRegWindow(Window):
-    """A custom Window subclass defined at module scope so it has a stable qualname."""
-
-    def to_upstream(self, decoded_downstream):
-        return [decoded_downstream]
-
-
 class TestWindowSerializationGate:
-    """``encode_window`` / ``decode_window`` accept registered custom Windows and reject unregistered ones.
+    """``encode_window`` / ``decode_window`` must reject non-built-in Windows.
 
-    A tampered serialized Dag naming an unregistered import path is still
-    rejected; only classes that appear on a plugin's ``windows`` attribute
-    are allowed through.
+    Custom Window subclasses are not supported: a tampered serialized Dag
+    could otherwise name any importable class and have the scheduler
+    ``import_string`` it during deserialization.
     """
 
-    @pytest.fixture
-    def window_plugin(self, monkeypatch):
-        """Patch the plugins manager to expose CustomRegWindow under its qualname."""
-        qn = qualname(CustomRegWindow)
-        monkeypatch.setattr(
-            plugins_manager,
-            "get_windows_plugins",
-            lambda: {qn: CustomRegWindow},
-        )
-
-    @pytest.mark.usefixtures("window_plugin")
-    def test_registered_custom_window_round_trips(self):
-        w = CustomRegWindow()
-        restored = decode_window(encode_window(w))
-        assert type(restored) is CustomRegWindow
-        assert restored.to_upstream("x") == ["x"]
-
-    def test_unregistered_custom_window_raises_on_encode(self):
-        class UnregisteredWindow(Window):
+    def test_encode_rejects_custom_window_subclass(self):
+        class CustomWindow(Window):
             def to_upstream(self, decoded_downstream):
                 return ()
 
-        with pytest.raises(WindowNotSupported, match="UnregisteredWindow"):
-            encode_window(UnregisteredWindow())
+        with pytest.raises(WindowNotSupported, match="CustomWindow"):
+            encode_window(CustomWindow())
 
-    def test_unregistered_import_path_raises_on_decode(self):
-        with mock.patch("airflow.serialization.decoders.import_string") as mock_import:
-            with pytest.raises(WindowNotSupported, match="os.system"):
-                decode_window({Encoding.TYPE: "os.system", Encoding.VAR: {}})
-        mock_import.assert_not_called()
-
-    def test_builtin_windows_fast_path_unchanged(self):
-        # The fast-path dict must contain exactly 7 entries, one per builtin SDK class.
-        # Verify that every entry maps to the canonical core import path.
-        expected = {
-            "airflow.partition_mappers.window.HourWindow",
-            "airflow.partition_mappers.window.DayWindow",
-            "airflow.partition_mappers.window.WeekWindow",
-            "airflow.partition_mappers.window.MonthWindow",
-            "airflow.partition_mappers.window.QuarterWindow",
-            "airflow.partition_mappers.window.SegmentWindow",
-            "airflow.partition_mappers.window.YearWindow",
-        }
-        assert set(_serializer.BUILTIN_WINDOWS.values()) == expected
+    def test_decode_rejects_non_core_import_path(self):
+        with pytest.raises(WindowNotSupported, match="os.system"):
+            decode_window({Encoding.TYPE: "os.system", Encoding.VAR: {}})

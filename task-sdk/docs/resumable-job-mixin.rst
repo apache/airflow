@@ -120,7 +120,7 @@ Example
     from pydantic import JsonValue
 
 
-    class MyBatchOperator(ResumableJobMixin, BaseOperator):
+    class MyBatchOperator(BaseOperator, ResumableJobMixin):
 
         external_id_key = "batch_job_id"
 
@@ -144,27 +144,6 @@ Example
 
         def get_job_result(self, external_id: JsonValue, context):
             return None
-
-.. _sdk-resumable-job-mixin-resume-on-retry:
-
-Disabling crash recovery per task
-----------------------------------
-
-Set ``durable=False`` on a task to opt out of crash recovery for that specific instance.
-The operator will always submit a fresh job on retry, with no ``task_state_store`` interaction:
-
-.. code-block:: python
-
-    run_spark = MyBatchOperator(
-        task_id="run_spark",
-        durable=False,
-    )
-
-This is useful when the external job is not idempotent and you want Airflow to always submit a
-clean run rather than reconnect to a prior submission.
-
-The default is ``True``. ``durable`` is owned by the mixin — operators do not need to
-redeclare it. ``default_args`` injection and ``.partial()`` work automatically.
 
 .. _sdk-resumable-job-mixin-external-id-key:
 

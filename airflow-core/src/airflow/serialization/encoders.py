@@ -88,9 +88,9 @@ from airflow.serialization.definitions.deadline import SerializedDeadlineAlert
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
     WaitPolicyNotSupported,
+    WindowNotSupported,
     find_registered_custom_partition_mapper,
     find_registered_custom_timetable,
-    find_registered_custom_window,
     is_core_partition_mapper_import_path,
     is_core_timetable_import_path,
     is_core_wait_policy_import_path,
@@ -695,9 +695,11 @@ def encode_window(var: Window | CoreWindow) -> dict[str, Any]:
     """
     Encode a :class:`Window` instance.
 
-    Custom subclasses must be registered via the ``windows`` plugin attribute;
-    unregistered classes raise :class:`WindowNotSupported` so the scheduler
-    never deserializes an attacker-controlled import path.
+    Only built-in ``Window`` subclasses are accepted. Custom subclasses raise
+    :class:`WindowNotSupported` so the scheduler never deserializes an
+    attacker-controlled import path. If a real need for custom windows arises,
+    add a plugin registry mirroring ``partition_mapper`` rather than relaxing
+    this check.
 
     The ``BUILTIN_WINDOWS`` fast path maps the SDK classes user code instantiates
     (e.g. ``from airflow.sdk import WeekWindow``); after deserialization a
@@ -713,12 +715,9 @@ def encode_window(var: Window | CoreWindow) -> dict[str, Any]:
             Encoding.TYPE: importable_string,
             Encoding.VAR: _serializer.serialize_window(var),
         }
-
     qn = qualname(var)
-    if is_core_window_import_path(qn) is False:
-        # This raises if not found.
-        find_registered_custom_window(qn)
-
+    if not is_core_window_import_path(qn):
+        raise WindowNotSupported(qn)
     return {
         Encoding.TYPE: qn,
         Encoding.VAR: _serializer.serialize_window(var),

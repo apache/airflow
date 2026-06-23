@@ -1901,14 +1901,24 @@ class TestTaskStateOperations:
         result = client.task_state_store.delete(ti_id=self.TI_ID, key="job_id")
         assert result == OKResponse(ok=True)
 
-    def test_clear_sends_delete_request(self):
+    def test_clear_default_no_query_param(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.method == "DELETE"
             assert request.url.path == f"/store/ti/{self.TI_ID}"
+            assert "all_map_indices" not in str(request.url.query)
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.task_state_store.clear(ti_id=self.TI_ID)
+        assert result == OKResponse(ok=True)
+
+    def test_clear_all_map_indices_sends_query_param(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert "all_map_indices=true" in str(request.url.query)
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_state_store.clear(ti_id=self.TI_ID, all_map_indices=True)
         assert result == OKResponse(ok=True)
 
 
