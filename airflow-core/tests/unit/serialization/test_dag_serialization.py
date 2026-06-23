@@ -4768,6 +4768,47 @@ class TestMappedOperatorSerializationAndClientDefaults:
         assert deserialized_task.partial_kwargs["retry_delay"] == timedelta(seconds=600)
         assert deserialized_task.partial_kwargs["owner"] == "custom_owner"
 
+    def test_partial_kwargs_dag_param_serialization_is_stable(self):
+        """DagParam passed to a mapped task's partial() must serialize to a stable representation.
+
+        Without dedicated handling the serializer falls back to ``str(var)`` which embeds the
+        object's memory address, producing a different serialized Dag on every parse.
+        """
+        from airflow.sdk import task
+
+        with DAG(dag_id="test_dag_param_partial") as dag:
+
+            @task
+            def add(value):
+                return value
+
+            add.partial(value=dag.param("p", "default_value")).expand(value=[1, 2, 3])
+
+        serialized_dag = DagSerialization.to_dict(dag)
+        mapped_task = serialized_dag["dag"]["tasks"][0]["__var"]
+        serialized_value = mapped_task["partial_kwargs"]["op_kwargs"]["__var"]["value"]
+
+        # The DagParam must encode to its stable structure, not a repr with a memory address.
+        assert serialized_value["__type"] == "param"
+        assert serialized_value["__var"] == {
+            "__class": "airflow.sdk.definitions.param.Param",
+            "description": None,
+            "source": "dag",
+            "default": "default_value",
+            "schema": {"__var": {}, "__type": "dict"},
+        }
+
+        # Serializing the same Dag twice must produce identical output.
+        assert DagSerialization.to_dict(dag) == serialized_dag
+
+        # And the round-trip restores a real DagParam bound to the Dag.
+        deserialized_dag = DagSerialization.from_dict(serialized_dag)
+        deserialized_task = deserialized_dag.get_task("add")
+        restored_param = deserialized_task.partial_kwargs["op_kwargs"]["value"]
+        assert isinstance(restored_param, SerializedParam)
+        assert restored_param.value == "default_value"
+        assert restored_param.source == "dag"
+
 
 @pytest.mark.parametrize(
     ("callbacks", "expected_has_flags", "absent_keys"),

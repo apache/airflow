@@ -60,7 +60,7 @@ from airflow.sdk.definitions.asset import (
 from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.operator_resources import Resources
-from airflow.sdk.definitions.param import Param, ParamsDict
+from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import serialize_xcom_arg
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
@@ -579,6 +579,10 @@ class BaseSerialization:
             return TaskGroupSerialization.serialize_task_group(var)
         elif isinstance(var, Param):
             return cls._encode(cls._serialize_param(var), type_=DAT.PARAM)
+        elif isinstance(var, DagParam):
+            return cls._encode(
+                cls._serialize_param(Param(default=var._default, source="dag")), type_=DAT.PARAM
+            )
         elif isinstance(var, XComArg):
             return cls._encode(serialize_xcom_arg(var), type_=DAT.XCOM_REF)
         elif isinstance(var, LazySelectSequence):
