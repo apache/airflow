@@ -214,7 +214,8 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         """
         Submit and monitor an AWS Batch job.
 
-        :raises: AirflowException
+        :raises ValueError: if job_id is not found
+        :raises AirflowException: if job submission fails or job ends in failure state
         """
         self.submit_job(context)
 
@@ -266,14 +267,19 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
             log_fetcher = self._get_batch_log_fetcher(self.job_id)
             if log_fetcher:
                 self.log.info("Fetching logs for AWS Batch job: %s", self.job_id)
-                # Fetch up to 10,000 messages (CloudWatch limit)
-                log_messages = log_fetcher.get_last_log_messages(10000)
-                for message in log_messages:
-                    self.log.info(message)
-                if log_messages:
-                    self.log.info("Retrieved %d log messages from CloudWatch", len(log_messages))
-                else:
-                    self.log.info("No logs found in CloudWatch for job: %s", self.job_id)
+                try:
+                    # Fetch up to 10,000 messages (CloudWatch limit)
+                    log_messages = log_fetcher.get_last_log_messages(10000)
+                    for message in log_messages:
+                        self.log.info(message)
+                    if log_messages:
+                        self.log.info("Retrieved %d log messages from CloudWatch", len(log_messages))
+                    else:
+                        self.log.info("No logs found in CloudWatch for job: %s", self.job_id)
+                except Exception:
+                    self.log.warning(
+                        "Unable to retrieve CloudWatch logs for AWS Batch job: %s", self.job_id, exc_info=True
+                    )
 
         # Persist CloudWatch logs for both success and failure
         self._persist_cloudwatch_link(context)
@@ -407,6 +413,9 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         :param context: Task context
         """
         if not context or "ti" not in context:
+            return
+
+        if not self.do_xcom_push:
             return
 
         if not self.job_id:
