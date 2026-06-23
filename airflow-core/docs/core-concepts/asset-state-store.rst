@@ -37,6 +37,8 @@ When is ``asset_state_store`` available?
 
 When using asset state store within a task, ``context["asset_state_store"]`` is populated for **concrete** :class:`~airflow.sdk.definitions.asset.Asset` inlets and outlets. A task must declare at least one concrete inlet or outlet for ``asset_state_store`` to contain any entries.
 
+If a task has no inlets or outlets and accesses ``context["asset_state_store"]``, a ``KeyError`` is raised at runtime. Declare at least one asset inlet or outlet on the task to use asset state store.
+
 Accessing asset state store using ``context``
 ---------------------------------------------
 
