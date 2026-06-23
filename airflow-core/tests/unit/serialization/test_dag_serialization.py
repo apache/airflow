@@ -484,7 +484,7 @@ def collect_dags(dag_folder=None):
             for directory in glob(f"{AIRFLOW_REPO_ROOT_PATH}/{pattern}"):
                 if any([directory.startswith(excluded_pattern) for excluded_pattern in excluded_patterns]):
                     continue
-                dagbag = DagBag(directory, include_examples=False)
+                dagbag = DagBag(directory)
                 dags.update(dagbag.dags)
                 import_errors.update(dagbag.import_errors)
     return dags, import_errors
@@ -866,12 +866,16 @@ class TestStringifiedDAGs:
                 "_is_sensor",
                 # trigger_kwargs is kept as raw JSON after deserialization; checked separately
                 "start_trigger_args",
+                # Only needed at execution time; intentionally excluded
+                "returns_dag_result",
             }
         else:  # Promised to be mapped by the assert above.
             assert isinstance(serialized_task, SerializedMappedOperator)
             fields_to_check = {f.name for f in attrs.fields(MappedOperator)}
             fields_to_check -= {
+                # Only needed at execution time; intentionally excluded
                 "map_index_template",
+                "returns_dag_result",
                 # Matching logic in BaseOperator.get_serialized_fields().
                 "dag",
                 "task_group",
@@ -1888,9 +1892,7 @@ class TestStringifiedDAGs:
 
     @pytest.mark.db_test
     def test_basic_mapped_dag(self, dag_maker):
-        dagbag = DagBag(
-            "airflow-core/src/airflow/example_dags/example_dynamic_task_mapping.py", include_examples=False
-        )
+        dagbag = DagBag("airflow-core/src/airflow/example_dags/example_dynamic_task_mapping.py")
         assert not dagbag.import_errors
         dag = dagbag.dags["example_dynamic_task_mapping"]
         ser_dag = DagSerialization.to_dict(dag)

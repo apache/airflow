@@ -20,6 +20,8 @@ import attrs
 
 
 def _validate_teams(instance, attribute, value):
+    if value is None:
+        return value
     for entry in value:
         if not isinstance(entry, str) or not entry or entry.isspace():
             raise ValueError(f"Each entry in {attribute.name} must be a non-empty string")
@@ -34,8 +36,8 @@ class AssetAccessControl:
         factory=list,
         validator=[_validate_teams],
     )
-    consumer_teams: list[str] = attrs.field(
-        factory=list,
+    consumer_teams: list[str] | None = attrs.field(
+        default=None,
         validator=[_validate_teams],
     )
     allow_global: bool = attrs.field(default=True, validator=[attrs.validators.instance_of(bool)])

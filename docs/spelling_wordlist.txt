@@ -249,6 +249,7 @@ cli
 ClickHouse
 clickhouse
 clickhousedb
+clickstream
 ClientSecretCredential
 cloudant
 CloudantV
@@ -311,6 +312,7 @@ ContainerPort
 contentUrl
 contextmgr
 contrib
+cooldown
 copyable
 CoreV
 coroutine
@@ -646,6 +648,7 @@ Filesystem
 filesystem
 filesystems
 filetype
+finalStatus
 fips
 firebase
 Firehose
@@ -1146,6 +1149,8 @@ ok
 oklch
 Okta
 okta
+OL
+ol
 Ollama
 onboarded
 onboarding
@@ -1366,6 +1371,7 @@ rebase
 Rebasing
 Recency
 recurse
+redeclare
 redelivery
 Redhat
 redis
@@ -1385,6 +1391,7 @@ renderer
 renderers
 renewer
 reparse
+reparsed
 replicaSet
 repo
 repos

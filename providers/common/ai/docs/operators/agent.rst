@@ -156,6 +156,49 @@ tasks can consume it.
     :end-before: [END howto_agent_chain]
 
 
+Multi-turn Sessions
+-------------------
+
+By default each agent run is a cold, single-turn conversation. To carry a
+conversation across runs -- a chat or iterative agent where "and the third one?"
+must resolve against an earlier answer -- pass ``message_history``.
+
+When ``message_history`` is set, the operator seeds the run with those prior
+turns and, after the run, pushes the full updated transcript
+(``result.all_messages()``) to XCom under the key ``message_history``. The next
+run reads it back to resume the conversation. ``None`` (the default) keeps the
+single-turn behavior unchanged.
+
+The operator does **not** decide *where* a session is stored -- that keying is
+deployment-specific. The pattern is three tasks: load the prior transcript for
+the session, run the agent, store the updated transcript. The example keys a
+JSON file in object storage by ``session_id`` (use ``s3://`` / ``gs://`` in a
+deployment); the first run starts from an empty ``"[]"``.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
+    :language: python
+    :start-after: [START howto_agent_session]
+    :end-before: [END howto_agent_session]
+
+``message_history`` accepts a list of pydantic-ai ``ModelMessage`` objects or
+their JSON form (``str`` / ``bytes``), so the value emitted to XCom feeds
+straight back in on the next run. When pulling it via a template, pass
+``default='[]'`` (as above) so the first run -- which has no XCom yet -- starts a
+fresh session instead of trying to parse the string ``"None"``.
+
+The transcript is **cumulative**: each turn appends to it, so it grows for the
+life of the session. For long sessions, configure an object-storage XCom backend
+or trim older turns before the next run rather than feeding the whole history
+back unbounded.
+
+.. note::
+
+    ``message_history`` cannot be combined with ``enable_hitl_review`` -- the
+    operator raises at construction. The post-review (human-approved) transcript
+    is not recoverable today, so emitting the pre-review transcript would
+    silently drop the reviewed turns.
+
+
 Durable Execution
 -----------------
 
@@ -209,11 +252,28 @@ cache:
 **How it works**
 
 1. On first execution, each LLM response and tool result is saved to a JSON
-   file as the agent progresses.
+   file as the agent progresses, together with a fingerprint of the request
+   that produced it (model, message history, settings, and tools for LLM
+   steps; tool name, arguments, and call id for tool steps).
 2. If the task fails and Airflow retries it, completed steps are loaded from
    the cache and returned without calling the model or tool. Steps not yet in
    the cache proceed normally.
-3. After successful completion, the cache file is deleted.
+3. Before a step is replayed, its stored fingerprint is compared against the
+   current request. If anything changed between attempts -- the system
+   prompt, the model, the toolset, model settings, or the conversation so
+   far -- the stale entry is discarded, a warning is logged, and the step
+   re-runs live. A divergence also invalidates the steps after it: re-running
+   an LLM step produces fresh tool call ids, so tool results recorded under
+   the old conversation no longer match. A changed agent costs a re-run; it
+   never replays responses that belong to a different conversation.
+4. After successful completion, the cache file is deleted.
+
+Replay verification compares the **requests** sent to models and tools, not
+the code behind them. Editing a tool's implementation between attempts does
+not invalidate an already-cached result for an identical call, and pointing
+``llm_conn_id`` at a different endpoint serving the same model name does not
+invalidate cached responses -- delete the cache file to force a fully fresh
+run.
 
 After the run, a single INFO summary line reports how many steps were
 replayed vs executed fresh. Per-step detail is available at DEBUG level.
@@ -292,6 +352,70 @@ Capabilities compose with toolsets -- pydantic-ai merges tools from both.
     serializer hooks) is tracked as a follow-up.
 
 
+.. _code-mode:
+
+Code Mode (Monty sandbox)
+-------------------------
+
+Set ``code_mode=True`` to collapse the agent's tools into a single ``run_code``
+tool powered by the `Monty <https://github.com/pydantic/monty>`__ sandbox (via
+pydantic-ai-harness). Instead of one model round-trip per tool call, the model
+writes a single Python snippet that calls the tools as functions -- with loops,
+conditionals, and ``asyncio.gather`` -- in one turn. For multi-tool workflows
+this cuts round-trips and token use.
+
+The generated code runs in Monty's deny-by-default sandbox: it cannot read the
+filesystem, the network, or environment variables. It can only call the tools
+you registered. Code mode therefore does not widen what the agent can reach --
+the tools it calls still run in the worker -- it only changes how the model
+invokes them. See :ref:`Toolsets security <howto/toolsets>` for the tool
+boundary.
+
+When to use it
+^^^^^^^^^^^^^^
+
+Code mode pays off for **orchestration-heavy, computation-light** workflows:
+calling several tools, looping over their results, filtering, and combining them.
+Collapsing many sequential tool calls into one turn is where the round-trip and
+token savings come from -- the example above answers a per-customer question in a
+single ``run_code`` block instead of one model round-trip per customer.
+
+It is **not a general-purpose code runtime**. The generated code is only the glue
+between tool calls; every real capability must come from a tool. Monty runs a
+subset of Python and **cannot import third-party libraries** (pandas, numpy,
+requests, boto3, ...) and has no filesystem or network access. If a task needs to
+crunch data inline with a library, you have two options, both better than code
+mode:
+
+- **Push the work into a tool.** Do the aggregation in SQL (``SQLToolset``), or
+  expose a hook method that returns the processed result (``HookToolset``). The
+  tool runs in the full worker environment with all its dependencies, and code
+  mode just orchestrates it.
+- **Use a container-based execution environment** (e.g. Docker or E2B via
+  pydantic-ai-harness) instead of the in-process Monty sandbox. These support
+  third-party packages but pay a per-run container cost and a larger security
+  surface, so reach for them only when inline library code is genuinely required.
+
+Requires the ``code-mode`` extra::
+
+    pip install "apache-airflow-providers-common-ai[code-mode]"
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
+    :language: python
+    :start-after: [START howto_operator_agent_code_mode]
+    :end-before: [END howto_operator_agent_code_mode]
+
+Unlike passing a capability through ``agent_params`` (see
+:ref:`capabilities-passthrough`), ``code_mode`` is a plain boolean and is
+serialization-safe: the ``CodeMode`` capability is built at execution time, not
+stored on the serialized operator.
+
+.. note::
+
+    Monty is pre-1.0. The ``code-mode`` extra is opt-in so its dependency churn
+    never affects the base provider install.
+
+
 Parameters
 ----------
 
@@ -322,6 +446,14 @@ Parameters
   tool results via ObjectStorage. On retry, cached steps are replayed instead of
   re-executing expensive LLM calls. Requires the ``[common.ai] durable_cache_path``
   config option to be set. Default ``False``.
+- ``code_mode``: When ``True``, wraps the agent's tools in a single ``run_code``
+  tool that the model drives by writing Python, executed in the Monty sandbox.
+  Requires the ``code-mode`` extra. Default ``False``. See :ref:`code-mode`.
+- ``message_history``: Prior conversation to seed a multi-turn session, as a list
+  of pydantic-ai ``ModelMessage`` objects or their JSON form (``str`` / ``bytes``).
+  When set, the post-run transcript is pushed to XCom under the key
+  ``message_history`` for the next run to resume. Default ``None`` (single-turn).
+  See `Multi-turn Sessions`_.
 
 
 Logging

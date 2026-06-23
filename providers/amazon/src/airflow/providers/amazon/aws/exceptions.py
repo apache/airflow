@@ -50,3 +50,7 @@ class EcsOperatorError(Exception):
 
 class S3HookUriParseFailure(AirflowException):
     """When parse_s3_url fails to parse URL, this error is thrown."""
+
+
+class S3HookPathTraversalError(AirflowException):
+    """Raise when an S3 object key resolves outside the target local directory."""

@@ -66,8 +66,9 @@ def upgrade():
 
             MySQL:
 
-            Step 1: Convert column type.
-            ALTER TABLE deadline_alert MODIFY COLUMN `interval` JSON;
+            Step 1: Convert column type. Keep NOT NULL — MODIFY COLUMN redefines the whole
+            column, so omitting it would drop the constraint.
+            ALTER TABLE deadline_alert MODIFY COLUMN `interval` JSON NOT NULL;
 
             Step 2: Convert values
             UPDATE deadline_alert
@@ -173,20 +174,22 @@ def downgrade():
 
             MySQL:
 
-            Step 1: Convert values
+            Step 1: Convert values. Leave them as JSON numbers; the column is still JSON
+            here, so casting to a numeric type fails with ER_INVALID_JSON_TEXT (3140). The
+            cast happens in Step 2 instead.
             UPDATE deadline_alert
             SET `interval` =
                 CASE
-                    WHEN JSON_EXTRACT(`interval`, '$.__data__') IS NOT NULL
+                    WHEN JSON_UNQUOTE(JSON_EXTRACT(`interval`, '$.__classname__')) = 'datetime.timedelta'
                         THEN CAST(JSON_EXTRACT(`interval`, '$.__data__') AS DOUBLE)
                     WHEN JSON_EXTRACT(`interval`, '$.__classname__') IS NULL
-                        THEN CAST(`interval` AS DOUBLE)
+                        THEN `interval`
                     ELSE NULL
                 END;
 
-            Step 2: Convert column type
+            Step 2: Convert column type (NULLABLE — non-timedelta intervals downgrade to NULL)
             ALTER TABLE deadline_alert
-            MODIFY COLUMN `interval` DOUBLE;
+            MODIFY COLUMN `interval` DOUBLE NULL;
 
             SQLite:
 
@@ -194,7 +197,7 @@ def downgrade():
             UPDATE deadline_alert
             SET interval =
                 CASE
-                    WHEN json_extract(interval, '$.__data__') IS NOT NULL
+                    WHEN json_extract(interval, '$.__classname__') = 'datetime.timedelta'
                     THEN CAST(json_extract(interval, '$.__data__') AS REAL)
                     WHEN json_extract(interval, '$.__classname__') IS NULL
                     THEN CAST(interval AS REAL)
@@ -202,10 +205,26 @@ def downgrade():
                 END;
 
             Step 2: SQLite does not support ALTER COLUMN TYPE.
-            Recreate the table with interval as REAL and copy data.
+            Recreate the table with interval as REAL (NULLABLE) and copy data.
             """
         )
         return
+
+    # The value-conversion below intentionally maps any non-timedelta interval (e.g. a serialized
+    # ``VariableInterval``, which has no numeric ``__data__`` to recover) to NULL — this downgrade
+    # is lossy and documented as such (the 3.2 read path tolerates a missing interval; see
+    # ``decode_deadline_alert``: "Downgrade is not fully reversible"). Those NULLs are written by the
+    # UPDATE statements *before* the column type is changed, so the column must be made NULLABLE
+    # first — otherwise the UPDATE itself fails with a NOT NULL violation (and on table-rebuild
+    # dialects like SQLite the constraint is enforced on the UPDATE, not just the final ALTER).
+    with op.batch_alter_table("deadline_alert") as batch_op:
+        batch_op.alter_column(
+            "interval",
+            existing_type=sa.JSON(),
+            type_=sa.JSON(),
+            existing_nullable=False,
+            nullable=True,
+        )
 
     if dialect == "postgresql":
         op.execute("""
@@ -221,13 +240,18 @@ def downgrade():
         """)
 
     elif dialect == "mysql":
+        # Gate on the timedelta classname BEFORE extracting ``__data__``: a VariableInterval also
+        # has a (non-null, nested-object) ``__data__``, so checking ``__data__ IS NOT NULL`` first
+        # would ``CAST`` that object to a bogus ``0.0`` (silent corruption). Only timedelta payloads
+        # have a recoverable numeric ``__data__``; everything else maps to NULL (matches the
+        # PostgreSQL branch and the documented lossy-downgrade contract).
         op.execute("""
             UPDATE deadline_alert
             SET `interval` =
                 CASE
-                    WHEN JSON_EXTRACT(`interval`, '$.__data__') IS NOT NULL
+                    WHEN JSON_UNQUOTE(JSON_EXTRACT(`interval`, '$.__classname__')) = 'datetime.timedelta'
                     THEN CAST(JSON_EXTRACT(`interval`, '$.__data__') AS DOUBLE)
-                    WHEN JSON_EXTRACT(`interval`, '$.__classname__') IS  NULL
+                    WHEN JSON_EXTRACT(`interval`, '$.__classname__') IS NULL
                     THEN CAST(`interval` AS DOUBLE)
                     ELSE NULL
                 END
@@ -247,11 +271,14 @@ def downgrade():
             print("SQLite JSON functions not available, using string parsing as fallback.")
 
         if json_functions_available:
+            # Gate on the timedelta classname BEFORE extracting ``__data__`` (see the MySQL branch):
+            # a VariableInterval's ``__data__`` is a non-null nested object that would ``CAST`` to a
+            # bogus ``0.0``. Only timedelta payloads are recoverable; everything else maps to NULL.
             op.execute("""
                 UPDATE deadline_alert
                 SET interval =
                     CASE
-                        WHEN json_extract(interval, '$.__data__') IS NOT NULL
+                        WHEN json_extract(interval, '$.__classname__') = 'datetime.timedelta'
                         THEN CAST(json_extract(interval, '$.__data__') AS REAL)
                         WHEN json_extract(interval, '$.__classname__') IS NULL
                         THEN CAST(interval AS REAL)
@@ -261,11 +288,18 @@ def downgrade():
         else:
             # NOTE: This is a best-effort fallback for environments without JSON1.
             # It assumes a stable JSON format and may not work for all serialized values.
+            # Only ``datetime.timedelta`` payloads carry a numeric ``__data__`` we can recover;
+            # a ``VariableInterval`` also contains the literal ``__data__`` (as a nested object),
+            # so gating on ``instr(interval, '__data__')`` alone would CAST its object text to a
+            # bogus ``0.0`` (silent corruption). Gate on the timedelta classname instead, and map
+            # everything else (VariableInterval, unknown shapes) to NULL — consistent with the
+            # JSON1 path above and the documented lossy-downgrade contract.
             op.execute("""
                 UPDATE deadline_alert
                 SET interval =
                     CASE
-                        WHEN instr(interval, '__data__') > 0
+                        WHEN instr(interval, 'datetime.timedelta') > 0
+                             AND instr(interval, '__data__') > 0
                         THEN CAST(
                             substr(
                                 interval,
@@ -279,6 +313,8 @@ def downgrade():
                     END
                 """)
 
+    # Finally change the column type JSON -> FLOAT. It stays NULLABLE (made so above) because the
+    # lossy conversion left NULLs for any non-timedelta interval.
     with op.batch_alter_table("deadline_alert") as batch_op:
         if dialect == "postgresql":
             batch_op.alter_column(
@@ -294,12 +330,14 @@ def downgrade():
                     ELSE NULL
                 END
                 """,
-                existing_nullable=False,
+                existing_nullable=True,
+                nullable=True,
             )
         else:
             batch_op.alter_column(
                 "interval",
                 existing_type=sa.JSON(),
                 type_=sa.FLOAT(),
-                existing_nullable=False,
+                existing_nullable=True,
+                nullable=True,
             )

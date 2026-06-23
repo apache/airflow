@@ -104,13 +104,29 @@ type TIRunContext struct {
 	LogicalDate       *time.Time
 	DataIntervalStart *time.Time
 	DataIntervalEnd   *time.Time
+	MaxTries          int
+	ShouldRetry       bool
 }
 
 func decodeTIRunContext(m map[string]any) (TIRunContext, error) {
 	if m == nil {
 		return TIRunContext{}, nil
 	}
-	ctx := TIRunContext{}
+	// max_tries / should_retry live at the top level of ti_context and drive
+	// the retry decision, so they must be read regardless of whether the
+	// nested dag_run object is present.
+	ctx := TIRunContext{
+		MaxTries:    mapIntOr(m, "max_tries", 0),
+		ShouldRetry: mapBoolOr(m, "should_retry", false),
+	}
+	// The scheduling timestamps live on the nested dag_run object in the
+	// supervisor's TIRunContext schema (ti_context.dag_run.logical_date, ...),
+	// not at the top level of ti_context. See task-sdk's
+	// airflow.sdk.api.datamodels._generated.{TIRunContext,DagRun}.
+	dagRun := mapMap(m, "dag_run")
+	if dagRun == nil {
+		return ctx, nil
+	}
 	for _, f := range []struct {
 		key string
 		dst **time.Time
@@ -119,13 +135,13 @@ func decodeTIRunContext(m map[string]any) (TIRunContext, error) {
 		{"data_interval_start", &ctx.DataIntervalStart},
 		{"data_interval_end", &ctx.DataIntervalEnd},
 	} {
-		raw, present := m[f.key]
+		raw, present := dagRun[f.key]
 		if !present || raw == nil {
 			continue
 		}
 		t, err := asTime(raw)
 		if err != nil {
-			return TIRunContext{}, fmt.Errorf("ti_context.%s: %w", f.key, err)
+			return TIRunContext{}, fmt.Errorf("ti_context.dag_run.%s: %w", f.key, err)
 		}
 		*f.dst = &t
 	}
@@ -377,6 +393,20 @@ func (m TaskStateMsg) toMap() map[string]any {
 		"type":     "TaskState",
 		"state":    string(m.State),
 		"end_date": m.EndDate.UTC().Format(time.RFC3339Nano),
+	}
+}
+
+// RetryTaskMsg is sent as a terminal message when a task fails but has retries.
+type RetryTaskMsg struct {
+	EndDate time.Time
+	Reason  string
+}
+
+func (m RetryTaskMsg) toMap() map[string]any {
+	return map[string]any{
+		"type":         "RetryTask",
+		"end_date":     m.EndDate.UTC().Format(time.RFC3339Nano),
+		"retry_reason": m.Reason,
 	}
 }
 

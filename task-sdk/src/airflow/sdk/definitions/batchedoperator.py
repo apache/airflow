@@ -235,7 +235,6 @@ class BatchedOperator(BatchableOperator[OperatorPartial]):
         from airflow.providers.standard.utils.skipmixin import SkipMixin
         from airflow.sdk import BaseSensorOperator
 
-        self._expand_called = True
         ensure_xcomarg_return_value(expand_input.value)
 
         partial_kwargs = self.kwargs.copy()
@@ -286,8 +285,9 @@ class BatchedOperator(BatchableOperator[OperatorPartial]):
             # For classic operators, this points to expand_input because kwargs
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
-            start_from_trigger=start_from_trigger,
+            # TODO: Move these to task SDK's BaseOperator and remove getattr
             start_trigger_args=start_trigger_args,
+            start_from_trigger=start_from_trigger,
             register_with_dag=register_with_dag,
         )
 
@@ -501,5 +501,6 @@ class DecoratedBatchedOperator(BatchableOperator[_TaskDecorator]):
             expand_input_attr="op_kwargs_expand_input",
             start_trigger_args=self.operator_class.start_trigger_args,
             start_from_trigger=self.operator_class.start_from_trigger,
+            returns_dag_result=self.returns_dag_result,
             register_with_dag=register_with_dag,
         )

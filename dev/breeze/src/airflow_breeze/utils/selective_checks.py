@@ -182,7 +182,6 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^scripts/ci/prek",
             r"^scripts/docker",
             r"^scripts/in_container",
-            r"^generated/provider_dependencies.json$",
         ],
         FileGroupForCi.BREEZE_INTEGRATION_TEST_FILES: [
             r"^dev/breeze/src/.*",
@@ -698,9 +697,6 @@ class SelectiveChecks:
             return True
         if self.pyproject_toml_changed:
             console_print("[warning]Running everything with all versions: changed pyproject.toml[/]")
-            return True
-        if self.generated_dependencies_changed:
-            console_print("[warning]Running everything with all versions: provider dependencies changed[/]")
             return True
         return False
 
@@ -1405,10 +1401,6 @@ class SelectiveChecks:
         console_print(diff)
 
     @cached_property
-    def generated_dependencies_changed(self) -> bool:
-        return "generated/provider_dependencies.json" in self._files
-
-    @cached_property
     def any_provider_yaml_or_pyproject_toml_changed(self) -> bool:
         if not self._commit_ref:
             console_print("[warning]Cannot determine changes as commit is missing[/]")
@@ -1562,6 +1554,11 @@ class SelectiveChecks:
             CI_FILE_GROUP_MATCHES,
         ):
             prek_hooks_to_skip.add("lint-helm-chart")
+        if not self._matching_files(FileGroupForCi.JAVA_SDK_FILES, CI_FILE_GROUP_MATCHES):
+            # ktlint runs the java-sdk Gradle wrapper, which downloads the Gradle distribution
+            # on a cold cache. Skip it when no java-sdk files changed so unrelated PRs do not
+            # depend on that (intermittently failing) download.
+            prek_hooks_to_skip.add("ktlint")
         if not (
             self._matching_files(
                 FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES, CI_FILE_GROUP_MATCHES

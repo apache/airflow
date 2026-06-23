@@ -64,8 +64,6 @@ from airflow.providers.standard.operators.python import PythonOperator, ShortCir
 from airflow.sdk import DAG, BaseOperator, get_current_context, setup, task, task_group, teardown
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
-from airflow.sdk.definitions.variable import Variable
-from airflow.sdk.exceptions import AirflowRuntimeError
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.settings import get_policy_plugin_manager
@@ -104,7 +102,7 @@ async def empty_callback_for_deadline():
 def dagbag():
     from airflow.dag_processing.dagbag import DagBag
 
-    return DagBag(include_examples=True)
+    return DagBag()
 
 
 @pytest.fixture
@@ -854,7 +852,7 @@ class TestDagRun:
     @pytest.mark.parametrize("state", State.task_states)
     @mock.patch.object(settings, "task_instance_mutation_hook", autospec=True)
     def test_task_instance_mutation_hook(self, mock_hook, dag_maker, session, state):
-        def mutate_task_instance(task_instance):
+        def mutate_task_instance(task_instance, dag_run=None):
             if task_instance.queue == "queue1":
                 task_instance.queue = "queue2"
             else:
@@ -887,7 +885,7 @@ class TestDagRun:
         """
         observed_run_ids = []
 
-        def mutate_task_instance(task_instance):
+        def mutate_task_instance(task_instance, dag_run=None):
             observed_run_ids.append(task_instance.run_id)
             if task_instance.run_id and task_instance.run_id.startswith("manual__"):
                 task_instance.pool = "manual_pool"
@@ -906,6 +904,43 @@ class TestDagRun:
         assert any(rid is not None for rid in observed_run_ids), (
             f"task_instance_mutation_hook was called with run_id=None. Observed run_ids: {observed_run_ids}"
         )
+
+    def test_task_instance_mutation_hook_receives_dag_run(self, dag_maker, session, monkeypatch):
+        """task_instance_mutation_hook can route on dag_run.conf for mapped task instances.
+
+        Exercises the supported dag_run argument end-to-end: a conf-routing hook sets queue based on
+        DagRun.conf, and the routed value persists on every expanded mapped task instance. This is the
+        first-class replacement for reaching the DagRun through unsupported internals.
+        """
+        observed_confs = []
+
+        def mutate_task_instance(task_instance, dag_run=None):
+            observed_confs.append(None if dag_run is None else dag_run.conf)
+            if dag_run is not None and (dag_run.conf or {}).get("route") == "high":
+                task_instance.queue = "high_queue"
+
+        with mock.patch.object(
+            get_policy_plugin_manager().hook, "task_instance_mutation_hook", autospec=True
+        ) as mock_hook:
+            mock_hook.side_effect = mutate_task_instance
+            # Force the non-noop task-creation path so the scheduler invokes the hook with dag_run while
+            # materializing the mapped instances (mocking the hook does not flip the is_noop flag that
+            # import_local_settings would set for a real registered policy).
+            monkeypatch.setattr(settings.task_instance_mutation_hook, "is_noop", False)
+            with dag_maker(dag_id="test_mutation_hook_dag_run", session=session):
+                MockOperator.partial(task_id="mapped").expand(arg2=[1, 2, 3])
+
+            dr = dag_maker.create_dagrun(conf={"route": "high"})
+
+        # The hook saw the run conf (at least once with the routing value), and every expanded mapped
+        # task instance was routed to the conf-selected queue.
+        assert {"route": "high"} in observed_confs
+        queues = session.scalars(
+            select(TI.queue)
+            .where(TI.task_id == "mapped", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
+            .order_by(TI.map_index)
+        ).all()
+        assert queues == ["high_queue", "high_queue", "high_queue"]
 
     @pytest.mark.parametrize(
         ("prev_ti_state", "is_ti_schedulable"),
@@ -1339,16 +1374,27 @@ class TestDagRun:
             VariableInterval("my_key"),
         ],
     )
-    @mock.patch.object(Variable, "get")
     @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_success_deadline(self, _, mock_get, interval, session, deadline_test_dag):
+    def test_dagrun_success_deadline(self, _, interval, session, deadline_test_dag):
         def on_success_callable(context):
             assert context["dag_run"].dag_id == "test_dag"
 
-        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
+        # Fixed future date (repo standard: no datetime.now() in tests). Far enough ahead that the
+        # FIXED_DATETIME deadline never fires, but within MySQL's TIMESTAMP range (< 2038-01-19) so
+        # the deadline_time UtcDateTime column accepts it on all backends.
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
 
-        # First value used during resolution
-        mock_get.return_value = "5"
+        # Seed a REAL Variable row so the VariableInterval resolves through the actual
+        # secrets chain (metastore backend) on the scheduler's session -- the code under test no
+        # longer calls Variable.get, so mocking it would be a false green (see regression: reading
+        # only the variable table bypassed env/secrets resolution).
+        if isinstance(interval, VariableInterval):
+            # Seed via the metastore model (not the SDK Variable imported above, whose set() routes
+            # through SUPERVISOR_COMMS) so the row really lands in the variable table on this session.
+            from airflow.models.variable import Variable as VariableModel
+
+            VariableModel.set(key="my_key", value="5", session=session)
+            session.flush()
 
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
@@ -1458,72 +1504,122 @@ class TestDagRun:
         mock_prune.assert_not_called()
         assert dag_run.state == DagRunState.SUCCESS
 
-    @mock.patch.object(Variable, "get")
     @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_deadline_variable_interval_stable(self, _, mock_get, session, deadline_test_dag):
-        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
+    def test_dagrun_deadline_variable_interval_missing_variable_is_isolated(
+        self, _, session, deadline_test_dag
+    ):
+        """A VariableInterval whose backing Variable is missing must NOT abort DagRun creation.
 
-        # First value used during resolution.
-        mock_get.return_value = "60"
+        ``VariableInterval.resolve()`` raises ``ValueError`` for a missing/invalid Variable.
+        That resolution happens inside ``_process_dagrun_deadline_alerts`` during
+        ``create_dagrun``; previously the error propagated out and aborted the whole run,
+        silently stopping the DAG from scheduling. The per-alert ``try``/``except`` now isolates
+        the failure: the DagRun is created, the bad deadline is skipped (logged), and no Deadline
+        row is written. (Isolation must NOT use ``begin_nested`` here — ``create_dagrun`` runs
+        under the scheduler ``prohibit_commit`` guard, where a SAVEPOINT release would raise
+        ``UNEXPECTED COMMIT`` and skip every scheduled DagRun's deadlines.)
+        """
+        # No Variable named "missing_key" is seeded in any backend, so the scheduler-side resolver
+        # returns None -> ValueError(...could not be resolved...), isolated by the per-alert except.
+        # Fixed future date (repo standard: no datetime.now() in tests). Far enough ahead that the
+        # FIXED_DATETIME deadline never fires, but within MySQL's TIMESTAMP range (< 2038-01-19) so
+        # the deadline_time UtcDateTime column accepts it on all backends.
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
 
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
                 reference=DeadlineReference.FIXED_DATETIME(future_date),
-                interval=VariableInterval("my_key"),
+                interval=VariableInterval("missing_key"),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        # DagRun creation must succeed despite the unresolvable VariableInterval.
+        dag_run = self.create_dag_run(
+            dag=scheduler_dag,
+            task_states={"task_1": TaskInstanceState.SUCCESS},
+            session=session,
+        )
+        assert dag_run is not None
+
+        # The bad deadline was skipped — no Deadline row created.
+        deadline = session.execute(select(Deadline)).scalars().one_or_none()
+        assert deadline is None
+
+    @mock.patch.object(Deadline, "prune_deadlines")
+    def test_dagrun_deadline_variable_interval_resolves_from_env_var(
+        self, _, session, deadline_test_dag, monkeypatch
+    ):
+        """A VariableInterval backed by an ``AIRFLOW_VAR_*`` env var (no DB row) must resolve.
+
+        Regression guard: the scheduler-side resolver must go through the full secrets chain
+        (env vars + secrets backends + metadata DB), not read only the ``variable`` table. A
+        table-only read returns None for an env/secrets-backed Variable, and the per-alert
+        ``except`` then silently drops the deadline. Here the Variable lives ONLY in the
+        environment, so a correct resolver creates the Deadline and a regressed one drops it.
+        """
+        # Variable exists only as an env var — never written to the variable table.
+        # VariableInterval values are interpreted as SECONDS (see coerce_to_timedelta).
+        monkeypatch.setenv("AIRFLOW_VAR_ENV_INTERVAL_KEY", "7")
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
+
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=VariableInterval("env_interval_key"),
                 callback=AsyncCallback(empty_callback_for_deadline),
             ),
         )
 
         dag_run = self.create_dag_run(
             dag=scheduler_dag,
-            task_states={"task_1": TaskInstanceState.SUCCESS, "task_2": TaskInstanceState.SUCCESS},
+            task_states={"task_1": TaskInstanceState.SUCCESS},
             session=session,
         )
-        dag_run.dag = scheduler_dag
+        assert dag_run is not None
 
-        # First update resolve interval to "5".
-        dag_run.update_state(session=session)
-
+        # The env-var-backed interval resolved (7 seconds) -> a Deadline row WAS created.
         deadline = session.execute(select(Deadline)).scalars().one_or_none()
-        first_deadline_time = deadline.deadline_time
-
-        # Change Variable value after resolution.
-        mock_get.return_value = "120"
-
-        # Run again (This should not change existing deadline).
-        dag_run.update_state(session=session)
-
-        deadline = session.execute(select(Deadline)).scalars().one_or_none()
-        assert deadline.deadline_time == first_deadline_time
+        assert deadline is not None
+        assert deadline.deadline_time == future_date + datetime.timedelta(seconds=7)
 
     @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_deadline_variable_interval_missing_variable_fails(self, _, session, deadline_test_dag):
+    def test_dagrun_deadline_decode_failure_is_isolated(self, _, session, deadline_test_dag):
+        """A deadline alert that fails to *decode* must NOT abort DagRun creation either.
 
-        mock_err = mock.Mock()
-        mock_err.error.value = "MISSING_DEADLINE"
-        mock_err.detail = "missing deadline"
+        ``decode_deadline_alert`` can raise for a malformed/legacy serialized blob (e.g. a
+        None interval after a partial downgrade, an invalid interval type, or a corrupt
+        reference dict). That decode happens inside the per-alert SAVEPOINT, so the failure is
+        isolated just like a resolve-time failure: the DagRun is created and the bad deadline
+        skipped, rather than the corrupt row taking down scheduling for the whole DAG.
+        """
+        # Fixed future date (repo standard: no datetime.now() in tests). Far enough ahead that the
+        # FIXED_DATETIME deadline never fires, but within MySQL's TIMESTAMP range (< 2038-01-19) so
+        # the deadline_time UtcDateTime column accepts it on all backends.
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=datetime.timedelta(hours=1),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
 
-        with mock.patch.object(
-            Variable,
-            "get",
-            side_effect=AirflowRuntimeError(mock_err),
+        # Simulate a corrupt/legacy blob: decoding the alert raises.
+        with mock.patch(
+            "airflow.serialization.definitions.dag.decode_deadline_alert",
+            side_effect=ValueError("corrupt deadline alert blob"),
         ):
-            future_date = datetime.datetime.now() + datetime.timedelta(days=365)
-
-            scheduler_dag = deadline_test_dag(
-                deadline=DeadlineAlert(
-                    reference=DeadlineReference.FIXED_DATETIME(future_date),
-                    interval=VariableInterval("missing_key"),
-                    callback=AsyncCallback(empty_callback_for_deadline),
-                ),
+            dag_run = self.create_dag_run(
+                dag=scheduler_dag,
+                task_states={"task_1": TaskInstanceState.SUCCESS},
+                session=session,
             )
 
-            with pytest.raises(ValueError, match="not found"):
-                self.create_dag_run(
-                    dag=scheduler_dag,
-                    task_states={"task_1": TaskInstanceState.SUCCESS},
-                    session=session,
-                )
+        assert dag_run is not None
+        # No Deadline row — the undecodable alert was skipped, not fatal.
+        deadline = session.execute(select(Deadline)).scalars().one_or_none()
+        assert deadline is None
 
 
 @pytest.mark.parametrize(
@@ -1652,7 +1748,7 @@ def test_mutation_hook_committing_session_crashes_under_prohibit_commit(dag_make
     before_commit guard with RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!").
     """
 
-    def naive_hook(task_instance):
+    def naive_hook(task_instance, dag_run=None):
         # Reads DagRun.conf the unsafe way -- opens a fresh @provide_session session that commits on exit.
         task_instance.get_dagrun()
 
@@ -1683,7 +1779,7 @@ def test_mutation_hook_safe_session_reuse_routes_mapped_tis_under_prohibit_commi
     Resolving via the attached session is the discipline a real conf-routing hook must follow.
     """
 
-    def safe_hook(task_instance):
+    def safe_hook(task_instance, dag_run=None):
         attached_session = sa_inspect(task_instance).session
         if attached_session is None:
             # Transient instance (pre-merge); it will be re-invoked once attached. Nothing safe to do.
@@ -1722,7 +1818,7 @@ def test_mutation_hook_deterministic_across_repeated_invocation_during_expansion
     """
     call_counts: dict[int, int] = defaultdict(int)
 
-    def deterministic_hook(task_instance):
+    def deterministic_hook(task_instance, dag_run=None):
         call_counts[task_instance.map_index] += 1
         task_instance.queue = f"q_{task_instance.map_index}"
 
@@ -1806,7 +1902,7 @@ def test_naive_committing_hook_crashes_on_verify_integrity_under_guard(dag_maker
     session; create_session() commits on exit and trips the before_commit guard.
     """
 
-    def naive_hook(task_instance):
+    def naive_hook(task_instance, dag_run=None):
         task_instance.get_dagrun()
 
     dr, dag_version_id = _make_literal_mapped_dagrun(
@@ -1835,7 +1931,7 @@ def test_resolve_dagrun_attribute_access_is_safe_on_verify_integrity_under_guard
     """
     seen_map_indices = []
 
-    def resolve_dagrun_like_hook(task_instance):
+    def resolve_dagrun_like_hook(task_instance, dag_run=None):
         state = sa_inspect(task_instance)
         if "dag_run" not in state.unloaded:
             _ = task_instance.dag_run  # eager-loaded: cheap attribute read
@@ -3192,6 +3288,127 @@ def test_mapped_task_rerun_with_different_length_of_args(session, dag_maker, rer
     assert len(success_tis) == rerun_length
 
 
+def test_mapped_task_length_reduction_rerun_downstream_not_deadlocked(session, dag_maker):
+    @task
+    def producer():
+        context = get_current_context()
+        if context["ti"].try_number == 0:
+            return [i for i in range(3)]
+        return [i for i in range(2)]
+
+    @task
+    def work(arg):
+        return arg
+
+    @task
+    def finish(data):
+        return sum(data)
+
+    def _task_ids(tis):
+        return [(ti.task_id, ti.map_index) for ti in tis]
+
+    with dag_maker(session=session):
+        produced = producer()
+        mapped = work.expand(arg=produced)
+        done = finish(produced)
+        mapped >> done
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    # First run with 3 mapped task instances.
+    dag_maker.run_ti("producer", dr)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("work", 0), ("work", 1), ("work", 2)]
+
+    for ti in decision.schedulable_tis:
+        dag_maker.run_ti(ti.task_id, dr, map_index=ti.map_index)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("finish", -1)]
+    dag_maker.run_ti("finish", dr)
+
+    # Clear and rerun with one fewer mapped task instance.
+    clear_task_instances(dr.get_task_instances(session=session), session=session)
+    ti = dr.get_task_instance(task_id="producer", session=session)
+    ti.try_number += 1
+    session.merge(ti)
+
+    dag_maker.run_ti("producer", dr)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("work", 0), ("work", 1)]
+
+    mapped_states = session.execute(
+        select(TI.map_index, TI.state)
+        .where(TI.task_id == "work", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
+        .order_by(TI.map_index)
+    ).all()
+    assert mapped_states == [
+        (0, State.NONE),
+        (1, State.NONE),
+        (2, TaskInstanceState.REMOVED),
+    ]
+
+    for ti in decision.schedulable_tis:
+        dag_maker.run_ti(ti.task_id, dr, map_index=ti.map_index)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("finish", -1)]
+
+    dag_maker.run_ti("finish", dr)
+    finish_ti = dr.get_task_instance(task_id="finish", map_index=-1, session=session)
+    assert finish_ti
+    assert finish_ti.state == TaskInstanceState.SUCCESS
+
+
+def test_rerun_with_upstream_task_removed(session, dag_maker):
+    def _task_ids(tis):
+        return [(ti.task_id, ti.map_index) for ti in tis]
+
+    with dag_maker("test", session=session):
+        upstream_1 = EmptyOperator(task_id="upstream_1")
+        upstream_2 = EmptyOperator(task_id="upstream_2")
+        downstream = EmptyOperator(task_id="downstream")
+        [upstream_1, upstream_2] >> downstream
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    dag_maker.run_ti("upstream_1", dr)
+    dag_maker.run_ti("upstream_2", dr)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("downstream", -1)]
+
+    dag_maker.run_ti("downstream", dr)
+    dr.update_state(session=session)
+    assert dr.state == DagRunState.SUCCESS
+
+    # Rerun with upstream_1 removed
+    with dag_maker("test", session=session, serialized=True) as dag:
+        upstream_2 = EmptyOperator(task_id="upstream_2")
+        downstream = EmptyOperator(task_id="downstream")
+        upstream_2 >> downstream
+
+    latest_version = DagVersion.get_latest_version(dag.dag_id)
+    assert latest_version.version_number == 2
+
+    clear_task_instances(
+        dr.get_task_instances(session=session),
+        session=session,
+        run_on_latest_version=True,
+    )
+
+    upstream_1 = dr.get_task_instance(task_id="upstream_1", map_index=-1, session=session)
+    assert upstream_1.state == TaskInstanceState.REMOVED
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("upstream_2", -1)]
+
+    dag_maker.run_ti("upstream_2", dr)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("downstream", -1)]
+
+    dag_maker.run_ti("downstream", dr)
+    dr.update_state(session=session)
+    assert dr.state == DagRunState.SUCCESS
+
+
 def test_operator_mapped_task_group_receives_value(dag_maker, session):
     with dag_maker(session=session):
 
@@ -3913,16 +4130,107 @@ class TestDagRunHandleDagCallback:
         assert context_received["ti"].dag_id == "test_dag"
         assert context_received["ti"].run_id == dr.run_id
 
+    def test_produce_dag_callback_drops_last_ti_without_dag_version(self, dag_maker, session):
+        """A historical TI with dag_version_id=None must not crash callback construction."""
+        with dag_maker("test_dag", session=session) as dag:
+            BashOperator(task_id="test_task", bash_command="echo 1")
+
+        dr = dag_maker.create_dagrun()
+        dr.dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
+        ti = dr.get_task_instance("test_task")
+        # Simulate a task instance created before the dag_version table existed.
+        ti.dag_version_id = None
+        session.flush()
+
+        callback = dr.produce_dag_callback(dag=dag, success=False, relevant_ti=ti, reason="task_failure")
+
+        assert callback is not None
+        # last_ti is dropped so the non-null UUID datamodel validation never fires.
+        assert callback.context_from_server is not None
+        assert callback.context_from_server.last_ti is None
+
+    def test_execute_dag_callbacks_without_dag_version(self, dag_maker, session):
+        """The execute=True path must also tolerate a TI with dag_version_id=None."""
+        context_received = None
+
+        def on_failure(context):
+            nonlocal context_received
+            context_received = context
+
+        with dag_maker("test_dag", session=session, on_failure_callback=on_failure) as dag:
+            BashOperator(task_id="test_task", bash_command="echo 1")
+
+        dr = dag_maker.create_dagrun()
+        dr.dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
+        ti = dr.get_task_instance("test_task")
+        ti.dag_version_id = None
+        session.flush()
+
+        dag.on_failure_callback = on_failure
+        dag.has_on_failure_callback = True
+
+        dr.produce_dag_callback(dag=dag, success=False, relevant_ti=ti, reason="task_failure", execute=True)
+
+        # Callback still fires with the minimal fallback context (no last_ti template vars).
+        assert context_received is not None
+        assert context_received["reason"] == "task_failure"
+        assert "ti" not in context_received
+        assert context_received["run_id"] == dr.run_id
+
+    @pytest.mark.parametrize(
+        ("multi_team", "team_name", "expected_tags"),
+        [
+            pytest.param(
+                "true", "team_alpha", {"dag_id": "test_dag", "team_name": "team_alpha"}, id="with_team"
+            ),
+            pytest.param("false", None, {"dag_id": "test_dag"}, id="without_team"),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats.incr")
+    def test_callback_exception_team_name_tag(
+        self, mock_incr, multi_team, team_name, expected_tags, dag_maker, session
+    ):
+        def failing_callback(context):
+            raise RuntimeError("boom")
+
+        with dag_maker("test_dag", session=session, on_failure_callback=failing_callback) as dag:
+            BashOperator(task_id="test_task", bash_command="echo 1")
+
+        dr = dag_maker.create_dagrun()
+        dag.on_failure_callback = failing_callback
+        dag.has_on_failure_callback = True
+
+        with (
+            conf_vars({("core", "multi_team"): multi_team}),
+            mock.patch("airflow.models.dag.DagModel.get_team_name", return_value=team_name),
+        ):
+            dr.execute_dag_callbacks(dag, success=False)
+
+        mock_incr.assert_any_call("dag.callback_exceptions", tags=expected_tags)
+
 
 class TestDagRunTracing:
     """Tests for DagRun OpenTelemetry span behavior."""
 
     @pytest.fixture(autouse=True)
     def sdk_tracer_provider(self):
-        """Patch the module-level tracer with one backed by a real SDK provider so spans have valid IDs."""
+        """Patch the module-level tracer with one backed by a real SDK provider so spans have valid IDs.
+
+        Also patch the provider that ``new_dagrun_trace_carrier`` consults so the
+        head-sampling decision is made by a real SDK sampler (default
+        parentbased_always_on -> SAMPLED) rather than the no-op ProxyTracerProvider
+        that is otherwise active in the test process (which would honestly produce
+        an unsampled carrier and suppress emission).
+        """
         provider = TracerProvider()
         real_tracer = provider.get_tracer("airflow.models.dagrun")
-        with mock.patch("airflow.models.dagrun.tracer", real_tracer):
+        with (
+            mock.patch("airflow.models.dagrun.tracer", real_tracer),
+            mock.patch(
+                "airflow._shared.observability.traces.trace.get_tracer_provider",
+                return_value=provider,
+            ),
+        ):
             yield
 
     def test_context_carrier_set_on_init(self, dag_maker):
@@ -4089,6 +4397,34 @@ class TestDagRunTracing:
         else:
             assert len(spans) == 0
 
+    @pytest.mark.parametrize(
+        ("dag_id", "trace_flag", "expected_spans"),
+        [
+            pytest.param("test_tracing_sampled", "01", 1, id="sampled-carrier-emits"),
+            pytest.param("test_tracing_unsampled", "00", 0, id="unsampled-carrier-skips"),
+        ],
+    )
+    def test_emit_dagrun_span_honors_carrier_sampling(
+        self, dag_id, trace_flag, expected_spans, dag_maker, session
+    ):
+        """A SAMPLED carrier (flag 01) emits the dag_run span; an unsampled carrier (flag 00) is head-sampled out."""
+        in_mem_exporter = InMemorySpanExporter()
+        provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
+        provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
+        test_tracer = provider.get_tracer("test")
+
+        with dag_maker(dag_id, session=session) as dag:
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        dr.dag = dag
+        traceparent = f"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-{trace_flag}"
+        dr.context_carrier = {"traceparent": traceparent}
+
+        with mock.patch("airflow.models.dagrun.tracer", test_tracer):
+            dr._emit_dagrun_span(state=DagRunState.SUCCESS)
+
+        assert len(in_mem_exporter.get_finished_spans()) == expected_spans
+
     @pytest.mark.db_test
     def test_context_carrier_includes_detail_level_from_conf(self, dag_maker):
         """DagRun created with TASK_SPAN_DETAIL_LEVEL_KEY in conf should encode the level in trace state."""
@@ -4108,3 +4444,33 @@ class TestDagRunTracing:
 
         span = trace.get_current_span(ctx)
         assert get_task_span_detail_level(span) == 2
+
+
+class TestDagRunStatsTagsTeamName:
+    def test_stats_tags_without_team_name(self, dag_maker):
+        """stats_tags should not include team_name when _team_name is not set."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun()
+        tags = dr.stats_tags
+        assert "team_name" not in tags
+        assert tags == {"dag_id": "test_dag", "run_type": "manual"}
+
+    def test_stats_tags_with_team_name(self, dag_maker):
+        """stats_tags should include team_name when _team_name is set."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun()
+        dr._team_name = "my_team"
+        tags = dr.stats_tags
+        assert tags["team_name"] == "my_team"
+        assert tags == {"dag_id": "test_dag", "run_type": "manual", "team_name": "my_team"}
+
+    def test_stats_tags_with_none_team_name(self, dag_maker):
+        """stats_tags should not include team_name when _team_name is None."""
+        with dag_maker("test_dag"):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun()
+        dr._team_name = None
+        tags = dr.stats_tags
+        assert "team_name" not in tags

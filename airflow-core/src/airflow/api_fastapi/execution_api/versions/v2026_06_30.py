@@ -17,9 +17,21 @@
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, endpoint, schema
+from cadwyn import (
+    ResponseInfo,
+    VersionChange,
+    convert_response_to_previous_version_for,
+    endpoint,
+    schema,
+)
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIAwaitingInputStatePayload
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    DagRun,
+    TaskInstance,
+    TIAwaitingInputStatePayload,
+    TIRetryStatePayload,
+    TIRunContext,
+)
 
 
 class AddVariableKeysEndpoint(VersionChange):
@@ -41,6 +53,14 @@ class AddConnectionTestEndpoint(VersionChange):
     )
 
 
+class AddTaskInstanceQueueField(VersionChange):
+    """Add the `queue` field to the TaskInstance model."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(TaskInstance).field("queue").didnt_exist,)
+
+
 class AddAwaitingInputStatePayload(VersionChange):
     """Add the awaiting_input task instance state transition payload (Human-in-the-loop, no trigger)."""
 
@@ -53,3 +73,71 @@ class AddAwaitingInputStatePayload(VersionChange):
         schema(TIAwaitingInputStatePayload).field("next_kwargs").didnt_exist,
         schema(TIAwaitingInputStatePayload).field("rendered_map_index").didnt_exist,
     )
+
+
+class AddRetryPolicyFields(VersionChange):
+    """Add retry_delay_seconds and retry_reason fields to TIRetryStatePayload for pluggable retry policies."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRetryStatePayload).field("retry_delay_seconds").didnt_exist,
+        schema(TIRetryStatePayload).field("retry_reason").didnt_exist,
+    )
+
+
+class AddTeamNameField(VersionChange):
+    """Add the ``team_name`` field to DagRun model."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(DagRun).field("team_name").didnt_exist,)
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_team_name_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Remove the ``team_name`` field from dag_run for older API versions."""
+        if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
+            response.body["dag_run"].pop("team_name", None)
+
+
+class AddAssetsByAliasEndpoint(VersionChange):
+    """Add endpoint to resolve assets from an AssetAlias."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (endpoint("/assets/by-alias", ["GET"]).didnt_exist,)
+
+
+class AddTaskAndAssetStateStoreEndpoints(VersionChange):
+    """Add task state store and asset state store API endpoints."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("/store/ti/{task_instance_id}/{key}", ["GET"]).didnt_exist,
+        endpoint("/store/ti/{task_instance_id}/{key}", ["PUT"]).didnt_exist,
+        endpoint("/store/ti/{task_instance_id}/{key}", ["DELETE"]).didnt_exist,
+        endpoint("/store/ti/{task_instance_id}", ["DELETE"]).didnt_exist,
+        endpoint("/store/asset/by-name/value", ["GET"]).didnt_exist,
+        endpoint("/store/asset/by-name/value", ["PUT"]).didnt_exist,
+        endpoint("/store/asset/by-name/value", ["DELETE"]).didnt_exist,
+        endpoint("/store/asset/by-name/clear", ["DELETE"]).didnt_exist,
+        endpoint("/store/asset/by-uri/value", ["GET"]).didnt_exist,
+        endpoint("/store/asset/by-uri/value", ["PUT"]).didnt_exist,
+        endpoint("/store/asset/by-uri/value", ["DELETE"]).didnt_exist,
+        endpoint("/store/asset/by-uri/clear", ["DELETE"]).didnt_exist,
+    )
+
+
+class AddPartitionDateField(VersionChange):
+    """Expose the consumer DagRun's partition datetime on the execution API so consumer tasks can template it."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(DagRun).field("partition_date").didnt_exist,)
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_partition_date_from_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``partition_date`` from the nested ``dag_run`` payload for older clients."""
+        if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
+            response.body["dag_run"].pop("partition_date", None)

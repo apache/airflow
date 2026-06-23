@@ -18,10 +18,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
+from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar
 
+import attrs
+
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
 
 
 def _require_day_one(dt: datetime, window_cls: type) -> None:
@@ -55,6 +58,27 @@ def _shift_months(dt: datetime, months: int) -> datetime:
     return dt.replace(year=dt.year + total // 12, month=total % 12 + 1)
 
 
+def _build_directional_steps(
+    period_start: datetime,
+    count: int,
+    step: Callable[[datetime, int], datetime],
+    direction: Window.Direction,
+) -> Iterable[datetime]:
+    """
+    Enumerate *count* period-starts beginning at or ending at *period_start*.
+
+    *step* maps ``(base, i) -> base`` advanced by ``i`` units (e.g. ``i`` minutes
+    for an hour window, ``i`` months for a year window). For ``FORWARD`` the
+    sequence starts at *period_start*; for ``BACKWARD`` it is the trailing
+    sequence whose last member is *period_start* (the mirror of ``FORWARD``),
+    computed by stepping the base back ``count - 1`` units first. Callers that
+    need a day-1 precondition must enforce it before calling this — it is not
+    checked here.
+    """
+    base = step(period_start, -(count - 1)) if direction is Window.Direction.BACKWARD else period_start
+    return (step(base, i) for i in range(count))
+
+
 class Window(ABC):
     """
     Describes a rollup window: which decoded upstream items make up one decoded downstream period.
@@ -82,22 +106,34 @@ class Window(ABC):
     mapper.to_downstream(upstream_key)`` holds.
     """
 
+    class Direction(str, Enum):
+        """Direction of a :class:`Window` fan-out relative to the upstream key."""
+
+        BACKWARD = "backward"
+        """Yield the trailing period ending at the upstream key (the mirror of FORWARD)."""
+
+        FORWARD = "forward"
+        """Default; yield the period starting at the upstream key (forward in time)."""
+
     #: Type that ``to_upstream`` expects as its ``decoded_downstream`` argument.
     #: ``RollupMapper.__init__`` uses this to reject pairings where the upstream
     #: mapper's ``decode_downstream`` leaves the value as ``str`` (base identity)
     #: but the window needs a different type. Temporal windows declare ``datetime``.
     expected_decoded_type: ClassVar[type] = str
 
+    def __init__(self, *, direction: Window.Direction = Direction.FORWARD) -> None:
+        self.direction = self.Direction(direction)
+
     @abstractmethod
     def to_upstream(self, decoded_downstream: Any) -> Iterable[Any]:
         """Yield each decoded upstream item composing *decoded_downstream*."""
 
     def serialize(self) -> dict[str, Any]:
-        return {}
+        return {"direction": self.direction.value}
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Window:
-        return cls()
+        return cls(direction=cls.Direction(data["direction"]))
 
 
 class HourWindow(Window):
@@ -106,7 +142,9 @@ class HourWindow(Window):
     expected_decoded_type: ClassVar[type] = datetime
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
-        return (period_start + timedelta(minutes=i) for i in range(60))
+        return _build_directional_steps(
+            period_start, 60, lambda s, i: s + timedelta(minutes=i), self.direction
+        )
 
 
 class DayWindow(Window):
@@ -138,12 +176,16 @@ class DayWindow(Window):
         **Mitigation**: use UTC ``input_format`` (e.g. ``%Y-%m-%dT%H%z``) and
         ensure upstream producers emit UTC partition keys so local-clock
         ambiguity never arises.
+
+        The same 24-hour-stride assumption applies to ``DayWindow(direction=Window.Direction.BACKWARD)``:
+        the 24 members are enumerated as naive hourly steps ending at the anchor, not as
+        a step back to the "previous calendar day" in local time.
     """
 
     expected_decoded_type: ClassVar[type] = datetime
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
-        return (period_start + timedelta(hours=i) for i in range(24))
+        return _build_directional_steps(period_start, 24, lambda s, i: s + timedelta(hours=i), self.direction)
 
 
 class WeekWindow(Window):
@@ -152,7 +194,7 @@ class WeekWindow(Window):
     expected_decoded_type: ClassVar[type] = datetime
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
-        return (period_start + timedelta(days=i) for i in range(7))
+        return _build_directional_steps(period_start, 7, lambda s, i: s + timedelta(days=i), self.direction)
 
 
 class MonthWindow(Window):
@@ -168,10 +210,22 @@ class MonthWindow(Window):
     expected_decoded_type: ClassVar[type] = datetime
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
+        # Not expressible via _build_directional_steps: the member count is not fixed (28-31)
+        # and BACKWARD is an open-closed (prev_month_start, anchor] generator, not a
+        # shift-then-forward mirror of FORWARD.
         _require_day_one(period_start, type(self))
-        next_month = period_start.month % 12 + 1
-        next_year = period_start.year + (1 if period_start.month == 12 else 0)
-        next_start = period_start.replace(year=next_year, month=next_month)
+        if self.direction is Window.Direction.BACKWARD:
+            # Backward yields the trailing period ending at the anchor (period_start),
+            # analogous to WeekWindow BACKWARD which yields the 7 days ending at the
+            # anchor rather than a calendar week.  The members are the open-closed
+            # interval (prev_month_start, anchor] — every day from the day after the
+            # previous month's 1st up to and including anchor itself.  This does NOT
+            # align to a calendar month: anchor=Mar 1 yields Feb 2…Mar 1 (29 days in
+            # 2024), not the full calendar February.
+            prev = _shift_months(period_start, -1)
+            days = (period_start - prev).days
+            return (prev + timedelta(days=i + 1) for i in range(days))
+        next_start = _shift_months(period_start, 1)
         days = (next_start - period_start).days
         return (period_start + timedelta(days=i) for i in range(days))
 
@@ -183,7 +237,7 @@ class QuarterWindow(Window):
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
         _require_day_one(period_start, type(self))
-        return (_shift_months(period_start, i) for i in range(3))
+        return _build_directional_steps(period_start, 3, _shift_months, self.direction)
 
 
 class YearWindow(Window):
@@ -193,4 +247,64 @@ class YearWindow(Window):
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
         _require_day_one(period_start, type(self))
-        return (_shift_months(period_start, i) for i in range(12))
+        return _build_directional_steps(period_start, 12, _shift_months, self.direction)
+
+
+def _convert_segments(segments: Iterable[str]) -> frozenset[str]:
+    """
+    Validate and convert *segments* to a ``frozenset[str]``.
+
+    Validates each element for type and non-emptiness (with index reporting)
+    before collapsing into a frozenset, then checks the result is non-empty.
+    """
+    validated: list[str] = []
+    for i, item in enumerate(segments):
+        if not isinstance(item, str):
+            raise ValueError(
+                f"SegmentWindow segment keys must be str; got {type(item).__name__!r} at index {i}: {item!r}"
+            )
+        if not item:
+            raise ValueError(
+                f"SegmentWindow segment keys must be non-empty; got an empty string at index {i}."
+            )
+        validated.append(item)
+    result = frozenset(validated)
+    if not result:
+        raise ValueError("SegmentWindow requires at least one segment key; got an empty iterable.")
+    return result
+
+
+@attrs.define
+class SegmentWindow(Window):
+    """
+    A fixed categorical set of string keys that constitute one downstream period.
+
+    Paired with :class:`~airflow.partition_mappers.fixed_key.FixedKeyMapper` inside a
+    :class:`~airflow.partition_mappers.base.RollupMapper` to express a categorical
+    rollup: the scheduler holds the downstream run until every declared segment key
+    has arrived from the upstream producer, then fires once.
+
+    ``to_upstream`` returns the complete segment set regardless of the downstream
+    anchor value — the anchor is intentionally ignored because all segments map onto
+    a single downstream partition key, not a time-based period.
+
+    :param segments: Non-empty iterable of non-empty string segment keys. Duplicates
+        are silently de-duplicated.
+    :raises ValueError: if *segments* is empty, contains a non-``str`` element, or
+        contains an empty-string element.
+    """
+
+    expected_decoded_type: ClassVar[type] = str
+
+    _segments: frozenset[str] = attrs.field(converter=_convert_segments)
+
+    def to_upstream(self, decoded_downstream: Any) -> frozenset[str]:
+        """Return the full declared segment set, ignoring the downstream anchor."""
+        return self._segments
+
+    def serialize(self) -> dict[str, Any]:
+        return {"segments": sorted(self._segments)}
+
+    @classmethod
+    def deserialize(cls, data: dict[str, Any]) -> SegmentWindow:
+        return cls(data["segments"])

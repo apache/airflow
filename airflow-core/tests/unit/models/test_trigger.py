@@ -254,6 +254,39 @@ def test_submit_failure(session, create_task_instance):
     assert updated_task_instance.next_method == "__fail__"
 
 
+def test_submit_failure_terminalizes_callback(session):
+    """A CallbackTrigger that fails (lands in failed_triggers → submit_failure) must terminalize
+    its Callback row as FAILED. ``submit_failure`` previously only handled deferred TaskInstances,
+    so a callback trigger's row was left stuck QUEUED/RUNNING forever (a zombie — callback rows
+    terminalise only via an event, never via the TI failure path). This mirrors ``submit_event``'s
+    callback handling on the success side."""
+    from airflow.utils.state import CallbackState
+
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    callback = TriggererCallback(callback_def=AsyncCallback("classpath.callback"))
+    callback.trigger = trigger
+    callback.state = CallbackState.QUEUED  # state handle_miss leaves it in
+    session.add(callback)
+    session.commit()
+
+    Trigger.submit_failure(trigger.id, exc=["boom\n"], session=session)
+    session.flush()
+    session.refresh(callback)
+
+    assert callback.state == CallbackState.FAILED, (
+        "submit_failure must mark a CallbackTrigger's callback FAILED, not leave it stuck QUEUED"
+    )
+    assert callback.output is not None
+    assert "boom" in callback.output
+
+    # Terminal-absorbing: a second submit_failure must NOT flip it away from FAILED.
+    Trigger.submit_failure(trigger.id, exc=["again\n"], session=session)
+    session.flush()
+    session.refresh(callback)
+    assert callback.state == CallbackState.FAILED
+
+
 @pytest.mark.parametrize(
     ("event_cls", "expected"),
     [

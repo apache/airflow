@@ -44,7 +44,7 @@ def _make_mock_result(model_name="gpt-5", tool_names=None, usage_kwargs=None):
         "total_tokens": 3359,
     }
     result = MagicMock()
-    result.usage.return_value = MagicMock(**usage_kwargs)
+    result.usage = MagicMock(**usage_kwargs)
     result.response = MagicMock(model_name=model_name)
 
     messages: list = []
