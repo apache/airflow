@@ -137,24 +137,31 @@ def test_routes_with_task_instance_id_param_enforce_ti_self(client):
     )
 
 
-def test_in_process_execution_api_teardown():
-    """Accessing .transport spins up a daemon thread; dropping the instance must stop it via finalize.
+def test_in_process_execution_api_transport_lifecycle():
+    """The background loop + thread lifecycle is tied to the ``.transport``, not the factory instance.
 
-    Regression coverage for the a2wsgi background-thread leak.
+    Callers build a sync ``Client`` from ``InProcessExecutionAPI().transport`` and drop the factory
+    object. Dropping the instance must NOT stop the loop while the transport is still held -- doing so
+    left every later request hanging on a stopped loop. Dropping the transport must stop the loop and
+    join the daemon thread (the a2wsgi background-thread leak guard).
     """
     before = {t for t in threading.enumerate() if t.name == "InProcessExecutionAPI-loop"}
 
     api = InProcessExecutionAPI()
-    _ = api.transport  # trigger loop + thread creation
+    transport = api.transport  # triggers loop + thread creation; the transport is what callers keep
 
     new_threads = {t for t in threading.enumerate() if t.name == "InProcessExecutionAPI-loop"} - before
     assert len(new_threads) == 1
     thread = new_threads.pop()
     assert thread.is_alive()
 
-    # Drop the only strong reference; the weakref.finalize registered in .transport must stop
-    # the loop and join the daemon thread once the instance is collected.
+    # Dropping only the factory instance must leave the loop running for the still-live transport.
     del api
+    gc.collect()
+    assert thread.is_alive()
+
+    # Dropping the transport runs the weakref.finalize: loop stopped, daemon thread joined (no leak).
+    del transport
     gc.collect()
     thread.join(timeout=5)
     assert not thread.is_alive()
