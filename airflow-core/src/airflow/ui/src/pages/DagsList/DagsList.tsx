@@ -305,9 +305,8 @@ export const DagsList = () => {
     tagsMatchMode: selectedMatchMode,
   });
 
-  const visibleDagIds = useMemo(() => data?.dags.map((dag) => dag.dag_id) ?? [], [data?.dags]);
   const { data: runStateCountsData, isLoading: runStateCountsLoading } = useDagRunStateCounts({
-    dagIds: visibleDagIds,
+    dagIds: data?.dags.map((dag) => dag.dag_id) ?? [],
     dags: data?.dags,
     startDate,
   });
