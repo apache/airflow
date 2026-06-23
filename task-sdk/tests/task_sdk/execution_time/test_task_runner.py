@@ -5984,6 +5984,28 @@ class TestTaskInstanceStateOperations:
         )
 
     @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_clear_on_success_skips_backend_clear_when_no_custom_backend(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """clear_on_success does not call backend.clear() when no custom backend is configured."""
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        task = MyOperator(task_id="t")
+        runtime_ti = create_runtime_ti(task=task)
+
+        # no need to patch because default of _get_worker_state_store_backend() is None
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        sent_types = [
+            type(call.kwargs.get("msg") or (call.args[0] if call.args else None))
+            for call in mock_supervisor_comms.send.call_args_list
+        ]
+        assert ClearTaskStateStore not in sent_types
+
+    @conf_vars({("state_store", "clear_on_success"): "True"})
     def test_clear_on_success_clears_backend_without_comms_roundtrip(
         self, create_runtime_ti, mock_supervisor_comms
     ):
@@ -5997,8 +6019,15 @@ class TestTaskInstanceStateOperations:
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
 
-        with mock.patch(
-            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=mock_backend
+        with (
+            mock.patch(
+                "airflow.sdk.execution_time.context._get_worker_state_store_backend",
+                return_value=mock_backend,
+            ),
+            mock.patch(
+                "airflow.sdk.execution_time.task_runner._get_worker_state_store_backend",
+                return_value=mock_backend,
+            ),
         ):
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
