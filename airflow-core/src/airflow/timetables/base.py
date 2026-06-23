@@ -290,7 +290,7 @@ class Timetable(Protocol):
         as-is and the result is simply a timezone-aware UTC instant (a no-op for
         already-UTC inputs). Timetables with a local timezone (e.g.
         :class:`~airflow.timetables._cron.CronMixin` subclasses) override this to
-        re-localise the wall-clock to their own timezone before converting to UTC,
+        re-localize the wall-clock to their own timezone before converting to UTC,
         preserving sub-day precision for narrow windows on sub-daily schedules.
 
         Used by :meth:`~airflow.models.dagrun.DagRun.apply_partition_date_window` to

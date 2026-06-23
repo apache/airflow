@@ -2546,9 +2546,9 @@ class TestClearPartitions:
             runs[run_id] = run
 
         # Only run_a carries task instances, for the clear_task_instances tests
-        for task in (task_x, task_y):
-            ti = runs["cp_run_a"].get_task_instance(task_id=task.task_id)
-            ti.task = task
+        for op in (task_x, task_y):
+            ti = runs["cp_run_a"].get_task_instance(task_id=op.task_id)
+            ti.task = op
             ti.state = State.SUCCESS
             session.merge(ti)
 
@@ -2894,9 +2894,9 @@ class TestClearPartitions:
         )
         run_target.partition_key = "key-target-dry"
         run_target.partition_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
-        for task in (task_a, task_b):
-            ti = run_target.get_task_instance(task_id=task.task_id)
-            ti.task = task
+        for op in (task_a, task_b):
+            ti = run_target.get_task_instance(task_id=op.task_id)
+            ti.task = op
             ti.state = State.SUCCESS
             session.merge(ti)
 
@@ -2920,9 +2920,9 @@ class TestClearPartitions:
         )
         run_bystander.partition_key = "key-bystander-dry"
         run_bystander.partition_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
-        for task in (task_c, task_d, task_e):
-            ti = run_bystander.get_task_instance(task_id=task.task_id)
-            ti.task = task
+        for op in (task_c, task_d, task_e):
+            ti = run_bystander.get_task_instance(task_id=op.task_id)
+            ti.task = op
             ti.state = State.SUCCESS
             session.merge(ti)
 
