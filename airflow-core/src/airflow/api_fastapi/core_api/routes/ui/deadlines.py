@@ -165,8 +165,10 @@ def get_dag_deadline_alerts(
     order_by: Annotated[
         SortParam,
         Depends(
+            # ``interval`` is intentionally not sortable: it's a JSON column, so DB ordering sorts by
+            # structure/text, not duration. Only expose columns that sort meaningfully.
             SortParam(
-                ["id", "created_at", "name", "interval"],
+                ["id", "created_at", "name"],
                 DeadlineAlert,
             ).dynamic_depends(default="created_at")
         ),
