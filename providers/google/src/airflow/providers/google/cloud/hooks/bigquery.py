@@ -31,13 +31,15 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal, NoReturn, cast, overload
 from urllib.parse import urlparse
-import requests
-from google.auth.transport.requests import AuthorizedSession, Request
+
 import google_auth_httplib2
+import httplib2
 import pendulum
+import requests
 from aiohttp import ClientSession as ClientSession
 from asgiref.sync import sync_to_async
 from gcloud.aio.bigquery import Job, Table as Table_async
+from google.auth.transport.requests import AuthorizedSession, Request
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
     Client,
@@ -49,9 +51,6 @@ from google.cloud.bigquery import (
     SchemaField,
     UnknownJob,
 )
-import httplib2
-from googleapiclient.http import set_user_agent
-from airflow import version
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
 from google.cloud.bigquery.retry import DEFAULT_JOB_RETRY
 from google.cloud.bigquery.routine import Routine, RoutineReference
@@ -64,10 +63,12 @@ from google.cloud.bigquery.table import (
 )
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import build
+from googleapiclient.http import set_user_agent
 from pandas_gbq import read_gbq
 from pandas_gbq.gbq import GbqConnector  # noqa: F401 used in ``airflow.contrib.hooks.bigquery``
 from sqlalchemy import create_engine
 
+from airflow import version
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
@@ -398,7 +399,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         if self.http_proxy or self.https_proxy:
             job_config = QueryJobConfig(use_legacy_sql=(dialect == "legacy"))
-            return (self.get_client().query(sql, job_config=job_config, timeout=timeout, **kwargs).to_dataframe(create_bqstorage_client=False))
+            return (
+                self.get_client()
+                .query(sql, job_config=job_config, timeout=timeout, **kwargs)
+                .to_dataframe(create_bqstorage_client=False)
+            )
 
         credentials, project_id = self.get_credentials_and_project_id()
 
