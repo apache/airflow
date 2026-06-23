@@ -1137,6 +1137,44 @@ export const $BulkDAGRunBody = {
 
 export const $BulkDAGRunClearBody = {
     properties: {
+        partition_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Key',
+            description: 'Select runs by exact partition key match. Mutually exclusive with the other partition selectors.'
+        },
+        partition_date_start: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Date Start',
+            description: "Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors."
+        },
+        partition_date_end: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Date End',
+            description: "Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors."
+        },
         dry_run: {
             type: 'boolean',
             title: 'Dry Run',
@@ -1182,13 +1220,11 @@ export const $BulkDAGRunClearBody = {
                 '$ref': '#/components/schemas/BulkDAGRunBody'
             },
             type: 'array',
-            minItems: 1,
             title: 'Dag Runs'
         }
     },
     additionalProperties: false,
     type: 'object',
-    required: ['dag_runs'],
     title: 'BulkDAGRunClearBody',
     description: 'Request body for the bulk clear Dag Runs endpoint.'
 } as const;
@@ -1705,6 +1741,98 @@ export const $BulkUpdateAction_VariableBody_ = {
     type: 'object',
     required: ['action', 'entities'],
     title: 'BulkUpdateAction[VariableBody]'
+} as const;
+
+export const $ClearPartitionsBody = {
+    properties: {
+        partition_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Key',
+            description: 'Select runs by exact partition key match. Mutually exclusive with the other partition selectors.'
+        },
+        partition_date_start: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Date Start',
+            description: "Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors."
+        },
+        partition_date_end: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Date End',
+            description: "Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors."
+        },
+        run_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run Id',
+            description: 'Select runs by exact run_id. Mutually exclusive with ``partition_key`` and partition date window.'
+        },
+        clear_task_instances: {
+            type: 'boolean',
+            title: 'Clear Task Instances',
+            description: 'Also clear task instances on the matched runs.',
+            default: false
+        },
+        dry_run: {
+            type: 'boolean',
+            title: 'Dry Run',
+            description: 'If True, compute counts without writing any changes.',
+            default: true
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    title: 'ClearPartitionsBody',
+    description: 'Request body for the clearPartitions endpoint (column-reset: set partition fields to None).'
+} as const;
+
+export const $ClearPartitionsResponse = {
+    properties: {
+        dag_runs_cleared: {
+            type: 'integer',
+            title: 'Dag Runs Cleared'
+        },
+        task_instances_cleared: {
+            type: 'integer',
+            title: 'Task Instances Cleared'
+        },
+        dry_run: {
+            type: 'boolean',
+            title: 'Dry Run'
+        }
+    },
+    type: 'object',
+    required: ['dag_runs_cleared', 'task_instances_cleared', 'dry_run'],
+    title: 'ClearPartitionsResponse',
+    description: 'Response for the clearPartitions endpoint.'
 } as const;
 
 export const $ClearTaskInstanceCollectionResponse = {

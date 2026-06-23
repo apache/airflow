@@ -45,11 +45,15 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkDeleteAction,
     BulkUpdateAction,
 )
-from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunBody, DagRunMutableStates
+from airflow.api_fastapi.core_api.datamodels.dag_run import (
+    BulkDAGRunBody,
+    ClearPartitionsBody,
+    DagRunMutableStates,
+)
 from airflow.api_fastapi.core_api.datamodels.task_instances import NewTaskResponse
 from airflow.api_fastapi.core_api.services.public.common import BulkService, resolve_run_on_latest_version
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.dagrun import DagRun
+from airflow.models.dagrun import DagRun, clear_partition_runs
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.utils.session import create_session_async
@@ -148,6 +152,31 @@ def perform_clear_dag_run(
     if note is not None:
         patch_dag_run_note(dag_run=dag_run_cleared, note=note, user=user)
     return dag_run_cleared
+
+
+def clear_partition_fields(
+    *,
+    dag: SerializedDAG,
+    body: ClearPartitionsBody,
+    dag_id: str,
+    session: Session,
+) -> tuple[int, int]:
+    """
+    Reset partition_key and partition_date to None on matching runs.
+
+    Returns (dag_runs_cleared, task_instances_cleared).
+    """
+    return clear_partition_runs(
+        dag=dag,
+        dag_id=dag_id,
+        run_id=body.run_id,
+        partition_key=body.partition_key,
+        partition_date_start=body.partition_date_start,
+        partition_date_end=body.partition_date_end,
+        clear_tis=body.clear_task_instances,
+        dry_run=body.dry_run,
+        session=session,
+    )
 
 
 def patch_dag_run_state(
