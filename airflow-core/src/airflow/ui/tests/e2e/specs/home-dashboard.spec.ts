@@ -129,3 +129,39 @@ test.describe("Dashboard Metrics Display", () => {
     await expect(homePage.dagImportErrorsCard).toBeVisible();
   });
 });
+
+test.describe("Dashboard Alert Clamping", () => {
+  const longText = [
+    "Long alert start",
+    ...Array.from({ length: 10 }, (_, index) => `Line ${index + 2}`),
+    "Long alert end",
+  ].join("\n\n");
+  const alerts = [
+    { category: "info" as const, text: longText },
+    { category: "warning" as const, text: "Short alert text" },
+  ];
+
+  test("clamps a tall alert and toggles its height with See more / See less", async ({ homePage }) => {
+    await homePage.mockDashboardAlerts(alerts);
+    await homePage.navigate();
+    await homePage.waitForDashboardLoad();
+
+    await expect(homePage.alertSeeMoreButton).toHaveCount(1);
+    await expect(homePage.alertSeeLessButton).toHaveCount(0);
+
+    // The tall alert is the accordion trigger; its height reflects the clamp.
+    const collapsedHeight = (await homePage.alertsAccordionTrigger.boundingBox())?.height ?? 0;
+
+    await homePage.alertSeeMoreButton.click();
+    await expect(homePage.alertSeeLessButton).toBeVisible();
+    await expect(homePage.alertSeeMoreButton).toHaveCount(0);
+
+    const expandedHeight = (await homePage.alertsAccordionTrigger.boundingBox())?.height ?? 0;
+
+    expect(expandedHeight).toBeGreaterThan(collapsedHeight);
+
+    await homePage.alertSeeLessButton.click();
+    await expect(homePage.alertSeeMoreButton).toBeVisible();
+    expect((await homePage.alertsAccordionTrigger.boundingBox())?.height ?? 0).toBeLessThan(expandedHeight);
+  });
+});

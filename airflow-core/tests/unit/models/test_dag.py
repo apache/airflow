@@ -3438,8 +3438,8 @@ def test_iter_dagrun_infos_between_partitioned_timetable():
 
     Verifies:
     - Full-sequence equality: result matches direct iter_partition_dagrun_infos call.
-    - to_date's calendar date is inclusive (half-open +1day upper bound makes it so).
-    - to_date+1 is exclusive (partition tick for the day after to_date is absent).
+    - The datetime window bounds partition_date directly (no day rounding); both ends inclusive.
+    - to_date's partition is present; the tick after to_date is absent.
     """
     dag = DAG(
         dag_id="test_iter_dagrun_infos_between_partitioned",
@@ -3455,16 +3455,16 @@ def test_iter_dagrun_infos_between_partitioned_timetable():
 
     result = list(scheduler_dag.iter_dagrun_infos_between(earliest=from_dt, latest=to_dt))
 
-    # Build expected sequence by calling iter_partition_dagrun_infos directly with the same day-bounds.
+    # Build expected sequence by calling iter_partition_dagrun_infos directly with the same window.
     core_timetable = scheduler_dag.timetable
     expected = list(
         core_timetable.iter_partition_dagrun_infos(
-            earliest_date=from_dt.date(),
-            latest_date=to_dt.date(),
+            earliest=from_dt,
+            latest=to_dt,
         )
     )
 
-    # Full-sequence equality — not head/tail/length.
+    # Dispatch smoke-test: the partitioned path routes through iter_partition_dagrun_infos.
     assert result == expected
 
     # to_date's partition (2026-03-12) must be present (inclusive).
@@ -3474,6 +3474,35 @@ def test_iter_dagrun_infos_between_partitioned_timetable():
     # The partition for the day after to_date (2026-03-13) must be absent (half-open upper bound).
     after_to_date_partition = pendulum.datetime(2026, 3, 13, tz="UTC")
     assert not any(info.run_after == after_to_date_partition for info in result)
+
+
+def test_iter_dagrun_infos_between_partitioned_subday_window_not_widened():
+    """Guard: a sub-day window through the full iter_dagrun_infos_between chain must
+    not widen to the whole calendar day.
+
+    Pre-fix the partitioned path truncated the bounds to calendar dates and expanded them to
+    whole UTC days, so an hourly Dag backfilled for a single hour produced ~24 runs instead of 2.
+    This drives the public chain (whose signature is unchanged), so on pre-fix code it yields the
+    widened 24-tick sequence; on the fixed code it yields exactly the two ticks in the window.
+    """
+    dag = DAG(
+        dag_id="test_iter_dagrun_infos_between_partitioned_subday",
+        start_date=DEFAULT_DATE,
+        schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+    )
+    EmptyOperator(task_id="dummy", dag=dag)
+    scheduler_dag = create_scheduler_dag(dag)
+
+    from_dt = pendulum.datetime(2026, 3, 10, 8, tz="UTC")
+    to_dt = pendulum.datetime(2026, 3, 10, 9, tz="UTC")
+
+    result = list(scheduler_dag.iter_dagrun_infos_between(earliest=from_dt, latest=to_dt))
+
+    # Exactly the two ticks inside [08:00, 09:00] — not the 24 ticks of the whole day.
+    assert [info.run_after for info in result] == [
+        pendulum.datetime(2026, 3, 10, 8, tz="UTC"),
+        pendulum.datetime(2026, 3, 10, 9, tz="UTC"),
+    ]
 
 
 def test_iter_dagrun_infos_between_error(caplog):
@@ -4344,7 +4373,7 @@ def test_calculate_dagrun_date_fields(
     run = dag_maker.create_dagrun()
     serdag = dag_maker.serialized_dag
     dag_model = dag_maker.dag_model
-    dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=run)
+    dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=run)
     assert dag_model.next_dagrun_data_interval == next_interval
     assert dag_model.next_dagrun == next_run
     assert dag_model.next_dagrun_create_after == next_run_after

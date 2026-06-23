@@ -35,12 +35,21 @@ const AlertRow = ({ alert }: { readonly alert: DeadlineAlertResponse }) => {
   const reference = translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
     defaultValue: alert.reference_type,
   });
-  const interval = dayjs.duration(alert.interval, "seconds").humanize();
+  // A fixed interval reports its seconds; a dynamic interval (e.g. VariableInterval) comes back
+  // as null, since its value is only resolved when the scheduler evaluates the deadline. Render a
+  // "dynamic interval" phrasing rather than a misleading "a few seconds" from dayjs.duration(null).
+  const completionRule =
+    alert.interval === null || alert.interval === undefined
+      ? translate("deadlineAlerts.completionRuleDynamic", { reference })
+      : translate("deadlineAlerts.completionRule", {
+          interval: dayjs.duration(alert.interval, "seconds").humanize(),
+          reference,
+        });
 
   return (
     <Box py={2} width="100%">
       <Text color="fg.muted" fontSize="xs">
-        {translate("deadlineAlerts.completionRule", { interval, reference })}
+        {completionRule}
         {Boolean(alert.name) && (
           <Text as="span" color="fg.subtle" fontSize="xs">
             {" "}

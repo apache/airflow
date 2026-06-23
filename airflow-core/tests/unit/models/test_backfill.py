@@ -251,9 +251,14 @@ def test_create_backfill_partitioned(reverse, existing, start_date, dag_maker, s
         PythonOperator(task_id="hi", python_callable=print)
 
     # Map each partition_key label to the partition_date (UTC instant) the timetable computes.
+    # Bounds are passed tz-aware (timetable timezone) so they name the intended local partitions:
+    # partition_date is now honored as an instant, not rounded to a calendar day.
     partition_date_by_key = {
         info.partition_key: info.partition_date
-        for info in dag.iter_dagrun_infos_between(pendulum.parse("2026-02-14"), pendulum.parse("2026-02-25"))
+        for info in dag.iter_dagrun_infos_between(
+            pendulum.datetime(2026, 2, 14, tz="Asia/Taipei"),
+            pendulum.datetime(2026, 2, 25, tz="Asia/Taipei"),
+        )
     }
     # Existing runs stand in for historical scheduled runs: they carry partition_date, which is
     # what deduplication keys on (see _get_latest_dag_run_row_query).
@@ -271,8 +276,8 @@ def test_create_backfill_partitioned(reverse, existing, start_date, dag_maker, s
     expected_run_conf = {"param1": "valABC"}
     b = _create_backfill(
         dag_id=dag.dag_id,
-        from_date=pendulum.parse("2026-02-15"),
-        to_date=pendulum.parse("2026-02-24"),
+        from_date=pendulum.datetime(2026, 2, 15, tz="Asia/Taipei"),
+        to_date=pendulum.datetime(2026, 2, 24, tz="Asia/Taipei"),
         max_active_runs=2,
         reverse=reverse,
         triggering_user_name="pytest",
@@ -318,8 +323,8 @@ def test_create_backfill_partitioned_key_uses_timetable_timezone(dag_maker, sess
 
     b = _create_backfill(
         dag_id=dag.dag_id,
-        from_date=pendulum.parse("2026-02-18"),
-        to_date=pendulum.parse("2026-02-18"),
+        from_date=pendulum.datetime(2026, 2, 18, tz="Asia/Taipei"),
+        to_date=pendulum.datetime(2026, 2, 18, tz="Asia/Taipei"),
         max_active_runs=1,
         reverse=False,
         triggering_user_name="pytest",
@@ -359,8 +364,8 @@ def test_backfill_partitioned_does_not_duplicate_legacy_utc_keyed_run(dag_maker,
 
     b = _create_backfill(
         dag_id=dag.dag_id,
-        from_date=pendulum.parse("2026-02-18"),
-        to_date=pendulum.parse("2026-02-18"),
+        from_date=pendulum.datetime(2026, 2, 18, tz="Asia/Taipei"),
+        to_date=pendulum.datetime(2026, 2, 18, tz="Asia/Taipei"),
         max_active_runs=1,
         reverse=False,
         triggering_user_name="pytest",
@@ -986,8 +991,8 @@ def test_backfill_partitioned_with_partition_window(reverse, dag_maker, session)
 
     b = _create_backfill(
         dag_id=dag.dag_id,
-        from_date=pendulum.parse("2026-02-18"),
-        to_date=pendulum.parse("2026-02-20"),
+        from_date=pendulum.datetime(2026, 2, 18, tz="Asia/Taipei"),
+        to_date=pendulum.datetime(2026, 2, 20, tz="Asia/Taipei"),
         max_active_runs=2,
         reverse=reverse,
         triggering_user_name="pytest",
@@ -1017,8 +1022,8 @@ def test_backfill_partitioned_at_cap_single_day(dag_maker, session):
 
     b = _create_backfill(
         dag_id=dag.dag_id,
-        from_date=pendulum.parse("2026-02-18"),
-        to_date=pendulum.parse("2026-02-18"),
+        from_date=pendulum.datetime(2026, 2, 18, tz="Asia/Taipei"),
+        to_date=pendulum.datetime(2026, 2, 18, tz="Asia/Taipei"),
         max_active_runs=2,
         reverse=False,
         triggering_user_name="pytest",
@@ -1066,8 +1071,8 @@ def test_do_dry_run_with_partition_window(dag_maker, session):
     infos = list(
         _do_dry_run(
             dag_id=dag.dag_id,
-            from_date=pendulum.parse("2026-02-18"),
-            to_date=pendulum.parse("2026-02-20"),
+            from_date=pendulum.datetime(2026, 2, 18, tz="Asia/Taipei"),
+            to_date=pendulum.datetime(2026, 2, 20, tz="Asia/Taipei"),
             reverse=False,
             reprocess_behavior=ReprocessBehavior.NONE,
             session=session,
@@ -1080,24 +1085,24 @@ def test_do_dry_run_with_partition_window(dag_maker, session):
 @pytest.mark.db_test
 def test_create_backfill_partitioned_non_utc_boundary(dag_maker, session):
     """
-    Regression: partition_date selection axis must use calendar-date comparison in the
-    timetable timezone, not a UTC-instant comparison.
+    Guard: the production backfill path supplies UTC-midnight bounds; the first
+    partition-day must not be dropped even when the timetable timezone is UTC+8.
 
-    Asia/Taipei is UTC+8.  A partition labelled "2026-02-15" has
-    partition_date = 2026-02-14T16:00:00Z (the UTC instant of Taipei midnight).
-    Passing that UTC instant through an instant comparison against the user's
-    --partition-date-start 2026-02-15 (parsed as 2026-02-15T00:00:00Z) would
-    yield 2026-02-14T16:00Z < 2026-02-15T00:00Z, dropping the boundary day.
-    The date-label comparison avoids this by converting to timetable timezone
-    before calling .date().
+    The CLI/API parses ``--from-date 2026-02-15`` as ``2026-02-15T00:00:00Z``
+    (UTC midnight) because ``default_timezone`` is UTC on a standard deployment.
+    Without wall-clock localization, ``_align_to_next`` would see this UTC instant and
+    return the first Taipei-midnight tick *after* UTC midnight — skipping the
+    2026-02-15 partition (Taipei midnight = 2026-02-14T16:00Z) and starting from
+    2026-02-15T16:00Z instead. The localization step re-interprets the UTC-midnight
+    wall-clock as a Taipei-midnight before alignment, so the first day is included.
     """
     with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei")) as dag:
         PythonOperator(task_id="hi", python_callable=print)
 
     b = _create_backfill(
         dag_id=dag.dag_id,
-        from_date=pendulum.parse("2026-02-15"),
-        to_date=pendulum.parse("2026-02-24"),
+        from_date=pendulum.datetime(2026, 2, 15, tz="UTC"),
+        to_date=pendulum.datetime(2026, 2, 24, tz="UTC"),
         max_active_runs=10,
         reverse=False,
         triggering_user_name="pytest",
@@ -1129,6 +1134,55 @@ def test_create_backfill_partitioned_non_utc_boundary(dag_maker, session):
 
 
 @pytest.mark.db_test
+def test_create_backfill_partitioned_sub_day_window_not_widened(dag_maker, session):
+    """
+    Guard: a narrow hourly window must not be widened to a full day after the
+    wall-clock localization fix.
+
+    The production backfill path supplies UTC-midnight-style bounds. For an
+    hourly Taipei timetable (``0 * * * *``) the user's intent for a two-hour
+    window is exactly two partitions. If localization discarded sub-day precision
+    (e.g. by flooring to midnight), the result would be 24 partitions instead.
+
+    Window: 2026-02-15 08:00 UTC → 2026-02-15 09:00 UTC (production-path form).
+    Localized to Taipei these are 2026-02-15T08:00+08:00 and 2026-02-15T09:00+08:00,
+    i.e. UTC instants 2026-02-15T00:00Z and 2026-02-15T01:00Z — exactly two ticks.
+    """
+    with dag_maker(schedule=CronPartitionTimetable("0 * * * *", timezone="Asia/Taipei")) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    # Production-path bounds: UTC wall-clock (what CLI/API delivers on a UTC host).
+    # The user intended "2026-02-15 08:00 Taipei" and "2026-02-15 09:00 Taipei"
+    # — written as the corresponding UTC-wall-clock values a UTC machine produces.
+    from_date = pendulum.datetime(2026, 2, 15, 8, 0, 0, tz="UTC")
+    to_date = pendulum.datetime(2026, 2, 15, 9, 0, 0, tz="UTC")
+
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=from_date,
+        to_date=to_date,
+        max_active_runs=10,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf=None,
+    )
+    query = (
+        select(DagRun)
+        .join(BackfillDagRun.dag_run)
+        .where(BackfillDagRun.backfill_id == b.id)
+        .order_by(BackfillDagRun.sort_ordinal)
+    )
+    dag_runs = session.scalars(query).all()
+    partition_hour_labels = [
+        pendulum.instance(x.partition_date).in_timezone("Asia/Taipei").strftime("%Y-%m-%dT%H:%M")
+        for x in dag_runs
+    ]
+
+    # Full-sequence equality: exactly the two requested partitions (in Taipei local time).
+    assert partition_hour_labels == ["2026-02-15T08:00", "2026-02-15T09:00"]
+
+
+@pytest.mark.db_test
 @pytest.mark.parametrize("run_offset", [1, 2, -1, -2])
 def test_backfill_partitioned_nonzero_offset_full_window(run_offset, dag_maker, session):
     """Non-zero run_offset: backfill returns exactly the requested partition window (no leaks, no gaps).
@@ -1144,8 +1198,8 @@ def test_backfill_partitioned_nonzero_offset_full_window(run_offset, dag_maker, 
 
     b = _create_backfill(
         dag_id=dag.dag_id,
-        from_date=pendulum.parse("2026-02-18"),
-        to_date=pendulum.parse("2026-02-20"),
+        from_date=pendulum.datetime(2026, 2, 18, tz="Asia/Taipei"),
+        to_date=pendulum.datetime(2026, 2, 20, tz="Asia/Taipei"),
         max_active_runs=10,
         reverse=False,
         triggering_user_name="pytest",
@@ -1207,10 +1261,14 @@ def test_backfill_partitioned_nonzero_offset_at_cap_single_day(
         PythonOperator(task_id="hi", python_callable=print)
     session.commit()
 
+    def _parse_date_taipei(date_str: str) -> pendulum.DateTime:
+        y, m, d = (int(p) for p in date_str.split("-"))
+        return pendulum.datetime(y, m, d, tz="Asia/Taipei")
+
     b = _create_backfill(
         dag_id=dag.dag_id,
-        from_date=pendulum.parse(from_date),
-        to_date=pendulum.parse(to_date),
+        from_date=_parse_date_taipei(from_date),
+        to_date=_parse_date_taipei(to_date),
         max_active_runs=2,
         reverse=False,
         triggering_user_name="pytest",
@@ -1242,8 +1300,8 @@ def test_backfill_partitioned_offset_zero_behavior_unchanged(dag_maker, session)
 
     b = _create_backfill(
         dag_id=dag.dag_id,
-        from_date=pendulum.parse("2026-02-18"),
-        to_date=pendulum.parse("2026-02-20"),
+        from_date=pendulum.datetime(2026, 2, 18, tz="Asia/Taipei"),
+        to_date=pendulum.datetime(2026, 2, 20, tz="Asia/Taipei"),
         max_active_runs=5,
         reverse=False,
         triggering_user_name="pytest",
@@ -1274,7 +1332,11 @@ def test_partitioned_backfill_reprocess_failed(dag_maker, session):
 
     # Determine the UTC partition_date for the 2026-02-18 Asia/Taipei partition.
     info = next(
-        i for i in dag.iter_dagrun_infos_between(pendulum.parse("2026-02-18"), pendulum.parse("2026-02-18"))
+        i
+        for i in dag.iter_dagrun_infos_between(
+            pendulum.datetime(2026, 2, 18, tz="Asia/Taipei"),
+            pendulum.datetime(2026, 2, 18, tz="Asia/Taipei"),
+        )
     )
     expected_partition_date = info.partition_date
 
@@ -1292,8 +1354,8 @@ def test_partitioned_backfill_reprocess_failed(dag_maker, session):
 
     b = _create_backfill(
         dag_id=dag.dag_id,
-        from_date=pendulum.parse("2026-02-18"),
-        to_date=pendulum.parse("2026-02-18"),
+        from_date=pendulum.datetime(2026, 2, 18, tz="Asia/Taipei"),
+        to_date=pendulum.datetime(2026, 2, 18, tz="Asia/Taipei"),
         max_active_runs=1,
         reverse=False,
         triggering_user_name="pytest",

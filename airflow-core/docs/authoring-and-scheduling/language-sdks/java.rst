@@ -230,6 +230,159 @@ See the Java SDK's published JavaDoc for more details.
 
 .. TODO: (AIP-108) Put a link here once we publish the JavaDoc.
 
+.. _java-sdk/logging:
+
+Logging
+-------
+
+Task code can emit log records through any common Java logging framework. The SDK ships optional
+integration libraries that forward those records to Airflow's task log store, where they appear
+alongside the standard task output in the Airflow UI.
+
+Declare a logger as a static field on the task class, using the class's own type as the name. This
+is the conventional pattern regardless of which logging framework you choose:
+
+.. code-block:: java
+
+    private static final System.Logger log =
+        System.getLogger(SalesPipeline.class.getName());
+
+    @Builder.Task(id = "extract")
+    public long extract(Client client) {
+        log.log(System.Logger.Level.INFO, "Starting extraction");
+        return recordCount;
+    }
+
+The Gradle snippets below show the dependency declarations; all Airflow artifact versions are managed
+by ``airflow-sdk-bom``. Maven users apply the same artifact IDs following the pattern in
+:ref:`java-sdk/build/maven`.
+
+.. _java-sdk/logging/jpl:
+
+``System.Logger`` (Java Platform Logging)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Java 9's new logging facade ``java.lang.System.Logger`` (JEP 264), commonly abbreviated *JPL*, can be
+used by libraries without pulling in any third-party API. The ``airflow-sdk-jpl`` artifact registers an
+``AirflowSystemLoggerFinder`` via ``ServiceLoader``, which routes all ``System.Logger`` calls directly
+to Airflow's task log store.
+
+.. code-block:: groovy
+
+    implementation("org.apache.airflow:airflow-sdk-jpl:${version}")
+
+No configuration file or startup call is required. The ``ServiceLoader`` mechanism discovers the
+provider automatically as long as the JAR is on the classpath.
+
+.. note::
+
+    Do not add a second ``System.LoggerFinder`` implementation alongside
+    ``airflow-sdk-jpl``. The JVM selects one finder via ``ServiceLoader``; having
+    multiple providers on the classpath leads to unpredictable behaviour.
+
+.. _java-sdk/logging/slf4j:
+
+SLF4J 2.x
+~~~~~~~~~
+
+The SLF4J binding is discovered automatically via ``ServiceLoader``; no configuration file or
+startup call is required.
+
+.. code-block:: groovy
+
+    implementation("org.apache.airflow:airflow-sdk-slf4j:${version}")
+
+The above automatically pulls in the SLF4J API, so you don't need to add ``slf4j-api`` yourself.
+
+.. note::
+
+    Do not add a second SLF4J binding (such as ``logback-classic`` or ``slf4j-simple``) alongside
+    ``airflow-sdk-slf4j``. SLF4J 2.x warns about multiple bindings and selects one unpredictably.
+
+.. _java-sdk/logging/log4j2:
+
+Log4j 2
+~~~~~~~
+
+``airflow-sdk-log4j2`` declares ``log4j-api`` as a transitive dependency, so you do not need to add the latter
+separately. You must also place ``log4j-core`` on the runtime classpath to host the plugin loader that
+discovers the custom ``AirflowAppender`` supplied by ``airflow-sdk-log4j2`` at startup:
+
+.. code-block:: groovy
+
+    implementation("org.apache.airflow:airflow-sdk-log4j2:${version}")
+    runtimeOnly("org.apache.logging.log4j:log4j-core:${log4jVersion}")
+
+Declare ``AirflowAppender`` in your ``log4j2.xml``:
+
+.. code-block:: xml
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <Configuration>
+      <Appenders>
+        <AirflowAppender name="Airflow"/>
+      </Appenders>
+      <Loggers>
+        <Root level="info">
+          <AppenderRef ref="Airflow"/>
+        </Root>
+      </Loggers>
+    </Configuration>
+
+.. _java-sdk/logging/jul:
+
+``java.util.logging``
+~~~~~~~~~~~~~~~~~~~~~
+
+Add the artifact:
+
+.. code-block:: groovy
+
+    implementation("org.apache.airflow:airflow-sdk-jul:${version}")
+
+and call ``AirflowJulHandler.install()`` on startup to attach the handler to the
+JUL root logger before any task runs:
+
+.. code-block:: java
+
+    public static void main(String[] args) {
+        AirflowJulHandler.install();
+        Server.create(args).serve(new MyBundle());
+    }
+
+Alternatively, declare the handler in a ``logging.properties`` file and point JUL at it with the
+``java.util.logging.config.file`` system property (set via ``jvm_args`` in the coordinator
+configuration):
+
+.. code-block:: properties
+
+    handlers = org.apache.airflow.sdk.jul.AirflowJulHandler
+
+.. code-block:: ini
+
+    [sdk]
+    coordinators = {
+      "java-jdk17": {
+        "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+        "kwargs": {
+          "jars_root": ["/opt/airflow/jars"],
+          "jvm_args": ["-Djava.util.logging.config.file=/opt/airflow/logging.properties"]
+        }
+      }
+    }
+
+.. _java-sdk/logging/other:
+
+Other frameworks
+~~~~~~~~~~~~~~~~
+
+Several commonly used logging APIs are covered without a dedicated Airflow artifact:
+
+* **Logback** is itself an SLF4J binding. Replace ``logback-classic`` with ``airflow-sdk-slf4j``
+  and no changes are needed in your task code.
+* **Apache Commons Logging (JCL)** can be bridged to SLF4J via ``org.slf4j:jcl-over-slf4j`` or
+  to Log4j 2 via ``org.apache.logging.log4j:log4j-jcl``.
+
 .. _java-sdk/types:
 
 XCom type mapping

@@ -1524,6 +1524,14 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         *,
         session: Session = NEW_SESSION,
     ) -> None:
+        # Fast path: a task with no outlets and no outlet events has nothing to
+        # register. Returning early avoids the AssetModel lookup below (which
+        # would run with empty IN () clauses) and all downstream work. This is
+        # the common case -- most tasks declare no outlets -- and it sits on the
+        # task-success path that gates scheduling the next task.
+        if not task_outlets and not outlet_events:
+            return
+
         from airflow.serialization.definitions.assets import (
             SerializedAsset,
             SerializedAssetNameRef,
@@ -1546,6 +1554,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 OutletEventPayload(extra=outlet_event["extra"], partition_key=partition_key)
             )
         dag_run_partition_key = ti.dag_run.partition_key
+        dag_run_partition_date = ti.dag_run.partition_date
 
         asset_keys = {
             SerializedAssetUniqueKey(o.name, o.uri)
@@ -1581,6 +1590,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     asset=am,
                     extra=None,
                     partition_key=dag_run_partition_key,
+                    partition_date=dag_run_partition_date,
                     session=session,
                 )
                 return
@@ -1588,11 +1598,26 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 effective_pk = (
                     payload.partition_key if payload.partition_key is not None else dag_run_partition_key
                 )
+                # Carry partition_date only when the effective key matches the
+                # DagRun's — the run-level date refers to the run-level key and
+                # would mis-label an event emitted for a different partition.
+                if effective_pk == dag_run_partition_key:
+                    payload_partition_date = dag_run_partition_date
+                else:
+                    payload_partition_date = None
+                    if dag_run_partition_date is not None:
+                        ti.log.debug(
+                            "Task-emitted partition_key %r differs from DagRun partition_key %r; "
+                            "consumer partition_date will be None.",
+                            payload.partition_key,
+                            dag_run_partition_key,
+                        )
                 asset_manager.register_asset_change(
                     task_instance=ti,
                     asset=am,
                     extra=payload.extra,
                     partition_key=effective_pk,
+                    partition_date=payload_partition_date,
                     session=session,
                 )
 
@@ -1676,6 +1701,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     source_alias_names=event_aliase_names,
                     extra=asset_event_extra,
                     partition_key=dag_run_partition_key,
+                    partition_date=dag_run_partition_date,
                     session=session,
                 )
                 if event is None:
@@ -1688,6 +1714,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                         source_alias_names=event_aliase_names,
                         extra=asset_event_extra,
                         partition_key=dag_run_partition_key,
+                        partition_date=dag_run_partition_date,
                         session=session,
                     )
 

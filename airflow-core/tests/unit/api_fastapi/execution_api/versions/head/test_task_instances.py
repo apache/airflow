@@ -236,6 +236,7 @@ class TestTIRunState:
                 "triggering_user_name": None,
                 "consumed_asset_events": [],
                 "partition_key": None,
+                "partition_date": None,
                 "note": None,
                 "team_name": None,
             },
@@ -4049,16 +4050,16 @@ class TestTokenTypeValidation:
         assert resp.status_code == 403
         assert "Token type 'workload' not allowed" in resp.json()["detail"]
 
-    def test_workload_scope_rejected_on_connections_endpoint(self, client, session, create_task_instance):
-        """Workload scoped tokens should be rejected on GET /connections (different router)."""
+    def test_workload_scope_accepted_on_connections_endpoint(self, client, session, create_task_instance):
+        """Workload scoped tokens are accepted on GET /connections for deadline callback subprocesses."""
         ti = create_task_instance(task_id="test_workload_conn", state=State.RUNNING)
         session.commit()
 
         self._register_scoped_validator(ti.id, "workload")
 
         resp = client.get("/execution/connections/test_conn")
-        assert resp.status_code == 403
-        assert "Token type 'workload' not allowed" in resp.json()["detail"]
+        # Workload tokens are now accepted; 404 because the connection doesn't exist in the test DB.
+        assert resp.status_code == 404
 
     def test_execution_scope_accepted_on_all_endpoints(self, client, session, create_task_instance):
         """Execution scoped tokens should be accepted on all endpoints."""
@@ -4244,3 +4245,19 @@ class TestEmitTaskSpan:
 
         _emit_task_span(ti, TaskInstanceState.SUCCESS)
         assert len(self.exporter.get_finished_spans()) == 0
+
+    @pytest.mark.parametrize(
+        ("trace_flag", "expected_spans"),
+        [
+            pytest.param("01", 1, id="sampled-carrier-emits"),
+            pytest.param("00", 0, id="unsampled-carrier-skips"),
+        ],
+    )
+    def test_emit_task_span_honors_dagrun_carrier_sampling(self, trace_flag, expected_spans):
+        """A SAMPLED dag_run carrier (flag 01) emits the task span; an unsampled one (flag 00) is head-sampled out."""
+        ti = self._make_ti()
+        ti.dag_run.context_carrier = {
+            "traceparent": f"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-{trace_flag}"
+        }
+        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+        assert len(self.exporter.get_finished_spans()) == expected_spans

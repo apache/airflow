@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 from abc import ABC
 from collections.abc import Callable
 from typing import Any
@@ -110,14 +111,15 @@ class Callback(ABC):
         return self.serialize() == other.serialize()
 
     def __hash__(self):
-        serialized = self.serialize()
-        hashable_items = []
-        for k, v in serialized.items():
-            if isinstance(v, dict):
-                hashable_items.append((k, tuple(sorted(v.items()))))
-            else:
-                hashable_items.append((k, v))
-        return hash(tuple(sorted(hashable_items)))
+        # ``serialize()`` is JSON-serializable by contract (it is persisted to a JSON column),
+        # and ``kwargs`` may legally contain NESTED dicts/lists (e.g. ``kwargs={"config": {...}}``
+        # or ``kwargs={"tags": [...]}``). The previous implementation only flattened the top level
+        # (``tuple(sorted(v.items()))``), so a nested dict/list value remained unhashable and
+        # ``hash(callback)`` — and therefore ``hash(DeadlineAlert(...))`` and any ``set``/dict use —
+        # raised ``TypeError: unhashable type``. Hash a canonical JSON encoding instead: it handles
+        # arbitrary nesting, and ``sort_keys=True`` keeps it consistent with ``__eq__`` (which
+        # compares ``serialize()``) regardless of key insertion order.
+        return hash(json.dumps(self.serialize(), sort_keys=True, default=str))
 
 
 class AsyncCallback(Callback):

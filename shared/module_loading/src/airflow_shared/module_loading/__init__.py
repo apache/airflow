@@ -18,6 +18,8 @@
 from __future__ import annotations
 
 import functools
+import importlib.machinery
+import importlib.util
 import inspect
 import logging
 import pkgutil
@@ -25,6 +27,7 @@ import sys
 from collections import defaultdict
 from collections.abc import Callable, Iterator
 from importlib import import_module
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .dag_file import (
@@ -133,6 +136,43 @@ def qualname(o: object | Callable, use_qualname: bool = False, exclude_module: b
         return f"{module}.{name}"
 
     return name
+
+
+def load_mangled_dag_module(mod_name: str, file_path: str) -> bool:
+    """
+    Load a DAG bundle file into sys.modules under its mangled unusual_prefix_{hash}_{stem} name.
+
+    The DAG processor assigns each DAG file a unique module name
+    (unusual_prefix_{sha1_of_filepath}_{stem}) to prevent import collisions between bundles.
+    Callback paths are serialized using that mangled name, so both the executor subprocess
+    and the triggerer must register the file under exactly that name before calling
+    import_string().
+
+    Returns True if the module was registered, False if the file was not found or load failed.
+    """
+    path = Path(file_path)
+    if not path.exists():
+        log.warning("Cannot load mangled DAG module %s: file not found at %s", mod_name, file_path)
+        return False
+
+    if mod_name in sys.modules:
+        return True
+
+    try:
+        loader = importlib.machinery.SourceFileLoader(mod_name, str(path))
+        spec = importlib.util.spec_from_loader(mod_name, loader)
+        module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+        sys.modules[mod_name] = module
+        try:
+            loader.exec_module(module)
+        except Exception:
+            sys.modules.pop(mod_name, None)
+            raise
+        log.debug("Loaded mangled DAG module %s from %s", mod_name, file_path)
+        return True
+    except Exception:
+        log.warning("Failed to load mangled DAG module %s from %s", mod_name, file_path, exc_info=True)
+        return False
 
 
 def iter_namespace(ns: ModuleType):

@@ -321,6 +321,18 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "deadline_alerts.deadline_creation_failed"
+    description: "Number of deadline alerts that could not be created because reference evaluation raised"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "deadline_alerts.callback_orphaned_dagrun_deleted"
+    description: "Number of orphaned deadline callbacks deleted because their Dag run no longer exists"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "ol.emit.failed"
     description: "Number of failed OpenLineage event emit attempts"
     type: "counter"
@@ -716,12 +728,6 @@ metrics:
 
   - name: "collect_db_dags"
     description: "Milliseconds taken for fetching all Serialized Dags from DB"
-    type: "timer"
-    legacy_name: "-"
-    name_variables: []
-
-  - name: "kubernetes_executor.clear_not_launched_queued_tasks.duration"
-    description: "Milliseconds taken for clearing not launched queued tasks in Kubernetes Executor"
     type: "timer"
     legacy_name: "-"
     name_variables: []

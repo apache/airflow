@@ -1847,7 +1847,7 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.task_state_store.delete(msg.ti_id, msg.key)
             resp = OKResponse(ok=True)
         elif isinstance(msg, ClearTaskStateStore):
-            self.client.task_state_store.clear(msg.ti_id, all_map_indices=msg.all_map_indices)
+            self.client.task_state_store.clear(msg.ti_id)
             resp = OKResponse(ok=True)
         elif isinstance(msg, GetAssetStateStoreByName):
             asset_store = self.client.asset_state_store.get(msg.key, name=msg.name)
@@ -2019,6 +2019,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
         what: TaskInstance,
         task,
         logger: FilteringBoundLogger | None = None,
+        client: Client | None = None,
         **kwargs,
     ) -> TaskRunResult:
         """
@@ -2030,6 +2031,9 @@ class InProcessTestSupervisor(ActivitySubprocess):
         Dag is already parsed in memory.
 
         Supervisor state and communications are simulated in-memory via `InProcessSupervisorComms`.
+
+        :param client: optional Execution-API client to use. Defaults to the DB-backed
+            in-process API server; pass an in-memory/dry-run client to run without a metadata DB.
         """
         # Create supervisor instance
         supervisor = cls(
@@ -2037,7 +2041,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
             pid=os.getpid(),  # Use current process
             process=psutil.Process(),  # Current process
             process_log=logger or structlog.get_logger(logger_name="task").bind(),
-            client=cls._api_client(task.dag),
+            client=client if client is not None else cls._api_client(task.dag),
             **kwargs,
         )
 
@@ -2180,10 +2184,15 @@ def set_supervisor_comms(temp_comms):
             task_runner.SUPERVISOR_COMMS = old
 
 
-def run_task_in_process(ti: TaskInstance, task) -> TaskRunResult:
-    """Run a task in-process for testing."""
+def run_task_in_process(ti: TaskInstance, task, client: Client | None = None) -> TaskRunResult:
+    """
+    Run a task in-process for testing.
+
+    :param client: optional Execution-API client (e.g. an in-memory/dry-run client to run
+        without a metadata DB). Defaults to the DB-backed in-process API server.
+    """
     # Run the task
-    return InProcessTestSupervisor.start(what=ti, task=task)
+    return InProcessTestSupervisor.start(what=ti, task=task, client=client)
 
 
 # Sockets, even the `.makefile()` function don't correctly do line buffering on reading. If a chunk is read
