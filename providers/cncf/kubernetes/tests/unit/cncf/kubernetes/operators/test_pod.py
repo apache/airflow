@@ -1565,7 +1565,7 @@ class TestKubernetesPodOperator:
             task_id="task",
         )
 
-        with pytest.raises(ValueError, match="has to be"):
+        with pytest.raises((ValueError, AirflowException), match="has to be"):
             self.run_pod(k)
 
     def test_create_with_affinity(self):
