@@ -26,6 +26,7 @@ import { useLocalStorage } from "usehooks-ts";
 import { useDagRunServiceGetDagRun, useStructureServiceStructureData } from "openapi/queries";
 import type { Direction } from "src/components/Graph/DirectionDropdown";
 import { DownloadButton } from "src/components/Graph/DownloadButton";
+import { GraphTaskFilters } from "src/components/GraphTaskFilters";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { useGraphLayout } from "src/components/Graph/useGraphLayout";
@@ -40,6 +41,7 @@ import { getReactFlowThemeStyle } from "src/theme";
 
 import { FitViewOnLayout } from "./components/FitViewOnLayout";
 import { GraphControls } from "./components/GraphControls";
+import { GraphSettings } from "./components/GraphSettings";
 import { useFilteredNodesAndEdges } from "./hooks/useFilteredNodesAndEdges";
 import { useGraphSearchParams } from "./hooks/useGraphSearchParams";
 import { useGraphFilteredNodes } from "./useGraphFilteredNodes";
@@ -218,6 +220,10 @@ export const Graph = () => {
           />
         ) : undefined}
         <DownloadButton name={dagId} />
+        <Box display="flex" flexDirection="column" gap={2} position="absolute" right={2} top={2} zIndex={4}>
+          <GraphSettings />
+          <GraphTaskFilters />
+        </Box>
       </ReactFlow>
     </Box>
   );

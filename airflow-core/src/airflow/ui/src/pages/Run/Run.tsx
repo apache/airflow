@@ -20,6 +20,7 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FiCode, FiDatabase } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
+import { PiGraphLight } from "react-icons/pi";
 import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun } from "openapi/queries";
@@ -42,6 +43,7 @@ export const Run = () => {
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
     { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
+    { icon: <PiGraphLight />, label: translate("tabs.graph", "Graph"), value: "graph" },
     ...externalTabs,
   ];
 

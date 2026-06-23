@@ -33,18 +33,14 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiGrid } from "react-icons/fi";
 import { LuChartGantt, LuKeyboard } from "react-icons/lu";
-import { MdOutlineAccountTree, MdSettings } from "react-icons/md";
+import { MdSettings } from "react-icons/md";
 import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
-import { useLocalStorage } from "usehooks-ts";
 
 import { DagVersionSelect } from "src/components/DagVersionSelect";
-import { DirectionDropdown } from "src/components/Graph/DirectionDropdown";
-import { GraphTaskFilters } from "src/components/GraphTaskFilters";
 import { IconButton, Tooltip } from "src/components/ui";
 import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import type { DagView } from "src/constants/dagView";
-import { dependenciesKey } from "src/constants/localStorage";
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
@@ -64,15 +60,6 @@ type Props = {
   readonly setShowVersionIndicatorMode: React.Dispatch<React.SetStateAction<VersionIndicatorOptions>>;
   readonly showVersionIndicatorMode: VersionIndicatorOptions;
 };
-
-const getOptions = (translate: (key: string) => string) =>
-  createListCollection({
-    items: [
-      { label: translate("dag:panel.dependencies.options.onlyTasks"), value: "tasks" },
-      { label: translate("dag:panel.dependencies.options.externalConditions"), value: "immediate" },
-      { label: translate("dag:panel.dependencies.options.allDagDependencies"), value: "all" },
-    ],
-  });
 
 const getWidthBasedConfig = (width: number, enableResponsiveOptions: boolean) => {
   const breakpoints = enableResponsiveOptions
@@ -94,27 +81,10 @@ const getWidthBasedConfig = (width: number, enableResponsiveOptions: boolean) =>
   };
 };
 
-const deps = ["all", "immediate", "tasks"];
-
-type Dependency = (typeof deps)[number];
-
-export const PanelButtons = ({
-  dagView,
-  limit,
-  panelGroupRef,
-  setDagView,
-  setLimit,
-  setShowVersionIndicatorMode,
-  showVersionIndicatorMode,
-}: Props) => {
   const { t: translate } = useTranslation(["common", "components", "dag"]);
-  const { dagId = "", runId } = useParams();
+  const { runId } = useParams();
   const { fitView } = useReactFlow();
   const shouldShowToggleButtons = Boolean(runId);
-  const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
-    dependenciesKey(dagId),
-    "tasks",
-  );
   const containerRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(containerRef);
   const handleLimitChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
@@ -135,14 +105,6 @@ export const PanelButtons = ({
       setLimit(defaultLimit);
     }
   }, [defaultLimit, enableResponsiveOptions, limit, setLimit]);
-
-  const handleDepsChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
-    if (event.value[0] === undefined || event.value[0] === "tasks" || !deps.includes(event.value[0])) {
-      removeDependencies();
-    } else {
-      setDependencies(event.value[0]);
-    }
-  };
 
   const handleFocus = (view: string) => {
     if (panelGroupRef.current) {
@@ -172,11 +134,6 @@ export const PanelButtons = ({
           },
         ]
       : []),
-    {
-      label: <MdOutlineAccountTree />,
-      title: translate("dag:panel.buttons.showGraphShortcut"),
-      value: "graph",
-    },
   ];
 
   const handleDagViewChange = (view: DagView) => {
@@ -190,12 +147,14 @@ export const PanelButtons = ({
   useHotkeys(
     "g",
     () => {
-      const newView = dagView === "graph" ? "grid" : "graph";
+      if (shouldShowToggleButtons) {
+        const newView = dagView === "gantt" ? "grid" : "gantt";
 
-      setDagView(newView);
-      handleFocus(newView);
+        setDagView(newView);
+        handleFocus(newView);
+      }
     },
-    [dagView],
+    [dagView, shouldShowToggleButtons],
     { preventDefault: true },
   );
 
@@ -206,7 +165,6 @@ export const PanelButtons = ({
         <Flex alignItems="center" gap={1} justifyContent="space-between">
           <ToggleGroups />
           <TaskStreamFilter />
-          {dagView === "graph" && <GraphTaskFilters />}
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
             <Popover.Trigger asChild>
@@ -226,80 +184,39 @@ export const PanelButtons = ({
                     overflowY="auto"
                     p={2}
                   >
-                    {dagView === "graph" ? (
-                      <>
-                        <DagVersionSelect />
-                        <DagRunSelect limit={limit} />
-
-                        <Select.Root
-                          // @ts-expect-error The expected option type is incorrect
-                          collection={getOptions(translate)}
-                          data-testid="dependencies"
-                          onValueChange={handleDepsChange}
-                          size="sm"
-                          value={[dependencies]}
-                        >
-                          <Select.Label fontSize="xs">
-                            {translate("dag:panel.dependencies.label")}
-                          </Select.Label>
-                          <Select.Control>
-                            <Select.Trigger>
-                              <Select.ValueText placeholder={translate("dag:panel.dependencies.label")} />
-                            </Select.Trigger>
-                            <Select.IndicatorGroup>
-                              <Select.Indicator />
-                            </Select.IndicatorGroup>
-                          </Select.Control>
-                          <Select.Positioner>
-                            <Select.Content>
-                              {getOptions(translate).items.map((option) => (
-                                <Select.Item item={option} key={option.value}>
-                                  {option.label}
-                                </Select.Item>
-                              ))}
-                            </Select.Content>
-                          </Select.Positioner>
-                        </Select.Root>
-
-                        <DirectionDropdown graphId={dagId} />
-                      </>
-                    ) : (
-                      <>
-                        <Select.Root
-                          // @ts-expect-error The expected option type is incorrect
-                          collection={displayRunOptions}
-                          data-testid="display-dag-run-options"
-                          onValueChange={handleLimitChange}
-                          size="sm"
-                          value={[limit.toString()]}
-                        >
-                          <Select.Label>{translate("dag:panel.dagRuns.label")}</Select.Label>
-                          <Select.Control>
-                            <Select.Trigger>
-                              <Select.ValueText />
-                            </Select.Trigger>
-                            <Select.IndicatorGroup>
-                              <Select.Indicator />
-                            </Select.IndicatorGroup>
-                          </Select.Control>
-                          <Select.Positioner>
-                            <Select.Content>
-                              {displayRunOptions.items.map((option) => (
-                                <Select.Item item={option} key={option.value}>
-                                  {option.label}
-                                </Select.Item>
-                              ))}
-                            </Select.Content>
-                          </Select.Positioner>
-                        </Select.Root>
-                        <VStack alignItems="flex-start" px={1}>
-                          <VersionIndicatorSelect
-                            onChange={setShowVersionIndicatorMode}
-                            value={showVersionIndicatorMode}
-                          />
-                        </VStack>
-                      </>
-                    )}
+                    <Select.Root
+                      // @ts-expect-error The expected option type is incorrect
+                      collection={displayRunOptions}
+                      data-testid="display-dag-run-options"
+                      onValueChange={handleLimitChange}
+                      size="sm"
+                      value={[limit.toString()]}
+                    >
+                      <Select.Label>{translate("dag:panel.dagRuns.label")}</Select.Label>
+                      <Select.Control>
+                        <Select.Trigger>
+                          <Select.ValueText />
+                        </Select.Trigger>
+                        <Select.IndicatorGroup>
+                          <Select.Indicator />
+                        </Select.IndicatorGroup>
+                      </Select.Control>
+                      <Select.Positioner>
+                        <Select.Content>
+                          {displayRunOptions.items.map((option) => (
+                            <Select.Item item={option} key={option.value}>
+                              {option.label}
+                            </Select.Item>
+                          ))}
+                        </Select.Content>
+                      </Select.Positioner>
+                    </Select.Root>
+                    <VStack alignItems="flex-start" px={1}>
+                      <VersionIndicatorSelect
+                        onChange={setShowVersionIndicatorMode}
+                        value={showVersionIndicatorMode}
+                      />
+                    </VStack>
                   </Popover.Body>
                 </Popover.Content>
               </Popover.Positioner>
@@ -308,33 +225,23 @@ export const PanelButtons = ({
         </Flex>
       </Flex>
 
-      {dagView === "graph" ? (
-        <Flex justifyContent="flex-end" mt={1}>
-          <Flex color="fg.muted" gap={2}>
-            <Tooltip content={<Text>{translate("dag:navigation.openGraphFilters")}</Text>} portalled>
-              <LuKeyboard />
-            </Tooltip>
-          </Flex>
+      <Flex justifyContent="space-between" mt={1}>
+        <GridFilters />
+        <Flex color="fg.muted" gap={2} justifyContent="flex-end" mt={1}>
+          <RunTypeLegend />
+          <Tooltip
+            content={
+              <Box>
+                <Text>{translate("dag:navigation.navigation", { arrow: "↑↓←→" })}</Text>
+                <Text>{translate("dag:navigation.toggleGroup")}</Text>
+              </Box>
+            }
+            portalled
+          >
+            <LuKeyboard />
+          </Tooltip>
         </Flex>
-      ) : (
-        <Flex justifyContent="space-between" mt={1}>
-          <GridFilters />
-          <Flex color="fg.muted" gap={2} justifyContent="flex-end" mt={1}>
-            <RunTypeLegend />
-            <Tooltip
-              content={
-                <Box>
-                  <Text>{translate("dag:navigation.navigation", { arrow: "↑↓←→" })}</Text>
-                  <Text>{translate("dag:navigation.toggleGroup")}</Text>
-                </Box>
-              }
-              portalled
-            >
-              <LuKeyboard />
-            </Tooltip>
-          </Flex>
-        </Flex>
-      )}
+      </Flex>
     </Box>
   );
 };
