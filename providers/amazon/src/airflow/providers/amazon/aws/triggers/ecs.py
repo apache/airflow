@@ -125,7 +125,9 @@ class TaskDoneTrigger(BaseTrigger):
     :param waiter_max_attempts: The number of times to ping for status.
         Will fail after that many unsuccessful attempts.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-    :param region: The AWS region where the cluster is located.
+    :param region_name: The AWS region where the cluster is located. Used to build the hook.
+    :param verify: Whether or not to verify SSL certificates. Used to build the hook.
+    :param botocore_config: Configuration dictionary for the botocore client. Used to build the hook.
     """
 
     def __init__(
@@ -135,9 +137,11 @@ class TaskDoneTrigger(BaseTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str | None,
-        region: str | None,
+        region_name: str | None,
         log_group: str | None = None,
         log_stream: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ):
         self.cluster = cluster
         self.task_arn = task_arn
@@ -145,7 +149,9 @@ class TaskDoneTrigger(BaseTrigger):
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.aws_conn_id = aws_conn_id
-        self.region = region
+        self.region_name = region_name
+        self.verify = verify
+        self.botocore_config = botocore_config
 
         self.log_group = log_group
         self.log_stream = log_stream
@@ -159,19 +165,27 @@ class TaskDoneTrigger(BaseTrigger):
                 "waiter_delay": self.waiter_delay,
                 "waiter_max_attempts": self.waiter_max_attempts,
                 "aws_conn_id": self.aws_conn_id,
-                "region": self.region,
+                "region_name": self.region_name,
                 "log_group": self.log_group,
                 "log_stream": self.log_stream,
+                "verify": self.verify,
+                "botocore_config": self.botocore_config,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         async with (
             await EcsHook(
-                aws_conn_id=self.aws_conn_id, region_name=self.region
+                aws_conn_id=self.aws_conn_id,
+                region_name=self.region_name,
+                verify=self.verify,
+                config=self.botocore_config,
             ).get_async_conn() as ecs_client,
             await AwsLogsHook(
-                aws_conn_id=self.aws_conn_id, region_name=self.region
+                aws_conn_id=self.aws_conn_id,
+                region_name=self.region_name,
+                verify=self.verify,
+                config=self.botocore_config,
             ).get_async_conn() as logs_client,
         ):
             waiter = ecs_client.get_waiter("tasks_stopped")
