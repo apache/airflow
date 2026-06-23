@@ -18,6 +18,23 @@
 Changelog
 =========
 
+0.2.0
+-----
+
+.. note::
+    The Akeyless connection field ``jwt`` has been renamed to ``jwt_token`` so the credential
+    is correctly masked in logs. Update existing Akeyless connections to use the new field
+    name. As this provider is still pre-1.0, the breaking change ships in a minor release.
+
+Breaking changes
+~~~~~~~~~~~~~~~~~~
+
+* ``Fix Akeyless JWT connection credential is not redacted (#67443)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-05-05 (#66424)``
+
 0.1.0
 -----
 

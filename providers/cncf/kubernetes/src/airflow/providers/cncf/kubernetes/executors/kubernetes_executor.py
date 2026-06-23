@@ -108,7 +108,6 @@ class KubernetesExecutor(BaseExecutor):
         self.kube_client: client.CoreV1Api | None = None
         self.scheduler_job_id: str | None = None
         self._last_completed_pod_adoption = 0.0
-        self.last_handled: dict[TaskInstanceKey, float] = {}
         self.kubernetes_queue: str | None = None
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
         self.task_publish_max_retries = self.conf.getint(
@@ -228,9 +227,6 @@ class KubernetesExecutor(BaseExecutor):
             pod_template_file = None
         self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
         self.task_queue.put(KubernetesJob(key, command, kube_executor_config, pod_template_file))
-        # We keep a temporary local record that we've handled this so we don't
-        # try and remove it from the QUEUED state while we process it
-        self.last_handled[key] = time.time()
 
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
         from airflow.executors import workloads
@@ -402,6 +398,7 @@ class KubernetesExecutor(BaseExecutor):
     def _change_state(
         self,
         results: KubernetesResults,
+        *,
         session: Session = NEW_SESSION,
     ) -> None:
         """Change state of the task based on KubernetesResults."""
@@ -721,7 +718,13 @@ class KubernetesExecutor(BaseExecutor):
 
             timeout = conf.getint("scheduler", "scheduler_health_check_threshold")
             cutoff = timezone.utcnow() - timedelta(seconds=timeout)
-            with create_session() as session:
+            # Must be an *independent* (non-scoped) session. try_adopt_task_instances runs
+            # inside the scheduler's own transaction (adopt_or_reset_orphaned_tasks); a scoped
+            # session here would resolve to that same thread-local session, and the context
+            # manager's commit()/close() on exit would commit the scheduler's in-flight work
+            # early (releasing its FOR UPDATE SKIP LOCKED row locks) and detach the orphaned
+            # TaskInstances it still holds, crashing the reset path (#67813).
+            with create_session(scoped=False) as session:
                 # Iterate the scalar cursor straight into the set so we never
                 # materialize an intermediate list — keeps the memory
                 # footprint flat regardless of how many sibling schedulers

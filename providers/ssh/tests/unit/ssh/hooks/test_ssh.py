@@ -595,6 +595,26 @@ class TestSSHHook:
             assert ssh_client.return_value.set_missing_host_key_policy.called is True
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
+    def test_conn_retry_attempts_defaults_to_three(self, ssh_client):
+        hook = SSHHook(ssh_conn_id="ssh_default")
+        assert hook.conn_retry_attempts == 3
+
+    @mock.patch("time.sleep")
+    @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
+    def test_conn_retry_attempts_retries_until_limit(self, ssh_client, _mock_sleep):
+        """get_conn retries the configured number of times before re-raising."""
+        ssh_client.return_value.connect.side_effect = paramiko.ssh_exception.SSHException(
+            "Error reading SSH protocol banner"
+        )
+        hook = SSHHook(ssh_conn_id="ssh_default", conn_retry_attempts=4)
+        assert hook.conn_retry_attempts == 4
+
+        with pytest.raises(paramiko.ssh_exception.SSHException):
+            hook.get_conn()
+
+        assert ssh_client.return_value.connect.call_count == 4
+
+    @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
     def test_ssh_connection_with_host_key_where_allow_host_key_change_is_true(self, ssh_client):
         hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_ALLOW_HOST_KEY_CHANGES_TRUE)
         assert hook.host_key is not None
@@ -791,10 +811,15 @@ class TestSSHHook:
             assert ret == (0, b"airflow\n", b"")
 
     def test_command_timeout_fail(self):
+        # cmd_timeout is forwarded to paramiko's exec_command, which uses it both to open the
+        # channel and to read the command output. It must therefore be large enough to reliably
+        # open the channel (otherwise a loaded runner raises "Timeout opening channel." instead of
+        # the AirflowException we expect) while staying smaller than the command runtime so the
+        # read loop times out. A sub-millisecond timeout makes channel opening flaky.
         hook = SSHHook(
             ssh_conn_id="ssh_default",
             conn_timeout=30,
-            cmd_timeout=0.001,
+            cmd_timeout=0.5,
             banner_timeout=100,
         )
 
@@ -802,7 +827,7 @@ class TestSSHHook:
             with pytest.raises(AirflowException):
                 hook.exec_ssh_client_command(
                     client,
-                    "sleep 1",
+                    "sleep 5",
                     False,
                     None,
                 )

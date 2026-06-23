@@ -285,6 +285,10 @@ def get_provider_info():
         ],
         "triggers": [
             {
+                "integration-name": "Microsoft Azure Batch",
+                "python-modules": ["airflow.providers.microsoft.azure.triggers.batch"],
+            },
+            {
                 "integration-name": "Microsoft Azure Compute",
                 "python-modules": ["airflow.providers.microsoft.azure.triggers.compute"],
             },
@@ -347,6 +351,12 @@ def get_provider_info():
                 "target-integration-name": "Microsoft Azure Blob Storage",
                 "how-to-guide": "/docs/apache-airflow-providers-microsoft-azure/transfer/s3_to_wasb.rst",
                 "python-module": "airflow.providers.microsoft.azure.transfers.s3_to_wasb",
+            },
+            {
+                "source-integration-name": "Google Cloud Storage (GCS)",
+                "target-integration-name": "Microsoft Azure Blob Storage",
+                "how-to-guide": "/docs/apache-airflow-providers-microsoft-azure/transfer/gcs_to_wasb.rst",
+                "python-module": "airflow.providers.microsoft.azure.transfers.gcs_to_wasb",
             },
         ],
         "connection-types": [

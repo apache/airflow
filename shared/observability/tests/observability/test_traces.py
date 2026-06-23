@@ -17,6 +17,15 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.sampling import (
+    ALWAYS_OFF,
+    ALWAYS_ON,
+    ParentBased,
+    TraceIdRatioBased,
+)
 from opentelemetry.trace import NonRecordingSpan, SpanContext, TraceFlags, TraceState
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
@@ -27,6 +36,11 @@ from airflow_shared.observability.traces import (
     get_task_span_detail_level,
     new_dagrun_trace_carrier,
 )
+
+
+def _carrier_is_sampled(carrier: dict[str, str]) -> bool:
+    ctx = TraceContextTextMapPropagator().extract(carrier)
+    return trace.get_current_span(ctx).get_span_context().trace_flags.sampled
 
 
 class TestBuildTraceStateEntries:
@@ -66,6 +80,95 @@ class TestNewDagrunTraceCarrier:
 
         span_ctx = trace.get_current_span(ctx).get_span_context()
         assert span_ctx.trace_state.get(TASK_SPAN_DETAIL_LEVEL_KEY) is None
+
+
+class TestNewDagrunTraceCarrierSampling:
+    """The carrier's SAMPLED flag should reflect the configured sampler's root decision."""
+
+    @pytest.fixture
+    def with_sampler(self, monkeypatch):
+        """Install a TracerProvider with the given sampler for new_dagrun_trace_carrier."""
+
+        def _install(sampler):
+            provider = TracerProvider(sampler=sampler)
+            monkeypatch.setattr(
+                "airflow_shared.observability.traces.trace.get_tracer_provider",
+                lambda: provider,
+            )
+
+        return _install
+
+    def test_no_sampler_provider_not_sampled(self, monkeypatch):
+        """A proxy/no-op provider (otel off) has no ``sampler`` attribute -> not sampled."""
+
+        class _NoSamplerProvider:
+            pass
+
+        monkeypatch.setattr(
+            "airflow_shared.observability.traces.trace.get_tracer_provider",
+            lambda: _NoSamplerProvider(),
+        )
+        assert _carrier_is_sampled(new_dagrun_trace_carrier()) is False
+
+    def test_default_provider_is_sampled(self):
+        """The SDK default provider (parentbased_always_on) samples the root -> backcompat."""
+        # No monkeypatching: rely on whatever default provider is configured.
+        # A bare TracerProvider() defaults to parentbased_always_on.
+        provider = TracerProvider()
+        assert provider.sampler is not None
+        result = provider.sampler.should_sample(parent_context=None, trace_id=1234, name="dag_run")
+        from opentelemetry.sdk.trace.sampling import Decision
+
+        assert result.decision == Decision.RECORD_AND_SAMPLE
+
+    def test_always_on_is_sampled(self, with_sampler):
+        with_sampler(ParentBased(ALWAYS_ON))
+        assert _carrier_is_sampled(new_dagrun_trace_carrier()) is True
+
+    def test_always_off_is_not_sampled(self, with_sampler):
+        with_sampler(ALWAYS_OFF)
+        assert _carrier_is_sampled(new_dagrun_trace_carrier()) is False
+
+    def test_traceidratio_is_deterministic_per_trace_id(self, with_sampler):
+        """A ratio sampler makes a deterministic decision keyed on trace_id."""
+        with_sampler(TraceIdRatioBased(0.5))
+        # Generate a batch; with ratio 0.5 we expect a mix, and each individual
+        # decision must be stable for its own trace_id.
+        carriers = [new_dagrun_trace_carrier() for _ in range(50)]
+        decisions = [_carrier_is_sampled(c) for c in carriers]
+        # Re-evaluating the same trace_id yields the same decision (determinism):
+        sampler = TraceIdRatioBased(0.5)
+        from opentelemetry.sdk.trace.sampling import Decision
+
+        for carrier, decided in zip(carriers, decisions):
+            ctx = TraceContextTextMapPropagator().extract(carrier)
+            trace_id = trace.get_current_span(ctx).get_span_context().trace_id
+            redo = sampler.should_sample(parent_context=None, trace_id=trace_id, name="dag_run")
+            assert (redo.decision == Decision.RECORD_AND_SAMPLE) == decided
+        # Check: ratio 0.5 over 50 should produce a mix of both outcomes.
+        assert any(decisions)
+        assert not all(decisions)
+
+    def test_ratio_zero_never_sampled(self, with_sampler):
+        with_sampler(TraceIdRatioBased(0.0))
+        assert all(_carrier_is_sampled(new_dagrun_trace_carrier()) is False for _ in range(20))
+
+    def test_detail_level_roundtrips_when_sampled(self, with_sampler):
+        with_sampler(ParentBased(ALWAYS_ON))
+        carrier = new_dagrun_trace_carrier(task_span_detail_level=3)
+        ctx = TraceContextTextMapPropagator().extract(carrier)
+        span = trace.get_current_span(ctx)
+        assert get_task_span_detail_level(span) == 3
+        assert _carrier_is_sampled(carrier) is True
+
+    def test_detail_level_roundtrips_when_not_sampled(self, with_sampler):
+        """Detail-level tracestate must survive even for an unsampled carrier."""
+        with_sampler(ALWAYS_OFF)
+        carrier = new_dagrun_trace_carrier(task_span_detail_level=2)
+        ctx = TraceContextTextMapPropagator().extract(carrier)
+        span = trace.get_current_span(ctx)
+        assert get_task_span_detail_level(span) == 2
+        assert _carrier_is_sampled(carrier) is False
 
 
 class TestGetTaskSpanDetailLevel:

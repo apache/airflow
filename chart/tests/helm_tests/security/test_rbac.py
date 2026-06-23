@@ -77,6 +77,7 @@ SERVICE_ACCOUNT_NAME_TUPLES = [
     ("ServiceAccount", "test-rbac-cleanup"),
     ("ServiceAccount", "test-rbac-scheduler"),
     ("ServiceAccount", "test-rbac-worker"),
+    ("ServiceAccount", "test-rbac-worker-kubernetes"),
     ("ServiceAccount", "test-rbac-triggerer"),
     ("ServiceAccount", "test-rbac-pgbouncer"),
     ("ServiceAccount", "test-rbac-database-cleanup"),
@@ -105,6 +106,8 @@ CUSTOM_SERVICE_ACCOUNT_NAMES = (
     (CUSTOM_REDIS_NAME := "TestRedis"),
     (CUSTOM_POSTGRESQL_NAME := "TestPostgresql"),
 )
+
+CUSTOM_WORKER_KUBERNETES_NAME = "TestWorkerKubernetes"
 
 
 class TestRBAC:
@@ -147,10 +150,13 @@ class TestRBAC:
                 "scheduler": {"serviceAccount": {"create": False}},
                 "dagProcessor": {"serviceAccount": {"create": False}},
                 "apiServer": {"serviceAccount": {"create": False}},
-                "workers": {"serviceAccount": {"create": False}},
+                "workers": {
+                    "celery": {"serviceAccount": {"create": False}},
+                    "kubernetes": {"serviceAccount": {"create": False}},
+                },
                 "triggerer": {"serviceAccount": {"create": False}},
                 "statsd": {"serviceAccount": {"create": False}},
-                "otelCollector": {"serviceAccount": {"create": False}},
+                "otelCollector": {"tracesEnabled": True, "serviceAccount": {"create": False}},
                 "createUserJob": {"serviceAccount": {"create": False}},
                 "migrateDatabaseJob": {"serviceAccount": {"create": False}},
                 "flower": {"enabled": True, "serviceAccount": {"create": False}},
@@ -172,6 +178,7 @@ class TestRBAC:
                 "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
+                "otelCollector": {"tracesEnabled": True},
             },
         )
         list_of_kind_names_tuples = [
@@ -201,11 +208,14 @@ class TestRBAC:
                 "scheduler": {"serviceAccount": {"create": False}},
                 "dagProcessor": {"serviceAccount": {"create": False}},
                 "apiServer": {"serviceAccount": {"create": False}},
-                "workers": {"serviceAccount": {"create": False}},
+                "workers": {
+                    "celery": {"serviceAccount": {"create": False}},
+                    "kubernetes": {"serviceAccount": {"create": False}},
+                },
                 "triggerer": {"serviceAccount": {"create": False}},
                 "flower": {"enabled": True, "serviceAccount": {"create": False}},
                 "statsd": {"serviceAccount": {"create": False}},
-                "otelCollector": {"serviceAccount": {"create": False}},
+                "otelCollector": {"tracesEnabled": True, "serviceAccount": {"create": False}},
                 "redis": {"serviceAccount": {"create": False}},
                 "pgbouncer": {
                     "enabled": True,
@@ -233,6 +243,7 @@ class TestRBAC:
                 "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
+                "otelCollector": {"tracesEnabled": True},
             },
         )
         list_of_kind_names_tuples = [
@@ -284,11 +295,17 @@ class TestRBAC:
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},
                 "dagProcessor": {"serviceAccount": {"name": CUSTOM_DAG_PROCESSOR_NAME}},
                 "apiServer": {"serviceAccount": {"name": CUSTOM_API_SERVER_NAME}},
-                "workers": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
+                "workers": {
+                    "celery": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
+                    "kubernetes": {"serviceAccount": {"name": CUSTOM_WORKER_KUBERNETES_NAME}},
+                },
                 "triggerer": {"serviceAccount": {"name": CUSTOM_TRIGGERER_NAME}},
                 "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
                 "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
-                "otelCollector": {"serviceAccount": {"name": CUSTOM_OTEL_COLLECTOR_NAME}},
+                "otelCollector": {
+                    "tracesEnabled": True,
+                    "serviceAccount": {"name": CUSTOM_OTEL_COLLECTOR_NAME},
+                },
                 "redis": {"serviceAccount": {"name": CUSTOM_REDIS_NAME}},
                 "postgresql": {"serviceAccount": {"create": True, "name": CUSTOM_POSTGRESQL_NAME}},
                 "pgbouncer": {
@@ -306,7 +323,9 @@ class TestRBAC:
             for k8s_object in k8s_objects
             if k8s_object["kind"] == "ServiceAccount"
         ]
-        assert sorted(list_of_sa_names) == sorted(CUSTOM_SERVICE_ACCOUNT_NAMES)
+        assert sorted(list_of_sa_names) == sorted(
+            [*CUSTOM_SERVICE_ACCOUNT_NAMES, CUSTOM_WORKER_KUBERNETES_NAME]
+        )
 
     def test_service_account_custom_names_in_objects(self):
         k8s_objects = render_chart(
@@ -329,11 +348,14 @@ class TestRBAC:
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},
                 "dagProcessor": {"serviceAccount": {"name": CUSTOM_DAG_PROCESSOR_NAME}},
                 "apiServer": {"serviceAccount": {"name": CUSTOM_API_SERVER_NAME}},
-                "workers": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
+                "workers": {"celery": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}}},
                 "triggerer": {"serviceAccount": {"name": CUSTOM_TRIGGERER_NAME}},
                 "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
                 "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
-                "otelCollector": {"serviceAccount": {"name": CUSTOM_OTEL_COLLECTOR_NAME}},
+                "otelCollector": {
+                    "tracesEnabled": True,
+                    "serviceAccount": {"name": CUSTOM_OTEL_COLLECTOR_NAME},
+                },
                 "redis": {"serviceAccount": {"name": CUSTOM_REDIS_NAME}},
                 "postgresql": {"serviceAccount": {"name": CUSTOM_POSTGRESQL_NAME}},
                 "pgbouncer": {
@@ -346,6 +368,7 @@ class TestRBAC:
                 "migrateDatabaseJob": {"serviceAccount": {"name": CUSTOM_MIGRATE_DATABASE_JOBS_NAME}},
             },
         )
+
         list_of_sa_names_in_objects = []
         for k8s_object in k8s_objects:
             name = (

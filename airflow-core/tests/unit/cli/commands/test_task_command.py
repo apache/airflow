@@ -22,9 +22,8 @@ import io
 import json
 import logging
 import os
-import shutil
 from argparse import ArgumentParser
-from contextlib import contextmanager, redirect_stdout
+from contextlib import redirect_stdout
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -45,7 +44,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.session import create_session
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.config import conf_vars
@@ -70,13 +69,6 @@ def reset(dag_id):
         session.execute(delete(SerializedDagModel).where(SerializedDagModel.dag_id == dag_id))
 
 
-@contextmanager
-def move_back(old_path, new_path):
-    shutil.move(old_path, new_path)
-    yield
-    shutil.move(new_path, old_path)
-
-
 class TestCliTasks:
     run_id = "TEST_RUN_ID"
     dag_id = "example_python_operator"
@@ -87,7 +79,8 @@ class TestCliTasks:
 
     @classmethod
     def setup_class(cls):
-        parse_and_sync_to_db(os.devnull, include_examples=True)
+        with conf_vars({("core", "load_examples"): "True"}):
+            parse_and_sync_to_db(os.devnull)
         cls.parser = cli_parser.get_parser()
         clear_db_runs()
 
@@ -459,7 +452,20 @@ class TestCliTasks:
         )
 
     def test_task_states_for_dag_run(self):
-        dag2 = DagBag().dags["example_python_operator"]
+        # Build a minimal DAG inline rather than importing one from the
+        # standard provider's example_dags. The test only asserts CLI
+        # behaviour around a known dag_id/task_id pair, so reproducing the
+        # name and a single task is enough and keeps this core test
+        # decoupled from the standard provider's example DAGs.
+        from airflow.sdk import DAG
+
+        with DAG(
+            dag_id="example_python_operator",
+            schedule=None,
+            start_date=timezone.datetime(2021, 1, 1),
+        ) as dag2:
+            BashOperator(task_id="print_the_context", bash_command="echo hello")
+
         lazy_deserialized_dag2 = LazyDeserializedDAG.from_dag(dag2)
 
         SerializedDagModel.write_dag(lazy_deserialized_dag2, bundle_name="testing")
@@ -540,12 +546,6 @@ class TestCliTasks:
         output = stdout.getvalue()
         # no indentation before property name
         assert "# property: bash_command" in output.split("\n")
-
-
-def _set_state_and_try_num(ti, session):
-    ti.state = TaskInstanceState.QUEUED
-    ti.try_number += 1
-    session.commit()
 
 
 class TestLogsfromTaskRunCommand:

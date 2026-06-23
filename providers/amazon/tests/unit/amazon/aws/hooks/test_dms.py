@@ -382,6 +382,61 @@ class TestDmsHook:
         mock_conn.return_value.delete_replication_task.assert_called_with(**expected_call_params)
 
     @mock.patch.object(DmsHook, "get_conn")
+    def test_modify_replication_task(self, mock_conn):
+        mock_modify_response = {"ReplicationTask": {**MOCK_TASK_RESPONSE_DATA, "Status": "modifying"}}
+        mock_conn.return_value.modify_replication_task.return_value = mock_modify_response
+
+        result = self.dms.modify_replication_task(replication_task_arn=MOCK_TASK_ARN)
+
+        mock_conn.return_value.modify_replication_task.assert_called_with(
+            ReplicationTaskArn=MOCK_TASK_ARN,
+        )
+        assert result == mock_modify_response["ReplicationTask"]
+
+    @mock.patch.object(DmsHook, "get_conn")
+    def test_modify_replication_task_with_all_params(self, mock_conn):
+        mock_modify_response = {"ReplicationTask": {**MOCK_TASK_RESPONSE_DATA, "Status": "modifying"}}
+        mock_conn.return_value.modify_replication_task.return_value = mock_modify_response
+        cdc_start = datetime(2024, 1, 1)
+        table_mappings = {"rules": []}
+        settings = {"TargetMetadata": {}}
+
+        result = self.dms.modify_replication_task(
+            replication_task_arn=MOCK_TASK_ARN,
+            table_mappings=table_mappings,
+            migration_type="cdc",
+            replication_task_settings=settings,
+            cdc_start_time=cdc_start,
+            cdc_stop_position="2024-12-31:00:00:00",
+        )
+
+        mock_conn.return_value.modify_replication_task.assert_called_with(
+            ReplicationTaskArn=MOCK_TASK_ARN,
+            TableMappings=json.dumps(table_mappings),
+            MigrationType="cdc",
+            ReplicationTaskSettings=json.dumps(settings),
+            CdcStartTime=cdc_start,
+            CdcStopPosition="2024-12-31:00:00:00",
+        )
+        assert result == mock_modify_response["ReplicationTask"]
+
+    @mock.patch.object(DmsHook, "get_conn")
+    def test_modify_replication_task_with_cdc_start_position(self, mock_conn):
+        mock_modify_response = {"ReplicationTask": {**MOCK_TASK_RESPONSE_DATA, "Status": "modifying"}}
+        mock_conn.return_value.modify_replication_task.return_value = mock_modify_response
+
+        result = self.dms.modify_replication_task(
+            replication_task_arn=MOCK_TASK_ARN,
+            cdc_start_position="checkpoint:V1#34#00000132/0F000E48#0#0#*#0#0",
+        )
+
+        mock_conn.return_value.modify_replication_task.assert_called_with(
+            ReplicationTaskArn=MOCK_TASK_ARN,
+            CdcStartPosition="checkpoint:V1#34#00000132/0F000E48#0#0#*#0#0",
+        )
+        assert result == mock_modify_response["ReplicationTask"]
+
+    @mock.patch.object(DmsHook, "get_conn")
     def test_wait_for_task_status_with_unknown_target_status(self, mock_conn):
         with pytest.raises(TypeError, match="Status must be an instance of DmsTaskWaiterStatus"):
             self.dms.wait_for_task_status(MOCK_TASK_ARN, "unknown_status")

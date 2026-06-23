@@ -31,7 +31,7 @@ repos:
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: d77825acdc8ca194308680fa4f8385ae5bb61cb4  # frozen: v2.4.1
+    rev: 59dcae910a6ad4bbe8711275b854e3cd5c30f08b  # frozen: v2.5.0
     hooks:
       - id: doctoc
         name: Add TOC for Markdown and RST files
@@ -62,6 +62,9 @@ repos:
         exclude: |
           (?x)
           ^\.github/|
+          ^java-sdk/gradlew$|
+          ^java-sdk/gradlew\.bat$|
+          ^java-sdk/gradle/|
           ^scripts/ci/license-templates/
         args:
           - --comment-style
@@ -165,6 +168,7 @@ repos:
           (?x)
           ^\.github/.*\.md$|
           ^\.claude/|
+          ^\.agents/|
           ^(?:.*/)?AGENTS\.md$|
           ^(?:.*/)?CLAUDE\.md$|
           ^(?:.*/)?SKILL\.md$|
@@ -183,13 +187,14 @@ repos:
           (?x)
           ^\.github/.*\.md$|
           ^\.claude/|
+          ^\.agents/|
           ^(?:.*/)?AGENTS\.md$|
           ^(?:.*/)?CLAUDE\.md$|
           ^(?:.*/)?SKILL\.md$
         exclude:
           (?x)
           ^scripts/ci/license-templates/|
-          ^\.github/skills/setup-steward/
+          ^\.agents/skills/magpie-setup/
       - id: insert-license
         name: Add license for all other files
         args:
@@ -219,6 +224,13 @@ repos:
         entry: ./scripts/ci/prek/check_min_python_version.py
         language: python
         require_serial: true
+      - id: update-notice-year
+        name: Update NOTICE files to current year (manual)
+        entry: ./scripts/ci/prek/update_notice_year.py
+        stages: ['manual']
+        language: python
+        pass_filenames: false
+        require_serial: true
       - id: check-notice-files
         name: Check NOTICE files for current year and ASF references
         entry: ./scripts/ci/prek/check_notice_files.py
@@ -241,6 +253,44 @@ repos:
         entry: ./scripts/ci/prek/check_ci_workflows_in_sync.py
         language: python
         files: ^\.github/workflows/ci-(arm|amd)\.yml$
+        pass_filenames: false
+        require_serial: true
+      - id: check-java-sdk-version-in-sync
+        name: Check Java SDK JDK version is consistent across build files
+        entry: ./scripts/ci/prek/check_java_sdk_version_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^\.github/workflows/ci-(arm|amd)\.yml$|
+          ^\.github/workflows/codeql-analysis\.yml$|
+          ^java-sdk/buildSrc/src/main/kotlin/airflow-jvm-conventions\.gradle\.kts$|
+          ^scripts/docker/install_os_dependencies\.sh$|
+          ^Dockerfile$|
+          ^Dockerfile\.ci$
+        pass_filenames: false
+        require_serial: true
+      - id: check-partition-mapper-defaults-in-sync
+        name: Check partition-mapper core/SDK sync (FanOutMapper table + SegmentWindow/FixedKeyMapper)
+        entry: ./scripts/ci/prek/check_partition_mapper_defaults_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/partition_mappers/temporal\.py$|
+          ^airflow-core/src/airflow/partition_mappers/window\.py$|
+          ^airflow-core/src/airflow/partition_mappers/fixed_key\.py$|
+          ^task-sdk/src/airflow/sdk/definitions/partition_mappers/temporal\.py$|
+          ^task-sdk/src/airflow/sdk/definitions/partition_mappers/window\.py$|
+          ^task-sdk/src/airflow/sdk/definitions/partition_mappers/fixed_key\.py$
+        pass_filenames: false
+        require_serial: true
+      - id: check-window-in-sync
+        name: Check Window definitions stay in sync (core/SDK)
+        entry: ./scripts/ci/prek/check_window_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/partition_mappers/window\.py$|
+          ^task-sdk/src/airflow/sdk/definitions/partition_mappers/window\.py$
         pass_filenames: false
         require_serial: true
       - id: sync-uv-min-version-markers
@@ -296,7 +346,7 @@ repos:
          - 'black==26.1.0'
         exclude: >
           (?x)
-          ^\.github/skills/aip-user-stories
+          ^\.agents/skills/aip-user-stories
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
     hooks:
@@ -355,6 +405,7 @@ repos:
           ^.*init_git_sync\.template\.yaml$|
           ^chart/(?:templates|files)/.*\.yaml$|
           ^chart/tests/chart_utils/keda.sh_scaledobjects\.yaml$|
+          ^chart/tests/chart_utils/gateway.networking.k8s.io_httproutes\.yaml$|
           .*/v1.*\.yaml$|
           ^.*openapi.*\.yaml$|
           ^\.pre-commit-config\.yaml$|
@@ -393,8 +444,8 @@ repos:
           ^.*pnpm-lock\.yaml$|
           .*/dist/.*|
           ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
-          ^\.github/skills/airflow-translations/|
-          ^\.github/skills/setup-steward/|
+          ^\.agents/skills/airflow-translations/|
+          ^\.agents/skills/magpie-setup/|
           ^scripts/docker/keys/.*\.asc$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
@@ -410,7 +461,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: 1662ec573c55eb9648db2797a66f74bcc6216d62  # frozen: nightly
+    rev: 467197f13e30c16befe54b8f83c17bf91952a741  # frozen: nightly
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script
@@ -438,8 +489,8 @@ repos:
           ^.*/node_modules/|
           ^\.build/|
           ^generated/|
-          ^\.apache-steward-overrides/|
-          ^\.github/skills/setup-steward/
+          ^\.apache-magpie-overrides/|
+          ^\.agents/skills/magpie-setup/
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimize the number of passes that must happen to apply some of the changes
@@ -503,12 +554,6 @@ repos:
         language: python
         pass_filenames: false
         files: ^dev/registry/registry_tools/types\.py$|^registry/src/_data/types\.json$
-      - id: check-task-instance-dto-sync
-        name: Check BaseTaskInstanceDTO duplicate is in sync between core and task-sdk
-        entry: ./scripts/ci/prek/check_task_instance_dto_sync.py
-        language: python
-        pass_filenames: false
-        files: ^airflow-core/src/airflow/executors/workloads/task\.py$|^task-sdk/src/airflow/sdk/execution_time/workloads/task\.py$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -517,7 +562,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.13']
+        additional_dependencies: ['ruff==0.15.17']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -677,9 +722,14 @@ repos:
           ^providers/common/ai/src/airflow/providers/common/ai/plugins/www/pnpm-lock\.yaml$|
           ^airflow-core/src/airflow/ui/public/i18n/locales/de/README\.md$|
           ^airflow-core/src/airflow/ui/src/i18n/config\.ts$|
+          ^\.agents/skills/airflow-translations/|
+          ^\.agents/skills/magpie-setup/|
           ^airflow-core/src/airflow/utils/db\.py$|
           ^airflow-core/src/airflow/utils/trigger_rule\.py$|
           ^airflow-core/tests/|
+          ^java-sdk/gradlew$|
+          ^java-sdk/gradlew\.bat$|
+          ^java-sdk/gradle|
           ^task-sdk/tests/|
           ^.*changelog\.(rst|txt)$|
           ^.*CHANGELOG\.(rst|txt)$|
@@ -712,6 +762,7 @@ repos:
           ^providers/apache/kafka/docs/connections/kafka\.rst$|
           ^providers/apache/spark/docs/decorators/pyspark\.rst$|
           ^providers/apache/spark/docs/connections/spark-submit.rst$|
+          ^providers/apache/spark/docs/operators\.rst$|
           ^providers/apache/spark/src/airflow/providers/apache/spark/decorators/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/hooks/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/operators/|
@@ -880,8 +931,19 @@ repos:
         files: >
           (?x)
           ^airflow-core/src/airflow/ui/public/i18n/locales/en/.*\.json$|
-          ^\.github/skills/airflow-translations/SKILL\.md$
+          ^\.agents/skills/airflow-translations/SKILL\.md$
         pass_filenames: false
+      - id: generate-agent-skills
+        name: Sync AGENTS.md commands from contributing docs
+        entry: ./scripts/ci/prek/generate_agent_skills.py
+        language: python
+        files: >
+          (?x)
+          ^contributing-docs/.*\.rst$|
+          ^AGENTS\.md$|
+          ^scripts/ci/prek/generate_agent_skills\.py$
+        pass_filenames: false
+        additional_dependencies: ['pyyaml', 'rich>=13.6.0']
       - id: update-pyproject-toml
         name: Update Airflow's meta-package pyproject.toml
         language: python
@@ -895,7 +957,7 @@ repos:
         pass_filenames: false
         require_serial: true
       - id: check-excluded-provider-markers
-        name: Check excluded-provider python_version markers in pyproject.toml
+        name: Check excluded-provider python_version and platform markers in pyproject.toml
         language: python
         entry: ./scripts/ci/prek/check_excluded_provider_markers.py
         files: >
@@ -931,6 +993,17 @@ repos:
         language: python
         files: ^README\.md$
         pass_filenames: false
+      - id: sync-provider-readme
+        name: Sync provider README.rst Requirements table with pyproject.toml
+        description: |
+          Provider README.rst files are regenerated from pyproject.toml at distribution-build
+          time. Between releases, dependency bumps in pyproject.toml do not propagate to the
+          committed README, leading to drift. This hook re-renders the Requirements table from
+          the current pyproject.toml whenever the latter changes.
+        entry: ./scripts/ci/prek/sync_provider_readme.py
+        language: python
+        files: ^providers/.*/pyproject\.toml$
+        pass_filenames: true
       - id: lint-markdown
         name: Run markdownlint
         description: Checks the style of Markdown files.
@@ -940,8 +1013,8 @@ repos:
         files: \.(md|mdown|markdown)$
         exclude: |
           (?x)
-          ^\.apache-steward-overrides/|
-          ^\.github/skills/setup-steward/
+          ^\.apache-magpie-overrides/|
+          ^\.agents/skills/magpie-setup/
         additional_dependencies: ['markdownlint-cli@0.38.0']
       - id: lint-json-schema
         name: Lint JSON Schema files
@@ -1044,8 +1117,7 @@ repos:
           (?x)
           ^dev/breeze/.*$|
           ^\.pre-commit-config\.yaml$|
-          ^scripts/ci/prek/breeze_cmd_line\.py$|
-          ^generated/provider_dependencies\.json$
+          ^scripts/ci/prek/breeze_cmd_line\.py$$
         require_serial: true
         pass_filenames: false
       - id: check-example-dags-urls
@@ -1071,6 +1143,12 @@ repos:
         language: python
         pass_filenames: true
         files: ^(airflow-core|airflow-ctl|task-sdk|providers|shared)/.*\.py$
+      - id: check-no-new-provide-session-positional
+        name: Check that no new @provide_session functions declare `session` positionally
+        entry: ./scripts/ci/prek/check_provide_session_kwargs.py
+        language: python
+        pass_filenames: true
+        files: ^(airflow-core|providers)/.*\.py$|^scripts/ci/prek/known_provide_session_positional\.txt$|^scripts/ci/prek/check_provide_session_kwargs\.py$
       - id: check-no-new-airflow-core-utils-modules
         name: Check that no new modules are added under airflow-core/src/airflow/utils
         entry: ./scripts/ci/prek/check_no_new_airflow_core_utils_modules.py
@@ -1194,3 +1272,17 @@ repos:
         language: python
         files: .*test.*\.py$
         pass_filenames: true
+      - id: ktlint
+        name: Run ktlint format
+        description: "Use ktlint (via Gradle) to format Kotlin and Java files"
+        entry: ./java-sdk/gradlew -p ./java-sdk ktlintFormat
+        language: system
+        pass_filenames: false
+        files: ^java-sdk/.*$
+      - id: spotless
+        name: Run spotless apply
+        description: "Use spotless (via Gradle) to format Java files"
+        entry: ./java-sdk/gradlew -p ./java-sdk spotlessApply
+        language: system
+        pass_filenames: false
+        files: ^java-sdk/.*\.java$

@@ -18,9 +18,13 @@
 
 from __future__ import annotations
 
+import os
+import signal
 import sys
 import time
 from importlib import import_module
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Protocol
 from uuid import UUID
 
@@ -28,11 +32,19 @@ import attrs
 import structlog
 from pydantic import Field, TypeAdapter
 
-from airflow.sdk._shared.module_loading import accepts_context, accepts_keyword_args
+from airflow.sdk._shared.module_loading import (
+    UNUSUAL_MODULE_PREFIX,
+    accepts_context,
+    accepts_keyword_args,
+    load_mangled_dag_module,
+)
+from airflow.sdk._shared.template_rendering import render_callback_kwargs
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    DagRunResult,
     ErrorResponse,
     GetConnection,
+    GetDagRun,
     GetVariable,
     GetVariableKeys,
     MaskSecret,
@@ -50,6 +62,7 @@ from airflow.sdk.execution_time.supervisor import (
     _ensure_client,
     _make_process_nondumpable,
 )
+from airflow.utils.file import get_unique_dag_module_name
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
@@ -65,16 +78,35 @@ if TYPE_CHECKING:
         version: str | None
 
 
-__all__ = ["CallbackSubprocess", "supervise_callback"]
+__all__ = ["CallbackSubprocess", "CallbackContextFetchError", "supervise_callback"]
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="callback_supervisor")
+
+# Distinct subprocess exit code for "could not fetch the DagRun context" — a transient,
+# retryable failure (API blip, network partition, token expiry), as opposed to a genuine
+# callback failure (any other non-zero exit). The supervisor maps this code to
+# ``CallbackContextFetchError`` so the executor can requeue rather than terminally FAIL,
+# matching the triggerer path (which re-evaluates on the next loop). 75 is the conventional
+# EX_TEMPFAIL from sysexits.h ("temporary failure; user is invited to retry").
+CALLBACK_CONTEXT_FETCH_EXIT_CODE = 75
+
+
+class CallbackContextFetchError(RuntimeError):
+    """
+    Raised when a deadline callback subprocess could not fetch its DagRun context.
+
+    Distinct from a generic callback failure so the executor can treat it as transient and
+    requeue the callback (PENDING) instead of marking it terminally FAILED — keeping the
+    executor path's transient-failure behavior in lockstep with the triggerer path.
+    """
 
 
 # The set of messages that a callback subprocess can send to the supervisor.
 # This is a minimal subset of ToSupervisor: read-only access to Connections
-# and Variables, plus MaskSecret for the secrets masker.
+# and Variables, plus MaskSecret for the secrets masker, plus GetDagRun for
+# building context from DagRun identifiers.
 CallbackToSupervisor = Annotated[
-    GetConnection | GetVariable | GetVariableKeys | MaskSecret,
+    GetConnection | GetDagRun | GetVariable | GetVariableKeys | MaskSecret,
     Field(discriminator="type"),
 ]
 
@@ -82,6 +114,8 @@ CallbackToSupervisor = Annotated[
 def execute_callback(
     callback_path: str,
     callback_kwargs: dict,
+    dag_rel_path: os.PathLike[str],
+    bundle_path: os.PathLike[str] | None,
     log,
 ) -> tuple[bool, str | None]:
     """
@@ -100,6 +134,8 @@ def execute_callback(
 
     :param callback_path: Dot-separated import path to the callback function or class.
     :param callback_kwargs: Keyword arguments to pass to the callback.
+    :param dag_rel_path: Relative path to the DAG file.
+    :param bundle_path: Path to the bundle file.
     :param log: Logger instance for recording execution.
     :return: Tuple of (success: bool, error_message: str | None)
     """
@@ -110,7 +146,26 @@ def execute_callback(
         # Import the callback callable
         # Expected format: "module.path.to.function_or_class"
         module_path, function_name = callback_path.rsplit(".", 1)
-        module = import_module(module_path)
+        # If the callback is defined within the Dag module, the module path is modified during DAG serialization.
+        # Attempt to import it using the path of the Dag file.
+        if module_path.startswith(UNUSUAL_MODULE_PREFIX):
+            if module_path in sys.modules:
+                module = sys.modules[module_path]
+            elif not dag_rel_path:
+                return False, "Dag relative path not found."
+            elif not bundle_path:
+                return False, "Bundle path not found."
+            else:
+                abs_path = Path(bundle_path) / Path(dag_rel_path)
+                spec = spec_from_file_location(module_path, abs_path)
+                if spec is None:
+                    return False, f"Could not create module spec for {module_path}"
+                if spec.loader is None:
+                    return False, f"Module spec has no loader for {module_path}"
+                module = module_from_spec(spec)
+                spec.loader.exec_module(module)
+        else:
+            module = import_module(module_path)
         callback_callable = getattr(module, function_name)
 
         log.debug("Executing callback", callback_path=callback_path, callback_kwargs=callback_kwargs)
@@ -139,7 +194,14 @@ def execute_callback(
         log.info("Callback executed successfully", callback_path=callback_path)
         return True, None
 
-    except Exception as e:
+    except BaseException as e:
+        # Catch BaseException, not just Exception: a callback that raises SystemExit or
+        # KeyboardInterrupt (directly, or indirectly via a library that calls sys.exit())
+        # would otherwise propagate out of the forked _target and terminate the child with
+        # SystemExit's own code. A SystemExit(0) in particular makes the child exit 0, which
+        # supervise_callback reads as SUCCESS — silently recording an aborted callback as
+        # completed. Treating any BaseException as a failure keeps the success state honest.
+        # (Mirrors the BaseException handling on the triggerer/async path.)
         error_msg = f"Callback execution failed: {type(e).__name__}: {str(e)}"
         log.exception(
             "Callback execution failed",
@@ -174,6 +236,11 @@ class CallbackSubprocess(WatchedSubprocess):
         id: str,
         callback_path: str,
         callback_kwargs: dict,
+        dag_rel_path: os.PathLike[str] | str = "",
+        dag_id: str | None = None,
+        run_id: str | None = None,
+        deadline_id: str | None = None,
+        deadline_time: str | None = None,
         bundle_info: _BundleInfoLike | None = None,
         client: Client,
         logger: FilteringBoundLogger | None = None,
@@ -190,6 +257,7 @@ class CallbackSubprocess(WatchedSubprocess):
 
             _log = structlog.get_logger(logger_name="callback_runner")
             task_runner.SUPERVISOR_COMMS = CommsDecoder[ToTask, CallbackToSupervisor](log=_log)
+            bundle_path = None
 
             # If bundle info is provided, initialize the bundle and ensure its path is importable.
             # This is needed for user-defined callbacks that live inside a DAG bundle rather than
@@ -208,6 +276,12 @@ class CallbackSubprocess(WatchedSubprocess):
                         _log.debug(
                             "Added bundle path to sys.path", bundle_name=bundle_info.name, path=bundle_path
                         )
+                    # DAG processor loads bundle files with a mangled module name
+                    # (unusual_prefix_{hash}_{stem}) to avoid collisions. The callback path
+                    # was serialized using that mangled name. Register the module under that
+                    # name so import_string can find it in the subprocess.
+                    if callback_path and callback_path.startswith(UNUSUAL_MODULE_PREFIX):
+                        _register_unusual_prefix_module(callback_path, bundle.path, _log)
                 except Exception:
                     _log.warning(
                         "Failed to initialize DAG bundle for callback",
@@ -215,7 +289,37 @@ class CallbackSubprocess(WatchedSubprocess):
                         exc_info=True,
                     )
 
-            success, error_msg = execute_callback(callback_path, callback_kwargs, _log)
+            # When DagRun identifiers are provided, fetch the DagRun via SUPERVISOR_COMMS
+            # and build a context dict to pass to the callback function.
+            effective_kwargs = dict(callback_kwargs)
+            if dag_id and run_id:
+                deadline = (
+                    {"id": deadline_id, "deadline_time": deadline_time}
+                    if (deadline_id or deadline_time)
+                    else None
+                )
+                context = _fetch_and_build_context(
+                    task_runner.SUPERVISOR_COMMS, dag_id, run_id, _log, deadline=deadline
+                )
+                if context is None:
+                    _log.error(
+                        "Cannot fetch DagRun context for callback — exiting with the transient "
+                        "context-fetch code so the executor requeues rather than failing terminally "
+                        "(a transient API/network blip should not permanently drop the deadline callback)",
+                        dag_id=dag_id,
+                        run_id=run_id,
+                    )
+                    sys.exit(CALLBACK_CONTEXT_FETCH_EXIT_CODE)
+                effective_kwargs["context"] = context
+                effective_kwargs = render_callback_kwargs(effective_kwargs, context)
+
+            success, error_msg = execute_callback(
+                callback_path=callback_path,
+                callback_kwargs=effective_kwargs,
+                dag_rel_path=dag_rel_path,
+                bundle_path=bundle_path,
+                log=_log,
+            )
             if not success:
                 _log.error("Callback failed", error=error_msg)
                 sys.exit(1)
@@ -232,8 +336,8 @@ class CallbackSubprocess(WatchedSubprocess):
         """
         Wait for the callback subprocess to complete.
 
-        Mirrors the structure of ActivitySubprocess.wait() but without heartbeating,
-        task API state management, or log uploading.
+        Mirrors the structure of ActivitySubprocess.wait() but without heartbeating
+        or task API state management.
         """
         if self._exit_code is not None:
             return self._exit_code
@@ -244,7 +348,28 @@ class CallbackSubprocess(WatchedSubprocess):
             self.selector.close()
 
         self._exit_code = self._exit_code if self._exit_code is not None else 1
+
+        self._upload_logs()
+
         return self._exit_code
+
+    def _get_callback_execution_timeout(self) -> int:
+        """Read the callback_execution_timeout config value."""
+        from airflow.sdk.configuration import conf
+
+        return conf.getint("callbacks", "callback_execution_timeout", fallback=0)
+
+    def _upload_logs(self):
+        from airflow.sdk.execution_time.supervisor import _remote_logging_conn
+        from airflow.sdk.log import upload_to_remote
+
+        try:
+            with _remote_logging_conn(self.client):
+                upload_to_remote(self.process_log)
+        except Exception:
+            log.exception(
+                "Failed to upload callback logs to remote storage", callback_id=self.id, pid=self.pid
+            )
 
     def _monitor_subprocess(self):
         """
@@ -252,9 +377,28 @@ class CallbackSubprocess(WatchedSubprocess):
 
         A simplified version of ActivitySubprocess._monitor_subprocess() without heartbeating
         or timeout handling, just process output monitoring and stuck-socket cleanup.
+
+        If ``[callbacks] callback_execution_timeout`` is set to a positive value, the subprocess
+        is killed after that many seconds.
         """
+        timeout = self._get_callback_execution_timeout()
+        start_monotonic = time.monotonic()
+
         while self._exit_code is None or self._open_sockets:
             self._service_subprocess(max_wait_time=MIN_HEARTBEAT_INTERVAL)
+
+            # Enforce execution timeout if configured.
+            if timeout > 0 and self._exit_code is None:
+                elapsed = time.monotonic() - start_monotonic
+                if elapsed > timeout:
+                    log.warning(
+                        "Callback execution timeout exceeded; terminating subprocess",
+                        pid=self.pid,
+                        timeout_seconds=timeout,
+                        elapsed_seconds=elapsed,
+                    )
+                    self.kill(signal.SIGTERM, escalation_delay=5.0, force=True)
+                    break
 
             # If the process has exited but sockets remain open, apply a timeout
             # to prevent hanging indefinitely on stuck sockets.
@@ -284,6 +428,9 @@ class CallbackSubprocess(WatchedSubprocess):
 
         if isinstance(msg, GetConnection):
             resp, dump_opts = handle_get_connection(self.client, msg)
+        elif isinstance(msg, GetDagRun):
+            dr_resp = self.client.dag_runs.get_detail(msg.dag_id, msg.run_id)
+            resp = DagRunResult.from_api_response(dr_resp)
         elif isinstance(msg, GetVariable):
             resp, dump_opts = handle_get_variable(self.client, msg)
         elif isinstance(msg, GetVariableKeys):
@@ -305,17 +452,77 @@ class CallbackSubprocess(WatchedSubprocess):
         self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
 
 
-def _configure_logging(log_path: str) -> tuple[FilteringBoundLogger, BinaryIO]:
+def _register_unusual_prefix_module(callback_path: str, bundle_path, _log) -> None:
+    """
+    Register a DAG-bundle callback module under its unusual_prefix_{hash}_{stem} name.
+
+    Resolves the stem from the mangled module name, walks the bundle tree to find
+    the file (handling nested directories), then delegates to load_mangled_dag_module.
+    """
+    mod_name = callback_path.split(".")[0]
+    if mod_name in sys.modules:
+        return
+
+    # Validate this is a mangled name: unusual_prefix_{hex40}_{stem}
+    if len(mod_name.split("_", 3)) < 4:
+        return
+
+    for file_path in Path(bundle_path).rglob("*.py"):
+        if get_unique_dag_module_name(str(file_path)) == mod_name:
+            load_mangled_dag_module(mod_name, str(file_path))
+            return
+    _log.debug("Could not find matching file for module %s in bundle", mod_name)
+
+
+def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLogger, BinaryIO]:
     """Configure file-based logging for the callback subprocess."""
+    from airflow.sdk.execution_time.supervisor import _remote_logging_conn
     from airflow.sdk.log import init_log_file, logging_processors
 
     log_file = init_log_file(log_path)
     log_file_descriptor: BinaryIO = log_file.open("ab")
     underlying_logger = structlog.BytesLogger(log_file_descriptor)
-    processors = logging_processors(json_output=True)
+    with _remote_logging_conn(client):
+        processors = logging_processors(json_output=True)
     logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="callback").bind()
 
     return logger, log_file_descriptor
+
+
+def _fetch_and_build_context(
+    comms,
+    dag_id: str,
+    run_id: str,
+    _log,
+    deadline: dict | None = None,
+) -> dict | None:
+    """
+    Fetch DagRun via SUPERVISOR_COMMS and build a standard context dict.
+
+    Called inside the forked subprocess when DagRun identifiers are available.
+    Returns a context dict with dag_run, run_id, logical_date, ds, ts, etc.
+    Task-specific fields are absent since callbacks are not tied to a task.
+    """
+    try:
+        from airflow.sdk.execution_time.context import build_context_from_dag_run
+
+        response = comms.send(GetDagRun(dag_id=dag_id, run_id=run_id))
+        if not isinstance(response, DagRunResult):
+            _log.warning(
+                "Unexpected response when fetching DagRun for callback context",
+                response_type=type(response).__name__,
+            )
+            return None
+
+        return build_context_from_dag_run(response, deadline=deadline)
+    except Exception:
+        _log.warning(
+            "Failed to fetch DagRun for callback context",
+            dag_id=dag_id,
+            run_id=run_id,
+            exc_info=True,
+        )
+        return None
 
 
 def supervise_callback(
@@ -323,6 +530,11 @@ def supervise_callback(
     id: str,
     callback_path: str,
     callback_kwargs: dict,
+    dag_rel_path: os.PathLike[str] | str = "",
+    dag_id: str | None = None,
+    run_id: str | None = None,
+    deadline_id: str | None = None,
+    deadline_time: str | None = None,
     log_path: str | None = None,
     bundle_info: _BundleInfoLike | None = None,
     token: str = "",
@@ -335,6 +547,11 @@ def supervise_callback(
     :param id: Unique identifier for this callback execution.
     :param callback_path: Dot-separated import path to the callback function or class.
     :param callback_kwargs: Keyword arguments to pass to the callback.
+    :param dag_rel_path: Relative path to the DAG file.
+    :param dag_id: DAG ID for fetching DagRun context (optional, for deadline callbacks).
+    :param run_id: Run ID for fetching DagRun context (optional, for deadline callbacks).
+    :param deadline_id: Deadline ID to include in context["deadline"] (optional).
+    :param deadline_time: ISO deadline time to include in context["deadline"] (optional).
     :param log_path: Path to write logs, if required.
     :param bundle_info: When provided, the bundle's path is added to sys.path so callbacks in Dag Bundles are importable.
     :param token: Authentication token for the API client.
@@ -348,19 +565,23 @@ def supervise_callback(
 
     logger: FilteringBoundLogger
     log_file_descriptor: BinaryIO | None = None
-    if log_path:
-        logger, log_file_descriptor = _configure_logging(log_path)
-    else:
-        # When no log file is requested, still use a callback-specific logger
-        # so logs are clearly separated from task logs.
-        logger = structlog.get_logger(logger_name="callback").bind()
 
     with _ensure_client(server, token, client=client) as client:
+        if log_path:
+            logger, log_file_descriptor = _configure_logging(log_path, client)
+        else:
+            logger = structlog.get_logger(logger_name="callback").bind()
+
         try:
             process = CallbackSubprocess.start(
                 id=id,
                 callback_path=callback_path,
                 callback_kwargs=callback_kwargs,
+                dag_rel_path=dag_rel_path,
+                dag_id=dag_id,
+                run_id=run_id,
+                deadline_id=deadline_id,
+                deadline_time=deadline_time,
                 bundle_info=bundle_info,
                 client=client,
                 logger=logger,
@@ -376,6 +597,13 @@ def supervise_callback(
                 exit_code=exit_code,
                 duration=end - start,
             )
+            if exit_code == CALLBACK_CONTEXT_FETCH_EXIT_CODE:
+                # Transient: the subprocess could not fetch the DagRun context. Signal the
+                # executor to requeue (not terminally fail) so a transient blip retries, mirroring
+                # the triggerer path's re-evaluate-next-loop behavior.
+                raise CallbackContextFetchError(
+                    f"Callback subprocess could not fetch DagRun context (exit code {exit_code})"
+                )
             if exit_code != 0:
                 raise RuntimeError(f"Callback subprocess exited with code {exit_code}")
             return exit_code

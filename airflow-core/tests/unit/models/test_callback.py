@@ -37,6 +37,7 @@ from airflow.triggers.base import TriggerEvent
 from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY
 from airflow.utils.session import create_session
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_callbacks
 
 pytestmark = [pytest.mark.db_test]
@@ -113,7 +114,6 @@ class TestCallback:
             "result": "0",
             "path": TEST_ASYNC_CALLBACK.path,
             "kwargs": '{"email": "test@example.com"}',
-            "dag_id": TEST_DAG_ID,
         }
 
     def test_get_metric_info_dict_values_are_stringified(self):
@@ -142,6 +142,21 @@ class TestCallback:
         # insertion order collapse to one metric series (no needless cardinality split).
         assert metric_info["tags"]["result"] == '{"code": 0, "output": [1, 2]}'
 
+    @pytest.mark.parametrize(
+        ("team_name", "expect_tag"),
+        [
+            pytest.param("team_alpha", True, id="with_team"),
+            pytest.param(None, False, id="without_team"),
+        ],
+    )
+    def test_get_metric_info_includes_team_name(self, team_name, expect_tag):
+        callback = TriggererCallback(TEST_ASYNC_CALLBACK, prefix="deadline_alerts", dag_id=TEST_DAG_ID)
+        metric_info = callback.get_metric_info(CallbackState.SUCCESS, "0", team_name=team_name)
+        if expect_tag:
+            assert metric_info["tags"]["team_name"] == team_name
+        else:
+            assert "team_name" not in metric_info["tags"]
+
 
 class TestTriggererCallback:
     def test_polymorphic_serde(self, session):
@@ -165,11 +180,66 @@ class TestTriggererCallback:
         assert callback.state == CallbackState.SCHEDULED
         assert callback.trigger is None
 
-        callback.queue()
+        callback.queue(session=session)
         assert isinstance(callback.trigger, Trigger)
         assert callback.trigger.kwargs["callback_path"] == TEST_ASYNC_CALLBACK.path
         assert callback.trigger.kwargs["callback_kwargs"] == TEST_ASYNC_CALLBACK.kwargs
         assert callback.state == CallbackState.QUEUED
+
+    @staticmethod
+    def _queue_callback(session, *, has_bundle, has_team):
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.models.team import Team
+
+        bundle = session.get(DagBundleModel, "testing")
+        bundle.teams = [session.get(Team, "testing")] if has_team else []
+        session.flush()
+
+        callback = TriggererCallback(TEST_ASYNC_CALLBACK)
+        callback.bundle_name = "testing" if has_bundle else None
+        callback.queue(session=session)
+        return callback
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @pytest.mark.parametrize(
+        ("has_bundle", "has_team", "expected_team_name"),
+        [
+            pytest.param(True, True, "testing", id="bundle-mapped-to-team"),
+            pytest.param(True, False, None, id="bundle-without-team"),
+            pytest.param(False, False, None, id="no-bundle"),
+        ],
+    )
+    def test_queue_populates_trigger_team_name(
+        self, session, testing_dag_bundle, testing_team, has_bundle, has_team, expected_team_name
+    ):
+        callback = self._queue_callback(session, has_bundle=has_bundle, has_team=has_team)
+        assert callback.trigger.team_name == expected_team_name
+
+    @conf_vars({("core", "multi_team"): "False"})
+    def test_queue_skips_trigger_team_name_when_multi_team_disabled(
+        self, session, testing_dag_bundle, testing_team
+    ):
+        callback = self._queue_callback(session, has_bundle=True, has_team=True)
+        assert callback.trigger.team_name is None
+
+    def test_queue_with_dag_id_and_no_bundle_does_not_crash(self, session):
+        """When dag_id is in data but bundle_name is absent, queue() should not crash.
+
+        This verifies the session=session fix on DagModel.get_team_name (Fix 4).
+        """
+        callback = TriggererCallback(TEST_ASYNC_CALLBACK)
+        callback.data["dag_id"] = "nonexistent_dag"
+        callback.data["run_id"] = "manual__2024-01-01"
+        callback.bundle_name = None  # no bundle — falls into the elif branch
+
+        # Should not raise — previously could fail with session-not-provided error
+        callback.queue(session=session)
+
+        # Callback was queued successfully
+        assert callback.state == CallbackState.QUEUED
+        assert callback.trigger is not None
+        # team_name is None because the dag doesn't exist
+        assert callback.trigger.team_name is None
 
     @pytest.mark.parametrize(
         ("event", "terminal_state"),
@@ -199,7 +269,7 @@ class TestTriggererCallback:
     )
     def test_handle_event(self, session, event, terminal_state):
         callback = TriggererCallback(TEST_ASYNC_CALLBACK)
-        callback.queue()
+        callback.queue(session=session)
         callback.handle_event(event, session)
 
         status = event.payload[PAYLOAD_STATUS_KEY]
@@ -211,6 +281,138 @@ class TestTriggererCallback:
         if terminal_state:
             assert callback.trigger is None
             assert callback.output == event.payload[PAYLOAD_BODY_KEY]
+
+    @pytest.mark.parametrize(
+        ("multi_team", "team_name", "expect_tag"),
+        [
+            pytest.param("true", "team_alpha", True, id="with_team"),
+            pytest.param("false", None, False, id="without_team"),
+        ],
+    )
+    @patch("airflow.models.callback.stats.incr")
+    def test_handle_event_emits_team_name(self, mock_incr, multi_team, team_name, expect_tag, session):
+        """On a terminal event, callback_{status} carries team_name resolved from the bundle."""
+        callback = TriggererCallback(TEST_ASYNC_CALLBACK, dag_id=TEST_DAG_ID)
+        callback.bundle_name = "test_bundle"
+        event = TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.SUCCESS, PAYLOAD_BODY_KEY: "0"})
+
+        with (
+            conf_vars({("core", "multi_team"): multi_team}),
+            patch(
+                "airflow.models.callback.DagBundleModel.get_team_name", return_value=team_name
+            ) as mock_get_team_name,
+        ):
+            callback.handle_event(event, session)
+
+        mock_incr.assert_called_once()
+        _, kwargs = mock_incr.call_args
+        if expect_tag:
+            assert kwargs["tags"]["team_name"] == team_name
+        else:
+            mock_get_team_name.assert_not_called()
+            assert "team_name" not in kwargs["tags"]
+
+    @pytest.mark.parametrize(
+        ("body", "expected_output"),
+        [
+            pytest.param({"rows": 5, "ok": True}, '{"ok": true, "rows": 5}', id="dict_body"),
+            pytest.param([1, 2, 3], "[1, 2, 3]", id="list_body"),
+            pytest.param(42, "42", id="int_body"),
+            pytest.param("already_a_string", "already_a_string", id="str_body_passthrough"),
+            pytest.param(None, None, id="none_body"),
+        ],
+    )
+    def test_handle_event_coerces_non_string_output(self, session, body, expected_output):
+        """A SUCCESS body is the callback's raw return value and can be any JSON-serializable
+        object. ``output`` is a Text column, so a non-string body must be JSON-coerced before
+        persisting — otherwise the DB driver raises on commit and crashes the TriggererJobRunner."""
+        callback = TriggererCallback(TEST_ASYNC_CALLBACK)
+        callback.queue(session=session)
+        event = TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.SUCCESS, PAYLOAD_BODY_KEY: body})
+
+        callback.handle_event(event, session)
+
+        assert callback.state == CallbackState.SUCCESS
+        assert callback.output == expected_output
+        # Must be a string (or None) so it persists to the Text column without adapter errors.
+        assert callback.output is None or isinstance(callback.output, str)
+        # The row must actually commit — this is what would crash before the coercion fix.
+        session.commit()
+
+    def test_handle_event_body_that_breaks_json_dumps_falls_back_to_repr(self, session):
+        """A SUCCESS body that ``json.dumps(..., default=str)`` cannot encode must still be
+        coerced to a string (via the ``repr()`` fallback) rather than crashing the triggerer's
+        synchronous run loop. ``handle_event`` runs with no surrounding guard, so an uncaught
+        exception here would tear down the TriggererJobRunner."""
+
+        class _NotJSONSerializable:
+            """default=str is called for unknown types; raising from __str__ makes even
+            ``json.dumps(..., default=str)`` fail, forcing the repr() fallback branch."""
+
+            def __str__(self):
+                raise RuntimeError("str() blows up")
+
+            def __repr__(self):
+                return "<NotJSONSerializable repr>"
+
+        callback = TriggererCallback(TEST_ASYNC_CALLBACK)
+        callback.queue(session=session)
+        body = _NotJSONSerializable()
+        event = TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.SUCCESS, PAYLOAD_BODY_KEY: body})
+
+        # Must not raise — the json.dumps failure is caught and repr() is used instead.
+        callback.handle_event(event, session)
+
+        assert callback.state == CallbackState.SUCCESS
+        assert callback.output == "<NotJSONSerializable repr>"
+        assert isinstance(callback.output, str)
+        # The row must actually persist without an adapter error on the Text column.
+        session.commit()
+
+    @pytest.mark.parametrize(
+        ("terminal_state", "late_event"),
+        [
+            pytest.param(
+                CallbackState.SUCCESS,
+                TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.RUNNING}),
+                id="success_then_late_running",
+            ),
+            pytest.param(
+                CallbackState.SUCCESS,
+                TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.FAILED, PAYLOAD_BODY_KEY: "err"}),
+                id="success_then_late_failed",
+            ),
+            pytest.param(
+                CallbackState.FAILED,
+                TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.SUCCESS, PAYLOAD_BODY_KEY: "late"}),
+                id="failed_then_late_success",
+            ),
+        ],
+    )
+    def test_terminal_state_is_absorbing(self, session, terminal_state, late_event):
+        """Once a callback is terminal (SUCCESS/FAILED), a late/duplicate event must NOT move it.
+
+        Normal flow delivers RUNNING then a single terminal event in order, but at-least-once /
+        duplicate delivery (re-run trigger, HA replica reprocessing a stale event) could otherwise
+        resurrect a completed callback to an active state or flip its terminal outcome. Terminal
+        states are absorbing: handle_event ignores further events once terminal.
+        """
+        callback = TriggererCallback(TEST_ASYNC_CALLBACK)
+        callback.queue(session=session)
+        # Drive it to the terminal state first.
+        first_body = "original"
+        callback.handle_event(
+            TriggerEvent({PAYLOAD_STATUS_KEY: terminal_state, PAYLOAD_BODY_KEY: first_body}), session
+        )
+        assert callback.state == terminal_state
+        original_output = callback.output
+
+        # A late event must be ignored — state and output unchanged.
+        callback.handle_event(late_event, session)
+        assert callback.state == terminal_state, "terminal callback was resurrected/flipped by a late event"
+        assert callback.output == original_output, (
+            "terminal callback's output was overwritten by a late event"
+        )
 
 
 class TestExecutorCallback:
@@ -230,12 +432,56 @@ class TestExecutorCallback:
         assert retrieved.created_at is not None
         assert retrieved.trigger_id is None
 
-    def test_queue(self):
+    def test_queue(self, session):
         callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.DAG_ATTRIBUTE)
         assert callback.state == CallbackState.SCHEDULED
 
-        callback.queue()
+        callback.queue(session=session)
         assert callback.state == CallbackState.QUEUED
+
+    def test_mixed_table_polymorphic_discrimination(self, session):
+        """With BOTH a TriggererCallback and an ExecutorCallback in the callback table,
+        polymorphic deserialization must type each row correctly, and a subclass-scoped query
+        must return only its own rows. This is the real scheduler/triggerer scenario:
+        ``_enqueue_executor_callbacks`` does ``select(ExecutorCallback)`` against a table that
+        also holds TriggererCallbacks — a mis-typed row would route a callback to the wrong
+        execution path (e.g. an async callback queued to an executor, or vice versa).
+        """
+        tc = TriggererCallback(TEST_ASYNC_CALLBACK)
+        ec = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.IMPORT_PATH)
+        session.add_all([tc, ec])
+        session.commit()
+        tc_id, ec_id = tc.id, ec.id
+        session.expunge_all()  # force fresh polymorphic deserialization from the DB
+
+        # select(Callback) types each row to its correct subclass.
+        by_id = {c.id: c for c in session.scalars(select(Callback)).all()}
+        assert isinstance(by_id[tc_id], TriggererCallback)
+        assert isinstance(by_id[ec_id], ExecutorCallback)
+
+        # The scheduler's query: select(ExecutorCallback) returns ONLY the executor row.
+        exec_ids = {c.id for c in session.scalars(select(ExecutorCallback)).all()}
+        assert ec_id in exec_ids
+        assert tc_id not in exec_ids, "TriggererCallback leaked into select(ExecutorCallback)"
+
+        # The triggerer's query: select(TriggererCallback) returns ONLY the triggerer row.
+        trig_ids = {c.id for c in session.scalars(select(TriggererCallback)).all()}
+        assert tc_id in trig_ids
+        assert ec_id not in trig_ids, "ExecutorCallback leaked into select(TriggererCallback)"
+
+    def test_session_get_requires_uuid_not_str(self, session):
+        """Filtering the UUID id column with a plain str breaks on SQLite, so
+        callers must wrap with ``UUID(...)`` before querying."""
+        from uuid import UUID
+
+        callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.IMPORT_PATH)
+        session.add(callback)
+        session.commit()
+        # ``id`` is filled by the ``uuid6.uuid7`` default at flush time, so it
+        # is only safe to stringify *after* the commit.
+        callback_id_str = str(callback.id)
+
+        assert session.get(Callback, UUID(callback_id_str)) is not None
 
 
 class TestDagProcessorCallback:

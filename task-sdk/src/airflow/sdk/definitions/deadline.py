@@ -22,7 +22,11 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+import attrs
+
 from airflow.sdk.definitions.callback import AsyncCallback, Callback, SyncCallback
+from airflow.sdk.definitions.variable import Variable
+from airflow.sdk.exceptions import AirflowRuntimeError
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -116,6 +120,16 @@ class AverageRuntimeDeadline(BaseDeadlineReference):
             self.min_runs = self.max_runs
         if self.min_runs < 1:
             raise ValueError("min_runs must be at least 1")
+        if self.min_runs > self.max_runs:
+            # The evaluation query is ``LIMIT max_runs``, so it samples at most ``max_runs``
+            # completed runs and then requires ``len(durations) >= min_runs`` before computing
+            # an average. With ``min_runs > max_runs`` that condition can never be met, so the
+            # deadline would silently never be created no matter how many runs exist. Fail fast
+            # at authoring time instead of producing a permanently inert deadline.
+            raise ValueError(
+                f"min_runs ({self.min_runs}) cannot exceed max_runs ({self.max_runs}); "
+                "the deadline would require more completed runs than it ever samples."
+            )
 
     def serialize_reference(self) -> dict[str, Any]:
         return {
@@ -143,11 +157,18 @@ class DeadlineAlert:
     def __init__(
         self,
         reference: DeadlineReferenceType,
-        interval: timedelta,
+        interval: timedelta | VariableInterval,
         callback: Callback,
         name: str | None = None,
     ):
         self.reference = reference
+
+        if not isinstance(interval, (timedelta, VariableInterval)):
+            raise ValueError(
+                f"interval must be a timedelta or VariableInterval, got {type(interval).__name__}. "
+                "A non-timedelta interval is accepted silently at authoring time but fails later when "
+                "the scheduler evaluates the deadline (reference datetime + interval)."
+            )
         self.interval = interval
         self.name = name
 
@@ -158,8 +179,15 @@ class DeadlineAlert:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, DeadlineAlert):
             return NotImplemented
+        # Compare reference by EXACT type, not ``isinstance``. ``isinstance(self.reference,
+        # type(other.reference))`` is asymmetric for subclasses — a custom reference subclassing a
+        # builtin (``register_custom_reference`` permits any ``BaseDeadlineReference`` subclass) made
+        # ``alert(SubRef) == alert(BaseRef)`` True but the reverse False (violating equality
+        # symmetry), AND disagreed with ``__hash__`` (which keys on ``type(...).__name__``), so two
+        # "equal" alerts could hash differently — breaking the eq/hash invariant and set/dict use.
+        # Exact-type matches ``__hash__`` and is symmetric.
         return (
-            isinstance(self.reference, type(other.reference))
+            type(self.reference) is type(other.reference)
             and self.interval == other.interval
             and self.callback == other.callback
         )
@@ -342,3 +370,79 @@ def deadline_reference(
         return reference_class
 
     return decorator
+
+
+@attrs.define(frozen=True)
+class VariableInterval:
+    """
+    Interval backed by an Airflow Variable.
+
+    This allows DeadlineAlert intervals to be configured dynamically using
+    Airflow Variables. The variable value is interpreted as seconds and
+    converted into a ``timedelta`` object.
+
+    ------
+    Usage:
+    ------
+
+    .. code-block:: python
+
+    from airflow.sdk import DAG, DeadlineAlert, DeadlineReference, AsyncCallback
+
+    DAG(
+        dag_id="dag_with_variable_interval",
+        deadline=DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=VariableInterval("deadline_seconds"),
+            callback=AsyncCallback(my_callback),
+        ),
+    )
+
+    ------
+    Notes:
+    ------
+    * Resolution occurs when deadlines are evaluated (during DagRun creation).
+    * Changes to the Variable affect only newly parsed DAGs and future DagRuns.
+    * Existing deadlines are not retroactively updated.
+    """
+
+    key: str
+
+    def resolve(self) -> timedelta:
+        try:
+            value = Variable.get(self.key)
+        except AirflowRuntimeError as e:
+            raise ValueError(f"VariableInterval '{self.key}' not found") from e
+        return self.coerce_to_timedelta(value)
+
+    def coerce_to_timedelta(self, value: str | int | float | None) -> timedelta:
+        """
+        Validate a raw Variable value and convert it into a ``timedelta``.
+
+        Split out from :meth:`resolve` so callers that already hold the Variable value (e.g. a
+        scheduler-side reader that must fetch it on its own session — see
+        ``DAG._process_dagrun_deadline_alerts`` — to avoid committing inside ``prohibit_commit``)
+        can reuse the exact same validation without going through ``Variable.get``.
+        """
+        try:
+            seconds = int(value)  # type: ignore[arg-type]  # None/non-numeric handled by the except below
+        except (TypeError, ValueError) as e:
+            raise ValueError(
+                f"VariableInterval '{self.key}' must be an integer (seconds), got: {value!r}"
+            ) from e
+
+        if seconds <= 0:
+            raise ValueError(f"VariableInterval '{self.key}' must be > 0, got: {seconds}")
+
+        try:
+            return timedelta(seconds=seconds)
+        except OverflowError as e:
+            # ``timedelta`` caps at ~999999999 days; a wildly out-of-range value (e.g. a
+            # fat-fingered ``deadline_seconds`` meant as ms) raises OverflowError, which is NOT
+            # a ValueError subclass and would otherwise escape this method's documented
+            # "raises ValueError on bad input" contract with a cryptic C-int message. Translate
+            # it to the same clean ValueError so callers (and the deadline-creation isolation)
+            # get a consistent, actionable error.
+            raise ValueError(
+                f"VariableInterval '{self.key}' is too large to be a valid interval: {seconds} seconds"
+            ) from e

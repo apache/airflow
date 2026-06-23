@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+5.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add incremental refresh support to 'TableauOperator' (#67340)``
+
+Misc
+~~~~
+
+* ``Remove exclusion of yanked version dependencies from providers (#66857)``
+
+Doc-only
+~~~~~~~~
+
+* ``Auto-sync provider README.rst Requirements with pyproject.toml (#67669)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 5.4.1
 .....
 

@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 import uuid6
-from sqlalchemy import JSON, Float, ForeignKey, String, Text, Uuid, select
+from sqlalchemy import JSON, ForeignKey, String, Text, Uuid, select
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -50,13 +50,33 @@ class DeadlineAlert(Base):
     name: Mapped[str | None] = mapped_column(String(250), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     reference: Mapped[dict] = mapped_column(JSON, nullable=False)
-    interval: Mapped[float] = mapped_column(Float, nullable=False)
+    interval: Mapped[dict] = mapped_column(JSON, nullable=False)
     callback_def: Mapped[dict] = mapped_column(JSON, nullable=False)
 
     def __repr__(self):
-        interval_seconds = int(self.interval)
 
-        if interval_seconds >= 3600:
+        interval_seconds = None
+
+        # ``interval`` is a JSON column holding the Airflow-serialized interval: a fixed timedelta is
+        # ``{"__classname__": "datetime.timedelta", "__data__": <seconds>}``, a dynamic
+        # ``VariableInterval`` is ``{"__classname__": ".../VariableInterval", "__data__": {...}}``, and
+        # a legacy pre-0117 blob may be a bare number. Extract seconds for the fixed/legacy cases and
+        # fall back to "dynamic" otherwise. (Note: the previous ``isinstance(self.interval,
+        # datetime.timedelta)`` branch was doubly broken — ``datetime`` here is the *class*
+        # ``datetime.datetime`` (``from datetime import datetime``), so ``datetime.timedelta`` raised
+        # ``AttributeError``, and ``interval`` is always a dict so that branch was also unreachable-by-type.
+        # A ``__repr__`` must never raise — it is used in logs, tracebacks, and debuggers.)
+        if isinstance(self.interval, (int, float)):
+            interval_seconds = int(self.interval)
+
+        elif isinstance(self.interval, dict):
+            data = self.interval.get("__data__")
+            if isinstance(data, (int, float)):
+                interval_seconds = int(data)
+
+        if interval_seconds is None:
+            interval_display = "dynamic"
+        elif interval_seconds >= 3600:
             interval_display = f"{interval_seconds // 3600}h"
         elif interval_seconds >= 60:
             interval_display = f"{interval_seconds // 60}m"
@@ -93,7 +113,7 @@ class DeadlineAlert(Base):
 
     @classmethod
     @provide_session
-    def get_by_id(cls, deadline_alert_id: str | UUID, session: Session = NEW_SESSION) -> DeadlineAlert:
+    def get_by_id(cls, deadline_alert_id: str | UUID, *, session: Session = NEW_SESSION) -> DeadlineAlert:
         """
         Retrieve a DeadlineAlert record by its UUID.
 

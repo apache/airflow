@@ -93,7 +93,8 @@ from airflow.task.priority_strategy import (
     validate_and_load_priority_weight_strategy,
 )
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
-from airflow.timetables.simple import NullTimetable, OnceTimetable
+from airflow.timetables.simple import NullTimetable, OnceTimetable, PartitionAtRuntime
+from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.types import DagRunType
 
@@ -483,7 +484,7 @@ def collect_dags(dag_folder=None):
             for directory in glob(f"{AIRFLOW_REPO_ROOT_PATH}/{pattern}"):
                 if any([directory.startswith(excluded_pattern) for excluded_pattern in excluded_patterns]):
                     continue
-                dagbag = DagBag(directory, include_examples=False)
+                dagbag = DagBag(directory)
                 dags.update(dagbag.dags)
                 import_errors.update(dagbag.import_errors)
     return dags, import_errors
@@ -865,12 +866,16 @@ class TestStringifiedDAGs:
                 "_is_sensor",
                 # trigger_kwargs is kept as raw JSON after deserialization; checked separately
                 "start_trigger_args",
+                # Only needed at execution time; intentionally excluded
+                "returns_dag_result",
             }
         else:  # Promised to be mapped by the assert above.
             assert isinstance(serialized_task, SerializedMappedOperator)
             fields_to_check = {f.name for f in attrs.fields(MappedOperator)}
             fields_to_check -= {
+                # Only needed at execution time; intentionally excluded
                 "map_index_template",
+                "returns_dag_result",
                 # Matching logic in BaseOperator.get_serialized_fields().
                 "dag",
                 "task_group",
@@ -1754,7 +1759,7 @@ class TestStringifiedDAGs:
         logical_date = datetime(2020, 1, 1)
         with DAG("test_task_group_serialization", schedule=None, start_date=logical_date) as dag:
             task1 = EmptyOperator(task_id="task1")
-            with TaskGroup("group234") as group234:
+            with TaskGroup("group234", doc_md="### TaskGroup Documentation") as group234:
                 _ = EmptyOperator(task_id="task2")
 
                 with TaskGroup("group34") as group34:
@@ -1774,6 +1779,7 @@ class TestStringifiedDAGs:
 
         assert serialized_dag.task_group.children
         assert serialized_dag.task_group.children.keys() == dag.task_group.children.keys()
+        assert serialized_dag.task_group.children["group234"].doc_md == "### TaskGroup Documentation"
 
         def check_task_group(node):
             assert node.dag is serialized_dag
@@ -1886,9 +1892,7 @@ class TestStringifiedDAGs:
 
     @pytest.mark.db_test
     def test_basic_mapped_dag(self, dag_maker):
-        dagbag = DagBag(
-            "airflow-core/src/airflow/example_dags/example_dynamic_task_mapping.py", include_examples=False
-        )
+        dagbag = DagBag("airflow-core/src/airflow/example_dags/example_dynamic_task_mapping.py")
         assert not dagbag.import_errors
         dag = dagbag.dags["example_dynamic_task_mapping"]
         ser_dag = DagSerialization.to_dict(dag)
@@ -2750,6 +2754,41 @@ class TestStringifiedDAGs:
             "__type": "dict",
             "__var": {"resume_after": {"__type": "timedelta", "__var": 5.0}},
         }
+
+    @pytest.mark.db_test
+    def test_create_dagrun_rejects_partition_key_for_non_partitioned_dag(self, dag_maker):
+        """create_dagrun raises ValueError when partition_key is passed to a non-partitioned Dag."""
+        with dag_maker(dag_id="test_non_partitioned", serialized=True):
+            pass
+
+        with pytest.raises(ValueError, match="not a partitioned Dag"):
+            dag_maker.create_dagrun(partition_key="some-key")
+
+    @pytest.mark.db_test
+    def test_create_dagrun_accepts_partition_key_for_partitioned_dag(self, dag_maker):
+        """create_dagrun does not raise when partition_key is passed to a partitioned Dag."""
+        with dag_maker(
+            dag_id="test_partitioned",
+            schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+            serialized=True,
+        ):
+            pass
+
+        dr = dag_maker.create_dagrun(partition_key="2025-01-01T00:00:00")
+        assert dr.partition_key == "2025-01-01T00:00:00"
+
+    @pytest.mark.db_test
+    def test_create_dagrun_accepts_partition_key_for_partition_at_runtime_dag(self, dag_maker):
+        """create_dagrun does not raise when partition_key is passed to a PartitionAtRuntime Dag."""
+        with dag_maker(
+            dag_id="test_partition_at_runtime",
+            schedule=PartitionAtRuntime(),
+            serialized=True,
+        ):
+            pass
+
+        dr = dag_maker.create_dagrun(partition_key="runtime-key")
+        assert dr.partition_key == "runtime-key"
 
 
 def test_kubernetes_optional():
