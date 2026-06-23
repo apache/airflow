@@ -175,11 +175,11 @@ class SandboxExecutor(BaseExecutor):
                 break
             try:
                 handle = self.provider.create_sandbox(spec)
-                blob, dest = self._serialize_workload(payload)
-                if blob is not None and self.provider.capabilities.supports_file_upload:
-                    self.provider.upload_workload(handle, blob, dest)
+                # Carry the serialized workload + api-server URL into the sandbox via
+                # env (works for every backend, incl. upload-less ones like Modal).
+                run_env = {**spec.env, **self._workload_env(payload)}
                 exec_ref = self.provider.run(
-                    handle, self._render_command(payload), env=spec.env, timeout=spec.timeout
+                    handle, self._render_command(payload), env=run_env, timeout=spec.timeout
                 )
                 with self._lock:
                     self._inflight[key] = (handle, exec_ref)
@@ -285,16 +285,35 @@ class SandboxExecutor(BaseExecutor):
         )
         return spec
 
-    def _serialize_workload(self, payload: Any) -> tuple[bytes | None, str]:
-        # A3: the DAG bundle is fetched inside the sandbox by the Task SDK; nothing
-        # to upload when the image bakes the bundle. Override for archive transfer.
-        return None, "/opt/airflow/workload"
+    def _workload_env(self, payload: Any) -> dict[str, str]:
+        """Serialize the A3 ExecuteTask workload + api-server URL for the sandbox.
+
+        The workload (with its short-lived JWT) is base64-encoded into an env var
+        the in-sandbox runner decodes; this works for every backend, including
+        upload-less ones (Modal/islo). For the legacy raw-command path, fall back
+        to running that command directly.
+        """
+        env: dict[str, str] = {}
+        dump = getattr(payload, "model_dump_json", None)
+        if callable(dump):
+            import base64
+
+            env["AIRFLOW_SANDBOX_WORKLOAD"] = base64.b64encode(dump().encode()).decode()
+        server = conf.get("core", "execution_api_server_url", fallback=None)
+        if server:
+            env["AIRFLOW__CORE__EXECUTION_API_SERVER_URL"] = server
+        return env
 
     def _render_command(self, payload: Any) -> list[str]:
-        # The in-sandbox Task SDK supervisor runs the workload it is handed via
-        # env (execution_api_server_url + JWT). The container entrypoint invokes
-        # `airflow-task-sdk` / `airflow tasks run --read-from-db`.
-        return ["airflow", "tasks", "run", "--read-from-db"]
+        # A3 workload: run the Task SDK supervisor inside the sandbox against the
+        # api-server (same mechanism as Celery/Edge). The sandbox image must have
+        # apache-airflow installed and network reach to the api-server.
+        if hasattr(payload, "model_dump_json"):
+            return ["python", "-m", "airflow.providers.sandbox.execution_time.run_workload"]
+        # Legacy/raw-command fallback (e.g. ad-hoc CommandType from execute_async).
+        if isinstance(payload, (list, tuple)):
+            return list(payload)
+        return ["sh", "-c", str(payload)]
 
     def _stop_watcher(self) -> None:
         if self._watcher:
