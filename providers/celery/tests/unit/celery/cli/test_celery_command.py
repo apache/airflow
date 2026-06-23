@@ -386,6 +386,50 @@ class TestWorkerDuplicateHostnameCheck:
         mock_pools_reset.assert_called_once()
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="configure_logging only called in Airflow 3+")
+@pytest.mark.backend("mysql", "postgres")
+@pytest.mark.usefixtures("conf_stale_bundle_cleanup_disabled")
+class TestWorkerJsonLogs:
+    @classmethod
+    def setup_class(cls):
+        with conf_vars({("core", "executor"): "CeleryExecutor"}):
+            importlib.reload(executor_loader)
+            importlib.reload(cli_parser)
+            cls.parser = cli_parser.get_parser()
+
+    @mock.patch("airflow.providers.celery.cli.celery_command.Process")
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
+    @mock.patch("airflow.sdk.log.configure_logging")
+    def test_json_logs_defaults_to_false(self, mock_configure_logging, mock_celery_app, mock_popen):
+        args = self.parser.parse_args(["celery", "worker"])
+        celery_command.worker(args)
+        mock_configure_logging.assert_called_once()
+        _, kwargs = mock_configure_logging.call_args
+        assert kwargs.get("json_output") is False
+
+    @mock.patch("airflow.providers.celery.cli.celery_command.Process")
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
+    @mock.patch("airflow.sdk.log.configure_logging")
+    def test_json_logs_uses_global_logging_config(self, mock_configure_logging, mock_celery_app, mock_popen):
+        args = self.parser.parse_args(["celery", "worker"])
+        with conf_vars({("logging", "json_logs"): "True"}):
+            celery_command.worker(args)
+        mock_configure_logging.assert_called_once()
+        _, kwargs = mock_configure_logging.call_args
+        assert kwargs.get("json_output") is True
+
+    @mock.patch("airflow.providers.celery.cli.celery_command.Process")
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
+    @mock.patch("airflow.sdk.log.configure_logging")
+    def test_celery_json_logs_overrides_global(self, mock_configure_logging, mock_celery_app, mock_popen):
+        args = self.parser.parse_args(["celery", "worker"])
+        with conf_vars({("logging", "json_logs"): "True", ("celery", "json_logs"): "False"}):
+            celery_command.worker(args)
+        mock_configure_logging.assert_called_once()
+        _, kwargs = mock_configure_logging.call_args
+        assert kwargs.get("json_output") is False
+
+
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.usefixtures("conf_stale_bundle_cleanup_disabled")
 class TestFlowerCommand:

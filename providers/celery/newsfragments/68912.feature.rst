@@ -1,0 +1,1 @@
+Add ``[celery] json_logs`` config option so the Celery worker can emit structured JSON logs independently of the global ``[logging] json_logs`` setting.

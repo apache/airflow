@@ -245,7 +245,10 @@ def worker(args):
     if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk.log import configure_logging
 
-        configure_logging(output=sys.stdout.buffer)
+        json_output = conf.getboolean("celery", "json_logs", fallback=None)
+        if json_output is None:
+            json_output = conf.getboolean("logging", "json_logs", fallback=False)
+        configure_logging(output=sys.stdout.buffer, json_output=json_output)
     else:
         # Disable connection pool so that celery worker does not hold an unnecessary db connection
         settings.reconfigure_orm(disable_connection_pool=True)
