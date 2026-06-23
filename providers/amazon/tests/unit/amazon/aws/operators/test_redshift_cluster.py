@@ -748,6 +748,115 @@ class TestDeleteClusterOperator:
 
         mock_conn.cluster_status.assert_not_called()
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    @mock.patch.object(RedshiftHook, "conn")
+    def test_delete_paused_cluster_resumes_first_when_opted_in(self, mock_conn, mock_cluster_status):
+        """With ``resume_if_paused=True`` a paused cluster is resumed (and waited on) before delete.
+
+        A paused cluster cannot be deleted -- ``delete_cluster`` raises
+        ``InvalidClusterStateFault`` and no retry helps because a paused cluster never resumes on
+        its own, so it would be silently leaked. Opting in resumes it first.
+        """
+        # First lookup (in _resume_if_paused) reports paused.
+        mock_cluster_status.return_value = "paused"
+
+        redshift_operator = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+            wait_for_completion=False,
+            resume_if_paused=True,
+        )
+        redshift_operator.execute(None)
+
+        # Cluster was resumed and waited-on before the delete call.
+        mock_conn.resume_cluster.assert_called_once_with(ClusterIdentifier="test_cluster")
+        mock_conn.get_waiter.assert_called_once_with("cluster_available")
+        mock_conn.get_waiter.return_value.wait.assert_called_once_with(
+            ClusterIdentifier="test_cluster",
+            WaiterConfig={"Delay": 30, "MaxAttempts": 30},
+        )
+        mock_conn.delete_cluster.assert_called_once_with(
+            ClusterIdentifier="test_cluster",
+            SkipFinalClusterSnapshot=True,
+            FinalClusterSnapshotIdentifier="",
+        )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    @mock.patch.object(RedshiftHook, "conn")
+    def test_delete_paused_cluster_does_not_resume_by_default(self, mock_conn, mock_cluster_status):
+        """Default behavior is opt-out: a paused cluster is NOT resumed without ``resume_if_paused``.
+
+        Resume and delete are not transactional, so auto-resuming a paused cluster could leave it
+        running if the task fails between the two calls. The default must therefore preserve the
+        prior behavior and never resume on its own.
+        """
+        mock_cluster_status.return_value = "paused"
+
+        redshift_operator = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+            wait_for_completion=False,
+        )
+        redshift_operator.execute(None)
+
+        # No resume attempted; the cluster_status lookup is not even performed.
+        mock_conn.resume_cluster.assert_not_called()
+        mock_cluster_status.assert_not_called()
+        mock_conn.delete_cluster.assert_called_once_with(
+            ClusterIdentifier="test_cluster",
+            SkipFinalClusterSnapshot=True,
+            FinalClusterSnapshotIdentifier="",
+        )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    @mock.patch.object(RedshiftHook, "conn")
+    def test_delete_available_cluster_does_not_resume(self, mock_conn, mock_cluster_status):
+        """An already-available cluster is deleted directly, without a spurious resume."""
+        mock_cluster_status.return_value = "available"
+
+        redshift_operator = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+            wait_for_completion=False,
+            resume_if_paused=True,
+        )
+        redshift_operator.execute(None)
+
+        mock_conn.resume_cluster.assert_not_called()
+        mock_conn.delete_cluster.assert_called_once_with(
+            ClusterIdentifier="test_cluster",
+            SkipFinalClusterSnapshot=True,
+            FinalClusterSnapshotIdentifier="",
+        )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    @mock.patch.object(RedshiftHook, "conn")
+    def test_delete_missing_cluster_skips_resume(self, mock_conn, mock_cluster_status):
+        """A missing cluster (ClusterNotFoundFault during the status check) is ignored, not raised."""
+        not_found = boto3.client("redshift").exceptions.ClusterNotFoundFault({}, "test")
+        mock_conn.exceptions.ClusterNotFoundFault = type(not_found)
+        mock_cluster_status.side_effect = not_found
+
+        redshift_operator = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+            wait_for_completion=False,
+            resume_if_paused=True,
+        )
+        redshift_operator.execute(None)
+
+        # No resume attempted; deletion still proceeds (delete_cluster handles the missing cluster).
+        mock_conn.resume_cluster.assert_not_called()
+        mock_conn.delete_cluster.assert_called_once_with(
+            ClusterIdentifier="test_cluster",
+            SkipFinalClusterSnapshot=True,
+            FinalClusterSnapshotIdentifier="",
+        )
+
     @mock.patch.object(RedshiftHook, "delete_cluster")
     @mock.patch.object(RedshiftHook, "conn")
     @mock.patch("time.sleep", return_value=None)
