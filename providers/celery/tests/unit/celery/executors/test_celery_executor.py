@@ -743,10 +743,12 @@ class TestMultiTeamCeleryExecutor:
     """Test multi-team functionality in CeleryExecutor."""
 
     def setup_method(self) -> None:
+        celery_executor_utils._celery_app_cache.clear()
         db.clear_db_runs()
         db.clear_db_jobs()
 
     def teardown_method(self) -> None:
+        celery_executor_utils._celery_app_cache.clear()
         db.clear_db_runs()
         db.clear_db_jobs()
 
@@ -1258,6 +1260,13 @@ class TestAmqpsSslConfig:
 class TestCreateCeleryAppTeamIsolation:
     """Tests for create_celery_app() multi-team config isolation."""
 
+    @pytest.fixture(autouse=True)
+    def _clear_celery_app_cache(self):
+        """Reset the create_celery_app cache so apps built in one test don't leak into the next."""
+        celery_executor_utils._celery_app_cache.clear()
+        yield
+        celery_executor_utils._celery_app_cache.clear()
+
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecutorConf requires Airflow 3.2+")
     def test_custom_celery_config_options_applied(self):
         """User-provided celery_config_options (non-default) should be merged into team config."""
@@ -1330,3 +1339,22 @@ class TestCreateCeleryAppTeamIsolation:
         team_conf = ExecutorConf(team_name="team_beta")
         celery_app = celery_executor_utils.create_celery_app(team_conf)
         assert "team_beta" in celery_app.main
+
+    def test_app_is_cached_and_reused(self):
+        """Repeated create_celery_app() calls for the same name reuse one app.
+
+        This guards against the per-send app rebuild that leaks memory in the
+        scheduler when sends run in-process (single task per heartbeat or
+        sync_parallelism == 1).
+        """
+        first = celery_executor_utils.create_celery_app(conf)
+        second = celery_executor_utils.create_celery_app(conf)
+        assert first is second
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecutorConf requires Airflow 3.2+")
+    def test_distinct_teams_get_distinct_apps(self):
+        """Different team names must not share a cached app (broker isolation)."""
+        app_alpha = celery_executor_utils.create_celery_app(ExecutorConf(team_name="team_alpha"))
+        app_beta = celery_executor_utils.create_celery_app(ExecutorConf(team_name="team_beta"))
+        assert app_alpha is not app_beta
+        assert app_alpha is celery_executor_utils.create_celery_app(ExecutorConf(team_name="team_alpha"))

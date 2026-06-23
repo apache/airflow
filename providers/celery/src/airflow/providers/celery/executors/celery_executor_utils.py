@@ -117,9 +117,21 @@ def _get_celery_app() -> Celery:
     return Celery(celery_app_name, config_source=get_celery_configuration())
 
 
+# Cache of Celery apps keyed by their resolved (team-suffixed) name. See create_celery_app.
+_celery_app_cache: dict[str | None, Celery] = {}
+
+
 def create_celery_app(team_conf: ExecutorConf | AirflowConfigParser) -> Celery:
     """
-    Create a Celery app, supporting team-specific configuration.
+    Create (or reuse) a Celery app, supporting team-specific configuration.
+
+    Apps are cached by their resolved (team-suffixed) name and reused on subsequent
+    calls. ``create_celery_app`` is invoked on every task send via
+    ``send_workload_to_executor``; when sends run in the main scheduler process
+    (a single task per heartbeat, or ``sync_parallelism == 1``) rebuilding the app
+    each time leaks memory through repeated Celery task-class creation and broker
+    connections. The cache is module-level, so the ``ProcessPoolExecutor`` send
+    workers each keep their own (initially empty) cache and discard it on exit.
 
     :param team_conf: ExecutorConf instance with team-specific configuration, or global conf
     :return: Celery app instance
@@ -139,6 +151,9 @@ def create_celery_app(team_conf: ExecutorConf | AirflowConfigParser) -> Celery:
     if team_name:
         celery_app_name = f"{celery_app_name}_{team_name}"
 
+    if celery_app_name in _celery_app_cache:
+        return _celery_app_cache[celery_app_name]
+
     config = get_default_celery_config(team_conf)
 
     # Apply user-provided celery_config_options on top of team config.
@@ -157,6 +172,7 @@ def create_celery_app(team_conf: ExecutorConf | AirflowConfigParser) -> Celery:
     if not AIRFLOW_V_3_0_PLUS:
         celery_app.task(name="execute_command")(execute_command)
 
+    _celery_app_cache[celery_app_name] = celery_app
     return celery_app
 
 
@@ -388,8 +404,11 @@ def send_workload_to_executor(
     """
     Send workload to executor (serialized and executed as a Celery task).
 
-    This function is called in ProcessPoolExecutor subprocesses. To avoid pickling issues with
-    team-specific Celery apps, we pass the team_name and reconstruct the Celery app here.
+    This runs either in a ``ProcessPoolExecutor`` subprocess (when several tasks are sent
+    in parallel) or directly in the calling process (a single task per heartbeat, or
+    ``sync_parallelism == 1``). In both cases the Celery app is rebuilt from configuration
+    here to avoid pickling team-specific apps across processes; ``create_celery_app`` caches
+    the app by name so the in-process path does not recreate it on every send.
     """
     key, args, queue, team_name = workload_tuple
 
