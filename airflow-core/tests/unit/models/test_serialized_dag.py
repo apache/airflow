@@ -28,6 +28,7 @@ import pytest
 from sqlalchemy import delete, func, select, update
 
 import airflow.example_dags as example_dags_module
+from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow.dag_processing.dagbag import DagBag
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetModel
 from airflow.models.dag import DagModel
@@ -89,6 +90,9 @@ def make_example_dags(module):
 
 class TestSerializedDagModel:
     """Unit tests for SerializedDagModel."""
+
+    SERIALIZED_DAG_STATS = "airflow.models.serialized_dag.stats"
+    TEST_BUNDLE_NAME = "testing"
 
     @pytest.fixture(
         autouse=True,
@@ -161,7 +165,7 @@ class TestSerializedDagModel:
         example_params_trigger_ui = example_dags.get("example_params_trigger_ui")
         dag_updated = SDM.write_dag(
             dag=LazyDeserializedDAG.from_dag(example_params_trigger_ui),
-            bundle_name="testing",
+            bundle_name=self.TEST_BUNDLE_NAME,
         )
         assert dag_updated is True
 
@@ -178,7 +182,7 @@ class TestSerializedDagModel:
         # column is not updated
         dag_updated = SDM.write_dag(
             dag=LazyDeserializedDAG.from_dag(example_params_trigger_ui),
-            bundle_name="testing",
+            bundle_name=self.TEST_BUNDLE_NAME,
         )
         s_dag_1 = SDM.get(example_params_trigger_ui.dag_id)
 
@@ -192,7 +196,7 @@ class TestSerializedDagModel:
 
         dag_updated = SDM.write_dag(
             dag=LazyDeserializedDAG.from_dag(example_params_trigger_ui),
-            bundle_name="testing",
+            bundle_name=self.TEST_BUNDLE_NAME,
         )
         s_dag_2 = SDM.get(example_params_trigger_ui.dag_id)
 
@@ -200,6 +204,80 @@ class TestSerializedDagModel:
         assert s_dag.dag_hash != s_dag_2.dag_hash
         assert s_dag_2.data["dag"]["tags"] == ["example", "new_tag", "params"]
         assert dag_updated is True
+
+    def test_serialization_metric_incremented_on_new_write(self, testing_dag_bundle):
+        """A brand new serialized DAG write emits the ``dag.serialization`` metric."""
+        dag = make_example_dags(example_dags_module).get("example_params_trigger_ui")
+        with mock.patch(self.SERIALIZED_DAG_STATS) as mock_stats:
+            assert SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=self.TEST_BUNDLE_NAME) is True
+
+        mock_stats.incr.assert_called_once_with(
+            "dag.serialization",
+            tags={"dag_id": dag.dag_id, "bundle_name": self.TEST_BUNDLE_NAME},
+        )
+
+    def test_serialization_metric_not_incremented_when_unchanged(self, testing_dag_bundle):
+        """Re-writing an unchanged DAG must not emit the ``dag.serialization`` metric."""
+        dag = make_example_dags(example_dags_module).get("example_params_trigger_ui")
+        assert SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=self.TEST_BUNDLE_NAME) is True
+
+        with mock.patch(self.SERIALIZED_DAG_STATS) as mock_stats:
+            assert (
+                SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=self.TEST_BUNDLE_NAME) is False
+            )
+
+        mock_stats.incr.assert_not_called()
+
+    def test_serialization_metric_incremented_on_inplace_update(self, dag_maker, session):
+        """Updating a DAG version in place (no dag runs) emits the metric once."""
+        with dag_maker("metric_dag", bundle_name=self.TEST_BUNDLE_NAME) as dag:
+            PythonOperator(task_id="task1", python_callable=lambda: None)
+        # Change the DAG so the hash differs; with no dag runs this updates in place.
+        PythonOperator(task_id="task2", python_callable=lambda: None, dag=dag)
+
+        with mock.patch(self.SERIALIZED_DAG_STATS) as mock_stats:
+            assert SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=self.TEST_BUNDLE_NAME) is True
+
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+        mock_stats.incr.assert_called_once_with(
+            "dag.serialization",
+            tags={"dag_id": "metric_dag", "bundle_name": self.TEST_BUNDLE_NAME},
+        )
+
+    def test_serialization_metric_incremented_on_new_version(self, dag_maker, session):
+        """Writing a new DAG version (existing run) emits the metric once."""
+        with dag_maker("metric_dag", bundle_name=self.TEST_BUNDLE_NAME) as dag:
+            PythonOperator(task_id="task1", python_callable=lambda: None)
+        dag_maker.create_dagrun(run_id="run1", logical_date=pendulum.datetime(2025, 1, 1))
+        PythonOperator(task_id="task2", python_callable=lambda: None, dag=dag)
+
+        with mock.patch(self.SERIALIZED_DAG_STATS) as mock_stats:
+            assert SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=self.TEST_BUNDLE_NAME) is True
+
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 2
+        mock_stats.incr.assert_called_once_with(
+            "dag.serialization",
+            tags={"dag_id": "metric_dag", "bundle_name": self.TEST_BUNDLE_NAME},
+        )
+
+    @mock.patch("airflow._shared.observability.metrics.stats._export_legacy_names", True)
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_serialization_metric_exports_new_and_legacy_names(self, mock_get_backend, testing_dag_bundle):
+        """Serializing a DAG emits both the modern ``dag.serialization`` metric and its legacy name."""
+        mock_backend = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_backend
+        dag = make_example_dags(example_dags_module).get("example_params_trigger_ui")
+
+        assert SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=self.TEST_BUNDLE_NAME) is True
+
+        mock_backend.incr.assert_has_calls(
+            [
+                mock.call(f"dag.serialization.{dag.dag_id}.{self.TEST_BUNDLE_NAME}"),
+                mock.call(
+                    "dag.serialization", tags={"dag_id": dag.dag_id, "bundle_name": self.TEST_BUNDLE_NAME}
+                ),
+            ]
+        )
 
     def test_read_dags(self):
         """DAGs can be read from database."""
