@@ -50,6 +50,19 @@ skip_non_fork_mp_start = pytest.mark.skipif(
     reason="mock patching in test doesn't work with non-fork multiprocessing start methods",
 )
 
+
+class TestLocalExecutorMpStartMethod:
+    @mock.patch("airflow.executors.local_executor.multiprocessing.get_start_method", autospec=True)
+    def test_is_mp_using_fork_resolved_per_instance(self, mock_get_start_method):
+        """``is_mp_using_fork`` is resolved at ``__init__`` (reflecting any configured start
+        method) rather than once at import time."""
+        mock_get_start_method.return_value = "fork"
+        assert LocalExecutor(parallelism=1).is_mp_using_fork is True
+
+        mock_get_start_method.return_value = "forkserver"
+        assert LocalExecutor(parallelism=1).is_mp_using_fork is False
+
+
 skip_fork_mp_start = pytest.mark.skipif(
     multiprocessing.get_start_method() == "fork",
     reason="tests non-fork (lazy-spawning) behavior",
@@ -360,7 +373,7 @@ class TestLocalExecutor:
             # Verify each executor has its own workers dict
             assert team_a_executor.workers is not team_b_executor.workers
 
-            if LocalExecutor.is_mp_using_fork:
+            if team_a_executor.is_mp_using_fork:
                 # fork pre-spawns all workers at start()
                 assert len(team_a_executor.workers) == 2
                 assert len(team_b_executor.workers) == 3
@@ -390,7 +403,7 @@ class TestLocalExecutor:
 
         executor.start()
 
-        if LocalExecutor.is_mp_using_fork:
+        if executor.is_mp_using_fork:
             assert len(executor.workers) == 2
         else:
             # forkserver/spawn use lazy spawning
