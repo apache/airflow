@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import pickle
 import random
 import re
 import string
@@ -24,7 +25,7 @@ from unittest.mock import patch
 
 import pendulum
 import pytest
-from kubernetes.client import ApiClient, models as k8s
+from kubernetes.client import ApiClient, Configuration, models as k8s
 from kubernetes.client.rest import ApiException
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -207,9 +208,6 @@ class TestKubernetesJobOperator:
         ``refresh_api_key_hook`` is an unpicklable local closure. ``deserialize_job_template_file`` must
         deserialize through a fresh ``Configuration`` so the job (and every nested model) stays picklable.
         """
-        import pickle
-
-        from kubernetes.client import Configuration
 
         def _make_unpicklable_hook():
             def _refresh_api_key(config):

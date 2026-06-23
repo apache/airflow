@@ -16,10 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import pickle
 from unittest.mock import Mock, patch
 
 import pytest
-from kubernetes.client import models as k8s
+from kubernetes.client import Configuration, models as k8s
 
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
     _convert_from_dict,
@@ -109,9 +110,6 @@ def test_convert_from_dict_is_picklable_in_cluster(monkeypatch):
     ``refresh_api_key_hook`` is an unpicklable local closure. ``_convert_from_dict`` must deserialize
     through a fresh ``Configuration`` so the model (and every nested object) stays picklable.
     """
-    import pickle
-
-    from kubernetes.client import Configuration
 
     def _make_unpicklable_hook():
         def _refresh_api_key(config):

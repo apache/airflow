@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import pickle
 import re
 from unittest import mock
 from unittest.mock import MagicMock
@@ -23,7 +24,7 @@ from unittest.mock import MagicMock
 import pendulum
 import pytest
 from dateutil import parser
-from kubernetes.client import ApiClient, models as k8s
+from kubernetes.client import ApiClient, Configuration, models as k8s
 
 from airflow import __version__
 from airflow.exceptions import AirflowConfigException
@@ -706,9 +707,6 @@ class TestPodGenerator:
         round-trip through a fresh ``Configuration`` so the pod (and every nested model) stays
         picklable onto the KubernetesExecutor multiprocessing queue.
         """
-        import pickle
-
-        from kubernetes.client import Configuration
 
         def _make_unpicklable_hook():
             def _refresh_api_key(config):
