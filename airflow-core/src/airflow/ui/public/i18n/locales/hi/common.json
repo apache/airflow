@@ -18,16 +18,21 @@
   "asset_other": "एसेट्स",
   "assetEvent_one": "एसेट इवेंट",
   "assetEvent_other": "एसेट इवेंट्स",
+  "assetInactive": {
+    "tooltip": "अपस्ट्रीम एसेट निष्क्रिय कर दिया गया है; शेड्यूलर इसके पुनः सक्रिय होने तक पार्टिशन मूल्यांकन रोक रहा है।"
+  },
   "backfill_one": "बैकफ़िल",
   "backfill_other": "बैकफ़िल्स",
   "browse": {
     "auditLog": "ऑडिट लॉग",
+    "deadlines": "डेडलाइन",
     "jobs": "जॉब्स",
     "requiredActions": "आवश्यक क्रियाएं",
-    "xcoms": "XComs"
+    "xcoms": "एक्सकॉम्स"
   },
   "collapseAllExtra": "सभी अतिरिक्त JSON को संकुचित करें",
   "collapseDetailsPanel": "विवरण पैनल को छुपाएं",
+  "consumingAsset": "उपभोग करने वाला एसेट",
   "createdAssetEvent_one": "बनाया गया एसेट इवेंट",
   "createdAssetEvent_other": "बनाए गए एसेट इवेंट्स",
   "dag_one": "डैग",
@@ -108,6 +113,12 @@
     "notFound": "पेज नहीं मिला",
     "title": "त्रुटि"
   },
+  "errors": {
+    "forbidden": {
+      "description": "आपके पास यह कार्य करने की अनुमति नहीं है।",
+      "title": "पहुँच अस्वीकृत"
+    }
+  },
   "expand": {
     "collapse": "संकुचित करें",
     "expand": "विस्तृत करें",
@@ -130,9 +141,15 @@
     "logicalDateTo": "तार्किक तिथि तक",
     "runAfterFrom": "रन आफ़्टर से",
     "runAfterTo": "रन आफ़्टर तक",
+    "searchAsset": "एसेट खोजें",
     "selectDateRange": "तिथि रेंज चुनें",
     "startTime": "प्रारंभ समय"
   },
+  "fullscreen": {
+    "tooltip": "फ़ुलस्क्रीन के लिए {{hotkey}} दबाएं"
+  },
+  "generateToken": "टोकन जनरेट करें",
+  "key": "कुंजी",
   "logicalDate": "तार्किक तिथि",
   "logout": "लॉग आउट",
   "logoutConfirmation": "आप एप्लिकेशन से लॉग आउट करने वाले हैं।",
@@ -166,9 +183,18 @@
     "placeholder": "नोट जोड़ें...",
     "taskInstance": "टास्क इंस्टेंस नोट"
   },
+  "overallStatus": "समग्र स्थिति",
+  "partitionedDagRun_one": "विभाजित Dag रन",
+  "partitionedDagRun_other": "विभाजित Dag रन",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "प्राप्त एसेट इवेंट"
+  },
+  "pendingDagRun_one": "{{count}} लंबित Dag रन",
+  "pendingDagRun_other": "{{count}} लंबित Dag रन",
   "reset": "रीसेट करें",
   "runId": "रन ID",
   "runTypes": {
+    "asset_materialization": "एसेट मटेरियलाइज़ेशन",
     "asset_triggered": "एसेट द्वारा ट्रिगर",
     "backfill": "बैकफ़िल",
     "manual": "मैन्युअल",
@@ -181,6 +207,12 @@
     },
     "tooltip": "{{direction}} तक स्क्रॉल करने के लिए {{hotkey}} दबाएं"
   },
+  "search": {
+    "advanced": {
+      "description": "मान में कहीं भी मिलान करें (सबस्ट्रिंग खोज)। बड़े डिप्लॉयमेंट पर धीमा क्योंकि यह डिफ़ॉल्ट B-tree इंडेक्स का उपयोग नहीं कर सकता। विवरण के लिए कस्टम मेटाडेटा इंडेक्स पर दस्तावेज़ अनुभाग देखें।",
+      "title": "कहीं भी मिलान करें"
+    }
+  },
   "security": {
     "actions": "क्रियाएं",
     "permissions": "अनुमतियां",
@@ -189,6 +221,7 @@
     "users": "उपयोगकर्ता"
   },
   "selectLanguage": "भाषा चुनें",
+  "selected": "चयनित",
   "showDetailsPanel": "विवरण पैनल दिखाएं",
   "signedInAs": "के रूप में लॉग इन",
   "source": {
@@ -201,6 +234,7 @@
   "startDate": "प्रारंभ तिथि",
   "state": "स्थिति",
   "states": {
+    "awaiting_input": "इनपुट की प्रतीक्षा में",
     "deferred": "स्थगित",
     "failed": "विफल",
     "no_status": "कोई स्थिति नहीं",
@@ -233,22 +267,33 @@
       "any": "कोई भी"
     },
     "tagPlaceholder": "टैग द्वारा फ़िल्टर करें",
-    "to": "तक"
+    "to": "तक",
+    "updatedAt": "अपडेट किया गया"
   },
   "task": {
+    "dependsOnPast": "पिछले पर निर्भर",
     "documentation": "टास्क प्रलेखन",
     "lastInstance": "अंतिम इंस्टेंस",
     "operator": "ऑपरेटर",
-    "triggerRule": "ट्रिगर नियम"
+    "retries": "पुनः प्रयास",
+    "triggerRule": "ट्रिगर नियम",
+    "waitForDownstream": "डाउनस्ट्रीम की प्रतीक्षा करें"
   },
   "task_one": "टास्क",
   "task_other": "टास्क्स",
+  "taskGroup": {
+    "documentation": "Task Group दस्तावेज़"
+  },
+  "taskGroup_one": "Task Group",
+  "taskGroup_other": "Task Group",
   "taskId": "टास्क ID",
   "taskInstance": {
+    "additionalAttributes": "अतिरिक्त Task Instance विशेषताएँ",
     "dagVersion": "डैग संस्करण",
     "executor": "एक्जीक्यूटर",
     "executorConfig": "एक्जीक्यूटर कॉन्फ़िग",
     "hostname": "होस्टनेम",
+    "id": "ID",
     "maxTries": "अधिकतम प्रयास",
     "pid": "PID",
     "pool": "पूल",
@@ -256,12 +301,15 @@
     "priorityWeight": "प्राथमिकता भार",
     "queue": "कतार",
     "queuedWhen": "कब कतार में",
+    "renderedMapIndex": "रेंडर किया गया Map Index",
     "scheduledWhen": "कब निर्धारित",
+    "trigger": "ट्रिगर",
     "triggerer": {
       "assigned": "निर्धारित ट्रिगरर",
       "class": "ट्रिगर क्लास",
       "createdAt": "ट्रिगर निर्माण समय",
       "id": "ट्रिगर ID",
+      "job": "Triggerer जॉब",
       "latestHeartbeat": "नवीनतम हार्टबीट",
       "title": "ट्रिगरर जानकारी"
     },
@@ -288,11 +336,25 @@
     "utc": "UTC (समन्वयित सार्वभौमिक समय)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "बल्क क्लियर {{resourceName}} अनुरोध विफल",
+      "success": {
+        "description": "{{count}} {{resourceName}} सफलतापूर्वक साफ़ कर दिए गए। कुंजियाँ: {{keys}}",
+        "title": "बल्क क्लियर {{resourceName}} अनुरोध सबमिट किया गया"
+      }
+    },
     "bulkDelete": {
       "error": "बल्क डिलीट {{resourceName}} अनुरोध विफल",
       "success": {
         "description": "{{count}} {{resourceName}} सफलतापूर्वक हटा दिए गए हैं। keys: {{keys}}",
         "title": "बल्क डिलीट {{resourceName}} अनुरोध सबमिट किया गया"
+      }
+    },
+    "bulkUpdate": {
+      "error": "बल्क अपडेट {{resourceName}} अनुरोध विफल",
+      "success": {
+        "description": "{{count}} {{resourceName}} सफलतापूर्वक अपडेट कर दिए गए। कुंजियाँ: {{keys}}",
+        "title": "बल्क अपडेट {{resourceName}} अनुरोध सबमिट किया गया"
       }
     },
     "create": {
@@ -324,10 +386,27 @@
       }
     }
   },
+  "tokenGeneration": {
+    "apiToken": "API टोकन",
+    "cliToken": "CLI टोकन",
+    "errorDescription": "टोकन जनरेट करते समय एक त्रुटि हुई। कृपया पुनः प्रयास करें।",
+    "errorTitle": "टोकन जनरेशन विफल",
+    "generate": "जनरेट करें",
+    "selectType": "जनरेट करने के लिए टोकन का प्रकार चुनें।",
+    "title": "टोकन जनरेट करें",
+    "tokenExpiresIn": "यह टोकन {{duration}} में समाप्त हो जाएगा।",
+    "tokenGenerated": "आपका टोकन जनरेट हो गया है।",
+    "tokenShownOnce": "यह टोकन केवल एक बार दिखाया जाएगा। इसे अभी कॉपी करें।"
+  },
   "total": "कुल {{state}}",
   "triggered": "ट्रिगर किया गया",
   "tryNumber": "प्रयास संख्या",
   "user": "उपयोगकर्ता",
+  "validation": {
+    "mustBeAtLeast": "कम से कम {{min}} होना चाहिए।",
+    "mustBeValidNumber": "एक मान्य संख्या होनी चाहिए।"
+  },
+  "value": "मान",
   "wrap": {
     "hotkey": "w",
     "tooltip": "रैप को टॉगल करने के लिए {{hotkey}} दबाएं",

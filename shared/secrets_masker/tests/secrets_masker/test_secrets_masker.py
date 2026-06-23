@@ -834,6 +834,13 @@ class TestShouldHideValueForKey:
             ("custom_auth_header", True),
             ("service_key", True),
             ("my_service_key", True),
+            ("spark.hadoop.fs.s3a.bucket.spark.access.key", True),
+            ("spark.hadoop.fs.s3a.bucket.spark.secret.key", True),
+            ("spark.sql.catalog.kometa.token", True),
+            ("my-access-key", True),
+            ("auth.example.com/token", True),
+            ("spark.executor.memory", False),
+            ("spark.driver.cores", False),
         ],
     )
     def test_hiding_defaults(self, key, expected_result):

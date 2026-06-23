@@ -77,7 +77,7 @@ from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
-from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
@@ -108,6 +108,7 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import ScalarResult
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.elements import Case, ColumnElement
+    from sqlalchemy.sql.selectable import Select
 
     from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel
     from airflow.models.dag_version import DagVersion
@@ -115,6 +116,7 @@ if TYPE_CHECKING:
     from airflow.sdk import DAG as SDKDAG
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
+    from airflow.timetables.base import Timetable
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
     AttributeValueType: TypeAlias = (
@@ -433,6 +435,7 @@ class DagRun(Base, LoggingMixin):
             conf=self.conf,
             consumed_asset_events=[],
             partition_key=self.partition_key,
+            partition_date=self.partition_date,
         )
 
     @property
@@ -501,7 +504,9 @@ class DagRun(Base, LoggingMixin):
 
     @property
     def stats_tags(self) -> dict[str, str]:
-        return prune_dict({"dag_id": self.dag_id, "run_type": self.run_type})
+        return prune_dict(
+            {"dag_id": self.dag_id, "run_type": self.run_type, "team_name": getattr(self, "_team_name", None)}
+        )
 
     def get_state(self):
         return self._state
@@ -1070,6 +1075,16 @@ class DagRun(Base, LoggingMixin):
         ctx = TraceContextTextMapPropagator().extract(self.context_carrier)
         span = trace.get_current_span(context=ctx)
         span_context = span.get_span_context()
+
+        # Skip if the run was head-sampled out. Unlike the task spans, this guard is
+        # required (not just an optimization): the span below is forced to be a root span
+        # (context=context.Context()), so the configured sampler never sees the carrier's
+        # flag. A valid-but-unsampled carrier means head-sampled out; an invalid/empty
+        # carrier (legacy DagRun) recorded no decision, so it falls through and still
+        # emits — prior behavior we may want to reconsider.
+        if span_context.is_valid and not span_context.trace_flags.sampled:
+            return
+
         with override_ids(span_context.trace_id, span_context.span_id):
             attributes: dict[str, str] = {
                 "airflow.dag_id": str(self.dag_id),
@@ -1087,13 +1102,16 @@ class DagRun(Base, LoggingMixin):
                 attributes["airflow.dag_run.logical_date"] = str(self.logical_date)
             if self.partition_key:
                 attributes["airflow.dag_run.partition_key"] = str(self.partition_key)
+            if self.partition_date:
+                attributes["airflow.dag_run.partition_date"] = self.partition_date.isoformat()
+
             # TODO: make the empty parent context optional. Default should be to
-            # nest the dag run span under the currently active parent span (by
-            # omitting `context` here); only use the empty `context.Context()` to
-            # force a root span when Airflow itself initiates the run (e.g. dag
-            # triggered via API, scheduler, or backfill). Today this forces a
-            # root span unconditionally.
-            # Tracked at https://github.com/apache/airflow/issues/67210
+            #  nest the dag run span under the currently active parent span (by
+            #  omitting `context` here); only use the empty `context.Context()` to
+            #  force a root span when Airflow itself initiates the run (e.g. dag
+            #  triggered via API, scheduler, or backfill). Today this forces a
+            #  root span unconditionally.
+            #  Tracked at https://github.com/apache/airflow/issues/67210
             span = tracer.start_span(
                 name=f"dag_run.{self.dag_id}",
                 start_time=int((self.queued_at or self.start_date or timezone.utcnow()).timestamp() * 1e9),
@@ -1376,6 +1394,18 @@ class DagRun(Base, LoggingMixin):
         execute: bool = False,
     ) -> DagCallbackRequest | None:
         """Create a callback request for the DAG, or execute the callbacks directly if instructed, and return None."""
+        # Historical task instances created before the dag_version table existed (migration
+        # 0047_3_0_0_add_dag_versioning) have dag_version_id=None. The TaskInstance datamodel used to
+        # build the callback context requires a non-null UUID, so passing such a TI as last_ti would
+        # raise a ValidationError and crash the scheduler. Drop last_ti in that case; the callback still
+        # fires with a minimal context (dag, run_id, reason).
+        if relevant_ti is not None and relevant_ti.dag_version_id is None:
+            self.log.warning(
+                "Task instance %s has no dag_version_id (pre-versioning record); "
+                "omitting last_ti from the dag callback context.",
+                relevant_ti,
+            )
+            relevant_ti = None
         if not execute:
             return DagCallbackRequest(
                 filepath=self.dag_model.relative_fileloc,
@@ -1406,6 +1436,7 @@ class DagRun(Base, LoggingMixin):
             TaskInstance as TIDataModel,
             TIRunContext,
         )
+        from airflow.models.dag import DagModel
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
         if relevant_ti:
@@ -1449,7 +1480,19 @@ class DagRun(Base, LoggingMixin):
                 callback(context)
             except Exception:
                 self.log.exception("Callback failed for %s", dag.dag_id)
-                stats.incr("dag.callback_exceptions", tags={"dag_id": dag.dag_id})
+                stats.incr(
+                    "dag.callback_exceptions",
+                    tags=prune_dict(
+                        {
+                            "dag_id": dag.dag_id,
+                            "team_name": (
+                                DagModel.get_team_name(dag.dag_id)
+                                if airflow_conf.getboolean("core", "multi_team")
+                                else None
+                            ),
+                        }
+                    ),
+                )
 
     def _get_ready_tis(
         self,
@@ -1710,7 +1753,7 @@ class DagRun(Base, LoggingMixin):
         # check for removed or restored tasks
         task_ids = set()
         for ti in tis:
-            ti_mutation_hook(ti)
+            ti_mutation_hook(ti, dag_run=self)
             task_ids.add(ti.task_id)
             try:
                 task = dag.get_task(ti.task_id)
@@ -1829,7 +1872,7 @@ class DagRun(Base, LoggingMixin):
             def create_ti(task: Operator, indexes: Iterable[int]) -> Iterator[TI]:
                 for map_index in indexes:
                     ti = TI(task, run_id=self.run_id, map_index=map_index, dag_version_id=dag_version_id)
-                    ti_mutation_hook(ti)
+                    ti_mutation_hook(ti, dag_run=self)
                     if ti.operator:
                         created_counts[ti.operator] += 1
                     yield ti
@@ -1968,9 +2011,9 @@ class DagRun(Base, LoggingMixin):
                 continue
             ti = TI(task, run_id=self.run_id, map_index=index, state=None, dag_version_id=dag_version_id)
             self.log.debug("Expanding TIs upserted %s", ti)
-            task_instance_mutation_hook(ti)
+            task_instance_mutation_hook(ti, dag_run=self)
             ti = session.merge(ti)
-            ti.refresh_from_task(task)
+            ti.refresh_from_task(task, dag_run=self)
             session.flush()
             yield ti
 
@@ -2153,6 +2196,23 @@ class DagRun(Base, LoggingMixin):
     def _get_partial_task_ids(dag: SerializedDAG | None) -> list[str] | None:
         return dag.task_ids if dag and dag.partial else None
 
+    @staticmethod
+    def apply_partition_date_window(
+        stmt: Select,
+        *,
+        timetable: Timetable,
+        start: datetime | None,
+        end: datetime | None,
+    ) -> Select:
+        """Filter stmt to the inclusive interval [lower, upper] on partition_date."""
+        if start is not None:
+            lower = timetable.localize_partition_datetime(start)
+            stmt = stmt.where(DagRun.partition_date >= lower)
+        if end is not None:
+            upper = timetable.localize_partition_datetime(end)
+            stmt = stmt.where(DagRun.partition_date <= upper)
+        return stmt
+
 
 class DagRunNote(Base):
     """For storage of arbitrary notes concerning the dagrun instance."""
@@ -2188,6 +2248,130 @@ class DagRunNote(Base):
         if self.map_index != -1:
             prefix += f" map_index={self.map_index}"
         return prefix + ">"
+
+
+_TI_CHUNK_SIZE = 500
+
+
+def clear_partition_runs(
+    *,
+    dag: SerializedDAG | None,
+    dag_id: str,
+    run_id: str | None,
+    partition_key: str | None,
+    partition_date_start: datetime | None,
+    partition_date_end: datetime | None,
+    clear_tis: bool,
+    dry_run: bool,
+    session: Session,
+    on_run_matched: Callable[[DagRun, bool], None] | None = None,
+) -> tuple[int, int]:
+    """
+    Reset partition_key and partition_date to None on matching Dag runs.
+
+    Selector priority: run_id → partition_key → date-window (datetime-precision, localized
+    through the timetable timezone). Runs already cleared (both fields None) are skipped unless
+    clear_tis is True.
+
+    The date-window selector requires a non-None ``dag`` to resolve the timetable timezone.
+    The run_id and partition_key selectors do not use ``dag`` and accept ``None``.
+
+    Returns (dag_runs_cleared, task_instances_cleared).
+
+    ``on_run_matched`` is called once per matched run, before any mutation, with
+    ``(run, had_partition_fields)`` where ``had_partition_fields`` is True when the run's
+    partition fields are non-None at the time of the call (i.e. they will be reset).
+
+    :meta private:
+    """
+    stmt = select(DagRun).where(DagRun.dag_id == dag_id)
+    if run_id is not None:
+        stmt = stmt.where(DagRun.run_id == run_id)
+    elif partition_key is not None:
+        stmt = stmt.where(DagRun.partition_key == partition_key)
+    else:
+        if dag is None:
+            raise ValueError(
+                "The date-window selector requires a loaded Dag to resolve the timetable timezone; "
+                "dag must not be None when partition_date_start or partition_date_end is used."
+            )
+        stmt = stmt.where(or_(DagRun.partition_key.is_not(None), DagRun.partition_date.is_not(None)))
+        stmt = DagRun.apply_partition_date_window(
+            stmt,
+            timetable=dag.timetable,
+            start=partition_date_start,
+            end=partition_date_end,
+        )
+    stmt = stmt.order_by(DagRun.partition_date, DagRun.run_id)
+
+    dag_runs_cleared = 0
+    ti_buffer_run_ids: list[str] = []
+    ti_carry: list[TI] = []
+    tis_cleared_total = 0
+    dry_run_matched_ids: list[str] = []
+
+    def _flush_ti_buffer(*, drain: bool = False) -> int:
+        flushed = 0
+        if ti_buffer_run_ids:
+            chunk_tis = list(
+                session.scalars(
+                    select(TI).where(
+                        TI.dag_id == dag_id,
+                        TI.run_id.in_(ti_buffer_run_ids),
+                    )
+                )
+            )
+            ti_buffer_run_ids.clear()
+            ti_carry.extend(chunk_tis)
+        while len(ti_carry) >= _TI_CHUNK_SIZE:
+            slice_tis = ti_carry[:_TI_CHUNK_SIZE]
+            del ti_carry[:_TI_CHUNK_SIZE]
+            clear_task_instances(slice_tis, session=session)
+            flushed += len(slice_tis)
+        if drain and ti_carry:
+            clear_task_instances(ti_carry, session=session)
+            flushed += len(ti_carry)
+        return flushed
+
+    for run in session.scalars(stmt).yield_per(100):
+        fields_already_cleared = run.partition_key is None and run.partition_date is None
+        if on_run_matched is not None:
+            on_run_matched(run, not fields_already_cleared)
+        if fields_already_cleared and not clear_tis:
+            continue
+        if not fields_already_cleared:
+            if not dry_run:
+                run.partition_key = None
+                run.partition_date = None
+            dag_runs_cleared += 1
+        if clear_tis:
+            if dry_run:
+                dry_run_matched_ids.append(run.run_id)
+            else:
+                ti_buffer_run_ids.append(run.run_id)
+                if len(ti_buffer_run_ids) >= _TI_CHUNK_SIZE:
+                    tis_cleared_total += _flush_ti_buffer()
+
+    if clear_tis and not dry_run:
+        tis_cleared_total += _flush_ti_buffer(drain=True)
+
+    if dry_run and clear_tis:
+        if dry_run_matched_ids:
+            for i in range(0, len(dry_run_matched_ids), _TI_CHUNK_SIZE):
+                chunk = dry_run_matched_ids[i : i + _TI_CHUNK_SIZE]
+                tis_cleared_total += (
+                    session.scalar(
+                        select(func.count())
+                        .select_from(TI)
+                        .where(
+                            TI.dag_id == dag_id,
+                            TI.run_id.in_(chunk),
+                        )
+                    )
+                    or 0
+                )
+
+    return dag_runs_cleared, tis_cleared_total
 
 
 def get_or_create_dagrun(

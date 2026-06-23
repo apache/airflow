@@ -32,7 +32,7 @@ from contextlib import contextmanager, suppress
 from datetime import datetime
 from socket import socket
 from traceback import format_exception
-from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, TextIO, TypedDict
+from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, NamedTuple, TextIO, TypedDict
 from uuid import uuid4
 
 import anyio
@@ -58,6 +58,7 @@ from airflow.models.dagbag import DBDagBag
 from airflow.models.trigger import Trigger
 from airflow.observability.metrics import stats_utils
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
+from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.execution_time.comms import (
     CommsDecoder,
     ConnectionResult,
@@ -89,6 +90,7 @@ from airflow.sdk.execution_time.comms import (
     _new_encoder,
     _RequestFrame,
 )
+from airflow.sdk.execution_time.context import AssetStateStoreAccessors
 from airflow.sdk.execution_time.request_handlers import (
     handle_delete_variable,
     handle_delete_xcom,
@@ -110,7 +112,7 @@ from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.serialization.serialized_objects import DagSerialization
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, DiscrimatedTriggerEvent, TriggerEvent
 from airflow.triggers.shared_stream import SharedStreamManager
-from airflow.utils.helpers import log_filename_template_renderer
+from airflow.utils.helpers import log_filename_template_renderer, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session, provide_session
 
@@ -279,6 +281,14 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
 log: FilteringBoundLogger = structlog.get_logger(logger_name=__name__)
 
 
+class TriggerEventEntry(NamedTuple):
+    """A fired trigger event queued for dispatch to the Trigger model."""
+
+    trigger_id: int
+    event: DiscrimatedTriggerEvent
+    persist_seq: int | None  # None when the event does not gate a broker advance
+
+
 # Using this as a simple namespace
 class messages:
     class StartTriggerer(BaseModel):
@@ -295,7 +305,7 @@ class messages:
 
         type: Literal["TriggerStateChanges"] = "TriggerStateChanges"
         events: Annotated[
-            list[tuple[int, DiscrimatedTriggerEvent]] | None,
+            list[TriggerEventEntry] | None,
             # We have to specify a default here, as otherwise Pydantic struggles to deal with the discriminated
             # union :shrug:
             Field(default=None),
@@ -309,6 +319,10 @@ class messages:
 
         to_create: list[workloads.RunTrigger]
         to_cancel: set[int]
+        # Seqs of shared-stream trigger events the supervisor has persisted
+        # since the previous sync; the runner releases the matching broker
+        # advances on receipt.
+        events_persisted: list[int] | None = None
 
 
 class HITLDetailResponseResult(HITLDetailResponse):
@@ -477,7 +491,11 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     creating_triggers: deque[workloads.RunTrigger] = attrs.field(factory=deque, init=False)
 
     # Outbound queue of events
-    events: deque[tuple[int, TriggerEvent]] = attrs.field(factory=deque, init=False)
+    events: deque[TriggerEventEntry] = attrs.field(factory=deque, init=False)
+
+    # Seqs of shared-stream trigger events persisted since the last state
+    # sync; drained into TriggerStateSync.events_persisted.
+    persisted_event_seqs: deque[int] = attrs.field(factory=deque, init=False)
 
     # Outbound queue of failed triggers
     failed_triggers: deque[tuple[int, list[str] | None]] = attrs.field(factory=deque, init=False)
@@ -546,9 +564,15 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                         # handle leaks for every failed upload.
                         factory.close()
 
+            # Drain the persist confirmations accumulated since the last sync.
+            events_persisted: list[int] = []
+            while self.persisted_event_seqs:
+                events_persisted.append(self.persisted_event_seqs.popleft())
+
             response = messages.TriggerStateSync(
                 to_create=[],
                 to_cancel=self.cancelling_triggers,
+                events_persisted=events_persisted or None,
             )
 
             # Pull out of these dequeues in a thread-safe manner
@@ -657,7 +681,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         perform_heartbeat(self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True)
 
     def heartbeat_callback(self, session: Session | None = None) -> None:
-        stats.incr("triggerer_heartbeat", 1, 1)
+        stats.incr("triggerer_heartbeat", 1, 1, tags=prune_dict({"team_name": self.team_name}))
 
     def load_triggers(self) -> None:
         """Assign triggers to this triggerer and update the runner with the IDs it should run."""
@@ -679,12 +703,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     def handle_events(self):
         """Dispatch outbound events to the Trigger model which pushes them to the relevant task instances."""
         while self.events:
-            # Get the event and its trigger ID
-            trigger_id, event = self.events.popleft()
+            entry = self.events.popleft()
             # Tell the model to wake up its tasks
-            self.on_trigger_event(trigger_id=trigger_id, event=event)
+            self.on_trigger_event(trigger_id=entry.trigger_id, event=entry.event)
+            # Only reached when on_trigger_event returned, i.e. the event was
+            # persisted; a raise above leaves the seq unconfirmed so the
+            # bound shared-stream advance fails out and the broker redelivers.
+            if entry.persist_seq is not None:
+                self.persisted_event_seqs.append(entry.persist_seq)
             # Emit stat event
-            stats.incr("triggers.succeeded")
+            stats.incr("triggers.succeeded", tags=prune_dict({"team_name": self.team_name}))
 
     def on_trigger_event(self, trigger_id: int, event: TriggerEvent) -> None:
         """Record that a trigger fired an event."""
@@ -705,7 +733,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             trigger_id, exc = self.failed_triggers.popleft()
             self.on_trigger_failure(trigger_id=trigger_id, exc=exc)
             # Emit stat event
-            stats.incr("triggers.failed")
+            stats.incr("triggers.failed", tags=prune_dict({"team_name": self.team_name}))
 
     def on_trigger_failure(self, trigger_id: int, exc: list[str] | None) -> None:
         """Record that a trigger failed."""
@@ -727,7 +755,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 "TriggerRunnerSupervisor.metric_tags() requires a Job with a hostname; "
                 "subclasses without a metadata-DB Job must override this method."
             )
-        return {"hostname": hostname}
+        return prune_dict({"hostname": hostname, "team_name": self.team_name})
 
     def emit_metrics(self):
         tags = self.metric_tags()
@@ -752,10 +780,34 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         session: Session,
     ) -> workloads.RunTrigger | None:
         if trigger.task_instance is None:
+            watched_assets: dict[str, str] | None = None
+
+            if trigger.assets:
+                watched_assets = {a.name: a.uri for a in trigger.assets}
+
+            # ``callback`` is an attribute of the Trigger model, not of the BaseEventTrigger
+            # protocol — asset-only triggers (and spec'd test mocks) may not expose it, so read
+            # it defensively. Only callback triggers fetch DagRun context.
+            callback = getattr(trigger, "callback", None)
+            # Only fetch DagRun data for callback triggers (not all non-task triggers).
+            dag_run_data = self._fetch_callback_dag_run_data(trigger, session=session) if callback else None
+            if callback and dag_run_data is None:
+                # Only skip when routing data was present but the DagRun lookup failed
+                # (transient DB/API issue). Old 3.2.x callbacks without dag_id/run_id
+                # pass through — their trigger's run() falls back to stored kwargs["context"].
+                callback_data = callback.data or {}
+                if callback_data.get("dag_id") and callback_data.get("run_id"):
+                    log.warning(
+                        "Skipping callback trigger — DagRun not found for context",
+                        trigger_id=trigger.id,
+                    )
+                    return None
             return workloads.RunTrigger(
                 id=trigger.id,
                 classpath=trigger.classpath,
                 encrypted_kwargs=trigger.encrypted_kwargs,
+                watched_assets=watched_assets,
+                dag_run_data=dag_run_data,
             )
 
         if not trigger.task_instance.dag_version_id:
@@ -812,6 +864,45 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             timeout_after=trigger.task_instance.trigger_timeout,
         )
 
+    def _fetch_callback_dag_run_data(self, trigger: Trigger, *, session: Session) -> dict | None:
+        """
+        Fetch DagRun data for deadline callback triggers.
+
+        When a callback trigger has dag_id/run_id stored in its associated Callback.data,
+        fetch the DagRun and return serialized dag_run_data so the TriggerRunner can build
+        a standard Context at runtime (same pattern as start_from_trigger).
+        """
+        from airflow.models.dagrun import DagRun
+
+        # The trigger's callback relationship stores the identifiers we need
+        if not trigger.callback:
+            return None
+
+        callback_data = trigger.callback.data
+        dag_id = callback_data.get("dag_id")
+        run_id = callback_data.get("run_id")
+        if not dag_id or not run_id:
+            return None
+
+        dagrun = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
+        if not dagrun:
+            log.warning(
+                "Could not find DagRun for callback context",
+                dag_id=dag_id,
+                run_id=run_id,
+                trigger_id=trigger.id,
+            )
+            return None
+
+        data = dagrun.dag_run_data.model_dump(exclude_unset=True)
+        # Pass deadline metadata through so _build_context_from_dag_run_data can expose
+        # context["deadline"] for template rendering ({{ deadline.deadline_time }}).
+        deadline_id = callback_data.get("deadline_id")
+        deadline_time = callback_data.get("deadline_time")
+        if deadline_id or deadline_time:
+            data["_deadline"] = {"id": deadline_id, "deadline_time": deadline_time}
+        return data
+
     def fetch_trigger_details(self, trigger_ids: set[int], *, session: Session) -> dict[int, Trigger]:
         """Fetch trigger rows by ID."""
         return Trigger.bulk_fetch(trigger_ids, session=session)
@@ -853,13 +944,29 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     )
                     continue
 
-                if workload := self._create_workload(
-                    trigger=new_trigger_orm,
-                    dag_bag=dag_bag,
-                    render_log_fname=render_log_fname,
-                    session=session,
-                ):
-                    to_create.append(workload)
+                # Isolate per-trigger failures: a single bad trigger (e.g. one whose
+                # serialized Dag fails to load, whose deadline-callback context fetch
+                # raises, or whose log-path rendering throws) must not abort the whole
+                # batch and crash the triggerer process. This mirrors the per-item
+                # isolation already applied to the scheduler's handle_miss and
+                # _enqueue_executor_callbacks loops.
+                try:
+                    if workload := self._create_workload(
+                        trigger=new_trigger_orm,
+                        dag_bag=dag_bag,
+                        render_log_fname=render_log_fname,
+                        session=session,
+                    ):
+                        to_create.append(workload)
+                except Exception:
+                    log.exception(
+                        "Failed to build workload for trigger; skipping it so the rest of "
+                        "the batch can still launch",
+                        id=new_trigger_id,
+                    )
+                    # _create_workload may have already registered a logger factory before
+                    # failing; drop it so the failed trigger leaves no leaked state behind.
+                    self.logger_cache.pop(new_trigger_id, None)
 
         return to_create
 
@@ -1073,7 +1180,7 @@ class TriggerRunner:
     to_cancel: deque[int]
 
     # Outbound queue of events
-    events: deque[tuple[int, TriggerEvent]]
+    events: deque[TriggerEventEntry]
 
     # Outbound queue of failed triggers
     failed_triggers: deque[tuple[int, BaseException | None]]
@@ -1100,6 +1207,7 @@ class TriggerRunner:
         self._shared_streams = SharedStreamManager(
             log=self.log,
             max_subscriber_queue=conf.getint("triggerer", "shared_stream_subscriber_queue_size"),
+            ack_timeout=conf.getfloat("triggerer", "shared_stream_ack_timeout"),
         )
         self.blocked_main_thread_warning_threshold = conf.getfloat(
             "triggerer", "blocked_main_thread_warning_threshold"
@@ -1232,6 +1340,22 @@ class TriggerRunner:
             ),
         )
 
+    @staticmethod
+    def _build_context_from_dag_run_data(dag_run_data: dict) -> Context:
+        """
+        Build a standard Context dict from serialized dag_run_data for callback triggers.
+
+        This provides the same DagRun-level context fields (dag_run, run_id, logical_date,
+        ds, ts, etc.) that task-bound triggers get via RuntimeTaskInstance.get_template_context(),
+        but without task-specific fields since callbacks are not tied to a task.
+        """
+        from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel
+        from airflow.sdk.execution_time.context import build_context_from_dag_run
+
+        deadline_info = dag_run_data.pop("_deadline", None)
+        dag_run = DRDataModel(**dag_run_data)
+        return build_context_from_dag_run(dag_run, deadline=deadline_info)  # type: ignore[return-value]
+
     async def create_triggers(self):
         """Drain the to_create queue and create all new triggers that have been requested in the DB."""
         while self.to_create:
@@ -1278,13 +1402,34 @@ class TriggerRunner:
                 else:
                     trigger_name = f"ID {trigger_id}"
                     trigger_instance = trigger_class(**deserialised_kwargs)
-            except TypeError as err:
-                self.log.error("Trigger failed to inflate", error=err)
+                    # For callback triggers with dag_run_data, build a standard Context
+                    # and set it on the trigger instance — the same pattern as
+                    # trigger_instance.task_instance = runtime_ti for task-bound triggers.
+                    if workload.dag_run_data:
+                        context = self._build_context_from_dag_run_data(workload.dag_run_data)
+                        trigger_instance._callback_context = context
+            except Exception as err:
+                # Inflating the trigger / building its callback context can fail in more ways than
+                # a TypeError: ``DRDataModel(**dag_run_data)`` in ``_build_context_from_dag_run_data``
+                # is a strict (``extra=forbid``) Pydantic model, so a version-skewed or malformed
+                # ``dag_run_data`` raises ``pydantic.ValidationError`` (a ``ValueError``, NOT a
+                # ``TypeError``); ``smart_decode_trigger_kwargs`` / ``_decrypt_kwargs`` can likewise
+                # raise non-TypeError errors. Catching only ``TypeError`` let those escape to
+                # ``arun()``'s ``except Exception``, which sets ``self.stop = True`` and shuts down
+                # the WHOLE triggerer — killing every running trigger because of one bad workload.
+                # Fail just this trigger (mirrors the ``except BaseException`` on the class-load step
+                # above) so the others keep running.
+                self.log.error("Trigger failed to inflate", error=err, trigger_id=trigger_id)
                 self.failed_triggers.append((trigger_id, err))
                 continue
             trigger_instance.trigger_id = trigger_id
             trigger_instance.triggerer_job_id = self.job_id
             trigger_instance.timeout_after = workload.timeout_after
+
+            if isinstance(trigger_instance, BaseEventTrigger) and workload.watched_assets:
+                trigger_instance.asset_state_store = AssetStateStoreAccessors(
+                    inlets=[Asset(name=name, uri=uri) for name, uri in workload.watched_assets.items()]
+                )
 
             self.triggers[trigger_id] = {
                 "task": asyncio.create_task(
@@ -1362,12 +1507,11 @@ class TriggerRunner:
 
     def process_trigger_events(self, finished_ids: list[int]) -> messages.TriggerStateChanges:
         # Copy out of our dequeues in threadsafe manner to sync state with parent
-        events_to_send: list[tuple[int, DiscrimatedTriggerEvent]] = []
+        events_to_send: list[TriggerEventEntry] = []
         failures_to_send: list[tuple[int, list[str] | None]] = []
 
         while self.events:
-            trigger_id, trigger_event = self.events.popleft()
-            events_to_send.append((trigger_id, trigger_event))
+            events_to_send.append(self.events.popleft())
 
         while self.failed_triggers:
             trigger_id, exc = self.failed_triggers.popleft()
@@ -1382,21 +1526,25 @@ class TriggerRunner:
 
     def sanitize_trigger_events(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateChanges:
         req_encoder = _new_encoder()
-        events_to_send: list[tuple[int, DiscrimatedTriggerEvent]] = []
+        events_to_send: list[TriggerEventEntry] = []
 
         if msg.events:
-            for trigger_id, trigger_event in msg.events:
+            for entry in msg.events:
                 try:
-                    req_encoder.encode(trigger_event)
+                    req_encoder.encode(entry.event)
                 except Exception as e:
                     logger.error(
                         "Trigger %s returned non-serializable result %r. Cancelling trigger.",
-                        trigger_id,
-                        trigger_event,
+                        entry.trigger_id,
+                        entry.event,
                     )
-                    self.failed_triggers.append((trigger_id, e))
+                    # The dropped event's seq (if any) is never confirmed, so
+                    # the bound shared-stream advance times out as failed and
+                    # the broker redelivers — the safe direction for an event
+                    # that was never persisted.
+                    self.failed_triggers.append((entry.trigger_id, e))
                 else:
-                    events_to_send.append((trigger_id, trigger_event))
+                    events_to_send.append(entry)
 
         return messages.TriggerStateChanges(
             events=events_to_send if events_to_send else None,
@@ -1417,6 +1565,8 @@ class TriggerRunner:
         if resp:
             self.to_create.extend(resp.to_create)
             self.to_cancel.extend(resp.to_cancel)
+            if resp.events_persisted:
+                self._shared_streams.confirm_persisted(resp.events_persisted)
 
     async def asend(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateSync | None:
         try:
@@ -1526,7 +1676,13 @@ class TriggerRunner:
                         "Trigger fired event", name=self.triggers[trigger_id]["name"], result=event
                     )
                     self.triggers[trigger_id]["events"] += 1
-                    self.events.append((trigger_id, event))
+                    seq: int | None = None
+                    if shared_key is not None:
+                        # Bind and append back to back with no await in
+                        # between, so no other coroutine can observe the
+                        # event bound but not yet queued (or vice versa).
+                        seq = self._shared_streams.bind_pending_event(trigger_id=trigger_id, key=shared_key)
+                    self.events.append(TriggerEventEntry(trigger_id=trigger_id, event=event, persist_seq=seq))
                 span.set_status(Status(StatusCode.OK))
             except asyncio.CancelledError as e:
                 # A trigger can be cancelled for two reasons:
@@ -1557,6 +1713,71 @@ class TriggerRunner:
                         await self.log.awarning("on_kill() raised an exception", name=name, exc_info=True)
                 span.set_status(Status(StatusCode.OK), description=str(e))
                 raise
+            except BaseException as e:
+                # A BaseException (other than CancelledError) raised by user code
+                # inside the trigger — e.g. an async deadline callback that calls
+                # sys.exit(), raises KeyboardInterrupt, raises GeneratorExit, or
+                # raises a custom BaseException subclass. For SystemExit /
+                # KeyboardInterrupt asyncio re-raises these out of the event-loop
+                # step; other BaseException subclasses get stored on the task and
+                # are reaped by cleanup_finished_triggers(), but that path calls
+                # submit_failure() which only fails dependent task instances and
+                # never marks a Callback row terminal — so a callback trigger would
+                # be stuck in RUNNING forever. Handle every BaseException uniformly
+                # here: record the failure so dependent task instances are failed,
+                # and emit a terminal FAILED event so callback rows (which are only
+                # marked terminal via an event, not via submit_failure) don't get
+                # stuck in RUNNING forever. Do NOT re-raise — that is what keeps
+                # the event loop alive. asyncio.CancelledError is handled by the
+                # dedicated ``except asyncio.CancelledError`` clause above (which
+                # is evaluated first and re-raises), so cancellation is unaffected
+                # and is never swallowed here.
+                if isinstance(e, Exception):
+                    # Ordinary exceptions keep their existing behaviour: re-raise so
+                    # the generic ``except Exception`` path below records the failure
+                    # via cleanup_finished_triggers(). Only true BaseException
+                    # subclasses (SystemExit, KeyboardInterrupt, GeneratorExit, and
+                    # custom BaseException classes) are handled inline here.
+                    raise
+                from airflow.triggers.callback import CallbackTrigger
+
+                span.set_status(Status(StatusCode.ERROR), description=str(e))
+                await self.log.aexception(
+                    "Trigger raised %s; failing it instead of crashing the triggerer",
+                    type(e).__name__,
+                    name=name,
+                    trigger_id=trigger_id,
+                )
+                if isinstance(trigger, CallbackTrigger):
+                    # Callback rows are only marked terminal via an event
+                    # (handle_event), never via submit_failure, so a FAILED event
+                    # is what moves the Callback out of RUNNING. Mirror the FAILED
+                    # event CallbackTrigger.run() emits for ordinary exceptions —
+                    # which it cannot emit here because a BaseException tears the
+                    # async generator down before its own except-handler runs.
+                    from airflow.models.callback import CallbackState
+                    from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY
+
+                    self.triggers[trigger_id]["events"] += 1
+                    self.events.append(
+                        TriggerEventEntry(
+                            trigger_id=trigger_id,
+                            event=TriggerEvent(
+                                {
+                                    PAYLOAD_STATUS_KEY: CallbackState.FAILED,
+                                    PAYLOAD_BODY_KEY: f"Trigger failed with {type(e).__name__}: "
+                                    f"{''.join(format_exception(type(e), e, e.__traceback__))}",
+                                }
+                            ),
+                            persist_seq=None,
+                        )
+                    )
+                else:
+                    # Task-bound (and asset) triggers fail their dependents through
+                    # the failure queue, exactly as the generic ``except Exception``
+                    # path does via cleanup_finished_triggers().
+                    self.failed_triggers.append((trigger_id, e))
+                return
             except Exception as e:
                 span.set_status(Status(StatusCode.ERROR), description=str(e))
                 raise

@@ -59,6 +59,62 @@ class BulkDAGRunBody(StrictBaseModel):
     note: str | None = Field(None, max_length=1000)
 
 
+class PartitionSelectorMixin(StrictBaseModel):
+    """Partition filter fields shared by bulk-clear and clearPartitions bodies."""
+
+    partition_key: str | None = Field(
+        default=None,
+        description="Select runs by exact partition key match. Mutually exclusive with the other partition selectors.",
+    )
+    partition_date_start: datetime | None = Field(
+        default=None,
+        description=(
+            "Inclusive start of the partition date window. "
+            "The value is interpreted in the Dag's timetable timezone. "
+            "Mutually exclusive with the other partition selectors."
+        ),
+    )
+    partition_date_end: datetime | None = Field(
+        default=None,
+        description=(
+            "Inclusive end of the partition date window. "
+            "The value is interpreted in the Dag's timetable timezone. "
+            "Mutually exclusive with the other partition selectors."
+        ),
+    )
+
+    @property
+    def has_partition_selectors(self) -> bool:
+        return (
+            self.partition_key is not None
+            or self.partition_date_start is not None
+            or self.partition_date_end is not None
+        )
+
+    def _validate_partition_date_window_order(self) -> None:
+        if (
+            self.partition_date_start is not None
+            and self.partition_date_end is not None
+            and self.partition_date_start > self.partition_date_end
+        ):
+            raise ValueError("partition_date_start must be on or before partition_date_end.")
+
+    def _check_exactly_one_selection_mode(
+        self, *, extra_selector_active: bool, extra_selector_name: str
+    ) -> None:
+        has_partition_key = self.partition_key is not None
+        has_partition_date_window = (
+            self.partition_date_start is not None or self.partition_date_end is not None
+        )
+        modes_active = sum([extra_selector_active, has_partition_key, has_partition_date_window])
+        if modes_active != 1:
+            raise ValueError(
+                f"Exactly one of {extra_selector_name}, partition_key, or a partition date window "
+                "(partition_date_start / partition_date_end) must be provided."
+            )
+        self._validate_partition_date_window_order()
+
+
 class BaseDAGRunClear(StrictBaseModel):
     """Shared options for the single-run and bulk Dag Run clear endpoints."""
 
@@ -89,10 +145,18 @@ class DAGRunClearBody(BaseDAGRunClear):
     """Dag Run serializer for clear endpoint body."""
 
 
-class BulkDAGRunClearBody(BaseDAGRunClear):
+class BulkDAGRunClearBody(BaseDAGRunClear, PartitionSelectorMixin):
     """Request body for the bulk clear Dag Runs endpoint."""
 
-    dag_runs: list[BulkDAGRunBody] = Field(min_length=1)
+    dag_runs: list[BulkDAGRunBody] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_exactly_one_selection_mode(self) -> BulkDAGRunClearBody:
+        self._check_exactly_one_selection_mode(
+            extra_selector_active=bool(self.dag_runs),
+            extra_selector_name="dag_runs (non-empty)",
+        )
+        return self
 
 
 class DAGRunResponse(BaseModel):
@@ -119,6 +183,7 @@ class DAGRunResponse(BaseModel):
     bundle_version: str | None
     dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
     partition_key: str | None
+    partition_date: datetime | None
 
 
 class DAGRunCollectionResponse(BaseModel):
@@ -191,6 +256,9 @@ class TriggerDAGRunPostBody(StrictBaseModel):
             run_after=timezone.coerce_datetime(run_after),
             data_interval=data_interval,
         )
+
+        partition_date = dag.timetable.resolve_partition_date(self.partition_key)
+
         return {
             "run_id": run_id,
             "logical_date": coerced_logical_date,
@@ -199,6 +267,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
             "conf": self.conf,
             "note": self.note,
             "partition_key": self.partition_key,
+            "partition_date": partition_date,
         }
 
 
@@ -237,3 +306,36 @@ class DAGRunsBatchBody(StrictBaseModel):
     duration_lt: float | None = None
 
     conf_contains: str | None = None
+
+
+class ClearPartitionsBody(PartitionSelectorMixin):
+    """Request body for the clearPartitions endpoint (column-reset: set partition fields to None)."""
+
+    run_id: str | None = Field(
+        default=None,
+        description="Select runs by exact run_id. Mutually exclusive with ``partition_key`` and partition date window.",
+    )
+    clear_task_instances: bool = Field(
+        default=False,
+        description="Also clear task instances on the matched runs.",
+    )
+    dry_run: bool = Field(
+        default=True,
+        description="If True, compute counts without writing any changes.",
+    )
+
+    @model_validator(mode="after")
+    def validate_exactly_one_selector(self) -> ClearPartitionsBody:
+        self._check_exactly_one_selection_mode(
+            extra_selector_active=self.run_id is not None,
+            extra_selector_name="run_id",
+        )
+        return self
+
+
+class ClearPartitionsResponse(BaseModel):
+    """Response for the clearPartitions endpoint."""
+
+    dag_runs_cleared: int
+    task_instances_cleared: int
+    dry_run: bool

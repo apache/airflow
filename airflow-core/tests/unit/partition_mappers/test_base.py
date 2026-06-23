@@ -16,9 +16,29 @@
 # under the License.
 from __future__ import annotations
 
+import re
+from datetime import datetime, timezone
+
 import pytest
 
-from airflow.partition_mappers.base import PartitionMapper
+from airflow.partition_mappers.base import PartitionMapper, RollupMapper
+from airflow.partition_mappers.identity import IdentityMapper
+from airflow.partition_mappers.temporal import StartOfDayMapper
+from airflow.partition_mappers.window import DayWindow
+from airflow.serialization.decoders import decode_partition_mapper
+from airflow.serialization.encoders import encode_partition_mapper
+from airflow.serialization.enums import Encoding
+
+
+class TestCarryPartitionDate:
+    def test_base_returns_none_by_default(self):
+        """Non-identity mappers don't carry the producer's date; it's derived from the key instead."""
+        dt = datetime(2026, 5, 20, 1, 0, 0, tzinfo=timezone.utc)
+        assert StartOfDayMapper().carry_partition_date(dt) is None
+        assert (
+            RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow()).carry_partition_date(dt)
+            is None
+        )
 
 
 class TestPartitionMapperInitSubclass:
@@ -125,3 +145,50 @@ class TestRollupMapperInit:
 
         # Should not raise.
         RollupMapper(upstream_mapper=_StringOnlyMapper(), window=_AlphaWindow())
+
+
+class TestPartitionMapperMaxDownstreamKeysValidator:
+    """Verify the max_downstream_keys validator on the PartitionMapper base class.
+
+    Uses IdentityMapper as the most lightweight concrete subclass — the
+    validator lives on the base class so any subclass exercises it.
+    """
+
+    def test_max_downstream_keys_none_is_accepted(self):
+        """Default (None) leaves max_downstream_keys as None."""
+        mapper = IdentityMapper()
+        assert mapper.max_downstream_keys is None
+
+    def test_max_downstream_keys_one_is_accepted(self):
+        """Minimum positive integer value is accepted."""
+        mapper = IdentityMapper(max_downstream_keys=1)
+        assert mapper.max_downstream_keys == 1
+
+    @pytest.mark.parametrize(
+        "bad_value",
+        [
+            pytest.param(0, id="zero"),
+            pytest.param(-1, id="negative"),
+            pytest.param(1.0, id="float"),
+            pytest.param("5", id="string"),
+        ],
+    )
+    def test_max_downstream_keys_invalid_raises(self, bad_value):
+        """Reject non-positive-integer values with the full validator message."""
+        with pytest.raises(
+            ValueError,
+            match=re.escape(f"max_downstream_keys must be a positive integer or None, got {bad_value!r}"),
+        ):
+            IdentityMapper(max_downstream_keys=bad_value)
+
+
+class TestRollupMapperMaxDownstreamKeys:
+    def test_max_downstream_keys_encode_decode_roundtrip(self):
+        mapper = RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow(), max_downstream_keys=5)
+        restored = decode_partition_mapper(encode_partition_mapper(mapper))
+        assert restored.max_downstream_keys == 5
+
+    def test_max_downstream_keys_absent_from_default_encoded_payload(self):
+        mapper = RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow())
+        encoded_var = encode_partition_mapper(mapper)[Encoding.VAR]
+        assert "max_downstream_keys" not in encoded_var

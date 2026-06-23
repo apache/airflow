@@ -20,6 +20,7 @@ import collections
 import contextlib
 import functools
 import inspect
+import json
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
@@ -51,7 +52,7 @@ from airflow.sdk.exceptions import (
     AirflowSecretsBackendAccessDenied,
     ErrorType,
 )
-from airflow.sdk.log import mask_secret
+from airflow.sdk.log import amask_secret, mask_secret
 
 if TYPE_CHECKING:
     from pydantic.types import JsonValue
@@ -118,9 +119,9 @@ AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
 
 log = structlog.get_logger(logger_name="task")
 
-#: Pass as ``retention`` to ``task_store.set()`` to store a key that never expires,
+#: Pass as ``retention`` to ``task_state_store.set()`` to store a key that never expires,
 #: regardless of the global ``[state_store] default_retention_days`` config.
-#: Example: ``context["task_store"].set("job_id", job_id, retention=NEVER_EXPIRE)``
+#: Example: ``context["task_state_store"].set("job_id", job_id, retention=NEVER_EXPIRE)``
 NEVER_EXPIRE: timedelta = timedelta.max
 
 _EXTERNAL_STATE_REF_KEY = "__airflow_state_ref__"
@@ -157,6 +158,14 @@ def _mask_connection_secrets(conn: Connection) -> None:
         mask_secret(conn.password)
     if conn.extra:
         mask_secret(conn.extra)
+
+
+async def _amask_connection_secrets(conn: Connection) -> None:
+    """Async version: mask sensitive connection fields from logs."""
+    if conn.password:
+        await amask_secret(conn.password)
+    if conn.extra:
+        await amask_secret(conn.extra)
 
 
 def _convert_variable_result_to_variable(var_result: VariableResult, deserialize_json: bool) -> Variable:
@@ -225,7 +234,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
     preset = _preset_connections.get()
     if preset is not None and conn_id in preset:
         conn = preset[conn_id]
-        _mask_connection_secrets(conn)
+        await _amask_connection_secrets(conn)
         return conn
 
     from asgiref.sync import sync_to_async
@@ -238,7 +247,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
         from airflow.sdk.definitions.connection import Connection
 
         conn = Connection.from_uri(uri, conn_id=conn_id)
-        _mask_connection_secrets(conn)
+        await _amask_connection_secrets(conn)
         return conn
     except SecretCache.NotPresentException:
         pass  # continue to backends
@@ -260,7 +269,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
 
             if conn:
                 SecretCache.save_connection_uri(conn_id, conn.get_uri())
-                _mask_connection_secrets(conn)
+                await _amask_connection_secrets(conn)
                 return conn
         except AirflowSecretsBackendAccessDenied:
             # Authoritative deny — must NOT fall through to a less-restrictive backend.
@@ -505,15 +514,15 @@ def _get_worker_state_store_backend() -> BaseStoreBackend | None:
         ) from e
 
 
-class TaskStoreAccessor:
-    """Accessor for task store scoped to the current task instance. Available as ``context['task_store']`` at task execution time."""
+class TaskStateStoreAccessor:
+    """Accessor for task store scoped to the current task instance. Available as ``context['task_state_store']`` at task execution time."""
 
     def __init__(self, ti_id: UUID, scope: TaskScope) -> None:
         self._ti_id = ti_id
         self._scope = scope
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, TaskStoreAccessor):
+        if not isinstance(other, TaskStateStoreAccessor):
             return False
         return self._ti_id == other._ti_id
 
@@ -521,7 +530,7 @@ class TaskStoreAccessor:
         return hash(self._ti_id)
 
     def __repr__(self) -> str:
-        return f"<TaskStoreAccessor ti_id={self._ti_id}>"
+        return f"<TaskStateStoreAccessor ti_id={self._ti_id}>"
 
     # TODO: ``__getattr__`` for jinja template access like ``{{ task_store.job_id }}``
     # is not implemented yet cos it's unclear whether task state values will be
@@ -535,19 +544,19 @@ class TaskStoreAccessor:
         ``datetime`` is not JSON-serializable; store it as ``value.isoformat()`` and
         parse it back with ``datetime.fromisoformat(result)``.
         """
-        from airflow.sdk.execution_time.comms import ErrorResponse, GetTaskStore, TaskStoreResult
+        from airflow.sdk.execution_time.comms import ErrorResponse, GetTaskStateStore, TaskStateStoreResult
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        resp = SUPERVISOR_COMMS.send(GetTaskStore(ti_id=self._ti_id, key=key))
+        resp = SUPERVISOR_COMMS.send(GetTaskStateStore(ti_id=self._ti_id, key=key))
 
         if isinstance(resp, ErrorResponse) and resp.error != ErrorType.TASK_STORE_NOT_FOUND:
             raise AirflowRuntimeError(resp)
-        if isinstance(resp, TaskStoreResult):
+        if isinstance(resp, TaskStateStoreResult):
             stored = resp.value
             backend = _get_worker_state_store_backend()
             if backend is not None and isinstance(stored, dict) and (ref := _unwrap_external_ref(stored)):
                 # unwrap the marker to get the ref, and retrieve the actual value from the backend using the ref
-                return backend.deserialize_task_store_from_ref(ref)
+                return backend.deserialize_task_state_store_from_ref(ref)
             if backend is not None:
                 log.warning(
                     "Task store key %r was not written through the configured state backend — returning raw "
@@ -570,7 +579,7 @@ class TaskStoreAccessor:
         - ``NEVER_EXPIRE`` — key never expires, regardless of the global config and is skipped by garbage collection.
         - ``None`` (default) — use the global ``[state_store] default_retention_days`` config.
         """
-        from airflow.sdk.execution_time.comms import SetTaskStore
+        from airflow.sdk.execution_time.comms import SetTaskStateStore
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         if value is None:
@@ -596,41 +605,48 @@ class TaskStoreAccessor:
         backend = _get_worker_state_store_backend()
         stored: JsonValue = value
         if backend is not None:
-            ref: str = backend.serialize_task_store_to_ref(value=value, key=key, scope=self._scope)
+            ref: str = backend.serialize_task_state_store_to_ref(value=value, key=key, scope=self._scope)
             # wrap the value with a marker to indicate that it's stored externally, and include the ref to the external storage
             stored = _wrap_external_ref(ref)
 
-        SUPERVISOR_COMMS.send(SetTaskStore(ti_id=self._ti_id, key=key, value=stored, expires_at=expires_at))
+        msg = SetTaskStateStore(ti_id=self._ti_id, key=key, value=stored, expires_at=expires_at)
+
+        if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
+            serialized_size = len(json.dumps(stored))
+            if serialized_size > limit:
+                log.warning(
+                    "Task store value for key %r is %d bytes, which exceeds configured max_value_storage_bytes=%d. "
+                    "Consider configuring [workers] state_store_backend to offload large payloads.",
+                    key,
+                    serialized_size,
+                    limit,
+                )
+
+        SUPERVISOR_COMMS.send(msg)
 
     def delete(self, key: str) -> None:
         """Delete a single key. No-op if the key does not exist."""
-        from airflow.sdk.execution_time.comms import DeleteTaskStore
+        from airflow.sdk.execution_time.comms import DeleteTaskStateStore
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         # cleanup the DB ref first, if backend cleanup fails after this, the ref is gone and
         # deterministic keys are recoverable on next set().
-        SUPERVISOR_COMMS.send(DeleteTaskStore(ti_id=self._ti_id, key=key))
+        SUPERVISOR_COMMS.send(DeleteTaskStateStore(ti_id=self._ti_id, key=key))
         backend = _get_worker_state_store_backend()
         if backend is not None:
             backend.delete(self._scope, key)
 
-    def clear(self, all_map_indices: bool = False) -> None:
-        """
-        Delete all keys for this task instance.
-
-        Pass ``all_map_indices=True`` to wipe state across every mapped
-        instance of the task (fleet-wide reset). Defaults to clearing only
-        this task instance's own state.
-        """
-        from airflow.sdk.execution_time.comms import ClearTaskStore
+    def clear(self) -> None:
+        """Delete all keys for this task instance."""
+        from airflow.sdk.execution_time.comms import ClearTaskStateStore
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         # cleanup the DB ref first, if backend cleanup fails after this, the ref is gone and
         # deterministic keys are recoverable on next set().
-        SUPERVISOR_COMMS.send(ClearTaskStore(ti_id=self._ti_id, all_map_indices=all_map_indices))
+        SUPERVISOR_COMMS.send(ClearTaskStateStore(ti_id=self._ti_id))
         backend = _get_worker_state_store_backend()
         if backend is not None:
-            backend.clear(self._scope, all_map_indices=all_map_indices)
+            backend.clear(self._scope)
 
     def _clear_backend_only(self) -> None:
         """
@@ -644,12 +660,12 @@ class TaskStoreAccessor:
             backend.clear(self._scope)
 
 
-class AssetStoreAccessor:
+class AssetStateStoreAccessor:
     """
     Accessor for asset store scoped to a single asset.
 
-    Obtained via ``context['asset_store'][MY_ASSET]`` or, as sugar for single-inlet
-    tasks, directly as ``context['asset_store']``.
+    Obtained via ``context['asset_state_store'][MY_ASSET]`` or, as sugar for single-inlet
+    tasks, directly as ``context['asset_state_store']``.
     """
 
     def __init__(self, *, name: str | None = None, uri: str | None = None) -> None:
@@ -659,7 +675,7 @@ class AssetStoreAccessor:
         self._uri = uri
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, AssetStoreAccessor):
+        if not isinstance(other, AssetStateStoreAccessor):
             return False
         return self._name == other._name and self._uri == other._uri
 
@@ -668,34 +684,34 @@ class AssetStoreAccessor:
 
     def __repr__(self) -> str:
         if self._name is not None:
-            return f"<AssetStoreAccessor name={self._name!r}>"
-        return f"<AssetStoreAccessor uri={self._uri!r}>"
+            return f"<AssetStateStoreAccessor name={self._name!r}>"
+        return f"<AssetStateStoreAccessor uri={self._uri!r}>"
 
     def get(self, key: str, default: JsonValue = None) -> JsonValue:
         """Return the stored value, or ``default`` if the key does not exist."""
         from airflow.sdk.execution_time.comms import (
-            AssetStoreResult,
+            AssetStateStoreResult,
             ErrorResponse,
-            GetAssetStoreByName,
-            GetAssetStoreByUri,
+            GetAssetStateStoreByName,
+            GetAssetStateStoreByUri,
             ToSupervisor,
         )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         msg: ToSupervisor
         if self._name:
-            msg = GetAssetStoreByName(name=self._name, key=key)
+            msg = GetAssetStateStoreByName(name=self._name, key=key)
         elif self._uri:
-            msg = GetAssetStoreByUri(uri=self._uri, key=key)
+            msg = GetAssetStateStoreByUri(uri=self._uri, key=key)
         resp = SUPERVISOR_COMMS.send(msg)
         if isinstance(resp, ErrorResponse) and resp.error != ErrorType.ASSET_STORE_NOT_FOUND:
             raise AirflowRuntimeError(resp)
-        if isinstance(resp, AssetStoreResult):
+        if isinstance(resp, AssetStateStoreResult):
             stored = resp.value
             backend = _get_worker_state_store_backend()
             if backend is not None and isinstance(stored, dict) and (ref := _unwrap_external_ref(stored)):
                 # unwrap the marker to get the ref, and retrieve the actual value from the backend using the ref
-                return backend.deserialize_asset_store_from_ref(ref)
+                return backend.deserialize_asset_state_store_from_ref(ref)
             if backend is not None:
                 log.warning(
                     "Asset store key %r for asset %r was not written through the configured state backend — "
@@ -709,7 +725,11 @@ class AssetStoreAccessor:
 
     def set(self, key: str, value: JsonValue) -> None:
         """Write or overwrite the value for the given key. ``value`` must not be ``None``."""
-        from airflow.sdk.execution_time.comms import SetAssetStoreByName, SetAssetStoreByUri, ToSupervisor
+        from airflow.sdk.execution_time.comms import (
+            SetAssetStateStoreByName,
+            SetAssetStateStoreByUri,
+            ToSupervisor,
+        )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         if value is None:
@@ -721,31 +741,42 @@ class AssetStoreAccessor:
         stored: JsonValue = value
         if backend is not None:
             scope = AssetScope(name=self._name, uri=self._uri)
-            ref = backend.serialize_asset_store_to_ref(value=value, key=key, scope=scope)
+            ref = backend.serialize_asset_state_store_to_ref(value=value, key=key, scope=scope)
             stored = _wrap_external_ref(ref)
+
+        if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
+            serialized_size = len(json.dumps(stored))
+            if serialized_size > limit:
+                log.warning(
+                    "Asset store value for key %r is %d bytes, which exceeds configured max_value_storage_bytes=%d. "
+                    "Consider configuring [workers] state_store_backend to offload large payloads.",
+                    key,
+                    serialized_size,
+                    limit,
+                )
 
         msg: ToSupervisor
         if self._name:
-            msg = SetAssetStoreByName(name=self._name, key=key, value=stored)
+            msg = SetAssetStateStoreByName(name=self._name, key=key, value=stored)
         elif self._uri:
-            msg = SetAssetStoreByUri(uri=self._uri, key=key, value=stored)
+            msg = SetAssetStateStoreByUri(uri=self._uri, key=key, value=stored)
         SUPERVISOR_COMMS.send(msg)
 
     def delete(self, key: str) -> None:
         """Delete a single key. No-op if the key does not exist."""
         from airflow.sdk._shared.state import AssetScope
         from airflow.sdk.execution_time.comms import (
-            DeleteAssetStoreByName,
-            DeleteAssetStoreByUri,
+            DeleteAssetStateStoreByName,
+            DeleteAssetStateStoreByUri,
             ToSupervisor,
         )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         msg: ToSupervisor
         if self._name:
-            msg = DeleteAssetStoreByName(name=self._name, key=key)
+            msg = DeleteAssetStateStoreByName(name=self._name, key=key)
         elif self._uri:
-            msg = DeleteAssetStoreByUri(uri=self._uri, key=key)
+            msg = DeleteAssetStateStoreByUri(uri=self._uri, key=key)
         # DB ref first: if backend cleanup fails after this, the ref is gone and
         # deterministic keys are recoverable on next set().
         SUPERVISOR_COMMS.send(msg)
@@ -757,43 +788,43 @@ class AssetStoreAccessor:
         """Delete all state keys for this asset."""
         from airflow.sdk._shared.state import AssetScope
         from airflow.sdk.execution_time.comms import (
-            ClearAssetStoreByName,
-            ClearAssetStoreByUri,
+            ClearAssetStateStoreByName,
+            ClearAssetStateStoreByUri,
             ToSupervisor,
         )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         msg: ToSupervisor
         if self._name:
-            msg = ClearAssetStoreByName(name=self._name)
+            msg = ClearAssetStateStoreByName(name=self._name)
         elif self._uri:
-            msg = ClearAssetStoreByUri(uri=self._uri)
+            msg = ClearAssetStateStoreByUri(uri=self._uri)
         SUPERVISOR_COMMS.send(msg)
         backend = _get_worker_state_store_backend()
         if backend is not None:
             backend.clear(AssetScope(name=self._name, uri=self._uri))
 
 
-class AssetStoreAccessors:
+class AssetStateStoreAccessors:
     """
     Mapping of asset state accessors for all concrete inlets and outlets of a task.
 
-    Available as ``context['asset_store']``. Subscript by asset to get a per asset
-    accessor as: ``context['asset_store'][MY_ASSET].get('watermark')``.
+    Available as ``context['asset_state_store']``. Subscript by asset to get a per asset
+    accessor as: ``context['asset_state_store'][MY_ASSET].get('watermark')``.
 
     For tasks with exactly one concrete inlet or outlet, the accessor methods (``get``,
     ``set``, ``delete``, ``clear``) can be called directly without subscripting.
     """
 
     def __init__(self, inlets: list, outlets: list | None = None) -> None:
-        self._by_name: dict[str, AssetStoreAccessor] = {}
-        self._by_uri: dict[str, AssetStoreAccessor] = {}
+        self._by_name: dict[str, AssetStateStoreAccessor] = {}
+        self._by_uri: dict[str, AssetStateStoreAccessor] = {}
 
         for inlet in inlets:
             if isinstance(inlet, (Asset, AssetNameRef)):
-                self._by_name[inlet.name] = AssetStoreAccessor(name=inlet.name)
+                self._by_name[inlet.name] = AssetStateStoreAccessor(name=inlet.name)
             elif isinstance(inlet, AssetUriRef):
-                self._by_uri[inlet.uri] = AssetStoreAccessor(uri=inlet.uri)
+                self._by_uri[inlet.uri] = AssetStateStoreAccessor(uri=inlet.uri)
             elif isinstance(inlet, AssetAlias):
                 from airflow.sdk.execution_time.comms import AssetsByAliasResult, GetAssetsByAlias
                 from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
@@ -801,18 +832,18 @@ class AssetStoreAccessors:
                 resp = SUPERVISOR_COMMS.send(GetAssetsByAlias(alias_name=inlet.name))
                 if isinstance(resp, AssetsByAliasResult):
                     for asset in resp.assets:
-                        self._by_name[asset.name] = AssetStoreAccessor(name=asset.name)
+                        self._by_name[asset.name] = AssetStateStoreAccessor(name=asset.name)
 
         for outlet in outlets or []:
             # AssetAlias outlets are for dynamic event emission, not state access, so skip them
             if isinstance(outlet, (Asset, AssetNameRef)) and outlet.name not in self._by_name:
-                self._by_name[outlet.name] = AssetStoreAccessor(name=outlet.name)
+                self._by_name[outlet.name] = AssetStateStoreAccessor(name=outlet.name)
             elif isinstance(outlet, AssetUriRef) and outlet.uri not in self._by_uri:
-                self._by_uri[outlet.uri] = AssetStoreAccessor(uri=outlet.uri)
+                self._by_uri[outlet.uri] = AssetStateStoreAccessor(uri=outlet.uri)
 
         self._total = len(self._by_name) + len(self._by_uri)
 
-    def __getitem__(self, key: Asset | AssetNameRef | AssetUriRef) -> AssetStoreAccessor:
+    def __getitem__(self, key: Asset | AssetNameRef | AssetUriRef) -> AssetStateStoreAccessor:
         try:
             if isinstance(key, (Asset, AssetNameRef)):
                 return self._by_name[key.name]
@@ -822,10 +853,10 @@ class AssetStoreAccessors:
             raise KeyError(f"{key!r} is not in this task's inlets or outlets")
         raise TypeError(f"Expected Asset, AssetNameRef, or AssetUriRef; got {type(key).__name__}")
 
-    def _single_accessor(self) -> AssetStoreAccessor:
+    def _single_accessor(self) -> AssetStateStoreAccessor:
         if self._total != 1:
             raise ValueError(
-                f"Task has {self._total} concrete inlets and outlets — use context['asset_store'][MY_ASSET] to specify which"
+                f"Task has {self._total} concrete inlets and outlets — use context['asset_state_store'][MY_ASSET] to specify which"
             )
         if self._by_name:
             return next(iter(self._by_name.values()))
@@ -849,7 +880,7 @@ class AssetStoreAccessors:
 
     def __repr__(self) -> str:
         parts = [f"name={k!r}" for k in self._by_name] + [f"uri={k!r}" for k in self._by_uri]
-        return f"<AssetStoreAccessors [{', '.join(parts)}]>"
+        return f"<AssetStateStoreAccessors [{', '.join(parts)}]>"
 
 
 class MacrosAccessor:
@@ -936,10 +967,27 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
     asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
     partition_keys: set[str] = attrs.field(factory=set)
 
+    # Maximum length mirrors the StringID column width used in the metadata database
+    # (airflow.models.base.ID_LEN = 250).
+    _PARTITION_KEY_MAX_LENGTH: int = 250
+
     def add_partitions(self, keys: str | list[str]) -> None:
-        """Add one or more partition keys to :attr:`partition_keys`."""
+        """
+        Add one or more partition keys to :attr:`partition_keys`.
+
+        :raises ValueError: If any key is empty/whitespace-only or longer than
+            ``_PARTITION_KEY_MAX_LENGTH`` characters.
+        """
         if isinstance(keys, str):
             keys = [keys]
+        for key in keys:
+            if not key.strip():
+                raise ValueError(f"partition_key must not be empty or whitespace-only; got {key!r}.")
+            if len(key) > self._PARTITION_KEY_MAX_LENGTH:
+                raise ValueError(
+                    f"partition_key must be at most {self._PARTITION_KEY_MAX_LENGTH} characters; "
+                    f"got {len(key)}."
+                )
         self.partition_keys.update(keys)
 
     def add(self, asset: Asset | AssetRef, extra: dict[str, JsonValue] | None = None) -> None:
@@ -1364,3 +1412,46 @@ def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
     except KeyError:
         outlet_events = context["outlet_events"] = OutletEventAccessors()
     return outlet_events
+
+
+def build_context_from_dag_run(dag_run, deadline: dict | None = None) -> dict:
+    """
+    Build a standard callback Context dict from a DagRun-like object.
+
+    Accepts any object with logical_date, run_id, data_interval_start, data_interval_end
+    attributes (e.g. DRDataModel from the execution API or DagRunResult from comms).
+
+    Returns a context dict with dag_run, run_id, logical_date, ds, ts, etc.
+    Task-specific fields are absent since callbacks are not tied to a task.
+
+    :param deadline: Optional ``{"id": ..., "deadline_time": ...}`` dict exposed as
+        ``context["deadline"]`` (for templates such as ``{{ deadline.deadline_time }}``).
+        Assembled here so the executor and triggerer callback paths produce identical context.
+    """
+    from airflow.sdk.timezone import coerce_datetime
+
+    context: dict = {"dag_run": dag_run}
+
+    if logical_date := coerce_datetime(dag_run.logical_date):
+        ds = logical_date.strftime("%Y-%m-%d")
+        ts = logical_date.isoformat()
+        context.update(
+            {
+                "logical_date": logical_date,
+                "run_id": dag_run.run_id,
+                "ds": ds,
+                "ds_nodash": ds.replace("-", ""),
+                "ts": ts,
+                "ts_nodash": logical_date.strftime("%Y%m%dT%H%M%S"),
+                "ts_nodash_with_tz": ts.replace("-", "").replace(":", ""),
+                "data_interval_start": coerce_datetime(dag_run.data_interval_start),
+                "data_interval_end": coerce_datetime(dag_run.data_interval_end),
+            }
+        )
+    else:
+        context["run_id"] = dag_run.run_id
+
+    if deadline:
+        context["deadline"] = deadline
+
+    return context

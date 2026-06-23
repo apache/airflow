@@ -41,6 +41,7 @@ import attrs
 import psutil
 import structlog
 
+from airflow.sdk.configuration import conf
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaised, ProcessTracker
 
@@ -51,8 +52,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from airflow.sdk.api.client import Client
-    from airflow.sdk.api.datamodels._generated import BundleInfo
-    from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
+    from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
@@ -279,7 +279,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
     def start(  # type: ignore[override]
         cls,
         *,
-        what: TaskInstanceDTO,
+        what: TaskInstance,
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
         logger: FilteringBoundLogger | None = None,
@@ -294,6 +294,15 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             stdout_r, stdout_w = tracker.track(*socket.socketpair())
             stderr_r, stderr_w = tracker.track(*socket.socketpair())
 
+            # A language SDK runtime cannot read Airflow's config, so propagate the
+            # resolved log levels via the environment at launch. StartupDetails
+            # arrives too late, the logs might already be produced by then.
+            env = {
+                **os.environ,
+                "AIRFLOW__LOGGING__LOGGING_LEVEL": conf.get("logging", "logging_level", fallback="INFO"),
+                "AIRFLOW__LOGGING__NAMESPACE_LEVELS": conf.get("logging", "namespace_levels", fallback=""),
+            }
+
             proc = subprocess.Popen(
                 [
                     *command,
@@ -302,6 +311,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 ],
                 stdout=stdout_w.fileno(),
                 stderr=stderr_w.fileno(),
+                env=env,
             )
             tracker.track(proc)
             for soc in tracker.untrack(stdout_w, stderr_w):
@@ -369,7 +379,7 @@ class SubprocessCoordinator(BaseCoordinator):
 
     task_startup_timeout: float = 10.0
 
-    def _build_execute_task_command(self, *, what: TaskInstanceDTO) -> tuple[list[str], str | None]:
+    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         """
         Build the subprocess command and resolve its supervisor wire-schema version for *what*.
 
@@ -385,7 +395,7 @@ class SubprocessCoordinator(BaseCoordinator):
     def execute_task(
         self,
         *,
-        what: TaskInstanceDTO,
+        what: TaskInstance,
         dag_rel_path: str | os.PathLike[str],
         bundle_info: BundleInfo,
         client: Client,

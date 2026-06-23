@@ -18,7 +18,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"log/slog"
@@ -60,29 +59,31 @@ func main() {
 	}
 }
 
-func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, error) {
+func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, error) {
 	log.Info("Hello from task")
 
-	// Log every field the runtime context exposes. The fields are namespaced
-	// under a "context" group (so they serialise as context.ti.* /
-	// context.dag_run.* dotted keys) to avoid colliding with the reserved
-	// task_id/run_id/etc. keys the supervisor strips from its log view.
-	rc := sdk.CurrentContext(ctx)
+	// ctx behaves as a context.Context and also carries the task instance
+	// identifiers and the Dag run's scheduling timestamps. Log every field the
+	// runtime context exposes. The fields are namespaced under a "context"
+	// group (so they serialise as context.ti.* / context.dag_run.* dotted
+	// keys) to avoid colliding with the reserved task_id/run_id/etc. keys the
+	// supervisor strips from its log view.
+	ti, dagRun := ctx.TaskInstance(), ctx.DagRun()
 	log.InfoContext(ctx, "task runtime context",
 		slog.Group("context",
 			slog.Group("ti",
-				"dag_id", rc.TI.DagID,
-				"run_id", rc.TI.RunID,
-				"task_id", rc.TI.TaskID,
-				"map_index", rc.TI.MapIndex,
-				"try_number", rc.TI.TryNumber,
+				"dag_id", ti.DagID,
+				"run_id", ti.RunID,
+				"task_id", ti.TaskID,
+				"map_index", ti.MapIndex,
+				"try_number", ti.TryNumber,
 			),
 			slog.Group("dag_run",
-				"dag_id", rc.DagRun.DagID,
-				"run_id", rc.DagRun.RunID,
-				"logical_date", rc.DagRun.LogicalDate,
-				"data_interval_start", rc.DagRun.DataIntervalStart,
-				"data_interval_end", rc.DagRun.DataIntervalEnd,
+				"dag_id", dagRun.DagID,
+				"run_id", dagRun.RunID,
+				"logical_date", dagRun.LogicalDate,
+				"data_interval_start", dagRun.DataIntervalStart,
+				"data_interval_end", dagRun.DataIntervalEnd,
 			),
 		),
 	)
@@ -121,7 +122,7 @@ func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, err
 	return ret, nil
 }
 
-func transform(ctx context.Context, client sdk.VariableClient, log *slog.Logger) error {
+func transform(ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger) error {
 	// This function takes a VariableClient and not a Client to make unit testing it easier. See
 	// `./main_test.go` for an example unit of this task fn. Functionally taking a `sdk.Client` is the same (as
 	// Client includes VariableClient) but by using the dedicated type it can be easier to write unit tests.
@@ -136,6 +137,17 @@ func transform(ctx context.Context, client sdk.VariableClient, log *slog.Logger)
 	return nil
 }
 
-func load() error {
-	return fmt.Errorf("Please fail")
+// load fails on its first attempt and succeeds on the retry. With retries
+// configured on the stub task, the first failure makes the supervisor mark the
+// task UP_FOR_RETRY -- which only works because the Go SDK now emits a
+// RetryTask frame (instead of a terminal FAILED) when ti_context.should_retry
+// is set. The retry then runs this task again and it returns nil.
+func load(ctx sdk.TIRunContext, log *slog.Logger) error {
+	tryNumber := ctx.TaskInstance().TryNumber
+	if tryNumber == 1 {
+		log.InfoContext(ctx, "Please fail", "try_number", tryNumber)
+		return fmt.Errorf("Please fail")
+	}
+	log.InfoContext(ctx, "Recovered on retry", "try_number", tryNumber)
+	return nil
 }
