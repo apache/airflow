@@ -48,7 +48,7 @@ This applies to both the ``@asset`` pattern and the ``@task`` pattern:
     my_asset = Asset("my_data", uri="s3://bucket/my_data")
 
 
-    # @asset DAGs implicitly declare the asset as an outlet
+    # @asset Dags implicitly declare the asset as an outlet
     @asset
     def my_asset_dag(**context):
         context["asset_state_store"].set("watermark", "2024-06-01")
