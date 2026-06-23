@@ -4307,9 +4307,24 @@ class TestDagRunTracing:
         assert span.name == f"dag_run.{dr.dag_id}"
         assert span.attributes["airflow.dag_id"] == dr.dag_id
         assert span.attributes["airflow.dag_run.run_id"] == dr.run_id
+        # run_type is set via the shared dagrun_trace_attributes helper
+        assert span.attributes["airflow.dag_run.run_type"] == str(dr.run_type)
 
         expected_status = StatusCode.OK if final_state == DagRunState.SUCCESS else StatusCode.ERROR
         assert span.status.status_code == expected_status
+
+    def test_dagrun_trace_attributes_helper(self, dag_maker, session):
+        """The shared helper returns dag_id, run_id and run_type as airflow.* attributes."""
+        from airflow.models.dagrun import dagrun_trace_attributes
+
+        with dag_maker("test_trace_attrs_helper", session=session):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+
+        attrs = dagrun_trace_attributes(dr)
+        assert attrs["airflow.dag_id"] == dr.dag_id
+        assert attrs["airflow.dag_run.run_id"] == dr.run_id
+        assert attrs["airflow.dag_run.run_type"] == str(dr.run_type)
 
     @pytest.mark.parametrize("carrier_value", [None, {}])
     def test_emit_dagrun_span_with_none_or_empty_carrier(self, dag_maker, session, carrier_value):
