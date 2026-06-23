@@ -40,6 +40,12 @@ Features
 * ``Add disabled_for_operators, auto_lineage_enabled, and request_timeout config options``
 * ``Add example DAG demonstrating auto, manual, disabled, and operator-excluded lineage modes``
 
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump aiohttp in /providers/informatica/dev/informatica_simulator (#68607)``
+   * ``Bump requests in /providers/informatica/dev/informatica_simulator (#68572)``
+   * ``Bump aiohttp in /providers/informatica/dev/informatica_simulator (#68571)``
+
 
 0.1.4
 .....

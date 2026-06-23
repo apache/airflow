@@ -38,6 +38,7 @@ from airflow.api_fastapi.common.dagbag import (
     get_dag_for_run,
     get_dag_for_run_or_latest_version,
     get_latest_version_of_dag,
+    resolve_run_on_latest_version,
 )
 from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
@@ -96,7 +97,6 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
-from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
     _get_task_group_task_instances,

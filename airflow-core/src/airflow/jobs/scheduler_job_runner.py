@@ -1175,12 +1175,32 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.debug("No available slots for callbacks; all executors at capacity")
             return
 
-        pending_callbacks = session.scalars(
+        pending_callbacks_query = (
             select(ExecutorCallback)
             .where(ExecutorCallback.type == CallbackType.EXECUTOR)
             .where(ExecutorCallback.state == CallbackState.PENDING)
-            .order_by(ExecutorCallback.priority_weight.desc())
+            # Stable FIFO tiebreaker after priority: created_at then id. Without a secondary
+            # sort key, equal-priority callbacks (all deadline callbacks default to
+            # priority_weight=1) come back in DB-dependent order, so when the PENDING backlog
+            # exceeds max_callbacks the same subset can be picked every loop and the rest
+            # starve indefinitely. Ordering oldest-first guarantees forward progress for every
+            # callback, mirroring the task path's (-priority, logical_date, map_index) ordering.
+            .order_by(
+                ExecutorCallback.priority_weight.desc(),
+                ExecutorCallback.created_at,
+                ExecutorCallback.id,
+            )
             .limit(max_callbacks)
+        )
+
+        # Lock the selected rows FOR UPDATE SKIP LOCKED so concurrent HA scheduler replicas do
+        # not both select the same PENDING callbacks and enqueue them to their executors twice
+        # (a double-execution of the deadline callback). The ``state = QUEUED`` write alone is
+        # not enough: by the time the conflicting write is resolved at commit, both schedulers
+        # have already called ``executor.queue_workload`` (the side effect). This mirrors the
+        # task-instance critical section and the deadline-selection query in _run_scheduler_loop.
+        pending_callbacks = session.scalars(
+            with_row_locks(pending_callbacks_query, of=ExecutorCallback, session=session, skip_locked=True)
         ).all()
 
         if not pending_callbacks:
@@ -1211,22 +1231,50 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag_run = session.get(DagRun, dag_run_id)
 
                 if dag_run is None:
+                    # The DagRun is gone (deleted). Deletion is permanent — the executor
+                    # callback can never run because its execution context is built from the
+                    # DagRun (see _fetch_and_build_context). Leaving it PENDING would retry it
+                    # every scheduler loop forever (a zombie callback + perpetual log spam), so
+                    # terminalize it as FAILED instead. (TriggererCallbacks differ: they have a
+                    # standalone Trigger that can still fire and terminalize them, so they are
+                    # intentionally left to survive a DagRun deletion.)
                     self.log.warning(
-                        "Could not find DagRun with id=%s for callback %s. DagRun may have been deleted.",
+                        "DagRun id=%s for ExecutorCallback %s no longer exists (deleted); "
+                        "marking the callback FAILED — it cannot run without its DagRun context.",
                         dag_run_id,
                         callback.id,
                     )
+                    callback.state = CallbackState.FAILED
+                    session.add(callback)
+                    stats.incr(
+                        "deadline_alerts.callback_orphaned_dagrun_deleted",
+                        tags={"dag_id": callback.data.get("dag_id", "")},
+                    )
                     continue
 
-                workload = workloads.ExecuteCallback.make(
-                    callback=callback,
-                    dag_run=dag_run,
-                    generator=executor.jwt_generator,
-                )
+                # Isolate each callback: a single bad ExecutorCallback (e.g. its workload
+                # fails to build, or the executor's queue_workload raises) must not crash
+                # the scheduler loop or prevent the remaining callbacks from being enqueued.
+                # The SAVEPOINT keeps the already-enqueued callbacks in this batch intact
+                # when one rolls back, and the callback is left in PENDING for retry next
+                # loop. This mirrors the per-deadline isolation in the handle_miss loop.
+                try:
+                    with session.begin_nested():
+                        workload = workloads.ExecuteCallback.make(
+                            callback=callback,
+                            dag_run=dag_run,
+                            generator=executor.jwt_generator,
+                        )
 
-                executor.queue_workload(workload, session=session)
-                callback.state = CallbackState.QUEUED
-                session.add(callback)
+                        executor.queue_workload(workload, session=session)
+                        callback.state = CallbackState.QUEUED
+                        session.add(callback)
+                except Exception:
+                    self.log.exception(
+                        "Failed to enqueue ExecutorCallback %s to executor %s; leaving it PENDING for retry",
+                        callback.id,
+                        executor,
+                    )
 
     @staticmethod
     def _process_task_event_logs(log_records: deque[Log], session: Session):
@@ -1321,7 +1369,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 cls.logger().debug("Draining executor event with state %s for connection test %s", state, key)
             elif isinstance(key, CallbackKey):
                 cls.logger().info("Received executor event with state %s for callback %s", state, key)
-                if state in (CallbackState.RUNNING, CallbackState.FAILED, CallbackState.SUCCESS):
+                if state in (
+                    CallbackState.RUNNING,
+                    CallbackState.FAILED,
+                    CallbackState.SUCCESS,
+                    CallbackState.PENDING,
+                ):
                     callback_keys_with_events.append(key)
             else:
                 cls.logger().error("Unknown workload key type in event buffer: %r", key)
@@ -1348,6 +1401,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 callback.state = CallbackState.FAILED
                 callback.output = str(info) if info else "Execution failed"
                 cls.logger().error("Callback %s failed: %s", callback_id, callback.output)
+            elif state == CallbackState.PENDING:
+                # Transient failure (e.g. the executor callback could not fetch its DagRun
+                # context — an API blip / network partition / token expiry). Reset to PENDING so
+                # the next scheduler loop re-picks it from the PENDING-callbacks query and retries,
+                # rather than terminally failing on a recoverable error. This mirrors the triggerer
+                # path, which re-evaluates a callback trigger on the next loop when the fetch fails.
+                callback.state = CallbackState.PENDING
+                cls.logger().warning(
+                    "Callback %s hit a transient failure; requeueing for retry: %s", callback_id, info
+                )
             session.add(callback)
 
         # Return if no finished tasks
@@ -1814,7 +1877,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             key_share=False,
                         )
                     ):
-                        deadline.handle_miss(session)
+                        # Isolate each deadline: a single bad deadline (e.g. its DagRun was
+                        # deleted between selection and handling, or its callback fails to
+                        # queue) must not crash the scheduler loop or prevent the remaining
+                        # overdue deadlines from being processed. The SAVEPOINT keeps the
+                        # already-handled deadlines in this batch intact when one rolls back.
+                        try:
+                            with session.begin_nested():
+                                deadline.handle_miss(session)
+                        except Exception:
+                            self.log.exception(
+                                "Failed to handle missed deadline %s; skipping it this loop", deadline.id
+                            )
 
                     # Route ExecutorCallback workloads to executors (similar to task routing)
                     self._enqueue_executor_callbacks(session)
@@ -2044,13 +2118,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         asset_infos: Iterable[tuple[str, str]],
         partition_key: str,
         dag_id: str,
+        carried_partition_date: datetime | None,
     ) -> datetime | None:
         """
-        Return the temporal anchor (period-start datetime) for *partition_key*.
+        Return the ``partition_date`` the consumer Dag run should be created with.
 
-        Resolves the temporal anchor (period-start datetime) for *partition_key*
-        across *asset_infos* — the ``(name, uri)`` pairs of the upstream assets
-        that contributed to it. Each upstream mapper resolves the key via
+        The temporal anchor (period-start datetime) is resolved for
+        *partition_key* across *asset_infos* — the ``(name, uri)`` pairs of the
+        upstream assets that contributed to it. Each upstream mapper resolves the
+        key via
         :meth:`~airflow.partition_mappers.base.PartitionMapper.to_partition_date`:
         temporal mappers decode the key, composite mappers delegate to their
         child, and non-temporal mappers (e.g.
@@ -2059,16 +2135,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         A partitioned consumer has a single partition identity, so every temporal
         mapper feeding it must resolve the same key to the same instant. Anchors
         are compared by instant (timezone-aware), so equivalent moments collapse
-        to one. When the temporal mappers agree, that anchor is returned; when
-        they disagree — a misconfiguration, e.g. assets mapping the same key under
-        different timezones — ``partition_date`` is left unset and a warning is
-        logged rather than silently picking one by scan order. Returns ``None`` if
-        no mapper is temporal.
+        to one. When the temporal mappers agree, that anchor is returned.
 
-        A failure in any mapper aborts the whole resolution and returns ``None``
-        (logged) — anchors accumulated from earlier mappers are discarded rather
-        than used as a partial result, since a partial set could hide a conflict.
-        A broken mapper must not crash the scheduler tick.
+        When no temporal mapper contributes at all — an identity key carries no
+        temporal meaning and cannot be decoded back into a date — the producer's
+        source date carried on the APDR at queue time (*carried_partition_date*,
+        set only for ``IdentityMapper``) is returned instead.
+
+        When temporal mappers were present but produced no usable anchor — they
+        disagreed (a misconfiguration, e.g. assets mapping the same key under
+        different timezones) or one raised — the conflict/error is logged and
+        ``None`` is returned. The carried date is deliberately *not* substituted
+        here: stamping it would mask the logged suppression. A broken mapper must
+        not crash the scheduler tick.
         """
         anchors: set[datetime] = set()
         try:
@@ -2086,7 +2165,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return None
 
         if not anchors:
-            return None
+            # No temporal mapper contributed an anchor (e.g. an all-IdentityMapper feed),
+            # so fall back to the date carried on the APDR. A partitioned consumer's feeding
+            # assets are expected to agree on the partition's datetime; when a temporal mapper
+            # *does* resolve an anchor it takes precedence over the carried identity date,
+            # since the key is the authoritative source the scheduler can re-derive.
+            return carried_partition_date
         if len(anchors) > 1:
             self.log.warning(
                 "Upstream partition mappers resolved conflicting partition_date values for the same "
@@ -2288,6 +2372,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     asset_infos=asset_info_per_apdr[apdr.id].values(),
                     partition_key=apdr.partition_key,
                     dag_id=apdr.target_dag_id,
+                    carried_partition_date=apdr.partition_date,
                 )
             dag_run = dag.create_dagrun(
                 run_id=DagRun.generate_run_id(
@@ -2395,11 +2480,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
         existing_dagruns = {(x.dag_id, x.logical_date): x for x in existing_dagrun_objects}
 
-        # todo: AIP-76 we may want to update check existing to also check partitioned dag runs,
-        #  but the thing is, there is not actually a restriction that
-        #  we don't create new runs with the same partition key
-        #  so it's unclear whether we should / need to.
-
         # backfill runs are not created by scheduler and their concurrency is separate
         # so we exclude them here
         active_runs_of_dags = Counter(
@@ -2458,7 +2538,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_id=dag_model.dag_id,
                     logical_date=dag_model.next_dagrun,
                 )
-                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
+                dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=dr)
                 continue
 
             if (
@@ -2498,7 +2578,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     partition_date=next_info.partition_date,
                 )
                 active_runs_of_dags[dag_model.dag_id] += 1
-                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=created_run)
+                dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=created_run)
                 self._set_exceeds_max_active_runs(
                     dag_model=dag_model,
                     session=session,
@@ -2611,7 +2691,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 creating_job_id=self.job.id,
                 session=session,
             )
-            stats.incr("asset.triggered_dagruns")
+            team_name = (
+                self._get_team_names_for_dag_ids([dag.dag_id], session).get(dag.dag_id)
+                if self._multi_team
+                else None
+            )
+            stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
             dag_run.consumed_asset_events.extend(asset_events)
             self.log.info(
                 "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",

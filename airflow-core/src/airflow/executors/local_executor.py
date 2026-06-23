@@ -107,8 +107,20 @@ def _run_worker(
             )
             output.put((workload.key, workload.success_state, None))
         except Exception as e:
-            log.exception("Workload execution failed.", workload_type=type(workload).__name__)
-            output.put((workload.key, workload.failure_state, e))
+            # A transient callback context-fetch failure should requeue (not terminally fail), so
+            # the scheduler retries it next loop — mirroring the triggerer path. The workload
+            # exposes ``retry_state`` (PENDING for callbacks) for exactly this case.
+            from airflow.sdk.execution_time.callback_supervisor import (  # noqa: SDK001
+                CallbackContextFetchError,
+            )
+
+            retry_state = getattr(workload, "retry_state", None)
+            if isinstance(e, CallbackContextFetchError) and retry_state is not None:
+                log.warning("Callback context fetch failed transiently; requeueing for retry.")
+                output.put((workload.key, retry_state, e))
+            else:
+                log.exception("Workload execution failed.", workload_type=type(workload).__name__)
+                output.put((workload.key, workload.failure_state, e))
 
 
 class LocalExecutor(BaseExecutor):

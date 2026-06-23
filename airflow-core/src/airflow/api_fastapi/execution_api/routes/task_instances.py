@@ -544,6 +544,16 @@ def _emit_task_span(ti, state):
         return
     dr_ctx = TraceContextTextMapPropagator().extract(ti.dag_run.context_carrier)
 
+    # Skip if the run was head-sampled out, so every span in the run agrees with the
+    # carrier's decision. A parent-based sampler would already drop this child span,
+    # but the explicit check also covers non-parent-based samplers (which ignore the
+    # parent and would re-sample it in) and short-circuits before building the span.
+    # An invalid/empty carrier (legacy/NULL) recorded no decision, so it falls through
+    # and still emits — preserving prior behavior.
+    dr_span_context = trace.get_current_span(context=dr_ctx).get_span_context()
+    if dr_span_context.is_valid and not dr_span_context.trace_flags.sampled:
+        return
+
     ti_ctx = TraceContextTextMapPropagator().extract(ti.context_carrier)
     ti_span = trace.get_current_span(context=ti_ctx)
     span_context = ti_span.get_span_context()
