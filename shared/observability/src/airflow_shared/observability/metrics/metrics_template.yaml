@@ -324,6 +324,12 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "deadline_alerts.deadline_creation_failed"
+    description: "Number of deadline alerts that could not be created (interval/reference resolution raised)"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "deadline_alerts.deadline_missed"
     description: "Number of deadline alerts that fired because a Dag run missed its deadline"
     type: "counter"
