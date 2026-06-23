@@ -61,8 +61,8 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.12.0",
-    "airbyte-api>=0.52.0",
-    "requests>=2.32.0",
+    "airbyte-api>=1.0.0rc2",
+    "httpx>=0.28.1",
 ]
 
 [dependency-groups]

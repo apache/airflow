@@ -20,10 +20,10 @@ from __future__ import annotations
 import time
 from typing import Any, TypeVar
 
+import httpx
 from airbyte_api import AirbyteAPI
 from airbyte_api.api import CancelJobRequest, GetJobRequest
 from airbyte_api.models import JobCreateRequest, JobStatusEnum, JobTypeEnum, SchemeClientCredentials, Security
-from requests import Session
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
@@ -110,8 +110,22 @@ class AirbyteHook(BaseHook):
         client = None
         if self.conn["proxies"]:
             self.log.debug("Creating client proxy...")
-            client = Session()
-            client.proxies = self.conn["proxies"]
+            proxies = self.conn["proxies"]
+            # airbyte-api >= 1.0 requires an httpx-compatible client.
+            # httpx supports per-protocol proxies via transport mounts.
+            mounts = {}
+            if isinstance(proxies, dict):
+                for scheme, proxy_url in proxies.items():
+                    # Normalize scheme keys to httpx mount format (e.g. "http" -> "http://")
+                    key = scheme if "://" in scheme else f"{scheme}://"
+                    mounts[key] = httpx.HTTPTransport(proxy=proxy_url)
+            else:
+                # Single proxy URL string — apply to all traffic
+                mounts = {
+                    "http://": httpx.HTTPTransport(proxy=proxies),
+                    "https://": httpx.HTTPTransport(proxy=proxies),
+                }
+            client = httpx.Client(mounts=mounts)
 
         return AirbyteAPI(
             server_url=self.conn["host"],

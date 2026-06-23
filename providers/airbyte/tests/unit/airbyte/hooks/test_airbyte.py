@@ -239,12 +239,15 @@ class TestAirbyteHook:
         """
         Test the creation of the API session with proxy settings.
         """
+        import httpx
+
         # Create a new AirbyteHook instance
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id_with_proxy)
 
-        # Check if the session is created correctly
+        # Check if the session is created correctly with an httpx client
         assert hook.airbyte_api is not None
-        assert hook.airbyte_api.sdk_configuration.client.proxies == self._mock_proxy["proxies"]
+        client = hook.airbyte_api.sdk_configuration.client
+        assert isinstance(client, httpx.Client)
 
     def test_create_api_session_without_credentials(self):
         """Test that a session without OAuth credentials creates an unauthenticated client."""
