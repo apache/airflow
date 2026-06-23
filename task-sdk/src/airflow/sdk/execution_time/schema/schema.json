@@ -487,11 +487,6 @@
           "title": "Ti Id",
           "type": "string"
         },
-        "all_map_indices": {
-          "default": false,
-          "title": "All Map Indices",
-          "type": "boolean"
-        },
         "type": {
           "const": "ClearTaskStateStore",
           "default": "ClearTaskStateStore",

@@ -5699,24 +5699,15 @@ class TestTaskInstanceStateOperations:
 
         mock_supervisor_comms.send.assert_any_call(DeleteTaskStateStore(ti_id=runtime_ti.id, key="job_id"))
 
-    @pytest.mark.parametrize(
-        ("call_kwargs", "expected_flag"),
-        [
-            pytest.param({}, False, id="default"),
-            pytest.param({"all_map_indices": True}, True, id="fleet-wipe"),
-        ],
-    )
-    def test_task_can_clear_state(self, call_kwargs, expected_flag, create_runtime_ti, mock_supervisor_comms):
+    def test_task_can_clear_state(self, create_runtime_ti, mock_supervisor_comms):
         class MyOperator(BaseOperator):
             def execute(self, context):
-                context["task_state_store"].clear(**call_kwargs)
+                context["task_state_store"].clear()
 
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
-        mock_supervisor_comms.send.assert_any_call(
-            ClearTaskStateStore(ti_id=runtime_ti.id, all_map_indices=expected_flag)
-        )
+        mock_supervisor_comms.send.assert_any_call(ClearTaskStateStore(ti_id=runtime_ti.id))
 
     @staticmethod
     def _watcher_side_effect(msg=None, *args, **kwargs):

@@ -2872,18 +2872,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="task_state_store.clear",
             args=(TI_ID,),
-            kwargs={"all_map_indices": False},
-            response=OKResponse(ok=True),
-        ),
-        expected_body={"ok": True, "type": "OKResponse"},
-    ),
-    RequestTestCase(
-        message=ClearTaskStateStore(ti_id=TI_ID, all_map_indices=True),
-        test_id="clear_task_store_all_map_indices",
-        client_mock=ClientMock(
-            method_path="task_state_store.clear",
-            args=(TI_ID,),
-            kwargs={"all_map_indices": True},
+            kwargs={},
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},
