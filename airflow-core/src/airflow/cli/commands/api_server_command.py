@@ -35,7 +35,6 @@ from airflow.exceptions import AirflowConfigException
 from airflow.typing_compat import ParamSpec
 from airflow.utils import cli as cli_utils
 from airflow.utils.memray_utils import MemrayTraceComponents, enable_memray_trace
-from airflow.utils.process_utils import set_component_mp_start_method
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 PS = ParamSpec("PS")
@@ -145,7 +144,6 @@ def _run_api_server_with_uvicorn(
 @enable_memray_trace(component=MemrayTraceComponents.api)
 def _run_api_server(args, apps: str, num_workers: int, worker_timeout: int, proxy_headers: bool):
     """Run the API server using the configured server type."""
-    set_component_mp_start_method("api")
     server_type = conf.get("api", "server_type", fallback="uvicorn").lower()
 
     run = _run_api_server_with_uvicorn
