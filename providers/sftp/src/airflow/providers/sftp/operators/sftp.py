@@ -115,7 +115,7 @@ class SFTPOperator(BaseOperator):
                     concurrency=self.concurrency,
                     prefetch=self.prefetch,
                 ),
-                method_name="execute_complete",
+                method_name=self.execute_complete.__name__,
             )
 
         if self.local_filepath is None:

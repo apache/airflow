@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import concurrent.futures
+import asyncio
 import datetime
 import functools
 import os
@@ -1142,16 +1143,43 @@ class SFTPHookAsync(BaseHook):
         else:
             remote_filepath_array = list(remote_filepath)
 
-        if operation.lower() == SFTPOperation.GET:
-            for local, remote in zip(local_filepath_array, remote_filepath_array):
-                if create_intermediate_dirs:
-                    os.makedirs(os.path.dirname(local), exist_ok=True)
-                await self.retrieve_file(remote, local)
-        elif operation.lower() == SFTPOperation.PUT:
-            for local, remote in zip(local_filepath_array, remote_filepath_array):
-                await self.store_file(remote, local)
-        elif operation.lower() == SFTPOperation.DELETE:
-            for remote in remote_filepath_array:
-                async with await self._get_conn() as ssh_conn:
-                    async with ssh_conn.start_sftp_client() as sftp:
+        semaphore = asyncio.Semaphore(concurrency)
+
+        async def _bounded(coro):
+            async with semaphore:
+                return await coro
+
+        async with await self._get_conn() as ssh_conn:
+            async with ssh_conn.start_sftp_client() as sftp:
+                if operation.lower() == SFTPOperation.GET:
+
+                    async def _get(local: str, remote: str):
+                        if create_intermediate_dirs:
+                            os.makedirs(os.path.dirname(local), exist_ok=True)
+                        await self.retrieve_file(remote, local)
+
+                    tasks = [
+                        asyncio.create_task(_bounded(_get(local, remote)))
+                        for local, remote in zip(local_filepath_array, remote_filepath_array)
+                    ]
+                    await asyncio.gather(*tasks)
+                elif operation.lower() == SFTPOperation.PUT:
+
+                    async def _put(local: str, remote: str):
+                        await self.store_file(remote, local)
+
+                    tasks = [
+                        asyncio.create_task(_bounded(_put(local, remote)))
+                        for local, remote in zip(local_filepath_array, remote_filepath_array)
+                    ]
+                    await asyncio.gather(*tasks)
+                elif operation.lower() == SFTPOperation.DELETE:
+
+                    async def _delete(remote: str):
                         await sftp.unlink(remote)
+
+                    tasks = [
+                        asyncio.create_task(_bounded(_delete(remote)))
+                        for remote in remote_filepath_array
+                    ]
+                    await asyncio.gather(*tasks)
