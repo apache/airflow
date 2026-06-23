@@ -35,7 +35,12 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
 )
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
-from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, get_latest_version_of_dag
+from airflow.api_fastapi.common.dagbag import (
+    DagBagDep,
+    get_dag_for_run,
+    get_latest_version_of_dag,
+    resolve_run_on_latest_version,
+)
 from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
@@ -47,7 +52,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
 )
 from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunBody, DagRunMutableStates
 from airflow.api_fastapi.core_api.datamodels.task_instances import NewTaskResponse
-from airflow.api_fastapi.core_api.services.public.common import BulkService, resolve_run_on_latest_version
+from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
@@ -200,16 +205,25 @@ class DagRunWaiter:
             return await session.scalar(select(DagRun).filter_by(dag_id=self.dag_id, run_id=self.run_id))
 
     async def _serialize_xcoms(self) -> dict[str, Any]:
-        xcom_query = XComModel.get_many(
-            run_id=self.run_id,
-            key=XCOM_RETURN_KEY,
-            task_ids=self.result_task_ids,
-            dag_ids=self.dag_id,
-        )
+        if self.result_task_ids is None:  # Return dag-author-specified results.
+            xcom_query = XComModel.get_many(
+                run_id=self.run_id,
+                key=XCOM_RETURN_KEY,
+                dag_ids=self.dag_id,
+            )
+            xcom_query = xcom_query.where(XComModel.dag_result.is_(True))
+        else:  # Explicitly API user-specified results.
+            xcom_query = XComModel.get_many(
+                run_id=self.run_id,
+                key=XCOM_RETURN_KEY,
+                task_ids=self.result_task_ids,
+                dag_ids=self.dag_id,
+            )
+        # XComModel.get_many() orders XCom by timestamp. Reset this to make
+        # mapped task results stable since execution order is not guaranteed.
+        xcom_query = xcom_query.order_by(None).order_by(XComModel.task_id, XComModel.map_index)
         async with create_session_async() as session:
-            xcom_results = (
-                await session.scalars(xcom_query.order_by(XComModel.task_id, XComModel.map_index))
-            ).all()
+            xcom_results = (await session.scalars(xcom_query)).all()
 
         def _group_xcoms(g: Iterator[XComModel | tuple[XComModel]]) -> Any:
             entries = [row[0] if isinstance(row, tuple) else row for row in g]
@@ -226,8 +240,9 @@ class DagRunWaiter:
         resp = {"state": dag_run.state}
         if dag_run.state not in State.finished_dr_states:
             return json.dumps(resp)
-        if self.result_task_ids:
-            resp["results"] = await self._serialize_xcoms()
+        if self.result_task_ids is None or self.result_task_ids:
+            if result_xcoms := await self._serialize_xcoms():
+                resp["results"] = result_xcoms
         return json.dumps(resp)
 
     async def wait(self) -> AsyncGenerator[str, None]:

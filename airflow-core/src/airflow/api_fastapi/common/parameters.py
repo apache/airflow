@@ -229,6 +229,8 @@ class _PrefixPatternParam(BaseParam[str], ABC):
         ``*_prefix_pattern`` query-param description.
     """
 
+    pipe_as_or: bool = True
+
     @staticmethod
     def _prefix_range_upper(term: str) -> str | None:
         """
@@ -271,7 +273,7 @@ class _PrefixPatternParam(BaseParam[str], ABC):
             return select
 
         val_str = str(self.value)
-        if "|" in val_str:
+        if self.pipe_as_or and "|" in val_str:
             search_terms = [term.strip() for term in val_str.split("|") if term.strip()]
             if search_terms:
                 return select.where(or_(*(self._prefix_clause(term) for term in search_terms)))
@@ -316,16 +318,17 @@ class _SearchParam(BaseParam[str]):
         is acceptable.
     """
 
-    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
+    def __init__(self, attribute: ColumnElement, skip_none: bool = True, pipe_as_or: bool = True) -> None:
         super().__init__(skip_none=skip_none)
         self.attribute: ColumnElement = attribute
+        self.pipe_as_or = pipe_as_or
 
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
             return select
 
         val_str = str(self.value)
-        if "|" in val_str:
+        if self.pipe_as_or and "|" in val_str:
             search_terms = [term.strip() for term in val_str.split("|") if term.strip()]
             if search_terms:
                 return select.where(or_(*(self.attribute.ilike(f"%{term}%") for term in search_terms)))
@@ -352,9 +355,10 @@ class _PrefixSearchParam(_PrefixPatternParam):
     :class:`_PrefixPatternParam` for why).
     """
 
-    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
+    def __init__(self, attribute: ColumnElement, skip_none: bool = True, pipe_as_or: bool = True) -> None:
         super().__init__(skip_none=skip_none)
         self.attribute: ColumnElement = attribute
+        self.pipe_as_or = pipe_as_or
 
     def _prefix_clause(self, term: str):
         lower = self._prefix_lower_bound(term)
@@ -483,10 +487,16 @@ def search_param_factory(
     attribute: ColumnElement,
     pattern_name: str,
     skip_none: bool = True,
+    pipe_as_or: bool = True,
 ) -> Callable[[str | None], _SearchParam]:
+    pipe_clause = (
+        "Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). "
+        if pipe_as_or
+        else "The pipe `|` is matched literally, not as an OR separator. "
+    )
     DESCRIPTION = (
         "SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). "
-        "or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). "
+        f"{pipe_clause}"
         "Regular expressions are **not** supported. "
         "\n\n"
         "**Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and "
@@ -498,7 +508,7 @@ def search_param_factory(
     def depends_search(
         value: str | None = Query(alias=pattern_name, default=None, description=DESCRIPTION),
     ) -> _SearchParam:
-        search_parm = _SearchParam(attribute, skip_none)
+        search_parm = _SearchParam(attribute, skip_none, pipe_as_or=pipe_as_or)
         value = search_parm.transform_aliases(value)
         return search_parm.set_value(value)
 
@@ -509,6 +519,7 @@ def prefix_search_param_factory(
     attribute: ColumnElement,
     prefix_pattern_name: str,
     skip_none: bool = True,
+    pipe_as_or: bool = True,
 ) -> Callable[[str | None], _PrefixSearchParam]:
     """
     Build a FastAPI ``Depends`` returning a :class:`_PrefixSearchParam` for prefix matching.
@@ -516,10 +527,15 @@ def prefix_search_param_factory(
     Prefer this over :func:`search_param_factory` for performance: prefix matching uses a
     B-tree index range scan, while substring matching requires a full table scan.
     """
+    pipe_clause = (
+        "Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). "
+        if pipe_as_or
+        else "The pipe `|` is part of the prefix, not an OR separator. "
+    )
     DESCRIPTION = (
         "Prefix match — returns items whose value starts with the given string "
-        "(case-sensitive, index-friendly). Use the pipe `|` operator for OR logic "
-        "(e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) "
+        f"(case-sensitive, index-friendly). {pipe_clause}"
+        "Use `~` to match all. Wildcard characters (`%`, `_`) "
         "are treated as literal characters. Trailing non-alphanumeric characters "
         "in the prefix are stripped before matching so the range scan stays "
         "index-compatible under locale-aware collations — e.g. `test_` effectively "
@@ -530,7 +546,7 @@ def prefix_search_param_factory(
     def depends_prefix_search(
         value: str | None = Query(alias=prefix_pattern_name, default=None, description=DESCRIPTION),
     ) -> _PrefixSearchParam:
-        search_parm = _PrefixSearchParam(attribute, skip_none)
+        search_parm = _PrefixSearchParam(attribute, skip_none, pipe_as_or=pipe_as_or)
         value = search_parm.transform_aliases(value)
         return search_parm.set_value(value)
 
@@ -1333,11 +1349,14 @@ QueryDagRunTriggeringUserPrefixSearch = Annotated[
     Depends(prefix_search_param_factory(DagRun.triggering_user_name, "triggering_user_prefix")),
 ]
 QueryDagRunPartitionKeySearch = Annotated[
-    _SearchParam, Depends(search_param_factory(DagRun.partition_key, "partition_key_pattern"))
+    _SearchParam,
+    Depends(search_param_factory(DagRun.partition_key, "partition_key_pattern", pipe_as_or=False)),
 ]
 QueryDagRunPartitionKeyPrefixSearch = Annotated[
     _PrefixSearchParam,
-    Depends(prefix_search_param_factory(DagRun.partition_key, "partition_key_prefix_pattern")),
+    Depends(
+        prefix_search_param_factory(DagRun.partition_key, "partition_key_prefix_pattern", pipe_as_or=False)
+    ),
 ]
 
 # DagTags

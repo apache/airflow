@@ -26,7 +26,6 @@ import time_machine
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.models import DagRun
 from airflow.models.deadline import Deadline, _fetch_from_db
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -82,6 +81,8 @@ def _clean_db():
     db.clear_db_dags()
     db.clear_db_runs()
     db.clear_db_deadline()
+    db.clear_db_dag_bundles()
+    db.clear_db_teams()
 
 
 def assert_correct_timing(reference, expected_timing):
@@ -210,6 +211,23 @@ class TestDeadline:
             assert f"needed by {DEFAULT_DATE}" in repr_str
             assert TEST_CALLBACK_PATH in repr_str
 
+    def test_repr_with_dagrun_id_but_no_dagrun_relationship(self, deadline_orm):
+        """__repr__ must NOT raise when dagrun_id is set but the dagrun relationship is None.
+
+        The FK (dagrun_id) can be set while the relationship resolves to None — e.g. the DagRun
+        was deleted (ondelete=CASCADE) and this is a stale/expired in-memory Deadline. A __repr__
+        that raised AttributeError here would break log lines, tracebacks, and debugger displays
+        exactly when something is already going wrong. The repr falls back to an id-only form.
+        """
+        # Sever the relationship while keeping the FK id (simulates deleted/detached DagRun).
+        deadline_orm.dagrun = None
+        assert deadline_orm.dagrun_id is not None
+
+        repr_str = repr(deadline_orm)  # must not raise
+        assert "[DagRun Deadline]" in repr_str
+        assert f"Run: {deadline_orm.dagrun_id}" in repr_str
+        assert "Dag: <unknown>" in repr_str
+
     @pytest.mark.db_test
     def test_bundle_name_propagated_to_callback(self, dagrun, session):
         """The bundle name is forwarded to the callback so the triggerer can resolve its team."""
@@ -246,13 +264,17 @@ class TestDeadline:
 
         assert deadline_orm.missed
 
-        callback_kwargs = deadline_orm.callback.data["kwargs"]
-        context = callback_kwargs.pop("context")
-        assert callback_kwargs == TEST_CALLBACK_KWARGS
+        # DagRun identifiers are stored at the top level of callback.data for routing
+        assert deadline_orm.callback.data["dag_id"] == dagrun.dag_id
+        assert deadline_orm.callback.data["run_id"] == dagrun.run_id
 
-        assert context["deadline"]["id"] == deadline_orm.id
-        assert context["deadline"]["deadline_time"].timestamp() == deadline_orm.deadline_time.timestamp()
-        assert context["dag_run"] == DAGRunResponse.model_validate(dagrun).model_dump(mode="json")
+        # Deadline-specific info is in top-level data (not kwargs) — the context builder
+        # exposes them as context["deadline"] = {"id": ..., "deadline_time": ...}
+        assert deadline_orm.callback.data["deadline_id"] == str(deadline_orm.id)
+        assert deadline_orm.callback.data["deadline_time"] == deadline_orm.deadline_time.isoformat()
+
+        # User kwargs remain unchanged
+        assert deadline_orm.callback.data["kwargs"] == TEST_CALLBACK_KWARGS
 
 
 @pytest.mark.db_test
@@ -516,6 +538,19 @@ class TestCalculatedDeadlineDatabaseCalls:
 
         with pytest.raises(ValueError, match="min_runs must be at least 1"):
             DeadlineReference.AVERAGE_RUNTIME(max_runs=10, min_runs=-1)
+
+    def test_average_runtime_min_runs_cannot_exceed_max_runs(self):
+        """``min_runs > max_runs`` is unsatisfiable: the query is ``LIMIT max_runs`` and then
+        requires ``len(durations) >= min_runs``, so the deadline would silently never be
+        created. It must be rejected at authoring/deserialize time, not produce an inert deadline.
+        """
+        match = "cannot exceed max_runs"
+
+        # Deserialize path (e.g. a hand-edited / legacy serialized blob) must reject it.
+        with pytest.raises(ValueError, match=match):
+            SerializedReferenceModels.AverageRuntimeDeadline.deserialize_reference(
+                {"max_runs": 5, "min_runs": 10}
+            )
 
 
 class TestDeadlineReference:
@@ -790,3 +825,121 @@ class TestDeadlineReferenceDecorator:
                 return timezone.datetime(DEFAULT_DATE)
 
         mock_register.assert_called_once_with(DecoratedCustomRef, timing)
+
+
+@pytest.mark.db_test
+class TestDeadlineMetricsTeamName:
+    """Verify team_name tag is included/excluded on deadline metrics based on multi_team config."""
+
+    @staticmethod
+    def setup_method():
+        _clean_db()
+
+    @staticmethod
+    def teardown_method():
+        _clean_db()
+
+    @pytest.mark.parametrize(
+        ("multi_team", "expected_tags"),
+        [
+            pytest.param(
+                "true", {"dag_id": "dl_dag", "dagrun_id": mock.ANY, "team_name": "dl_team"}, id="with_team"
+            ),
+            pytest.param("false", {"dag_id": "dl_dag", "dagrun_id": mock.ANY}, id="without_team"),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_deadline_not_missed_respects_team_name(
+        self, mock_get_backend, multi_team, expected_tags, session, dag_maker
+    ):
+        from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.models.team import Team
+
+        from tests_common.test_utils.config import conf_vars
+
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+
+        team = Team(name="dl_team")
+        session.add(team)
+        session.flush()
+
+        bundle = DagBundleModel(name="dl_bundle")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        with dag_maker(dag_id="dl_dag", bundle_name="dl_bundle", session=session):
+            EmptyOperator(task_id="task1")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.SUCCESS, logical_date=DEFAULT_DATE)
+        dr.end_date = DEFAULT_DATE
+        session.flush()
+
+        deadline = Deadline(
+            deadline_time=DEFAULT_DATE + timedelta(hours=1),
+            callback=AsyncCallback(TEST_CALLBACK_PATH),
+            dagrun_id=dr.id,
+            dag_id=dr.dag_id,
+            deadline_alert_id=None,
+        )
+        session.add(deadline)
+        session.flush()
+
+        with conf_vars({("core", "multi_team"): multi_team}):
+            Deadline.prune_deadlines(conditions={Deadline.dagrun_id: dr.id}, session=session)
+
+        mock_stats.incr.assert_any_call("deadline_alerts.deadline_not_missed", tags=expected_tags)
+
+    @pytest.mark.parametrize(
+        ("multi_team", "expected_tags"),
+        [
+            pytest.param(
+                "true", {"dag_id": "dl_dag", "dagrun_id": mock.ANY, "team_name": "dl_team"}, id="with_team"
+            ),
+            pytest.param("false", {"dag_id": "dl_dag", "dagrun_id": mock.ANY}, id="without_team"),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_deadline_missed_respects_team_name(
+        self, mock_get_backend, multi_team, expected_tags, session, dag_maker
+    ):
+        from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.models.team import Team
+
+        from tests_common.test_utils.config import conf_vars
+
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+
+        team = Team(name="dl_team")
+        session.add(team)
+        session.flush()
+
+        bundle = DagBundleModel(name="dl_bundle")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        with dag_maker(dag_id="dl_dag", bundle_name="dl_bundle", session=session):
+            EmptyOperator(task_id="task1")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING, logical_date=DEFAULT_DATE)
+
+        deadline = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=AsyncCallback(TEST_CALLBACK_PATH),
+            dagrun_id=dr.id,
+            dag_id=dr.dag_id,
+            deadline_alert_id=None,
+        )
+        session.add(deadline)
+        session.flush()
+
+        with conf_vars({("core", "multi_team"): multi_team}):
+            with mock.patch.object(deadline.callback, "queue"):
+                deadline.handle_miss(session)
+
+        mock_stats.incr.assert_any_call("deadline_alerts.deadline_missed", tags=expected_tags)

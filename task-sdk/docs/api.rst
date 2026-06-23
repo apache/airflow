@@ -72,6 +72,7 @@ Task Decorators:
 .. autoapifunction:: airflow.sdk.teardown
 
 .. autofunction:: airflow.sdk.task
+.. autofunction:: airflow.sdk.result
 .. autofunction:: airflow.sdk.setup
 .. autofunction:: airflow.sdk.teardown
 .. autofunction:: airflow.sdk.asset
@@ -240,6 +241,10 @@ Partition Mapper
 .. autoapiclass:: airflow.sdk.StartOfYearMapper
 
 .. autoapiclass:: airflow.sdk.RollupMapper
+
+.. autoapiclass:: airflow.sdk.WaitForAll
+
+.. autoapiclass:: airflow.sdk.MinimumCount
 
 .. autoapiclass:: airflow.sdk.ProductMapper
 

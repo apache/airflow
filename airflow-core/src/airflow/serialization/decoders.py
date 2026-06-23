@@ -41,16 +41,19 @@ from airflow.serialization.definitions.deadline import (
 )
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
-    WindowNotSupported,
+    WaitPolicyNotSupported,
     find_registered_custom_partition_mapper,
     find_registered_custom_timetable,
+    find_registered_custom_window,
     is_core_partition_mapper_import_path,
     is_core_timetable_import_path,
+    is_core_wait_policy_import_path,
     is_core_window_import_path,
 )
 
 if TYPE_CHECKING:
     from airflow.partition_mappers.base import PartitionMapper
+    from airflow.partition_mappers.wait_policy import WaitPolicy
     from airflow.partition_mappers.window import Window
     from airflow.timetables.base import Timetable as CoreTimetable
 
@@ -145,7 +148,16 @@ def decode_deadline_reference(reference_data: dict):
     """Decode a previously serialized deadline reference."""
     ref_name = reference_data.get(SerializedReferenceModels.REFERENCE_TYPE_FIELD)
 
-    if ref_name and SerializedReferenceModels.is_builtin_reference(ref_name):
+    # ``__class_path`` is stamped by the encoder only for custom (non-builtin) references and is
+    # the authoritative discriminator. It must take precedence over the ``reference_type`` name:
+    # a user's custom reference may share a class name with a builtin (e.g. ``FixedDatetimeDeadline``),
+    # and routing by name alone would silently decode it as the builtin class — dropping the custom
+    # evaluation logic (or raising a spurious KeyError on builtin-only fields).
+    if "__class_path" in reference_data:
+        reference_class: type[SerializedReferenceModels.SerializedBaseDeadlineReference] = (
+            SerializedReferenceModels.SerializedCustomReference
+        )
+    elif ref_name and SerializedReferenceModels.is_builtin_reference(ref_name):
         reference_class = SerializedReferenceModels.get_reference_class(ref_name)
     else:
         reference_class = SerializedReferenceModels.SerializedCustomReference
@@ -233,15 +245,34 @@ def decode_window(var: dict[str, Any]) -> Window:
     """
     Decode a previously serialized :class:`Window`.
 
-    Only built-in windows are accepted — a tampered serialized Dag naming a
-    non-core import path is rejected up-front instead of being handed to
+    Custom windows must be registered via the ``windows`` plugin attribute;
+    unregistered import paths are rejected up-front instead of being handed to
     ``import_string``. See :func:`encode_window` for the matching encode-side
     restriction.
 
     :meta private:
     """
     importable_string = var[Encoding.TYPE]
-    if not is_core_window_import_path(importable_string):
-        raise WindowNotSupported(importable_string)
-    window_cls: type[Window] = import_string(importable_string)
+    if is_core_window_import_path(importable_string):
+        window_cls: type[Window] = import_string(importable_string)
+    else:
+        window_cls = find_registered_custom_window(importable_string)
     return window_cls.deserialize(var[Encoding.VAR])
+
+
+def decode_wait_policy(var: dict[str, Any]) -> WaitPolicy:
+    """
+    Decode a previously serialized :class:`WaitPolicy`.
+
+    Only built-in trigger policies are accepted — a tampered serialized Dag
+    naming a non-core import path is rejected up-front instead of being handed
+    to ``import_string``. See :func:`encode_wait_policy` for the matching
+    encode-side restriction.
+
+    :meta private:
+    """
+    importable_string = var[Encoding.TYPE]
+    if not is_core_wait_policy_import_path(importable_string):
+        raise WaitPolicyNotSupported(importable_string)
+    policy_cls: type[WaitPolicy] = import_string(importable_string)
+    return policy_cls.deserialize(var[Encoding.VAR])

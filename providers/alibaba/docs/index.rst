@@ -77,7 +77,7 @@ apache-airflow-providers-alibaba package
 Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com/>`__).
 
 
-Release: 3.3.8
+Release: 3.3.9
 
 Provider package
 ----------------
@@ -134,5 +134,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-alibaba 3.3.8 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_alibaba-3.3.8.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_alibaba-3.3.8.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_alibaba-3.3.8.tar.gz.sha512>`__)
-* `The apache-airflow-providers-alibaba 3.3.8 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_alibaba-3.3.8-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_alibaba-3.3.8-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_alibaba-3.3.8-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-alibaba 3.3.9 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_alibaba-3.3.9.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_alibaba-3.3.9.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_alibaba-3.3.9.tar.gz.sha512>`__)
+* `The apache-airflow-providers-alibaba 3.3.9 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_alibaba-3.3.9-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_alibaba-3.3.9-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_alibaba-3.3.9-py3-none-any.whl.sha512>`__)

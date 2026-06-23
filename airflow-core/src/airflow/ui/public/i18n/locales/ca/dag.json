@@ -232,7 +232,7 @@
     "runs": "Execucions",
     "storage": "Emmagatzematge",
     "taskInstances": "Instàncies de tasca",
-    "taskStore": "Magatzem de tasca",
+    "taskStateStore": "Magatzem de tasca",
     "tasks": "Tasques",
     "xcom": "XCom"
   },
@@ -240,7 +240,7 @@
     "collapseAll": "Col·lapsar tots els grups de tasques",
     "expandAll": "Expandir tots els grups de tasques"
   },
-  "taskStore": {
+  "taskStateStore": {
     "add": "Afegir magatzem de tasca",
     "clearAll": {
       "resource": "tot el magatzem de tasca",

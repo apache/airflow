@@ -61,7 +61,7 @@ implement six methods that describe how to interact with your external system:
 
 ``submit_job(context)``
     Submit the job and return its external identifier. The returned value is stored in
-    ``task_store`` and passed back to the other methods on retry. Return ``None`` only if
+    ``task_state_store`` and passed back to the other methods on retry. Return ``None`` only if
     the external system does not provide a trackable identifier; in that case the mixin
     cannot provide crash safety and will resubmit on every retry.
 
@@ -95,7 +95,7 @@ How it works
 ------------
 
 On the first run, after ``submit_job`` returns the external identifier, the mixin persists
-that identifier to ``task_store`` before calling ``poll_until_complete``. If the worker
+that identifier to ``task_state_store`` before calling ``poll_until_complete``. If the worker
 crashes during polling, the next retry reads the stored identifier and calls ``get_job_status``
 to check the current state of the job:
 
@@ -107,7 +107,7 @@ to check the current state of the job:
 
 .. note::
 
-   There is a small window between ``submit_job`` returning and ``task_store.set`` completing.
+   There is a small window between ``submit_job`` returning and ``task_state_store.set`` completing.
    If the worker crashes in that gap, the next retry does not have the identifier and will
    submit a fresh job. For most workloads this window is negligible.
 
@@ -120,7 +120,7 @@ Example
     from pydantic import JsonValue
 
 
-    class MyBatchOperator(BaseOperator, ResumableJobMixin):
+    class MyBatchOperator(ResumableJobMixin, BaseOperator):
 
         external_id_key = "batch_job_id"
 
@@ -145,13 +145,34 @@ Example
         def get_job_result(self, external_id: JsonValue, context):
             return None
 
+.. _sdk-resumable-job-mixin-resume-on-retry:
+
+Disabling crash recovery per task
+----------------------------------
+
+Set ``durable=False`` on a task to opt out of crash recovery for that specific instance.
+The operator will always submit a fresh job on retry, with no ``task_state_store`` interaction:
+
+.. code-block:: python
+
+    run_spark = MyBatchOperator(
+        task_id="run_spark",
+        durable=False,
+    )
+
+This is useful when the external job is not idempotent and you want Airflow to always submit a
+clean run rather than reconnect to a prior submission.
+
+The default is ``True``. ``durable`` is owned by the mixin — operators do not need to
+redeclare it. ``default_args`` injection and ``.partial()`` work automatically.
+
 .. _sdk-resumable-job-mixin-external-id-key:
 
 External ID key
 ---------------
 
 The ``external_id_key`` class attribute controls which key is used to store the job identifier
-in ``task_store``. The default value is ``"remote_job_id"``. You can override it on your
+in ``task_state_store``. The default value is ``"remote_job_id"``. You can override it on your
 subclass to use a more descriptive name:
 
 .. code-block:: python

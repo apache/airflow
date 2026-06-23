@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import or_, select
@@ -26,6 +27,7 @@ from airflow._shared.timezones.timezone import parse as parsedate
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.utils import cli as cli_utils
+from airflow.utils.cli import get_db_dag
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -68,7 +70,15 @@ def _flush_buffer(
 @providers_configuration_loaded
 @provide_session
 def clear(args, *, session: Session = NEW_SESSION) -> None:
-    """Clear the partition_key and partition_date of matching DagRuns."""
+    """
+    Clear the partition_key and partition_date of matching DagRuns.
+
+    When a partition_date window is given, both bounds are **day-granular** and
+    anchored in the timetable's timezone for tz-aware partitioned timetables.
+    --start-date is the inclusive start local calendar day; --end-date is the
+    inclusive end local calendar day (any time-of-day or timezone-offset
+    component in either value is ignored; only the calendar date is used).
+    """
     has_range = args.start_date is not None or args.end_date is not None or args.date is not None
     selectors_used = sum([args.run_id is not None, args.partition_key is not None, has_range])
     if selectors_used != 1:
@@ -97,10 +107,14 @@ def clear(args, *, session: Session = NEW_SESSION) -> None:
         stmt = stmt.where(DagRun.partition_key == args.partition_key)
     else:
         stmt = stmt.where(or_(DagRun.partition_key.is_not(None), DagRun.partition_date.is_not(None)))
-        if args.start_date is not None:
-            stmt = stmt.where(DagRun.partition_date >= args.start_date)
-        if args.end_date is not None:
-            stmt = stmt.where(DagRun.partition_date <= args.end_date)
+        if args.start_date is not None or args.end_date is not None:
+            dag = get_db_dag(bundle_names=None, dag_id=args.dag_id)
+            if args.start_date is not None:
+                lower = dag.timetable.resolve_day_bound(args.start_date.date())
+                stmt = stmt.where(DagRun.partition_date >= lower)
+            if args.end_date is not None:
+                upper = dag.timetable.resolve_day_bound(args.end_date.date() + datetime.timedelta(days=1))
+                stmt = stmt.where(DagRun.partition_date < upper)
     stmt = stmt.order_by(DagRun.partition_date, DagRun.run_id)
 
     clear_tis = bool(args.clear_task_instances)

@@ -28,15 +28,18 @@ import uuid6
 from sqlalchemy import Boolean, ForeignKey, Index, Integer, Uuid, and_, func, inspect, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm.attributes import flag_modified
 
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
+from airflow.configuration import conf
 from airflow.models.base import Base
 from airflow.models.callback import (
     Callback,
     ExecutorCallback,
     TriggererCallback,
 )
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
@@ -145,8 +148,13 @@ class Deadline(Base):
         def _determine_resource() -> tuple[str, str]:
             """Determine the type of resource based on which values are present."""
             if self.dagrun_id:
-                # The deadline is for a Dag run:
-                return "DagRun", f"Dag: {self.dagrun.dag_id} Run: {self.dagrun_id}"
+                # The deadline is for a Dag run. Guard on the ``dagrun`` relationship (not just
+                # ``dagrun_id``): the FK can be set while the relationship resolves to None — e.g.
+                # the DagRun was deleted (ondelete=CASCADE) and this is a stale/expired in-memory
+                # Deadline. A __repr__ must never raise (it's used in logs, tracebacks, debuggers),
+                # so fall back to the id-only form rather than dereferencing ``self.dagrun.dag_id``.
+                dag_id = self.dagrun.dag_id if self.dagrun is not None else "<unknown>"
+                return "DagRun", f"Dag: {dag_id} Run: {self.dagrun_id}"
 
             return "Unknown", ""
 
@@ -173,6 +181,7 @@ class Deadline(Base):
         :param session: Session to use.
         """
         from airflow.models import DagRun  # Avoids circular import
+        from airflow.models.dag import DagModel
 
         # Assemble the filter conditions.
         filter_conditions = [column == value for column, value in conditions.items()]
@@ -181,8 +190,15 @@ class Deadline(Base):
 
         try:
             # Get deadlines which match the provided conditions and their associated DagRuns.
+            # Exclude deadlines already marked ``missed``: once the scheduler has marked a
+            # deadline missed it has queued (and owns) that deadline's callback, so prune must
+            # never delete it (the cascade would drop the queued callback). Today this is also
+            # implied by the ``end_date <= deadline_time`` guard below — a missed deadline has
+            # ``deadline_time < now <= end_date`` so it can't satisfy that predicate — but making
+            # the ``~missed`` filter explicit keeps the "prune only handles on-time deadlines"
+            # invariant from depending on clock relationships and protects against future callers.
             deadline_dagrun_pairs = session.execute(
-                select(Deadline, DagRun).join(DagRun).where(and_(*filter_conditions))
+                select(Deadline, DagRun).join(DagRun).where(and_(*filter_conditions)).where(~Deadline.missed)
             ).all()
 
         except AttributeError as e:
@@ -199,9 +215,16 @@ class Deadline(Base):
             if dagrun.end_date is not None and dagrun.end_date <= deadline.deadline_time:
                 # If the DagRun finished before the Deadline:
                 session.delete(deadline)
+                team_name = (
+                    DagModel.get_team_name(dagrun.dag_id, session=session)
+                    if conf.getboolean("core", "multi_team")
+                    else None
+                )
                 stats.incr(
                     "deadline_alerts.deadline_not_missed",
-                    tags={"dag_id": dagrun.dag_id, "dagrun_id": dagrun.run_id},
+                    tags=prune_dict(
+                        {"dag_id": dagrun.dag_id, "dagrun_id": dagrun.run_id, "team_name": team_name}
+                    ),
                 )
                 deleted_count += 1
                 dagruns_to_refresh.add(dagrun)
@@ -217,46 +240,50 @@ class Deadline(Base):
 
     def handle_miss(self, session: Session):
         """Handle a missed deadline by queueing the callback."""
+        from airflow.models.dag import DagModel  # Avoids circular import
 
-        def get_simple_context():
-            from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
-            from airflow.models import DagRun
+        # Idempotency guard / defense-in-depth. The only caller (the scheduler loop) already
+        # selects ``WHERE ~Deadline.missed`` under ``FOR UPDATE SKIP LOCKED`` so a missed deadline
+        # is never re-handled in normal operation. But this method is otherwise unguarded: a second
+        # call would re-run ``callback.queue()`` — for a TriggererCallback that REPLACES
+        # ``self.trigger`` with a brand-new Trigger (orphaning the first) and resets the callback
+        # state, and for an ExecutorCallback it resets ``state`` back to PENDING — resurrecting a
+        # callback that may already be QUEUED/RUNNING/terminal (the same resurrection class that
+        # bug-fix made absorbing in ``Callback.handle_event``). Bail out early if already missed so
+        # the method is self-protecting regardless of how a (future) caller invokes it.
+        if self.missed:
+            logger.debug("Deadline %s already handled (missed=True); skipping re-handling", self.id)
+            return
 
-            # TODO: Use the TaskAPI from within Triggerer to fetch full context instead of sending this context
-            #  from the scheduler
+        # Routing identifiers: stored at the top level of callback.data so the triggerer/executor
+        # can locate the DagRun and build execution context *before* invoking the callback.
+        # These are NOT user payload — they are consumed by infrastructure (_fetch_callback_dag_run_data
+        # in triggerer_job_runner and _fetch_and_build_context in callback_supervisor) and stripped
+        # before the callback function is called.
+        # TODO: A dedicated `routing_data` field on Callback would make this separation explicit
+        # and avoid mixing routing metadata with user kwargs in the same JSON blob. Deferred because
+        # changing the Callback model would require a migration and coordination with the executor path.
+        self.callback.data["dag_id"] = self.dagrun.dag_id
+        self.callback.data["run_id"] = self.dagrun.run_id
 
-            # Fetch the DagRun from the database again to avoid errors when self.dagrun's relationship fields
-            # are not in the current session.
-            dagrun = session.get(DagRun, self.dagrun_id)
-
-            return {
-                "dag_run": DAGRunResponse.model_validate(dagrun).model_dump(mode="json"),
-                "deadline": {"id": self.id, "deadline_time": self.deadline_time},
-            }
+        # Deadline-specific info goes into the routing data (not user kwargs).
+        # The context builder (_fetch_and_build_context / _fetch_callback_dag_run_data) exposes
+        # these as context["deadline"] = {"id": ..., "deadline_time": ...} so templates like
+        # {{ deadline.deadline_time }} continue to work.
+        self.callback.data["deadline_id"] = str(self.id)
+        self.callback.data["deadline_time"] = self.deadline_time.isoformat()
 
         if isinstance(self.callback, TriggererCallback):
-            # Update the callback with context before queuing
-            if "kwargs" not in self.callback.data:
-                self.callback.data["kwargs"] = {}
-            self.callback.data["kwargs"] = (self.callback.data.get("kwargs") or {}) | {
-                "context": get_simple_context()
-            }
-
             self.callback.queue(session=session)
+            flag_modified(self.callback, "data")
             session.add(self.callback)
             session.flush()
 
         elif isinstance(self.callback, ExecutorCallback):
-            if "kwargs" not in self.callback.data:
-                self.callback.data["kwargs"] = {}
-            self.callback.data["kwargs"] = (self.callback.data.get("kwargs") or {}) | {
-                "context": get_simple_context()
-            }
-            self.callback.data["deadline_id"] = str(self.id)
+            # dag_run_id (integer PK) is required by the scheduler's ExecuteCallback.make()
             self.callback.data["dag_run_id"] = str(self.dagrun.id)
-            self.callback.data["dag_id"] = self.dagrun.dag_id
-
             self.callback.state = CallbackState.PENDING
+            flag_modified(self.callback, "data")
             session.add(self.callback)
             session.flush()
 
@@ -265,9 +292,17 @@ class Deadline(Base):
 
         self.missed = True
         session.add(self)
+
+        team_name = (
+            DagModel.get_team_name(self.dagrun.dag_id, session=session)
+            if conf.getboolean("core", "multi_team")
+            else None
+        )
         stats.incr(
             "deadline_alerts.deadline_missed",
-            tags={"dag_id": self.dagrun.dag_id, "dagrun_id": self.dagrun.run_id},
+            tags=prune_dict(
+                {"dag_id": self.dagrun.dag_id, "dagrun_id": self.dagrun.run_id, "team_name": team_name}
+            ),
         )
 
 
@@ -411,6 +446,14 @@ class ReferenceModels:
                 self.min_runs = self.max_runs
             if self.min_runs < 1:
                 raise ValueError("min_runs must be at least 1")
+            if self.min_runs > self.max_runs:
+                # ``_evaluate_with`` does ``LIMIT max_runs`` then requires
+                # ``len(durations) >= min_runs``; with ``min_runs > max_runs`` that is never
+                # satisfiable, so the deadline would silently never be created. Fail fast.
+                raise ValueError(
+                    f"min_runs ({self.min_runs}) cannot exceed max_runs ({self.max_runs}); "
+                    "the deadline would require more completed runs than it ever samples."
+                )
 
         @provide_session
         def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime | None:
