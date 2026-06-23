@@ -68,11 +68,11 @@ class PartitionSelectorMixin(StrictBaseModel):
     )
     partition_date_start: datetime | None = Field(
         default=None,
-        description="Inclusive start of the partition date window (calendar-day granular). Mutually exclusive with the other partition selectors.",
+        description="Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.",
     )
     partition_date_end: datetime | None = Field(
         default=None,
-        description="Inclusive end of the partition date window (calendar-day granular). Mutually exclusive with the other partition selectors.",
+        description="Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.",
     )
 
     @property
