@@ -214,10 +214,11 @@ class DagRunWaiter:
                 task_ids=self.result_task_ids,
                 dag_ids=self.dag_id,
             )
+        # XComModel.get_many() orders XCom by timestamp. Reset this to make
+        # mapped task results stable since execution order is not guaranteed.
+        xcom_query = xcom_query.order_by(None).order_by(XComModel.task_id, XComModel.map_index)
         async with create_session_async() as session:
-            xcom_results = (
-                await session.scalars(xcom_query.order_by(XComModel.task_id, XComModel.map_index))
-            ).all()
+            xcom_results = (await session.scalars(xcom_query)).all()
 
         def _group_xcoms(g: Iterator[XComModel | tuple[XComModel]]) -> Any:
             entries = [row[0] if isinstance(row, tuple) else row for row in g]
