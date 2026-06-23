@@ -122,6 +122,9 @@ class AirflowPlugin:
     # A list of partition mapper classes that can be used for Dag scheduling.
     partition_mappers: list[Any] = []
 
+    # A list of window classes that can be used for Dag scheduling.
+    windows: list[Any] = []
+
     # A list of deadline reference classes that can be used as custom deadlines in Dags.
     deadline_references: list[Any] = []
 

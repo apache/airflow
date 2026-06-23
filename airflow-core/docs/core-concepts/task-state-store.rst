@@ -124,20 +124,14 @@ Deletes a single key. No-op if the key does not exist.
 
     task_state_store.delete("job_id")
 
-``clear(all_map_indices=False)``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``clear()``
+~~~~~~~~~~~
 
 Deletes *all* task state store keys for this task instance.
 
-For :doc:`mapped tasks </authoring-and-scheduling/dynamic-task-mapping>`, the default clears only the current map index. Pass ``all_map_indices=True`` to wipe the store across **every** mapped instance of the task (fleet-wide reset).
-
 .. code-block:: python
 
-    # clear only this map index
     task_state_store.clear()
-
-    # clear all map indices (fleet-wide)
-    task_state_store.clear(all_map_indices=True)
 
 
 Some Example Use Cases
@@ -255,15 +249,14 @@ Once a task defers, the Triggerer handles continuity across poke cycles. Use tas
 Mapped tasks
 ------------
 
-When a task is dynamically mapped (``task.expand(...)``), each map index has its own task state store namespace. ``clear()`` without arguments clears the store only for the current index. ``clear(all_map_indices=True)`` wipes the store across every index of the task.
+When a task is dynamically mapped (``task.expand(...)``), each map index has its own task state store namespace. ``clear()`` clears only the current index's store.
+
+To wipe state across all map indices of a task, use the :doc:`Core API </administration-and-deployment/task-and-asset-state-store>` (e.g. via the UI or CLI) after the task group has finished.
 
 .. code-block:: python
 
-    # Inside a mapped task — clear only this index
+    # Inside a mapped task — clears only this index
     task_state_store.clear()
-
-    # Wipe store for all indices of this task
-    task_state_store.clear(all_map_indices=True)
 
 
 Automatic cleanup (``clear_on_success``)
