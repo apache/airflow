@@ -31,6 +31,7 @@ import { Alert } from "src/components/ui";
 // single line of inline content (bold, inline code) leaves scrollHeight a few px above
 // clientHeight even when nothing is clipped, producing a spurious "See more". ~5 lines.
 const MAX_VISIBLE_HEIGHT = 120;
+const FADE_MASK = "linear-gradient(to bottom, black calc(100% - 1.5rem), transparent)";
 
 export const AlertContent = ({ alert }: { readonly alert: UIAlert }) => {
   const { t: translate } = useTranslation("dashboard");
@@ -67,7 +68,19 @@ export const AlertContent = ({ alert }: { readonly alert: UIAlert }) => {
     <Alert status={alert.category}>
       <Box
         ref={contentRef}
-        style={isExpanded ? undefined : { maxHeight: `${MAX_VISIBLE_HEIGHT}px`, overflow: "hidden" }}
+        style={
+          isExpanded
+            ? undefined
+            : {
+                // The clamp can land mid-line (markdown mixes line-heights and block margins);
+                // fade the bottom so the cut edge softens instead of showing a sliced line.
+                // Only when actually clipped, so a short alert that fits is not dimmed.
+                maskImage: isOverflowing ? FADE_MASK : undefined,
+                maxHeight: `${MAX_VISIBLE_HEIGHT}px`,
+                overflow: "hidden",
+                WebkitMaskImage: isOverflowing ? FADE_MASK : undefined,
+              }
+        }
         width="100%"
       >
         <ReactMarkdown>{alert.text}</ReactMarkdown>
