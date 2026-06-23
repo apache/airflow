@@ -825,9 +825,6 @@ class DagModel(Base):
             scheduler processing order and concurrent run creation in a distributed
             system mean a newer run may already exist.
         """
-        # TODO: AIP-76 perhaps we need to add validation for manual runs ensure consistency between
-        #   partition_key / partition_date and run_after
-
         if isinstance(reference_run, datetime):
             raise ValueError(
                 "Passing a datetime to `DagModel.calculate_dagrun_date_fields` is not supported. "

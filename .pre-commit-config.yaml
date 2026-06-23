@@ -31,7 +31,7 @@ repos:
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: d77825acdc8ca194308680fa4f8385ae5bb61cb4  # frozen: v2.4.1
+    rev: 59dcae910a6ad4bbe8711275b854e3cd5c30f08b  # frozen: v2.5.0
     hooks:
       - id: doctoc
         name: Add TOC for Markdown and RST files
@@ -461,7 +461,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: 2bba271688c1abb1503097a064e6c3bc1d1b6a9b  # frozen: lychee-lib-v0.24.2
+    rev: 467197f13e30c16befe54b8f83c17bf91952a741  # frozen: nightly
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script
@@ -562,7 +562,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.16']
+        additional_dependencies: ['ruff==0.15.17']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -1117,8 +1117,7 @@ repos:
           (?x)
           ^dev/breeze/.*$|
           ^\.pre-commit-config\.yaml$|
-          ^scripts/ci/prek/breeze_cmd_line\.py$|
-          ^generated/provider_dependencies\.json$
+          ^scripts/ci/prek/breeze_cmd_line\.py$$
         require_serial: true
         pass_filenames: false
       - id: check-example-dags-urls
