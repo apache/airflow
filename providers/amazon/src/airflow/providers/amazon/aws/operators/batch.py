@@ -261,6 +261,20 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         # Set job_id first so CloudWatch link can be persisted even on failure
         self.job_id = validated_event["job_id"]
 
+        # Fetch logs if awslogs_enabled
+        if self.awslogs_enabled:
+            log_fetcher = self._get_batch_log_fetcher(self.job_id)
+            if log_fetcher:
+                self.log.info("Fetching logs for AWS Batch job: %s", self.job_id)
+                # Fetch up to 10,000 messages (CloudWatch limit)
+                log_messages = log_fetcher.get_last_log_messages(10000)
+                for message in log_messages:
+                    self.log.info(message)
+                if log_messages:
+                    self.log.info("Retrieved %d log messages from CloudWatch", len(log_messages))
+                else:
+                    self.log.info("No logs found in CloudWatch for job: %s", self.job_id)
+
         # Persist CloudWatch logs for both success and failure
         self._persist_cloudwatch_link(context)
 
