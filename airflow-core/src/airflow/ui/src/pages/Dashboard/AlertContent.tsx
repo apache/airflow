@@ -67,6 +67,7 @@ export const AlertContent = ({ alert }: { readonly alert: UIAlert }) => {
   return (
     <Alert status={alert.category}>
       <Box
+        data-testid="dashboard-alert-content"
         ref={contentRef}
         style={
           isExpanded
