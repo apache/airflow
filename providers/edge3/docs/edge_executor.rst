@@ -235,11 +235,11 @@ pipeline. The table below documents known compatibility issues and workarounds:
          - Airflow 3.1
      * - >= 3.6.0
          - Working
-         - Broken: webserver statsd initialization is missing (DualStatsManager removed)
-         - Broken: statsd metric tags
+         - Broken: webserver missing a `stats.initialize(...)` call -- DualStatsManager removed, missing legacy metric names
+         - Broken: metric tags
      * - <= 3.5.0
          - Working
-         - Requires manual patch of ``metrics_template.yaml`` to match previous statsd export schema
+         - Requires manual patch of ``metrics_template.yaml`` to match previous export schema
          - Working
 
 **For Airflow 3.2 users:** If upgrading to Edge provider >= 3.6.0 breaks metrics export, either
