@@ -42,12 +42,14 @@
   },
   "deadlineAlerts": {
     "completionRule": "Must complete within {{interval}} of {{reference}}",
+    "completionRuleDynamic": "Must complete within a dynamic interval of {{reference}}",
     "count_one": "{{count}} deadline",
     "count_other": "{{count}} deadlines",
     "referenceType": {
       "AverageRuntimeDeadline": "average runtime",
       "DagRunLogicalDateDeadline": "logical date",
-      "DagRunQueuedAtDeadline": "queue time"
+      "DagRunQueuedAtDeadline": "queue time",
+      "FixedDatetimeDeadline": "fixed datetime"
     }
   },
   "deadlineStatus": {

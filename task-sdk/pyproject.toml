@@ -324,4 +324,5 @@ shared_distributions = [
     "apache-airflow-shared-observability",
     "apache-airflow-shared-plugins-manager",
     "apache-airflow-shared-providers-discovery",
+    "apache-airflow-shared-template-rendering",
 ]
