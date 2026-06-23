@@ -333,6 +333,10 @@ class DecoratedBatchedOperator(BatchableOperator[_TaskDecorator]):
     def _validate_arg_names(self, func: ValidationSource, kwargs: dict[str, Any]):
         self.operator_partial._validate_arg_names(func, kwargs)
 
+    @property
+    def returns_dag_result(self) -> bool:
+        return self.operator_partial.returns_dag_result
+
     def iterate(self, **map_kwargs: OperatorExpandArgument) -> XComArg:
         if self.kwargs.get("trigger_rule") == TriggerRule.ALWAYS and any(
             [isinstance(expanded, XComArg) for expanded in map_kwargs.values()]
