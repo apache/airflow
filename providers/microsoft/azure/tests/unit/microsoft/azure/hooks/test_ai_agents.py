@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 
 import pytest
@@ -34,6 +35,25 @@ MODULE = "airflow.providers.microsoft.azure.hooks.ai_agents"
 CONN_ID = "azure_ai_agents_test"
 ENDPOINT = "https://test.services.ai.azure.com/api/projects/test-project"
 AGENT_ID = "agent_123"
+
+
+class ConnectionWithFailingExtraDejson:
+    conn_id = CONN_ID
+    conn_type = "azure_ai_agents"
+    host = None
+    login = None
+    password = None
+    extra = json.dumps(
+        {
+            "endpoint": ENDPOINT,
+            "managed_identity_client_id": "managed-identity-client-id",
+            "workload_identity_tenant_id": "workload-identity-tenant-id",
+        }
+    )
+
+    @property
+    def extra_dejson(self):
+        raise RuntimeError("extra_dejson should not be used in async connection setup")
 
 
 class TestAzureAIAgentsHook:
@@ -323,6 +343,30 @@ class TestAzureAIAgentsAsyncHook:
             workload_identity_tenant_id="workload-identity-tenant-id",
         )
         mock_client_cls.assert_called_once_with(endpoint=ENDPOINT, credential=mock_credential)
+
+    @mock.patch(f"{MODULE}.get_async_connection", autospec=True)
+    @mock.patch(f"{MODULE}.AsyncAgentsClient", autospec=True)
+    @mock.patch(f"{MODULE}.get_async_default_azure_credential", autospec=True)
+    async def test_get_async_conn_does_not_use_extra_dejson(
+        self, mock_default_credential, mock_client_cls, mock_get_connection
+    ):
+        mock_get_connection.return_value = ConnectionWithFailingExtraDejson()
+        mock_client = mock_client_cls.return_value
+        mock_client.close = mock.AsyncMock()
+        mock_default_credential.return_value.close = mock.AsyncMock()
+        hook = AzureAIAgentsAsyncHook(azure_ai_agents_conn_id=CONN_ID)
+
+        async with hook.get_async_conn() as client:
+            result = client
+
+        assert result == mock_client
+        mock_default_credential.assert_called_once_with(
+            managed_identity_client_id="managed-identity-client-id",
+            workload_identity_tenant_id="workload-identity-tenant-id",
+        )
+        mock_client_cls.assert_called_once_with(
+            endpoint=ENDPOINT, credential=mock_default_credential.return_value
+        )
 
     @mock.patch.object(AzureAIAgentsAsyncHook, "get_async_conn")
     async def test_async_get_run(self, mock_get_async_conn):
