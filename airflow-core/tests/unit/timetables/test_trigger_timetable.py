@@ -795,6 +795,47 @@ def test_next_dagrun_info_v2(schedule, expected, dag_maker, session):
     assert info == expected
 
 
+NEXT_DAGRUN_NOW = pendulum.DateTime(2021, 9, 7, 12, tzinfo=utc)
+SEP_5 = pendulum.DateTime(2021, 9, 5, tzinfo=utc)
+SEP_6 = pendulum.DateTime(2021, 9, 6, tzinfo=utc)
+SEP_8 = pendulum.DateTime(2021, 9, 8, tzinfo=utc)
+SEP_9 = pendulum.DateTime(2021, 9, 9, tzinfo=utc)
+SEP_10 = pendulum.DateTime(2021, 9, 10, tzinfo=utc)
+
+
+@pytest.mark.parametrize(
+    ("last_run_after", "earliest", "latest", "catchup", "expected_run_after"),
+    [
+        pytest.param(SEP_5, None, None, True, SEP_6, id="catchup-advances-from-last-run"),
+        pytest.param(None, None, None, True, SEP_8, id="catchup-no-last-uses-first-run"),
+        pytest.param(SEP_8, None, None, False, SEP_9, id="no-catchup-advances-from-last-run"),
+        pytest.param(None, None, None, False, SEP_8, id="no-catchup-no-last-uses-first-run"),
+        pytest.param(None, SEP_10, None, False, SEP_10, id="no-catchup-honors-earliest"),
+        pytest.param(None, SEP_10, SEP_9, True, None, id="returns-none-past-latest"),
+    ],
+)
+@time_machine.travel(NEXT_DAGRUN_NOW)
+def test_cron_partition_next_dagrun_info_v2_branches(
+    last_run_after, earliest, latest, catchup, expected_run_after
+):
+    timetable = CoreCronPartitionTimetable("0 0 * * *", timezone=utc)
+    # only run_after is read off the previous run; the branch logic decides run_after
+    last_dagrun_info = (
+        DagRunInfo(run_after=last_run_after, data_interval=None, partition_date=None, partition_key=None)
+        if last_run_after is not None
+        else None
+    )
+    info = timetable.next_dagrun_info_v2(
+        last_dagrun_info=last_dagrun_info,
+        restriction=TimeRestriction(earliest=earliest, latest=latest, catchup=catchup),
+    )
+    if expected_run_after is None:
+        assert info is None
+    else:
+        assert info is not None
+        assert info.run_after == expected_run_after
+
+
 @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 @pytest.mark.parametrize(
