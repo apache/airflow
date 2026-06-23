@@ -17,9 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from functools import cached_property
+from json import JSONDecodeError
 from typing import TYPE_CHECKING, Any, cast
 
 from azure.ai.agents import AgentsClient
@@ -185,8 +187,9 @@ class AzureAIAgentsHook(BaseHook):
         conn = self.get_connection(self.conn_id)
         return AgentsClient(endpoint=self._get_endpoint(conn), credential=self._get_credential(conn))
 
-    def _get_endpoint(self, conn: Connection) -> str:
-        endpoint = self.endpoint or conn.host or self._get_field(conn.extra_dejson, "endpoint")
+    def _get_endpoint(self, conn: Connection, extras: dict[str, Any] | None = None) -> str:
+        connection_extras = extras if extras is not None else conn.extra_dejson
+        endpoint = self.endpoint or conn.host or self._get_field(connection_extras, "endpoint")
         if not endpoint:
             raise ValueError(
                 "Azure AI Foundry project endpoint must be provided by the hook, connection host, "
@@ -195,8 +198,9 @@ class AzureAIAgentsHook(BaseHook):
         return endpoint
 
     def _get_credential(self, conn: Connection) -> TokenCredential:
-        tenant = self._get_field(conn.extra_dejson, "tenantId")
-        cloud_env_name = self._get_field(conn.extra_dejson, "cloud_environment") or "AzurePublicCloud"
+        extras = conn.extra_dejson
+        tenant = self._get_field(extras, "tenantId")
+        cloud_env_name = self._get_field(extras, "cloud_environment") or "AzurePublicCloud"
         cloud_env = _AZURE_CLOUD_ENVIRONMENTS.get(
             cloud_env_name, _AZURE_CLOUD_ENVIRONMENTS["AzurePublicCloud"]
         )
@@ -211,8 +215,8 @@ class AzureAIAgentsHook(BaseHook):
             )
 
         self.log.info("Using DefaultAzureCredential as credential.")
-        managed_identity_client_id = self._get_field(conn.extra_dejson, "managed_identity_client_id")
-        workload_identity_tenant_id = self._get_field(conn.extra_dejson, "workload_identity_tenant_id")
+        managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
+        workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
         return get_sync_default_azure_credential(
             managed_identity_client_id=managed_identity_client_id,
             workload_identity_tenant_id=workload_identity_tenant_id,
@@ -266,8 +270,9 @@ class AzureAIAgentsAsyncHook(AzureAIAgentsHook):
     async def get_async_conn(self) -> AsyncGenerator[AsyncAgentsClient, None]:
         """Create an async Azure AI Agents client."""
         conn = await get_async_connection(self.conn_id)
-        credential = self._get_async_credential(conn)
-        client = AsyncAgentsClient(endpoint=self._get_endpoint(conn), credential=credential)
+        extras = self._deserialize_extra(conn)
+        credential = self._get_async_credential(conn, extras=extras)
+        client = AsyncAgentsClient(endpoint=self._get_endpoint(conn, extras=extras), credential=credential)
         try:
             yield client
         finally:
@@ -275,9 +280,18 @@ class AzureAIAgentsAsyncHook(AzureAIAgentsHook):
             if hasattr(credential, "close"):
                 await credential.close()
 
-    def _get_async_credential(self, conn: Connection) -> AsyncTokenCredential:
-        tenant = self._get_field(conn.extra_dejson, "tenantId")
-        cloud_env_name = self._get_field(conn.extra_dejson, "cloud_environment") or "AzurePublicCloud"
+    def _deserialize_extra(self, conn: Connection) -> dict[str, Any]:
+        if not conn.extra:
+            return {}
+        try:
+            return json.loads(conn.extra)
+        except (JSONDecodeError, TypeError):
+            self.log.exception("Failed parsing the json for conn_id %s", self.conn_id)
+            return {}
+
+    def _get_async_credential(self, conn: Connection, extras: dict[str, Any]) -> AsyncTokenCredential:
+        tenant = self._get_field(extras, "tenantId")
+        cloud_env_name = self._get_field(extras, "cloud_environment") or "AzurePublicCloud"
         cloud_env = _AZURE_CLOUD_ENVIRONMENTS.get(
             cloud_env_name, _AZURE_CLOUD_ENVIRONMENTS["AzurePublicCloud"]
         )
@@ -292,8 +306,8 @@ class AzureAIAgentsAsyncHook(AzureAIAgentsHook):
             )
 
         self.log.info("Using DefaultAzureCredential as credential.")
-        managed_identity_client_id = self._get_field(conn.extra_dejson, "managed_identity_client_id")
-        workload_identity_tenant_id = self._get_field(conn.extra_dejson, "workload_identity_tenant_id")
+        managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
+        workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
         return get_async_default_azure_credential(
             managed_identity_client_id=managed_identity_client_id,
             workload_identity_tenant_id=workload_identity_tenant_id,
