@@ -103,6 +103,17 @@ class ExecuteCallback(BaseDagBundleWorkload):
     def running_state(self) -> CallbackState:
         return CallbackState.RUNNING
 
+    @property
+    def retry_state(self) -> CallbackState:
+        """
+        State to report on a transient (retryable) failure, e.g. a context-fetch blip.
+
+        PENDING is non-terminal, so the scheduler's PENDING-callbacks query re-picks the callback
+        on the next loop and retries it — instead of the terminal FAILED a real callback error
+        produces. Mirrors the triggerer path's re-evaluate-on-next-loop behavior.
+        """
+        return CallbackState.PENDING
+
     @classmethod
     def make(
         cls,

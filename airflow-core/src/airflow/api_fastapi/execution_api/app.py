@@ -386,7 +386,7 @@ class InProcessExecutionAPI:
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
             from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
             from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
-            from airflow.api_fastapi.execution_api.security import _jwt_bearer
+            from airflow.api_fastapi.execution_api.security import _jwt_bearer, require_auth
 
             self._app = create_task_execution_api_app()
 
@@ -403,6 +403,7 @@ class InProcessExecutionAPI:
                 return TIToken(id=ti_id, claims=claims)
 
             self._app.dependency_overrides[_jwt_bearer] = always_allow
+            self._app.dependency_overrides[require_auth] = always_allow
             self._app.dependency_overrides[has_connection_access] = always_allow
             self._app.dependency_overrides[has_variable_access] = always_allow
             self._app.dependency_overrides[has_xcom_access] = always_allow

@@ -4808,7 +4808,7 @@ export class DeadlinesService {
      * @param data.dagId
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name, interval`
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
      * @returns DeadlineAlertCollectionResponse Successful Response
      * @throws ApiError
      */

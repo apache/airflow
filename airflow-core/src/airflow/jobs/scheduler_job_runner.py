@@ -1175,12 +1175,32 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.debug("No available slots for callbacks; all executors at capacity")
             return
 
-        pending_callbacks = session.scalars(
+        pending_callbacks_query = (
             select(ExecutorCallback)
             .where(ExecutorCallback.type == CallbackType.EXECUTOR)
             .where(ExecutorCallback.state == CallbackState.PENDING)
-            .order_by(ExecutorCallback.priority_weight.desc())
+            # Stable FIFO tiebreaker after priority: created_at then id. Without a secondary
+            # sort key, equal-priority callbacks (all deadline callbacks default to
+            # priority_weight=1) come back in DB-dependent order, so when the PENDING backlog
+            # exceeds max_callbacks the same subset can be picked every loop and the rest
+            # starve indefinitely. Ordering oldest-first guarantees forward progress for every
+            # callback, mirroring the task path's (-priority, logical_date, map_index) ordering.
+            .order_by(
+                ExecutorCallback.priority_weight.desc(),
+                ExecutorCallback.created_at,
+                ExecutorCallback.id,
+            )
             .limit(max_callbacks)
+        )
+
+        # Lock the selected rows FOR UPDATE SKIP LOCKED so concurrent HA scheduler replicas do
+        # not both select the same PENDING callbacks and enqueue them to their executors twice
+        # (a double-execution of the deadline callback). The ``state = QUEUED`` write alone is
+        # not enough: by the time the conflicting write is resolved at commit, both schedulers
+        # have already called ``executor.queue_workload`` (the side effect). This mirrors the
+        # task-instance critical section and the deadline-selection query in _run_scheduler_loop.
+        pending_callbacks = session.scalars(
+            with_row_locks(pending_callbacks_query, of=ExecutorCallback, session=session, skip_locked=True)
         ).all()
 
         if not pending_callbacks:
@@ -1211,22 +1231,50 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag_run = session.get(DagRun, dag_run_id)
 
                 if dag_run is None:
+                    # The DagRun is gone (deleted). Deletion is permanent — the executor
+                    # callback can never run because its execution context is built from the
+                    # DagRun (see _fetch_and_build_context). Leaving it PENDING would retry it
+                    # every scheduler loop forever (a zombie callback + perpetual log spam), so
+                    # terminalize it as FAILED instead. (TriggererCallbacks differ: they have a
+                    # standalone Trigger that can still fire and terminalize them, so they are
+                    # intentionally left to survive a DagRun deletion.)
                     self.log.warning(
-                        "Could not find DagRun with id=%s for callback %s. DagRun may have been deleted.",
+                        "DagRun id=%s for ExecutorCallback %s no longer exists (deleted); "
+                        "marking the callback FAILED — it cannot run without its DagRun context.",
                         dag_run_id,
                         callback.id,
                     )
+                    callback.state = CallbackState.FAILED
+                    session.add(callback)
+                    stats.incr(
+                        "deadline_alerts.callback_orphaned_dagrun_deleted",
+                        tags={"dag_id": callback.data.get("dag_id", "")},
+                    )
                     continue
 
-                workload = workloads.ExecuteCallback.make(
-                    callback=callback,
-                    dag_run=dag_run,
-                    generator=executor.jwt_generator,
-                )
+                # Isolate each callback: a single bad ExecutorCallback (e.g. its workload
+                # fails to build, or the executor's queue_workload raises) must not crash
+                # the scheduler loop or prevent the remaining callbacks from being enqueued.
+                # The SAVEPOINT keeps the already-enqueued callbacks in this batch intact
+                # when one rolls back, and the callback is left in PENDING for retry next
+                # loop. This mirrors the per-deadline isolation in the handle_miss loop.
+                try:
+                    with session.begin_nested():
+                        workload = workloads.ExecuteCallback.make(
+                            callback=callback,
+                            dag_run=dag_run,
+                            generator=executor.jwt_generator,
+                        )
 
-                executor.queue_workload(workload, session=session)
-                callback.state = CallbackState.QUEUED
-                session.add(callback)
+                        executor.queue_workload(workload, session=session)
+                        callback.state = CallbackState.QUEUED
+                        session.add(callback)
+                except Exception:
+                    self.log.exception(
+                        "Failed to enqueue ExecutorCallback %s to executor %s; leaving it PENDING for retry",
+                        callback.id,
+                        executor,
+                    )
 
     @staticmethod
     def _process_task_event_logs(log_records: deque[Log], session: Session):
@@ -1321,7 +1369,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 cls.logger().debug("Draining executor event with state %s for connection test %s", state, key)
             elif isinstance(key, CallbackKey):
                 cls.logger().info("Received executor event with state %s for callback %s", state, key)
-                if state in (CallbackState.RUNNING, CallbackState.FAILED, CallbackState.SUCCESS):
+                if state in (
+                    CallbackState.RUNNING,
+                    CallbackState.FAILED,
+                    CallbackState.SUCCESS,
+                    CallbackState.PENDING,
+                ):
                     callback_keys_with_events.append(key)
             else:
                 cls.logger().error("Unknown workload key type in event buffer: %r", key)
@@ -1348,6 +1401,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 callback.state = CallbackState.FAILED
                 callback.output = str(info) if info else "Execution failed"
                 cls.logger().error("Callback %s failed: %s", callback_id, callback.output)
+            elif state == CallbackState.PENDING:
+                # Transient failure (e.g. the executor callback could not fetch its DagRun
+                # context — an API blip / network partition / token expiry). Reset to PENDING so
+                # the next scheduler loop re-picks it from the PENDING-callbacks query and retries,
+                # rather than terminally failing on a recoverable error. This mirrors the triggerer
+                # path, which re-evaluates a callback trigger on the next loop when the fetch fails.
+                callback.state = CallbackState.PENDING
+                cls.logger().warning(
+                    "Callback %s hit a transient failure; requeueing for retry: %s", callback_id, info
+                )
             session.add(callback)
 
         # Return if no finished tasks
@@ -1814,7 +1877,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             key_share=False,
                         )
                     ):
-                        deadline.handle_miss(session)
+                        # Isolate each deadline: a single bad deadline (e.g. its DagRun was
+                        # deleted between selection and handling, or its callback fails to
+                        # queue) must not crash the scheduler loop or prevent the remaining
+                        # overdue deadlines from being processed. The SAVEPOINT keeps the
+                        # already-handled deadlines in this batch intact when one rolls back.
+                        try:
+                            with session.begin_nested():
+                                deadline.handle_miss(session)
+                        except Exception:
+                            self.log.exception(
+                                "Failed to handle missed deadline %s; skipping it this loop", deadline.id
+                            )
 
                     # Route ExecutorCallback workloads to executors (similar to task routing)
                     self._enqueue_executor_callbacks(session)
