@@ -123,11 +123,14 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     @property
     def handler(self) -> watchtower.CloudWatchLogHandler:
-        """Return the streaming handler, rebuilding it if dictConfig closed it mid-task."""
-        # dictConfig's non-incremental reset closes every handler in logging._handlerList,
-        # leaving this one with shutting_down=True (it then silently drops every record).
-        # Rebuild only while the IO is live: once close() has run, keep the closed handler so a
-        # late record is dropped instead of spawning an orphan handler + background thread.
+        """
+        Return the streaming handler, rebuilding it if dictConfig closed it mid-task.
+
+        dictConfig's non-incremental reset closes every handler in ``logging._handlerList``,
+        leaving this one with ``shutting_down=True`` (it then silently drops every record).
+        Rebuild only while the IO is live: once :meth:`close` has run, keep the closed handler
+        so a late record is dropped instead of spawning an orphan handler and background thread.
+        """
         if self._cached_handler is None or (not self._closed and self._cached_handler.shutting_down):
             self._cached_handler = self._build_handler()
         return self._cached_handler
@@ -174,9 +177,13 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         return (proc,)
 
     def close(self):
-        # Terminal flush — only ever called from upload(). Mark the IO closed first so `handler`
-        # stops rebuilding: a record arriving after teardown must be dropped, not revive a fresh
-        # handler. Read the cached handler directly so we never build one just to flush it.
+        """
+        Flush pending events one last time and mark the IO closed.
+
+        Only ever called from :meth:`upload`. Mark the IO closed first so ``handler`` stops
+        rebuilding: a record arriving after teardown must be dropped, not revive a fresh
+        handler. Read the cached handler directly so we never build one just to flush it.
+        """
         self._closed = True
         handler = self._cached_handler
         if handler is None or handler.shutting_down:
