@@ -91,6 +91,21 @@ class PartitionSelectorMixin(StrictBaseModel):
         ):
             raise ValueError("partition_date_start must be on or before partition_date_end.")
 
+    def _check_exactly_one_selection_mode(
+        self, *, extra_selector_active: bool, extra_selector_name: str
+    ) -> None:
+        has_partition_key = self.partition_key is not None
+        has_partition_date_window = (
+            self.partition_date_start is not None or self.partition_date_end is not None
+        )
+        modes_active = sum([extra_selector_active, has_partition_key, has_partition_date_window])
+        if modes_active != 1:
+            raise ValueError(
+                f"Exactly one of {extra_selector_name}, partition_key, or a partition date window "
+                "(partition_date_start / partition_date_end) must be provided."
+            )
+        self.validate_partition_date_window_order()
+
 
 class BaseDAGRunClear(StrictBaseModel):
     """Shared options for the single-run and bulk Dag Run clear endpoints."""
@@ -129,18 +144,10 @@ class BulkDAGRunClearBody(BaseDAGRunClear, PartitionSelectorMixin):
 
     @model_validator(mode="after")
     def validate_exactly_one_selection_mode(self) -> BulkDAGRunClearBody:
-        has_dag_runs = bool(self.dag_runs)
-        has_partition_key = self.partition_key is not None
-        has_partition_date_window = (
-            self.partition_date_start is not None or self.partition_date_end is not None
+        self._check_exactly_one_selection_mode(
+            extra_selector_active=bool(self.dag_runs),
+            extra_selector_name="dag_runs (non-empty)",
         )
-        modes_active = sum([has_dag_runs, has_partition_key, has_partition_date_window])
-        if modes_active != 1:
-            raise ValueError(
-                "Exactly one of dag_runs (non-empty), partition_key, or a partition date window "
-                "(partition_date_start / partition_date_end) must be provided."
-            )
-        self.validate_partition_date_window_order()
         return self
 
 
@@ -311,18 +318,10 @@ class ClearPartitionsBody(PartitionSelectorMixin):
 
     @model_validator(mode="after")
     def validate_exactly_one_selector(self) -> ClearPartitionsBody:
-        has_run_id = self.run_id is not None
-        has_partition_key = self.partition_key is not None
-        has_partition_date_window = (
-            self.partition_date_start is not None or self.partition_date_end is not None
+        self._check_exactly_one_selection_mode(
+            extra_selector_active=self.run_id is not None,
+            extra_selector_name="run_id",
         )
-        selectors_active = sum([has_run_id, has_partition_key, has_partition_date_window])
-        if selectors_active != 1:
-            raise ValueError(
-                "Exactly one of run_id, partition_key, or a partition date window "
-                "(partition_date_start / partition_date_end) must be provided."
-            )
-        self.validate_partition_date_window_order()
         return self
 
 
