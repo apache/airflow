@@ -43,7 +43,6 @@ from airflow.sdk.execution_time.callback_supervisor import (
     supervise_callback,
 )
 from airflow.sdk.execution_time.comms import (
-    BundleInfo,
     ConnectionResult,
     ErrorResponse,
     GetConnection,
