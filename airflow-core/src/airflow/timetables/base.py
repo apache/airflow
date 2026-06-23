@@ -261,11 +261,16 @@ class Timetable(Protocol):
     def iter_partition_dagrun_infos(
         self,
         *,
-        earliest_date: datetime.date,
-        latest_date: datetime.date,
+        earliest: datetime.datetime,
+        latest: datetime.datetime,
     ) -> Iterable[DagRunInfo]:
         """
-        Yield one DagRunInfo per partition for calendar days in ``[earliest_date, latest_date]`` (both inclusive).
+        Yield one DagRunInfo per partition whose ``partition_date`` lies in ``[earliest, latest]`` (both inclusive).
+
+        The iteration granularity follows the timetable's own partition cadence
+        (e.g. one tick per hour for ``CronPartitionTimetable("0 * * * *")``), so a
+        sub-day window yields only the partitions inside it rather than every
+        partition of the surrounding calendar day.
 
         Only called for partitioned timetables (``partitioned is True``). The default
         implementation raises :exc:`NotImplementedError`; timetables that set
@@ -277,20 +282,22 @@ class Timetable(Protocol):
             msg = f"{type(self).__name__} is not partitioned"
         raise NotImplementedError(msg)
 
-    def resolve_day_bound(self, day: datetime.date) -> DateTime:
+    def localize_partition_datetime(self, dt: datetime.datetime) -> DateTime:
         """
-        Return the UTC instant of *day*'s start (midnight).
+        Re-interpret *dt*'s wall-clock reading as a moment in this timetable's timezone.
 
-        By default a calendar day starts at midnight UTC. Timetables with a local
-        timezone (e.g. :class:`~airflow.timetables._cron.CronMixin` subclasses)
-        override this to anchor at local midnight in their timezone, converted to
-        UTC. Callers pass *day* for an inclusive lower bound and
-        ``day + timedelta(days=1)`` for a half-open upper bound (e.g. ``dag_clear``
-        uses it to bound ``partition_date`` queries).
+        The base implementation treats the timetable as UTC: the wall-clock is kept
+        as-is and the result is simply a timezone-aware UTC instant (a no-op for
+        already-UTC inputs). Timetables with a local timezone (e.g.
+        :class:`~airflow.timetables._cron.CronMixin` subclasses) override this to
+        re-localize the wall-clock to their own timezone before converting to UTC,
+        preserving sub-day precision for narrow windows on sub-daily schedules.
+
+        Used by :meth:`~airflow.models.dagrun.DagRun.apply_partition_date_window` to
+        convert user-supplied ``partition_date`` filter bounds without truncating the
+        time component.
         """
-        return timezone.coerce_datetime(
-            datetime.datetime(day.year, day.month, day.day, tzinfo=datetime.timezone.utc)
-        )
+        return timezone.coerce_datetime(dt)
 
     def resolve_partition_date(self, partition_key: str | None) -> datetime.datetime | None:
         """

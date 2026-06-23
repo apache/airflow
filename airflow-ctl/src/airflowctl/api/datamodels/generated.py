@@ -173,6 +173,62 @@ class BulkResponse(BaseModel):
     ] = None
 
 
+class ClearPartitionsBody(BaseModel):
+    """
+    Request body for the clearPartitions endpoint (column-reset: set partition fields to None).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    partition_key: Annotated[
+        str | None,
+        Field(
+            description="Select runs by exact partition key match. Mutually exclusive with the other partition selectors.",
+            title="Partition Key",
+        ),
+    ] = None
+    partition_date_start: Annotated[
+        datetime | None,
+        Field(
+            description="Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.",
+            title="Partition Date Start",
+        ),
+    ] = None
+    partition_date_end: Annotated[
+        datetime | None,
+        Field(
+            description="Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.",
+            title="Partition Date End",
+        ),
+    ] = None
+    run_id: Annotated[
+        str | None,
+        Field(
+            description="Select runs by exact run_id. Mutually exclusive with ``partition_key`` and partition date window.",
+            title="Run Id",
+        ),
+    ] = None
+    clear_task_instances: Annotated[
+        bool | None,
+        Field(description="Also clear task instances on the matched runs.", title="Clear Task Instances"),
+    ] = False
+    dry_run: Annotated[
+        bool | None,
+        Field(description="If True, compute counts without writing any changes.", title="Dry Run"),
+    ] = True
+
+
+class ClearPartitionsResponse(BaseModel):
+    """
+    Response for the clearPartitions endpoint.
+    """
+
+    dag_runs_cleared: Annotated[int, Field(title="Dag Runs Cleared")]
+    task_instances_cleared: Annotated[int, Field(title="Task Instances Cleared")]
+    dry_run: Annotated[bool, Field(title="Dry Run")]
+
+
 class TaskIds(RootModel[list]):
     root: Annotated[list, Field(max_length=2, min_length=2)]
 
@@ -1407,6 +1463,27 @@ class BulkDAGRunClearBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
+    partition_key: Annotated[
+        str | None,
+        Field(
+            description="Select runs by exact partition key match. Mutually exclusive with the other partition selectors.",
+            title="Partition Key",
+        ),
+    ] = None
+    partition_date_start: Annotated[
+        datetime | None,
+        Field(
+            description="Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.",
+            title="Partition Date Start",
+        ),
+    ] = None
+    partition_date_end: Annotated[
+        datetime | None,
+        Field(
+            description="Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.",
+            title="Partition Date End",
+        ),
+    ] = None
     dry_run: Annotated[bool | None, Field(title="Dry Run")] = True
     only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
     only_new: Annotated[
@@ -1424,7 +1501,7 @@ class BulkDAGRunClearBody(BaseModel):
         ),
     ] = None
     note: Annotated[Note | None, Field(title="Note")] = None
-    dag_runs: Annotated[list[BulkDAGRunBody], Field(min_length=1, title="Dag Runs")]
+    dag_runs: Annotated[list[BulkDAGRunBody] | None, Field(title="Dag Runs")] = None
 
 
 class BulkDeleteActionBulkDAGRunBody(BaseModel):
@@ -1774,6 +1851,7 @@ class DAGRunResponse(BaseModel):
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    partition_date: Annotated[datetime | None, Field(title="Partition Date")] = None
 
 
 class DAGRunsBatchBody(BaseModel):
