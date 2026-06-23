@@ -212,6 +212,23 @@ class TestDeadline:
             assert f"needed by {DEFAULT_DATE}" in repr_str
             assert TEST_CALLBACK_PATH in repr_str
 
+    def test_repr_with_dagrun_id_but_no_dagrun_relationship(self, deadline_orm):
+        """__repr__ must NOT raise when dagrun_id is set but the dagrun relationship is None.
+
+        The FK (dagrun_id) can be set while the relationship resolves to None — e.g. the DagRun
+        was deleted (ondelete=CASCADE) and this is a stale/expired in-memory Deadline. A __repr__
+        that raised AttributeError here would break log lines, tracebacks, and debugger displays
+        exactly when something is already going wrong. The repr falls back to an id-only form.
+        """
+        # Sever the relationship while keeping the FK id (simulates deleted/detached DagRun).
+        deadline_orm.dagrun = None
+        assert deadline_orm.dagrun_id is not None
+
+        repr_str = repr(deadline_orm)  # must not raise
+        assert "[DagRun Deadline]" in repr_str
+        assert f"Run: {deadline_orm.dagrun_id}" in repr_str
+        assert "Dag: <unknown>" in repr_str
+
     @pytest.mark.db_test
     def test_bundle_name_propagated_to_callback(self, dagrun, session):
         """The bundle name is forwarded to the callback so the triggerer can resolve its team."""

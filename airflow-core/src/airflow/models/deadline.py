@@ -147,8 +147,13 @@ class Deadline(Base):
         def _determine_resource() -> tuple[str, str]:
             """Determine the type of resource based on which values are present."""
             if self.dagrun_id:
-                # The deadline is for a Dag run:
-                return "DagRun", f"Dag: {self.dagrun.dag_id} Run: {self.dagrun_id}"
+                # The deadline is for a Dag run. Guard on the ``dagrun`` relationship (not just
+                # ``dagrun_id``): the FK can be set while the relationship resolves to None — e.g.
+                # the DagRun was deleted (ondelete=CASCADE) and this is a stale/expired in-memory
+                # Deadline. A __repr__ must never raise (it's used in logs, tracebacks, debuggers),
+                # so fall back to the id-only form rather than dereferencing ``self.dagrun.dag_id``.
+                dag_id = self.dagrun.dag_id if self.dagrun is not None else "<unknown>"
+                return "DagRun", f"Dag: {dag_id} Run: {self.dagrun_id}"
 
             return "Unknown", ""
 
@@ -184,8 +189,15 @@ class Deadline(Base):
 
         try:
             # Get deadlines which match the provided conditions and their associated DagRuns.
+            # Exclude deadlines already marked ``missed``: once the scheduler has marked a
+            # deadline missed it has queued (and owns) that deadline's callback, so prune must
+            # never delete it (the cascade would drop the queued callback). Today this is also
+            # implied by the ``end_date <= deadline_time`` guard below — a missed deadline has
+            # ``deadline_time < now <= end_date`` so it can't satisfy that predicate — but making
+            # the ``~missed`` filter explicit keeps the "prune only handles on-time deadlines"
+            # invariant from depending on clock relationships and protects against future callers.
             deadline_dagrun_pairs = session.execute(
-                select(Deadline, DagRun).join(DagRun).where(and_(*filter_conditions))
+                select(Deadline, DagRun).join(DagRun).where(and_(*filter_conditions)).where(~Deadline.missed)
             ).all()
 
         except AttributeError as e:
