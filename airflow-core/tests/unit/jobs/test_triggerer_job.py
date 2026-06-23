@@ -76,6 +76,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import DAG, Asset, BaseHook, BaseOperator
+from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
@@ -87,6 +88,7 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetAssetStateStoreByName,
     GetAssetStateStoreByUri,
+    OKResponse,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
     ToSupervisor,
@@ -853,7 +855,7 @@ class TestTriggerSupervisorAssetStateStore:
 
     @pytest.fixture
     def supervisor(self, jobless_supervisor, mocker):
-        jobless_supervisor.client = mocker.MagicMock()
+        jobless_supervisor.client = mocker.MagicMock(spec=Client)
         mocker.patch.object(TriggerRunnerSupervisor, "send_msg")
         return jobless_supervisor
 
@@ -897,7 +899,7 @@ class TestTriggerSupervisorAssetStateStore:
         supervisor.client.asset_state_store.set.assert_called_once_with(
             key="watermark", value="2026-01-01", name="asset_a"
         )
-        supervisor.send_msg.assert_called_once_with(None, request_id=7, error=None)
+        supervisor.send_msg.assert_called_once_with(OKResponse(ok=True), request_id=7, error=None)
 
     def test_set_by_uri(self, supervisor):
         self._handle(
