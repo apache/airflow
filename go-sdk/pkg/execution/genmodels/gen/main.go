@@ -106,16 +106,11 @@ type fieldInfo struct {
 	GoType string // builtin scalar ("int"/"string"/"bool"/...); "any" for interface{}; a named enum type; "" otherwise
 }
 
-type structInfo struct {
-	Fields  []fieldInfo
-	HasType bool // declares a `Type string` field (carries a wire discriminator)
-}
-
 // parseModels strips dead `type X_N ...` typedefs in place and returns the
 // surviving structs keyed by name with their field metadata. A dead type
 // referenced only by another dead type survives, but go-jsonschema's anyOf
 // output is flat so that does not arise here.
-func parseModels(path string) (map[string]*structInfo, error) {
+func parseModels(path string) (map[string][]fieldInfo, error) {
 	src, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -127,7 +122,7 @@ func parseModels(path string) (map[string]*structInfo, error) {
 	}
 
 	uses := identUseCounts(file)
-	structs := map[string]*structInfo{}
+	structs := map[string][]fieldInfo{}
 	kept := file.Decls[:0]
 	for _, decl := range file.Decls {
 		gen, ok := decl.(*ast.GenDecl)
@@ -159,9 +154,9 @@ func parseModels(path string) (map[string]*structInfo, error) {
 }
 
 // structFromAST records each field's Go name, msgpack wire name, and (for scalar
-// idents) Go type, plus whether the struct carries a `Type string` discriminator.
-func structFromAST(st *ast.StructType) *structInfo {
-	info := &structInfo{}
+// idents) Go type.
+func structFromAST(st *ast.StructType) []fieldInfo {
+	var fields []fieldInfo
 	for _, field := range st.Fields.List {
 		goType := ""
 		switch t := field.Type.(type) {
@@ -177,13 +172,10 @@ func structFromAST(st *ast.StructType) *structInfo {
 			tag = msgpackName(field.Tag.Value)
 		}
 		for _, n := range field.Names {
-			info.Fields = append(info.Fields, fieldInfo{GoName: n.Name, Tag: tag, GoType: goType})
-			if n.Name == "Type" && goType == "string" {
-				info.HasType = true
-			}
+			fields = append(fields, fieldInfo{GoName: n.Name, Tag: tag, GoType: goType})
 		}
 	}
-	return info
+	return fields
 }
 
 // msgpackName extracts the wire name from a raw struct-tag literal (backticks
@@ -197,7 +189,7 @@ func msgpackName(lit string) string {
 // indexByUpperName maps each struct's upper-cased name to its real name so a
 // schema $def can be paired with its struct even when go-jsonschema capitalized
 // it differently.
-func indexByUpperName(structs map[string]*structInfo) (map[string]string, error) {
+func indexByUpperName(structs map[string][]fieldInfo) (map[string]string, error) {
 	idx := make(map[string]string, len(structs))
 	for name := range structs {
 		key := strings.ToUpper(name)
@@ -311,7 +303,7 @@ type decoder struct {
 func writeDefaults(
 	doc *schemaDoc,
 	outPath, pkg string,
-	structs map[string]*structInfo,
+	structs map[string][]fieldInfo,
 	structByKey map[string]string,
 ) error {
 	var decoders []decoder
@@ -321,7 +313,7 @@ func writeDefaults(
 			continue
 		}
 		fieldByTag := map[string]fieldInfo{}
-		for _, f := range structs[structName].Fields {
+		for _, f := range structs[structName] {
 			if f.Tag != "" && f.Tag != "-" {
 				fieldByTag[f.Tag] = f
 			}
