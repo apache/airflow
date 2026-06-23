@@ -2061,17 +2061,7 @@ class TestProviderConfigPriority:
             assert conf.get("celery", "celery_app_name") == custom_value
 
     def test_getsection_returns_env_var_only_provider_section(self, monkeypatch):
-        """Env vars are picked up for a provider section whose keys all default to None.
-
-        Regression test for the 3.2.0 lazy-registration gap: sections declared
-        only in provider metadata (e.g. ``celery_broker_transport_options``) used
-        to be eager-registered in ``_default_values``, so the env-var loop in
-        ``getsection()`` ran. After the move to lazy loading via
-        ``configuration_description`` / provider fallbacks, the early-exit guard
-        returned ``None`` and silently dropped every env-var override on those
-        sections — breaking celery worker startup with
-        ``'master_name' transport option must be specified``.
-        """
+        """Env vars are picked up for a provider section whose keys all default to None."""
         from airflow.settings import conf
 
         monkeypatch.setenv("AIRFLOW__CELERY_BROKER_TRANSPORT_OPTIONS__VISIBILITY_TIMEOUT", "21600")
