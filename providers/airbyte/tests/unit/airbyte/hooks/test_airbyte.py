@@ -248,6 +248,13 @@ class TestAirbyteHook:
         client = hook.airbyte_api.sdk_configuration.client
         assert isinstance(client, httpx.Client)
 
+        # Verify proxy mounts are configured for each scheme
+        default_transport = client._transport
+        for scheme in self._mock_proxy["proxies"]:
+            url = httpx.URL(f"{scheme}://example.com")
+            transport = client._transport_for_url(url)
+            assert transport is not default_transport, f"Expected proxy transport for {scheme}"
+
     def test_create_api_session_without_credentials(self):
         """Test that a session without OAuth credentials creates an unauthenticated client."""
         # The default connection (self.airbyte_conn_id) has no login/password
