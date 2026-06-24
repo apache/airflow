@@ -35,6 +35,9 @@ from airflow.sdk import (
     AssetAny,
     AssetOrTimeSchedule as SdkAssetOrTimeSchedule,
 )
+from airflow.sdk.bases.timetable import BaseTimetable
+from airflow.sdk.definitions.timetables.assets import AssetTriggeredTimetable as SdkAssetTriggeredTimetable
+from airflow.sdk.exceptions import AirflowTimetableInvalid
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAll, SerializedAssetAny
 from airflow.serialization.serialized_objects import DagSerialization
 from airflow.timetables.assets import (
@@ -88,6 +91,14 @@ class MockTimetable(Timetable):
         :param run_after: The datetime after which the run is triggered.
         """
         return DataInterval.exact(run_after)
+
+
+class CustomAssetTriggeredTimetable(MockTimetable):
+    asset_triggered = True
+
+
+class CustomAssetGatedTimetable(MockTimetable):
+    asset_gated = True
 
 
 def serialize_timetable(timetable: Timetable) -> str:
@@ -150,6 +161,86 @@ def core_asset_timetable(test_timetable: MockTimetable) -> CoreAssetOrTimeSchedu
         timetable=test_timetable,
         assets=SerializedAssetAll([SerializedAsset("test_asset", "test://asset/", "asset", {}, [])]),
     )
+
+
+@pytest.mark.parametrize(
+    ("timetable", "expected"),
+    [
+        pytest.param(MockTimetable(), (False, False), id="core-regular"),
+        pytest.param(
+            AssetTriggeredTimetable(SerializedAsset("test_asset", "test://asset/", "asset", {}, [])),
+            (True, False),
+            id="core-asset-triggered",
+        ),
+        pytest.param(
+            CoreAssetOrTimeSchedule(
+                timetable=MockTimetable(),
+                assets=SerializedAsset("test_asset", "test://asset/", "asset", {}, []),
+            ),
+            (True, False),
+            id="core-asset-or-time",
+        ),
+        pytest.param(
+            CoreAssetAndTimeSchedule(
+                timetable=MockTimetable(),
+                assets=SerializedAsset("test_asset", "test://asset/", "asset", {}, []),
+            ),
+            (False, True),
+            id="core-asset-and-time",
+        ),
+        pytest.param(BaseTimetable(), (False, False), id="sdk-regular"),
+        pytest.param(
+            SdkAssetTriggeredTimetable(assets=Asset("test")),
+            (True, False),
+            id="sdk-asset-triggered",
+        ),
+        pytest.param(
+            SdkAssetOrTimeSchedule(timetable=BaseTimetable(), assets=Asset("test")),
+            (True, False),
+            id="sdk-asset-or-time",
+        ),
+        pytest.param(
+            SdkAssetAndTimeSchedule(timetable=BaseTimetable(), assets=Asset("test")),
+            (False, True),
+            id="sdk-asset-and-time",
+        ),
+    ],
+)
+def test_asset_scheduling_behavior_flags(timetable, expected) -> None:
+    assert (timetable.asset_triggered, timetable.asset_gated) == expected
+
+
+@pytest.mark.parametrize(
+    ("outer_type", "inner_type"),
+    [
+        pytest.param(
+            CoreAssetOrTimeSchedule,
+            CustomAssetTriggeredTimetable,
+            id="or-wraps-custom-asset-triggered",
+        ),
+        pytest.param(
+            CoreAssetOrTimeSchedule,
+            CustomAssetGatedTimetable,
+            id="or-wraps-custom-asset-gated",
+        ),
+        pytest.param(
+            CoreAssetAndTimeSchedule,
+            CustomAssetTriggeredTimetable,
+            id="and-wraps-custom-asset-triggered",
+        ),
+        pytest.param(
+            CoreAssetAndTimeSchedule,
+            CustomAssetGatedTimetable,
+            id="and-wraps-custom-asset-gated",
+        ),
+    ],
+)
+def test_core_asset_time_schedules_reject_nested_asset_aware_timetable(outer_type, inner_type) -> None:
+    asset = SerializedAsset("test_asset", "test://asset/", "asset", {}, [])
+    timetable = outer_type(timetable=inner_type(), assets=asset)
+
+    with pytest.raises(AirflowTimetableInvalid, match="cannot nest asset-aware timetables"):
+        timetable.validate()
 
 
 def test_serialization(sdk_asset_timetable: SdkAssetOrTimeSchedule, monkeypatch: Any) -> None:
