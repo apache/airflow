@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""``islo`` provider — islo.dev sandboxes via the ``islo`` SDK.
+"""
+``islo`` provider — islo.dev sandboxes via the ``islo`` SDK.
 
 islo's native exec model is asynchronous (submit ``exec_in_sandbox`` -> poll
 ``get_exec_result`` by ``exec_id``), which maps directly onto the watcher's
@@ -25,6 +26,7 @@ and ``ISLO_API_KEY`` (optionally ``ISLO_BASE_URL`` / ``ISLO_COMPUTE_URL``).
 
 from __future__ import annotations
 
+import contextlib
 import os
 
 from airflow.providers.sandbox.backends.base import (
@@ -37,6 +39,8 @@ from airflow.providers.sandbox.backends.base import (
 
 
 class IsloProvider(SandboxProvider):
+    """islo.dev sandbox backend (named sandboxes; submit/poll exec)."""
+
     capabilities = SandboxCapabilities(
         kind="delegated-run",
         # islo's upload_file is path-based (no in-band bytes), so the executor
@@ -130,7 +134,5 @@ class IsloProvider(SandboxProvider):
         return [f"islo sandbox {handle}"], out.splitlines()
 
     def destroy(self, handle: str) -> None:
-        try:
+        with contextlib.suppress(Exception):
             self._sandboxes().delete_sandbox(handle)
-        except Exception:
-            pass

@@ -15,37 +15,4 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-sandbox``
-====================================
-
-Content
--------
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Guides
-
-    Sandbox Executor <sandbox-executor>
-    Operators <operators/index>
-
-.. toctree::
-    :maxdepth: 1
-    :caption: References
-
-    Configuration <configurations-ref>
-    Python API <_api/airflow/providers/sandbox/index>
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Resources
-
-    PyPI Repository <https://pypi.org/project/apache-airflow-providers-sandbox/>
-    Installing from sources <installing-providers-from-sources>
-    Detailed list of commits <commits>
-    Changelog <changelog>
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Security
-
-    Security <security>
+.. include:: /../../../devel-common/src/sphinx_exts/includes/installing-providers-from-sources.rst

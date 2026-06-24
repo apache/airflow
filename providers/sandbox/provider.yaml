@@ -25,7 +25,7 @@ description: |
     (local/Daytona/E2B/Modal/islo) behind a pluggable provider layer.
 
 state: not-ready
-lifecycle: development
+lifecycle: incubation
 source-date-epoch: 0
 
 versions:

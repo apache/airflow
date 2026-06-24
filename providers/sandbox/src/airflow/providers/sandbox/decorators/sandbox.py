@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""``@task.sandbox`` — TaskFlow decorator mirroring ``@task.bash``.
+"""
+``@task.sandbox`` — TaskFlow decorator mirroring ``@task.bash``.
 
 The decorated callable returns a shell command (a string); that command is then
 executed inside an ephemeral cloud sandbox by :class:`SandboxOperator`. This is
@@ -35,9 +36,8 @@ from airflow.providers.common.compat.sdk import (
     determine_kwargs,
     task_decorator_factory,
 )
-from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
-
 from airflow.providers.sandbox.operators.sandbox import SandboxOperator
+from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -77,7 +77,7 @@ class _SandboxDecoratedOperator(DecoratedOperator, SandboxOperator):
             **kwargs,
         )
 
-    def execute(self, context: "Context") -> Any:
+    def execute(self, context: Context) -> Any:
         context_merge(context, self.op_kwargs)
         kwargs = determine_kwargs(self.python_callable, self.op_args, context)
         self.command = self.python_callable(*self.op_args, **kwargs)
@@ -88,7 +88,8 @@ class _SandboxDecoratedOperator(DecoratedOperator, SandboxOperator):
 
 
 def sandbox_task(python_callable: Callable | None = None, **kwargs: Any) -> TaskDecorator:
-    """Wrap a function whose return value is run as a command in a sandbox.
+    """
+    Wrap a function whose return value is run as a command in a sandbox.
 
     :meta private:
     """

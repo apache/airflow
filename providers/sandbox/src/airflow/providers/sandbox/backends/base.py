@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Pluggable sandbox-provider abstraction for the Airflow ``SandboxExecutor``.
+"""
+Pluggable sandbox-provider abstraction for the Airflow ``SandboxExecutor``.
 
 The design mirrors `crabbox <https://github.com/openclaw/crabbox>`_'s provider
 contract — *provision → sync → run(stream) → cleanup* — reduced to the minimal
@@ -31,7 +32,8 @@ from enum import Enum
 
 
 class SandboxState(str, Enum):
-    """Normalized provider state, mapped onto Airflow TI states in ``sync()``.
+    """
+    Normalized provider state, mapped onto Airflow TI states in ``sync()``.
 
     ``UNKNOWN`` is deliberately distinct from ``GONE``: a transient provider API
     error (rate-limit, timeout) must surface as ``UNKNOWN`` so a healthy running
@@ -77,7 +79,8 @@ class ExecResult:
 
 @dataclass(frozen=True)
 class SandboxCapabilities:
-    """What a backend can actually do — gates executor features per provider.
+    """
+    What a backend can actually do — gates executor features per provider.
 
     ``kind`` follows crabbox's taxonomy: ``delegated-run`` (e2b/modal/islo —
     managed remote exec, no SSH lease), ``ssh-lease`` (brokered VM), or
@@ -93,8 +96,11 @@ class SandboxCapabilities:
 
 
 class SandboxProvider(ABC):
-    """One concrete subclass per backend. Credentials are resolved internally
-    (env var / Airflow Connection) — never passed as method arguments.
+    """
+    One concrete subclass per backend.
+
+    Credentials are resolved internally (env var / Airflow Connection) — never
+    passed as method arguments.
     """
 
     capabilities: SandboxCapabilities = SandboxCapabilities()
@@ -105,7 +111,8 @@ class SandboxProvider(ABC):
 
     @abstractmethod
     def create_sandbox(self, spec: SandboxSpec) -> str:
-        """Provision an ephemeral sandbox; return an opaque handle (id or name).
+        """
+        Provision an ephemeral sandbox; return an opaque handle (id or name).
 
         Implementations SHOULD honour ``spec.name`` when the backend supports
         named/labelled sandboxes, so the handle is deterministic and adoptable.
@@ -124,7 +131,8 @@ class SandboxProvider(ABC):
         cwd: str | None = None,
         timeout: int | None = None,
     ) -> str:
-        """Start ``command`` (argv form). Return an ``exec_ref`` for polling.
+        """
+        Start ``command`` (argv form). Return an ``exec_ref`` for polling.
 
         For blocking backends, kick the command off in the background so the
         watcher's ``poll_status`` never blocks the scheduler heartbeat.
@@ -132,12 +140,17 @@ class SandboxProvider(ABC):
 
     @abstractmethod
     def poll_status(self, handle: str, exec_ref: str) -> ExecResult:
-        """Non-blocking status. Return ``UNKNOWN`` on transient error, ``GONE``
-        only when the sandbox is *confirmed* absent."""
+        """
+        Non-blocking status.
+
+        Return ``UNKNOWN`` on transient error, ``GONE`` only when the sandbox is
+        *confirmed* absent.
+        """
 
     @abstractmethod
     def fetch_logs(self, handle: str, exec_ref: str) -> tuple[list[str], list[str]]:
-        """Best-effort log pull from a *live* sandbox -> (messages, log_lines).
+        """
+        Best-effort log pull from a *live* sandbox -> (messages, log_lines).
 
         NOTE: this is a fallback only. The canonical log path is the in-sandbox
         Task SDK supervisor pushing to remote storage; see ``executors`` docs.

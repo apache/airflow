@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""In-sandbox entrypoint that executes an Airflow 3 task workload.
+"""
+In-sandbox entrypoint that executes an Airflow 3 task workload.
 
 The ``SandboxExecutor`` ships the serialized ``ExecuteTask`` workload into the
 sandbox (base64 in ``AIRFLOW_SANDBOX_WORKLOAD``, or a file path argument) and

@@ -21,9 +21,9 @@ import threading
 
 from airflow.providers.sandbox.backends.base import ExecResult, SandboxState
 from airflow.providers.sandbox.executors.sandbox_executor import (
+    _GONE_AFTER_CONSECUTIVE_UNKNOWN,
     SandboxExecutor,
     SandboxWatcher,
-    _GONE_AFTER_CONSECUTIVE_UNKNOWN,
 )
 
 

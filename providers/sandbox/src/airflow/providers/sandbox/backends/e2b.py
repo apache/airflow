@@ -14,13 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""``e2b`` provider — E2B sandboxes via the ``e2b`` SDK.
+"""
+``e2b`` provider — E2B sandboxes via the ``e2b`` SDK.
 
 Opaque-handle backend: ``supports_reattach=False`` (adoption only if the handle
 was persisted before a crash). Requires ``E2B_API_KEY``.
 """
 
 from __future__ import annotations
+
+import contextlib
 
 from airflow.providers.sandbox.backends.base import (
     ExecResult,
@@ -32,6 +35,8 @@ from airflow.providers.sandbox.backends.base import (
 
 
 class E2BProvider(SandboxProvider):
+    """E2B sandbox backend (opaque handle)."""
+
     capabilities = SandboxCapabilities(
         kind="delegated-run",
         supports_file_upload=True,
@@ -100,7 +105,5 @@ class E2BProvider(SandboxProvider):
     def destroy(self, handle: str) -> None:
         sandbox = self._sandboxes.pop(handle, None)
         if sandbox is not None:
-            try:
+            with contextlib.suppress(Exception):
                 sandbox.kill()
-            except Exception:
-                pass

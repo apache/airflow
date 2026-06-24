@@ -82,7 +82,8 @@ def test_run_and_poll_state_mapping():
     assert p.poll_status("job-1", ref).state is SandboxState.SUCCEEDED
     fake.sandboxes._result.exit_code = 2
     res = p.poll_status("job-1", ref)
-    assert res.state is SandboxState.FAILED and res.exit_code == 2
+    assert res.state is SandboxState.FAILED
+    assert res.exit_code == 2
 
 
 def test_destroy_calls_delete():
