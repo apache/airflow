@@ -547,8 +547,11 @@ class RuntimeTaskInstance(TaskInstance):
         _xcom_push(self, key, value)
 
     def get_relevant_upstream_map_indexes(
-        self, upstream: BaseOperator, ti_count: int | None, session: Any,
-        use_post_expansion_placeholder: bool = False
+        self,
+        upstream: BaseOperator,
+        ti_count: int | None,
+        session: Any,
+        use_post_expansion_placeholder: bool = False,
     ) -> int | range | None:
         """
         Compute the relevant upstream map indexes for XCom resolution.
