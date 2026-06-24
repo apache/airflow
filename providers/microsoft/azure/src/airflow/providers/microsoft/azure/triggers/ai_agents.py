@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -22,29 +23,27 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from airflow.providers.microsoft.azure.hooks.ai_agents import (
-    RUN_FAILURE_STATUSES,
-    RUN_INTERMEDIATE_STATUSES,
-    RUN_SUCCESS_STATUSES,
+    VERSION_FAILURE_STATUSES,
+    VERSION_INTERMEDIATE_STATUSES,
+    VERSION_SUCCESS_STATUSES,
     AzureAIAgentsAsyncHook,
-    build_incomplete_run_message,
-    build_run_failure_message,
-    build_run_payload,
-    get_incomplete_details,
-    get_run_status,
+    get_resource_attr,
+    get_version_status,
     serialize_resource,
 )
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
-class AzureAIAgentRunTrigger(BaseTrigger):
+class AzureAIAgentVersionTrigger(BaseTrigger):
     """
-    Trigger that polls an Azure AI Agent run until it reaches a terminal status.
+    Trigger that polls an Azure AI Hosted agent version until it becomes active.
 
     :param azure_ai_agents_conn_id: Azure AI Agents connection id.
     :param endpoint: Optional Azure AI Foundry project endpoint override.
-    :param thread_id: Thread id for the run.
-    :param run_id: Run id to poll.
-    :param timeout: Time in seconds to wait for the run to complete.
+    :param api_version: Foundry Agent Service API version.
+    :param agent_name: Hosted agent name.
+    :param agent_version: Hosted agent version to poll.
+    :param timeout: Time in seconds to wait for the version to become active.
     :param poll_interval: Poll interval in seconds.
     """
 
@@ -53,16 +52,18 @@ class AzureAIAgentRunTrigger(BaseTrigger):
         *,
         azure_ai_agents_conn_id: str,
         endpoint: str | None,
-        thread_id: str,
-        run_id: str,
+        api_version: str,
+        agent_name: str,
+        agent_version: str,
         timeout: float,
         poll_interval: float,
     ) -> None:
         super().__init__()
         self.azure_ai_agents_conn_id = azure_ai_agents_conn_id
         self.endpoint = endpoint
-        self.thread_id = thread_id
-        self.run_id = run_id
+        self.api_version = api_version
+        self.agent_name = agent_name
+        self.agent_version = agent_version
         self.timeout = timeout
         self.poll_interval = poll_interval
 
@@ -73,66 +74,68 @@ class AzureAIAgentRunTrigger(BaseTrigger):
             {
                 "azure_ai_agents_conn_id": self.azure_ai_agents_conn_id,
                 "endpoint": self.endpoint,
-                "thread_id": self.thread_id,
-                "run_id": self.run_id,
+                "api_version": self.api_version,
+                "agent_name": self.agent_name,
+                "agent_version": self.agent_version,
                 "timeout": self.timeout,
                 "poll_interval": self.poll_interval,
             },
         )
 
-    def _build_trigger_event(self, run: Any) -> TriggerEvent | None:
-        """Build a terminal TriggerEvent for a run."""
-        status = get_run_status(run)
-        serialized_run = serialize_resource(run)
-        if status in RUN_SUCCESS_STATUSES:
-            incomplete_details = get_incomplete_details(run)
-            if incomplete_details:
-                return TriggerEvent(
-                    {
-                        "status": "error",
-                        "message": build_incomplete_run_message(
-                            run_id=self.run_id, incomplete_details=incomplete_details
-                        ),
-                        "run": serialized_run,
-                    }
-                )
+    def _build_trigger_event(self, version: Any) -> TriggerEvent | None:
+        """Build a terminal TriggerEvent for a Hosted agent version."""
+        status = get_version_status(version)
+        serialized_version = serialize_resource(version)
+        if status in VERSION_SUCCESS_STATUSES:
             return TriggerEvent(
                 {
                     "status": "success",
-                    "message": f"Azure AI Agent run {self.run_id} completed.",
-                    "run": serialized_run,
+                    "message": (
+                        f"Azure AI Hosted agent {self.agent_name} version {self.agent_version} is active."
+                    ),
+                    "version": serialized_version,
                 }
             )
-        if status in RUN_FAILURE_STATUSES:
+        if status in VERSION_FAILURE_STATUSES:
             return TriggerEvent(
                 {
                     "status": "error",
-                    "message": build_run_failure_message(run_id=self.run_id, status=status),
-                    "run": serialized_run,
+                    "message": (
+                        f"Azure AI Hosted agent {self.agent_name} version {self.agent_version} failed: "
+                        f"{get_resource_attr(version, 'error')}."
+                    ),
+                    "version": serialized_version,
                 }
             )
-        if status not in RUN_INTERMEDIATE_STATUSES:
+        if status not in VERSION_INTERMEDIATE_STATUSES:
             return TriggerEvent(
                 {
                     "status": "error",
-                    "message": f"Azure AI Agent run {self.run_id} reached unknown status {status}.",
-                    "run": serialized_run,
+                    "message": (
+                        f"Azure AI Hosted agent {self.agent_name} version {self.agent_version} "
+                        f"reached unknown status {status}."
+                    ),
+                    "version": serialized_version,
                 }
             )
         return None
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Poll the run status until terminal state or timeout."""
+        """Poll the Hosted agent version status until terminal state or timeout."""
         hook = AzureAIAgentsAsyncHook(
             azure_ai_agents_conn_id=self.azure_ai_agents_conn_id,
             endpoint=self.endpoint,
+            api_version=self.api_version,
         )
 
         try:
             end_time = time.monotonic() + self.timeout
             while True:
-                run = await hook.async_get_run(thread_id=self.thread_id, run_id=self.run_id)
-                event = self._build_trigger_event(run)
+                version = await hook.async_get_agent_version(
+                    agent_name=self.agent_name,
+                    agent_version=self.agent_version,
+                )
+                event = self._build_trigger_event(version)
                 if event:
                     yield event
                     return
@@ -144,28 +147,36 @@ class AzureAIAgentRunTrigger(BaseTrigger):
             yield TriggerEvent(
                 {
                     "status": "timeout",
-                    "message": f"Timeout waiting for Azure AI Agent run {self.run_id}.",
-                    "run": build_run_payload(run_id=self.run_id, thread_id=self.thread_id),
+                    "message": (
+                        f"Timeout waiting for Azure AI Hosted agent {self.agent_name} "
+                        f"version {self.agent_version}."
+                    ),
+                    "version": {"name": self.agent_name, "version": self.agent_version},
                 }
             )
         except Exception as e:
-            self.log.exception("Exception occurred while waiting for Azure AI Agent run.")
+            self.log.exception("Exception occurred while waiting for Azure AI Hosted agent version.")
             yield TriggerEvent(
                 {
                     "status": "error",
-                    "message": f"Failed while polling Azure AI Agent run {self.run_id}: {e}",
-                    "run": build_run_payload(run_id=self.run_id, thread_id=self.thread_id),
+                    "message": (
+                        f"Failed while polling Azure AI Hosted agent {self.agent_name} "
+                        f"version {self.agent_version}: {e}"
+                    ),
+                    "version": {"name": self.agent_name, "version": self.agent_version},
                 }
             )
 
 
 class AzureAIAgentDeleteTrigger(BaseTrigger):
     """
-    Trigger that polls an Azure AI Agent until it is no longer retrievable.
+    Trigger that polls an Azure AI Hosted agent or version until it is deleted.
 
     :param azure_ai_agents_conn_id: Azure AI Agents connection id.
     :param endpoint: Optional Azure AI Foundry project endpoint override.
-    :param agent_id: Agent id to poll for deletion.
+    :param api_version: Foundry Agent Service API version.
+    :param agent_name: Hosted agent name.
+    :param agent_version: Optional Hosted agent version to poll for deletion.
     :param timeout: Time in seconds to wait for deletion to complete.
     :param poll_interval: Poll interval in seconds.
     """
@@ -175,14 +186,18 @@ class AzureAIAgentDeleteTrigger(BaseTrigger):
         *,
         azure_ai_agents_conn_id: str,
         endpoint: str | None,
-        agent_id: str,
+        api_version: str,
+        agent_name: str,
+        agent_version: str | None,
         timeout: float,
         poll_interval: float,
     ) -> None:
         super().__init__()
         self.azure_ai_agents_conn_id = azure_ai_agents_conn_id
         self.endpoint = endpoint
-        self.agent_id = agent_id
+        self.api_version = api_version
+        self.agent_name = agent_name
+        self.agent_version = agent_version
         self.timeout = timeout
         self.poll_interval = poll_interval
 
@@ -193,28 +208,35 @@ class AzureAIAgentDeleteTrigger(BaseTrigger):
             {
                 "azure_ai_agents_conn_id": self.azure_ai_agents_conn_id,
                 "endpoint": self.endpoint,
-                "agent_id": self.agent_id,
+                "api_version": self.api_version,
+                "agent_name": self.agent_name,
+                "agent_version": self.agent_version,
                 "timeout": self.timeout,
                 "poll_interval": self.poll_interval,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Poll the agent until the service reports it as deleted."""
+        """Poll the Hosted agent until the service reports it as deleted."""
         hook = AzureAIAgentsAsyncHook(
             azure_ai_agents_conn_id=self.azure_ai_agents_conn_id,
             endpoint=self.endpoint,
+            api_version=self.api_version,
         )
 
         try:
             end_time = time.monotonic() + self.timeout
             while True:
-                if await hook.async_is_agent_deleted(agent_id=self.agent_id):
+                if await hook.async_is_agent_deleted(
+                    agent_name=self.agent_name,
+                    agent_version=self.agent_version,
+                ):
                     yield TriggerEvent(
                         {
                             "status": "success",
-                            "message": f"Azure AI Agent {self.agent_id} was deleted.",
-                            "agent_id": self.agent_id,
+                            "message": f"Azure AI Hosted agent {self.agent_name} was deleted.",
+                            "agent_name": self.agent_name,
+                            "agent_version": self.agent_version,
                         }
                     )
                     return
@@ -226,16 +248,18 @@ class AzureAIAgentDeleteTrigger(BaseTrigger):
             yield TriggerEvent(
                 {
                     "status": "timeout",
-                    "message": f"Timeout waiting for Azure AI Agent {self.agent_id} deletion.",
-                    "agent_id": self.agent_id,
+                    "message": f"Timeout waiting for Azure AI Hosted agent {self.agent_name} deletion.",
+                    "agent_name": self.agent_name,
+                    "agent_version": self.agent_version,
                 }
             )
         except Exception as e:
-            self.log.exception("Exception occurred while waiting for Azure AI Agent deletion.")
+            self.log.exception("Exception occurred while waiting for Azure AI Hosted agent deletion.")
             yield TriggerEvent(
                 {
                     "status": "error",
-                    "message": f"Failed while polling Azure AI Agent {self.agent_id} deletion: {e}",
-                    "agent_id": self.agent_id,
+                    "message": f"Failed while polling Azure AI Hosted agent {self.agent_name} deletion: {e}",
+                    "agent_name": self.agent_name,
+                    "agent_version": self.agent_version,
                 }
             )

@@ -6155,7 +6155,6 @@ dependencies = [
     { name = "adlfs" },
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
-    { name = "azure-ai-agents" },
     { name = "azure-batch" },
     { name = "azure-cosmos" },
     { name = "azure-datalake-store" },
@@ -6236,7 +6235,6 @@ requires-dist = [
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
     { name = "apache-airflow-providers-oracle", marker = "extra == 'oracle'", editable = "providers/oracle" },
     { name = "apache-airflow-providers-sftp", marker = "extra == 'sftp'", editable = "providers/sftp" },
-    { name = "azure-ai-agents", specifier = ">=1.1.0" },
     { name = "azure-batch", specifier = ">=8.0.0,<15.0.0" },
     { name = "azure-cosmos", specifier = ">=4.6.0" },
     { name = "azure-datalake-store", specifier = ">=0.0.45" },
@@ -9384,20 +9382,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/14/25/0cbd7a440080def5e6f063720c3b190a25f8aa2938c1e34415dc18241596/aws_xray_sdk-2.15.0.tar.gz", hash = "sha256:794381b96e835314345068ae1dd3b9120bd8b4e21295066c37e8814dbb341365", size = 76315, upload-time = "2025-10-29T20:59:45Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ef/c3/f30a7a63e664acc7c2545ca0491b6ce8264536e0e5cad3965f1d1b91e960/aws_xray_sdk-2.15.0-py2.py3-none-any.whl", hash = "sha256:422d62ad7d52e373eebb90b642eb1bb24657afe03b22a8df4a8b2e5108e278a3", size = 103228, upload-time = "2025-10-29T21:00:24.12Z" },
-]
-
-[[package]]
-name = "azure-ai-agents"
-version = "1.1.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "azure-core" },
-    { name = "isodate" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/39/98/bbe2e9e5b0a934be1930545025bf7018ebc4cc33b10134cc3314d6487076/azure_ai_agents-1.1.0.tar.gz", hash = "sha256:eb9d7226282d03206c3fab3f3ee0a2fc71e0ad38e52d2f4f19a92c56ed951aea", size = 303656, upload-time = "2025-08-05T19:02:26.7Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e6/31/43750555bf20d3d2d7589fcd775c96ce7c96e58e208b81c1ed6d4bad6c5f/azure_ai_agents-1.1.0-py3-none-any.whl", hash = "sha256:f660bb0d564aeb88e33140ebc1e4700d2e36e2e12ee60c3346915d702a9310a9", size = 191126, upload-time = "2025-08-05T19:02:28.178Z" },
 ]
 
 [[package]]
