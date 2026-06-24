@@ -866,12 +866,16 @@ class TestStringifiedDAGs:
                 "_is_sensor",
                 # trigger_kwargs is kept as raw JSON after deserialization; checked separately
                 "start_trigger_args",
+                # Only needed at execution time; intentionally excluded
+                "returns_dag_result",
             }
         else:  # Promised to be mapped by the assert above.
             assert isinstance(serialized_task, SerializedMappedOperator)
             fields_to_check = {f.name for f in attrs.fields(MappedOperator)}
             fields_to_check -= {
+                # Only needed at execution time; intentionally excluded
                 "map_index_template",
+                "returns_dag_result",
                 # Matching logic in BaseOperator.get_serialized_fields().
                 "dag",
                 "task_group",

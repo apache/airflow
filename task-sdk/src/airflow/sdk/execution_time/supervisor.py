@@ -1847,7 +1847,7 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.task_state_store.delete(msg.ti_id, msg.key)
             resp = OKResponse(ok=True)
         elif isinstance(msg, ClearTaskStateStore):
-            self.client.task_state_store.clear(msg.ti_id, all_map_indices=msg.all_map_indices)
+            self.client.task_state_store.clear(msg.ti_id)
             resp = OKResponse(ok=True)
         elif isinstance(msg, GetAssetStateStoreByName):
             asset_store = self.client.asset_state_store.get(msg.key, name=msg.name)

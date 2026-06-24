@@ -170,6 +170,46 @@ class TestNewDagrunTraceCarrierSampling:
         assert get_task_span_detail_level(span) == 2
         assert _carrier_is_sampled(carrier) is False
 
+    def test_attributes_forwarded_to_sampler(self, monkeypatch):
+        """The attributes arg is forwarded to should_sample so a custom sampler can use it."""
+        captured = {}
+
+        class _RecordingSampler:
+            def should_sample(self, parent_context, trace_id, name, attributes=None, **kwargs):
+                captured["attributes"] = attributes
+                return ALWAYS_ON.should_sample(parent_context, trace_id, name, attributes=attributes)
+
+        class _Provider:
+            sampler = _RecordingSampler()
+
+        monkeypatch.setattr(
+            "airflow_shared.observability.traces.trace.get_tracer_provider",
+            lambda: _Provider(),
+        )
+        new_dagrun_trace_carrier(
+            attributes={"airflow.dag_id": "my_dag", "airflow.dag_run.run_type": "manual"}
+        )
+        assert captured["attributes"] == {"airflow.dag_id": "my_dag", "airflow.dag_run.run_type": "manual"}
+
+    def test_attributes_default_to_empty_dict(self, monkeypatch):
+        """When no attributes are passed, the sampler receives an empty dict, not None."""
+        captured = {}
+
+        class _RecordingSampler:
+            def should_sample(self, parent_context, trace_id, name, attributes=None, **kwargs):
+                captured["attributes"] = attributes
+                return ALWAYS_ON.should_sample(parent_context, trace_id, name, attributes=attributes)
+
+        class _Provider:
+            sampler = _RecordingSampler()
+
+        monkeypatch.setattr(
+            "airflow_shared.observability.traces.trace.get_tracer_provider",
+            lambda: _Provider(),
+        )
+        new_dagrun_trace_carrier()
+        assert captured["attributes"] == {}
+
 
 class TestGetTaskSpanDetailLevel:
     def _make_span_with_trace_state(self, entries: list[tuple[str, str]]) -> NonRecordingSpan:
