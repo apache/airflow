@@ -25,14 +25,13 @@ from datetime import datetime, timedelta
 from unittest import mock
 from unittest.mock import MagicMock
 
-import httpx
 import msgspec
 import pendulum
 import pytest
 import time_machine
-from airflowctl.api.operations import ServerResponseError
-from sqlalchemy import select
+from sqlalchemy import func, select
 
+from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
@@ -486,19 +485,21 @@ class TestCliDags:
         assert str(path_to_parse) in log_output
         assert "[0 100 * * *] is not acceptable, out of range" in log_output
 
-    def test_cli_list_dag_runs(self, dag_maker):
-        # Seed a run directly in the DB; ``dags trigger`` now goes through the API server
-        # (airflowctl client) and cannot be used as an in-process fixture here.
-        with dag_maker("test_list_dag_runs", start_date=DEFAULT_DATE, serialized=True):
-            EmptyOperator(task_id="t1")
-        dag_maker.create_dagrun(state=DagRunState.SUCCESS, logical_date=DEFAULT_DATE)
-        dag_maker.sync_dagbag_to_db()
-
+    def test_cli_list_dag_runs(self):
+        dag_command.dag_trigger(
+            self.parser.parse_args(
+                [
+                    "dags",
+                    "trigger",
+                    "example_bash_operator",
+                ]
+            )
+        )
         args = self.parser.parse_args(
             [
                 "dags",
                 "list-runs",
-                "test_list_dag_runs",
+                "example_bash_operator",
                 "--no-backfill",
                 "--start-date",
                 DEFAULT_DATE.isoformat(),
@@ -590,6 +591,206 @@ class TestCliDags:
             dag_command.dag_pause(args)
         out = temp_stdout.splitlines()[-1]
         assert out == "No unpaused DAGs were found"
+
+    def test_trigger_dag(self):
+        dag_command.dag_trigger(
+            self.parser.parse_args(
+                [
+                    "dags",
+                    "trigger",
+                    "example_bash_operator",
+                    "--run-id=test_trigger_dag",
+                    '--conf={"foo": "bar"}',
+                ],
+            ),
+        )
+        with create_session() as session:
+            dagrun = session.scalars(select(DagRun).where(DagRun.run_id == "test_trigger_dag")).one()
+
+        assert dagrun, "DagRun not created"
+        assert dagrun.run_type == DagRunType.MANUAL
+        assert dagrun.conf == {"foo": "bar"}
+
+        # logical_date is None as it's not provided
+        assert dagrun.logical_date is None
+
+        # data_interval is None as logical_date is None
+        assert dagrun.data_interval_start is None
+        assert dagrun.data_interval_end is None
+
+    def test_trigger_dag_empty_object_conf(self):
+        dag_command.dag_trigger(
+            self.parser.parse_args(
+                [
+                    "dags",
+                    "trigger",
+                    "example_bash_operator",
+                    "--run-id=test_trigger_dag_empty_object_conf",
+                    "--conf={}",
+                ],
+            ),
+        )
+        with create_session() as session:
+            dagrun = session.scalars(
+                select(DagRun).where(DagRun.run_id == "test_trigger_dag_empty_object_conf")
+            ).one()
+
+        assert dagrun.conf == {}
+
+    def test_trigger_dag_json_null_conf(self):
+        dag_command.dag_trigger(
+            self.parser.parse_args(
+                [
+                    "dags",
+                    "trigger",
+                    "example_bash_operator",
+                    "--run-id=test_trigger_dag_json_null_conf",
+                    "--conf=null",
+                ],
+            ),
+        )
+        with create_session() as session:
+            dagrun = session.scalars(
+                select(DagRun).where(DagRun.run_id == "test_trigger_dag_json_null_conf")
+            ).one()
+
+        assert dagrun.conf == {}
+
+    def test_trigger_dag_with_microseconds(self):
+        dag_command.dag_trigger(
+            self.parser.parse_args(
+                [
+                    "dags",
+                    "trigger",
+                    "example_bash_operator",
+                    "--run-id=test_trigger_dag_with_micro",
+                    "--logical-date=2021-06-04T09:00:00.000001+08:00",
+                    "--no-replace-microseconds",
+                ],
+            )
+        )
+
+        with create_session() as session:
+            dagrun = session.scalars(
+                select(DagRun).where(DagRun.run_id == "test_trigger_dag_with_micro")
+            ).one()
+
+        assert dagrun, "DagRun not created"
+        assert dagrun.run_type == DagRunType.MANUAL
+        assert dagrun.logical_date.isoformat(timespec="microseconds") == "2021-06-04T01:00:00.000001+00:00"
+
+    @pytest.mark.parametrize("conf", ["NOT JSON", ""])
+    def test_trigger_dag_invalid_conf(self, conf):
+        with pytest.raises(ValueError, match=r"Expecting value: line \d+ column \d+ \(char \d+\)"):
+            dag_command.dag_trigger(
+                self.parser.parse_args(
+                    [
+                        "dags",
+                        "trigger",
+                        "example_bash_operator",
+                        "--run-id",
+                        "trigger_dag_xxx",
+                        "--conf",
+                        conf,
+                    ]
+                ),
+            )
+
+    @pytest.mark.parametrize("conf", ["[]", '"str"', "1", "false"])
+    def test_trigger_dag_rejects_non_object_conf(self, conf):
+        with pytest.raises(ValueError, match="DagRun conf must be a JSON object or null"):
+            dag_command.dag_trigger(
+                self.parser.parse_args(
+                    [
+                        "dags",
+                        "trigger",
+                        "example_bash_operator",
+                        "--run-id",
+                        "trigger_dag_xxx",
+                        "--conf",
+                        conf,
+                    ]
+                ),
+            )
+
+    def test_trigger_dag_output_as_json(self, stdout_capture):
+        args = self.parser.parse_args(
+            [
+                "dags",
+                "trigger",
+                "example_bash_operator",
+                "--run-id",
+                "trigger_dag_xxx",
+                "--conf",
+                '{"conf1": "val1", "conf2": "val2"}',
+                "--output=json",
+            ]
+        )
+        with stdout_capture as temp_stdout:
+            dag_command.dag_trigger(args)
+            # get the last line from the logs ignoring all logging lines
+            out = temp_stdout.getvalue().strip().splitlines()[-1]
+        parsed_out = json.loads(out)
+
+        assert len(parsed_out) == 1
+        assert parsed_out[0]["dag_id"] == "example_bash_operator"
+        assert parsed_out[0]["dag_run_id"] == "trigger_dag_xxx"
+        assert parsed_out[0]["conf"] == {"conf1": "val1", "conf2": "val2"}
+
+    def test_delete_dag(self):
+        DM = DagModel
+        key = "my_dag_id"
+        session = settings.Session()
+        session.add(DM(dag_id=key, bundle_name="dags-folder"))
+        session.commit()
+        dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
+        assert session.scalar(select(func.count()).select_from(DM).where(DM.dag_id == key)) == 0
+        with pytest.raises(AirflowException):
+            dag_command.dag_delete(
+                self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]),
+            )
+
+    def test_dag_delete_when_backfill_and_dagrun_exist(self):
+        # Test to check that the DAG should be deleted even if
+        # there are backfill records associated with it.
+        from airflow.models.backfill import Backfill
+
+        DM = DagModel
+        key = "my_dag_id"
+        session = settings.Session()
+        session.add(DM(dag_id=key, bundle_name="dags-folder"))
+        _backfill = Backfill(dag_id=key, from_date=DEFAULT_DATE, to_date=DEFAULT_DATE + timedelta(days=1))
+        session.add(_backfill)
+        # To create the backfill_id in DagRun
+        session.flush()
+        session.add(
+            DagRun(
+                dag_id=key,
+                run_id="backfill__" + key,
+                state=DagRunState.SUCCESS,
+                run_type="backfill",
+                backfill_id=_backfill.id,
+            )
+        )
+        session.commit()
+        dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
+        assert session.scalar(select(func.count()).select_from(DM).where(DM.dag_id == key)) == 0
+        with pytest.raises(AirflowException):
+            dag_command.dag_delete(
+                self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]),
+            )
+
+    def test_delete_dag_existing_file(self, tmp_path):
+        # Test to check that the DAG should be deleted even if
+        # the file containing it is not deleted
+        path = tmp_path / "testfile"
+        DM = DagModel
+        key = "my_dag_id"
+        session = settings.Session()
+        session.add(DM(dag_id=key, bundle_name="dags-folder", fileloc=os.fspath(path)))
+        session.commit()
+        dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
+        assert session.scalar(select(func.count()).select_from(DM).where(DM.dag_id == key)) == 0
 
     def test_cli_list_jobs(self):
         args = self.parser.parse_args(["dags", "list-jobs"])
@@ -1908,142 +2109,3 @@ class TestDagDetailsIsBackfillable:
         )
         dag_details = dag_command._get_dagbag_dag_details(dag)
         assert dag_details["is_backfillable"] is expected
-
-
-def _server_error(status_code: int) -> ServerResponseError:
-    request = httpx.Request("DELETE", "http://testserver/api/v2/dags/foo")
-    response = httpx.Response(status_code, request=request, json={"detail": "boom"})
-    return ServerResponseError(message="boom", request=request, response=response)
-
-
-@pytest.mark.non_db_test_override
-class TestCliDagsApiClientCommands:
-    """Dag CLI commands that talk to the API server through the airflowctl client.
-
-    These are unit tests: the airflowctl client is mocked so no API server (or
-    database) is required.
-    """
-
-    @classmethod
-    def setup_class(cls):
-        cls.parser = cli_parser.get_parser()
-
-    @pytest.fixture(autouse=True)
-    def _default_trigger_response(self, mock_cli_api_client):
-        """Give the mocked ``dags.trigger`` a dict response so ``print_as`` can render it."""
-        mock_cli_api_client.dags.trigger.return_value.model_dump.return_value = {
-            "dag_id": "example_bash_operator",
-            "dag_run_id": "test_run",
-        }
-
-    def test_trigger_dag(self, mock_cli_api_client):
-        dag_command.dag_trigger(
-            self.parser.parse_args(
-                [
-                    "dags",
-                    "trigger",
-                    "example_bash_operator",
-                    "--run-id=test_trigger_dag",
-                    '--conf={"foo": "bar"}',
-                ]
-            ),
-        )
-        mock_cli_api_client.dags.trigger.assert_called_once()
-        call = mock_cli_api_client.dags.trigger.call_args
-        assert call.kwargs["dag_id"] == "example_bash_operator"
-        body = call.kwargs["trigger_dag_run"]
-        assert body.dag_run_id == "test_trigger_dag"
-        assert body.conf == {"foo": "bar"}
-        # logical_date is None as it's not provided
-        assert body.logical_date is None
-
-    def test_trigger_dag_empty_object_conf(self, mock_cli_api_client):
-        dag_command.dag_trigger(
-            self.parser.parse_args(
-                ["dags", "trigger", "example_bash_operator", "--run-id=empty_conf", "--conf={}"]
-            ),
-        )
-        body = mock_cli_api_client.dags.trigger.call_args.kwargs["trigger_dag_run"]
-        assert body.conf == {}
-
-    def test_trigger_dag_json_null_conf(self, mock_cli_api_client):
-        dag_command.dag_trigger(
-            self.parser.parse_args(
-                ["dags", "trigger", "example_bash_operator", "--run-id=null_conf", "--conf=null"]
-            ),
-        )
-        # ``null`` conf resolves to None on the client; the API server coerces it to {}.
-        body = mock_cli_api_client.dags.trigger.call_args.kwargs["trigger_dag_run"]
-        assert body.conf is None
-
-    def test_trigger_dag_with_microseconds(self, mock_cli_api_client):
-        dag_command.dag_trigger(
-            self.parser.parse_args(
-                [
-                    "dags",
-                    "trigger",
-                    "example_bash_operator",
-                    "--run-id=micro",
-                    "--logical-date=2021-06-04T09:00:00.000001+08:00",
-                ]
-            )
-        )
-        body = mock_cli_api_client.dags.trigger.call_args.kwargs["trigger_dag_run"]
-        assert body.logical_date.isoformat(timespec="microseconds") == "2021-06-04T09:00:00.000001+08:00"
-
-    @pytest.mark.parametrize("conf", ["NOT JSON", ""])
-    def test_trigger_dag_invalid_conf(self, mock_cli_api_client, conf):
-        with pytest.raises(ValueError, match=r"Expecting value: line \d+ column \d+ \(char \d+\)"):
-            dag_command.dag_trigger(
-                self.parser.parse_args(
-                    ["dags", "trigger", "example_bash_operator", "--run-id", "xxx", "--conf", conf]
-                ),
-            )
-        mock_cli_api_client.dags.trigger.assert_not_called()
-
-    @pytest.mark.parametrize("conf", ["[]", '"str"', "1", "false"])
-    def test_trigger_dag_rejects_non_object_conf(self, mock_cli_api_client, conf):
-        with pytest.raises(ValueError, match="DagRun conf must be a JSON object or null"):
-            dag_command.dag_trigger(
-                self.parser.parse_args(
-                    ["dags", "trigger", "example_bash_operator", "--run-id", "xxx", "--conf", conf]
-                ),
-            )
-        mock_cli_api_client.dags.trigger.assert_not_called()
-
-    def test_trigger_dag_output_as_json(self, mock_cli_api_client, stdout_capture):
-        mock_cli_api_client.dags.trigger.return_value.model_dump.return_value = {
-            "dag_id": "example_bash_operator",
-            "dag_run_id": "trigger_dag_xxx",
-            "conf": {"conf1": "val1", "conf2": "val2"},
-        }
-        args = self.parser.parse_args(
-            [
-                "dags",
-                "trigger",
-                "example_bash_operator",
-                "--run-id",
-                "trigger_dag_xxx",
-                "--conf",
-                '{"conf1": "val1", "conf2": "val2"}',
-                "--output=json",
-            ]
-        )
-        with stdout_capture as temp_stdout:
-            dag_command.dag_trigger(args)
-            out = temp_stdout.getvalue().strip().splitlines()[-1]
-        parsed_out = json.loads(out)
-
-        assert len(parsed_out) == 1
-        assert parsed_out[0]["dag_id"] == "example_bash_operator"
-        assert parsed_out[0]["dag_run_id"] == "trigger_dag_xxx"
-        assert parsed_out[0]["conf"] == {"conf1": "val1", "conf2": "val2"}
-
-    def test_delete_dag(self, mock_cli_api_client):
-        dag_command.dag_delete(self.parser.parse_args(["dags", "delete", "my_dag_id", "--yes"]))
-        mock_cli_api_client.dags.delete.assert_called_once_with(dag_id="my_dag_id")
-
-    def test_delete_dag_missing(self, mock_cli_api_client):
-        mock_cli_api_client.dags.delete.side_effect = _server_error(404)
-        with pytest.raises(ServerResponseError):
-            dag_command.dag_delete(self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]))
