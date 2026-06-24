@@ -341,14 +341,32 @@ Add the artifact:
     implementation("org.apache.airflow:airflow-sdk-jul:${version}")
 
 and call ``AirflowJulHandler.install()`` on startup to attach the handler to the
-JUL root logger before any task runs:
+JUL root logger before any task runs. Remove JUL's default handlers first, so
+records flow only through ``AirflowJulHandler``:
 
 .. code-block:: java
 
+    import java.util.logging.Handler;
+    import java.util.logging.Logger;
+
     public static void main(String[] args) {
+        Logger root = Logger.getLogger("");
+        for (Handler h : root.getHandlers()) {
+            root.removeHandler(h);
+        }
         AirflowJulHandler.install();
         Server.create(args).serve(new MyBundle());
     }
+
+.. note::
+
+    ``install()`` only adds the handler; it does not remove JUL's default
+    ``ConsoleHandler``. If you leave that handler in place, every record is also
+    written to stderr, which Airflow captures separately as ``task.stderr`` at
+    ERROR level, so each line appears twice in the UI and ``INFO`` records are
+    mislabeled as errors. The ``logging.properties`` approach below avoids this,
+    since the ``handlers`` property replaces the root handler set instead of
+    adding to it.
 
 Alternatively, declare the handler in a ``logging.properties`` file and point JUL at it with the
 ``java.util.logging.config.file`` system property (set via ``jvm_args`` in the coordinator
@@ -668,6 +686,44 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - ``10.0``
      - Seconds to wait for the JVM subprocess to connect after launch.  Increase this if your
        JVM startup is slow (e.g. on constrained hardware or with a large classpath).
+
+.. note::
+
+  The ``[sdk]`` configuration is read at startup, so changes to ``coordinators`` or
+  ``queue_to_coordinator`` (for example adding ``jvm_args``) only take effect after you restart the
+  scheduler (or ``airflow standalone``). A rebuilt bundle JAR, by contrast, is picked up on the next
+  task launch without a restart, because a fresh JVM is spawned per task instance.
+
+.. _java-sdk/macos:
+
+macOS setup
+-----------
+
+Two extra coordinator settings are needed when running tasks on macOS:
+
+* **Force the JVM onto IPv4.** The coordinator verifies that the task JVM owns its callback socket. On
+  macOS a dual-stack JVM reports its local address in the IPv4-compatible form (``::127.0.0.1``),
+  which fails that check, so the task exits immediately with
+  ``Rejected connection not owned by child process``. Add ``-Djava.net.preferIPv4Stack=true`` to
+  ``jvm_args`` so the JVM binds plain IPv4.
+* **Pin** ``java_executable`` **to an absolute path.** Homebrew does not symlink the JDK onto
+  ``$PATH``, so set ``java_executable`` to the JDK you intend to use rather than relying on ``java``
+  resolving from ``$PATH``.
+
+.. code-block:: ini
+
+    [sdk]
+    coordinators = {
+      "java-jdk17": {
+        "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+        "kwargs": {
+          "jars_root": ["/opt/airflow/jars"],
+          "jvm_args": ["-Djava.net.preferIPv4Stack=true"],
+          "java_executable": "/opt/homebrew/opt/openjdk@17/bin/java"
+        }
+      }
+    }
+    queue_to_coordinator = {"java": "java-jdk17"}
 
 .. _java-sdk/limitations:
 
