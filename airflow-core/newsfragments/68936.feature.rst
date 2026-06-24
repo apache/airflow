@@ -1,0 +1,3 @@
+``TriggerDagRunOperator`` gains an opt-in ``durable`` flag. When waiting synchronously for the
+triggered run to complete, the run id is persisted before polling so that a worker crash mid-wait
+reconnects to the in-flight run on retry instead of triggering a duplicate run.
