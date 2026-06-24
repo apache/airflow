@@ -350,6 +350,9 @@ apache-airflow = "airflow.__main__:main"
 "samba" = [
     "apache-airflow-providers-samba>=4.9.0"
 ]
+"sandbox" = [
+    "apache-airflow-providers-sandbox>=0.1.0"
+]
 "segment" = [
     "apache-airflow-providers-segment>=3.7.0"
 ]
@@ -497,6 +500,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-redis>=4.0.0",
     "apache-airflow-providers-salesforce>=5.9.0",
     "apache-airflow-providers-samba>=4.9.0",
+    "apache-airflow-providers-sandbox>=0.1.0",
     "apache-airflow-providers-segment>=3.7.0",
     "apache-airflow-providers-sendgrid>=4.0.0",
     "apache-airflow-providers-sftp>=5.0.0",
@@ -1523,6 +1527,7 @@ apache-airflow-providers-qdrant = false
 apache-airflow-providers-redis = false
 apache-airflow-providers-salesforce = false
 apache-airflow-providers-samba = false
+apache-airflow-providers-sandbox = false
 apache-airflow-providers-segment = false
 apache-airflow-providers-sendgrid = false
 apache-airflow-providers-sftp = false
@@ -1675,6 +1680,7 @@ apache-airflow-providers-qdrant = false
 apache-airflow-providers-redis = false
 apache-airflow-providers-salesforce = false
 apache-airflow-providers-samba = false
+apache-airflow-providers-sandbox = false
 apache-airflow-providers-segment = false
 apache-airflow-providers-sendgrid = false
 apache-airflow-providers-sftp = false
