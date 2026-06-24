@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-22T08:42:25.214918
+# This constraints file was automatically generated on 2026-06-24T05:29:45.148716
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -16,7 +16,6 @@ PyJWT==2.13.0
 PyYAML==6.0.3
 Pygments==2.20.0
 SQLAlchemy==2.0.51
-SecretStorage==3.5.0
 a2wsgi==1.10.10
 aiosmtplib==5.1.1
 aiosqlite==0.21.0
@@ -29,7 +28,6 @@ arrow==1.4.0
 asgiref==3.11.1
 attrs==26.1.0
 babel==2.18.0
-backports.tarfile==1.2.0
 cachetools==6.2.6
 cadwyn==7.0.0
 certifi==2026.6.17
@@ -58,13 +56,8 @@ idna==3.18
 importlib_metadata==8.9.0
 isoduration==20.11.0
 itsdangerous==2.2.0
-jaraco.classes==3.4.0
-jaraco.context==6.1.2
-jaraco.functools==4.5.0
-jeepney==0.9.0
 jsonschema-specifications==2025.9.1
 jsonschema==4.26.0
-keyring==25.7.0
 lazy-object-proxy==1.12.0
 libcst==1.8.6
 linkify-it-py==2.1.0
@@ -88,7 +81,6 @@ packaging==26.2
 pathlib_abc==0.5.2
 pathspec==1.1.1
 pendulum==3.2.0
-platformdirs==4.10.0
 pluggy==1.6.0
 protobuf==6.33.6
 psutil==7.2.2
