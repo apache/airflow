@@ -382,7 +382,9 @@ class TestDeleteAgentEngineOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        with pytest.raises(RuntimeError, match="Delete Agent Engine operation did not include"):
+        with pytest.raises(
+            RuntimeError, match=r"Delete Agent Engine operation did not include an operation name\."
+        ):
             op.execute(context=context)
 
         mock_hook.return_value.wait_for_agent_engine_operation.assert_not_called()
