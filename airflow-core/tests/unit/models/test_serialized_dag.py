@@ -423,6 +423,27 @@ class TestSerializedDagModel:
         assert session.scalar(select(func.count()).select_from(DagVersion)) == 2
         assert session.scalar(select(func.count()).select_from(SDM)) == 2
 
+    def test_new_dag_version_is_created_when_version_exists_but_serialized_dag_row_missing(
+        self, dag_maker, session
+    ):
+        with dag_maker("dag1") as dag:
+            PythonOperator(task_id="task1", python_callable=lambda: None)
+        assert session.scalar(select(func.count()).select_from(SDM)) == 1
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+
+        # Simulate the broken state: DagVersion present, serialized_dag row gone.
+        session.execute(delete(SDM).where(SDM.dag_id == dag.dag_id))
+        session.flush()
+        assert session.scalar(select(func.count()).select_from(SDM)) == 0
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+
+        SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="dag_maker")
+
+        # A new version and serialized row must have been created.
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 2
+        assert session.scalar(select(func.count()).select_from(SDM)) == 1
+        assert SDM.get(dag.dag_id, session=session) is not None
+
     def test_example_dag_sorting_serialised_dag(self, session):
         """
         This test asserts if different dag ids -- simple or complex, can be sorted
