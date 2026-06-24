@@ -1246,6 +1246,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/salesforce/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/samba/src",
     "$MYPY_CONFIG_FILE_DIR/providers/samba/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/sandbox/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/sandbox/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/segment/src",
     "$MYPY_CONFIG_FILE_DIR/providers/segment/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/sendgrid/src",
@@ -1808,6 +1810,7 @@ apache-airflow-providers-qdrant = { workspace = true }
 apache-airflow-providers-redis = { workspace = true }
 apache-airflow-providers-salesforce = { workspace = true }
 apache-airflow-providers-samba = { workspace = true }
+apache-airflow-providers-sandbox = { workspace = true }
 apache-airflow-providers-segment = { workspace = true }
 apache-airflow-providers-sendgrid = { workspace = true }
 apache-airflow-providers-sftp = { workspace = true }
@@ -1947,6 +1950,7 @@ members = [
     "providers/redis",
     "providers/salesforce",
     "providers/samba",
+    "providers/sandbox",
     "providers/segment",
     "providers/sendgrid",
     "providers/sftp",

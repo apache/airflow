@@ -25,7 +25,7 @@ import pytest
 
 pytest.importorskip("airflow.sdk.execution_time.supervisor")
 
-from airflow.providers.sandbox.execution_time import run_workload  # noqa: E402
+from airflow.providers.sandbox.execution_time import run_workload
 
 
 def test_load_raw_from_env(monkeypatch):

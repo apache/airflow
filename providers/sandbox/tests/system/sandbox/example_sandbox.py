@@ -14,39 +14,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""SandboxOperator runs a command in a sandbox and maps exit code to task state."""
+"""Example DAG showing how to use the SandboxOperator with the ``local`` backend."""
 
 from __future__ import annotations
 
-import pytest
+from datetime import datetime
 
-pytest.importorskip("airflow.sdk")
-
-from airflow.exceptions import AirflowException
+from airflow import DAG
 from airflow.providers.sandbox.operators.sandbox import SandboxOperator
 
+DAG_ID = "example_sandbox"
 
-def test_returns_stdout_on_success():
-    op = SandboxOperator(
-        task_id="ok",
+with DAG(
+    DAG_ID,
+    schedule=None,
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+    tags=["example", "sandbox"],
+) as dag:
+    # [START howto_operator_sandbox]
+    run_command = SandboxOperator(
+        task_id="run_command",
         provider="local",
-        command='echo "INJECTED=${SECRET:+yes}"; echo hello',
-        env={"SECRET": "x"},
+        env={"SECRET": "s3cr3t"},
+        command='echo "injected=${SECRET:+yes}"; echo SYS_OK',
         poll_interval=1,
     )
-    out = op.execute({})
-    assert "hello" in out
-    assert "INJECTED=yes" in out
+    # [END howto_operator_sandbox]
 
 
-def test_raises_on_nonzero_exit():
-    op = SandboxOperator(task_id="bad", provider="local", command="exit 3", poll_interval=1)
-    with pytest.raises(AirflowException):
-        op.execute({})
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-
-def test_argv_command_form():
-    op = SandboxOperator(
-        task_id="argv", provider="local", command=["sh", "-c", "echo argv-form"], poll_interval=1
-    )
-    assert "argv-form" in op.execute({})
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
+test_run = get_test_run(dag)

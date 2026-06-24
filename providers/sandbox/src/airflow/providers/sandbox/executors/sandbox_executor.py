@@ -14,8 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""``SandboxExecutor`` — runs each Airflow task instance in an ephemeral cloud
-sandbox (Daytona / E2B / Modal / islo) behind a pluggable provider layer.
+"""
+Run each Airflow task instance in an ephemeral cloud sandbox.
+
+``SandboxExecutor`` runs each task in a Daytona / E2B / Modal / islo sandbox
+behind a pluggable provider layer.
 
 Topology follows Airflow 3's EdgeExecutor + Task SDK model, **not**
 KubernetesExecutor's DB-coupled watcher: the in-sandbox Task SDK supervisor
@@ -30,18 +33,18 @@ import queue
 import threading
 import time
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
-
-from airflow.providers.sandbox.provider_loader import load_provider
 from airflow.providers.sandbox.backends.base import (
     ExecResult,
     SandboxProvider,
     SandboxSpec,
     SandboxState,
 )
+from airflow.providers.sandbox.provider_loader import load_provider
 
 if TYPE_CHECKING:
     from airflow.executors import workloads
@@ -68,7 +71,7 @@ class SandboxExecutor(BaseExecutor):
 
     if TYPE_CHECKING:
         # The Airflow-3 workload type accepted by _process_workloads.
-        from airflow.executors.workloads import ExecuteTask  # noqa: F401
+        from airflow.executors.workloads import ExecuteTask
 
     def __init__(self) -> None:
         super().__init__()
@@ -126,7 +129,7 @@ class SandboxExecutor(BaseExecutor):
         self._stop_watcher()
 
     # ----------------------------------------------- workload intake (Airflow 3)
-    def _process_workloads(self, workloads: list["workloads.ExecuteTask"]) -> None:
+    def _process_workloads(self, workloads: list[workloads.ExecuteTask]) -> None:
         # BaseExecutor has already popped these from queued_tasks and marked them
         # QUEUED — do NOT re-emit queued()/pop here.
         for wl in workloads:
@@ -186,7 +189,7 @@ class SandboxExecutor(BaseExecutor):
                 self.running.add(key)
                 # Persist the handle as external_executor_id ASAP for adoption.
                 self.running_state(key, info=handle)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 self.log.exception("sandbox launch failed for %s", key)
                 self.fail(key, info=str(exc))
             launched += 1
@@ -200,8 +203,8 @@ class SandboxExecutor(BaseExecutor):
 
     # ------------------------------------------------------------------ adoption
     def try_adopt_task_instances(
-        self, tis: Sequence["TaskInstance"]
-    ) -> Sequence["TaskInstance"]:
+        self, tis: Sequence[TaskInstance]
+    ) -> Sequence[TaskInstance]:
         not_adopted: list[TaskInstance] = []
         for ti in tis:
             handle = ti.external_executor_id
@@ -221,7 +224,7 @@ class SandboxExecutor(BaseExecutor):
         return not_adopted  # contract: return the ones you could NOT adopt
 
     # --------------------------------------------------------------------- logs
-    def get_task_log(self, ti: "TaskInstance", try_number: int) -> tuple[list[str], list[str]]:
+    def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
         # WARNING: this method is usually invoked by the api-server/log-reader
         # process, whose executor instance never ran sync() — so _inflight is
         # empty there and this returns ([], []). The real log path is remote
@@ -237,7 +240,7 @@ class SandboxExecutor(BaseExecutor):
             return ["sandbox-executor: could not fetch logs from sandbox"], []
 
     # ----------------------------------------------------------------- revoke
-    def revoke_task(self, *, ti: "TaskInstance") -> None:
+    def revoke_task(self, *, ti: TaskInstance) -> None:
         with self._lock:
             pair = self._inflight.pop(ti.key, None)
         if pair:
@@ -254,7 +257,7 @@ class SandboxExecutor(BaseExecutor):
         except Exception:
             self.log.exception("destroy failed for %s", handle)
 
-    def _build_spec(self, wl: "workloads.ExecuteTask") -> SandboxSpec:
+    def _build_spec(self, wl: workloads.ExecuteTask) -> SandboxSpec:
         ti = wl.ti
         override: dict[str, Any] = {}
         # executor_config["sandbox_override"] parallels K8s pod_override.
@@ -286,7 +289,8 @@ class SandboxExecutor(BaseExecutor):
         return spec
 
     def _workload_env(self, payload: Any) -> dict[str, str]:
-        """Serialize the A3 ExecuteTask workload + api-server URL for the sandbox.
+        """
+        Serialize the A3 ExecuteTask workload + api-server URL for the sandbox.
 
         The workload (with its short-lived JWT) is base64-encoded into an env var
         the in-sandbox runner decodes; this works for every backend, including
@@ -323,7 +327,8 @@ class SandboxExecutor(BaseExecutor):
 
 
 class SandboxWatcher(threading.Thread):
-    """In-process polling watcher (no provider offers a cluster watch stream).
+    """
+    In-process polling watcher (no provider offers a cluster watch stream).
 
     Iterates inflight handles, emits terminal ``(key, ExecResult, handle)`` onto
     the result queue. Distinguishes a transient ``UNKNOWN`` from a confirmed

@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""``local`` provider — runs the workload in a local subprocess.
+"""
+``local`` provider — runs the workload in a local subprocess.
 
 This is the open-source reference backend. It needs no SaaS account, powers the
 demo and the test suite, and anchors the vendor-neutrality argument when the

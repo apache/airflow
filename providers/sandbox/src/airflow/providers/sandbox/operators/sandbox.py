@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""``SandboxOperator`` — run a command in an ephemeral cloud sandbox.
+"""
+``SandboxOperator`` — run a command in an ephemeral cloud sandbox.
 
 Unlike :class:`~airflow.providers.sandbox.executors.sandbox_executor.SandboxExecutor`
 (which routes *every* task through a sandbox and needs the api-server/Task-SDK
@@ -26,27 +27,24 @@ execution incrementally — the KubernetesPodOperator pattern, for sandboxes.
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any, Sequence
-
-try:  # Airflow 3 Task SDK
-    from airflow.sdk import BaseOperator
-except ImportError:  # Airflow 2.x
-    from airflow.models import BaseOperator
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
-
-from airflow.providers.sandbox.provider_loader import load_provider
 from airflow.providers.sandbox.backends.base import (
     SandboxSpec,
     SandboxState,
 )
+from airflow.providers.sandbox.provider_loader import load_provider
+from airflow.providers.sandbox.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
 class SandboxOperator(BaseOperator):
-    """Execute ``command`` inside an ephemeral sandbox and return its stdout.
+    """
+    Execute ``command`` inside an ephemeral sandbox and return its stdout.
 
     :param command: Shell command (str) or argv (list[str]) to run.
     :param provider: Backend alias (local|daytona|e2b|modal|islo) or ``module:Class``.
@@ -104,7 +102,7 @@ class SandboxOperator(BaseOperator):
             return ["sh", "-c", self.command]
         return list(self.command)
 
-    def execute(self, context: "Context") -> str:
+    def execute(self, context: Context) -> str:
         provider = load_provider(self._resolve_provider_name())
         provider.authenticate()
 

@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""``modal`` provider — Modal sandboxes via the ``modal`` SDK.
+"""
+``modal`` provider — Modal sandboxes via the ``modal`` SDK.
 
 Requires an App + Image and account creds (MODAL_TOKEN_ID / MODAL_TOKEN_SECRET).
 Opaque-handle backend, so ``supports_reattach=False``.
@@ -22,6 +23,7 @@ Opaque-handle backend, so ``supports_reattach=False``.
 
 from __future__ import annotations
 
+import contextlib
 import os
 
 from airflow.providers.sandbox.backends.base import (
@@ -34,6 +36,8 @@ from airflow.providers.sandbox.backends.base import (
 
 
 class ModalProvider(SandboxProvider):
+    """Modal sandbox backend (image-baked workload)."""
+
     capabilities = SandboxCapabilities(
         kind="delegated-run",
         supports_file_upload=False,  # workload baked into the Image
@@ -104,7 +108,5 @@ class ModalProvider(SandboxProvider):
     def destroy(self, handle: str) -> None:
         sandbox = self._sandboxes.pop(handle, None)
         if sandbox is not None:
-            try:
+            with contextlib.suppress(Exception):
                 sandbox.terminate()
-            except Exception:
-                pass

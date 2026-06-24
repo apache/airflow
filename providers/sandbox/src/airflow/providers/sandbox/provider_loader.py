@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Map the ``[sandbox] provider`` config value to a :class:`SandboxProvider`.
+"""
+Map the ``[sandbox] provider`` config value to a :class:`SandboxProvider`.
 
 Mirrors ``crabbox --provider <name>``. Custom backends can be registered by
 fully-qualified class path (``my_pkg.module:MyProvider``).

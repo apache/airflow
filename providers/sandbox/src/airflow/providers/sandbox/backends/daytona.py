@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""``daytona`` provider — ephemeral Daytona sandboxes via the ``daytona`` SDK.
+"""
+``daytona`` provider — ephemeral Daytona sandboxes via the ``daytona`` SDK.
 
 Cleanest SaaS backend: named/labelled sandboxes make adoption work. Requires
 ``pip install 'airflow-provider-sandbox[daytona]'`` and ``DAYTONA_API_KEY``.
@@ -22,6 +23,7 @@ Cleanest SaaS backend: named/labelled sandboxes make adoption work. Requires
 
 from __future__ import annotations
 
+import contextlib
 import os
 
 from airflow.providers.sandbox.backends.base import (
@@ -34,6 +36,8 @@ from airflow.providers.sandbox.backends.base import (
 
 
 class DaytonaProvider(SandboxProvider):
+    """Daytona sandbox backend (labelled sandboxes; adoptable)."""
+
     capabilities = SandboxCapabilities(
         kind="delegated-run",
         supports_file_upload=True,
@@ -117,7 +121,5 @@ class DaytonaProvider(SandboxProvider):
         return [f"daytona sandbox {handle}"], str(logs).splitlines()
 
     def destroy(self, handle: str) -> None:
-        try:
+        with contextlib.suppress(Exception):
             self._sandbox(handle).delete()
-        except Exception:
-            pass
