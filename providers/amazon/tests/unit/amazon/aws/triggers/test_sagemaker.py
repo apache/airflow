@@ -22,6 +22,7 @@ from unittest.mock import AsyncMock
 import pytest
 from botocore.exceptions import WaiterError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerPipelineTrigger, SageMakerTrigger
 from airflow.triggers.base import TriggerEvent
@@ -53,6 +54,23 @@ class TestSagemakerTrigger:
         assert args["waiter_max_attempts"] == WAITER_MAX_ATTEMPTS
         assert args["aws_conn_id"] == AWS_CONN_ID
         assert args["region_name"] == REGION_NAME
+
+    @pytest.mark.parametrize(
+        ("deprecated_kwarg", "canonical_attr", "value"),
+        [
+            ("poke_interval", "waiter_delay", 17),
+            ("max_attempts", "attempts", 21),
+        ],
+    )
+    def test_sagemaker_trigger_deprecated_params(self, deprecated_kwarg, canonical_attr, value):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=deprecated_kwarg):
+            trigger = SageMakerTrigger(
+                job_name=JOB_NAME,
+                job_type=JOB_TYPE,
+                aws_conn_id=AWS_CONN_ID,
+                **{deprecated_kwarg: value},
+            )
+        assert getattr(trigger, canonical_attr) == value
 
     def test_sagemaker_trigger_hook_uses_generic_params(self):
         sagemaker_trigger = SageMakerTrigger(

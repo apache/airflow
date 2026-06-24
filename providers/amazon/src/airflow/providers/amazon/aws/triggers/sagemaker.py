@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import warnings
 from collections import Counter
 from collections.abc import AsyncIterator
 from enum import IntEnum
@@ -25,6 +26,7 @@ from typing import TYPE_CHECKING
 
 from botocore.exceptions import WaiterError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.common.compat.sdk import AirflowException
@@ -46,6 +48,8 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
     :param region_name: The AWS region where the job is running. Used to build the hook.
     :param verify: Whether or not to verify SSL certificates. Used to build the hook.
     :param botocore_config: Configuration dictionary for the botocore client. Used to build the hook.
+    :param poke_interval: (deprecated) use ``waiter_delay`` instead.
+    :param max_attempts: (deprecated) use ``waiter_max_attempts`` instead.
     """
 
     def __init__(
@@ -58,7 +62,25 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
         region_name: str | None = None,
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
+        poke_interval: int | None = None,
+        max_attempts: int | None = None,
     ):
+        if poke_interval is not None:
+            warnings.warn(
+                "`poke_interval` is deprecated and will be removed in a future release. "
+                "Please use `waiter_delay` instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            waiter_delay = poke_interval
+        if max_attempts is not None:
+            warnings.warn(
+                "`max_attempts` is deprecated and will be removed in a future release. "
+                "Please use `waiter_max_attempts` instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            waiter_max_attempts = max_attempts
         self.job_name = job_name
         self.job_type = job_type
         super().__init__(
