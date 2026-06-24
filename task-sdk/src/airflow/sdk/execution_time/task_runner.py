@@ -45,6 +45,7 @@ from structlog.contextvars import bind_contextvars
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk._shared.observability.metrics import stats
+from airflow.sdk._shared.observability.metrics.stats import build_dag_metric_tags
 from airflow.sdk._shared.observability.traces import get_task_span_detail_level
 from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
@@ -254,10 +255,21 @@ class RuntimeTaskInstance(TaskInstance):
 
     @property
     def stats_tags(self) -> dict[str, str]:
-        """Metric tags for this task instance, including team_name when available."""
-        tags: dict[str, str] = {"dag_id": self.dag_id, "task_id": self.task_id}
-        if self._ti_context_from_server and self._ti_context_from_server.dag_run.team_name:
-            tags["team_name"] = self._ti_context_from_server.dag_run.team_name
+        """Metric tags for this task instance, including dag tags and team_name when available."""
+        tags: dict[str, str] = {}
+        if conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False):
+            tags.update(build_dag_metric_tags(self.task.dag.tags))
+        # Built-in keys always win on collision.
+        tags["dag_id"] = self.dag_id
+        tags["task_id"] = self.task_id
+        if self._ti_context_from_server:
+            # run_type keeps the tag set consistent with the scheduler-side TaskInstance.stats_tags.
+            # Coerce the DagRunType enum to its bare value so it serializes as e.g. "scheduled" rather
+            # than "dagruntype.scheduled" (matching the scheduler, which emits the plain string).
+            run_type = self._ti_context_from_server.dag_run.run_type
+            tags["run_type"] = getattr(run_type, "value", run_type)
+            if self._ti_context_from_server.dag_run.team_name:
+                tags["team_name"] = self._ti_context_from_server.dag_run.team_name
         return tags
 
     def __rich_repr__(self):

@@ -2432,7 +2432,7 @@ class TestTaskInstance:
         ti.task = None
         ti.state = State.QUEUED
         session.flush()
-        expected_stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+        expected_stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id, "run_type": dr.run_type}
 
         assert ti.task is None, "Check critical pre-condition"
 
@@ -4175,7 +4175,7 @@ class TestTaskInstanceStatsTagsTeamName:
         ti = dr.get_task_instance("my_task", session=session)
         tags = ti.stats_tags
         assert "team_name" not in tags
-        assert tags == {"dag_id": "test_dag", "task_id": "my_task"}
+        assert tags == {"dag_id": "test_dag", "task_id": "my_task", "run_type": dr.run_type}
 
     def test_stats_tags_with_team_name(self, dag_maker, session):
         """stats_tags should include team_name when _team_name is set."""
@@ -4186,7 +4186,12 @@ class TestTaskInstanceStatsTagsTeamName:
         ti._team_name = "my_team"
         tags = ti.stats_tags
         assert tags["team_name"] == "my_team"
-        assert tags == {"dag_id": "test_dag", "task_id": "my_task", "team_name": "my_team"}
+        assert tags == {
+            "dag_id": "test_dag",
+            "task_id": "my_task",
+            "team_name": "my_team",
+            "run_type": dr.run_type,
+        }
 
     def test_stats_tags_with_none_team_name(self, dag_maker, session):
         """stats_tags should not include team_name when _team_name is None."""
@@ -4198,17 +4203,47 @@ class TestTaskInstanceStatsTagsTeamName:
         tags = ti.stats_tags
         assert "team_name" not in tags
 
+    @conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+    def test_stats_tags_match_worker_tag_set(self, dag_maker, session):
+        """ti_failures (and other ti.* metrics) are emitted from both the worker
+        (RuntimeTaskInstance.stats_tags) and the scheduler (TaskInstance.stats_tags); both must produce
+        the same tag set. The worker side is asserted in test_task_runner.py
+        (test_stats_tags_with_standalone_and_key_value_tags); this guards the scheduler side against drift:
+        dag tags + dag_id + task_id + run_type.
+        """
+        with dag_maker("parity_dag", tags=["env:prod", "production"], session=session):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("t1", session=session)
+        tags = ti.stats_tags
+        assert tags == {
+            "dag_id": "parity_dag",
+            "task_id": "t1",
+            "run_type": "manual",
+            "env": "prod",
+            "production": "",
+        }
+        # run_type must be the bare value (not a DagRunType enum) so it serializes identically to
+        # the worker side, e.g. "manual" not "dagruntype.manual".
+        assert type(tags["run_type"]) is str
+
     @pytest.mark.parametrize(
         ("team_name", "expected_tags"),
         [
             pytest.param(
                 "my_team",
-                {"dag_id": "test_dag", "task_id": "my_task", "team_name": "my_team", "queue": "default"},
+                {
+                    "dag_id": "test_dag",
+                    "task_id": "my_task",
+                    "team_name": "my_team",
+                    "queue": "default",
+                    "run_type": "manual",
+                },
                 id="with_team",
             ),
             pytest.param(
                 None,
-                {"dag_id": "test_dag", "task_id": "my_task", "queue": "default"},
+                {"dag_id": "test_dag", "task_id": "my_task", "queue": "default", "run_type": "manual"},
                 id="without_team",
             ),
         ],
