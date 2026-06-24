@@ -402,12 +402,14 @@ class TestPutAssetStateWatcherWrite:
         )
 
         assert response.status_code == 204
+
         row = session.scalar(
             select(AssetStateStoreModel).where(
                 AssetStateStoreModel.asset_id == asset.id,
                 AssetStateStoreModel.key == "watermark",
             )
         )
+
         assert row is not None
         assert row.value == '"2026-01-01"'
 
@@ -422,6 +424,7 @@ class TestPutAssetStateWatcherWrite:
                 AssetStateStoreModel.key == "watermark",
             )
         )
+
         assert row is not None
         assert row.last_updated_by_kind == "watcher"
         assert row.last_updated_by_dag_id is None
@@ -435,11 +438,17 @@ class TestPutAssetStateWatcherWrite:
         )
 
         assert response.status_code == 204
+
         row = session.scalar(
             select(AssetStateStoreModel).where(
                 AssetStateStoreModel.asset_id == asset.id,
                 AssetStateStoreModel.key == "watermark",
             )
         )
+
         assert row is not None
         assert row.last_updated_by_kind == "watcher"
+        assert row.last_updated_by_dag_id is None
+        assert row.last_updated_by_run_id is None
+        assert row.last_updated_by_task_id is None
+        assert row.last_updated_by_map_index is None

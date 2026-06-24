@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 from typing import Annotated
+from uuid import UUID
 
 from cadwyn import VersionedAPIRouter
 from fastapi import HTTPException, Query, status
@@ -49,10 +50,11 @@ from airflow.state import get_state_backend
 from airflow.state.metastore import MetastoreBackend
 
 _TIWriterFields = tuple[str, str, str, int]
+NULL_UUID = UUID(int=0)
 
 
-def _fetch_ti_writer_fields(token: TIToken, session: SessionDep) -> _TIWriterFields | None:
-    """Return (dag_id, run_id, task_id, map_index) for the TI identified by the token, or None."""
+def _fetch_ti_writer_fields(token: TIToken, session: SessionDep) -> _TIWriterFields:
+    """Return (dag_id, run_id, task_id, map_index) for the TI identified by the token."""
     row = session.execute(
         select(
             TaskInstance.dag_id,
@@ -62,7 +64,10 @@ def _fetch_ti_writer_fields(token: TIToken, session: SessionDep) -> _TIWriterFie
         ).where(TaskInstance.id == token.id)
     ).one_or_none()
     if row is None:
-        return None
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"reason": "not_found", "message": f"Task instance {token.id!r} not found"},
+        )
     return row.dag_id, row.run_id, row.task_id, row.map_index
 
 
@@ -127,10 +132,8 @@ def _put_asset_state_store(
 ) -> None:
     backend = get_state_backend()
     if isinstance(backend, MetastoreBackend):
-        ti_fields = _fetch_ti_writer_fields(token, session)
-        if ti_fields is None:
-            # No task instance backs this token (e.g. a watcher trigger writing via the
-            # triggerer's in-process client, which carries the null-UUID sentinel).
+        if token.id == NULL_UUID:
+            # A watcher trigger writing via the triggerer's in-process client has a null-UUID
             backend.set_asset_state_store(
                 scope,
                 key,
@@ -139,7 +142,10 @@ def _put_asset_state_store(
                 session=session,
             )
         else:
+            # Retrieve TI fields, since token.id is not NULL_UUID
+            ti_fields = _fetch_ti_writer_fields(token, session)
             dag_id, run_id, task_id, map_index = ti_fields
+
             backend.set_asset_state_store(
                 scope,
                 key,

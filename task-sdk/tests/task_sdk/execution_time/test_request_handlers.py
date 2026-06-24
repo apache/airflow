@@ -100,61 +100,68 @@ def test_get_asset_state_store_by_uri_passes_through_error_response(client):
     assert dump_opts == {}
 
 
-def test_set_asset_state_store_by_name_delegates_to_client(client):
-    result, dump_opts = handle_set_asset_state_store_by_name(
-        client, SetAssetStateStoreByName(name="asset_a", key="watermark", value="v")
-    )
+@pytest.mark.parametrize(
+    ("handler", "msg", "call_kwargs", "method"),
+    [
+        (
+            handle_set_asset_state_store_by_name,
+            SetAssetStateStoreByName,
+            {
+                "name": "asset_a",
+                "key": "watermark",
+                "value": "2026-01-01",
+            },
+            "set",
+        ),
+        (
+            handle_set_asset_state_store_by_uri,
+            SetAssetStateStoreByUri,
+            {
+                "uri": "s3://bucket/a",
+                "key": "watermark",
+                "value": "2026-01-01",
+            },
+            "set",
+        ),
+        (
+            handle_delete_asset_state_store_by_name,
+            DeleteAssetStateStoreByName,
+            {
+                "name": "asset_a",
+                "key": "watermark",
+            },
+            "delete",
+        ),
+        (
+            handle_delete_asset_state_store_by_uri,
+            DeleteAssetStateStoreByUri,
+            {
+                "uri": "s3://bucket/a",
+                "key": "watermark",
+            },
+            "delete",
+        ),
+        (
+            handle_clear_asset_state_store_by_name,
+            ClearAssetStateStoreByName,
+            {
+                "name": "asset_a",
+            },
+            "clear",
+        ),
+        (
+            handle_clear_asset_state_store_by_uri,
+            ClearAssetStateStoreByUri,
+            {
+                "uri": "s3://bucket/a",
+            },
+            "clear",
+        ),
+    ],
+)
+def test_asset_store_store_delegates_to_client(client, handler, msg, call_kwargs, method):
+    result, dump_opts = handler(client, msg(**call_kwargs))
 
-    client.asset_state_store.set.assert_called_once_with(key="watermark", value="v", name="asset_a")
-    assert result is None
-    assert dump_opts == {}
-
-
-def test_set_asset_state_store_by_uri_delegates_to_client(client):
-    result, dump_opts = handle_set_asset_state_store_by_uri(
-        client, SetAssetStateStoreByUri(uri="s3://bucket/a", key="watermark", value="v")
-    )
-
-    client.asset_state_store.set.assert_called_once_with(key="watermark", value="v", uri="s3://bucket/a")
-    assert result is None
-    assert dump_opts == {}
-
-
-def test_delete_asset_state_store_by_name_delegates_to_client(client):
-    result, dump_opts = handle_delete_asset_state_store_by_name(
-        client, DeleteAssetStateStoreByName(name="asset_a", key="watermark")
-    )
-
-    client.asset_state_store.delete.assert_called_once_with(key="watermark", name="asset_a")
-    assert result is None
-    assert dump_opts == {}
-
-
-def test_delete_asset_state_store_by_uri_delegates_to_client(client):
-    result, dump_opts = handle_delete_asset_state_store_by_uri(
-        client, DeleteAssetStateStoreByUri(uri="s3://bucket/a", key="watermark")
-    )
-
-    client.asset_state_store.delete.assert_called_once_with(key="watermark", uri="s3://bucket/a")
-    assert result is None
-    assert dump_opts == {}
-
-
-def test_clear_asset_state_store_by_name_delegates_to_client(client):
-    result, dump_opts = handle_clear_asset_state_store_by_name(
-        client, ClearAssetStateStoreByName(name="asset_a")
-    )
-
-    client.asset_state_store.clear.assert_called_once_with(name="asset_a")
-    assert result is None
-    assert dump_opts == {}
-
-
-def test_clear_asset_state_store_by_uri_delegates_to_client(client):
-    result, dump_opts = handle_clear_asset_state_store_by_uri(
-        client, ClearAssetStateStoreByUri(uri="s3://bucket/a")
-    )
-
-    client.asset_state_store.clear.assert_called_once_with(uri="s3://bucket/a")
+    getattr(client.asset_state_store, method).assert_called_once_with(**call_kwargs)
     assert result is None
     assert dump_opts == {}
