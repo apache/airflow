@@ -518,8 +518,13 @@ class TestSchedulerJob:
                     "scheduler.tasks.killed_externally",
                     tags={"dag_id": dag_id, "task_id": ti1.task_id},
                 ),
-                mock.call("operator_failures_EmptyOperator", tags={"dag_id": dag_id, "task_id": ti1.task_id}),
-                mock.call("ti_failures", tags={"dag_id": dag_id, "task_id": ti1.task_id}),
+                mock.call(
+                    "operator_failures_EmptyOperator",
+                    tags={"dag_id": dag_id, "task_id": ti1.task_id, "run_type": "manual"},
+                ),
+                mock.call(
+                    "ti_failures", tags={"dag_id": dag_id, "task_id": ti1.task_id, "run_type": "manual"}
+                ),
             ],
             any_order=True,
         )
@@ -645,8 +650,11 @@ class TestSchedulerJob:
                     "scheduler.tasks.killed_externally",
                     tags={"dag_id": dag_id, "task_id": task_id},
                 ),
-                mock.call("operator_failures_EmptyOperator", tags={"dag_id": dag_id, "task_id": task_id}),
-                mock.call("ti_failures", tags={"dag_id": dag_id, "task_id": task_id}),
+                mock.call(
+                    "operator_failures_EmptyOperator",
+                    tags={"dag_id": dag_id, "task_id": task_id, "run_type": "manual"},
+                ),
+                mock.call("ti_failures", tags={"dag_id": dag_id, "task_id": task_id, "run_type": "manual"}),
             ],
             any_order=True,
         )
@@ -9825,7 +9833,12 @@ class TestSchedulerJob:
             ti._team_name = team_name
 
         assert ti._team_name == "team_a"
-        assert ti.stats_tags == {"dag_id": "dag_a", "task_id": "task_a", "team_name": "team_a"}
+        assert ti.stats_tags == {
+            "dag_id": "dag_a",
+            "task_id": "task_a",
+            "team_name": "team_a",
+            "run_type": dr.run_type,
+        }
 
     @conf_vars({("core", "multi_team"): "true"})
     def test_do_scheduling_multi_team_schedules_task_instances(self, dag_maker, session):

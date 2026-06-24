@@ -1386,6 +1386,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .options(joinedload(TI.dag_run).selectinload(DagRun.created_dag_version))
             .options(joinedload(TI.dag_version))
         )
+        # When emitting Dag tags as metric tags, eager-load dag_model.tags so the per-finished-task
+        # ti_failures / operator_failures / task.*_duration metrics carry them without a per-TI lazy load.
+        if conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False):
+            query = query.options(
+                joinedload(TI.dag_run).joinedload(DagRun.dag_model).selectinload(DagModel.tags)
+            )
         # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
         # multi-schedulers
         locked_query = with_row_locks(query, of=TI, session=session, skip_locked=True)

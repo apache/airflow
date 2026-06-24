@@ -757,9 +757,19 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     @property
     def stats_tags(self) -> dict[str, str]:
         """Returns task instance tags."""
-        return prune_dict(
-            {"dag_id": self.dag_id, "task_id": self.task_id, "team_name": getattr(self, "_team_name", None)}
+        run_type = self.dag_run.run_type
+        base = prune_dict(
+            {
+                "dag_id": self.dag_id,
+                "task_id": self.task_id,
+                # bare value so it serializes as e.g. "scheduled", not "dagruntype.scheduled"
+                "run_type": getattr(run_type, "value", run_type),
+                "team_name": getattr(self, "_team_name", None),
+            }
         )
+        dag_tags = self.dag_run.dag_tags_for_stats()
+        # Built-in keys win on collision; dag tags fill in everything else.
+        return {**dag_tags, **base}
 
     @staticmethod
     def insert_mapping(

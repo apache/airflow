@@ -58,6 +58,17 @@ class SafeDogStatsdLogger:
         self.stat_name_handler = stat_name_handler
         self.statsd_influxdb_enabled = statsd_influxdb_enabled
 
+    @staticmethod
+    def _build_tags_list(
+        tags: dict[str, str],
+        metric_tags_validator: Any,
+    ) -> list[str]:
+        return [
+            (f"{key}:{value}" if value != "" else key)
+            for key, value in tags.items()
+            if metric_tags_validator.test(key)
+        ]
+
     @validate_stat
     def incr(
         self,
@@ -68,12 +79,11 @@ class SafeDogStatsdLogger:
         tags: dict[str, str] | None = None,
     ) -> None:
         """Increment stat."""
-        if self.metrics_tags and isinstance(tags, dict):
-            tags_list = [
-                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
-            ]
-        else:
-            tags_list = []
+        tags_list = (
+            self._build_tags_list(tags, self.metric_tags_validator)
+            if self.metrics_tags and isinstance(tags, dict)
+            else []
+        )
         if self.metrics_validator.test(stat):
             return self.dogstatsd.increment(metric=stat, value=count, tags=tags_list, sample_rate=rate)
         return None
@@ -88,12 +98,11 @@ class SafeDogStatsdLogger:
         tags: dict[str, str] | None = None,
     ) -> None:
         """Decrement stat."""
-        if self.metrics_tags and isinstance(tags, dict):
-            tags_list = [
-                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
-            ]
-        else:
-            tags_list = []
+        tags_list = (
+            self._build_tags_list(tags, self.metric_tags_validator)
+            if self.metrics_tags and isinstance(tags, dict)
+            else []
+        )
         if self.metrics_validator.test(stat):
             return self.dogstatsd.decrement(metric=stat, value=count, tags=tags_list, sample_rate=rate)
         return None
@@ -109,12 +118,11 @@ class SafeDogStatsdLogger:
         tags: dict[str, str] | None = None,
     ) -> None:
         """Gauge stat."""
-        if self.metrics_tags and isinstance(tags, dict):
-            tags_list = [
-                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
-            ]
-        else:
-            tags_list = []
+        tags_list = (
+            self._build_tags_list(tags, self.metric_tags_validator)
+            if self.metrics_tags and isinstance(tags, dict)
+            else []
+        )
         if self.metrics_validator.test(stat):
             return self.dogstatsd.gauge(metric=stat, value=value, tags=tags_list, sample_rate=rate)
         return None
@@ -128,12 +136,11 @@ class SafeDogStatsdLogger:
         tags: dict[str, str] | None = None,
     ) -> None:
         """Stats timing."""
-        if self.metrics_tags and isinstance(tags, dict):
-            tags_list = [
-                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
-            ]
-        else:
-            tags_list = []
+        tags_list = (
+            self._build_tags_list(tags, self.metric_tags_validator)
+            if self.metrics_tags and isinstance(tags, dict)
+            else []
+        )
         if self.metrics_validator.test(stat):
             if isinstance(dt, datetime.timedelta):
                 dt = dt.total_seconds() * 1000.0
@@ -148,12 +155,11 @@ class SafeDogStatsdLogger:
         **kwargs,
     ) -> Timer:
         """Timer metric that can be cancelled."""
-        if self.metrics_tags and isinstance(tags, dict):
-            tags_list = [
-                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
-            ]
-        else:
-            tags_list = []
+        tags_list = (
+            self._build_tags_list(tags, self.metric_tags_validator)
+            if self.metrics_tags and isinstance(tags, dict)
+            else []
+        )
         if stat and self.metrics_validator.test(stat):
             return Timer(self.dogstatsd.timed(stat, tags=tags_list, **kwargs))
         return Timer()

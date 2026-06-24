@@ -34,6 +34,7 @@ from airflow_shared.observability.exceptions import InvalidStatsNameException
 from airflow_shared.observability.metrics import datadog_logger, statsd_logger
 from airflow_shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow_shared.observability.metrics.datadog_logger import SafeDogStatsdLogger
+from airflow_shared.observability.metrics.stats import build_dag_metric_tags
 from airflow_shared.observability.metrics.statsd_logger import SafeStatsdLogger
 from airflow_shared.observability.metrics.validators import (
     PatternAllowListValidator,
@@ -259,6 +260,26 @@ class TestDogStats:
             metric="empty", sample_rate=1, value=1, tags=[]
         )
 
+    def test_key_value_tag_emitted_with_colon(self):
+        dogstatsd = SafeDogStatsdLogger(self.dogstatsd_client, metrics_tags=True)
+        dogstatsd.incr("my_metric", tags={"env": "prod"})
+        self.dogstatsd_client.increment.assert_called_once_with(
+            metric="my_metric", sample_rate=1, value=1, tags=["env:prod"]
+        )
+
+    def test_standalone_tag_empty_value_emitted_without_colon(self):
+        dogstatsd = SafeDogStatsdLogger(self.dogstatsd_client, metrics_tags=True)
+        dogstatsd.incr("my_metric", tags={"production": ""})
+        self.dogstatsd_client.increment.assert_called_once_with(
+            metric="my_metric", sample_rate=1, value=1, tags=["production"]
+        )
+
+    def test_mixed_tags_standalone_and_key_value(self):
+        dogstatsd = SafeDogStatsdLogger(self.dogstatsd_client, metrics_tags=True)
+        dogstatsd.incr("my_metric", tags={"production": "", "env": "staging"})
+        call_kwargs = self.dogstatsd_client.increment.call_args
+        assert set(call_kwargs.kwargs["tags"]) == {"production", "env:staging"}
+
 
 class TestStatsAllowAndBlockLists:
     @pytest.mark.parametrize(
@@ -474,6 +495,12 @@ class TestStatsWithInfluxDBEnabled:
             tags={"key0,": "val0", "key1": "val1", "key2": "val2", "key3": "val3"},
         )
         self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key1=val1", 1, 1)
+
+    def test_standalone_tag_empty_value_emitted_as_true(self):
+        self.stats.incr("test_stats_run.delay", tags={"production": "", "key1": "val1"})
+        self.statsd_client.incr.assert_called_once_with(
+            "test_stats_run.delay,production=true,key1=val1", 1, 1
+        )
 
 
 def always_invalid(stat_name):
@@ -769,3 +796,26 @@ class TestCustomStatsName:
     def teardown_method(self) -> None:
         # To avoid side-effect
         importlib.reload(airflow_shared.observability.metrics.stats)
+
+
+@pytest.mark.parametrize(
+    ("tag_names", "expected"),
+    [
+        pytest.param([], {}, id="empty"),
+        pytest.param(["production"], {"production": ""}, id="standalone"),
+        pytest.param(["env:prod"], {"env": "prod"}, id="key-value"),
+        pytest.param(
+            ["production", "env:prod", "team:data"],
+            {"production": "", "env": "prod", "team": "data"},
+            id="mixed",
+        ),
+        pytest.param(["a:b:c"], {"a": "b:c"}, id="value-with-colon"),
+        pytest.param(["env:"], {"env": ""}, id="trailing-colon-is-standalone"),
+    ],
+)
+def test_build_dag_metric_tags(tag_names: list[str], expected: dict[str, str]) -> None:
+    assert build_dag_metric_tags(tag_names) == expected
+
+
+def test_build_dag_metric_tags_accepts_generator() -> None:
+    assert build_dag_metric_tags(name for name in ["env:prod"]) == {"env": "prod"}
