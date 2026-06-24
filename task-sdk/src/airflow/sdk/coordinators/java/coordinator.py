@@ -174,14 +174,13 @@ class JavaCoordinator(SubprocessCoordinator):
     Configuration is taken from the ``[sdk] coordinators`` entry that constructs
     this instance::
 
-        {
-            "name": "jdk-17",
+        "jdk-17": {
             "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
             "kwargs": {
-                "java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java",
-                "jvm_args": ["-Xmx1024m"],
                 "jars_root": ["~/airflow/jars"],
-            },
+                "java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java",
+                "jvm_args": ["-Xmx1024m"]
+            }
         }
 
     :param java_executable: Path to the ``java`` command (defaults to

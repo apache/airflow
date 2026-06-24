@@ -2091,6 +2091,7 @@ sdk:
           "jdk-17": {
             "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
             "kwargs": {
+              "jars_root": ["/opt/airflow/java-bundles"],
               "java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java",
               "jvm_args": ["-Xmx1024m"]
             },
@@ -2098,6 +2099,12 @@ sdk:
               "pod_template_file": "/opt/airflow/pod_templates/java.yaml",
               "worker_container_repository": "apache/airflow",
               "worker_container_tag": "3.3.0"
+            }
+          },
+          "go-sdk": {
+            "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
+            "kwargs": {
+              "executables_root": ["/opt/airflow/executable-bundles"]
             }
           }
         }
