@@ -27,6 +27,7 @@ import pytest
 
 from airflow.sdk import (
     DAG,
+    Asset,
     Context,
     Label,
     Param,
@@ -640,12 +641,23 @@ def test_allowed_run_types_conflicting_schedule(schedule, allowed_run_types, mat
 
 
 def test_allowed_run_types_asset_triggered_missing_with_asset_schedule():
-    from airflow.sdk.definitions.asset import Asset
-
     with pytest.raises(ValueError, match="allowed_run_types must include ASSET_TRIGGERED"):
         DAG(
             "test-allowed-asset",
             schedule=[Asset("test")],
+            allowed_run_types=[DagRunType.MANUAL],
+        )
+
+
+def test_allowed_run_types_uses_asset_triggered_behavior():
+    class CustomAssetTriggeredTimetable(BaseTimetable):
+        asset_triggered = True
+        asset_condition = Asset("test")
+
+    with pytest.raises(ValueError, match="allowed_run_types must include ASSET_TRIGGERED"):
+        DAG(
+            "test-allowed-custom-asset",
+            schedule=CustomAssetTriggeredTimetable(),
             allowed_run_types=[DagRunType.MANUAL],
         )
 
