@@ -24,7 +24,7 @@
 
 .. towncrier release notes start
 
-Airflow 3.3.0b1 (2026-06-29)
+Airflow 3.3.0b2 (2026-07-06)
 ----------------------------
 
 Significant Changes
@@ -146,21 +146,25 @@ New Deadlines page under Browse
 A new **Deadlines** page is available under the Browse menu, accessible to any role that already has
 ``can_read`` and ``menu_access`` on **DAG Runs**. (#67586)
 
-Airflow CLI commands now talk to the API server
-"""""""""""""""""""""""""""""""""""""""""""""""
-
-Airflow CLI commands are migrating to reach Airflow through the API server (via the ``airflowctl``
-client) instead of the metadata database directly. Migrated so far: ``dags trigger``, ``dags delete``,
-``pools`` (list/get/set/delete/import/export), and ``assets materialize``. These commands now require a
-reachable API server and mint a short-lived token in memory (set ``AIRFLOW_CLI_TOKEN`` where an auth
-manager cannot mint locally). ``airflow.api.client`` is removed — use
-``airflow.cli.api_client.get_cli_api_client``. Each migrated command emits a
-``RemovedInAirflow4Warning``; use the equivalent ``airflowctl`` command instead. (#68175)
-
 
 New Features
 ^^^^^^^^^^^^
 
+- Add partition clear support to the REST API matching the CLI, with a ``clearPartitions`` endpoint and ``partition_key``/``partition_date`` window selectors on ``clearDagRuns`` (#68702)
+- Add ``[core] mp_start_method`` and ``[core] mp_forkserver_preload`` configuration options (which can be overridden per ``[scheduler]``/``[triggerer]``/``[dag_processor]``) to control the ``multiprocessing`` start method (#68875)
+- Add a ``durable`` toggle to ``ResumableJobMixin`` to opt out of resumable execution (#68623)
+- Add a ``@result`` decorator to mark a TaskFlow task as the Dag's result task (#64563)
+- Add ``[triggerer] shared_stream_cohort_grace_period`` to reduce missed events on triggerer restart (#68888)
+- Propagate ``partition_date`` from producer Dag runs to consumers of partitioned assets (#67285)
+- Make the task and asset state store accessible from triggers via ``AssetStateStoreAccessors`` (#67839)
+- Add OpenTelemetry head sampling support (#68591)
+- Add async XCom ``accessors`` for async tasks (#68299)
+- Add an async ``aget_hook`` method to ``BaseHook`` for async tasks (#68506)
+- Allow custom partition ``Window`` subclasses via a plugin registry (#68717)
+- Support an ``extra`` field for the Coordinator (#68694)
+- Apply ``rerun_with_latest_version`` to ``TriggerDagRunOperator`` reruns (#67273)
+- Scope the XCom Execution API to teams in multi-team mode (#68850)
+- Enforce pool team ownership in the scheduling loop (#68649)
 - UI: Add team name to the asset graph view (#68457)
 - Populate ``partition_date`` for partitioned Dag runs whose composite asset key has a single time-based dimension (#68442)
 - UI: Add a column to the asset store table linking to the task instance that wrote it (#68395)
@@ -259,6 +263,25 @@ New Features
 Bug Fixes
 ^^^^^^^^^
 
+- Fix ``KubernetesExecutor`` scheduler crash caused by a ``pod_override`` that cannot be pickled when running in-cluster (#68831)
+- UI: Fix dashboard alert clamping and collapse controls (#68893)
+- Stabilize mapped-task XCom result ordering in the Dag run ``wait`` endpoint by ordering on ``task_id``/``map_index`` (#68550)
+- Only log task state cleanup when a worker state store backend is configured (#68878)
+- Fix in-process Execution API loop stopped while transport still in use (#68865)
+- Fix task state store custom expiry datetime missing timezone on save (#68823)
+- Do not leak threads from ``InProcessExecutionAPI`` (#68840)
+- Fix partitioned backfill widening a sub-day window to the whole day (#68718)
+- UI: Fix inconsistent padding between Dag Runs and Task Instances list views (#68689)
+- Skip asset-change registration for tasks with no outlets (#68687)
+- Percent-encode API client path params for keys with slashes (#68667)
+- Fix bulk create+overwrite silently resetting unset fields on pools and connections (#68645)
+- Fix triggerer crash when a trigger subclass does not call ``super().__init__()`` (#68636)
+- Fix Task SDK swallowing errors when ``Variable.set()`` or ``Variable.delete()`` fails (#68542)
+- Populate ``partition_date`` when manually triggering partitioned Dags (#68458)
+- Improve warning visibility for invalid JSON when editing variables (#68268)
+- Fix the triggerer log server port configuration key (#67785)
+- Enforce ``ti:self`` scope on ``/execution/task-reschedules/{ti}/start_date`` (#67628)
+- UI: Fix misleading Calendar "Total Runs" coloring behavior (#67595)
 - Fix Stats not being initialized in the API server lifespan (#68514)
 - Fix ``BackfillDagRun.partition_key`` type annotation (#68432)
 - Fix backward compatibility for ``DagRunInfo`` partition fields (#68342)
@@ -406,6 +429,15 @@ Bug Fixes
 Miscellaneous
 ^^^^^^^^^^^^^
 
+- Propagate the resolved task log level and ``[logging] namespace_levels`` to language SDK runtimes (#68712)
+- Forward run-identity attributes (``dag_id``, ``run_id``, ``run_type``) to the trace sampler so a custom head sampler can differentiate by run kind (#68592)
+- Remove ``all_map_indices`` from ``task_state_store.clear()`` in the task context (#68880)
+- Optimize the dag processor by caching bundle-to-team name lookups (#68730)
+- Rename the misleading ``last_automated_run`` param to ``reference_run`` (#68714)
+- Add a ``team_name`` tag to the remaining multi-team metrics (#68601)
+- Add a ``team_name`` tag to dag processor metrics for multi-team deployments (#68599)
+- Add a ``team_name`` tag to asset metrics for multi-team deployments (#68367)
+- UI: Persist dashboard alert collapse state and clamp long alerts (#68329)
 - Optimize bulk variable deletion to avoid N+1 queries (#68508)
 - UI: Unify the Dag Code tab toolbar styling with the Logs toolbar (#68449)
 - Optimize bulk Dag run authorization to avoid N+1 team-name queries (#68286)
@@ -476,6 +508,14 @@ Miscellaneous
 Doc Only Changes
 ^^^^^^^^^^^^^^^^
 
+- Complete the Taiwanese Mandarin (``zh-TW``) translation (#68870)
+- Add missing Korean (``ko``) translations (#68600)
+- Close German (``de``) translation gaps (#68356)
+- Add a segment fan-out example to the asset partition example Dag (#68722)
+- Fix runtime-partition example Dags using unreachable schedules (#68719)
+- Add an example Dag for the task state store with mapped tasks (#68670)
+- Fix the gap in the Taiwanese Mandarin (``zh-TW``) translation (#68668)
+- Add wait-policy examples to the asset partition example Dag (#68658)
 - Add a contributing guide for language SDKs (#68330)
 - Add ``sdk.TIRunContext`` documentation for the Go SDK (#68319)
 - Add a Go Task SDK authoring guide to the docs (#68223)
