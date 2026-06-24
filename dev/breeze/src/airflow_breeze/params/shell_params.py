@@ -79,7 +79,13 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.docker_command_utils import is_docker_rootless
-from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
+from airflow_breeze.utils.host_info_utils import (
+    Architecture,
+    get_host_architecture,
+    get_host_group_id,
+    get_host_os,
+    get_host_user_id,
+)
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
     BUILD_CACHE_PATH,
@@ -690,6 +696,8 @@ services:
         _set_var(_env, "PROVIDERS_SKIP_CONSTRAINTS", self.providers_skip_constraints)
         _set_var(_env, "PYTHONDONTWRITEBYTECODE", "true")
         _set_var(_env, "PYTHONWARNINGS", None, None)
+        if get_host_os() == "darwin" and get_host_architecture()[0] == Architecture.ARM:
+            _set_var(_env, "OPENSSL_armcap", None, "0x0")
         _set_var(_env, "PYTHON_MAJOR_MINOR_VERSION", self.python)
         _set_var(_env, "QUIET", self.quiet)
         _set_var(_env, "REDIS_HOST_PORT", None, REDIS_HOST_PORT)
