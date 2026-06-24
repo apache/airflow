@@ -20,7 +20,14 @@ from __future__ import annotations
 
 from airflow.providers.common.ai.toolsets.hook import HookToolset
 
-__all__ = ["HookToolset", "MCPToolset", "SQLToolset", "airflow_toolset_to_langchain_tools"]
+__all__ = [
+    "BaseDQToolset",
+    "HookToolset",
+    "MCPToolset",
+    "SQLDQToolset",
+    "SQLToolset",
+    "airflow_toolset_to_langchain_tools",
+]
 
 
 def __getattr__(name: str):
@@ -30,6 +37,18 @@ def __getattr__(name: str):
         )
 
         return airflow_toolset_to_langchain_tools
+    if name == "BaseDQToolset":
+        from airflow.providers.common.ai.toolsets.dataquality.base import BaseDQToolset
+
+        return BaseDQToolset
+    if name == "SQLDQToolset":
+        try:
+            from airflow.providers.common.ai.toolsets.dataquality.sql import SQLDQToolset
+        except ImportError as e:
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(e)
+        return SQLDQToolset
     if name == "SQLToolset":
         try:
             from airflow.providers.common.ai.toolsets.sql import SQLToolset

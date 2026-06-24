@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -36,7 +37,7 @@ _MAX_OUTPUT_LEN = 500
 
 def log_run_summary(logger: Logger | logging.Logger, result: AgentRunResult[Any]) -> None:
     """Log model name, token usage, and tool call sequence from an agent run."""
-    usage = result.usage
+    usage = result.usage() if inspect.ismethod(result.usage) else result.usage
     model_name = getattr(result.response, "model_name", "unknown")
     logger.info(
         "::group::LLM run complete: model=%s, requests=%s, tool_calls=%s, "
