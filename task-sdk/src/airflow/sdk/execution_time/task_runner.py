@@ -1888,20 +1888,21 @@ def _handle_trigger_dag_run(
     # Crash-safety for the synchronous wait: persist the triggered run id before polling so a worker
     # crash mid-wait reconnects to the in-flight run on retry instead of triggering a duplicate.
     task_state_store = context.get("task_state_store")
-    durable = (
-        drte.durable and drte.wait_for_completion and not drte.deferrable and task_state_store is not None
-    )
+    durable = drte.durable and drte.wait_for_completion and not drte.deferrable
 
     run_id = drte.dag_run_id
     reconnecting = False
-    if durable and (stored_run_id := task_state_store.get(_TRIGGERED_RUN_ID_KEY)):
-        decision = _evaluate_prior_triggered_run(stored_run_id, drte, log)
-        if decision == "succeeded":
-            ti.xcom_push(key="trigger_run_id", value=stored_run_id)
-            return _handle_current_task_success(context, ti)
-        if decision == "reconnect":
-            run_id = stored_run_id
-            reconnecting = True
+    if durable and task_state_store is not None:
+        stored_run_id = task_state_store.get(_TRIGGERED_RUN_ID_KEY)
+        if stored_run_id is not None:
+            prior_run_id = str(stored_run_id)
+            decision = _evaluate_prior_triggered_run(prior_run_id, drte, log)
+            if decision == "succeeded":
+                ti.xcom_push(key="trigger_run_id", value=prior_run_id)
+                return _handle_current_task_success(context, ti)
+            if decision == "reconnect":
+                run_id = prior_run_id
+                reconnecting = True
 
     if not reconnecting:
         log.info("Triggering Dag Run.", trigger_dag_id=drte.trigger_dag_id)
@@ -1942,7 +1943,7 @@ def _handle_trigger_dag_run(
 
         log.info("Dag Run triggered successfully.", trigger_dag_id=drte.trigger_dag_id)
 
-        if durable:
+        if durable and task_state_store is not None:
             # Persist before polling so a crash mid-wait reconnects on retry instead of resubmitting.
             task_state_store.set(_TRIGGERED_RUN_ID_KEY, run_id)
 
