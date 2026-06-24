@@ -31,7 +31,7 @@ Airflow supports designating one or more tasks as *result tasks* for a DAG. When
 Marking the result task
 =======================
 
-There are three equivalent ways to designate a result task.
+There are two equivalent ways to designate a result task.
 
 Using ``@result`` (TaskFlow)
 ----------------------------
