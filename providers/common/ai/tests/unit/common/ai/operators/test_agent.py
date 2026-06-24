@@ -557,17 +557,44 @@ class TestAgentOperatorDurable:
         op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm")
         assert op.durable is False
 
+    @patch("airflow.providers.common.ai.operators.agent.AIRFLOW_V_3_3_PLUS", True)
+    def test_build_durable_storage_uses_task_state_store_on_3_3(self):
+        """On Airflow >= 3.3 the cache lives in the task state store -- no durable_cache_path needed."""
+        from airflow.providers.common.ai.durable.task_state_store import TaskStateStoreDurableStorage
+
+        accessor = MagicMock()
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True)
+
+        storage = op._build_durable_storage({"task_state_store": accessor})
+
+        assert isinstance(storage, TaskStateStoreDurableStorage)
+        assert storage._store is accessor
+
+    @patch("airflow.providers.common.ai.operators.agent.AIRFLOW_V_3_3_PLUS", False)
+    def test_build_durable_storage_falls_back_to_object_storage_below_3_3(self):
+        """On Airflow < 3.3 the cache falls back to the ObjectStorage backend."""
+        from airflow.providers.common.ai.durable.storage import DurableStorage
+
+        ti = MagicMock(dag_id="d", task_id="t", run_id="r", map_index=-1)
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True)
+
+        storage = op._build_durable_storage({"task_instance": ti})
+
+        assert isinstance(storage, DurableStorage)
+        assert storage._cache_id == "d_t_r"
+
     @patch("pydantic_ai.models.wrapper.infer_model", side_effect=lambda m: m)
     @patch("pydantic_ai.models.infer_model", autospec=True)
-    @patch("airflow.providers.common.ai.durable.storage._get_base_path")
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator._build_durable_storage")
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_durable_wraps_model_and_cleans_up(
-        self, mock_hook_cls, mock_base_path, mock_infer, _, tmp_path
+        self, mock_hook_cls, mock_build_storage, mock_infer, _
     ):
-        """durable=True wraps model with CachingModel and cleans up on success."""
-        from airflow.sdk import ObjectStoragePath
+        """durable=True wraps the model with CachingModel and cleans up the cache on success."""
+        from airflow.providers.common.ai.durable.base import DurableStorageProtocol
 
-        mock_base_path.return_value = ObjectStoragePath(f"file://{tmp_path.as_posix()}")
+        storage = MagicMock(spec=DurableStorageProtocol)
+        mock_build_storage.return_value = storage
 
         mock_agent = MagicMock()
         mock_agent.run_sync.return_value = _make_mock_run_result("ok")
@@ -577,21 +604,15 @@ class TestAgentOperatorDurable:
         mock_agent.override.return_value.__exit__ = MagicMock(return_value=False)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
-        mock_resolved = MagicMock()
-        mock_infer.return_value = mock_resolved
-
-        context = MagicMock()
-        context.__getitem__ = MagicMock(
-            return_value=MagicMock(dag_id="d", task_id="t", run_id="r", map_index=-1)
-        )
+        mock_infer.return_value = MagicMock()
 
         op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm", durable=True)
-        result = op.execute(context=context)
+        result = op.execute(context=MagicMock())
 
         assert result == "ok"
         mock_agent.override.assert_called_once()
-        override_kwargs = mock_agent.override.call_args[1]
-        assert "model" in override_kwargs
+        assert "model" in mock_agent.override.call_args[1]
+        storage.cleanup.assert_called_once()
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_non_durable_does_not_wrap(self, mock_hook_cls):
@@ -733,15 +754,13 @@ class TestAgentOperatorMessageHistory:
 
     @patch("pydantic_ai.models.wrapper.infer_model", side_effect=lambda m: m)
     @patch("pydantic_ai.models.infer_model", autospec=True)
-    @patch("airflow.providers.common.ai.durable.storage._get_base_path")
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator._build_durable_storage")
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_durable_path_also_seeds_message_history(
-        self, mock_hook_cls, mock_base_path, mock_infer, _, tmp_path
-    ):
+    def test_durable_path_also_seeds_message_history(self, mock_hook_cls, mock_build_storage, mock_infer, _):
         """The durable branch forwards message_history into the cached run too."""
-        from airflow.sdk import ObjectStoragePath
+        from airflow.providers.common.ai.durable.base import DurableStorageProtocol
 
-        mock_base_path.return_value = ObjectStoragePath(f"file://{tmp_path.as_posix()}")
+        mock_build_storage.return_value = MagicMock(spec=DurableStorageProtocol)
 
         mock_agent = MagicMock(spec=["run_sync", "model", "override"])
         mock_agent.run_sync.return_value = _make_mock_run_result("ok")
@@ -751,16 +770,11 @@ class TestAgentOperatorMessageHistory:
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         mock_infer.return_value = MagicMock()
 
-        context = MagicMock()
-        context.__getitem__ = MagicMock(
-            return_value=MagicMock(dag_id="d", task_id="t", run_id="r", map_index=-1)
-        )
-
         history_json = ModelMessagesTypeAdapter.dump_json(_sample_history()).decode()
         op = AgentOperator(
             task_id="test", prompt="test", llm_conn_id="my_llm", durable=True, message_history=history_json
         )
-        op.execute(context=context)
+        op.execute(context=MagicMock())
 
         passed = mock_agent.run_sync.call_args.kwargs["message_history"]
         assert len(passed) == 2
