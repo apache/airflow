@@ -223,7 +223,7 @@ scoped to the task instance. No configuration is required; the store handles
 persistence across retries.
 
 By default each cached step is written to the Airflow metadata database. Model
-responses and large tool results can be sizeable, so for agents with large
+responses and large tool results can be sizable, so for agents with large
 payloads configure ``[workers] state_store_backend`` to offload step values to
 external storage (e.g. object storage) instead of the metadata database; the
 provider then stores only a reference in the database.
