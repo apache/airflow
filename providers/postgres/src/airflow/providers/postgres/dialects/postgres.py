@@ -106,9 +106,11 @@ class PostgresDialect(Dialect):
         :param table: Name of the target table
         :param values: The row to insert into the table
         :param target_fields: The names of the columns to fill in the table
-        :param replace: Whether to replace instead of insert
         :param replace_index: the column or list of column names to act as
             index for the ON CONFLICT clause
+        :param replace_target: Column name or list of column names to update when
+            a conflict occurs. If omitted, all non-conflict columns are updated.
+            If an empty list is provided, ``DO NOTHING`` is used.
         :return: The generated INSERT or REPLACE SQL statement
         """
         if not target_fields:
@@ -124,7 +126,13 @@ class PostgresDialect(Dialect):
 
         sql = self.generate_insert_sql(table, values, target_fields, **kwargs)
         on_conflict_str = f" ON CONFLICT ({', '.join(map(self.escape_word, replace_index))})"
-        replace_target = [self.escape_word(f) for f in target_fields if f not in replace_index]
+
+        replace_target = kwargs.get("replace_target")
+
+        if replace_target is None:
+            replace_target = [self.escape_word(f) for f in target_fields if f not in replace_index]
+        else:
+            replace_target = [self.escape_word(f) for f in replace_target]
 
         if replace_target:
             replace_target_str = ", ".join(f"{col} = excluded.{col}" for col in replace_target)

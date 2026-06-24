@@ -106,6 +106,34 @@ func TestTaskRunnerFailure(t *testing.T) {
 	assert.Equal(t, "failed", result["state"])
 }
 
+func TestTaskRunnerRetry(t *testing.T) {
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTask(failingTask)
+	})
+
+	details := &StartupDetails{
+		TI: TaskInstanceInfo{
+			ID:       "550e8400-e29b-41d4-a716-446655440000",
+			DagID:    "test_dag",
+			TaskID:   "failingTask",
+			RunID:    "run1",
+			MapIndex: -1,
+		},
+		BundleInfo: BundleInfoMsg{Name: "test", Version: "1.0"},
+		TIContext: TIRunContext{
+			ShouldRetry: true,
+			MaxTries:    3,
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assert.Equal(t, "RetryTask", result["type"])
+	assert.Equal(t, "task failed intentionally", result["retry_reason"])
+}
+
 func TestTaskRunnerTaskNotFound(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTask(simpleTask)
@@ -151,6 +179,34 @@ func TestTaskRunnerPanic(t *testing.T) {
 	result := RunTask(context.Background(), bundle, details, comm, logger)
 	assert.Equal(t, "TaskState", result["type"])
 	assert.Equal(t, "failed", result["state"])
+}
+
+func TestTaskRunnerPanicRetry(t *testing.T) {
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTask(panicTask)
+	})
+
+	details := &StartupDetails{
+		TI: TaskInstanceInfo{
+			ID:       "550e8400-e29b-41d4-a716-446655440000",
+			DagID:    "test_dag",
+			TaskID:   "panicTask",
+			RunID:    "run1",
+			MapIndex: -1,
+		},
+		BundleInfo: BundleInfoMsg{Name: "test", Version: "1.0"},
+		TIContext: TIRunContext{
+			ShouldRetry: true,
+			MaxTries:    3,
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assert.Equal(t, "RetryTask", result["type"])
+	assert.Contains(t, result["retry_reason"], "panic: something went wrong")
 }
 
 func TestRunTaskHonorsContextCancellation(t *testing.T) {

@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+5.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Reduce SSH connection churn in 'SSHRemoteJobOperator' under high fan-out (#68115)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky SSH test_command_timeout_fail on loaded CI runners (#67829)``
+
 5.0.2
 .....
 

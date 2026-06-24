@@ -404,9 +404,7 @@ As mentioned in :ref:`Fetching information from previously emitted asset events<
             events = inlet_events[AssetAlias("example-alias")]
             last_row_count = events[-1].extra["row_count"]
 
-.. _asset_access_control:
-
-Cross-team asset event filtering with ``access_control``
+Cross-team asset event filtering with ``producer_teams``
 --------------------------------------------------------
 
 .. versionadded:: 3.3.0
@@ -441,9 +439,12 @@ The ``AssetAccessControl`` class accepts the following parameters:
 
 - **producer_teams** (``list[str]``, default ``[]``): List of team names allowed to produce events
   consumed by this asset's consumers, in addition to the consumer's own team.
-- **allow_global** (``bool``, default ``True``): Whether teamless (global) Dag producers can trigger
-  consumers of this asset. When set to ``False``, only Dags with an explicit team association
-  (same team or listed in ``producer_teams``) can trigger consumers.
+- **consumer_teams** (``list[str] | None``, default ``None``): List of team names allowed to consume
+  events produced by this asset's producers. See
+  :ref:`Cross-team asset event filtering with consumer_teams <asset_consumer_teams>`.
+- **allow_global** (``bool``, default ``True``): Whether teamless (global) Dags can participate in
+  cross-team event delivery. See :doc:`/core-concepts/multi-team` for the full semantics on both
+  consumer-side and producer-side assets.
 
 Blocking global producers
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -476,8 +477,9 @@ Default behavior
 ~~~~~~~~~~~~~~~~
 
 When ``access_control`` is not specified, a default ``AssetAccessControl()`` is used (empty
-``producer_teams`` and ``allow_global=True``). The rules depend on whether the producer and consumer
-have a team association:
+``producer_teams``, ``consumer_teams=None``, and ``allow_global=True``). See
+:doc:`/core-concepts/multi-team` for the complete behavioral rules table. In summary, the rules
+depend on whether the producer and consumer have a team association:
 
 - **Both have the same team**: The event is always delivered.
 - **Producer has a team, consumer has a different team**: The event is blocked (unless the
@@ -629,7 +631,19 @@ partition match can be produced, so the downstream Dag is not triggered for
 that key.
 
 Inside partitioned Dag runs, access the resolved partition through
-``dag_run.partition_key``.
+``dag_run.partition_key``. When the consumer's partition mapper can
+resolve the key to a ``datetime``, that value is also available as
+``dag_run.partition_date``, so templates can use
+``{{ partition_date | ds }}``. This covers the ``StartOf*Mapper`` family
+(which decode the key directly), ``IdentityMapper`` (which carries the
+producer's ``partition_date`` through), and composite mappers —
+``RollupMapper``, ``ChainMapper`` and ``FanOutMapper`` — whose effective
+child mapper is temporal (they delegate the anchor to that child).
+Mappers whose key carries no temporal meaning (``ProductMapper``,
+``AllowedKeyMapper`` and custom mappers that do not implement
+``to_partition_date``) leave ``partition_date`` ``None`` even when the
+resulting key is date-shaped, so those consumers should keep parsing
+``partition_key``.
 
 You can also trigger a DagRun manually with a partition key (for example,
 through the Trigger Dag window in the UI, or through the REST API by

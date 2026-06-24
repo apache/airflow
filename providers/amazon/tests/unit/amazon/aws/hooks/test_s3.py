@@ -35,7 +35,7 @@ from moto import mock_aws
 
 from airflow.models import Connection
 from airflow.providers.amazon.aws.assets.s3 import Asset
-from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
+from airflow.providers.amazon.aws.exceptions import S3HookPathTraversalError, S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.s3 import (
     NO_ACL,
     S3Hook,
@@ -1975,6 +1975,17 @@ class TestAwsS3Hook:
         assert "S3 object last modified" in logs_string
         assert "local file last modified" in logs_string
         assert "Downloaded dag_04.py to" in logs_string
+
+    def test_sync_to_local_dir_rejects_key_path_traversal(self, s3_bucket, s3_client, tmp_path):
+        s3_client.put_object(Bucket=s3_bucket, Key="dags/../../outside.py", Body=b"test data")
+
+        sync_local_dir = tmp_path / "s3_sync_dir"
+        hook = S3Hook()
+
+        with pytest.raises(S3HookPathTraversalError, match="resolves outside local directory"):
+            hook.sync_to_local_dir(bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="dags/")
+
+        assert not (tmp_path / "outside.py").exists()
 
 
 @pytest.mark.parametrize(

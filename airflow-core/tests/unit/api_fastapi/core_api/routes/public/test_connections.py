@@ -1984,6 +1984,40 @@ class TestBulkConnections(TestConnectionEndpoint):
         expected_error_conn_ids = {err["input"]["connection_id"] for err in detail}
         assert sorted(expected_error_conn_ids) == ["test_conn_id_2", "test_conn_id_3"]
 
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_bulk_create_overwrite_preserves_unset_team_name(self, test_client, testing_team, session):
+        """A bulk create+overwrite that omits ``team_name`` must NOT reset an existing connection's
+        ``team_name`` to ``None`` (parity with the pools fix). Overwriting with only ``conn_type``
+        previously clobbered every unset field via ``model_dump(by_alias=True)`` — silently nulling
+        the connection's multi-team ownership. ``exclude_unset=True`` preserves omitted fields.
+        """
+        self.create_connection(team_name=testing_team.name)
+        before = session.scalar(select(Connection).where(Connection.conn_id == TEST_CONN_ID))
+        assert before.team_name == testing_team.name
+
+        response = test_client.patch(
+            "/connections",
+            json={
+                "actions": [
+                    {
+                        "action": "create",
+                        "action_on_existence": "overwrite",
+                        "entities": [{"connection_id": TEST_CONN_ID, "conn_type": "new_type"}],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["create"]["success"] == [TEST_CONN_ID]
+
+        session.expire_all()
+        after = session.scalar(select(Connection).where(Connection.conn_id == TEST_CONN_ID))
+        assert after.conn_type == "new_type"  # provided field is applied
+        assert after.team_name == testing_team.name, (
+            "bulk overwrite that omitted team_name must preserve existing ownership, "
+            f"got team_name={after.team_name!r}"
+        )
+
 
 class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):
     def test_post_should_accept_empty_string_as_extra(self, test_client, session):
