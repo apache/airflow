@@ -309,6 +309,7 @@ class DagRunTriggerException(AirflowException):
         failed_states: list[str],
         poke_interval: int,
         deferrable: bool,
+        durable: bool = False,
         note: str | None = None,
     ):
         super().__init__()
@@ -324,6 +325,7 @@ class DagRunTriggerException(AirflowException):
         self.failed_states = failed_states
         self.poke_interval = poke_interval
         self.deferrable = deferrable
+        self.durable = durable
         self.note = note
 
 

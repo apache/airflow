@@ -5058,6 +5058,19 @@ class TestTaskRunnerCallsCallbacks:
         assert log.exception.mock_calls == expected_exception_logs
 
 
+class _FakeTaskStateStore:
+    """Minimal in-memory task_state_store stub for durable TriggerDagRunOperator tests."""
+
+    def __init__(self, initial: dict | None = None):
+        self._store = dict(initial or {})
+
+    def get(self, key, default=None):
+        return self._store.get(key, default)
+
+    def set(self, key, value, *, retention=None):
+        self._store[key] = value
+
+
 class TestTriggerDagRunOperator:
     """Tests to verify various aspects of TriggerDagRunOperator"""
 
@@ -5326,6 +5339,172 @@ class TestTriggerDagRunOperator:
             state, _, _ = run(ti, ti.get_template_context(), log)
 
         assert state == TaskInstanceState.UP_FOR_RETRY
+
+    def test_handle_trigger_dag_run_persists_run_id_before_polling(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """A durable synchronous wait persists the triggered run id before it starts polling."""
+        from airflow.sdk.execution_time.task_runner import _TRIGGERED_RUN_ID_KEY
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="fresh_run_id",
+            poke_interval=5,
+            wait_for_completion=True,
+            deferrable=False,
+            durable=True,
+        )
+        ti = create_runtime_ti(dag_id="test_persist", run_id="test_run", task=task)
+        store = _FakeTaskStateStore()
+        context = ti.get_template_context()
+        context["task_state_store"] = store
+
+        persisted_at_first_poll = {}
+
+        def _send(*args, **kwargs):
+            msg = kwargs.get("msg") or (args[0] if args else None)
+            if isinstance(msg, TriggerDagRun):
+                return OKResponse(ok=True)
+            if isinstance(msg, GetDagRunState):
+                persisted_at_first_poll.setdefault("value", store.get(_TRIGGERED_RUN_ID_KEY))
+                return DagRunStateResult(state=DagRunState.SUCCESS)
+            return None
+
+        mock_supervisor_comms.send.side_effect = _send
+        log = mock.MagicMock()
+        with mock.patch("time.sleep", return_value=None):
+            state, _, _ = run(ti, context, log)
+
+        assert state == TaskInstanceState.SUCCESS
+        assert store.get(_TRIGGERED_RUN_ID_KEY) == "fresh_run_id"
+        # the id must already be persisted by the time the first poll runs, so a crash mid-wait reconnects
+        assert persisted_at_first_poll["value"] == "fresh_run_id"
+
+    def test_handle_trigger_dag_run_reconnects_to_running_prior_run(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """On retry, a still-running run triggered on a prior attempt is resumed, not re-triggered."""
+        from airflow.sdk.execution_time.task_runner import _TRIGGERED_RUN_ID_KEY
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="new_run_id",
+            poke_interval=5,
+            wait_for_completion=True,
+            deferrable=False,
+            durable=True,
+        )
+        ti = create_runtime_ti(dag_id="test_reconnect", run_id="test_run", task=task)
+        store = _FakeTaskStateStore({_TRIGGERED_RUN_ID_KEY: "prior_run_id"})
+        context = ti.get_template_context()
+        context["task_state_store"] = store
+
+        poll_states = iter([DagRunState.RUNNING, DagRunState.SUCCESS])
+        triggered, polls = [], []
+
+        def _send(*args, **kwargs):
+            msg = kwargs.get("msg") or (args[0] if args else None)
+            if isinstance(msg, TriggerDagRun):
+                triggered.append(msg)
+                return OKResponse(ok=True)
+            if isinstance(msg, GetDagRunState):
+                polls.append(msg)
+                return DagRunStateResult(state=next(poll_states))
+            return None
+
+        mock_supervisor_comms.send.side_effect = _send
+        log = mock.MagicMock()
+        with mock.patch("time.sleep", return_value=None):
+            state, _, _ = run(ti, context, log)
+
+        assert state == TaskInstanceState.SUCCESS
+        assert triggered == []  # reconnected — never resubmitted
+        assert all(m.run_id == "prior_run_id" for m in polls)  # polled the prior run, not the new run_id
+
+    def test_handle_trigger_dag_run_returns_success_for_already_succeeded_prior_run(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """On retry, a prior run that already succeeded short-circuits to success without re-triggering."""
+        from airflow.sdk.execution_time.task_runner import _TRIGGERED_RUN_ID_KEY
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="new_run_id",
+            poke_interval=5,
+            wait_for_completion=True,
+            deferrable=False,
+            durable=True,
+        )
+        ti = create_runtime_ti(dag_id="test_already_succeeded", run_id="test_run", task=task)
+        store = _FakeTaskStateStore({_TRIGGERED_RUN_ID_KEY: "prior_run_id"})
+        context = ti.get_template_context()
+        context["task_state_store"] = store
+
+        triggered, polls = [], []
+
+        def _send(*args, **kwargs):
+            msg = kwargs.get("msg") or (args[0] if args else None)
+            if isinstance(msg, TriggerDagRun):
+                triggered.append(msg)
+                return OKResponse(ok=True)
+            if isinstance(msg, GetDagRunState):
+                polls.append(msg)
+                return DagRunStateResult(state=DagRunState.SUCCESS)
+            return None
+
+        mock_supervisor_comms.send.side_effect = _send
+        log = mock.MagicMock()
+        state, _, _ = run(ti, context, log)
+
+        assert state == TaskInstanceState.SUCCESS
+        assert triggered == []  # never resubmitted
+        assert len(polls) == 1  # only the resume check, no poll loop
+        assert polls[0].run_id == "prior_run_id"
+
+    def test_handle_trigger_dag_run_resubmits_after_failed_prior_run(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """On retry, a prior run in a failed state triggers a fresh run rather than reconnecting."""
+        from airflow.sdk.execution_time.task_runner import _TRIGGERED_RUN_ID_KEY
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="fresh_run_id",
+            poke_interval=5,
+            wait_for_completion=True,
+            deferrable=False,
+            durable=True,
+        )
+        ti = create_runtime_ti(dag_id="test_resubmit", run_id="test_run", task=task)
+        store = _FakeTaskStateStore({_TRIGGERED_RUN_ID_KEY: "dead_run_id"})
+        context = ti.get_template_context()
+        context["task_state_store"] = store
+
+        poll_states = iter([DagRunState.FAILED, DagRunState.SUCCESS])
+        triggered = []
+
+        def _send(*args, **kwargs):
+            msg = kwargs.get("msg") or (args[0] if args else None)
+            if isinstance(msg, TriggerDagRun):
+                triggered.append(msg)
+                return OKResponse(ok=True)
+            if isinstance(msg, GetDagRunState):
+                return DagRunStateResult(state=next(poll_states))
+            return None
+
+        mock_supervisor_comms.send.side_effect = _send
+        log = mock.MagicMock()
+        with mock.patch("time.sleep", return_value=None):
+            state, _, _ = run(ti, context, log)
+
+        assert state == TaskInstanceState.SUCCESS
+        assert len(triggered) == 1  # a fresh run was triggered after the prior one failed
+        assert triggered[0].run_id == "fresh_run_id"
+        assert store.get(_TRIGGERED_RUN_ID_KEY) == "fresh_run_id"  # store overwritten with the new run
 
     def test_handle_trigger_dag_run_wait_for_completion_failed_state_retry_policy_fail(
         self, create_runtime_ti, mock_supervisor_comms
