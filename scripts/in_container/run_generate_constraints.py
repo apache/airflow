@@ -18,9 +18,19 @@
 from __future__ import annotations
 
 import ast
+import io
 import json
 import os
+import re
 import sys
+import tarfile
+import tempfile
+import time
+import urllib.error
+import urllib.request
+import zipfile
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property
@@ -125,6 +135,27 @@ PYPI_PROVIDERS_CONSTRAINTS_PREFIX = f"""
 #    used, and apache-airflow==X.Y.Z is used to make sure there is no accidental airflow upgrade/downgrade.
 #
 # pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]=N.M.O"
+#
+"""
+
+BUILD_CONSTRAINTS_PREFIX = f"""
+#
+# This build constraints file was automatically generated on {now}
+# for the "{DEFAULT_BRANCH}" branch of Airflow.
+#
+# Build constraints pin the versions of PEP 517 build-time dependencies
+# (setuptools, hatchling, maturin, etc.) used during package installation
+# from source distributions (sdists).
+#
+# Usage with uv:
+#   uv pip install apache-airflow \\
+#     --constraint constraints-{PYTHON_VERSION}.txt \\
+#     --build-constraints build-constraints-{PYTHON_VERSION}.txt
+#
+# Usage with pip (>= 25.3):
+#   pip install apache-airflow \\
+#     --constraint constraints-{PYTHON_VERSION}.txt \\
+#     --build-constraint build-constraints-{PYTHON_VERSION}.txt
 #
 """
 
@@ -469,6 +500,354 @@ def generate_constraints_no_providers(config_params: ConfigParams) -> None:
     diff_constraints(config_params)
 
 
+@dataclass
+class _LockPackage:
+    name: str
+    version: str
+    sdist_url: str | None
+    has_universal_wheel: bool
+
+
+def _normalize_package_name(name: str) -> str:
+    """Normalize a package name according to PEP 503."""
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def _extract_package_name(requirement: str) -> str:
+    """Extract and normalize a package name from a PEP 508 requirement."""
+    match = re.match(r"^([A-Za-z0-9][-A-Za-z0-9_.]*)", requirement.strip())
+    if match:
+        return _normalize_package_name(match.group(1))
+    return _normalize_package_name(requirement.strip())
+
+
+def _collect_workspace_build_reqs(workspace_root: Path) -> dict[str, set[str]]:
+    """Collect build-system.requires from authoritative workspace pyproject.toml files."""
+    skip_dirs = {
+        ".git",
+        ".venv",
+        "node_modules",
+        "__pycache__",
+        ".tox",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".build",
+        "dist",
+        "files",
+    }
+    build_reqs: dict[str, set[str]] = {}
+    for pyproject_path in sorted(workspace_root.glob("**/pyproject.toml")):
+        if any(part in skip_dirs for part in pyproject_path.parts):
+            continue
+        try:
+            with pyproject_path.open("rb") as file:
+                data = tomllib.load(file)
+            for requirement in data.get("build-system", {}).get("requires", []):
+                name = _extract_package_name(requirement)
+                build_reqs.setdefault(name, set()).add(requirement)
+        except Exception as error:
+            console.print(f"[yellow]Warning: failed to parse {pyproject_path}: {error}")
+    return build_reqs
+
+
+def _parse_uv_lock(uv_lock_path: Path) -> list[_LockPackage]:
+    """Parse package metadata needed to decide which locked sdists to scan."""
+    with uv_lock_path.open("rb") as file:
+        lock_data = tomllib.load(file)
+
+    packages: list[_LockPackage] = []
+    for package in lock_data.get("package", []):
+        sdist = package.get("sdist", {})
+        wheels = package.get("wheels", [])
+        packages.append(
+            _LockPackage(
+                name=package.get("name", ""),
+                version=package.get("version", ""),
+                sdist_url=sdist.get("url") if isinstance(sdist, dict) else None,
+                has_universal_wheel=any("none-any" in wheel.get("url", "") for wheel in wheels),
+            )
+        )
+    return packages
+
+
+def _extract_build_reqs_from_tar(sdist_url: str) -> list[str]:
+    """Read build requirements from the top-level pyproject.toml in a tar.gz sdist."""
+    request = urllib.request.Request(sdist_url)
+    with urllib.request.urlopen(request, timeout=120) as response:
+        with tarfile.open(fileobj=response, mode="r|gz") as archive:
+            for index, member in enumerate(archive):
+                if index > 10000:
+                    break
+                if member.name.count("/") == 1 and member.name.endswith("/pyproject.toml"):
+                    extracted = archive.extractfile(member)
+                    if extracted:
+                        data = tomllib.loads(extracted.read().decode())
+                        return data.get("build-system", {}).get("requires", [])
+    return []
+
+
+def _extract_build_reqs_from_zip(sdist_url: str) -> list[str]:
+    """Read build requirements from the top-level pyproject.toml in a zip sdist."""
+    request = urllib.request.Request(sdist_url)
+    with urllib.request.urlopen(request, timeout=120) as response:
+        with zipfile.ZipFile(io.BytesIO(response.read())) as archive:
+            for name in archive.namelist():
+                if name.count("/") == 1 and name.endswith("/pyproject.toml"):
+                    data = tomllib.loads(archive.read(name).decode())
+                    return data.get("build-system", {}).get("requires", [])
+    return []
+
+
+def _is_transient_download_error(error: BaseException) -> bool:
+    if isinstance(error, urllib.error.HTTPError):
+        return error.code in {408, 425, 429, 500, 502, 503, 504}
+    return isinstance(error, (ConnectionError, TimeoutError, urllib.error.URLError))
+
+
+def _stream_build_reqs_from_sdist(
+    sdist_url: str,
+    *,
+    attempts: int = 3,
+    sleep: Callable[[float], None] = time.sleep,
+) -> list[str]:
+    """Download an sdist and extract its build requirements with bounded retry."""
+    extract = _extract_build_reqs_from_zip if sdist_url.endswith(".zip") else _extract_build_reqs_from_tar
+    for attempt in range(1, attempts + 1):
+        try:
+            return extract(sdist_url)
+        except Exception as error:
+            if not _is_transient_download_error(error) or attempt == attempts:
+                raise
+            delay = 2 ** (attempt - 1)
+            console.print(
+                f"[yellow]Transient error downloading {sdist_url} "
+                f"(attempt {attempt}/{attempts}): {error}; retrying in {delay}s"
+            )
+            sleep(delay)
+    raise RuntimeError(f"Failed to scan {sdist_url} after {attempts} attempts")
+
+
+def _collect_upstream_build_reqs(
+    uv_lock_path: Path,
+    cache_path: Path,
+    max_workers: int = 10,
+) -> dict[str, set[str]]:
+    """Scan locked packages without universal wheels and cache successful results."""
+    cache: dict[str, list[str]] = {}
+    if cache_path.exists():
+        try:
+            cache = json.loads(cache_path.read_text())
+        except Exception as error:
+            console.print(
+                f"[yellow]Warning: build-constraints cache at {cache_path} is "
+                f"corrupted ({error}); discarding cache — this run will rescan all packages (slow)."
+            )
+
+    packages = _parse_uv_lock(uv_lock_path)
+    current_keys = {
+        f"{package.name}=={package.version}"
+        for package in packages
+        if not package.has_universal_wheel and package.sdist_url
+    }
+    targets = [
+        package
+        for package in packages
+        if not package.has_universal_wheel
+        and package.sdist_url
+        and f"{package.name}=={package.version}" not in cache
+    ]
+
+    cache_dirty = False
+    failed: list[str] = []
+    if targets:
+        console.print(
+            f"[bright_blue]Scanning {len(targets)} package sdists for build dependencies "
+            f"({len(cache)} cached)..."
+        )
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = {
+                pool.submit(_stream_build_reqs_from_sdist, package.sdist_url): package
+                for package in targets
+                if package.sdist_url
+            }
+            for future in as_completed(futures):
+                package = futures[future]
+                key = f"{package.name}=={package.version}"
+                try:
+                    requirements = future.result()
+                    if requirements:
+                        cache[key] = requirements
+                    else:
+                        console.print(
+                            f"[yellow]Warning: no pyproject.toml in {key}, assuming setuptools and wheel"
+                        )
+                        cache[key] = ["setuptools", "wheel"]
+                    cache_dirty = True
+                except Exception as error:
+                    console.print(f"[red]Error scanning {key} ({package.sdist_url}): {error}")
+                    failed.append(f"{key}: {error}")
+
+        if cache_dirty:
+            cache_path.write_text(json.dumps(cache, indent=2, sort_keys=True))
+            console.print(f"[green]Build dependency cache updated: {len(cache)} entries")
+
+        if failed:
+            raise RuntimeError(
+                f"Failed to scan build dependencies for {len(failed)} package(s):\n"
+                + "\n".join(f"  - {message}" for message in failed)
+            )
+
+    all_reqs: dict[str, set[str]] = {}
+    for key in current_keys:
+        for requirement in cache.get(key, []):
+            name = _extract_package_name(requirement)
+            all_reqs.setdefault(name, set()).add(requirement)
+    return all_reqs
+
+
+def _is_exact_pin(requirement: str) -> bool:
+    """Return whether a requirement is one exact version pin."""
+    requirement_without_marker = requirement.split(";")[0].strip()
+    return bool(
+        re.match(
+            r"^[A-Za-z0-9][-A-Za-z0-9_.]*\s*==\s*[^\*!=,]+$",
+            requirement_without_marker,
+        )
+    )
+
+
+def _find_conflicting_build_requirement(stderr: str, known_names: set[str]) -> str | None:
+    candidate_pattern = re.compile(
+        r"\b([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[[^\]]+\])?\s*(?:\{[^}]+\})?\s*[<>=!~]"
+    )
+    candidates = [_normalize_package_name(name) for name in candidate_pattern.findall(stderr)]
+    for normalized_name in candidates:
+        if normalized_name in known_names and candidates.count(normalized_name) >= 2:
+            return normalized_name
+    return None
+
+
+def _resolve_build_requirements(
+    build_reqs: dict[str, set[str]],
+    output_path: Path,
+    config_params: ConfigParams,
+) -> None:
+    """Resolve ranged build requirements to pinned versions with uv pip compile."""
+    lines_by_name: dict[str, set[str]] = {}
+    for name, requirements in build_reqs.items():
+        for requirement in requirements:
+            if not _is_exact_pin(requirement):
+                lines_by_name.setdefault(name, set()).add(requirement)
+
+    if not lines_by_name:
+        console.print("[yellow]Warning: no range-specifier build requirements to resolve")
+        output_path.write_text("")
+        return
+
+    skipped: list[str] = []
+    max_attempts = 10
+    for attempt in range(1, max_attempts + 1):
+        all_lines = sorted(
+            {requirement for requirements in lines_by_name.values() for requirement in requirements}
+        )
+        file_descriptor, tmp_reqs_path = tempfile.mkstemp(prefix="build-reqs-", suffix=".txt")
+        try:
+            Path(tmp_reqs_path).write_text("\n".join(all_lines) + "\n")
+            os.close(file_descriptor)
+            result = run_command(
+                [
+                    "uv",
+                    "pip",
+                    "compile",
+                    tmp_reqs_path,
+                    "--no-config",
+                    "--python-version",
+                    config_params.python,
+                    "--resolution",
+                    "highest",
+                    "--upgrade",
+                    "--no-python-downloads",
+                    "--no-annotate",
+                    "--no-header",
+                    "-o",
+                    output_path.as_posix(),
+                ],
+                github_actions=config_params.github_actions,
+                cwd=AIRFLOW_ROOT_PATH,
+                check=False,
+                text=True,
+                capture_output=True,
+            )
+        finally:
+            Path(tmp_reqs_path).unlink(missing_ok=True)
+
+        if result.returncode == 0:
+            break
+
+        stderr = result.stderr or ""
+        known_names = set(lines_by_name)
+        conflict_name = _find_conflicting_build_requirement(stderr, known_names)
+        if conflict_name:
+            console.print(
+                f"[yellow]Warning: conflicting build requirements for '{conflict_name}' — "
+                "removing from build constraints; package build isolation will resolve it independently"
+            )
+            del lines_by_name[conflict_name]
+            skipped.append(conflict_name)
+            continue
+
+        extracted_names = sorted(
+            {
+                _normalize_package_name(name)
+                for name in re.findall(
+                    r"\b([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[[^\]]+\])?\s*(?:\{[^}]+\})?\s*[<>=!~]",
+                    stderr,
+                )
+            }
+        )
+        if extracted_names:
+            console.print(
+                f"[yellow]Warning: uv stderr referenced {extracted_names}, but none matched "
+                f"known build dependencies {sorted(known_names)}"
+            )
+        else:
+            console.print(
+                "[yellow]Warning: uv stderr contained no classifiable build dependency; "
+                "the diagnostic format may have changed"
+            )
+        console.print(f"[red]{stderr}")
+        raise RuntimeError(f"uv pip compile failed (attempt {attempt}): {stderr}")
+    else:
+        raise RuntimeError(f"uv pip compile failed after {max_attempts} attempts. Skipped: {sorted(skipped)}")
+
+    if skipped:
+        console.print(f"[yellow]Skipped {len(skipped)} conflicting build deps: {sorted(skipped)}")
+
+
+def generate_build_constraints(config_params: ConfigParams) -> None:
+    """Generate one pinned build constraints file for the selected Python version."""
+    console.print("[bright_blue]Generating build constraints...")
+    workspace_reqs = _collect_workspace_build_reqs(AIRFLOW_ROOT_PATH)
+    console.print(f"[bright_blue]Workspace build deps ({len(workspace_reqs)}): {sorted(workspace_reqs)}")
+    upstream_reqs = _collect_upstream_build_reqs(
+        uv_lock_path=AIRFLOW_ROOT_PATH / "uv.lock",
+        cache_path=config_params.constraints_dir / "build-deps-cache.json",
+    )
+    console.print(f"[bright_blue]Upstream build deps ({len(upstream_reqs)}): {sorted(upstream_reqs)}")
+
+    all_reqs: dict[str, set[str]] = {}
+    for requirements in (workspace_reqs, upstream_reqs):
+        for name, specifiers in requirements.items():
+            all_reqs.setdefault(name, set()).update(specifiers)
+
+    console.print(f"[bright_blue]Total unique build deps to resolve: {len(all_reqs)}")
+    output_path = config_params.constraints_dir / f"build-constraints-{config_params.python}.txt"
+    _resolve_build_requirements(all_reqs, output_path, config_params)
+    pinned_content = output_path.read_text()
+    output_path.write_text(BUILD_CONSTRAINTS_PREFIX + pinned_content)
+    console.print(f"[green]Build constraints generated: {output_path}")
+
+
 ALLOWED_CONSTRAINTS_MODES = ["constraints", "constraints-source-providers", "constraints-no-providers"]
 
 
@@ -538,6 +917,7 @@ def generate_constraints(
     else:
         console.print(f"[red]Unknown constraints mode: {airflow_constraints_mode}")
         sys.exit(1)
+    generate_build_constraints(config_params)
     console.print("[green]Generated constraints:")
     files = config_params.constraints_dir.rglob("*.txt")
     for file in files:

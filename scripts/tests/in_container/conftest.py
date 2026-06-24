@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,22 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-cp -v ./files/constraints-*/{constraints,build-constraints}*.txt constraints/
-cd constraints || exit 1
-git add -- 'constraints-*.txt' 'build-constraints-*.txt'
+from __future__ import annotations
 
-set +e
-git diff --cached --color --exit-code --ignore-matching-lines="^#.*"
-diff_status=$?
-set -e
+from pathlib import Path
 
-git reset HEAD -- . > /dev/null 2>&1
-
-if [[ ${diff_status} -eq 0 ]]; then
-    echo "No changes in constraints"
-elif [[ ${diff_status} -eq 1 ]]; then
-    echo "Changes detected in constraints, proceeding..."
-else
-    echo "Failed to diff constraints"
-    exit "${diff_status}"
-fi
+# This file is generated only during image builds, but the module reads it at import time.
+_generated_dir = Path(__file__).resolve().parents[3] / "generated"
+_provider_dependencies_file = _generated_dir / "provider_dependencies.json"
+if not _provider_dependencies_file.exists():
+    _generated_dir.mkdir(parents=True, exist_ok=True)
+    _provider_dependencies_file.write_text("{}")
