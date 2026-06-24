@@ -60,7 +60,15 @@ from airflow.partition_mappers.temporal import StartOfDayMapper
 from airflow.partition_mappers.window import DayWindow
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
-from airflow.sdk import DAG, Asset, AssetAlias, AssetAll, AssetWatcher
+from airflow.sdk import (
+    DAG,
+    Asset,
+    AssetAlias,
+    AssetAll,
+    AssetAndTimeSchedule,
+    AssetWatcher,
+    CronTriggerTimetable,
+)
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.encoders import encode_trigger, ensure_serialized_asset
@@ -863,6 +871,31 @@ class TestUpdateDagParsingResults:
 
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
         assert dag_model.last_parse_duration == parse_duration
+
+    def test_timetable_asset_gated_written_to_db_on_sync(self, testing_dag_bundle, session):
+        asset = Asset("test")
+        gated_dag = DAG(
+            dag_id="asset_gated",
+            schedule=AssetAndTimeSchedule(
+                timetable=CronTriggerTimetable("@daily", timezone="UTC"),
+                assets=asset,
+            ),
+            catchup=False,
+        )
+        regular_dag = DAG(dag_id="regular", schedule=None)
+
+        update_dag_parsing_results_in_db(
+            "testing",
+            None,
+            [LazyDeserializedDAG.from_dag(gated_dag), LazyDeserializedDAG.from_dag(regular_dag)],
+            {},
+            None,
+            set(),
+            session,
+        )
+
+        assert session.get(DagModel, gated_dag.dag_id).timetable_asset_gated is True
+        assert session.get(DagModel, regular_dag.dag_id).timetable_asset_gated is False
 
     @patch.object(ParseImportError, "full_file_path")
     @patch.object(SerializedDagModel, "write_dag")

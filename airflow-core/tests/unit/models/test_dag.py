@@ -58,6 +58,7 @@ from airflow.models.dag import (
     get_asset_triggered_next_run_info,
     get_next_data_interval,
     get_run_data_interval,
+    infer_automated_data_interval,
 )
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
@@ -166,6 +167,17 @@ TEST_DAGS_FOLDER = Path(__file__).parents[1] / "dags"
 def test_dags_bundle(configure_testing_dag_bundle):
     with configure_testing_dag_bundle(TEST_DAGS_FOLDER):
         yield
+
+
+def test_infer_automated_data_interval_uses_asset_triggered_behavior():
+    class CustomAssetTriggeredTimetable(Timetable):
+        asset_triggered = True
+
+    logical_date = timezone.datetime(2026, 6, 21)
+
+    assert infer_automated_data_interval(CustomAssetTriggeredTimetable(), logical_date) == DataInterval.exact(
+        logical_date
+    )
 
 
 def _create_dagrun(

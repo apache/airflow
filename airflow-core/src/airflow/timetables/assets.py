@@ -61,8 +61,8 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
         )
 
     def validate(self) -> None:
-        if isinstance(self.timetable, AssetTriggeredTimetable):
-            raise AirflowTimetableInvalid("cannot nest asset timetables")
+        if self.timetable.asset_triggered or self.timetable.asset_gated:
+            raise AirflowTimetableInvalid("cannot nest asset-aware timetables")
         if not isinstance(self.asset_condition, SerializedAssetBase):
             raise AirflowTimetableInvalid("all elements in 'assets' must be assets")
 
@@ -105,6 +105,8 @@ class AssetAndTimeSchedule(Timetable):
     :class:`AssetOrTimeSchedule`, this does not create asset-triggered runs.
     """
 
+    asset_gated = True
+
     def __init__(
         self,
         *,
@@ -141,8 +143,8 @@ class AssetAndTimeSchedule(Timetable):
         }
 
     def validate(self) -> None:
-        if isinstance(self.timetable, AssetTriggeredTimetable):
-            raise AirflowTimetableInvalid("cannot nest asset timetables")
+        if self.timetable.asset_triggered or self.timetable.asset_gated:
+            raise AirflowTimetableInvalid("cannot nest asset-aware timetables")
         if not isinstance(self.asset_condition, SerializedAssetBase):
             raise AirflowTimetableInvalid("all elements in 'assets' must be assets")
 

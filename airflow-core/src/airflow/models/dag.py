@@ -68,10 +68,9 @@ from airflow.models.team import Team
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.encoders import DAT, encode_deadline_alert
 from airflow.serialization.enums import Encoding
-from airflow.timetables.assets import AssetAndTimeSchedule
 from airflow.timetables.base import DataInterval, PartitionMapperInfo, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
-from airflow.timetables.simple import AssetTriggeredTimetable, NullTimetable, OnceTimetable
+from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import DagRunState
@@ -104,8 +103,6 @@ if TYPE_CHECKING:
 
 log = structlog.getLogger(__name__)
 
-ASSET_AND_TIME_SCHEDULE_TIMETABLE = AssetAndTimeSchedule.__name__
-
 TAG_MAX_LEN = 100
 
 _team_name_cache_ttl = airflow_conf.getint("core", "team_name_cache_ttl", fallback=30)
@@ -132,8 +129,10 @@ def infer_automated_data_interval(timetable: Timetable, logical_date: datetime) 
 
     :meta private:
     """
+    if timetable.asset_triggered:
+        return DataInterval.exact(timezone.coerce_datetime(logical_date))
     timetable_type = type(timetable)
-    if issubclass(timetable_type, (NullTimetable, OnceTimetable, AssetTriggeredTimetable)):
+    if issubclass(timetable_type, (NullTimetable, OnceTimetable)):
         return DataInterval.exact(timezone.coerce_datetime(logical_date))
     start = timezone.coerce_datetime(logical_date)
     if issubclass(timetable_type, CronDataIntervalTimetable):
@@ -403,6 +402,8 @@ class DagModel(Base):
     timetable_partitioned: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
     # Whether the timetable is periodic (supports backfilling).
     timetable_periodic: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
+    # Whether the timetable's scheduled runs are gated on an asset condition.
+    timetable_asset_gated: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
     # Cached partition mapper metadata for partitioned timetables, populated
     # during Dag serialization so the UI can resolve mapper attributes without
     # deserializing the timetable. See ``PartitionMapperInfo`` for the per-asset
@@ -758,13 +759,13 @@ class DagModel(Base):
             statuses = dag_statuses[dag_id]
             timetable = ser_dag.dag.timetable
 
-            if isinstance(timetable, AssetTriggeredTimetable):
+            if timetable.asset_triggered:
                 ready = dag_ready(dag_id, cond=timetable.asset_condition, statuses=statuses)
                 if not ready:
                     log.debug("Asset condition not met for dag '%s'", dag_id)
                     del adrq_by_dag[dag_id]
                     del dag_statuses[dag_id]
-            elif isinstance(timetable, AssetAndTimeSchedule):
+            elif timetable.asset_gated:
                 ready = dag_ready(dag_id, cond=timetable.asset_condition, statuses=statuses)
                 if ready:
                     asset_gated_ready_dag_ids.add(dag_id)
@@ -818,7 +819,7 @@ class DagModel(Base):
                 or_(
                     cls.dag_id.in_(asset_triggered_dag_ids),
                     and_(cls.dag_id.in_(asset_gated_ready_dag_ids), time_due),
-                    and_(cls.timetable_type != ASSET_AND_TIME_SCHEDULE_TIMETABLE, time_due),
+                    and_(cls.timetable_asset_gated == expression.false(), time_due),
                 ),
             )
             .order_by(cls.next_dagrun_create_after)

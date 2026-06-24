@@ -27,6 +27,7 @@ from collections.abc import Callable, Generator, Iterator
 from contextlib import ExitStack, contextmanager
 from datetime import timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, cast
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -133,7 +134,7 @@ from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.timetables.base import DagRunInfo, DataInterval, compute_rollup_fingerprint
+from airflow.timetables.base import DagRunInfo, DataInterval, Timetable, compute_rollup_fingerprint
 from airflow.timetables.simple import (
     PartitionedAssetTimetable as CorePartitionedAssetTimetable,
     PartitionedAtRuntime,
@@ -5714,6 +5715,23 @@ class TestSchedulerJob:
 
         assert created_run.creating_job_id == scheduler_job.id
 
+    @mock.patch.object(SchedulerJobRunner, "_get_current_dag", autospec=True)
+    def test_create_dag_runs_asset_triggered_uses_behavior_flag(self, mock_get_current_dag):
+        dag_model = SimpleNamespace(dag_id="custom-asset-triggered")
+        dag = SimpleNamespace(
+            dag_id=dag_model.dag_id,
+            timetable=SimpleNamespace(asset_triggered=True),
+        )
+        mock_get_current_dag.return_value = dag
+        session = MagicMock(spec=["get_bind", "scalars"])
+        session.get_bind.return_value.dialect.name = "postgresql"
+        session.scalars.return_value.all.return_value = []
+        runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+
+        runner._create_dag_runs_asset_triggered(dag_models=[dag_model], session=session)
+
+        session.scalars.assert_called_once()
+
     @pytest.mark.need_serialized_dag
     @pytest.mark.parametrize(
         ("catchup", "expects_old_event"),
@@ -10081,6 +10099,49 @@ def test_create_dagruns_asset_and_time_waits_until_assets_ready(session: Session
     session.refresh(dag_model)
     assert dag_model.next_dagrun == logical_date
     assert dag_model.next_dagrun_create_after == logical_date
+
+
+@pytest.mark.parametrize(
+    ("asset_triggered", "asset_gated"),
+    [
+        pytest.param(True, False, id="asset-triggered"),
+        pytest.param(False, True, id="asset-gated"),
+    ],
+)
+@mock.patch.object(SerializedDagModel, "get_latest_serialized_dags", autospec=True)
+def test_dags_needing_dagruns_routes_custom_timetable_by_behavior(
+    mock_get_latest_serialized_dags, asset_triggered, asset_gated, session: Session, dag_maker
+):
+    asset = Asset(uri="test://custom-asset-scheduling", name="custom-asset-scheduling")
+    with dag_maker(
+        dag_id=f"custom-asset-scheduling-{asset_triggered}-{asset_gated}",
+        schedule=[asset],
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+    dag_model = dag_maker.dag_model
+    dag_model.next_dagrun_create_after = timezone.utcnow() - timedelta(minutes=1)
+    dag_model.timetable_asset_gated = asset_gated
+
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+    session.add(AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id))
+    session.flush()
+
+    timetable = MagicMock(spec=Timetable)
+    timetable.asset_triggered = asset_triggered
+    timetable.asset_gated = asset_gated
+    timetable.asset_condition = ensure_serialized_asset(asset)
+    serialized_dag = SimpleNamespace(
+        dag_id=dag_model.dag_id,
+        dag=SimpleNamespace(timetable=timetable),
+    )
+    mock_get_latest_serialized_dags.return_value = [serialized_dag]
+
+    query, triggered_date_by_dag, asset_gated_ready_dag_ids = DagModel.dags_needing_dagruns(session)
+
+    assert [model.dag_id for model in query.all()] == [dag_model.dag_id]
+    assert (dag_model.dag_id in triggered_date_by_dag) is asset_triggered
+    assert (dag_model.dag_id in asset_gated_ready_dag_ids) is asset_gated
 
 
 @time_machine.travel("2026-03-29 18:30:00+00:00")

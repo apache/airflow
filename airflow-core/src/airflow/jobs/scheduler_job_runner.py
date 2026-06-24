@@ -114,7 +114,6 @@ from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import ACTIVE_STATES, EXECUTION_STATES
 from airflow.timetables.base import Timetable, compute_rollup_fingerprint
-from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.helpers import prune_dict
@@ -2686,7 +2685,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     creating_job_id=self.job.id,
                     session=session,
                 )
-                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dag_run)
+                dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=dag_run)
                 dag_run.consumed_asset_events.extend(asset_events)
                 active_runs_of_dags[dag_model.dag_id] += 1
                 self._set_exceeds_max_active_runs(
@@ -2726,9 +2725,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.error("Dag '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
 
-            if not isinstance(dag.timetable, AssetTriggeredTimetable):
+            if not dag.timetable.asset_triggered:
                 self.log.error(
-                    "Dag '%s' was asset-scheduled, but didn't have an AssetTriggeredTimetable!",
+                    "Dag '%s' was routed to asset-triggered run creation, but its timetable is not asset-triggered",
                     dag_model.dag_id,
                 )
                 continue

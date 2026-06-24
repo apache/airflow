@@ -42,6 +42,7 @@ class AssetTriggeredTimetable(BaseTimetable):
     :meta private:
     """
 
+    asset_triggered = True
     asset_condition: BaseAsset = attrs.field(alias="assets")
 
 
@@ -97,6 +98,7 @@ class AssetAndTimeSchedule(BaseTimetable):
     :param timetable: A timetable instance to evaluate time-based scheduling.
     """
 
+    asset_gated = True
     asset_condition: BaseAsset = attrs.field(alias="assets", converter=_coerce_assets)
     timetable: BaseTimetable
 
