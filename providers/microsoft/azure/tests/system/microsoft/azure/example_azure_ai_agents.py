@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from typing import Any
 
 from airflow.providers.microsoft.azure.operators.ai_agents import (
     CreateAzureAIAgentOperator,
@@ -49,7 +50,7 @@ CONTAINER_IMAGE = os.environ.get(
 )
 AGENT_NAME = f"airflow-ai-agent-{ENV_ID}"
 
-HOSTED_AGENT_DEFINITION = {
+HOSTED_AGENT_DEFINITION: dict[str, Any] = {
     "kind": "hosted",
     "container_configuration": {
         "image": CONTAINER_IMAGE,
