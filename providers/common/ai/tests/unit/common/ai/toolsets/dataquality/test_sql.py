@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-from unittest.mock import MagicMock
 
 from airflow.providers.common.ai.toolsets.dataquality.sql import SQLDQToolset
 from airflow.providers.common.ai.utils.dataquality.models import DQCheckInput
@@ -43,7 +42,7 @@ class TestSQLDQToolsetInit:
 class TestSQLDQToolsetGetTools:
     def test_get_tools_includes_list_validators_and_apply_validator(self):
         ts = SQLDQToolset()
-        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+        tools = asyncio.run(ts.get_tools(ctx=object()))
         assert "list_checks" in tools
         assert "list_validators" in tools
         assert "apply_validator" in tools
@@ -51,7 +50,7 @@ class TestSQLDQToolsetGetTools:
     def test_planning_mode_hides_apply_validator(self):
         ts = SQLDQToolset()
         ts._planning_mode = True
-        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+        tools = asyncio.run(ts.get_tools(ctx=object()))
         assert "apply_validator" not in tools
         assert "list_validators" in tools
 
@@ -130,7 +129,7 @@ class TestSQLDQToolsetApplyValidator:
 class TestSQLDQToolsetCallTool:
     def test_call_tool_list_validators(self):
         ts = SQLDQToolset()
-        result = asyncio.run(ts.call_tool("list_validators", {}, ctx=MagicMock(), tool=MagicMock()))
+        result = asyncio.run(ts.call_tool("list_validators", {}, ctx=object(), tool=object()))
         data = json.loads(result)
         assert isinstance(data, list)
 
@@ -146,8 +145,8 @@ class TestSQLDQToolsetCallTool:
                     "validator_name": "null_pct_check",
                     "validator_args": {"max_pct": 0.05},
                 },
-                ctx=MagicMock(),
-                tool=MagicMock(),
+                ctx=object(),
+                tool=object(),
             )
         )
         data = json.loads(result)

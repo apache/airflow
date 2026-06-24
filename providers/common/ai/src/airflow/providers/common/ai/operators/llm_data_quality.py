@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 from collections import Counter
@@ -404,9 +403,15 @@ class LLMDataQualityOperator(LLMOperator):
 
         instructions = self._build_plan_system_prompt(toolsets)
         logged_toolsets = wrap_toolsets_for_logging(toolsets, self.log)
+        storage = None
 
         if self.durable:
-            agent, counter, _ = self._build_durable_agent(DQPlan, instructions, logged_toolsets)
+            agent, counter, storage = self._build_durable_agent(
+                context,
+                DQPlan,
+                instructions,
+                logged_toolsets,
+            )
         else:
             agent = self.llm_hook.create_agent(
                 output_type=DQPlan,
@@ -428,6 +433,9 @@ class LLMDataQualityOperator(LLMOperator):
                 counter.replayed_tool + counter.cached_tool,
             )
 
+        if storage is not None:
+            storage.cleanup()
+
         return result.output, dq_toolset
 
     def _run_and_report(self, context: Context) -> Any:
@@ -444,9 +452,15 @@ class LLMDataQualityOperator(LLMOperator):
         output_type: type = DQReport if dq_toolset.output_mode == "execute" else str
         instructions = self._build_system_prompt(dq_toolset, toolsets)
         logged_toolsets = wrap_toolsets_for_logging(toolsets, self.log)
+        storage = None
 
         if self.durable:
-            agent, counter, _storage = self._build_durable_agent(output_type, instructions, logged_toolsets)
+            agent, counter, storage = self._build_durable_agent(
+                context,
+                output_type,
+                instructions,
+                logged_toolsets,
+            )
         else:
             agent = self.llm_hook.create_agent(
                 output_type=output_type,
@@ -468,6 +482,9 @@ class LLMDataQualityOperator(LLMOperator):
                 counter.replayed_tool + counter.cached_tool,
             )
 
+        if storage is not None:
+            storage.cleanup()
+
         output = result.output
 
         if dq_toolset.output_mode == "execute":
@@ -481,6 +498,7 @@ class LLMDataQualityOperator(LLMOperator):
 
     def _build_durable_agent(
         self,
+        context: Context,
         output_type: type,
         instructions: str,
         toolsets: list[AbstractToolset],
@@ -493,8 +511,13 @@ class LLMDataQualityOperator(LLMOperator):
         from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
         from airflow.providers.common.ai.durable.storage import DurableStorage
 
-        plan_hash = self._compute_plan_hash(instructions)
-        storage = DurableStorage(cache_id=plan_hash)
+        ti = context["task_instance"]
+        storage = DurableStorage(
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
+            map_index=ti.map_index if ti.map_index is not None else -1,
+        )
         counter = DurableStepCounter()
 
         wrapped_model = CachingModel(self.llm_hook.get_conn(), storage=storage, counter=counter)
@@ -508,23 +531,6 @@ class LLMDataQualityOperator(LLMOperator):
             **self.agent_params,
         )
         return agent, counter, storage
-
-    def _compute_plan_hash(self, instructions: str) -> str:
-        """Return a stable short hash of the check plan for cross-run cache keying."""
-        checks_data = sorted(
-            [{"name": c.name, "description": c.description} for c in self.checks],
-            key=lambda x: x["name"],
-        )
-        payload = json.dumps(
-            {
-                "checks": checks_data,
-                "schema_context": self.schema_context or "",
-                "instructions": instructions,
-            },
-            sort_keys=True,
-        )
-        digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
-        return f"dq_{digest}"
 
     def _build_plan_approval_body(self, plan: DQPlan) -> str:
         """
@@ -656,8 +662,8 @@ class LLMDataQualityOperator(LLMOperator):
             if not has_dq:
                 from airflow.providers.common.ai.toolsets.dataquality.sql import SQLDQToolset
 
-                self.toolsets.append(SQLDQToolset())
-            return self.toolsets
+                return [*self.toolsets, SQLDQToolset()]
+            return list(self.toolsets)
 
         from airflow.providers.common.ai.toolsets.dataquality.sql import SQLDQToolset
         from airflow.providers.common.ai.toolsets.sql import SQLToolset

@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example DAGs demonstrating LLMDataQualityOperator usage."""
+"""Example Dags demonstrating LLMDataQualityOperator usage."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ from airflow.providers.common.compat.sdk import dag, task
 from airflow.providers.common.sql.config import DataSourceConfig
 
 # ------------------------------------------------------------------
-# Module-level custom validator used across multiple DAGs
+# Module-level custom validator used across multiple Dags
 # ------------------------------------------------------------------
 
 _EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")

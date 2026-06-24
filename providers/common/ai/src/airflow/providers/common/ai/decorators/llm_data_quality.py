@@ -140,22 +140,6 @@ def llm_dq_task(
                 ),
             ]
 
-    With ``dry_run=True`` to preview the generated plan before execution::
-
-        @task.llm_dq(
-            llm_conn_id="openai_default",
-            db_conn_id="postgres_default",
-            table_names=["orders"],
-            dry_run=True,
-        )
-        def preview_plan():
-            return [
-                DQCheckInput(
-                    name="row_count",
-                    description="The orders table must have at least 1000 rows.",
-                ),
-            ]
-
     :param python_callable: Function to decorate.  Must return a non-empty
         ``list[DQCheckInput]``.
     """

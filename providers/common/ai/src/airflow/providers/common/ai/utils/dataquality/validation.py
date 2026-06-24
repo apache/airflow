@@ -64,12 +64,9 @@ from __future__ import annotations
 
 import functools
 import inspect
-import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
-
-log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)

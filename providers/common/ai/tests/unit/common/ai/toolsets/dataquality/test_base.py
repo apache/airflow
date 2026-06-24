@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -89,20 +88,20 @@ class TestBaseDQToolsetListChecks:
 class TestBaseDQToolsetGetTools:
     def test_get_tools_includes_list_checks(self):
         ts = _ConcreteDQToolset()
-        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+        tools = asyncio.run(ts.get_tools(ctx=object()))
         assert "list_checks" in tools
 
     def test_call_tool_list_checks(self):
         ts = _ConcreteDQToolset()
         ts.set_checks([DQCheckInput(name="x", description="y")])
-        result = asyncio.run(ts.call_tool("list_checks", {}, ctx=MagicMock(), tool=MagicMock()))
+        result = asyncio.run(ts.call_tool("list_checks", {}, ctx=object(), tool=object()))
         data = json.loads(result)
         assert data[0]["name"] == "x"
 
     def test_call_tool_unknown_raises(self):
         ts = _ConcreteDQToolset()
         with pytest.raises(ValueError, match="Unknown tool"):
-            asyncio.run(ts.call_tool("nonexistent", {}, ctx=MagicMock(), tool=MagicMock()))
+            asyncio.run(ts.call_tool("nonexistent", {}, ctx=object(), tool=object()))
 
 
 class TestBaseDQToolsetOutputMode:
