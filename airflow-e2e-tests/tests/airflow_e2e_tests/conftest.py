@@ -366,6 +366,12 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         tmp_dir / "dags" / "scala_spark_examples.py",
     )
 
+    # Keep the bundle JARs out of the build context: Dockerfile.java only adds a
+    # JRE and copies nothing from the context, so without this docker build would
+    # tar and stream the bundles (hundreds of MB of Spark JARs) to the daemon for
+    # nothing. The JARs reach the worker via the compose bind-mounts, not the image.
+    (tmp_dir / ".dockerignore").write_text("java-jars/\nscala-jars/\n")
+
     # Build a local Docker image that extends DOCKER_IMAGE with a JRE.
     # We do this explicitly so testcontainers' DockerCompose.start() does not
     # need to handle the build itself (which avoids --no-build vs --build flag
