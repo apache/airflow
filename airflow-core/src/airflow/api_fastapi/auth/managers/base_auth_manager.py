@@ -180,22 +180,6 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             self.serialize_user(user)
         )
 
-    def get_cli_user(self) -> T:
-        """
-        Return the user the local CLI acts as when calling the API server.
-
-        The Airflow CLI mints a short-lived JWT for this user (via :meth:`generate_jwt`)
-        so it can talk to the API server without persisting any credentials. A generic
-        auth manager cannot know which user is authorized for local CLI access, so the
-        default raises. Auth managers that support local CLI usage should override this
-        to return an administrative user. Otherwise, operators must provide a token via
-        the ``AIRFLOW_CLI_TOKEN`` environment variable.
-        """
-        raise NotImplementedError(
-            f"{type(self).__name__} does not support minting a local CLI token. "
-            "Set the AIRFLOW_CLI_TOKEN environment variable with a valid API token instead."
-        )
-
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
