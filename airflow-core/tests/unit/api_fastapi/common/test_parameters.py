@@ -165,6 +165,27 @@ class TestSortParam:
         resolved = param.get_resolved_columns()
         assert [name for name, _col, _desc in resolved] == ["import_error_id"]
 
+    def test_dynamic_depends_returns_independent_instances(self):
+        """Each call to the inner closure must produce a separate SortParam instance.
+
+        Two concurrent requests with different order_by values must not share state —
+        a mutation on one must not affect the other.
+        """
+        sort_param = SortParam(["id", "run_id", "logical_date"], DagRun, {"dag_run_id": "run_id"})
+        inner = sort_param.dynamic_depends(default="id")
+
+        instance_a = inner(order_by=["logical_date"])
+        instance_b = inner(order_by=["run_id"])
+
+        assert instance_a is not instance_b
+        assert instance_a.value == ["logical_date"]
+        assert instance_b.value == ["run_id"]
+        # Resolving one must not affect the other.
+        cols_a = [name for name, _col, _desc in instance_a.get_resolved_columns()]
+        cols_b = [name for name, _col, _desc in instance_b.get_resolved_columns()]
+        assert cols_a[0] == "logical_date"
+        assert cols_b[0] == "run_id"
+
 
 def _compile(statement):
     return str(statement.compile(compile_kwargs={"literal_binds": True})).lower()
