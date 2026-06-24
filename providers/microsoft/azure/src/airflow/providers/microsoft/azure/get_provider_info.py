@@ -104,8 +104,8 @@ def get_provider_info():
                 "tags": ["azure"],
             },
             {
-                "integration-name": "Microsoft Azure AI Foundry Agents",
-                "external-doc-url": "https://learn.microsoft.com/en-us/azure/ai-foundry/agents/",
+                "integration-name": "Microsoft Azure AI Foundry Hosted Agents",
+                "external-doc-url": "https://ai.azure.com/api-reference/agents/",
                 "how-to-guide": ["/docs/apache-airflow-providers-microsoft-azure/operators/ai_agents.rst"],
                 "logo": "/docs/integration-logos/Microsoft-Azure.png",
                 "tags": ["azure"],
@@ -166,7 +166,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.microsoft.azure.operators.batch"],
             },
             {
-                "integration-name": "Microsoft Azure AI Foundry Agents",
+                "integration-name": "Microsoft Azure AI Foundry Hosted Agents",
                 "python-modules": ["airflow.providers.microsoft.azure.operators.ai_agents"],
             },
             {
@@ -258,7 +258,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.microsoft.azure.hooks.batch"],
             },
             {
-                "integration-name": "Microsoft Azure AI Foundry Agents",
+                "integration-name": "Microsoft Azure AI Foundry Hosted Agents",
                 "python-modules": ["airflow.providers.microsoft.azure.hooks.ai_agents"],
             },
             {
@@ -304,7 +304,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.microsoft.azure.triggers.batch"],
             },
             {
-                "integration-name": "Microsoft Azure AI Foundry Agents",
+                "integration-name": "Microsoft Azure AI Foundry Hosted Agents",
                 "python-modules": ["airflow.providers.microsoft.azure.triggers.ai_agents"],
             },
             {
@@ -412,7 +412,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.ai_agents.AzureAIAgentsHook",
-                "hook-name": "Azure AI Foundry Agents",
+                "hook-name": "Azure AI Foundry Hosted Agents",
                 "connection-type": "azure_ai_agents",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port"],

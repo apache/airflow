@@ -17,52 +17,39 @@
 # under the License.
 from __future__ import annotations
 
-import json
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+import asyncio
 from functools import cached_property
-from json import JSONDecodeError
 from typing import TYPE_CHECKING, Any, cast
+from urllib.parse import quote
 
-from azure.ai.agents import AgentsClient
-from azure.ai.agents.aio import AgentsClient as AsyncAgentsClient
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import ClientSecretCredential
-from azure.identity.aio import (
-    ClientSecretCredential as AsyncClientSecretCredential,
-)
+from requests import Session
 
-from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.microsoft.azure.hooks.base_azure import _AZURE_CLOUD_ENVIRONMENTS
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
-    get_async_default_azure_credential,
     get_field,
     get_sync_default_azure_credential,
 )
-from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
-    from azure.ai.agents.models import Agent, ThreadRun
     from azure.core.credentials import TokenCredential
-    from azure.core.credentials_async import AsyncTokenCredential
+    from requests import Response
 
     from airflow.sdk import Connection
 
 
-RUN_INTERMEDIATE_STATUSES = {"queued", "in_progress", "cancelling"}
-RUN_FAILURE_STATUSES = {"failed", "cancelled", "expired", "requires_action"}
-RUN_SUCCESS_STATUSES = {"completed"}
-
-
-def build_run_payload(run_id: str, thread_id: str) -> dict[str, str]:
-    """Build the fallback run payload used when the SDK run object is unavailable."""
-    return {"id": run_id, "thread_id": thread_id}
+HOSTED_AGENT_FEATURE_HEADER = "HostedAgents=V1Preview"
+TOKEN_SCOPE = "https://ai.azure.com/.default"
+VERSION_INTERMEDIATE_STATUSES = {"creating", "deleting"}
+VERSION_SUCCESS_STATUSES = {"active"}
+VERSION_FAILURE_STATUSES = {"failed"}
 
 
 def serialize_resource(resource: Any) -> Any:
-    """Serialize an Azure SDK object into XCom-safe primitives."""
+    """Serialize an SDK or HTTP response object into XCom-safe primitives."""
     if resource is None or isinstance(resource, str | int | float | bool):
         return resource
     if isinstance(resource, list | tuple):
@@ -87,59 +74,49 @@ def get_resource_attr(resource: Any, attr: str) -> Any:
     return getattr(resource, attr, None)
 
 
-def get_run_status(run: Any) -> str:
-    """Return a normalized run status string."""
-    status = get_resource_attr(run, "status")
+def get_version_status(version: Any) -> str:
+    """Return a normalized Hosted agent version status string."""
+    status = get_resource_attr(version, "status")
     if hasattr(status, "value"):
         status = status.value
     if status is None:
-        raise ValueError("Azure AI Agent run did not include a status.")
+        raise ValueError("Azure AI Hosted agent version did not include a status.")
     return str(status).lower()
 
 
-def get_incomplete_details(run: Any) -> Any:
-    """Return run incomplete details when the service reports a truncated run."""
-    return get_resource_attr(run, "incomplete_details")
-
-
-def build_run_failure_message(run_id: str, status: str) -> str:
-    """Build the failure message for a run terminal or actionable status."""
-    if status == "requires_action":
-        return (
-            f"Azure AI Agent run {run_id} requires tool outputs, but "
-            "RunAzureAIAgentOperator does not support tool-output submission."
-        )
-    return f"Azure AI Agent run {run_id} finished with status {status}."
-
-
-def build_incomplete_run_message(run_id: str, incomplete_details: Any) -> str:
-    """Build the failure message for a completed run with incomplete output."""
-    reason = get_resource_attr(incomplete_details, "reason") or incomplete_details
-    return f"Azure AI Agent run {run_id} completed with incomplete output: {reason}."
+def get_agent_version(version: Any) -> str:
+    """Return the version identifier from a Hosted agent version payload."""
+    agent_version = get_resource_attr(version, "version") or get_resource_attr(version, "agent_version")
+    if agent_version is None:
+        raise ValueError("Azure AI Hosted agent response did not include a version.")
+    return str(agent_version)
 
 
 class AzureAIAgentsHook(BaseHook):
     """
-    Hook for Microsoft Foundry Agents Service.
+    Hook for Microsoft Foundry Hosted agents.
 
     :param azure_ai_agents_conn_id: The Azure AI Agents connection id.
     :param endpoint: Optional Azure AI Foundry project endpoint. If not provided, the hook uses the
         connection host or the ``endpoint`` connection extra.
+    :param api_version: Foundry Agent Service API version.
     """
 
     conn_name_attr = "azure_ai_agents_conn_id"
     default_conn_name = "azure_ai_agents_default"
     conn_type = "azure_ai_agents"
-    hook_name = "Azure AI Foundry Agents"
+    hook_name = "Azure AI Foundry Hosted Agents"
 
     def __init__(
         self,
         azure_ai_agents_conn_id: str = default_conn_name,
         endpoint: str | None = None,
+        api_version: str = "v1",
     ) -> None:
         super().__init__()
         self.conn_id = azure_ai_agents_conn_id
         self.endpoint = endpoint
+        self.api_version = api_version
 
     @classmethod
     @add_managed_identity_connection_widgets
@@ -178,14 +155,9 @@ class AzureAIAgentsHook(BaseHook):
         }
 
     @cached_property
-    def conn(self) -> AgentsClient:
-        """Return a cached Azure AI Agents client."""
-        return self.get_conn()
-
-    def get_conn(self) -> AgentsClient:
-        """Create an Azure AI Agents client."""
-        conn = self.get_connection(self.conn_id)
-        return AgentsClient(endpoint=self._get_endpoint(conn), credential=self._get_credential(conn))
+    def session(self) -> Session:
+        """Return a cached requests session."""
+        return Session()
 
     def _get_endpoint(self, conn: Connection, extras: dict[str, Any] | None = None) -> str:
         connection_extras = extras if extras is not None else conn.extra_dejson
@@ -195,7 +167,7 @@ class AzureAIAgentsHook(BaseHook):
                 "Azure AI Foundry project endpoint must be provided by the hook, connection host, "
                 "or connection extra."
             )
-        return endpoint
+        return endpoint.rstrip("/")
 
     def _get_credential(self, conn: Connection) -> TokenCredential:
         extras = conn.extra_dejson
@@ -230,99 +202,127 @@ class AzureAIAgentsHook(BaseHook):
             field_name=field_name,
         )
 
-    def create_agent(self, **config: Any) -> Agent:
-        """Create an agent."""
-        return self.conn.create_agent(**prune_dict(config))
+    def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        json_payload: dict[str, Any] | None = None,
+        extra_headers: dict[str, str] | None = None,
+    ) -> Any:
+        conn = self.get_connection(self.conn_id)
+        credential = self._get_credential(conn)
+        token = credential.get_token(TOKEN_SCOPE).token
+        url = f"{self._get_endpoint(conn)}/{path.lstrip('/')}"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "Foundry-Features": HOSTED_AGENT_FEATURE_HEADER,
+        }
+        if extra_headers:
+            headers.update(extra_headers)
 
-    def update_agent(self, agent_id: str, **config: Any) -> Agent:
-        """Update an agent."""
-        return self.conn.update_agent(agent_id=agent_id, **prune_dict(config))
+        response = self.session.request(
+            method=method,
+            url=url,
+            params={"api-version": self.api_version},
+            headers=headers,
+            json=json_payload,
+        )
+        return self._process_response(response)
 
-    def run_agent(self, agent_id: str, **config: Any) -> ThreadRun:
-        """Create a thread and run an agent."""
-        return self.conn.create_thread_and_run(agent_id=agent_id, **prune_dict(config))
+    def _process_response(self, response: Response) -> Any:
+        if response.status_code == 404:
+            raise ResourceNotFoundError("Azure AI Hosted agent resource was not found.")
+        response.raise_for_status()
+        if response.status_code == 204 or not response.content:
+            return None
+        return response.json()
 
-    def get_run(self, thread_id: str, run_id: str) -> ThreadRun:
-        """Get an agent run."""
-        return self.conn.runs.get(thread_id=thread_id, run_id=run_id)
+    @staticmethod
+    def _quote_resource_id(resource_id: str) -> str:
+        return quote(resource_id, safe="")
 
-    def delete_agent(self, agent_id: str) -> None:
-        """Delete an agent."""
-        self.conn.delete_agent(agent_id=agent_id)
+    def create_agent(self, agent_name: str, definition: dict[str, Any]) -> dict[str, Any]:
+        """Create a Hosted agent and its first version."""
+        return self._request(
+            "POST",
+            "agents",
+            json_payload={"name": agent_name, "definition": definition},
+        )
 
-    def get_agent(self, agent_id: str) -> Agent:
-        """Get an agent."""
-        return self.conn.get_agent(agent_id=agent_id)
+    def create_agent_version(self, agent_name: str, definition: dict[str, Any]) -> dict[str, Any]:
+        """Create a new Hosted agent version."""
+        return self._request(
+            "POST",
+            f"agents/{self._quote_resource_id(agent_name)}/versions",
+            json_payload={"definition": definition},
+        )
 
-    def is_agent_deleted(self, agent_id: str) -> bool:
-        """Return True if the agent no longer exists."""
+    def get_agent_version(self, agent_name: str, agent_version: str) -> dict[str, Any]:
+        """Get a Hosted agent version."""
+        return self._request(
+            "GET",
+            f"agents/{self._quote_resource_id(agent_name)}/versions/{self._quote_resource_id(agent_version)}",
+        )
+
+    def delete_agent(self, agent_name: str) -> None:
+        """Delete a Hosted agent and all versions."""
+        self._request("DELETE", f"agents/{self._quote_resource_id(agent_name)}")
+
+    def delete_agent_version(self, agent_name: str, agent_version: str) -> None:
+        """Delete one Hosted agent version."""
+        self._request(
+            "DELETE",
+            f"agents/{self._quote_resource_id(agent_name)}/versions/{self._quote_resource_id(agent_version)}",
+        )
+
+    def is_agent_version_deleted(self, agent_name: str, agent_version: str) -> bool:
+        """Return True if the Hosted agent version no longer exists or is deleted."""
         try:
-            self.get_agent(agent_id=agent_id)
+            version = self.get_agent_version(agent_name=agent_name, agent_version=agent_version)
         except ResourceNotFoundError:
             return True
-        return False
+        return get_version_status(version) == "deleted"
+
+    def is_agent_deleted(self, agent_name: str) -> bool:
+        """Return True if version 1 is no longer retrievable for the Hosted agent."""
+        return self.is_agent_version_deleted(agent_name=agent_name, agent_version="1")
+
+    def invoke_agent_responses(self, agent_name: str, input_data: dict[str, Any]) -> dict[str, Any]:
+        """Invoke a Hosted agent through the OpenAI Responses protocol."""
+        return self._request(
+            "POST",
+            f"agents/{self._quote_resource_id(agent_name)}/endpoint/protocols/openai/responses",
+            json_payload=input_data,
+        )
+
+    def invoke_agent_invocations(self, agent_name: str, input_data: dict[str, Any]) -> dict[str, Any]:
+        """Invoke a Hosted agent through the Invocations protocol."""
+        return self._request(
+            "POST",
+            f"agents/{self._quote_resource_id(agent_name)}/endpoint/protocols/invocations",
+            json_payload=input_data,
+        )
 
 
 class AzureAIAgentsAsyncHook(AzureAIAgentsHook):
-    """Async hook for Microsoft Foundry Agents Service."""
+    """Async hook for Microsoft Foundry Hosted agents."""
 
-    @asynccontextmanager
-    async def get_async_conn(self) -> AsyncGenerator[AsyncAgentsClient, None]:
-        """Create an async Azure AI Agents client."""
-        conn = await get_async_connection(self.conn_id)
-        extras = self._deserialize_extra(conn)
-        credential = self._get_async_credential(conn, extras=extras)
-        client = AsyncAgentsClient(endpoint=self._get_endpoint(conn, extras=extras), credential=credential)
-        try:
-            yield client
-        finally:
-            await client.close()
-            if hasattr(credential, "close"):
-                await credential.close()
-
-    def _deserialize_extra(self, conn: Connection) -> dict[str, Any]:
-        if not conn.extra:
-            return {}
-        try:
-            return json.loads(conn.extra)
-        except (JSONDecodeError, TypeError):
-            self.log.exception("Failed parsing the json for conn_id %s", self.conn_id)
-            return {}
-
-    def _get_async_credential(self, conn: Connection, extras: dict[str, Any]) -> AsyncTokenCredential:
-        tenant = self._get_field(extras, "tenantId")
-        cloud_env_name = self._get_field(extras, "cloud_environment") or "AzurePublicCloud"
-        cloud_env = _AZURE_CLOUD_ENVIRONMENTS.get(
-            cloud_env_name, _AZURE_CLOUD_ENVIRONMENTS["AzurePublicCloud"]
+    async def async_get_agent_version(self, agent_name: str, agent_version: str) -> dict[str, Any]:
+        """Get a Hosted agent version asynchronously."""
+        return await asyncio.to_thread(
+            self.get_agent_version,
+            agent_name=agent_name,
+            agent_version=agent_version,
         )
 
-        if all([conn.login, conn.password, tenant]):
-            self.log.info("Getting connection using specific credentials.")
-            return AsyncClientSecretCredential(
-                client_id=cast("str", conn.login),
-                client_secret=cast("str", conn.password),
-                tenant_id=cast("str", tenant),
-                authority=cloud_env["authority"],
-            )
-
-        self.log.info("Using DefaultAzureCredential as credential.")
-        managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
-        workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
-        return get_async_default_azure_credential(
-            managed_identity_client_id=managed_identity_client_id,
-            workload_identity_tenant_id=workload_identity_tenant_id,
+    async def async_is_agent_deleted(self, agent_name: str, agent_version: str | None = None) -> bool:
+        """Return True if the Hosted agent or version is deleted."""
+        if agent_version is None:
+            return await asyncio.to_thread(self.is_agent_deleted, agent_name=agent_name)
+        return await asyncio.to_thread(
+            self.is_agent_version_deleted,
+            agent_name=agent_name,
+            agent_version=agent_version,
         )
-
-    async def async_get_run(self, thread_id: str, run_id: str) -> ThreadRun:
-        """Get an agent run asynchronously."""
-        async with self.get_async_conn() as client:
-            return await client.runs.get(thread_id=thread_id, run_id=run_id)
-
-    async def async_is_agent_deleted(self, agent_id: str) -> bool:
-        """Return True if the agent no longer exists."""
-        try:
-            async with self.get_async_conn() as client:
-                await client.get_agent(agent_id=agent_id)
-        except ResourceNotFoundError:
-            return True
-        return False

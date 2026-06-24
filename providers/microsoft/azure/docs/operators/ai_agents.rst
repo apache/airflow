@@ -16,10 +16,12 @@
     under the License.
 
 
-Azure AI Foundry Agents Operators
-=================================
+Azure AI Foundry Hosted Agents Operators
+========================================
 
-Azure AI Foundry Agents lets you create agents that can run against a thread of messages.
+Azure AI Foundry Hosted agents let you run a containerized agent in Microsoft Foundry Agent Service.
+Build and push your agent image to Azure Container Registry first, then use these operators to create
+agent versions, invoke the hosted endpoint, and clean up the deployment.
 
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
@@ -34,14 +36,17 @@ format is:
 
     https://<aiservices-id>.services.ai.azure.com/api/projects/<project-name>
 
+The container image must be available in Azure Container Registry and must implement one of the
+Hosted agent protocols exposed by Microsoft Foundry, such as ``responses`` or ``invocations``.
+
 .. _howto/operator:CreateAzureAIAgentOperator:
 
 CreateAzureAIAgentOperator
 --------------------------
 
-To create an Azure AI Agent, use the
+To create an Azure AI Hosted agent from a container image, use the
 :class:`~airflow.providers.microsoft.azure.operators.ai_agents.CreateAzureAIAgentOperator`.
-The operator returns the created agent as a serializable dictionary.
+The operator returns the created Hosted agent version as a serializable dictionary.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
@@ -54,9 +59,8 @@ The operator returns the created agent as a serializable dictionary.
 UpdateAzureAIAgentOperator
 --------------------------
 
-To update an Azure AI Agent, use the
+Hosted agent updates are published as new immutable versions. To create a new version, use the
 :class:`~airflow.providers.microsoft.azure.operators.ai_agents.UpdateAzureAIAgentOperator`.
-The operator returns the updated agent as a serializable dictionary.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
@@ -69,16 +73,8 @@ The operator returns the updated agent as a serializable dictionary.
 RunAzureAIAgentOperator
 -----------------------
 
-To create a thread and run an Azure AI Agent, use the
+To invoke an Azure AI Hosted agent through the OpenAI Responses protocol, use the
 :class:`~airflow.providers.microsoft.azure.operators.ai_agents.RunAzureAIAgentOperator`.
-The operator returns the run as a serializable dictionary. When ``wait_for_completion`` is
-``True``, the returned run is in a terminal state. When ``wait_for_completion`` is ``False``,
-the returned run is the initial run created by Azure AI Foundry Agents.
-
-``RunAzureAIAgentOperator`` uses ``AgentsClient.create_thread_and_run``. It does not process
-agent tool calls or submit tool outputs. Runs that enter ``requires_action`` fail with an
-actionable error. Use agents that can complete without tool-output submission, or handle the
-tool-call workflow outside this operator.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
@@ -86,26 +82,22 @@ tool-call workflow outside this operator.
     :start-after: [START howto_operator_azure_ai_agent_run]
     :end-before: [END howto_operator_azure_ai_agent_run]
 
-The operator can run in deferrable mode so that polling for run completion occurs on the Airflow
-Triggerer. Deferrable mode only applies when ``wait_for_completion`` is ``True``. When
-``wait_for_completion`` is ``False``, the operator returns the initial run immediately and does
-not defer.
+The same operator can call the ``invocations`` protocol when the hosted container exposes it.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_azure_ai_agent_run_deferrable]
-    :end-before: [END howto_operator_azure_ai_agent_run_deferrable]
+    :start-after: [START howto_operator_azure_ai_agent_run_invocations]
+    :end-before: [END howto_operator_azure_ai_agent_run_invocations]
 
 .. _howto/operator:DeleteAzureAIAgentOperator:
 
 DeleteAzureAIAgentOperator
 --------------------------
 
-To delete an Azure AI Agent, use the
+To delete an Azure AI Hosted agent and all of its versions, use the
 :class:`~airflow.providers.microsoft.azure.operators.ai_agents.DeleteAzureAIAgentOperator`.
-The operator waits until the agent is no longer retrievable before completing.
-The operator does not return a value.
+Pass ``agent_version`` to delete only one version.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
@@ -118,5 +110,5 @@ Reference
 
 For further information, look at:
 
-* `Azure AI Foundry Agents documentation <https://learn.microsoft.com/en-us/azure/ai-foundry/agents/>`__
-* `AgentsClient API reference <https://learn.microsoft.com/en-us/python/api/azure-ai-agents/azure.ai.agents.agentsclient?view=azure-python>`__
+* `Deploy a hosted agent <https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/deploy-hosted-agent>`__
+* `Azure AI Foundry Agents documentation <https://learn.microsoft.com/en-us/azure/foundry/agents/>`__

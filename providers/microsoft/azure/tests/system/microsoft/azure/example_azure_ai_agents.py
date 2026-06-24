@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -41,8 +42,28 @@ except ImportError:
 
 DAG_ID = "example_azure_ai_agents"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-MODEL = os.environ.get("AZURE_AI_AGENTS_MODEL", "gpt-4o")
+MODEL_DEPLOYMENT_NAME = os.environ.get("AZURE_AI_AGENTS_MODEL_DEPLOYMENT_NAME", "gpt-4o")
+CONTAINER_IMAGE = os.environ.get(
+    "AZURE_AI_AGENTS_CONTAINER_IMAGE",
+    "myregistry.azurecr.io/airflow-hosted-agent:latest",
+)
 AGENT_NAME = f"airflow-ai-agent-{ENV_ID}"
+
+HOSTED_AGENT_DEFINITION = {
+    "kind": "hosted",
+    "container_configuration": {
+        "image": CONTAINER_IMAGE,
+    },
+    "cpu": "1",
+    "memory": "2Gi",
+    "protocol_versions": [
+        {"protocol": "responses", "version": "1.0.0"},
+        {"protocol": "invocations", "version": "1.0.0"},
+    ],
+    "environment_variables": {
+        "MODEL_DEPLOYMENT_NAME": MODEL_DEPLOYMENT_NAME,
+    },
+}
 
 with DAG(
     dag_id=DAG_ID,
@@ -53,69 +74,58 @@ with DAG(
     # [START howto_operator_azure_ai_agent_create]
     create_agent = CreateAzureAIAgentOperator(
         task_id="create_agent",
-        model=MODEL,
-        config={
-            "name": AGENT_NAME,
-            "instructions": "You are a concise assistant that answers Airflow orchestration questions.",
-        },
+        agent_name=AGENT_NAME,
+        definition=HOSTED_AGENT_DEFINITION,
+        deferrable=True,
     )
     # [END howto_operator_azure_ai_agent_create]
 
     # [START howto_operator_azure_ai_agent_update]
     update_agent = UpdateAzureAIAgentOperator(
         task_id="update_agent",
-        agent_id="{{ ti.xcom_pull(task_ids='create_agent')['id'] }}",
-        config={
-            "instructions": "You are a concise assistant that explains Airflow task failures.",
+        agent_name=AGENT_NAME,
+        definition={
+            **HOSTED_AGENT_DEFINITION,
+            "environment_variables": {
+                **HOSTED_AGENT_DEFINITION["environment_variables"],
+                "AGENT_BEHAVIOR": "explain-airflow-task-failures",
+            },
         },
+        deferrable=True,
     )
     # [END howto_operator_azure_ai_agent_update]
 
     # [START howto_operator_azure_ai_agent_run]
     run_agent = RunAzureAIAgentOperator(
         task_id="run_agent",
-        agent_id="{{ ti.xcom_pull(task_ids='create_agent')['id'] }}",
-        config={
-            "thread": {
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": "Summarize why retrying transient task failures can be useful.",
-                    }
-                ],
-            },
+        agent_name=AGENT_NAME,
+        protocol="responses",
+        input_data={
+            "input": "Summarize why retrying transient task failures can be useful.",
+            "store": True,
         },
     )
     # [END howto_operator_azure_ai_agent_run]
 
-    # [START howto_operator_azure_ai_agent_run_deferrable]
-    run_agent_deferrable = RunAzureAIAgentOperator(
-        task_id="run_agent_deferrable",
-        agent_id="{{ ti.xcom_pull(task_ids='create_agent')['id'] }}",
-        config={
-            "thread": {
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": "Give one short recommendation for investigating failed Dags.",
-                    }
-                ],
-            },
-        },
-        deferrable=True,
+    # [START howto_operator_azure_ai_agent_run_invocations]
+    run_agent_invocations = RunAzureAIAgentOperator(
+        task_id="run_agent_invocations",
+        agent_name=AGENT_NAME,
+        protocol="invocations",
+        input_data={"message": "Give one short recommendation for investigating failed Dags."},
     )
-    # [END howto_operator_azure_ai_agent_run_deferrable]
+    # [END howto_operator_azure_ai_agent_run_invocations]
 
     # [START howto_operator_azure_ai_agent_delete]
     delete_agent = DeleteAzureAIAgentOperator(
         task_id="delete_agent",
-        agent_id="{{ ti.xcom_pull(task_ids='create_agent')['id'] }}",
+        agent_name=AGENT_NAME,
         trigger_rule=TriggerRule.ALL_DONE,
         deferrable=True,
     )
     # [END howto_operator_azure_ai_agent_delete]
 
-    chain(create_agent, update_agent, [run_agent, run_agent_deferrable], delete_agent)
+    chain(create_agent, update_agent, [run_agent, run_agent_invocations], delete_agent)
 
     from tests_common.test_utils.watcher import watcher
 
