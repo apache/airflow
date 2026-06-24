@@ -18,11 +18,13 @@
 from __future__ import annotations
 
 import asyncio
+import warnings
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError, WaiterError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
@@ -128,6 +130,7 @@ class TaskDoneTrigger(BaseTrigger):
     :param region_name: The AWS region where the cluster is located. Used to build the hook.
     :param verify: Whether or not to verify SSL certificates. Used to build the hook.
     :param botocore_config: Configuration dictionary for the botocore client. Used to build the hook.
+    :param region: (deprecated) use ``region_name`` instead.
     """
 
     def __init__(
@@ -137,12 +140,21 @@ class TaskDoneTrigger(BaseTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str | None,
-        region_name: str | None,
+        region_name: str | None = None,
         log_group: str | None = None,
         log_stream: str | None = None,
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
+        region: str | None = None,
     ):
+        if region is not None:
+            warnings.warn(
+                "`region` is deprecated and will be removed in a future release. "
+                "Please use `region_name` instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            region_name = region
         self.cluster = cluster
         self.task_arn = task_arn
 

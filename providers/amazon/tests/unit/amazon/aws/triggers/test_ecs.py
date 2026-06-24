@@ -23,6 +23,7 @@ from unittest.mock import AsyncMock
 import pytest
 from botocore.exceptions import WaiterError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.triggers.ecs import (
@@ -35,6 +36,21 @@ if TYPE_CHECKING:
 
 
 class TestTaskDoneTrigger:
+    def test_deprecated_region_alias(self):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="region"):
+            trigger = TaskDoneTrigger(
+                cluster="cluster",
+                task_arn="task_arn",
+                waiter_delay=5,
+                waiter_max_attempts=10,
+                aws_conn_id="my_conn",
+                region="eu-west-1",
+            )
+        assert trigger.region_name == "eu-west-1"
+        _, kwargs = trigger.serialize()
+        assert kwargs["region_name"] == "eu-west-1"
+        assert "region" not in kwargs
+
     def test_serialize_includes_generic_hook_params(self):
         trigger = TaskDoneTrigger(
             cluster="cluster",
