@@ -17,16 +17,19 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.providers.apache.livy.hooks.livy import BatchState
+from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.providers.apache.livy.operators.livy import LivyOperator
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils import timezone
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 BATCH_ID = 100
@@ -607,3 +610,125 @@ def test_spark_params_templating(create_task_instance_of_operator, session):
         "py_files": "literal-py-files",
         "queue": "literal-queue",
     }
+
+
+class FakeTaskStateStore:
+    """In-memory task state store for tests."""
+
+    def __init__(self, stored: dict[str, Any] | None = None):
+        self._store: dict[str, Any] = dict(stored or {})
+
+    def get(self, key: str) -> Any:
+        return self._store.get(key)
+
+    def set(self, key: str, value: Any) -> None:
+        self._store[key] = value
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_3_PLUS,
+    reason="ResumableJobMixin reconnect requires task_state_store, available in Airflow 3.3+",
+)
+class TestLivyOperatorResumable:
+    """Crash-safe synchronous wait (deferrable=False, polling_interval>0) via ResumableJobMixin."""
+
+    def _make_operator(self, **kwargs) -> LivyOperator:
+        return LivyOperator(task_id="livy_resumable", file="sparkapp.jar", polling_interval=1, **kwargs)
+
+    def _make_hook(self, batch_id: int = BATCH_ID) -> MagicMock:
+        hook = MagicMock()
+        hook.post_batch.return_value = batch_id
+        hook.get_batch.return_value = GET_BATCH
+        hook.TERMINAL_STATES = LivyHook.TERMINAL_STATES
+        return hook
+
+    def test_first_run_persists_batch_id_before_polling(self):
+        operator = self._make_operator()
+        operator.hook = self._make_hook(batch_id=42)
+        task_store = FakeTaskStateStore()
+        persisted_before_poll = []
+        operator.poll_until_complete = lambda external_id, context: persisted_before_poll.append(
+            task_store.get("livy_batch_id")
+        )
+
+        operator.execute(context={"task_state_store": task_store, "ti": MagicMock()})
+
+        operator.hook.post_batch.assert_called_once()
+        assert persisted_before_poll == [42]
+
+    @pytest.mark.parametrize(
+        ("prior_status", "expect_submit", "expect_poll_id"),
+        [
+            ("running", False, 1),  # active -> reconnect to the existing batch
+            ("starting", False, 1),
+            ("success", False, None),  # already succeeded -> return, no poll, no resubmit
+            ("dead", True, BATCH_ID),  # terminal failure -> resubmit fresh
+            ("killed", True, BATCH_ID),
+            ("error", True, BATCH_ID),
+        ],
+    )
+    def test_retry_behaviour_based_on_prior_batch_status(self, prior_status, expect_submit, expect_poll_id):
+        operator = self._make_operator()
+        operator.hook = self._make_hook()
+        task_store = FakeTaskStateStore({"livy_batch_id": 1})
+        operator.get_job_status = lambda external_id, context: prior_status
+        polled = []
+        operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
+
+        operator.execute(context={"task_state_store": task_store, "ti": MagicMock()})
+
+        if expect_submit:
+            operator.hook.post_batch.assert_called_once()
+        else:
+            operator.hook.post_batch.assert_not_called()
+        assert polled == ([] if expect_poll_id is None else [expect_poll_id])
+
+    def test_submits_fresh_when_task_state_store_unavailable(self):
+        operator = self._make_operator()
+        operator.hook = self._make_hook(batch_id=7)
+        polled = []
+        operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
+
+        operator.execute(context={"ti": MagicMock()})
+
+        operator.hook.post_batch.assert_called_once()
+        assert polled == [7]
+
+    def test_durable_false_submits_fresh_and_polls(self):
+        operator = self._make_operator(durable=False)
+        operator.hook = self._make_hook(batch_id=7)
+        task_store = FakeTaskStateStore({"livy_batch_id": 1})
+        polled = []
+        operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
+
+        operator.execute(context={"task_state_store": task_store, "ti": MagicMock()})
+
+        operator.hook.post_batch.assert_called_once()
+        assert polled == [7]
+
+    def test_status_helpers_classify_real_batch_states(self):
+        operator = self._make_operator()
+        operator.hook = self._make_hook()
+        assert operator.is_job_active("running") is True
+        assert operator.is_job_active("starting") is True
+        assert operator.is_job_active("success") is False
+        assert operator.is_job_succeeded("success") is True
+        assert operator.is_job_succeeded("dead") is False
+
+    def test_get_job_status_reads_batch_state_value(self):
+        operator = self._make_operator()
+        hook = self._make_hook()
+        hook.get_batch_state.return_value = BatchState.RUNNING
+        operator.hook = hook
+
+        assert operator.get_job_status(BATCH_ID, {}) == "running"
+
+    def test_poll_until_complete_sets_batch_id_for_on_kill(self):
+        operator = self._make_operator()
+        hook = self._make_hook()
+        hook.get_batch_state.return_value = BatchState.SUCCESS
+        operator.hook = hook
+
+        operator.poll_until_complete(55, {})
+
+        assert operator._batch_id == 55
