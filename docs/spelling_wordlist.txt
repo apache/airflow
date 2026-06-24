@@ -312,6 +312,7 @@ ContainerPort
 contentUrl
 contextmgr
 contrib
+cooldown
 copyable
 CoreV
 coroutine
@@ -1370,6 +1371,7 @@ rebase
 Rebasing
 Recency
 recurse
+redeclare
 redelivery
 Redhat
 redis

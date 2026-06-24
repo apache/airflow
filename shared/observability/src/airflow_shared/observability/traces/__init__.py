@@ -61,7 +61,7 @@ TASK_SPAN_DETAIL_LEVEL_KEY = "airflow/task_span_detail_level"
 DEFAULT_TASK_SPAN_DETAIL_LEVEL = 1
 
 
-def new_dagrun_trace_carrier(task_span_detail_level=None) -> dict[str, str]:
+def new_dagrun_trace_carrier(task_span_detail_level=None, attributes=None) -> dict[str, str]:
     """
     Generate a fresh W3C traceparent carrier without creating a recordable span.
 
@@ -70,6 +70,11 @@ def new_dagrun_trace_carrier(task_span_detail_level=None) -> dict[str, str]:
     ``OTEL_TRACES_SAMPLER_ARG``), rather than being hardcoded. This makes the
     carrier the single head-sampling decision point for a DAG run: every
     downstream span (dag_run, task_run, worker) rides on this flag.
+
+    ``attributes`` are forwarded to the sampler as ``should_sample`` attributes so
+    a custom sampler can differentiate the decision by run kind (e.g. by
+    ``airflow.dag_id`` / ``airflow.dag_run.run_type``). The built-in samplers ignore them.
+    They are decision input only -- they are not persisted in the carrier.
     """
     gen = RandomIdGenerator()
     trace_id = gen.generate_trace_id()
@@ -81,6 +86,7 @@ def new_dagrun_trace_carrier(task_span_detail_level=None) -> dict[str, str]:
             parent_context=None,  # root decision
             trace_id=trace_id,
             name="dag_run",
+            attributes=attributes or {},
         )
         sampled = result.decision == Decision.RECORD_AND_SAMPLE
         sampler_trace_state = result.trace_state

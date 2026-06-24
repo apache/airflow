@@ -45,10 +45,6 @@ class TestAwsTaskLogFetcher:
         self.set_up_log_fetcher()
 
     @mock.patch(
-        "threading.Event.is_set",
-        side_effect=(False, False, False, True),
-    )
-    @mock.patch(
         "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
         side_effect=(
             iter(
@@ -65,8 +61,9 @@ class TestAwsTaskLogFetcher:
             iter([]),
         ),
     )
-    def test_run(self, get_log_events_mock, event_is_set_mock):
-        self.log_fetcher.run()
+    def test_run(self, get_log_events_mock):
+        with mock.patch.object(self.log_fetcher._event, "is_set", side_effect=(False, False, False, True)):
+            self.log_fetcher.run()
 
         self.logger_mock.log.assert_has_calls(
             [
@@ -147,10 +144,6 @@ class TestAwsTaskLogFetcher:
         assert self.log_fetcher.get_last_log_messages(2) == []
 
     @mock.patch(
-        "threading.Event.is_set",
-        side_effect=(False, True),
-    )
-    @mock.patch(
         "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
         side_effect=(
             iter(
@@ -171,8 +164,9 @@ class TestAwsTaskLogFetcher:
             ),
         ),
     )
-    def test_run_with_log_level_detection(self, get_log_events_mock, event_is_set_mock):
-        self.log_fetcher.run()
+    def test_run_with_log_level_detection(self, get_log_events_mock):
+        with mock.patch.object(self.log_fetcher._event, "is_set", side_effect=(False, True)):
+            self.log_fetcher.run()
 
         self.logger_mock.log.assert_has_calls(
             [
