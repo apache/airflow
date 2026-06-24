@@ -20,7 +20,13 @@ import json
 
 import pytest
 
-pytest.importorskip("airflow.sdk.execution_time.context", reason="task state store needs Airflow >= 3.3")
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+
+if not AIRFLOW_V_3_3_PLUS:
+    # ``airflow.sdk.execution_time.context`` exists on older cores, but ``NEVER_EXPIRE``
+    # (imported transitively via ``task_state_store``) only lands in 3.3, so an
+    # ``importorskip`` on the module is not enough -- gate on the version instead.
+    pytest.skip("task state store needs Airflow >= 3.3", allow_module_level=True)
 
 from pydantic_ai.messages import (
     ModelMessagesTypeAdapter,
