@@ -1370,6 +1370,7 @@ rebase
 Rebasing
 Recency
 recurse
+redeclare
 redelivery
 Redhat
 redis
@@ -1923,6 +1924,3 @@ zenpy
 Zhong
 Zsh
 zsh
-Daytona
-E2B
-islo
