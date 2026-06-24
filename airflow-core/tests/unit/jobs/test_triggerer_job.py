@@ -991,6 +991,12 @@ class TestTriggerRunner:
         trigger_runner = TriggerRunner()
         assert trigger_runner._shared_streams._ack_timeout == 60.0
 
+    @conf_vars({("triggerer", "shared_stream_cohort_grace_period"): "3.0"})
+    def test_shared_stream_cohort_grace_period_config_wiring(self) -> None:
+        """[triggerer] shared_stream_cohort_grace_period is wired into SharedStreamManager."""
+        trigger_runner = TriggerRunner()
+        assert trigger_runner._shared_streams._cohort_grace_period == 3.0
+
     @pytest.mark.asyncio
     async def test_block_watchdog_does_not_log_when_threshold_is_not_exceeded(self) -> None:
         with conf_vars({("triggerer", "blocked_main_thread_warning_threshold"): "0.5"}):
