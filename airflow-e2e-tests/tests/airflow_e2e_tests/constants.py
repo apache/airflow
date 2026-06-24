@@ -58,6 +58,11 @@ JAVA_SDK_MAVEN_CACHE_PATH = AIRFLOW_ROOT_PATH / "files" / "m2"
 JAVA_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "java.yml"
 JAVA_DOCKERFILE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "Dockerfile.java"
 
+# Scala Spark example is a separate Java-SDK bundle, served by its own
+# coordinator/queue but exercised within the same java_sdk E2E mode.
+SCALA_SPARK_EXAMPLE_DAGS_PATH = JAVA_SDK_ROOT_PATH / "scala_spark_example" / "src" / "resources" / "dags"
+SCALA_SPARK_EXAMPLE_LIBS_PATH = JAVA_SDK_ROOT_PATH / "scala_spark_example" / "build" / "bundle"
+
 # Go SDK E2E test paths
 GO_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "go-sdk"
 GO_SDK_DAGS_PATH = GO_SDK_ROOT_PATH / "dags"
