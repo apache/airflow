@@ -27,10 +27,10 @@ set -e
 git reset HEAD -- . > /dev/null 2>&1
 
 if [[ ${diff_status} -eq 0 ]]; then
-    echo "No changes in constraints"
+echo "No changes in constraints"
 elif [[ ${diff_status} -eq 1 ]]; then
-    echo "Changes detected in constraints, proceeding..."
+echo "Changes detected in constraints, proceeding..."
 else
-    echo "Failed to diff constraints"
-    exit "${diff_status}"
+echo "Failed to diff constraints"
+exit "${diff_status}"
 fi
