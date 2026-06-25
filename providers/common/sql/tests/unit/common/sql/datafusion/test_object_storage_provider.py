@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -77,6 +78,30 @@ class TestGetObjectStorageProvider:
 
             with pytest.raises(ValueError, match="apache-airflow-providers-amazon"):
                 get_object_storage_provider(StorageType.S3)
+
+    def test_legacy_core_resolves_s3_via_amazon_direct_import(self):
+        """On an older core without the registry property, S3 resolves via a direct amazon import."""
+        pytest.importorskip("airflow.providers.amazon")
+        from airflow.providers.amazon.aws.datafusion.object_storage import S3ObjectStorageProvider
+
+        with patch("airflow.providers_manager.ProvidersManager") as mock_pm_cls:
+            mock_pm_cls.return_value = MagicMock(spec=[])
+
+            provider = get_object_storage_provider(StorageType.S3)
+
+        assert isinstance(provider, S3ObjectStorageProvider)
+
+    def test_legacy_core_s3_without_amazon_raises_install_hint(self):
+        """On an older core without the registry and amazon missing, raise the hinted ValueError."""
+        with patch("airflow.providers_manager.ProvidersManager") as mock_pm_cls:
+            mock_pm_cls.return_value = MagicMock(spec=[])
+
+            with patch.dict(
+                sys.modules,
+                {"airflow.providers.amazon.aws.datafusion.object_storage": None},
+            ):
+                with pytest.raises(ValueError, match="apache-airflow-providers-amazon"):
+                    get_object_storage_provider(StorageType.S3)
 
     def test_no_amazon_imports_at_module_level(self):
         """Verify common-sql no longer statically imports amazon provider code at the top level."""
