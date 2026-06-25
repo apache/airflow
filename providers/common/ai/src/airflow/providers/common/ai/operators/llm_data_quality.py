@@ -173,6 +173,28 @@ VALIDATOR ARGS RULES (critical — missing args cause hard failures in Phase 2):
 - Only use ``{}`` when ``validator_name`` is ``"fixed"`` or ``"none"``.
 """
 
+_DQ_GENERATE_SYSTEM_PROMPT = """\
+You are a data-quality expert.  Your task is to GENERATE a data-quality
+configuration for the user's checks.  You do NOT execute any SQL or run the
+checks yourself — the toolset turns your output into a config file.
+
+WORKFLOW (GENERATE MODE — no SQL execution, no validators applied):
+1. Call ``list_checks`` to read the user's quality expectations.
+2. Use schema-discovery tools (``list_tables``, ``get_schema``) when available to
+   ground the configuration in the real data model.
+3. Use the generation tools provided by the toolset to translate each check into
+   the target framework's configuration syntax.
+4. Return the generated configuration as a single string — every check from
+   ``list_checks`` must be represented exactly once.
+
+IMPORTANT:
+- Do NOT call ``query`` or ``apply_validator`` — those tools belong to execute
+  mode and are not part of configuration generation.
+- Do NOT return a ``DQReport``.  The final output is the configuration text itself.
+- Preserve each check's exact ``name`` from ``list_checks`` in the generated
+  configuration so it maps unambiguously back to the user's checks.
+"""
+
 _DIALECT_SQL_NOTES: dict[str, str] = {
     "postgres": (
         "  - Regex match: `col ~ 'pattern'`; not match: `col !~ 'pattern'` (case-sensitive).\n"
@@ -686,6 +708,12 @@ class LLMDataQualityOperator(LLMOperator):
 
     def _build_system_prompt(self, dq_toolset: BaseDQToolset, toolsets: list[AbstractToolset]) -> str:
         """Return the full DQ system prompt for the normal (non-planning) execution path."""
+        if dq_toolset.output_mode == "generate":
+            prompt = self._make_prompt(_DQ_GENERATE_SYSTEM_PROMPT, toolsets)
+            if self.system_prompt:
+                prompt += f"\nAdditional instructions:\n{self.system_prompt}\n"
+            return prompt
+
         prompt = self._make_prompt(_DQ_SYSTEM_PROMPT, toolsets)
 
         fixed_checks = [c.name for c in self.checks if c.validator is not None]
@@ -752,7 +780,13 @@ class LLMDataQualityOperator(LLMOperator):
     def _detect_sql_dialect(toolsets: list[AbstractToolset]) -> str | None:
         """Return the sqlglot dialect of the first dialect-aware toolset found."""
         for toolset in toolsets:
-            dialect = getattr(toolset, "sqlglot_dialect", None)
+            try:
+                dialect = getattr(toolset, "sqlglot_dialect", None)
+            except Exception:
+                # Dialect hints are optional. Reading sqlglot_dialect can trigger
+                # connection resolution (e.g. BaseHook.get_connection); a failure
+                # there must not break prompt construction.
+                continue
             if dialect:
                 return dialect
         return None

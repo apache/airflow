@@ -231,7 +231,7 @@ class SQLToolset(AbstractToolset[Any]):
 
     @property
     def sqlglot_dialect(self) -> str | None:
-        """Sqlglot dialect name for this connection, used for SQL validation and LLM prompting."""
+        """Sqlglot dialect name for this connection, used to tailor LLM prompting with dialect-specific SQL guidance."""
         if self._explicit_dialect is not None:
             return self._explicit_dialect
         if self._resolved_dialect is not None:

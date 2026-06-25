@@ -284,7 +284,8 @@ class SQLDQToolset(BaseDQToolset):
     ) -> str:
         """Apply a row-level validator to each row value and return a RowLevelResult payload."""
         values = self._coerce_row_values(check_name, value)
-        invalid_values: list[Any] = []
+        invalid_count = 0
+        sample_violations: list[str] = []
 
         for row_value in values:
             try:
@@ -300,9 +301,18 @@ class SQLDQToolset(BaseDQToolset):
                     }
                 )
             if not is_valid:
-                invalid_values.append(row_value)
+                invalid_count += 1
+                if len(sample_violations) < _ROW_LEVEL_SAMPLE_LIMIT:
+                    sample_violations.append(repr(row_value))
 
-        summary = RowLevelResult.build(invalid_values, len(values), sample_limit=_ROW_LEVEL_SAMPLE_LIMIT)
+        total = len(values)
+        summary = RowLevelResult(
+            total=total,
+            invalid=invalid_count,
+            invalid_pct=(invalid_count / total) if total else 0.0,
+            sample_violations=sample_violations,
+            sample_size=len(sample_violations),
+        )
         max_invalid_pct = self._get_max_invalid_pct(validator)
         passed = summary.invalid_pct <= max_invalid_pct
         reason = None

@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -71,6 +71,20 @@ class _AgentResultLike:
         return []
 
 
+class _TestDQToolset(BaseDQToolset):
+    def __init__(self, mode: Literal["execute", "generate"]) -> None:
+        super().__init__()
+        self._mode = mode
+
+    @property
+    def id(self) -> str:
+        return "test-dq"
+
+    @property
+    def output_mode(self) -> Literal["execute", "generate"]:
+        return self._mode
+
+
 def _make_context() -> Any:
     task_instance = MagicMock(spec=_TaskInstanceLike)
     return {"task_instance": task_instance, "ti": task_instance}
@@ -112,6 +126,10 @@ def _failing_report() -> DQReport:
 
 def _mock_agent_result(output: Any) -> _AgentResultLike:
     return _AgentResultLike(output)
+
+
+def _make_dq_toolset(mode: Literal["execute", "generate"] = "execute") -> _TestDQToolset:
+    return _TestDQToolset(mode)
 
 
 class TestLLMDataQualityOperatorInit:
@@ -170,11 +188,11 @@ class TestLLMDataQualityOperatorInit:
 
 class TestResolveToolsets:
     def test_explicit_toolsets_returned_unchanged(self):
-        mock_dq = MagicMock(spec=BaseDQToolset)
-        mock_dq.output_mode = "execute"
+        mock_dq = _make_dq_toolset("execute")
         op = _make_operator(toolsets=[mock_dq])
         resolved = op._resolve_toolsets()
-        assert resolved is op.toolsets
+        assert resolved == op.toolsets
+        assert resolved is not op.toolsets
 
     def test_auto_creates_sql_toolsets_from_db_conn_id(self):
         op = _make_operator()
@@ -201,7 +219,7 @@ class TestResolveToolsets:
         mock_other = object()
         op = _make_operator(toolsets=[mock_other])
         with patch("airflow.providers.common.ai.toolsets.dataquality.sql.SQLDQToolset") as mock_cls:
-            mock_cls.return_value = MagicMock(spec=BaseDQToolset)
+            mock_cls.return_value = _make_dq_toolset("execute")
             resolved = op._resolve_toolsets()
             mock_cls.assert_called_once_with()
             assert len(resolved) == 2
@@ -209,7 +227,7 @@ class TestResolveToolsets:
 
 class TestFindDqToolset:
     def test_returns_first_base_dq_toolset(self):
-        mock_dq = MagicMock(spec=BaseDQToolset)
+        mock_dq = _make_dq_toolset("execute")
         mock_other = object()
         result = LLMDataQualityOperator._find_dq_toolset([mock_other, mock_dq])
         assert result is mock_dq
@@ -222,15 +240,14 @@ class TestFindDqToolset:
 
 class TestExecuteMode:
     def _run(self, report: DQReport, **overrides: Any) -> Any:
-        mock_dq = MagicMock(spec=BaseDQToolset)
-        mock_dq.output_mode = "execute"
+        mock_dq = _make_dq_toolset("execute")
         op = _make_operator(toolsets=[mock_dq], **overrides)
         op.llm_hook.create_agent.return_value.run_sync.return_value = _mock_agent_result(report)  # type: ignore[attr-defined]
         return op.execute(context=_make_context())
 
     def test_set_checks_called_on_dq_toolset(self):
-        mock_dq = MagicMock(spec=BaseDQToolset)
-        mock_dq.output_mode = "execute"
+        mock_dq = _make_dq_toolset("execute")
+        mock_dq.set_checks = MagicMock(wraps=mock_dq.set_checks)
         op = _make_operator(toolsets=[mock_dq])
         op.llm_hook.create_agent.return_value.run_sync.return_value = _mock_agent_result(_passing_report())
         op.execute(context=_make_context())
@@ -246,8 +263,7 @@ class TestExecuteMode:
             self._run(_failing_report())
 
     def test_output_type_is_dq_report(self):
-        mock_dq = MagicMock(spec=BaseDQToolset)
-        mock_dq.output_mode = "execute"
+        mock_dq = _make_dq_toolset("execute")
         op = _make_operator(toolsets=[mock_dq])
         op.llm_hook.create_agent.return_value.run_sync.return_value = _mock_agent_result(_passing_report())
         op.execute(context=_make_context())
@@ -257,8 +273,7 @@ class TestExecuteMode:
 
 class TestGenerateMode:
     def _run_generate(self, config_str: str = "checks:\n  - name: foo") -> Any:
-        mock_dq = MagicMock(spec=BaseDQToolset)
-        mock_dq.output_mode = "generate"
+        mock_dq = _make_dq_toolset("generate")
         op = _make_operator(toolsets=[mock_dq])
         op.llm_hook.create_agent.return_value.run_sync.return_value = _mock_agent_result(config_str)  # type: ignore[attr-defined]
         return op.execute(context=_make_context())
@@ -269,8 +284,7 @@ class TestGenerateMode:
         assert result == config
 
     def test_output_type_is_str(self):
-        mock_dq = MagicMock(spec=BaseDQToolset)
-        mock_dq.output_mode = "generate"
+        mock_dq = _make_dq_toolset("generate")
         op = _make_operator(toolsets=[mock_dq])
         op.llm_hook.create_agent.return_value.run_sync.return_value = _mock_agent_result("cfg")
         op.execute(context=_make_context())
@@ -281,24 +295,29 @@ class TestGenerateMode:
 class TestBuildSystemPrompt:
     def test_base_prompt_always_present(self):
         op = _make_operator()
-        mock_dq = MagicMock(spec=BaseDQToolset)
-        mock_dq.output_mode = "execute"
+        mock_dq = _make_dq_toolset("execute")
         prompt = op._build_system_prompt(mock_dq, [mock_dq])
         assert "data-quality" in prompt
 
     def test_system_prompt_appended(self):
         op = _make_operator(system_prompt="Use ANSI SQL only.")
-        mock_dq = MagicMock(spec=BaseDQToolset)
-        mock_dq.output_mode = "execute"
+        mock_dq = _make_dq_toolset("execute")
         prompt = op._build_system_prompt(mock_dq, [mock_dq])
         assert "Use ANSI SQL only." in prompt
 
     def test_schema_context_appended(self):
         op = _make_operator(schema_context="Table: customers(id, email)")
-        mock_dq = MagicMock(spec=BaseDQToolset)
-        mock_dq.output_mode = "execute"
+        mock_dq = _make_dq_toolset("execute")
         prompt = op._build_system_prompt(mock_dq, [mock_dq])
         assert "customers(id, email)" in prompt
+
+    def test_generate_mode_uses_generation_prompt(self):
+        op = _make_operator()
+        mock_dq = _make_dq_toolset("generate")
+        prompt = op._build_system_prompt(mock_dq, [mock_dq])
+        assert "GENERATE MODE" in prompt
+        assert "apply_validator" not in prompt
+        assert "Return a ``DQReport``" not in prompt
 
 
 class TestExecutePlanValidators:
@@ -377,8 +396,7 @@ class TestRequireApprovalFlow:
         )
 
     def test_execute_defers_with_plan_when_approval_required(self):
-        mock_dq = MagicMock(spec=BaseDQToolset)
-        mock_dq.output_mode = "execute"
+        mock_dq = _make_dq_toolset("execute")
         op = _make_operator(toolsets=[mock_dq], require_approval=True)
 
         plan = self._build_plan()
@@ -398,8 +416,8 @@ class TestRequireApprovalFlow:
         assert "row_count" in call_kwargs["body"]
 
     def test_execute_complete_returns_report_after_approval(self):
-        mock_dq = MagicMock(spec=BaseDQToolset)
-        mock_dq.output_mode = "execute"
+        mock_dq = _make_dq_toolset("execute")
+        mock_dq.set_checks = MagicMock(wraps=mock_dq.set_checks)
         sql_toolset = MagicMock(spec=["_query"])
 
         op = _make_operator(toolsets=[sql_toolset, mock_dq], require_approval=True)
@@ -422,8 +440,7 @@ class TestRequireApprovalFlow:
         context["task_instance"].xcom_push.assert_called_once_with(key="dq_report", value=report.model_dump())
 
     def test_execute_complete_raises_when_approved_plan_fails(self):
-        mock_dq = MagicMock(spec=BaseDQToolset)
-        mock_dq.output_mode = "execute"
+        mock_dq = _make_dq_toolset("execute")
         sql_toolset = MagicMock(spec=["_query"])
 
         op = _make_operator(toolsets=[sql_toolset, mock_dq], require_approval=True)

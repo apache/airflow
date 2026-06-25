@@ -64,7 +64,7 @@ class _LLMDQDecoratedOperator(DecoratedOperator, LLMDataQualityOperator):
         **DecoratedOperator.template_fields_renderers,
     }
 
-    custom_operator_name: str = "@task.llm_dq"
+    custom_operator_name: str = "@task.llm_data_quality"
 
     def __init__(
         self,
@@ -90,7 +90,7 @@ class _LLMDQDecoratedOperator(DecoratedOperator, LLMDataQualityOperator):
 
         if not isinstance(checks, list) or not checks:
             raise TypeError(
-                "The returned value from the @task.llm_dq callable must be a non-empty list[DQCheckInput]."
+                "The returned value from the @task.llm_data_quality callable must be a non-empty list[DQCheckInput]."
             )
 
         from airflow.providers.common.ai.utils.dataquality.models import DQCheckInput
@@ -101,7 +101,7 @@ class _LLMDQDecoratedOperator(DecoratedOperator, LLMDataQualityOperator):
         return LLMDataQualityOperator.execute(self, context)
 
 
-def llm_dq_task(
+def llm_data_quality_task(
     python_callable: Callable | None = None,
     **kwargs,
 ) -> TaskDecorator:
@@ -121,7 +121,7 @@ def llm_dq_task(
         )
 
 
-        @task.llm_dq(
+        @task.llm_data_quality(
             llm_conn_id="openai_default",
             db_conn_id="postgres_default",
             table_names=["orders", "customers"],

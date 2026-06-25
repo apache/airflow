@@ -67,12 +67,17 @@ def _make_op(callable_fn=None, **kwargs) -> _LLMDQDecoratedOperator:
 
 
 def _mock_agent_result(output) -> MagicMock:
-    result = MagicMock()
+    result = MagicMock(spec=["output", "usage", "response", "all_messages"])
     result.output = output
     result.usage.return_value = MagicMock(
-        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+        spec=["requests", "tool_calls", "input_tokens", "output_tokens", "total_tokens"],
+        requests=1,
+        tool_calls=0,
+        input_tokens=0,
+        output_tokens=0,
+        total_tokens=0,
     )
-    result.response = MagicMock(model_name="test-model")
+    result.response = MagicMock(spec=["model_name"], model_name="test-model")
     result.all_messages.return_value = []
     return result
 
@@ -95,7 +100,7 @@ def _make_patched_op(callable_fn=None, **op_kwargs) -> _LLMDQDecoratedOperator:
 
 class TestLLMDQDecoratedOperator:
     def test_custom_operator_name(self):
-        assert _LLMDQDecoratedOperator.custom_operator_name == "@task.llm_dq"
+        assert _LLMDQDecoratedOperator.custom_operator_name == "@task.llm_data_quality"
 
     def test_callable_return_value_becomes_checks(self):
         """The list returned by the callable is assigned to op.checks before execute."""

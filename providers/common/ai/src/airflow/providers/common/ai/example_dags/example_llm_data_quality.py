@@ -179,10 +179,10 @@ example_llm_dq_explicit_toolsets()
 @dag(tags=["example"])
 def example_llm_dq_task_decorator():
     """
-    Combine a ``@task``-decorated step with a ``@task.llm_dq``-decorated DQ task.
+    Combine a ``@task``-decorated step with a ``@task.llm_data_quality``-decorated DQ task.
 
     ``notify_start`` is a plain ``@task`` that runs first.
-    ``validate_users`` is decorated with ``@task.llm_dq``: the function body
+    ``validate_users`` is decorated with ``@task.llm_data_quality``: the function body
     returns the checks list, and the decorator handles the LLM agent run,
     SQL execution, and metric validation.
 
@@ -198,7 +198,7 @@ def example_llm_dq_task_decorator():
         log.info("Starting DQ validation for the users table.")
         return {"status": "started"}
 
-    @task.llm_dq(
+    @task.llm_data_quality(
         llm_conn_id="pydanticai_default",
         toolsets=[
             SQLToolset(db_conn_id="postgres_default", allowed_tables=["users"]),

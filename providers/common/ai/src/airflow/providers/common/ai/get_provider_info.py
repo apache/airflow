@@ -371,8 +371,8 @@ def get_provider_info():
                 "name": "llm_branch",
             },
             {
-                "class-name": "airflow.providers.common.ai.decorators.llm_data_quality.llm_dq_task",
-                "name": "llm_dq",
+                "class-name": "airflow.providers.common.ai.decorators.llm_data_quality.llm_data_quality_task",
+                "name": "llm_data_quality",
             },
             {"class-name": "airflow.providers.common.ai.decorators.llm_sql.llm_sql_task", "name": "llm_sql"},
             {
