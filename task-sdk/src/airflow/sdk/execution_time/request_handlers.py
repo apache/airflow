@@ -31,7 +31,6 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from airflow.sdk.api.datamodels._generated import (
-    AssetStateStoreResponse,
     ConnectionResponse,
     DagRunStateResponse,
     TaskStatesResponse,
@@ -42,7 +41,9 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
+    AssetResponse,
     AssetResult,
+    AssetStateStoreResponse,
     AssetStateStoreResult,
     ClearAssetStateStoreByName,
     ClearAssetStateStoreByUri,
@@ -520,26 +521,22 @@ def handle_clear_task_state_store(
 def handle_get_asset_state_store_by_name(
     client: Client, msg: GetAssetStateStoreByName
 ) -> tuple[BaseModel | None, dict[str, bool]]:
-    asset_state_store = client.asset_state_store.get(msg.key, name=msg.name)
-    resp = (
-        asset_state_store
-        if isinstance(asset_state_store, ErrorResponse)
-        else AssetStateStoreResult.from_asset_state_store_response(asset_state_store)
-    )
-    return resp, {}
+    asset_state = client.asset_state_store.get(msg.key, name=msg.name)
+
+    if isinstance(asset_state, AssetStateStoreResponse):
+        return AssetStateStoreResult.from_asset_state_store_response(asset_state), {}
+    return asset_state, {}
 
 
 @handles(GetAssetStateStoreByUri)
 def handle_get_asset_state_store_by_uri(
     client: Client, msg: GetAssetStateStoreByUri
 ) -> tuple[BaseModel | None, dict[str, bool]]:
-    asset_state_store = client.asset_state_store.get(msg.key, uri=msg.uri)
-    resp = (
-        asset_state_store
-        if isinstance(asset_state_store, ErrorResponse)
-        else AssetStateStoreResult.from_asset_state_store_response(asset_state_store)
-    )
-    return resp, {}
+    asset_state = client.asset_state_store.get(msg.key, uri=msg.uri)
+
+    if isinstance(asset_state, AssetStateStoreResponse):
+        return AssetStateStoreResult.from_asset_state_store_response(asset_state), {}
+    return asset_state, {}
 
 
 @handles(SetAssetStateStoreByName)
