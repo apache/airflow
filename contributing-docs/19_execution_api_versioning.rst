@@ -47,16 +47,27 @@ Version Changes
 
 When making changes to the Execution API, you must:
 
-1. Add a new migration module (e.g., ``v2025_04_28.py``). Pick a likely date for when the Airflow version
-   will be released.
+1. Check the latest version file in ``airflow-core/src/airflow/api_fastapi/execution_api/versions/``.
+   If its date is in the future and has not been released yet, add your ``VersionChange`` class to
+   that file. Otherwise add a new migration module (e.g., ``v2025_04_28.py``). Pick a likely date
+   for when the Airflow version will be released.
 
    - Use the ``vYYYY_MM_DD`` format.
    - New migrations can be added to an existing unreleased version; not every migration needs a new version.
    - For unreleased versions, pick a likely date for when it will be released.
    - The version number should be unique and not conflict with any existing versions.
-2. Document the changes in the migration.
-3. Update tests to cover both old and new versions.
-4. Ensure backward compatibility wherever possible.
+2. Update the version bundle in
+   ``airflow-core/src/airflow/api_fastapi/execution_api/versions/__init__.py`` when creating a new
+   version file.
+3. Document the changes in the migration.
+4. Regenerate Task SDK models when request or response schemas change:
+
+   .. code-block:: bash
+
+       uv run --project task-sdk python dev/generate_task_sdk_models.py
+
+5. Update tests to cover both old and new versions.
+6. Ensure backward compatibility wherever possible.
 
 Example Version Migration
 -------------------------
@@ -87,11 +98,18 @@ Directory Structure
 
 The Execution API versioning code is organized as follows:
 
-- ``airflow-core/src/airflow/api_fastapi/execution_api/versions/`` - Contains version migrations
-- ``airflow-core/src/airflow/api_fastapi/execution_api/versions/head/`` - Contains the latest version models
-- ``airflow-core/src/airflow/api_fastapi/execution_api/versions/v2025_04_28/`` - Contains version-specific models and migrations
-- ``airflow-core/tests/unit/api_fastapi/execution_api/versions/head`` - Contains tests for the latest version
-- ``airflow-core/tests/unit/api_fastapi/execution_api/versions/v2025_04_28`` - Contains tests for the version-specific models
+- ``airflow-core/src/airflow/api_fastapi/execution_api/datamodels/`` - Contains the current
+  request and response models.
+- ``airflow-core/src/airflow/api_fastapi/execution_api/routes/`` - Contains the current endpoint
+  implementations.
+- ``airflow-core/src/airflow/api_fastapi/execution_api/versions/`` - Contains Cadwyn version
+  migrations as ``vYYYY_MM_DD.py`` files.
+- ``airflow-core/src/airflow/api_fastapi/execution_api/versions/__init__.py`` - Registers the
+  version bundle.
+- ``airflow-core/tests/unit/api_fastapi/execution_api/versions/head`` - Contains tests for the latest
+  version.
+- ``airflow-core/tests/unit/api_fastapi/execution_api/versions/vYYYY_MM_DD`` - Contains
+  version-specific tests for older clients.
 
 Examples
 --------
