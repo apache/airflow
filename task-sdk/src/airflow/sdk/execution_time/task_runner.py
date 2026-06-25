@@ -2228,6 +2228,9 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     # We intentionally do NOT update os.environ here as that would cause races between tasks.
     # We set these in the copied context so they're available inside ctx.run(execute, ...).
     airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+    # IndexedTaskInstance should not update env variables as those run concurrently within the same process
+    if not isinstance(ti, IndexedTaskInstance):
+        os.environ.update(airflow_context_vars)
     ctx.run(_airflow_context_vars.set, airflow_context_vars)
 
     outlet_events = context_get_outlet_events(context)
