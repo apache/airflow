@@ -98,6 +98,19 @@ Extra (optional)
             }
           }
 
+      **Note:** The ``proxies`` extra is only needed for paths that do not already pick up the standard
+      ``HTTP_PROXY`` / ``HTTPS_PROXY`` / ``NO_PROXY`` environment variables. Synchronous REST API and token
+      requests use ``requests``, and Azure AAD / default-credential token acquisition uses the Azure Identity
+      SDK; both honor those environment variables by default. The asynchronous (deferrable operator and
+      triggerer) REST API and token paths use ``aiohttp`` with a session that does **not** trust the
+      environment, so proxy environment variables are ignored there and the ``proxies`` extra is required to
+      proxy them. Use the extra when you need a proxy on the asynchronous paths, when you want to force a
+      specific proxy regardless of the worker environment, or when only some endpoints should be proxied.
+      When both are configured, the ``proxies`` extra takes precedence over the environment variables. The
+      Azure managed-identity path (``use_azure_managed_identity``) is intentionally never proxied. It
+      authenticates against the link-local ``IMDS`` endpoint (``169.254.169.254``), which must be reached
+      directly; keep that address in ``NO_PROXY`` if your environment sets a global proxy.
+
     Following parameters are necessary if using authentication with OAuth token for Databricks-managed Service Principal:
 
     * ``service_principal_oauth``: required boolean flag. If specified as ``true``, use the Client ID and Client Secret as the Username and Password. See `Authentication using OAuth for service principals <https://docs.databricks.com/en/dev-tools/authentication-oauth.html>`_.

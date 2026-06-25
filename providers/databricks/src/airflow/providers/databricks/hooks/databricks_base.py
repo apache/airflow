@@ -392,6 +392,11 @@ class BaseDatabricksHook(BaseHook):
                         client_id = self.databricks_conn.extra_dejson.get(
                             "azure_managed_identity_client_id", None
                         )
+                        # Managed identity authenticates against the link-local IMDS endpoint
+                        # (169.254.169.254), which must be reached directly and is unsupported behind a
+                        # proxy, so the `proxies` extra is intentionally not forwarded here (unlike the
+                        # ClientSecretCredential / DefaultAzureCredential paths, which call the public
+                        # Entra ID endpoint and do receive the proxy kwargs).
                         token = ManagedIdentityCredential(client_id=client_id).get_token(
                             f"{resource}/.default"
                         )
@@ -445,6 +450,11 @@ class BaseDatabricksHook(BaseHook):
                         client_id = self.databricks_conn.extra_dejson.get(
                             "azure_managed_identity_client_id", None
                         )
+                        # Managed identity authenticates against the link-local IMDS endpoint
+                        # (169.254.169.254), which must be reached directly and is unsupported behind a
+                        # proxy, so the `proxies` extra is intentionally not forwarded here (unlike the
+                        # ClientSecretCredential / DefaultAzureCredential paths, which call the public
+                        # Entra ID endpoint and do receive the proxy kwargs).
                         async with AsyncManagedIdentityCredential(client_id=client_id) as credential:
                             token = await credential.get_token(f"{resource}/.default")
                     else:

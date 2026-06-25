@@ -1820,6 +1820,42 @@ class TestDatabricksHookAadTokenManagedIdentity:
         kwargs = args[1]
         assert kwargs["auth"].token == TOKEN
 
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    @mock.patch.object(azure.identity, "ManagedIdentityCredential")
+    def test_managed_identity_credential_is_not_proxied(self, mock_azure_identity, mock_requests):
+        """Managed identity targets the link-local IMDS endpoint, which must be reached directly, so the
+        ``proxies`` extra is not forwarded to ``ManagedIdentityCredential`` nor to the metadata service call,
+        while the Databricks REST call is still proxied."""
+        hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
+        hook.databricks_conn = Connection(
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="databricks",
+            host=HOST,
+            login=None,
+            password=None,
+            extra=json.dumps({"use_azure_managed_identity": True, "proxies": PROXIES}),
+        )
+        mock_requests.codes.ok = 200
+        mock_requests.get.side_effect = [
+            create_successful_response_mock({"compute": {"azEnvironment": "AZUREPUBLICCLOUD"}}),
+        ]
+        mock_requests.post.side_effect = [
+            create_successful_response_mock({"run_id": "1"}),
+        ]
+        mock_azure_identity().get_token.return_value = create_aad_token_for_resource()
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+
+        run_id = hook.submit_run({"notebook_task": NOTEBOOK_TASK, "new_cluster": NEW_CLUSTER})
+
+        assert run_id == "1"
+        # ManagedIdentityCredential must never be constructed with a proxies kwarg.
+        assert all("proxies" not in call.kwargs for call in mock_azure_identity.call_args_list)
+        # The IMDS metadata service call must also bypass the proxy.
+        assert "proxies" not in mock_requests.get.call_args.kwargs
+        # The Databricks REST API call, by contrast, is proxied.
+        assert mock_requests.post.call_args.kwargs["proxies"] == PROXIES
+
 
 @pytest.mark.db_test
 class TestDatabricksHookAsyncMethods:
