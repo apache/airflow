@@ -104,17 +104,22 @@ _TRIGGER_RULE_TO_DATABRICKS_RUN_IF: dict[str, str] = {
 }
 
 
-def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
+def _handle_databricks_operator_execution(
+    operator, hook, log, context, announce_submission: bool = True
+) -> None:
     """
     Handle the Airflow + Databricks lifecycle logic for a Databricks operator.
 
     :param operator: Databricks operator being handled
     :param context: Airflow context
+    :param announce_submission: Whether to log the run as freshly submitted. Set ``False`` when
+        reconnecting to an already-running job so the log does not claim a new submission.
     """
     if operator.do_xcom_push and context is not None:
         context["ti"].xcom_push(key=XCOM_RUN_ID_KEY, value=operator.run_id)
 
-    log.info("Run submitted with run_id: %s", operator.run_id)
+    if announce_submission:
+        log.info("Run submitted with run_id: %s", operator.run_id)
     run_page_url = hook.get_run_page_url(operator.run_id)
     if operator.do_xcom_push and context is not None:
         context["ti"].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=run_page_url)
@@ -909,6 +914,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         # Set run_id the instant the run exists so on_kill can cancel it even if the worker dies
         # before polling begins.
         self.run_id = self._hook.submit_run(normalised)
+        self.log.info("Run submitted with run_id: %s", self.run_id)
         return self.run_id
 
     def get_job_status(self, external_id: int, context: Context) -> str:
@@ -928,7 +934,9 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
 
     def poll_until_complete(self, external_id: int, context: Context) -> None:
         self.run_id = external_id
-        _handle_databricks_operator_execution(self, self._hook, self.log, context)
+        # The run already exists here (fresh submit logged in submit_job, or reconnect logged by the
+        # mixin), so the poll helper must not announce a submission.
+        _handle_databricks_operator_execution(self, self._hook, self.log, context, announce_submission=False)
 
     def get_job_result(self, external_id: int, context: Context) -> None:
         self.run_id = external_id
