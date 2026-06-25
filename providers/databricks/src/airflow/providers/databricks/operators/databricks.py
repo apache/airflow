@@ -937,9 +937,16 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         # The run already exists here (fresh submit logged in submit_job, or reconnect logged by the
         # mixin), so the poll helper must not announce a submission.
         _handle_databricks_operator_execution(self, self._hook, self.log, context, announce_submission=False)
+        # The helper pushed run_id/run_page_url xcoms; record that so get_job_result does not push again.
+        self._run_xcoms_pushed = True
 
     def get_job_result(self, external_id: int, context: Context) -> None:
         self.run_id = external_id
+        # The already-succeeded retry path skips polling, so push the run xcoms here for parity with the
+        # normal success path. When polling ran, poll_until_complete already pushed them.
+        if not getattr(self, "_run_xcoms_pushed", False) and self.do_xcom_push and context is not None:
+            context["ti"].xcom_push(key=XCOM_RUN_ID_KEY, value=self.run_id)
+            context["ti"].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=self._hook.get_run_page_url(self.run_id))
         return None
 
     def on_kill(self):

@@ -1674,7 +1674,7 @@ class TestDatabricksSubmitRunOperatorOpenLineageInjection:
 class TestDatabricksSubmitRunOperatorDurable:
     @staticmethod
     def _context(task_store=None):
-        ctx: dict = {"ti": MagicMock(autospec=True)}
+        ctx: dict = {"ti": MagicMock(stats_tags={})}
         if task_store is not None:
             ctx["task_state_store"] = task_store
         return ctx
@@ -1691,7 +1691,7 @@ class TestDatabricksSubmitRunOperatorDurable:
         db_mock = db_mock_class.return_value
         db_mock.submit_run.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
-        task_store = MagicMock()
+        task_store = MagicMock(spec_set=["get", "set"])
         task_store.get.return_value = None
 
         op.execute(self._context(task_store))
@@ -1708,7 +1708,7 @@ class TestDatabricksSubmitRunOperatorDurable:
         db_mock = db_mock_class.return_value
         # status check sees the stored run still RUNNING, the poll then sees it finish.
         db_mock.get_run.side_effect = [self._state("RUNNING"), self._state("TERMINATED", "SUCCESS")]
-        task_store = MagicMock()
+        task_store = MagicMock(spec_set=["get", "set"])
         task_store.get.return_value = RUN_ID
 
         op.execute(self._context(task_store))
@@ -1717,21 +1717,48 @@ class TestDatabricksSubmitRunOperatorDurable:
         task_store.set.assert_not_called()
         assert op.run_id == RUN_ID
 
+    @mock.patch("airflow.providers.databricks.operators.databricks._handle_databricks_operator_execution")
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    def test_skips_polling_when_stored_run_already_succeeded(self, db_mock_class):
+    def test_already_succeeded_pushes_xcoms_without_polling(self, db_mock_class, mock_poll):
         op = DatabricksSubmitRunOperator(
             task_id=TASK_ID, json={"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK}
         )
         db_mock = db_mock_class.return_value
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
-        task_store = MagicMock()
+        db_mock.get_run_page_url.return_value = RUN_PAGE_URL
+        task_store = MagicMock(spec_set=["get", "set"])
         task_store.get.return_value = RUN_ID
+        ti = MagicMock(stats_tags={})
 
-        op.execute(self._context(task_store))
+        op.execute({"ti": ti, "task_state_store": task_store})
 
+        # No duplicate submission and no poll loop, but the run xcoms are still pushed for parity
+        # with the normal success path.
         db_mock.submit_run.assert_not_called()
-        db_mock.get_run_page_url.assert_not_called()
+        mock_poll.assert_not_called()
+        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
+        ti.xcom_push.assert_any_call(key="run_id", value=RUN_ID)
+        ti.xcom_push.assert_any_call(key="run_page_url", value=RUN_PAGE_URL)
         assert op.run_id == RUN_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_fresh_submit_pushes_run_xcoms_exactly_once(self, db_mock_class):
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID, json={"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK}
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+        db_mock.get_run_page_url.return_value = RUN_PAGE_URL
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = None
+        ti = MagicMock(stats_tags={})
+
+        op.execute({"ti": ti, "task_state_store": task_store})
+
+        # Poll helper pushes run_id + run_page_url xcoms get_job_result must not push them again
+        assert ti.xcom_push.call_count == 2
+        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_resubmits_when_stored_run_in_terminal_failure(self, db_mock_class):
@@ -1745,7 +1772,7 @@ class TestDatabricksSubmitRunOperatorDurable:
             self._state("TERMINATED", "FAILED"),
             self._state("TERMINATED", "SUCCESS"),
         ]
-        task_store = MagicMock()
+        task_store = MagicMock(spec_set=["get", "set"])
         task_store.get.return_value = 999
 
         op.execute(self._context(task_store))
@@ -1762,7 +1789,7 @@ class TestDatabricksSubmitRunOperatorDurable:
         db_mock = db_mock_class.return_value
         db_mock.submit_run.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
-        task_store = MagicMock()
+        task_store = MagicMock(spec_set=["get", "set"])
 
         op.execute(self._context(task_store))
 
