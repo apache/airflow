@@ -386,6 +386,19 @@ class TestKeycloakAuthManager:
 
             assert "Unexpected error" in str(e.value)
 
+    def test_is_authorized_missing_keycloak_resource(self, auth_manager, user, caplog):
+        resp = Mock()
+        resp.status_code = 500
+        resp.text = "resource not found: Dag:team-a"
+        auth_manager.http_session.post = Mock(return_value=resp)
+        caplog.set_level("WARNING", logger="airflow.providers.keycloak.auth_manager.keycloak_auth_manager")
+
+        result = auth_manager.is_authorized_dag(method="GET", details=DagDetails(id="dag_0"), user=user)
+
+        assert result is False
+        assert "Keycloak authorization resource is missing; denying access" in caplog.text
+        assert "resource not found: Dag:team-a" in caplog.text
+
     @pytest.mark.parametrize(
         "function",
         [
@@ -651,6 +664,30 @@ class TestKeycloakAuthManager:
 
         mock_is_authorized.assert_called_once()
         assert result == {"dag-a"}
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
+    def test_filter_authorized_dag_ids_missing_keycloak_resource(self, auth_manager_multi_team, user, caplog):
+        def post_response(*_, data, **__):
+            claims = json.loads(base64.b64decode(data["claim_token"]).decode())
+            dag_id = claims[RESOURCE_ID_ATTRIBUTE_NAME][0]
+            response = Mock()
+            if dag_id == "dag-missing":
+                response.status_code = 500
+                response.text = "resource not found: Dag:team-a"
+            else:
+                response.status_code = 200
+            return response
+
+        auth_manager_multi_team.http_session.post = Mock(side_effect=post_response)
+        caplog.set_level("WARNING", logger="airflow.providers.keycloak.auth_manager.keycloak_auth_manager")
+
+        result = auth_manager_multi_team.filter_authorized_dag_ids(
+            dag_ids={"dag-allowed", "dag-missing"}, user=user, team_name="team-a"
+        )
+
+        assert result == {"dag-allowed"}
+        assert auth_manager_multi_team.http_session.post.call_count == 2
+        assert "Keycloak authorization resource is missing; denying access" in caplog.text
 
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
     @patch.object(KeycloakAuthManager, "is_authorized_pool", return_value=False)

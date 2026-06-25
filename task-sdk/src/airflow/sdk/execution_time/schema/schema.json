@@ -434,6 +434,19 @@
           ],
           "default": null,
           "title": "Version"
+        },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
         }
       },
       "required": [
