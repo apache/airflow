@@ -340,33 +340,17 @@ Add the artifact:
 
     implementation("org.apache.airflow:airflow-sdk-jul:${version}")
 
-and call ``AirflowJulHandler.install()`` on startup to attach the handler to the
-JUL root logger before any task runs. Remove JUL's default handlers first, so
-records flow only through ``AirflowJulHandler``:
+and call ``AirflowJulHandler.setup()`` on startup, before any task runs. It clears the JUL root
+logger's existing handlers (including the default ``ConsoleHandler``, whose stderr output Airflow
+would otherwise capture as ``task.stderr`` at ERROR level, duplicating each record and mislabeling
+its level) and installs ``AirflowJulHandler`` in their place:
 
 .. code-block:: java
 
-    import java.util.logging.Handler;
-    import java.util.logging.Logger;
-
     public static void main(String[] args) {
-        Logger root = Logger.getLogger("");
-        for (Handler h : root.getHandlers()) {
-            root.removeHandler(h);
-        }
-        AirflowJulHandler.install();
+        AirflowJulHandler.setup();
         Server.create(args).serve(new MyBundle());
     }
-
-.. note::
-
-    ``install()`` only adds the handler; it does not remove JUL's default
-    ``ConsoleHandler``. If you leave that handler in place, every record is also
-    written to stderr, which Airflow captures separately as ``task.stderr`` at
-    ERROR level, so each line appears twice in the UI and ``INFO`` records are
-    mislabeled as errors. The ``logging.properties`` approach below avoids this,
-    since the ``handlers`` property replaces the root handler set instead of
-    adding to it.
 
 Alternatively, declare the handler in a ``logging.properties`` file and point JUL at it with the
 ``java.util.logging.config.file`` system property (set via ``jvm_args`` in the coordinator
@@ -694,14 +678,18 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
   scheduler (or ``airflow standalone``). A rebuilt bundle JAR, by contrast, is picked up on the next
   task launch without a restart, because a fresh JVM is spawned per task instance.
 
-.. _java-sdk/macos:
+.. _java-sdk/java-executable:
 
-macOS setup
------------
+Pinning the Java executable
+---------------------------
 
-On macOS, pin ``java_executable`` to an absolute path. Homebrew does not symlink the JDK onto
-``$PATH``, so set ``java_executable`` to the JDK you intend to use rather than relying on ``java``
-resolving from ``$PATH``.
+As a general recommendation, set ``java_executable`` to an absolute path rather than relying on
+``java`` resolving from ``$PATH``. This pins tasks to a known JDK, which matters most in production or
+corporate environments where the Airflow admin may not control the system-wide ``java`` (the same
+reasoning behind pinning a Python version).
+
+For example, if you install the JDK with Homebrew on macOS it is not symlinked onto ``$PATH``, so
+point ``java_executable`` at it explicitly:
 
 .. code-block:: ini
 
