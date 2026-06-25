@@ -249,6 +249,34 @@ def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
+# Spark normally injects these JVM options through its own launcher; the raw
+# JavaCoordinator launch bypasses that, so the bundle must carry them itself.
+# This mirrors org.apache.spark.launcher.JavaModuleOptions.defaultModuleOptions()
+# verbatim for the pinned Spark 3.5.8 (java-sdk/scala_spark_example/build.gradle).
+# A partial set passes the toy aggregation here but breaks real Spark code paths
+# (Kryo -> java.lang.reflect, off-heap cleaner -> jdk.internal.ref, charset ->
+# sun.nio.cs, Kerberos -> sun.security.krb5); keep it in sync if Spark is bumped.
+_SPARK_JAVA_MODULE_OPTIONS = [
+    "-XX:+IgnoreUnrecognizedVMOptions",
+    "--add-opens=java.base/java.lang=ALL-UNNAMED",
+    "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+    "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+    "--add-opens=java.base/java.io=ALL-UNNAMED",
+    "--add-opens=java.base/java.net=ALL-UNNAMED",
+    "--add-opens=java.base/java.nio=ALL-UNNAMED",
+    "--add-opens=java.base/java.util=ALL-UNNAMED",
+    "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED",
+    "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
+    "--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED",
+    "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+    "--add-opens=java.base/sun.nio.cs=ALL-UNNAMED",
+    "--add-opens=java.base/sun.security.action=ALL-UNNAMED",
+    "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED",
+    "--add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED",
+    "-Djdk.reflect.useDirectMethodHandle=false",
+]
+
+
 def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     """Set up the java_sdk E2E test mode.
 
@@ -411,20 +439,8 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
                     # Pin the entry point so Spark's large dependency classpath
                     # cannot make Main-Class discovery ambiguous.
                     "main_class": "org.apache.airflow.example.ScalaSparkBundleBuilder",
-                    "jvm_args": [
-                        "-Xmx512m",
-                        "--add-opens=java.base/java.lang=ALL-UNNAMED",
-                        "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
-                        "--add-opens=java.base/java.io=ALL-UNNAMED",
-                        "--add-opens=java.base/java.net=ALL-UNNAMED",
-                        "--add-opens=java.base/java.nio=ALL-UNNAMED",
-                        "--add-opens=java.base/java.util=ALL-UNNAMED",
-                        "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED",
-                        "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
-                        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
-                        "--add-opens=java.base/sun.security.action=ALL-UNNAMED",
-                        "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED",
-                    ],
+                    # Small driver heap plus Spark's full Java 17 module openings.
+                    "jvm_args": ["-Xmx512m", *_SPARK_JAVA_MODULE_OPTIONS],
                     # Booting a JVM over the large Spark classpath takes longer
                     # than the 10 s default before it connects back.
                     "task_startup_timeout": 60.0,
