@@ -699,16 +699,9 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
 macOS setup
 -----------
 
-Two extra coordinator settings are needed when running tasks on macOS:
-
-* **Force the JVM onto IPv4.** The coordinator verifies that the task JVM owns its callback socket. On
-  macOS a dual-stack JVM reports its local address in the IPv4-compatible form (``::127.0.0.1``),
-  which fails that check, so the task exits immediately with
-  ``Rejected connection not owned by child process``. Add ``-Djava.net.preferIPv4Stack=true`` to
-  ``jvm_args`` so the JVM binds plain IPv4.
-* **Pin** ``java_executable`` **to an absolute path.** Homebrew does not symlink the JDK onto
-  ``$PATH``, so set ``java_executable`` to the JDK you intend to use rather than relying on ``java``
-  resolving from ``$PATH``.
+On macOS, pin ``java_executable`` to an absolute path. Homebrew does not symlink the JDK onto
+``$PATH``, so set ``java_executable`` to the JDK you intend to use rather than relying on ``java``
+resolving from ``$PATH``.
 
 .. code-block:: ini
 
@@ -718,7 +711,6 @@ Two extra coordinator settings are needed when running tasks on macOS:
         "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
         "kwargs": {
           "jars_root": ["/opt/airflow/jars"],
-          "jvm_args": ["-Djava.net.preferIPv4Stack=true"],
           "java_executable": "/opt/homebrew/opt/openjdk@17/bin/java"
         }
       }
