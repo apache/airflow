@@ -23,9 +23,9 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 if not AIRFLOW_V_3_3_PLUS:
     pytest.skip("Store backend requires Airflow >= 3.3", allow_module_level=True)
 
-from airflow.providers.common.io.store import backend
-from airflow.providers.common.io.store.backend import (
-    StoreObjectStorageBackend,
+from airflow.providers.common.io.state_store import backend
+from airflow.providers.common.io.state_store.backend import (
+    StateStoreObjectStorageBackend,
     _asset_path,
     _read,
     _task_path,
@@ -63,8 +63,8 @@ def conf_overrides(base_path):
 
     with conf_vars(
         {
-            ("common.io", "store_objectstorage_path"): base_path,
-            ("common.io", "store_objectstorage_compression"): "",
+            ("common.io", "state_store_objectstorage_path"): base_path,
+            ("common.io", "state_store_objectstorage_compression"): "",
         }
     ):
         yield base_path
@@ -105,8 +105,8 @@ class TestPathBuilders:
 
         with conf_vars(
             {
-                ("common.io", "store_objectstorage_path"): f"file://{store_path}",
-                ("common.io", "store_objectstorage_compression"): "gzip",
+                ("common.io", "state_store_objectstorage_path"): f"file://{store_path}",
+                ("common.io", "state_store_objectstorage_compression"): "gzip",
             }
         ):
             backend._get_base_path.cache_clear()
@@ -133,10 +133,10 @@ class TestIOPrimitives:
         assert path.exists()
 
 
-class TestStoreObjectStorageBackend:
+class TestStateStoreObjectStorageBackend:
     @pytest.fixture
     def store(self, conf_overrides):
-        return StoreObjectStorageBackend()
+        return StateStoreObjectStorageBackend()
 
     @pytest.fixture
     def task_scope(self):
@@ -207,36 +207,36 @@ class TestStoreObjectStorageBackend:
     def test_task_serialize_offloads_to_storage(self, task_scope, base_path):
         with conf_vars(
             {
-                ("common.io", "store_objectstorage_path"): base_path,
-                ("common.io", "store_objectstorage_threshold"): "0",
+                ("common.io", "state_store_objectstorage_path"): base_path,
+                ("common.io", "state_store_objectstorage_threshold"): "0",
             }
         ):
             backend._get_threshold.cache_clear()
-            store = StoreObjectStorageBackend()
+            store = StateStoreObjectStorageBackend()
             ref = store.serialize_task_store_to_ref(value={"x": 1}, key="k", scope=task_scope)
             assert ref.startswith("file://")
 
     def test_asset_serialize_offloads_to_storage(self, asset_scope, base_path):
         with conf_vars(
             {
-                ("common.io", "store_objectstorage_path"): base_path,
-                ("common.io", "store_objectstorage_threshold"): "0",
+                ("common.io", "state_store_objectstorage_path"): base_path,
+                ("common.io", "state_store_objectstorage_threshold"): "0",
             }
         ):
             backend._get_threshold.cache_clear()
-            store = StoreObjectStorageBackend()
+            store = StateStoreObjectStorageBackend()
             ref = store.serialize_asset_store_to_ref(value={"x": 1}, key="k", scope=asset_scope)
             assert ref.startswith("file://")
 
     def test_task_serialize_to_db_when_below_threshold(self, task_scope, base_path):
         with conf_vars(
             {
-                ("common.io", "store_objectstorage_path"): base_path,
-                ("common.io", "store_objectstorage_threshold"): "10000",
+                ("common.io", "state_store_objectstorage_path"): base_path,
+                ("common.io", "state_store_objectstorage_threshold"): "10000",
             }
         ):
             backend._get_threshold.cache_clear()
-            store = StoreObjectStorageBackend()
+            store = StateStoreObjectStorageBackend()
             ref = store.serialize_task_store_to_ref(value={"x": 1}, key="k", scope=task_scope)
             assert not ref.startswith("file://")
             assert store.deserialize_task_store_from_ref(ref) == {"x": 1}
@@ -244,12 +244,12 @@ class TestStoreObjectStorageBackend:
     def test_asset_serialize_to_db_when_below_threshold(self, asset_scope, base_path):
         with conf_vars(
             {
-                ("common.io", "store_objectstorage_path"): base_path,
-                ("common.io", "store_objectstorage_threshold"): "10000",
+                ("common.io", "state_store_objectstorage_path"): base_path,
+                ("common.io", "state_store_objectstorage_threshold"): "10000",
             }
         ):
             backend._get_threshold.cache_clear()
-            store = StoreObjectStorageBackend()
+            store = StateStoreObjectStorageBackend()
             ref = store.serialize_asset_store_to_ref(value={"x": 1}, key="k", scope=asset_scope)
             assert not ref.startswith("file://")
             assert store.deserialize_asset_store_from_ref(ref) == {"x": 1}

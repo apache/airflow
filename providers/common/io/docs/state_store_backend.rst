@@ -22,46 +22,46 @@ The default state store backend is :class:`~airflow.state.metastore.MetastoreSta
 task and asset state in the Airflow metadata database. For larger values, you may want to store state on
 object storage instead.
 
-To enable object storage for task and asset store, set ``backend`` in the ``[state_store]`` section to
-``airflow.providers.common.io.store.backend.StoreObjectStorageBackend``, and set
-``store_objectstorage_path`` to the desired base location. The connection id is obtained from the user
-part of the URL, e.g. ``store_objectstorage_path = s3://conn_id@mybucket/task-state/``.
+To enable object storage for task and asset state store, set ``backend`` in the ``[state_store]`` section to
+``airflow.providers.common.io.state_store.backend.StateStoreObjectStorageBackend``, and set
+``state_store_objectstorage_path`` to the desired base location. The connection id is obtained from the user
+part of the URL, e.g. ``state_store_objectstorage_path = s3://conn_id@mybucket/task-state/``.
 
 Task state is stored under ``<dag_id>/<run_id>/<task_id>/<map_index>/<key>`` and asset state under
-``assets/<asset_ref>/<key>`` beneath the configured base path.
+``assets/<asset_identifier>/<key>`` beneath the configured base path.
 
-By default (``store_objectstorage_threshold = 0``) all serialized values are offloaded to object storage.
-Set ``store_objectstorage_threshold`` to a positive number of bytes to only offload values whose
+By default (``state_store_objectstorage_threshold = 0``) all serialized values are offloaded to object storage.
+Set ``state_store_objectstorage_threshold`` to a positive number of bytes to only offload values whose
 serialized size meets or exceeds the threshold, anything smaller are stored in the Airflow metadata database.
 
-Optionally set ``store_objectstorage_compression`` to an fsspec-supported compression algorithm such as
+Optionally set ``state_store_objectstorage_compression`` to an fsspec-supported compression algorithm such as
 ``gzip`` or ``snappy`` to compress values before writing.
 
 The following example stores all task and asset state in S3, compressed with gzip::
 
       [state_store]
-      backend = airflow.providers.common.io.store.backend.StoreObjectStorageBackend
+      backend = airflow.providers.common.io.state_store.backend.StateStoreObjectStorageBackend
 
       [common.io]
-      store_objectstorage_path = s3://conn_id@mybucket/task-state/
-      store_objectstorage_compression = gzip
+      state_store_objectstorage_path = s3://conn_id@mybucket/task-state/
+      state_store_objectstorage_compression = gzip
 
 To only offload values larger than 1 MB::
 
       [state_store]
-      backend = airflow.providers.common.io.store.backend.StoreObjectStorageBackend
+      backend = airflow.providers.common.io.state_store.backend.StateStoreObjectStorageBackend
 
       [common.io]
-      store_objectstorage_path = s3://conn_id@mybucket/task-state/
-      store_objectstorage_threshold = 1048576
+      state_store_objectstorage_path = s3://conn_id@mybucket/task-state/
+      state_store_objectstorage_threshold = 1048576
 
 Using the local filesystem (useful for development)::
 
       [state_store]
-      backend = airflow.providers.common.io.store.backend.StoreObjectStorageBackend
+      backend = airflow.providers.common.io.state_store.backend.StateStoreObjectStorageBackend
 
       [common.io]
-      store_objectstorage_path = file:///var/airflow/task-state/
+      state_store_objectstorage_path = file:///var/airflow/task-state/
 
 .. note::
 

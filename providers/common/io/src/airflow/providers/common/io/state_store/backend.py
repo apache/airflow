@@ -33,32 +33,27 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
 
-try:
-    from airflow.sdk._shared.state import AssetScope, BaseStoreBackend, StoreScope, TaskScope
-except ImportError:
-    raise ImportError(
-        "StoreObjectStorageBackend requires Airflow >= 3.3. Please upgrade your Airflow installation."
-    ) from None
 
 from airflow.sdk import ObjectStoragePath
+from airflow.sdk._shared.state import AssetScope, BaseStoreBackend, StoreScope, TaskScope
 
 SECTION = "common.io"
 
 
 @cache
 def _get_base_path() -> ObjectStoragePath:
-    return ObjectStoragePath(conf.get_mandatory_value(SECTION, "store_objectstorage_path"))
+    return ObjectStoragePath(conf.get_mandatory_value(SECTION, "state_store_objectstorage_path"))
 
 
 @cache
 def _get_compression() -> str | None:
-    value = conf.get(SECTION, "store_objectstorage_compression", fallback=None)
+    value = conf.get(SECTION, "state_store_objectstorage_compression", fallback=None)
     return value or None
 
 
 @cache
 def _get_threshold() -> int:
-    return conf.getint(SECTION, "store_objectstorage_threshold", fallback=0)
+    return conf.getint(SECTION, "state_store_objectstorage_threshold", fallback=0)
 
 
 def _compression_suffix() -> str:
@@ -138,8 +133,8 @@ class StoreObjectStorageBackend(BaseStoreBackend):
 
     Config keys (all under ``[common.io]``):
 
-    - ``store_objectstorage_path``: base path, e.g. ``s3://conn_id@bucket/task-state/``
-    - ``store_objectstorage_compression``: optional compression, e.g. ``gzip``
+    - ``state_store_objectstorage_path``: base path, e.g. ``s3://conn_id@bucket/task-state/``
+    - ``state_store_objectstorage_compression``: optional compression, e.g. ``gzip``
     """
 
     def get(self, scope: StoreScope, key: str, *, session: Session | None = None) -> str | None:
