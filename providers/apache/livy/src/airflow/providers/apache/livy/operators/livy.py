@@ -29,19 +29,20 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
 )
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
 
+# ResumableJobMixin ships in airflow.sdk, which only exists on Airflow 3, while this provider
+# still targets apache-airflow>=2.11. Guard the import and fall back to a stub on Airflow 2;
+# drop the fallback once the provider's minimum Airflow version is >=3.0.
 try:
     from airflow.sdk import ResumableJobMixin
 except ImportError:
-    # Airflow 2 compat.
-    # ResumableJobMixin does not exist in Airflow 2, so we add a stub that behaves as before
-    # (no task_state_store, always submits fresh).
+
     class ResumableJobMixin:  # type: ignore[no-redef]
-        """Airflow 2 stub — no task_state_store, always submits fresh."""
+        """Airflow 2 fallback: no task_state_store, so the operator always submits a fresh batch."""
 
         external_id_key: str = "remote_job_id"
 
         def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
-            # Accept durable so the kwarg doesn't leak to BaseOperator; crash recovery is a no-op here.
+            # Swallow ``durable`` so it doesn't reach BaseOperator; crash recovery is a no-op here.
             super().__init__(**kwargs)
             self.durable = durable
 
