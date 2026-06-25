@@ -93,7 +93,7 @@ from airflow.task.priority_strategy import (
     validate_and_load_priority_weight_strategy,
 )
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
-from airflow.timetables.simple import NullTimetable, OnceTimetable, PartitionAtRuntime
+from airflow.timetables.simple import NullTimetable, OnceTimetable, PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.types import DagRunType
@@ -2778,11 +2778,11 @@ class TestStringifiedDAGs:
         assert dr.partition_key == "2025-01-01T00:00:00"
 
     @pytest.mark.db_test
-    def test_create_dagrun_accepts_partition_key_for_partition_at_runtime_dag(self, dag_maker):
-        """create_dagrun does not raise when partition_key is passed to a PartitionAtRuntime Dag."""
+    def test_create_dagrun_accepts_partition_key_for_partitioned_at_runtime_dag(self, dag_maker):
+        """create_dagrun does not raise when partition_key is passed to a PartitionedAtRuntime Dag."""
         with dag_maker(
-            dag_id="test_partition_at_runtime",
-            schedule=PartitionAtRuntime(),
+            dag_id="test_partitioned_at_runtime",
+            schedule=PartitionedAtRuntime(),
             serialized=True,
         ):
             pass

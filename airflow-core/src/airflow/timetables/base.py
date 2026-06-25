@@ -240,7 +240,7 @@ class Timetable(Protocol):
     partitioned_at_runtime: bool = False
     """Whether this timetable defers partition selection to task runtime.
 
-    *True* for :class:`~airflow.timetables.simple.PartitionAtRuntime`;
+    *True* for :class:`~airflow.timetables.simple.PartitionedAtRuntime`;
     downstream code can branch on this flag instead of using ``isinstance``.
     """
 

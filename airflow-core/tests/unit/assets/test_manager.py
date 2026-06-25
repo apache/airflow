@@ -494,10 +494,10 @@ class TestAssetManager:
         # partition-at-runtime Dag so its run can carry a ``partition_key`` that
         # the emitted ``AssetEvent`` inherits.
         from airflow.models.taskinstance import TaskInstance
-        from airflow.sdk import PartitionAtRuntime
+        from airflow.sdk import PartitionedAtRuntime
 
         with dag_maker(
-            dag_id="stamp-producer", schedule=PartitionAtRuntime(), session=session
+            dag_id="stamp-producer", schedule=PartitionedAtRuntime(), session=session
         ) as producer_dag:
             from airflow.providers.standard.operators.empty import EmptyOperator
 
