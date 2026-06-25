@@ -28,6 +28,8 @@ import { renderDuration } from "src/utils/datetimeUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 export type GanttDataItem = {
+  /** Actual task execution end_date — consistent across all segments of the same try. */
+  end_when?: string | null;
   isGroup?: boolean | null;
   isMapped?: boolean | null;
   /** Source try times for tooltips (matches TaskInstance `*_when` fields). */
@@ -35,8 +37,6 @@ export type GanttDataItem = {
   scheduled_when?: string | null;
   /** Actual task execution start_date — consistent across all segments of the same try. */
   start_when?: string | null;
-  /** Actual task execution end_date — consistent across all segments of the same try. */
-  end_when?: string | null;
   state?: TaskInstanceState | null;
   taskId: string;
   tryNumber?: number;
