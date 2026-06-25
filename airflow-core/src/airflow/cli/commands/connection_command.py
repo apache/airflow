@@ -86,7 +86,7 @@ class ConnectionDisplayMapper:
             "password": conn.password,
             "port": conn.port,
             "is_encrypted": conn.is_encrypted,
-            "is_extra_encrypted": conn.is_encrypted,
+            "is_extra_encrypted": conn.is_extra_encrypted,
             "extra_dejson": conn.extra_dejson,
             "get_uri": conn.get_uri(),
         }
@@ -113,7 +113,7 @@ class ConnectionDisplayMapper:
             "password": SENSITIVE_PLACEHOLDER if conn.password else conn.password,
             "port": conn.port,
             "is_encrypted": conn.is_encrypted,
-            "is_extra_encrypted": conn.is_encrypted,
+            "is_extra_encrypted": conn.is_extra_encrypted,
             "extra_dejson": SENSITIVE_PLACEHOLDER if conn.extra_dejson else conn.extra_dejson,
             "get_uri": _mask_uri_credentials(conn.get_uri()),
         }
