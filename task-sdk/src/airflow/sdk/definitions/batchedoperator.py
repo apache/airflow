@@ -232,7 +232,7 @@ class BatchedOperator(BatchableOperator[OperatorPartial]):
         register_with_dag: bool = True,
     ) -> MappedOperator:
         from airflow.providers.standard.operators.empty import EmptyOperator
-        from airflow.providers.standard.utils.skipmixin import SkipMixin
+        from airflow.sdk.bases.skipmixin import SkipMixin
         from airflow.sdk import BaseSensorOperator
 
         ensure_xcomarg_return_value(expand_input.value)
