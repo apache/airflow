@@ -631,7 +631,19 @@ partition match can be produced, so the downstream Dag is not triggered for
 that key.
 
 Inside partitioned Dag runs, access the resolved partition through
-``dag_run.partition_key``.
+``dag_run.partition_key``. When the consumer's partition mapper can
+resolve the key to a ``datetime``, that value is also available as
+``dag_run.partition_date``, so templates can use
+``{{ partition_date | ds }}``. This covers the ``StartOf*Mapper`` family
+(which decode the key directly), ``IdentityMapper`` (which carries the
+producer's ``partition_date`` through), and composite mappers —
+``RollupMapper``, ``ChainMapper`` and ``FanOutMapper`` — whose effective
+child mapper is temporal (they delegate the anchor to that child).
+Mappers whose key carries no temporal meaning (``ProductMapper``,
+``AllowedKeyMapper`` and custom mappers that do not implement
+``to_partition_date``) leave ``partition_date`` ``None`` even when the
+resulting key is date-shaped, so those consumers should keep parsing
+``partition_key``.
 
 You can also trigger a DagRun manually with a partition key (for example,
 through the Trigger Dag window in the UI, or through the REST API by

@@ -93,7 +93,7 @@ A separate, optional config key under ``[workers]`` lets you route task state st
     [workers]
     state_backend = mypackage.state.S3StateBackend
 
-When this is set, ``TaskStoreAccessor.set()`` calls ``serialize_task_store_to_ref()`` on the worker-side backend before sending the returned value (a reference to the actual storage) to the Execution API, and ``get()`` calls ``deserialize_task_store_from_ref()`` after receiving the stored reference from the Execution API. See `Custom worker-side backends`_ below.
+When this is set, ``TaskStateStoreAccessor.set()`` calls ``serialize_task_state_store_to_ref()`` on the worker-side backend before sending the returned value (a reference to the actual storage) to the Execution API, and ``get()`` calls ``deserialize_task_state_store_from_ref()`` after receiving the stored reference from the Execution API. See `Custom worker-side backends`_ below.
 
 
 Garbage collection semantics
@@ -155,10 +155,10 @@ Worker-side backends extend ``BaseStoreBackend`` with two pairs of serialization
 
 Override four serialization hooks from :class:`~airflow.sdk.state.BaseStoreBackend`:
 
-* ``serialize_task_store_to_ref``: called by ``TaskStoreAccessor.set()`` before the value is sent to the Execution API; return a compact reference string (e.g. an S3 key) to be stored in the database instead of the raw value.
-* ``deserialize_task_store_from_ref``: called by ``TaskStoreAccessor.get()`` after retrieving the reference from the backend; return the actual value.
-* ``serialize_asset_store_to_ref``: same as the task variant but for asset state store; receives the asset scope as ``scope`` (an :class:`~airflow.sdk.state.AssetScope` with ``name`` and/or ``uri``).
-* ``deserialize_asset_store_from_ref``: called by ``AssetStoreAccessor.get()`` to resolve the stored reference back to the actual value.
+* ``serialize_task_state_store_to_ref``: called by ``TaskStateStoreAccessor.set()`` before the value is sent to the Execution API; return a compact reference string (e.g. an S3 key) to be stored in the database instead of the raw value.
+* ``deserialize_task_state_store_from_ref``: called by ``TaskStateStoreAccessor.get()`` after retrieving the reference from the backend; return the actual value.
+* ``serialize_asset_state_store_to_ref``: same as the task variant but for asset state store; receives the asset scope as ``scope`` (an :class:`~airflow.sdk.state.AssetScope` with ``name`` and/or ``uri``).
+* ``deserialize_asset_state_store_from_ref``: called by ``AssetStateStoreAccessor.get()`` to resolve the stored reference back to the actual value.
 
 .. important::
 
@@ -188,21 +188,21 @@ Example skeleton:
             safe = hashlib.sha256(asset_identifier.encode()).hexdigest()[:16]
             return f"airflow/asset-store/{safe}/{key}"
 
-        def serialize_task_store_to_ref(self, *, value: JsonValue, key: str, scope: TaskScope) -> str:
+        def serialize_task_state_store_to_ref(self, *, value: JsonValue, key: str, scope: TaskScope) -> str:
             s3_key = self._task_ref(scope, key)
             s3_client.put_object(Bucket=BUCKET, Key=s3_key, Body=json.dumps(value).encode())
             return s3_key
 
-        def deserialize_task_store_from_ref(self, stored: str) -> JsonValue:
+        def deserialize_task_state_store_from_ref(self, stored: str) -> JsonValue:
             s3_object = s3_client.get_object(Bucket=BUCKET, Key=stored)
             return json.loads(s3_object["Body"].read().decode())
 
-        def serialize_asset_store_to_ref(self, *, value: JsonValue, key: str, scope: AssetScope) -> str:
+        def serialize_asset_state_store_to_ref(self, *, value: JsonValue, key: str, scope: AssetScope) -> str:
             s3_key = self._asset_ref(scope, key)
             s3_client.put_object(Bucket=BUCKET, Key=s3_key, Body=json.dumps(value).encode())
             return s3_key
 
-        def deserialize_asset_store_from_ref(self, stored: str) -> JsonValue:
+        def deserialize_asset_state_store_from_ref(self, stored: str) -> JsonValue:
             s3_object = s3_client.get_object(Bucket=BUCKET, Key=stored)
             return json.loads(s3_object["Body"].read().decode())
 
