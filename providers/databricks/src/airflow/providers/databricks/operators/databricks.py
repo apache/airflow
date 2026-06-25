@@ -57,6 +57,8 @@ from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMix
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
+    from pydantic import JsonValue
+
     from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.providers.databricks.operators.databricks_workflow import (
         DatabricksWorkflowTaskGroup,
@@ -917,7 +919,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         self.log.info("Run submitted with run_id: %s", self.run_id)
         return self.run_id
 
-    def get_job_status(self, external_id: int, context: Context) -> str:
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
         # Databricks splits run state across life_cycle_state and result_state; the mixin's status
         # interface is a single string, so encode both as "LIFE_CYCLE:RESULT" and decode them in
         # is_job_active / is_job_succeeded.
@@ -932,16 +934,17 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
     def is_job_succeeded(self, status: str) -> bool:
         return status == "TERMINATED:SUCCESS"
 
-    def poll_until_complete(self, external_id: int, context: Context) -> None:
-        self.run_id = external_id
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        # submit_job and the stored external id are always Databricks run ids (int).
+        self.run_id = cast("int", external_id)
         # The run already exists here (fresh submit logged in submit_job, or reconnect logged by the
         # mixin), so the poll helper must not announce a submission.
         _handle_databricks_operator_execution(self, self._hook, self.log, context, announce_submission=False)
         # The helper pushed run_id/run_page_url xcoms; record that so get_job_result does not push again.
         self._run_xcoms_pushed = True
 
-    def get_job_result(self, external_id: int, context: Context) -> None:
-        self.run_id = external_id
+    def get_job_result(self, external_id: JsonValue, context: Context) -> None:
+        self.run_id = cast("int", external_id)
         # The already-succeeded retry path skips polling, so push the run xcoms here for parity with the
         # normal success path. When polling ran, poll_until_complete already pushed them.
         if not getattr(self, "_run_xcoms_pushed", False) and self.do_xcom_push and context is not None:
