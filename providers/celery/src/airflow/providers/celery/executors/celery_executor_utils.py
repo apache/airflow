@@ -407,9 +407,13 @@ def send_workload_to_executor(
     """
     Send workload to executor (serialized and executed as a Celery task).
 
-    This function is called in ProcessPoolExecutor subprocesses. To avoid pickling issues with
-    team-specific Celery apps, we pass the team_name and create the app in the subprocess. The app
-    is cached per subprocess and team so Celery backend resolution is amortized across publishes.
+    This function runs either inline in the long-lived scheduler process (single-workload or
+    sync_parallelism=1 path) or in short-lived ProcessPoolExecutor subprocesses (multi-workload
+    path). To avoid pickling issues with team-specific Celery apps, we pass the team_name and
+    create the app at call time. The cached app lives for the duration of the caller process, so
+    the main benefit is the scheduler-inline path where the cache persists across publish cycles.
+    In the ProcessPoolExecutor path, each subprocess is recreated per publish batch and the cache
+    only lasts for that single batch.
     """
     key, args, queue, team_name = workload_tuple
 

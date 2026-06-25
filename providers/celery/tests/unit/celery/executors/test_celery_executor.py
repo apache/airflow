@@ -589,7 +589,6 @@ def test_get_celery_app_for_workload_keeps_cache_team_scoped():
 
 def test_send_workload_reuses_celery_app_for_same_team():
     """Publishing multiple workloads for the same team reuses the cached Celery app."""
-    celery_executor_utils._get_celery_app_for_workload.cache_clear()
     key = TaskInstanceKey(
         dag_id="test_dag", task_id="test_task", run_id="test_run", map_index=-1, try_number=1
     )
@@ -620,7 +619,6 @@ def test_send_workload_reuses_celery_app_for_same_team():
 
 def test_send_workload_keeps_celery_app_cache_team_scoped():
     """Different teams get distinct cached Celery app instances in the publisher process."""
-    celery_executor_utils._get_celery_app_for_workload.cache_clear()
     key = TaskInstanceKey(
         dag_id="test_dag", task_id="test_task", run_id="test_run", map_index=-1, try_number=1
     )
