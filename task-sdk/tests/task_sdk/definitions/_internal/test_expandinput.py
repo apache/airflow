@@ -38,8 +38,14 @@ class TestExpandInput:
         ],
     )
     def test_dict_of_lists_expand_input_iter_values(self, actual, expected):
-        result = list(DictOfListsExpandInput(actual).iter_values({}))
+        expand_input = DictOfListsExpandInput(actual)
+
+        with pytest.raises(RuntimeError, match="Length of DictOfListsExpandInput is not yet known"):
+            len(expand_input)
+
+        result = list(expand_input.iter_values({}))
         assert result == expected
+        assert len(expand_input) == len(expected)
 
     @pytest.mark.parametrize(
         ("actual", "expected"),
@@ -51,5 +57,11 @@ class TestExpandInput:
         ],
     )
     def test_list_of_dicts_expand_input_iter_values(self, actual, expected):
-        result = list(ListOfDictsExpandInput(actual).iter_values({}))
+        expand_input = ListOfDictsExpandInput(actual)
+
+        with pytest.raises(RuntimeError, match="Length of ListOfDictsExpandInput is not yet known"):
+            len(expand_input)
+
+        result = list(expand_input.iter_values({}))
         assert result == expected
+        assert len(expand_input) == len(expected)

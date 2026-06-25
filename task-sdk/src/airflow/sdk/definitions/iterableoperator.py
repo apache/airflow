@@ -171,7 +171,6 @@ class IterableOperator(BaseOperator):
         if task_concurrency is not None and task_concurrency < 1:
             raise ValueError(f"task_concurrency must be at least 1, got {task_concurrency}")
         self.max_workers = task_concurrency if task_concurrency is not None else (os.cpu_count() or 1)
-        self._number_of_tasks: int = 0
         XComArg.apply_upstream_relationship(self, self.expand_input.value)
 
     @property
@@ -349,7 +348,7 @@ class IterableOperator(BaseOperator):
                         task_id=self.task_id,
                         dag_id=self.dag_id,
                         run_id=context["run_id"],
-                        length=self._number_of_tasks,
+                        length=len(self.expand_input),
                         map_index=context["ti"].map_index,
                     )
                 return None
@@ -431,15 +430,12 @@ class IterableOperator(BaseOperator):
         jinja_env: jinja2.Environment,
         try_number: int = 0,
     ) -> IndexedTaskInstance | None:
-        self._number_of_tasks += 1
-        if index > -1:
-            run_id = context["ti"].run_id
-            map_index = context["ti"].map_index
-            operator = self._unmap_operator(context.copy(), mapped_kwargs, jinja_env)
-            return self._create_mapped_task(
-                run_id=run_id, map_index=map_index, index=index, try_number=try_number, operator=operator
-            )
-        return None
+        run_id = context["ti"].run_id
+        map_index = context["ti"].map_index
+        operator = self._unmap_operator(context.copy(), mapped_kwargs, jinja_env)
+        return self._create_mapped_task(
+            run_id=run_id, map_index=map_index, index=index, try_number=try_number, operator=operator
+        )
 
     def _create_mapped_task(
         self, run_id: str, map_index: int | None, index: int, try_number: int, operator: BaseOperator
@@ -490,11 +486,12 @@ class IterableOperator(BaseOperator):
             self._create_task(
                 context=context,
                 index=index,
-                try_number=failed_tasks.get(str(index), -1),
+                try_number=failed_tasks[str(index)],
                 jinja_env=jinja_env,
                 mapped_kwargs=value,
             )
             for index, value in enumerate(self.expand_input.iter_values(context=context))
+            if str(index) in failed_tasks
         )
         return self._run_tasks(context=context, tasks=filter(None, tasks))
 

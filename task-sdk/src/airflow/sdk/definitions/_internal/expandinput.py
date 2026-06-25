@@ -79,8 +79,22 @@ def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArg
     return isinstance(v, (MappedArgument, XComArg))
 
 
+def count(expand_input: ExpandInput, iterable: Iterable[Any]) -> Iterable[Any]:
+    expand_input._length = None
+    counter = 0
+
+    for item in iterable:
+        counter += 1
+        yield item
+
+    expand_input._length = counter
+
+
 class ExpandInput(ABC, ResolveMixin):
     EXPAND_INPUT_TYPE: ClassVar[str]
+
+    def __init__(self):
+        self._length = None
 
     @property
     @abstractmethod
@@ -94,11 +108,17 @@ class ExpandInput(ABC, ResolveMixin):
     def resolve(self, context: Mapping[str, Any]) -> Any:
         raise NotImplementedError()
 
+    def __len__(self) -> int:
+        if self._length is None:
+            raise RuntimeError(f"Length of {type(self).__name__} is not yet known")
+        return self._length
+
 
 class DecoratedExpandInput(ExpandInput):
     EXPAND_INPUT_TYPE: ClassVar[str] = "decorated"
 
     def __init__(self, expand_input: ExpandInput):
+        super().__init__()
         self.delegate = expand_input
 
     @property
@@ -116,6 +136,9 @@ class DecoratedExpandInput(ExpandInput):
 
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         return self.delegate.resolve(context)
+
+    def __len__(self) -> int:
+        return len(self.delegate)
 
 
 class BatchedExpandInput(DecoratedExpandInput):
@@ -137,6 +160,18 @@ class BatchedExpandInput(DecoratedExpandInput):
         for index, item in enumerate(self.delegate.iter_values(context)):
             if index % self.size == map_index:
                 yield item
+
+    def __len__(self) -> int:
+        total = len(self.delegate)
+
+        base = total // self.size
+        remainder = total % self.size
+
+        # each map_index corresponds to a specific bucket size
+        # but we don't know which instance this is without context
+
+        # so we return worst-case or max-case:
+        return base + (1 if remainder > 0 else 0)
 
 
 @attrs.define(kw_only=True)
@@ -257,8 +292,10 @@ class DictOfListsExpandInput(ExpandInput):
             else:
                 iterables_for_product.append((v,))
 
-        for items in itertools.product(*iterables_for_product):
-            yield dict(zip(keys, items))
+        return count(
+            self,
+            (dict(zip(keys, items)) for items in itertools.product(*iterables_for_product)),
+        )
 
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index: int | None = context["ti"].map_index
@@ -315,15 +352,18 @@ class ListOfDictsExpandInput(ExpandInput):
                     yield from x.iter_references()
 
     def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
-        if isinstance(self.value, XComArg):
-            for item in self.value.resolve(context):
-                yield item
-        else:
-            for item in self.value:
-                if isinstance(item, XComArg):
-                    yield from item.resolve(context)
-                else:
+        def iterate():
+            if isinstance(self.value, XComArg):
+                for item in self.value.resolve(context):
                     yield item
+            else:
+                for item in self.value:
+                    if isinstance(item, XComArg):
+                        yield from item.resolve(context)
+                    else:
+                        yield item
+
+        return count(self, iterate())
 
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index = context["ti"].map_index
