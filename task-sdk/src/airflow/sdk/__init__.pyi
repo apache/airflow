@@ -110,8 +110,8 @@ from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
 from airflow.sdk.definitions.timetables.assets import (
     AssetOrTimeSchedule,
-    PartitionAtRuntime,
     PartitionedAssetTimetable,
+    PartitionedAtRuntime,
 )
 from airflow.sdk.definitions.timetables.events import EventsTimetable
 from airflow.sdk.definitions.timetables.interval import (
@@ -177,7 +177,7 @@ __all__ = [
     "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
-    "PartitionAtRuntime",
+    "PartitionedAtRuntime",
     "PartitionedAssetTimetable",
     "PartitionMapper",
     "ProductMapper",
