@@ -41,7 +41,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.timetables.simple import PartitionAtRuntime
+from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
@@ -1519,9 +1519,9 @@ class TestPostAssetMaterialize(TestAssets):
             i: am.to_serialized() for i, am in enumerate(self.create_assets(session=session, num=3), start=1)
         }
         # DAG_ASSET1_ID is materialized with a partition_key in several tests below, so it must be a
-        # partitioned Dag. PartitionAtRuntime accepts runtime-discovered partition keys without
+        # partitioned Dag. PartitionedAtRuntime accepts runtime-discovered partition keys without
         # requiring a partitioned timetable.
-        with dag_maker(self.DAG_ASSET1_ID, schedule=PartitionAtRuntime(), session=session):
+        with dag_maker(self.DAG_ASSET1_ID, schedule=PartitionedAtRuntime(), session=session):
             EmptyOperator(task_id="task", outlets=assets[1])
         with dag_maker(self.DAG_ASSET2_ID_A, schedule=None, session=session):
             EmptyOperator(task_id="task", outlets=assets[2])

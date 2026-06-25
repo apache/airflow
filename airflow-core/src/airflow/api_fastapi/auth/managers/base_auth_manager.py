@@ -127,8 +127,16 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             db_teams = Team.get_all_team_names()
 
             if not db_teams.issuperset(am_teams):
-                raise ValueError(
-                    f"Teams defined in the auth manager ({am_teams}) are not present in the database ({db_teams})."
+                warnings.warn(
+                    f"Teams defined in the auth manager are not present in the database ({am_teams.difference(db_teams)}).",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            if not am_teams.issuperset(db_teams):
+                warnings.warn(
+                    f"Teams defined in the database are not present in the auth manager ({db_teams.difference(am_teams)}).",
+                    UserWarning,
+                    stacklevel=2,
                 )
 
     @abstractmethod
