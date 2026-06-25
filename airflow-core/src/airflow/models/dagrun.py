@@ -65,6 +65,7 @@ from sqlalchemy.sql.functions import coalesce
 from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import (
     TASK_SPAN_DETAIL_LEVEL_KEY,
+    TRACE_SAMPLED_KEY,
     new_dagrun_trace_carrier,
     override_ids,
 )
@@ -152,6 +153,46 @@ def _creator_note(val):
     if isinstance(val, dict):
         return DagRunNote(**val)
     return DagRunNote(*val)
+
+
+def dagrun_trace_attributes(dr) -> dict[str, str]:
+    """
+    Run-identity attributes for a DAG run's trace.
+
+    Defined once and used in two places: forwarded to the sampler at carrier
+    creation (so a custom sampler can differentiate the head-sampling decision by
+    run kind) and set on the emitted ``dag_run`` span. ``getattr`` guards because
+    the values may not be populated yet at ``__init__``/clear time.
+    """
+    attributes: dict[str, str] = {}
+    dag_id = getattr(dr, "dag_id", None)
+    if dag_id is not None:
+        attributes["airflow.dag_id"] = str(dag_id)
+    run_id = getattr(dr, "run_id", None)
+    if run_id is not None:
+        attributes["airflow.dag_run.run_id"] = str(run_id)
+    run_type = getattr(dr, "run_type", None)
+    if run_type is not None:
+        attributes["airflow.dag_run.run_type"] = str(run_type)
+    return attributes
+
+
+def trace_sampled_override(conf) -> bool | None:
+    """
+    Head-sampling override from the ``airflow/trace_sampled`` run conf key.
+
+    Returns the forced SAMPLED flag only when the conf value is an explicit bool
+    (True = always trace this run, False = never); otherwise None, meaning no
+    override and the configured sampler decides. Non-bool values are ignored
+    rather than coerced, so a malformed value never silently flips sampling or
+    fails run creation.
+    """
+    if not conf:
+        return None
+    raw = conf.get(TRACE_SAMPLED_KEY)
+    if isinstance(raw, bool):
+        return raw
+    return None
 
 
 class DagRun(Base, LoggingMixin):
@@ -385,7 +426,9 @@ class DagRun(Base, LoggingMixin):
         self.triggering_user_name = triggering_user_name
         self.scheduled_by_job_id = None
         self.context_carrier: dict[str, str] = new_dagrun_trace_carrier(
-            task_span_detail_level=self.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY, None)
+            task_span_detail_level=self.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY, None),
+            attributes=dagrun_trace_attributes(self),  # these are for potential use by head sampler
+            force_sampled=trace_sampled_override(self.conf),
         )
 
         if not isinstance(partition_key, str | None):
@@ -1087,8 +1130,7 @@ class DagRun(Base, LoggingMixin):
 
         with override_ids(span_context.trace_id, span_context.span_id):
             attributes: dict[str, str] = {
-                "airflow.dag_id": str(self.dag_id),
-                "airflow.dag_run.run_id": self.run_id,
+                **dagrun_trace_attributes(self),
             }
             if self.start_date:
                 attributes["airflow.dag_run.start_date"] = str(self.start_date)

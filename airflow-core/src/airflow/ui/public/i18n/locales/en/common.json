@@ -72,6 +72,7 @@
     "expectedDuration": "Expected Duration",
     "lastSchedulingDecision": "Last Scheduling Decision",
     "mappedPartitionKey": "Mapped Partition key",
+    "partitionDate": "Partition Date",
     "partitionKey": "Partition key",
     "queuedAt": "Queued At",
     "runAfter": "Run After",

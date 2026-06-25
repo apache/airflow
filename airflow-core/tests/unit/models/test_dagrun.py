@@ -4307,9 +4307,24 @@ class TestDagRunTracing:
         assert span.name == f"dag_run.{dr.dag_id}"
         assert span.attributes["airflow.dag_id"] == dr.dag_id
         assert span.attributes["airflow.dag_run.run_id"] == dr.run_id
+        # run_type is set via the shared dagrun_trace_attributes helper
+        assert span.attributes["airflow.dag_run.run_type"] == str(dr.run_type)
 
         expected_status = StatusCode.OK if final_state == DagRunState.SUCCESS else StatusCode.ERROR
         assert span.status.status_code == expected_status
+
+    def test_dagrun_trace_attributes_helper(self, dag_maker, session):
+        """The shared helper returns dag_id, run_id and run_type as airflow.* attributes."""
+        from airflow.models.dagrun import dagrun_trace_attributes
+
+        with dag_maker("test_trace_attrs_helper", session=session):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+
+        attrs = dagrun_trace_attributes(dr)
+        assert attrs["airflow.dag_id"] == dr.dag_id
+        assert attrs["airflow.dag_run.run_id"] == dr.run_id
+        assert attrs["airflow.dag_run.run_type"] == str(dr.run_type)
 
     @pytest.mark.parametrize("carrier_value", [None, {}])
     def test_emit_dagrun_span_with_none_or_empty_carrier(self, dag_maker, session, carrier_value):
@@ -4394,6 +4409,38 @@ class TestDagRunTracing:
 
         span = trace.get_current_span(ctx)
         assert get_task_span_detail_level(span) == 2
+
+    @pytest.mark.parametrize(
+        ("conf", "expected"),
+        [
+            ({"airflow/trace_sampled": True}, True),
+            ({"airflow/trace_sampled": False}, False),
+            ({}, None),
+            (None, None),
+            ({"airflow/trace_sampled": "true"}, None),
+            ({"airflow/trace_sampled": 1}, None),
+            ({"other": True}, None),
+        ],
+    )
+    def test_trace_sampled_override(self, conf, expected):
+        """Only an explicit bool conf value is honored; anything else falls through to the sampler."""
+        from airflow.models.dagrun import trace_sampled_override
+
+        assert trace_sampled_override(conf) is expected
+
+    @pytest.mark.parametrize("flag", [True, False])
+    def test_context_carrier_honors_trace_sampled_conf(self, dag_maker, flag):
+        """airflow/trace_sampled in conf forces the carrier's SAMPLED flag regardless of the sampler."""
+        from opentelemetry import trace
+        from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+        with dag_maker("test_trace_sampled_conf"):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(conf={"airflow/trace_sampled": flag})
+
+        ctx = TraceContextTextMapPropagator().extract(dr.context_carrier)
+        span_ctx = trace.get_current_span(ctx).get_span_context()
+        assert span_ctx.trace_flags.sampled is flag
 
 
 class TestDagRunStatsTagsTeamName:
