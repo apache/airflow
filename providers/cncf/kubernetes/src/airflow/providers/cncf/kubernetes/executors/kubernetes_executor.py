@@ -54,7 +54,10 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
     KubernetesResults,
 )
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    TRANSIENT_CONNECTION_ERRORS,
+    annotations_to_key,
+)
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import Stats, conf
@@ -484,7 +487,12 @@ class KubernetesExecutor(BaseExecutor):
                 try:
                     self.kube_scheduler.run_next(task)
                     self.task_publish_retries.pop(task.key, None)
-                except (PodReconciliationError, ApiException, PodMutationHookException) as e:
+                except (
+                    PodReconciliationError,
+                    ApiException,
+                    PodMutationHookException,
+                    *TRANSIENT_CONNECTION_ERRORS,
+                ) as e:
                     if self._handle_pod_publish_error(task, e):
                         # Rate limited: stop creating further pods this loop.
                         break
@@ -583,16 +591,29 @@ class KubernetesExecutor(BaseExecutor):
 
             headers = e.headers or {}
             retries: int = self.task_publish_retries[key]
-            # In case of exceeded quota or conflict errors, requeue the task as per the task_publish_max_retries
-            # In case of a rate limit, wait and do not create new pods for "Retry-After" seconds
+            # Requeue transient failures (exceeded-quota / stale-version conflicts and the api
+            # server's 429 / 5xx) up to task_publish_max_retries; anything else fails immediately.
             can_retry_publish = self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries
             message: str = body.get("message", "")
+            # Retry-After (seconds): the apiserver sets it on 429 (APF throttling) and on 503 while
+            # shutting down. Ignore a malformed value rather than crashing the scheduler loop.
+            retry_after = headers.get("Retry-After")
+            try:
+                retry_after_seconds: int | None = int(retry_after) if retry_after is not None else None
+            except (TypeError, ValueError):
+                retry_after_seconds = None
+            transient_5xx = (
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                HTTPStatus.BAD_GATEWAY,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                HTTPStatus.GATEWAY_TIMEOUT,
+            )
             if (
                 (e.status == HTTPStatus.FORBIDDEN and "exceeded quota" in message)
                 or (e.status == HTTPStatus.CONFLICT and "object has been modified" in message)
                 or (e.status == HTTPStatus.GONE and "too old resource version" in message)
-                or e.status == HTTPStatus.INTERNAL_SERVER_ERROR
                 or e.status == HTTPStatus.TOO_MANY_REQUESTS
+                or e.status in transient_5xx
             ) and can_retry_publish:
                 self.log.warning(
                     "[Try %s of %s] Kube ApiException for Task: (%s). Reason: %r. Message: %s",
@@ -606,18 +627,41 @@ class KubernetesExecutor(BaseExecutor):
                 self.task_queue.put(task)
                 self.task_publish_retries[key] = retries + 1
 
-                if e.status == HTTPStatus.TOO_MANY_REQUESTS:
-                    self.create_pods_after = datetime.now() + timedelta(
-                        seconds=int(headers.get("Retry-After", "0"))
-                    )
+                # Pause the loop until Retry-After when the server told us to back off (429, or 503
+                # on apiserver shutdown); other transient 5xx retry on the next loop.
+                if e.status == HTTPStatus.TOO_MANY_REQUESTS or retry_after_seconds is not None:
+                    self.create_pods_after = datetime.now() + timedelta(seconds=retry_after_seconds or 0)
                     self.log.warning(
-                        "Got rate limit from k8s api, skipping pod creation until %s",
+                        "Backing off pod creation until %s after status %s from k8s api",
                         self.create_pods_after,
+                        e.status,
                     )
                     # stop pod creation to stop api requests
                     return True
             else:
                 self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
+                self.fail(key, e)
+                self.task_publish_retries.pop(key, None)
+            return False
+        if isinstance(e, TRANSIENT_CONNECTION_ERRORS):
+            # Connection-level failure talking to the api server (reset / DNS blip / read timeout) —
+            # the category generic_api_retry treats as transient. Re-queue rather than fail; the
+            # create may not have reached the server, so a later loop retries.
+            retries = self.task_publish_retries[key]
+            if self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries:
+                self.log.warning(
+                    "[Try %s of %s] Transient connection error creating pod for Task %s: %r",
+                    retries + 1,
+                    self.task_publish_max_retries,
+                    key,
+                    e,
+                )
+                self.task_queue.put(task)
+                self.task_publish_retries[key] = retries + 1
+            else:
+                self.log.error(
+                    "Connection error creating pod, retries exhausted. Failing task %s: %r", key, e
+                )
                 self.fail(key, e)
                 self.task_publish_retries.pop(key, None)
             return False
