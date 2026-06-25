@@ -313,6 +313,11 @@ DESTINATION_LOCATIONS = [
     "s3://staging-docs-airflow-apache-org/docs/",
 ]
 
+SCHEMA_DESTINATION_LOCATIONS = [
+    "s3://live-docs-airflow-apache-org/schemas/",
+    "s3://staging-docs-airflow-apache-org/schemas/",
+]
+
 PACKAGES_METADATA_EXCLUDE_NAMES = ["docker-stack", "apache-airflow-providers"]
 
 
