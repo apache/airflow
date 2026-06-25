@@ -162,7 +162,6 @@ class IterableOperator(BaseOperator):
                 "doc_rst": operator.doc_rst,
                 "task_display_name": operator.task_display_name,
                 "allow_nested_operators": operator.allow_nested_operators,
-                "returns_dag_result": operator.returns_dag_result,
             }
         )
         self._operator = operator
@@ -174,6 +173,10 @@ class IterableOperator(BaseOperator):
         self.max_workers = task_concurrency if task_concurrency is not None else (os.cpu_count() or 1)
         self._number_of_tasks: int = 0
         XComArg.apply_upstream_relationship(self, self.expand_input.value)
+
+    @property
+    def returns_dag_result(self) -> bool:
+        return self._operator.returns_dag_result
 
     @property
     def task_type(self) -> str:
