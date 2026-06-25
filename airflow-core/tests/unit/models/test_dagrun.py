@@ -1505,6 +1505,76 @@ class TestDagRun:
         mock_prune.assert_not_called()
         assert dag_run.state == DagRunState.SUCCESS
 
+    @mock.patch.object(Deadline, "handle_miss")
+    @mock.patch.object(Deadline, "prune_deadlines")
+    def test_dagrun_failure_handles_pending_deadline(
+        self, mock_prune, mock_handle_miss, session, deadline_test_dag
+    ):
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=datetime.timedelta(hours=3),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            )
+        )
+
+        dag_run = self.create_dag_run(
+            dag=scheduler_dag,
+            task_states={"task_1": TaskInstanceState.SUCCESS, "task_2": TaskInstanceState.FAILED},
+            session=session,
+        )
+        dag_run.dag = scheduler_dag
+        session.add(
+            Deadline(
+                deadline_time=timezone.utcnow() + datetime.timedelta(hours=3),
+                callback=AsyncCallback(empty_callback_for_deadline),
+                dagrun_id=dag_run.id,
+                dag_id=dag_run.dag_id,
+                deadline_alert_id=None,
+            )
+        )
+        session.flush()
+
+        dag_run.update_state(session=session)
+
+        mock_handle_miss.assert_called_once()
+        mock_prune.assert_not_called()
+        assert dag_run.state == DagRunState.FAILED
+
+    @mock.patch.object(Deadline, "handle_miss", side_effect=RuntimeError("deadline failure"))
+    def test_dagrun_failure_ignores_missed_deadline_handling_error(
+        self, mock_handle_miss, session, deadline_test_dag
+    ):
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=datetime.timedelta(hours=3),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            )
+        )
+
+        dag_run = self.create_dag_run(
+            dag=scheduler_dag,
+            task_states={"task_1": TaskInstanceState.SUCCESS, "task_2": TaskInstanceState.FAILED},
+            session=session,
+        )
+        dag_run.dag = scheduler_dag
+        session.add(
+            Deadline(
+                deadline_time=timezone.utcnow() + datetime.timedelta(hours=3),
+                callback=AsyncCallback(empty_callback_for_deadline),
+                dagrun_id=dag_run.id,
+                dag_id=dag_run.dag_id,
+                deadline_alert_id=None,
+            )
+        )
+        session.flush()
+
+        dag_run.update_state(session=session)
+
+        mock_handle_miss.assert_called_once()
+        assert dag_run.state == DagRunState.FAILED
+
     @mock.patch.object(Variable, "get")
     @mock.patch.object(Deadline, "prune_deadlines")
     def test_dagrun_deadline_variable_interval_stable(self, _, mock_get, session, deadline_test_dag):
