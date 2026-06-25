@@ -59,13 +59,20 @@ from airflow.observability.metrics import stats_utils
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.execution_time.comms import (
+    AssetStateStoreResult,
+    ClearAssetStateStoreByName,
+    ClearAssetStateStoreByUri,
     CommsDecoder,
     ConnectionResult,
     DagRunStateResult,
+    DeleteAssetStateStoreByName,
+    DeleteAssetStateStoreByUri,
     DeleteVariable,
     DeleteXCom,
     DRCount,
     ErrorResponse,
+    GetAssetStateStoreByName,
+    GetAssetStateStoreByUri,
     GetConnection,
     GetDagRunState,
     GetDRCount,
@@ -79,6 +86,8 @@ from airflow.sdk.execution_time.comms import (
     MaskSecret,
     OKResponse,
     PutVariable,
+    SetAssetStateStoreByName,
+    SetAssetStateStoreByUri,
     SetXCom,
     TaskStatesResult,
     TICount,
@@ -336,6 +345,7 @@ ToTriggerRunner = Annotated[
     | DRCount
     | TICount
     | TaskStatesResult
+    | AssetStateStoreResult
     | HITLDetailResponseResult
     | ErrorResponse
     | OKResponse,
@@ -359,6 +369,14 @@ ToTriggerSupervisor = Annotated[
     | SetXCom
     | GetTICount
     | GetTaskStates
+    | ClearAssetStateStoreByName
+    | ClearAssetStateStoreByUri
+    | DeleteAssetStateStoreByName
+    | DeleteAssetStateStoreByUri
+    | GetAssetStateStoreByName
+    | GetAssetStateStoreByUri
+    | SetAssetStateStoreByName
+    | SetAssetStateStoreByUri
     | GetDagRunState
     | GetDRCount
     | GetPreviousTI
@@ -1088,6 +1106,7 @@ class TriggerRunner:
             log=self.log,
             max_subscriber_queue=conf.getint("triggerer", "shared_stream_subscriber_queue_size"),
             ack_timeout=conf.getfloat("triggerer", "shared_stream_ack_timeout"),
+            cohort_grace_period=conf.getfloat("triggerer", "shared_stream_cohort_grace_period"),
         )
         self.blocked_main_thread_warning_threshold = conf.getfloat(
             "triggerer", "blocked_main_thread_warning_threshold"

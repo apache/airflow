@@ -99,8 +99,11 @@ async def lifespan(app: FastAPI, registry: svcs.Registry):
     app.state.svcs_registry = registry
 
     registry.register_factory(JWTGenerator, _jwt_generator)
-    # Create an app scoped validator, so that we don't have to fetch it every time
-    registry.register_value(JWTValidator, _jwt_validator(), ping=JWTValidator.status)
+
+    # InProcessExecutionAPI stubs out JWTValidator: don't re-register in that case.
+    if JWTValidator not in registry:
+        # Create an app scoped validator, so that we don't have to fetch it every time
+        registry.register_value(JWTValidator, _jwt_validator(), ping=JWTValidator.status)
 
     yield
 
@@ -282,7 +285,7 @@ def _inject_trace_context_dep(routes, mode: str) -> None:
                     route.dependencies.append(dep)
 
 
-def create_task_execution_api_app() -> FastAPI:
+def create_task_execution_api_app(lifespan: svcs.fastapi.lifespan = lifespan) -> FastAPI:
     """Create FastAPI app for task execution API."""
     from airflow.api_fastapi.execution_api.routes import execution_api_router
     from airflow.api_fastapi.execution_api.versions import bundle
@@ -388,7 +391,15 @@ class InProcessExecutionAPI:
             from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
             from airflow.api_fastapi.execution_api.security import _jwt_bearer
 
-            self._app = create_task_execution_api_app()
+            # Give this app its own lifespan + services registry so that stubbing services
+            # (e.g. JWTValidator) doesn't affect the module-level ``lifespan.registry``.
+            registry = svcs.Registry()
+            private_lifespan = attrs.evolve(lifespan, registry=registry)
+            self._app = create_task_execution_api_app(lifespan=private_lifespan)
+
+            # In-process callers don't need a real JWTValidator: auth is bypassed below via
+            # ``dependency_overrides``.
+            registry.register_value(JWTValidator, None)
 
             # Set up dag_bag in app state for dependency injection
             self._app.state.dag_bag = create_dag_bag()

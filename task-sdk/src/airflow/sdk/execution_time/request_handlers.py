@@ -31,7 +31,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from airflow.sdk.api.datamodels._generated import (
-    AssetResponse,
+    AssetStateStoreResponse,
     ConnectionResponse,
     DagRunStateResponse,
     TaskStatesResponse,

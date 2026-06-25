@@ -1768,9 +1768,13 @@ def test_excluded_providers():
             pytest.param(
                 ("scripts/ci/prek/file.sh",),
                 {
-                    "full-tests-needed": "true",
+                    # prek hooks are static checks, not tests: they must not force the full
+                    # test matrix, but they still build the CI image so mypy-scripts and the
+                    # image-based static checks run.
+                    "full-tests-needed": "false",
+                    "ci-image-build": "true",
                 },
-                id="Full tests needed when prek scripts change",
+                id="prek scripts build the CI image but do not force full tests",
             )
         ),
         (
@@ -1803,6 +1807,46 @@ def test_excluded_providers():
     ],
 )
 def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_outputs: dict[str, str]):
+    stderr = SelectiveChecks(
+        files=files,
+        github_event=GithubEvents.PULL_REQUEST,
+        commit_ref=NEUTRAL_COMMIT,
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    ("files", "expected_outputs"),
+    [
+        pytest.param(
+            (".github/workflows/ci-amd.yml",),
+            {"full-tests-needed": "true"},
+            id="Test workflow (ci-amd) forces full tests",
+        ),
+        pytest.param(
+            (".github/workflows/run-unit-tests.yml",),
+            {"full-tests-needed": "true"},
+            id="Test workflow (run-unit-tests) forces full tests",
+        ),
+        pytest.param(
+            (".github/workflows/codeql-analysis.yml",),
+            {"full-tests-needed": "false"},
+            id="Non-test workflow (codeql) does not force full tests",
+        ),
+        pytest.param(
+            (".github/workflows/publish-docs-to-s3.yml",),
+            {"full-tests-needed": "false"},
+            id="Non-test workflow (publish-docs-to-s3) does not force full tests",
+        ),
+        pytest.param(
+            (".github/workflows/ci-notification.yml",),
+            {"full-tests-needed": "false"},
+            id="Non-test workflow (ci-notification) does not force full tests",
+        ),
+    ],
+)
+def test_non_test_workflows_do_not_force_full_tests(files: tuple[str, ...], expected_outputs: dict[str, str]):
     stderr = SelectiveChecks(
         files=files,
         github_event=GithubEvents.PULL_REQUEST,

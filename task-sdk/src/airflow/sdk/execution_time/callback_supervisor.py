@@ -58,6 +58,7 @@ if TYPE_CHECKING:
     class _BundleInfoLike(Protocol):
         name: str
         version: str | None
+        version_data: dict[str, Any] | None
 
 
 __all__ = ["CallbackSubprocess", "supervise_callback"]
@@ -217,6 +218,7 @@ class CallbackSubprocess(WatchedSubprocess):
                     bundle = DagBundlesManager().get_bundle(
                         name=bundle_info.name,
                         version=bundle_info.version,
+                        version_data=bundle_info.version_data,
                     )
                     bundle.initialize()
                     if (bundle_path := str(bundle.path)) not in sys.path:

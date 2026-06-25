@@ -1244,6 +1244,81 @@ async def test_late_subscriber_does_not_block_advance_of_earlier_event():
 
 
 @pytest.mark.asyncio
+async def test_cohort_grace_period_includes_late_joining_subscriber():
+    """Subscribers that join during the cohort grace period are in the first event's snapshot."""
+    first_event_processed = asyncio.Event()
+
+    class _GraceProducer(SharedStreamProducer):
+        async def open_stream(self):
+            yield {"msg": "first"}, "p1"
+            # Fires after _poll has processed the yield and looped back for the next item.
+            first_event_processed.set()
+            await asyncio.Event().wait()
+
+        async def advance(self, batch):
+            pass
+
+    class _GraceTrigger(_ProgrammableSharedStreamTrigger):
+        @classmethod
+        def create_shared_stream_producer(cls, kwargs):
+            return _GraceProducer()
+
+        async def filter_shared_stream(self, shared_stream):
+            async for _ in shared_stream:
+                yield TriggerEvent({})
+
+    t1, t2 = _GraceTrigger(), _GraceTrigger()
+    key = t1.shared_stream_key()
+    manager = SharedStreamManager(cohort_grace_period=0.05)
+    try:
+        manager.subscribe(trigger_id=1, trigger=t1, key=key)
+        # Poll is sleeping through the grace period; t2 joins before polling starts.
+        manager.subscribe(trigger_id=2, trigger=t2, key=key)
+
+        await asyncio.wait_for(first_event_processed.wait(), timeout=1.0)
+
+        entry = next(iter(manager._groups[key]._outstanding.values()), None)
+        assert entry is not None
+        assert entry.pending == {1, 2}, "both subscribers must be in the initial cohort snapshot"
+    finally:
+        await manager.unsubscribe(1, key)
+        await manager.unsubscribe(2, key)
+
+
+@pytest.mark.asyncio
+async def test_cohort_grace_period_zero_starts_poll_immediately():
+    """With cohort_grace_period=0 (default), polling starts without any delay."""
+    poll_reached = asyncio.Event()
+
+    class _ImmediateProducer(SharedStreamProducer):
+        async def open_stream(self):
+            poll_reached.set()
+            await asyncio.Event().wait()
+            yield {}, "p"  # pragma: no cover
+
+        async def advance(self, batch):
+            pass
+
+    class _ImmediateTrigger(_ProgrammableSharedStreamTrigger):
+        @classmethod
+        def create_shared_stream_producer(cls, kwargs):
+            return _ImmediateProducer()
+
+        async def filter_shared_stream(self, shared_stream):
+            async for _ in shared_stream:
+                yield TriggerEvent({})  # pragma: no cover
+
+    t = _ImmediateTrigger()
+    key = t.shared_stream_key()
+    manager = SharedStreamManager(cohort_grace_period=0.0)
+    try:
+        manager.subscribe(trigger_id=1, trigger=t, key=key)
+        await asyncio.wait_for(poll_reached.wait(), timeout=0.5)
+    finally:
+        await manager.unsubscribe(1, key)
+
+
+@pytest.mark.asyncio
 async def test_subscriber_unsubscribe_during_outstanding_event():
     """When a subscriber leaves while still on an event, the group advances without it."""
     cls = _make_ack_required_trigger_class(
