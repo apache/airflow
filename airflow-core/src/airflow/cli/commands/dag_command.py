@@ -241,6 +241,7 @@ def _bulk_clear_runs(
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl dags pause")
 @providers_configuration_loaded
 def dag_pause(args) -> None:
     """Pauses a DAG."""
@@ -248,6 +249,7 @@ def dag_pause(args) -> None:
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl dags unpause")
 @providers_configuration_loaded
 def dag_unpause(args) -> None:
     """Unpauses a DAG."""
