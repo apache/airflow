@@ -1733,8 +1733,11 @@ class TestExternalTaskAsyncSensor:
         assert not hasattr(sensor, "poll_interval")  # No longer supported
 
     def test_poll_interval_raises_on_init(self):
-        """Test that the removed poll_interval parameter raises a TypeError on instantiation."""
-        with pytest.raises(TypeError, match="Invalid arguments were passed to ExternalTaskSensor"):
+        """Test that the removed poll_interval parameter raises an exception on instantiation."""
+        # Determine the exception type based on Airflow version (AF3 removed most usage of AirflowException)
+        exception_type = TypeError if AIRFLOW_V_3_0_PLUS else AirflowException
+
+        with pytest.raises(exception_type, match="Invalid arguments were passed to ExternalTaskSensor"):
             ExternalTaskSensor(
                 task_id=TASK_ID,
                 external_task_id=EXTERNAL_TASK_ID,
