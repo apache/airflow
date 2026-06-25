@@ -31,14 +31,14 @@ class ScheduledRuntimePartitionTimetable(CronTriggerTimetable):
     runs — typically after the task checks whether the period's source data has
     arrived — by calling ``outlet_events[self].add_partitions(...)``.
 
-    This combines two behaviours that the shipped timetables keep separate. The
-    timetable stays schedulable (``can_be_scheduled`` is ``True``) yet sets
-    ``partitioned_at_runtime = True`` so partition selection is deferred to
-    runtime. It differs from :class:`~airflow.sdk.PartitionAtRuntime` (which also
+    This uses runtime partitioning on a regular cron schedule: the timetable stays
+    schedulable (``can_be_scheduled`` is ``True``) yet sets
+    ``partitioned_at_runtime = True`` so the partition key is deferred to task
+    runtime. It differs from :class:`~airflow.sdk.PartitionedAtRuntime` (which also
     defers the key to runtime but never schedules a run on its own) and from
-    :class:`~airflow.timetables.trigger.CronPartitionTimetable` (which derives the
-    partition key from the schedule). ``partitioned`` stays ``False``: the
-    scheduler resolves no partitions ahead of the run.
+    :class:`~airflow.timetables.trigger.CronPartitionTimetable` (which works out the
+    partition key from the cadence ahead of the run). ``partitioned`` stays
+    ``False``: no partition key is worked out ahead of the run.
 
     Registering it via the ``AirflowPlugin.timetables`` registry makes it usable
     by Dag authors without modifying core Airflow.

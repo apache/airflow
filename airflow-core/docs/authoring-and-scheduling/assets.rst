@@ -523,27 +523,30 @@ creates asset events with a partition key on each run.
 Partitioned events are intended for partition-aware downstream scheduling, and
 do not trigger non-partition-aware Dags.
 
-Partitioned vs runtime-partitioned timetables
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Pre-determined vs runtime partitioning
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Two orthogonal timetable flags control how partition keys are produced:
+Both kinds attach a partition key to a Dag run — the difference is *when* and
+*by whom* the key is decided:
 
-* ``partitioned=True`` — the partition key is determined by the timetable before
-  the task runs. The scheduler uses partition mappers to match upstream keys to
-  downstream keys and triggers partition-based Dag runs.
-  :class:`~airflow.sdk.CronPartitionTimetable` (producer) sets this flag; so does
-  :class:`~airflow.sdk.PartitionedAssetTimetable` (consumer).
+* **Pre-determined partitioning** — the partition key is worked out before the
+  task runs, using the timetable's schedule cadence and partition mappers to match
+  upstream keys to downstream keys and trigger partition-based Dag runs.
+  :class:`~airflow.sdk.CronPartitionTimetable` uses this kind as a producer;
+  :class:`~airflow.sdk.PartitionedAssetTimetable` uses it as a consumer.
 
-* ``partitioned_at_runtime=True`` — partition selection is deferred to task runtime:
+* **Runtime partitioning** — the partition key is deferred to task runtime:
   the producing task records key(s) via ``outlet_events[self].add_partitions(...)``.
-  :class:`~airflow.sdk.PartitionAtRuntime` sets this flag and never schedules on its
+  :class:`~airflow.sdk.PartitionedAtRuntime` uses this kind and never schedules on its
   own (``can_be_scheduled=False``); a schedulable timetable can also defer to runtime
   by subclassing :class:`~airflow.timetables.trigger.CronTriggerTimetable` and setting
   ``partitioned_at_runtime = True`` (see the custom plugin example below).
-  ``partitioned`` stays ``False`` — the two flags are independent axes, not a hierarchy.
+
+A timetable uses one kind or the other, not both: it either resolves partitions
+ahead of the run or defers them to task runtime.
 
 **Practical rule:** use :class:`~airflow.sdk.CronPartitionTimetable` when the
-partition key follows from the schedule cadence; use :class:`~airflow.sdk.PartitionAtRuntime`
+partition key follows from the schedule cadence; use :class:`~airflow.sdk.PartitionedAtRuntime`
 when the key is only known once the task runs (e.g. a watermark from source data);
 use :class:`~airflow.sdk.PartitionedAssetTimetable` downstream to consume either kind.
 
@@ -797,7 +800,7 @@ upstream keys that have actually arrived.
         Asset,
         FixedKeyMapper,
         MinimumCount,
-        PartitionAtRuntime,
+        PartitionedAtRuntime,
         PartitionedAssetTimetable,
         RollupMapper,
         SegmentWindow,
@@ -807,7 +810,7 @@ upstream keys that have actually arrived.
 
     @asset(
         uri="file://incoming/player-stats/multi-region.csv",
-        schedule=PartitionAtRuntime(),
+        schedule=PartitionedAtRuntime(),
     )
     def multi_region_player_stats(self, outlet_events):
         outlet_events[self].add_partitions(["us", "eu", "apac"])
