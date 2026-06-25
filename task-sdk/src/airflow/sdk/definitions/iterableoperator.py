@@ -176,8 +176,11 @@ class IterableOperator(BaseOperator):
 
     @property
     def task_type(self) -> str:
-        """@property: type of the task."""
         return self._operator.__class__.__name__
+
+    @property
+    def task_retries(self) -> int:
+        return self._operator.retries or 0
 
     @cached_property
     def timeout(self) -> float | None:
@@ -282,7 +285,7 @@ class IterableOperator(BaseOperator):
 
                         if isinstance(raised, asyncio.TimeoutError):
                             self.log.warning("A timeout occurred for task_id %s", task.task_id)
-                            if task.next_try_number > (self.retries or 0):
+                            if task.next_try_number > self.task_retries:
                                 exceptions.append(AirflowTaskTimeout(raised))
                             else:
                                 reschedule_date = max(reschedule_date, task.next_retry_datetime())

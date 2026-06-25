@@ -244,6 +244,17 @@ class TestIterableOperator:
             assert iterable_op.task_type == "MappedOperator"
 
     @pytest.mark.db_test
+    def test_task_retries(self, dag_maker, session):
+        """Test that IterableOperator correctly reports task_retries."""
+        with dag_maker(session=session) as dag:
+            expand_input = ListOfDictsExpandInput([{"a": 1}])
+            iterable_op = self.create_iterable_operator(dag, expand_input, retries=3)
+
+            assert isinstance(iterable_op, IterableOperator)
+            assert iterable_op.retries == 0
+            assert iterable_op.task_retries == 3
+
+    @pytest.mark.db_test
     def test_task_id(self, dag_maker, session):
         """Test that IterableOperator inherits task_id from operator."""
         with dag_maker(session=session) as dag:
