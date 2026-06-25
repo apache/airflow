@@ -182,7 +182,6 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^scripts/ci/prek",
             r"^scripts/docker",
             r"^scripts/in_container",
-            r"^generated/provider_dependencies.json$",
         ],
         FileGroupForCi.BREEZE_INTEGRATION_TEST_FILES: [
             r"^dev/breeze/src/.*",
@@ -698,9 +697,6 @@ class SelectiveChecks:
             return True
         if self.pyproject_toml_changed:
             console_print("[warning]Running everything with all versions: changed pyproject.toml[/]")
-            return True
-        if self.generated_dependencies_changed:
-            console_print("[warning]Running everything with all versions: provider dependencies changed[/]")
             return True
         return False
 
@@ -1403,10 +1399,6 @@ class SelectiveChecks:
     def _print_diff(old_lines: list[str], new_lines: list[str]):
         diff = "\n".join(line for line in difflib.ndiff(old_lines, new_lines) if line and line[0] in "+-?")
         console_print(diff)
-
-    @cached_property
-    def generated_dependencies_changed(self) -> bool:
-        return "generated/provider_dependencies.json" in self._files
 
     @cached_property
     def any_provider_yaml_or_pyproject_toml_changed(self) -> bool:

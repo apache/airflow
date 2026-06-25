@@ -571,3 +571,79 @@ class TestWorkflowDependsOnWirePayload:
         job_id, job_spec = launch_task._hook.reset_job.call_args.args
         assert job_id == 42
         self._assert_parent_depends_on(job_spec)
+
+
+class TestTaskGroupExternalDependencyTransfer:
+    """Verify that task-group-level ``>>`` deps transfer to the launch / leaf tasks.
+
+    When ``>>`` is called *before* the ``with`` block, the launch task doesn't
+    exist yet; ``__exit__`` must transfer ``self.upstream_task_ids`` to the
+    launch task and ``self.downstream_task_ids`` to the leaf tasks.
+    """
+
+    JOB_CLUSTERS = [
+        {
+            "job_cluster_key": "c",
+            "new_cluster": {
+                "spark_version": "15.4.x-scala2.12",
+                "num_workers": 0,
+                "node_type_id": "i3.xlarge",
+            },
+        }
+    ]
+
+    def test_upstream_set_before_with_block(self):
+        with DAG(dag_id="test_up_before", start_date=DEFAULT_DATE, schedule=None) as dag:
+            start = EmptyOperator(task_id="start")
+            tg = DatabricksWorkflowTaskGroup(
+                group_id="tg", databricks_conn_id="databricks_conn", job_clusters=self.JOB_CLUSTERS
+            )
+            start >> tg
+            with tg:
+                DatabricksNotebookOperator(
+                    task_id="nb", notebook_path="/t", source="WORKSPACE", job_cluster_key="c"
+                )
+        launch = dag.get_task("tg.launch")
+        assert "start" in launch.upstream_task_ids
+
+    def test_upstream_set_after_with_block(self):
+        with DAG(dag_id="test_up_after", start_date=DEFAULT_DATE, schedule=None) as dag:
+            start = EmptyOperator(task_id="start")
+            tg = DatabricksWorkflowTaskGroup(
+                group_id="tg", databricks_conn_id="databricks_conn", job_clusters=self.JOB_CLUSTERS
+            )
+            with tg:
+                DatabricksNotebookOperator(
+                    task_id="nb", notebook_path="/t", source="WORKSPACE", job_cluster_key="c"
+                )
+            start >> tg
+        launch = dag.get_task("tg.launch")
+        assert "start" in launch.upstream_task_ids
+
+    def test_downstream_set_before_with_block(self):
+        with DAG(dag_id="test_down_before", start_date=DEFAULT_DATE, schedule=None) as dag:
+            tg = DatabricksWorkflowTaskGroup(
+                group_id="tg", databricks_conn_id="databricks_conn", job_clusters=self.JOB_CLUSTERS
+            )
+            end = EmptyOperator(task_id="end")
+            tg >> end
+            with tg:
+                DatabricksNotebookOperator(
+                    task_id="nb", notebook_path="/t", source="WORKSPACE", job_cluster_key="c"
+                )
+        nb = dag.get_task("tg.nb")
+        assert "end" in nb.downstream_task_ids
+
+    def test_downstream_set_after_with_block(self):
+        with DAG(dag_id="test_down_after", start_date=DEFAULT_DATE, schedule=None) as dag:
+            tg = DatabricksWorkflowTaskGroup(
+                group_id="tg", databricks_conn_id="databricks_conn", job_clusters=self.JOB_CLUSTERS
+            )
+            end = EmptyOperator(task_id="end")
+            with tg:
+                DatabricksNotebookOperator(
+                    task_id="nb", notebook_path="/t", source="WORKSPACE", job_cluster_key="c"
+                )
+            tg >> end
+        nb = dag.get_task("tg.nb")
+        assert "end" in nb.downstream_task_ids
