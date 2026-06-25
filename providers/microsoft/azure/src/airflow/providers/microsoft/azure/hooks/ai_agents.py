@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote
@@ -25,6 +26,7 @@ from urllib.parse import quote
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import ClientSecretCredential
 from requests import Session
+from requests.exceptions import HTTPError
 
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.microsoft.azure.hooks.base_azure import _AZURE_CLOUD_ENVIRONMENTS
@@ -220,6 +222,7 @@ class AzureAIAgentsHook(BaseHook):
         *,
         json_payload: dict[str, Any] | None = None,
         extra_headers: dict[str, str] | None = None,
+        query_params: dict[str, str] | None = None,
     ) -> Any:
         conn = self.get_connection(self.conn_id)
         credential = self._get_credential(conn)
@@ -233,10 +236,14 @@ class AzureAIAgentsHook(BaseHook):
         if extra_headers:
             headers.update(extra_headers)
 
+        params = {"api-version": self.api_version}
+        if query_params:
+            params.update(query_params)
+
         response = self.session.request(
             method=method,
             url=url,
-            params={"api-version": self.api_version},
+            params=params,
             headers=headers,
             json=json_payload,
         )
@@ -245,10 +252,26 @@ class AzureAIAgentsHook(BaseHook):
     def _process_response(self, response: Response) -> Any:
         if response.status_code == 404:
             raise ResourceNotFoundError("Azure AI Hosted agent resource was not found.")
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except HTTPError as err:
+            error_body = self._get_response_error_body(response)
+            if error_body:
+                raise HTTPError(f"{err}; response body: {error_body}", response=response) from err
+            raise
         if response.status_code == 204 or not response.content:
             return None
         return response.json()
+
+    @staticmethod
+    def _get_response_error_body(response: Response) -> str | None:
+        response_text = getattr(response, "text", None)
+        if response_text:
+            return response_text
+        try:
+            return json.dumps(response.json())
+        except ValueError:
+            return None
 
     @staticmethod
     def _quote_resource_id(resource_id: str) -> str:
@@ -277,9 +300,10 @@ class AzureAIAgentsHook(BaseHook):
             f"agents/{self._quote_resource_id(agent_name)}/versions/{self._quote_resource_id(agent_version)}",
         )
 
-    def delete_agent(self, agent_name: str) -> None:
+    def delete_agent(self, agent_name: str, *, force: bool = False) -> None:
         """Delete a Hosted agent and all versions."""
-        self._request("DELETE", f"agents/{self._quote_resource_id(agent_name)}")
+        query_params = {"force": "true"} if force else None
+        self._request("DELETE", f"agents/{self._quote_resource_id(agent_name)}", query_params=query_params)
 
     def delete_agent_version(self, agent_name: str, agent_version: str) -> None:
         """Delete one Hosted agent version."""

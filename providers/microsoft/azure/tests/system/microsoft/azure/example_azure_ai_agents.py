@@ -121,6 +121,7 @@ with DAG(
     delete_agent = DeleteAzureAIAgentOperator(
         task_id="delete_agent",
         agent_name=AGENT_NAME,
+        force=True,
         trigger_rule=TriggerRule.ALL_DONE,
         deferrable=True,
     )
