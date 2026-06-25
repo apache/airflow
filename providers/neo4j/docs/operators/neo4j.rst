@@ -23,7 +23,7 @@ Neo4jOperator
 =============
 
 Use the :class:`~airflow.providers.neo4j.operators.Neo4jOperator` to execute
-SQL commands in a `Neo4j <https://neo4j.com/>`__ database.
+Cypher queries in a `Neo4j <https://neo4j.com/>`__ database.
 
 
 Using the Operator

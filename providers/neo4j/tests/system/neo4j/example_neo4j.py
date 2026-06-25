@@ -42,7 +42,7 @@ with DAG(
     neo4j_task = Neo4jOperator(
         task_id="run_neo4j_query",
         neo4j_conn_id="neo4j_conn_id",
-        sql='MATCH (tom {name: "Tom Hanks", date: "{{ds}}"}) RETURN tom',
+        cypher='MATCH (tom {name: "Tom Hanks", date: "{{ds}}"}) RETURN tom',
         dag=dag,
     )
 

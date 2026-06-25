@@ -43,7 +43,7 @@ with DAG(
         task_id="run_neo4j_query_with_parameters",
         neo4j_conn_id="neo4j_conn_id",
         parameters={"name": "Tom Hanks"},
-        sql='MATCH (actor {name: $name, date: "{{ds}}"}) RETURN actor',
+        cypher='MATCH (actor {name: $name, date: "{{ds}}"}) RETURN actor',
         dag=dag,
     )
 
