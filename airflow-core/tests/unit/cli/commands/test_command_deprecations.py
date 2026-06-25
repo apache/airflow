@@ -36,6 +36,8 @@ from airflow.cli.commands import asset_command, dag_command, pool_command
 MIGRATED_CLI_COMMANDS = [
     (dag_command.dag_trigger, "airflowctl dags trigger"),
     (dag_command.dag_delete, "airflowctl dags delete"),
+    (dag_command.dag_pause, "airflowctl dags pause"),
+    (dag_command.dag_unpause, "airflowctl dags unpause"),
     (pool_command.pool_list, "airflowctl pools list"),
     (pool_command.pool_get, "airflowctl pools get"),
     (pool_command.pool_set, "airflowctl pools create"),
