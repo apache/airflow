@@ -1051,8 +1051,15 @@ def test_trigger_logger_fd_closed_when_removed(session):
         trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=123456), capacity=10)
         trigger_runner_supervisor.load_triggers()
 
-        for _ in range(30):
+        # The 0.5s trigger must fire and its finished-trigger cleanup must run before the log FD is
+        # closed. How many service iterations that takes depends on real wall-clock timing and runner
+        # speed (_service_subprocess returns as soon as there is I/O, not after a full 0.1s), so poll
+        # until the close happens rather than relying on a fixed iteration count -- a fixed count is
+        # flaky on slow/loaded runners where the trigger has not fired yet within the window.
+        for _ in range(300):
             trigger_runner_supervisor._service_subprocess(0.1)
+            if mock_file.close.called:
+                break
 
     mock_file.close.assert_called_once()
 
