@@ -341,6 +341,11 @@ def test_read_sql_to_polars_clears_cursor_on_pagination_error():
     ]
 
     with pytest.raises(RuntimeError, match="boom"):
-        read_sql_to_polars(es, "SELECT *")
+        list(
+            read_sql_to_polars_by_chunks(
+                es,
+                "SELECT *",
+            )
+        )
 
     es.sql.clear_cursor.assert_called_once()
