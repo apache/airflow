@@ -860,9 +860,12 @@ class TestS3CopyPrefixOperator:
                 raise Exception("Copy failed for file1")
             return None
 
-        with mock.patch.object(op.hook, "copy_object", side_effect=mock_copy_object):
+        with mock.patch.object(op.hook, "copy_object", side_effect=mock_copy_object) as mock_copy:
             with pytest.raises(RuntimeError, match=r"Failed to copy 1 object\(s\)"):
                 op.execute(None)
+
+        attempted_keys = [call.kwargs["source_bucket_key"] for call in mock_copy.call_args_list]
+        assert f"{self.source_prefix}file2.txt" in attempted_keys
 
     @pytest.mark.parametrize(
         "op_kwargs",

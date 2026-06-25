@@ -506,7 +506,7 @@ class S3CopyPrefixOperator(AwsBaseOperator[S3Hook]):
                             self.log.error("Failed to copy %s: %s", source_key, e)
                             failed_object_count += 1
                         else:
-                            raise RuntimeError(f"Failed to copy {source_key}: {e}")
+                            raise RuntimeError(f"Failed to copy {source_key}: {e}") from e
 
         self.log.info("Successfully copied %s object(s)", copied_object_count)
 
