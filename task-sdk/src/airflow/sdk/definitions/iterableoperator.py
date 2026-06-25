@@ -162,6 +162,7 @@ class IterableOperator(BaseOperator):
                 "doc_rst": operator.doc_rst,
                 "task_display_name": operator.task_display_name,
                 "allow_nested_operators": operator.allow_nested_operators,
+                "returns_dag_result": operator.returns_dag_result,
             }
         )
         self._operator = operator
