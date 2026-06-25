@@ -286,6 +286,7 @@ class DeleteAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
 
     :param agent_name: Hosted agent name.
     :param agent_version: Optional Hosted agent version. When omitted, the whole agent is deleted.
+    :param force: Whether to cascade-delete active sessions when deleting the whole agent.
     :param wait_for_completion: Whether to wait until the resource is deleted.
     :param poll_interval: Time in seconds between status checks.
     :param timeout: Time in seconds to wait for deletion to complete.
@@ -309,6 +310,7 @@ class DeleteAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         *,
         agent_name: str,
         agent_version: str | None = None,
+        force: bool = False,
         wait_for_completion: bool = True,
         poll_interval: float = 30.0,
         timeout: float = 60 * 60,
@@ -321,6 +323,7 @@ class DeleteAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         super().__init__(**kwargs)
         self.agent_name = agent_name
         self.agent_version = agent_version
+        self.force = force
         self.wait_for_completion = wait_for_completion
         self.poll_interval = poll_interval
         self.timeout = timeout
@@ -333,7 +336,7 @@ class DeleteAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         """Delete an Azure AI Hosted agent or version and optionally wait for deletion."""
         if self.agent_version is None:
             self.log.info("Deleting Azure AI Hosted agent %s.", self.agent_name)
-            self.hook.delete_agent(agent_name=self.agent_name)
+            self.hook.delete_agent(agent_name=self.agent_name, force=self.force)
         else:
             self.log.info(
                 "Deleting Azure AI Hosted agent %s version %s.", self.agent_name, self.agent_version

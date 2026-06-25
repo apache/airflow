@@ -356,8 +356,22 @@ class TestDeleteAzureAIAgentOperator:
         result = operator.execute(context={})
 
         assert result is None
-        mock_delete_agent.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME)
+        mock_delete_agent.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME, force=False)
         mock_is_deleted.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME)
+
+    @mock.patch.object(AzureAIAgentsHook, "delete_agent", autospec=True)
+    def test_execute_deletes_agent_with_force(self, mock_delete_agent):
+        operator = DeleteAzureAIAgentOperator(
+            task_id="delete_agent",
+            agent_name=AGENT_NAME,
+            force=True,
+            wait_for_completion=False,
+        )
+
+        result = operator.execute(context={})
+
+        assert result is None
+        mock_delete_agent.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME, force=True)
 
     @mock.patch.object(AzureAIAgentsHook, "is_agent_version_deleted", autospec=True)
     @mock.patch.object(AzureAIAgentsHook, "delete_agent_version", autospec=True)
@@ -387,7 +401,7 @@ class TestDeleteAzureAIAgentOperator:
         result = operator.execute(context={})
 
         assert result is None
-        mock_delete_agent.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME)
+        mock_delete_agent.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME, force=False)
 
     @mock.patch.object(AzureAIAgentsHook, "delete_agent", autospec=True)
     def test_execute_defers(self, mock_delete_agent):
@@ -405,7 +419,7 @@ class TestDeleteAzureAIAgentOperator:
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(context={})
 
-        mock_delete_agent.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME)
+        mock_delete_agent.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME, force=False)
         trigger = exc.value.trigger
         assert isinstance(trigger, AzureAIAgentDeleteTrigger)
         assert trigger.azure_ai_agents_conn_id == CONN_ID

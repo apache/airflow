@@ -22,6 +22,7 @@ from unittest import mock
 
 import pytest
 from azure.core.exceptions import ResourceNotFoundError
+from requests.exceptions import HTTPError
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.ai_agents import (
@@ -51,6 +52,7 @@ def build_response(status_code=200, payload=None):
     response = mock.Mock()
     response.status_code = status_code
     response.content = b"" if payload is None else json.dumps(payload).encode()
+    response.text = "" if payload is None else json.dumps(payload)
     response.json.return_value = payload
     response.raise_for_status = mock.Mock()
     return response
@@ -172,6 +174,17 @@ class TestAzureAIAgentsHook:
         with pytest.raises(ResourceNotFoundError):
             hook._process_response(build_response(status_code=404, payload={"error": "not found"}))
 
+    def test_process_response_includes_error_body(self):
+        response = build_response(
+            status_code=500,
+            payload={"error": {"code": "internal_error", "message": "Internal server error"}},
+        )
+        response.raise_for_status.side_effect = HTTPError("500 Server Error", response=response)
+        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
+
+        with pytest.raises(HTTPError, match="internal_error"):
+            hook._process_response(response)
+
     @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
     def test_create_agent(self, mock_request):
         mock_request.return_value = {"name": AGENT_NAME, "version": "1"}
@@ -226,7 +239,20 @@ class TestAzureAIAgentsHook:
 
         hook.delete_agent(agent_name=AGENT_NAME)
 
-        mock_request.assert_called_once_with(hook, "DELETE", f"agents/{AGENT_NAME}")
+        mock_request.assert_called_once_with(hook, "DELETE", f"agents/{AGENT_NAME}", query_params=None)
+
+    @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
+    def test_delete_agent_with_force(self, mock_request):
+        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
+
+        hook.delete_agent(agent_name=AGENT_NAME, force=True)
+
+        mock_request.assert_called_once_with(
+            hook,
+            "DELETE",
+            f"agents/{AGENT_NAME}",
+            query_params={"force": "true"},
+        )
 
     @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
     def test_delete_agent_quotes_resource_id(self, mock_request):
@@ -234,7 +260,12 @@ class TestAzureAIAgentsHook:
 
         hook.delete_agent(agent_name=SPECIAL_AGENT_NAME)
 
-        mock_request.assert_called_once_with(hook, "DELETE", "agents/agent%2Fname%20with%20spaces")
+        mock_request.assert_called_once_with(
+            hook,
+            "DELETE",
+            "agents/agent%2Fname%20with%20spaces",
+            query_params=None,
+        )
 
     @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
     def test_delete_agent_version(self, mock_request):
