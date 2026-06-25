@@ -174,6 +174,48 @@ class TestCreateAzureAIAgentOperator:
 
         assert result == {"name": AGENT_NAME, "version": "1", "status": "active"}
 
+    @mock.patch.object(AzureAIAgentsHook, "get_agent_version", autospec=True)
+    @mock.patch.object(AzureAIAgentsHook, "create_agent", autospec=True)
+    def test_execute_waits_with_agent_create_response(self, mock_create_agent, mock_get_version):
+        """CreateAzureAIAgentOperator must handle the POST /agents agent response (versions.latest)."""
+        mock_create_agent.return_value = {
+            "object": "agent",
+            "id": AGENT_NAME,
+            "versions": {"latest": {"object": "agent.version", "version": "1", "status": "creating"}},
+        }
+        mock_get_version.return_value = {"name": AGENT_NAME, "version": "1", "status": "active"}
+        operator = CreateAzureAIAgentOperator(
+            task_id="create_agent",
+            agent_name=AGENT_NAME,
+            definition=DEFINITION,
+            poll_interval=0,
+        )
+
+        result = operator.execute(context={})
+
+        assert result == {"name": AGENT_NAME, "version": "1", "status": "active"}
+        mock_get_version.assert_called_once_with(mock.ANY, agent_name=AGENT_NAME, agent_version="1")
+
+    @mock.patch.object(AzureAIAgentsHook, "create_agent", autospec=True)
+    def test_execute_without_waiting_with_agent_create_response(self, mock_create_agent):
+        """CreateAzureAIAgentOperator must handle the POST /agents agent response with wait_for_completion=False."""
+        agent_response = {
+            "object": "agent",
+            "id": AGENT_NAME,
+            "versions": {"latest": {"object": "agent.version", "version": "1", "status": "creating"}},
+        }
+        mock_create_agent.return_value = agent_response
+        operator = CreateAzureAIAgentOperator(
+            task_id="create_agent",
+            agent_name=AGENT_NAME,
+            definition=DEFINITION,
+            wait_for_completion=False,
+        )
+
+        result = operator.execute(context={})
+
+        assert result == agent_response
+
 
 class TestUpdateAzureAIAgentOperator:
     @mock.patch.object(AzureAIAgentsHook, "get_agent_version", autospec=True)
