@@ -53,7 +53,6 @@ import { useGridRuns } from "src/queries/useGridRuns.ts";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
-import { Graph } from "./Graph";
 import { Grid } from "./Grid";
 import { NavTabs, type NavTab } from "./NavTabs";
 import { PanelButtons } from "./PanelButtons";
@@ -97,7 +96,8 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   const { t: translate } = useTranslation();
   const { dagId = "", runId } = useParams();
   const { data: dag } = useDagServiceGetDag({ dagId });
-  const [dagView, setDagView] = useLocalStorage<DagView>(DEFAULT_DAG_VIEW_KEY, "grid");
+  const [storedDagView, setDagView] = useLocalStorage<DagView>(DEFAULT_DAG_VIEW_KEY, "grid");
+  const dagView = storedDagView === "graph" ? "grid" : storedDagView;
   const panelGroupRef = useRef<ImperativePanelGroupHandle | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -213,7 +213,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   // Treat "gantt" as "grid" for panel layout persistence so switching between them doesn't reset sizes.
   const panelViewKey = dagView === "gantt" ? "grid" : dagView;
   const minSize = dagView === "gantt" && Boolean(runId) ? 35 : 6;
-  const defaultSize = Math.max(dagView === "graph" ? 70 : 20, minSize);
+  const defaultSize = Math.max(20, minSize);
 
   return (
     <HoverProvider>
@@ -276,9 +276,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                     showVersionIndicatorMode={showVersionIndicatorMode}
                   />
                   <Box flex={1} minH={0} overflow="hidden">
-                    {dagView === "graph" ? (
-                      <Graph />
-                    ) : dagView === "gantt" && Boolean(runId) ? (
+                    {dagView === "gantt" && Boolean(runId) ? (
                       <SharedScrollBox scrollRef={sharedGridGanttScrollRef}>
                         <Flex alignItems="flex-start" gap={0} maxW="100%" minW={0} overflow="clip" w="100%">
                           <Grid
@@ -361,7 +359,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                   {/* Collapse button positioned next to the resize handle */}
 
                   <Panel
-                    defaultSize={dagView === "graph" ? 30 : 80}
+                    defaultSize={80}
                     id="details-panel"
                     minSize={20}
                     order={2}

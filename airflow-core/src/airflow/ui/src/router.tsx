@@ -66,6 +66,7 @@ import { TaskInstances } from "src/pages/TaskInstances";
 import { TaskStateStore } from "src/pages/TaskStateStore";
 import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
+import { Graph } from "src/layouts/Details/Graph";
 
 import { StorageLayout } from "./layouts/StorageLayout";
 import { client } from "./queryClient";
@@ -195,6 +196,7 @@ export const routerConfig = [
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
           { element: <DagDetails />, path: "details" },
+          { element: <Graph />, path: "graph" },
           pluginRoute,
         ],
         element: <Dag />,
@@ -210,6 +212,7 @@ export const routerConfig = [
           { element: <Code />, path: "code" },
           { element: <DagRunDetails />, path: "details" },
           { element: <DagRunAssetEvents />, path: "asset_events" },
+          { element: <Graph />, path: "graph" },
           pluginRoute,
         ],
         element: <Run />,

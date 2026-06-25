@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { FiBarChart, FiCode, FiCalendar } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
 import { MdDetails, MdOutlineEventNote } from "react-icons/md";
+import { PiGraphLight } from "react-icons/pi";
 import { RiArrowGoBackFill } from "react-icons/ri";
 import { useParams } from "react-router-dom";
 
@@ -52,6 +53,7 @@ export const Dag = () => {
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
     { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
+    { icon: <PiGraphLight />, label: translate("tabs.graph", "Graph"), value: "graph" },
     ...externalTabs,
   ];
 
