@@ -184,8 +184,8 @@ Example skeleton:
         def _asset_ref(self, scope: AssetScope, key: str) -> str:
             import hashlib
 
-            asset_ref = scope.name or scope.uri or ""
-            safe = hashlib.sha256(asset_ref.encode()).hexdigest()[:16]
+            asset_identifier = scope.name or scope.uri or ""
+            safe = hashlib.sha256(asset_identifier.encode()).hexdigest()[:16]
             return f"airflow/asset-store/{safe}/{key}"
 
         def serialize_task_store_to_ref(self, *, value: JsonValue, key: str, scope: TaskScope) -> str:
