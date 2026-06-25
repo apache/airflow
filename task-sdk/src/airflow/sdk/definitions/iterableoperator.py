@@ -473,7 +473,7 @@ class IterableOperator(BaseOperator):
     def execute_failed_tasks(
         self,
         context: Context,
-        failed_tasks: dict[int, int],
+        failed_tasks: dict[str, int],
         event: dict[Any, Any],
     ):
         """
@@ -488,12 +488,12 @@ class IterableOperator(BaseOperator):
             self._create_task(
                 context=context,
                 index=index,
-                try_number=failed_tasks[index],
+                try_number=failed_tasks[str(index)],
                 jinja_env=jinja_env,
                 mapped_kwargs=value,
             )
             for index, value in enumerate(self.expand_input.iter_values(context=context))
-            if index in failed_tasks
+            if str(index) in failed_tasks
         )
         return self._run_tasks(context=context, tasks=tasks)
 
