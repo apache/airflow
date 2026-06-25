@@ -70,8 +70,8 @@ from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetRef
 from airflow.sdk.definitions.timetables.assets import (
     AssetTriggeredTimetable,
-    PartitionAtRuntime,
     PartitionedAssetTimetable,
+    PartitionedAtRuntime,
 )
 from airflow.sdk.definitions.timetables.simple import ContinuousTimetable, NullTimetable, OnceTimetable
 from airflow.sdk.definitions.timetables.trigger import CronPartitionTimetable
@@ -88,9 +88,9 @@ from airflow.serialization.definitions.deadline import SerializedDeadlineAlert
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
     WaitPolicyNotSupported,
-    WindowNotSupported,
     find_registered_custom_partition_mapper,
     find_registered_custom_timetable,
+    find_registered_custom_window,
     is_core_partition_mapper_import_path,
     is_core_timetable_import_path,
     is_core_wait_policy_import_path,
@@ -329,7 +329,7 @@ class _Serializer:
         MultipleCronTriggerTimetable: "airflow.timetables.trigger.MultipleCronTriggerTimetable",
         NullTimetable: "airflow.timetables.simple.NullTimetable",
         OnceTimetable: "airflow.timetables.simple.OnceTimetable",
-        PartitionAtRuntime: "airflow.timetables.simple.PartitionAtRuntime",
+        PartitionedAtRuntime: "airflow.timetables.simple.PartitionedAtRuntime",
         PartitionedAssetTimetable: "airflow.timetables.simple.PartitionedAssetTimetable",
     }
 
@@ -355,9 +355,9 @@ class _Serializer:
     @serialize_timetable.register(ContinuousTimetable)
     @serialize_timetable.register(NullTimetable)
     @serialize_timetable.register(OnceTimetable)
-    @serialize_timetable.register(PartitionAtRuntime)
+    @serialize_timetable.register(PartitionedAtRuntime)
     def _(
-        self, timetable: ContinuousTimetable | NullTimetable | OnceTimetable | PartitionAtRuntime
+        self, timetable: ContinuousTimetable | NullTimetable | OnceTimetable | PartitionedAtRuntime
     ) -> dict[str, Any]:
         return {}
 
@@ -695,11 +695,9 @@ def encode_window(var: Window | CoreWindow) -> dict[str, Any]:
     """
     Encode a :class:`Window` instance.
 
-    Only built-in ``Window`` subclasses are accepted. Custom subclasses raise
-    :class:`WindowNotSupported` so the scheduler never deserializes an
-    attacker-controlled import path. If a real need for custom windows arises,
-    add a plugin registry mirroring ``partition_mapper`` rather than relaxing
-    this check.
+    Custom subclasses must be registered via the ``windows`` plugin attribute;
+    unregistered classes raise :class:`WindowNotSupported` so the scheduler
+    never deserializes an attacker-controlled import path.
 
     The ``BUILTIN_WINDOWS`` fast path maps the SDK classes user code instantiates
     (e.g. ``from airflow.sdk import WeekWindow``); after deserialization a
@@ -715,9 +713,12 @@ def encode_window(var: Window | CoreWindow) -> dict[str, Any]:
             Encoding.TYPE: importable_string,
             Encoding.VAR: _serializer.serialize_window(var),
         }
+
     qn = qualname(var)
-    if not is_core_window_import_path(qn):
-        raise WindowNotSupported(qn)
+    if is_core_window_import_path(qn) is False:
+        # This raises if not found.
+        find_registered_custom_window(qn)
+
     return {
         Encoding.TYPE: qn,
         Encoding.VAR: _serializer.serialize_window(var),

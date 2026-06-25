@@ -473,6 +473,7 @@ devel
 DevOps
 devtools
 df
+dictConfig
 dicts
 Dingding
 dingding
@@ -1370,6 +1371,7 @@ rebase
 Rebasing
 Recency
 recurse
+redeclare
 redelivery
 Redhat
 redis

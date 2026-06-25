@@ -67,6 +67,9 @@ BY_DESIGN_EXCLUSIONS: set[str] = {
     # `pod_names` preserves the value and avoids re-triggering the deprecation path on restart.
     "google/src/airflow/providers/google/cloud/triggers/kubernetes_engine.py::GKEJobTrigger",
     "cncf/kubernetes/src/airflow/providers/cncf/kubernetes/triggers/job.py::KubernetesJobTrigger",
+    # `region` is a deprecated alias folded into `region_name` in __init__; serializing only
+    # `region_name` preserves the value and avoids re-triggering the deprecation path on restart.
+    "amazon/src/airflow/providers/amazon/aws/triggers/ecs.py::TaskDoneTrigger",
 }
 
 

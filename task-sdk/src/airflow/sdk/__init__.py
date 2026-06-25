@@ -67,7 +67,7 @@ __all__ = [
     "ObjectStoragePath",
     "Param",
     "ParamsDict",
-    "PartitionAtRuntime",
+    "PartitionedAtRuntime",
     "PartitionedAssetTimetable",
     "PartitionMapper",
     "PokeReturnValue",
@@ -111,6 +111,7 @@ __all__ = [
     "literal",
     "lineage",
     "macros",
+    "result",
     "setup",
     "task",
     "task_group",
@@ -152,7 +153,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
     from airflow.sdk.definitions.dag import DAG, SourceCodeLocation, dag
     from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
-    from airflow.sdk.definitions.decorators import setup, task, teardown
+    from airflow.sdk.definitions.decorators import result, setup, task, teardown
     from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
     from airflow.sdk.definitions.param import Param, ParamsDict
@@ -199,8 +200,8 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.timetables.assets import (
         AssetOrTimeSchedule,
-        PartitionAtRuntime,
         PartitionedAssetTimetable,
+        PartitionedAtRuntime,
     )
     from airflow.sdk.definitions.timetables.events import EventsTimetable
     from airflow.sdk.definitions.timetables.interval import (
@@ -269,7 +270,7 @@ __lazy_imports: dict[str, str] = {
     "ObjectStoragePath": ".io.path",
     "Param": ".definitions.param",
     "ParamsDict": ".definitions.param",
-    "PartitionAtRuntime": ".definitions.timetables.assets",
+    "PartitionedAtRuntime": ".definitions.timetables.assets",
     "PartitionedAssetTimetable": ".definitions.timetables.assets",
     "PartitionMapper": ".definitions.partition_mappers.base",
     "PokeReturnValue": ".bases.sensor",
@@ -315,6 +316,7 @@ __lazy_imports: dict[str, str] = {
     "literal": ".definitions.template",
     "lineage": ".lineage",
     "macros": ".execution_time",
+    "result": ".definitions.decorators",
     "setup": ".definitions.decorators",
     "task": ".definitions.decorators",
     "task_group": ".definitions.decorators",
