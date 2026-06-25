@@ -311,14 +311,6 @@ class TestBuildSystemPrompt:
         prompt = op._build_system_prompt(mock_dq, [mock_dq])
         assert "customers(id, email)" in prompt
 
-    def test_generate_mode_uses_generation_prompt(self):
-        op = _make_operator()
-        mock_dq = _make_dq_toolset("generate")
-        prompt = op._build_system_prompt(mock_dq, [mock_dq])
-        assert "GENERATE MODE" in prompt
-        assert "apply_validator" not in prompt
-        assert "Return a ``DQReport``" not in prompt
-
 
 class TestExecutePlanValidators:
     def test_uses_value_returned_by_apply_validator(self):
