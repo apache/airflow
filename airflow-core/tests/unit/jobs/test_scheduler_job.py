@@ -132,8 +132,8 @@ from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.base import DagRunInfo, DataInterval, compute_rollup_fingerprint
 from airflow.timetables.simple import (
-    PartitionAtRuntime,
     PartitionedAssetTimetable as CorePartitionedAssetTimetable,
+    PartitionedAtRuntime,
 )
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import with_row_locks
@@ -10255,7 +10255,7 @@ def _produce_and_register_asset_event(
     if expected_partition_key is None:
         expected_partition_key = partition_key
 
-    with dag_maker(dag_id=dag_id, schedule=PartitionAtRuntime(), session=session) as dag:
+    with dag_maker(dag_id=dag_id, schedule=PartitionedAtRuntime(), session=session) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
 
     dr = dag_maker.create_dagrun(
@@ -10707,7 +10707,7 @@ def test_consumer_dag_run_partition_date_is_none_when_task_key_diverges(
 
     with dag_maker(
         dag_id="asset-event-producer",
-        schedule=PartitionAtRuntime(),
+        schedule=PartitionedAtRuntime(),
         session=session,
     ) as dag:
         EmptyOperator(task_id="hi", outlets=[asset_1])

@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from airflow.sdk.api.datamodels._generated import (
+    AssetStateStoreResponse,
     ConnectionResponse,
     DagRunStateResponse,
     TaskStatesResponse,
@@ -40,10 +41,17 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceSliceResponse,
 )
 from airflow.sdk.execution_time.comms import (
+    AssetStateStoreResult,
+    ClearAssetStateStoreByName,
+    ClearAssetStateStoreByUri,
     ConnectionResult,
     DagRunStateResult,
+    DeleteAssetStateStoreByName,
+    DeleteAssetStateStoreByUri,
     DeleteVariable,
     DeleteXCom,
+    GetAssetStateStoreByName,
+    GetAssetStateStoreByUri,
     GetConnection,
     GetDagRunState,
     GetDRCount,
@@ -60,6 +68,8 @@ from airflow.sdk.execution_time.comms import (
     MaskSecret,
     PrevSuccessfulDagRunResult,
     PutVariable,
+    SetAssetStateStoreByName,
+    SetAssetStateStoreByUri,
     SetXCom,
     TaskStatesResult,
     VariableKeysResult,
@@ -272,3 +282,87 @@ def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dic
         xcom_result = XComResult.from_xcom_response(xcom)
         return xcom_result, {"exclude_unset": True}
     return xcom, {}
+
+
+def handle_get_asset_state_store_by_name(
+    client: Client, msg: GetAssetStateStoreByName
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    asset_state = client.asset_state_store.get(
+        key=msg.key,
+        name=msg.name,
+    )
+
+    if isinstance(asset_state, AssetStateStoreResponse):
+        return AssetStateStoreResult.from_asset_state_store_response(asset_state), {}
+
+    return asset_state, {}
+
+
+def handle_get_asset_state_store_by_uri(
+    client: Client, msg: GetAssetStateStoreByUri
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    asset_state = client.asset_state_store.get(
+        key=msg.key,
+        uri=msg.uri,
+    )
+
+    if isinstance(asset_state, AssetStateStoreResponse):
+        return AssetStateStoreResult.from_asset_state_store_response(asset_state), {}
+
+    return asset_state, {}
+
+
+def handle_set_asset_state_store_by_name(
+    client: Client, msg: SetAssetStateStoreByName
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.asset_state_store.set(
+        key=msg.key,
+        value=msg.value,
+        name=msg.name,
+    )
+    return None, {}
+
+
+def handle_set_asset_state_store_by_uri(
+    client: Client, msg: SetAssetStateStoreByUri
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.asset_state_store.set(
+        key=msg.key,
+        value=msg.value,
+        uri=msg.uri,
+    )
+    return None, {}
+
+
+def handle_delete_asset_state_store_by_name(
+    client: Client, msg: DeleteAssetStateStoreByName
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.asset_state_store.delete(
+        key=msg.key,
+        name=msg.name,
+    )
+    return None, {}
+
+
+def handle_delete_asset_state_store_by_uri(
+    client: Client, msg: DeleteAssetStateStoreByUri
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.asset_state_store.delete(
+        key=msg.key,
+        uri=msg.uri,
+    )
+    return None, {}
+
+
+def handle_clear_asset_state_store_by_name(
+    client: Client, msg: ClearAssetStateStoreByName
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.asset_state_store.clear(name=msg.name)
+    return None, {}
+
+
+def handle_clear_asset_state_store_by_uri(
+    client: Client, msg: ClearAssetStateStoreByUri
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.asset_state_store.clear(uri=msg.uri)
+    return None, {}

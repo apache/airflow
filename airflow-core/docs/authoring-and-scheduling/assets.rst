@@ -781,7 +781,7 @@ semantics (the default).
         DAG,
         Asset,
         FixedKeyMapper,
-        PartitionAtRuntime,
+        PartitionedAtRuntime,
         PartitionedAssetTimetable,
         RollupMapper,
         SegmentWindow,
@@ -792,7 +792,7 @@ semantics (the default).
 
     @asset(
         uri="file://incoming/player-stats/multi-region.csv",
-        schedule=PartitionAtRuntime(),
+        schedule=PartitionedAtRuntime(),
     )
     def multi_region_player_stats(self, outlet_events):
         # Emit one event per region in a single run.
@@ -836,17 +836,17 @@ Setting partition keys at runtime
 When the partition key is not known ahead of time (for example, a watermark
 discovered from the source data, a late-arriving file, or a backfill request),
 let the producing task decide it while it runs. Schedule the producer with
-``PartitionAtRuntime()`` and record the key(s) on the emitted event with
+``PartitionedAtRuntime()`` and record the key(s) on the emitted event with
 ``outlet_events[self].add_partitions(...)``:
 
 .. code-block:: python
 
-    from airflow.sdk import PartitionAtRuntime, asset
+    from airflow.sdk import PartitionedAtRuntime, asset
 
 
     @asset(
         uri="file://incoming/player-stats/live-region.csv",
-        schedule=PartitionAtRuntime(),
+        schedule=PartitionedAtRuntime(),
     )
     def live_region_player_stats(self, outlet_events):
         # The key is only known once the task runs.
@@ -862,7 +862,7 @@ keys collapse to a single event:
 
     @asset(
         uri="file://incoming/player-stats/multi-region.csv",
-        schedule=PartitionAtRuntime(),
+        schedule=PartitionedAtRuntime(),
     )
     def multi_region_player_stats(self, outlet_events):
         outlet_events[self].add_partitions(["us", "eu", "apac"])

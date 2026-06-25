@@ -71,7 +71,7 @@ from airflow.sdk import (
     DAG,
     BaseOperator,
     CronPartitionTimetable,
-    PartitionAtRuntime,
+    PartitionedAtRuntime,
     TaskGroup,
     setup,
     task as task_decorator,
@@ -1559,7 +1559,7 @@ class TestDag:
         """DagRun-level type check rejects int partition_key even for partitioned Dags."""
         with dag_maker(
             "test_create_dagrun_partitioned_int_key",
-            schedule=PartitionAtRuntime(),
+            schedule=PartitionedAtRuntime(),
         ):
             ...
         with pytest.raises(
@@ -1582,7 +1582,7 @@ class TestDag:
             ("my-key", None, True),
             (None, None, False),
             ("my-key", CronPartitionTimetable("@daily", timezone="UTC"), False),
-            ("my-key", PartitionAtRuntime(), False),
+            ("my-key", PartitionedAtRuntime(), False),
         ],
     )
     def test_serialized_dag_validate_partition_key(
