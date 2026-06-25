@@ -142,10 +142,6 @@ def render_chart(
 ):
     """
     Function that renders a helm chart into dictionaries. For helm chart testing only
-
-    ``api_versions`` is passed to ``helm template --api-versions`` so that templates
-    gated on ``.Capabilities.APIVersions.Has`` (e.g. Gateway API CRDs) can be rendered
-    offline, where Helm cannot query a live cluster for installed API groups.
     """
     values = values or {}
     chart_dir = chart_dir or str(CHART_DIR)

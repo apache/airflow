@@ -27,13 +27,17 @@ SHOW_ONLY = ["templates/api-server/api-server-httproute.yaml"]
 # can render the resource offline.
 GATEWAY_API_VERSIONS = ["gateway.networking.k8s.io/v1"]
 
+# A minimal valid `parentRefs`; the HTTPRoute now requires at least one parent
+# Gateway reference when enabled, so rendering tests must supply it.
+MINIMAL_PARENT_REFS = [{"name": "main-gateway"}]
+
 
 class TestHTTPRouteAPIServer:
     """Tests HTTPRoute API Server (Kubernetes Gateway API)."""
 
-    def test_should_pass_validation_with_just_httproute_enabled(self):
+    def test_should_pass_validation_with_minimal_config(self):
         docs = render_chart(
-            values={"apiServer": {"httpRoute": {"enabled": True}}},
+            values={"apiServer": {"httpRoute": {"enabled": True, "parentRefs": MINIMAL_PARENT_REFS}}},
             show_only=SHOW_ONLY,
             api_versions=GATEWAY_API_VERSIONS,
         )
@@ -43,7 +47,7 @@ class TestHTTPRouteAPIServer:
 
     def test_should_set_api_version_and_kind(self):
         docs = render_chart(
-            values={"apiServer": {"httpRoute": {"enabled": True}}},
+            values={"apiServer": {"httpRoute": {"enabled": True, "parentRefs": MINIMAL_PARENT_REFS}}},
             show_only=SHOW_ONLY,
             api_versions=GATEWAY_API_VERSIONS,
         )
@@ -54,7 +58,11 @@ class TestHTTPRouteAPIServer:
         docs = render_chart(
             values={
                 "apiServer": {
-                    "httpRoute": {"enabled": True, "annotations": {"aa": "bb", "cc": "dd"}},
+                    "httpRoute": {
+                        "enabled": True,
+                        "parentRefs": MINIMAL_PARENT_REFS,
+                        "annotations": {"aa": "bb", "cc": "dd"},
+                    },
                 },
             },
             show_only=SHOW_ONLY,
@@ -65,7 +73,13 @@ class TestHTTPRouteAPIServer:
     def test_should_add_extra_labels(self):
         docs = render_chart(
             values={
-                "apiServer": {"httpRoute": {"enabled": True, "labels": {"custom": "value"}}},
+                "apiServer": {
+                    "httpRoute": {
+                        "enabled": True,
+                        "parentRefs": MINIMAL_PARENT_REFS,
+                        "labels": {"custom": "value"},
+                    },
+                },
             },
             show_only=SHOW_ONLY,
             api_versions=GATEWAY_API_VERSIONS,
@@ -99,6 +113,7 @@ class TestHTTPRouteAPIServer:
                 "apiServer": {
                     "httpRoute": {
                         "enabled": True,
+                        "parentRefs": MINIMAL_PARENT_REFS,
                         "hostnames": ["airflow.example.com", "airflow2.example.com"],
                     },
                 },
@@ -118,6 +133,7 @@ class TestHTTPRouteAPIServer:
                 "apiServer": {
                     "httpRoute": {
                         "enabled": True,
+                        "parentRefs": MINIMAL_PARENT_REFS,
                         "hostnames": ["{{ .Release.Name }}.example.com"],
                     },
                 },
@@ -130,7 +146,7 @@ class TestHTTPRouteAPIServer:
     def test_should_default_to_path_prefix_and_api_server_backend(self):
         docs = render_chart(
             name="my-release",
-            values={"apiServer": {"httpRoute": {"enabled": True}}},
+            values={"apiServer": {"httpRoute": {"enabled": True, "parentRefs": MINIMAL_PARENT_REFS}}},
             show_only=SHOW_ONLY,
             api_versions=GATEWAY_API_VERSIONS,
         )
@@ -145,7 +161,12 @@ class TestHTTPRouteAPIServer:
         docs = render_chart(
             values={
                 "apiServer": {
-                    "httpRoute": {"enabled": True, "path": "/api", "pathType": "Exact"},
+                    "httpRoute": {
+                        "enabled": True,
+                        "parentRefs": MINIMAL_PARENT_REFS,
+                        "path": "/api",
+                        "pathType": "Exact",
+                    },
                 },
             },
             show_only=SHOW_ONLY,
@@ -160,6 +181,7 @@ class TestHTTPRouteAPIServer:
                 "apiServer": {
                     "httpRoute": {
                         "enabled": True,
+                        "parentRefs": MINIMAL_PARENT_REFS,
                         "rules": [
                             {
                                 "matches": [{"path": {"type": "PathPrefix", "value": "/admin"}}],
@@ -197,7 +219,7 @@ class TestHTTPRouteAPIServer:
 
     def test_httproute_created_when_enabled(self):
         docs = render_chart(
-            values={"apiServer": {"httpRoute": {"enabled": True}}},
+            values={"apiServer": {"httpRoute": {"enabled": True, "parentRefs": MINIMAL_PARENT_REFS}}},
             show_only=SHOW_ONLY,
             api_versions=GATEWAY_API_VERSIONS,
         )
@@ -222,6 +244,16 @@ class TestHTTPRouteAPIServer:
             )
         assert "Gateway API HTTPRoute CRD" in exc_info.value.stderr.decode()
 
+    def test_should_fail_when_parent_refs_empty(self):
+        # Gateway API CRD present, but no parentRefs -> fail fast on the empty config.
+        with pytest.raises(HelmFailedError) as exc_info:
+            render_chart(
+                values={"apiServer": {"httpRoute": {"enabled": True}}},
+                show_only=SHOW_ONLY,
+                api_versions=GATEWAY_API_VERSIONS,
+            )
+        assert "parentRefs" in exc_info.value.stderr.decode()
+
     def test_should_fail_when_ingress_and_httproute_both_enabled(self):
         with pytest.raises(HelmFailedError) as exc_info:
             render_chart(
@@ -232,14 +264,16 @@ class TestHTTPRouteAPIServer:
                 show_only=SHOW_ONLY,
                 api_versions=GATEWAY_API_VERSIONS,
             )
-        assert "alternative to the API server Ingress" in exc_info.value.stderr.decode()
+        # Either reciprocal guard (httproute-side or ingress-side) may fire first;
+        # both share this closing phrase.
+        assert "enable only one of them" in exc_info.value.stderr.decode()
 
     def test_backend_service_name_with_fullname_override(self):
         docs = render_chart(
             values={
                 "fullnameOverride": "airflow-fullname-override",
                 "useStandardNaming": True,
-                "apiServer": {"httpRoute": {"enabled": True}},
+                "apiServer": {"httpRoute": {"enabled": True, "parentRefs": MINIMAL_PARENT_REFS}},
             },
             show_only=SHOW_ONLY,
             api_versions=GATEWAY_API_VERSIONS,
@@ -255,7 +289,11 @@ class TestHTTPRouteAPIServer:
                 "labels": {"label1": "value1", "label2": "value2"},
                 "apiServer": {
                     "labels": {"test_label": "test_label_value"},
-                    "httpRoute": {"enabled": True, "labels": {"route_label": "route_value"}},
+                    "httpRoute": {
+                        "enabled": True,
+                        "parentRefs": MINIMAL_PARENT_REFS,
+                        "labels": {"route_label": "route_value"},
+                    },
                 },
             },
             show_only=SHOW_ONLY,

@@ -27,6 +27,9 @@
 {{- if not (.Capabilities.APIVersions.Has "gateway.networking.k8s.io/v1") }}
 {{- fail "`apiServer.httpRoute.enabled` is `true` but the Gateway API HTTPRoute CRD (`gateway.networking.k8s.io/v1`) is not installed in the cluster. Install the Gateway API CRDs (https://gateway-api.sigs.k8s.io/guides/#installing-gateway-api) before enabling `apiServer.httpRoute`." }}
 {{- end }}
+{{- if not .Values.apiServer.httpRoute.parentRefs }}
+{{- fail "`apiServer.httpRoute.enabled` is `true` but `apiServer.httpRoute.parentRefs` is empty. An HTTPRoute must reference at least one parent Gateway; set `apiServer.httpRoute.parentRefs`." }}
+{{- end }}
 {{- $fullname := include "airflow.fullname" . }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
