@@ -78,6 +78,13 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 RESOURCE_ID_ATTRIBUTE_NAME = "resource_id"
+KEYCLOAK_RESOURCE_NOT_FOUND_ERROR = "resource not found:"
+
+
+def _is_missing_keycloak_resource_response(status_code: int, text: Any) -> bool:
+    return status_code == 500 and isinstance(text, str) and KEYCLOAK_RESOURCE_NOT_FOUND_ERROR in text.lower()
+
+
 TEAM_SCOPED_RESOURCES = frozenset(
     {
         KeycloakResource.CONNECTION,
@@ -434,6 +441,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             raise AirflowException(
                 f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
             )
+        if _is_missing_keycloak_resource_response(resp.status_code, resp.text):
+            log.warning("Keycloak authorization resource is missing; denying access. Response: %s", resp.text)
+            return False
         raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
 
     def filter_authorized_dag_ids(
