@@ -72,6 +72,7 @@
     "expectedDuration": "預計時長",
     "lastSchedulingDecision": "最後排程決策",
     "mappedPartitionKey": "映射分區鍵",
+    "partitionDate": "資產分區日期",
     "partitionKey": "資產分區鍵",
     "queuedAt": "開始排隊時間",
     "runAfter": "最早可執行時間",

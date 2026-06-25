@@ -43,19 +43,7 @@ export const DeadlineRow = ({ alert, deadline }: DeadlineRowProps) => {
         defaultValue: alert.reference_type,
       })
     : undefined;
-  // A fixed interval reports its seconds; a dynamic interval (e.g. VariableInterval) comes back as
-  // null, resolved only at scheduler evaluation time — render a "dynamic interval" phrasing rather
-  // than a misleading "a few seconds" from dayjs.duration(null). When there is no alert at all,
-  // completionRule stays undefined so the rule line is omitted (preserving prior behavior).
-  const completionRule =
-    alert === undefined
-      ? undefined
-      : alert.interval === null || alert.interval === undefined
-        ? translate("deadlineAlerts.completionRuleDynamic", { reference })
-        : translate("deadlineAlerts.completionRule", {
-            interval: dayjs.duration(alert.interval, "seconds").humanize(),
-            reference,
-          });
+  const interval = alert ? dayjs.duration(alert.interval, "seconds").humanize() : undefined;
 
   return (
     <HStack justifyContent="space-between" px={2} py={1.5} width="100%">
@@ -73,11 +61,11 @@ export const DeadlineRow = ({ alert, deadline }: DeadlineRowProps) => {
             {deadline.dag_run_id}
           </RouterLink>
         </HStack>
-        {completionRule === undefined ? undefined : (
+        {reference !== undefined && interval !== undefined ? (
           <Text color="fg.muted" fontSize="xs">
-            {completionRule}
+            {translate("deadlineAlerts.completionRule", { interval, reference })}
           </Text>
-        )}
+        ) : undefined}
       </VStack>
       <HStack gap={1}>
         <Text color="fg.muted" fontSize="xs">

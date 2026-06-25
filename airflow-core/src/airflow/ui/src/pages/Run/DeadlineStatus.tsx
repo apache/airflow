@@ -45,23 +45,6 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
   const { t: translate } = useTranslation("dag");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // A fixed interval reports its seconds; a dynamic interval (e.g. VariableInterval) comes back
-  // as null, since its value is only resolved when the scheduler evaluates the deadline. Render
-  // a "dynamic interval" phrasing in that case rather than a misleading "a few seconds".
-  const completionRule = (alertItem: DeadlineAlertResponse) =>
-    alertItem.interval === null || alertItem.interval === undefined
-      ? translate("deadlineAlerts.completionRuleDynamic", {
-          reference: translate(`deadlineAlerts.referenceType.${alertItem.reference_type}`, {
-            defaultValue: alertItem.reference_type,
-          }),
-        })
-      : translate("deadlineAlerts.completionRule", {
-          interval: dayjs.duration(alertItem.interval, "seconds").humanize(),
-          reference: translate(`deadlineAlerts.referenceType.${alertItem.reference_type}`, {
-            defaultValue: alertItem.reference_type,
-          }),
-        });
-
   const { data: deadlineData, isLoading: isLoadingDeadlines } = useDeadlinesServiceGetDeadlines({
     dagId,
     dagRunId,
@@ -101,7 +84,12 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
       <VStack alignItems="flex-start" gap={0.5}>
         {(alertData?.deadline_alerts ?? []).map((deadlineAlert) => (
           <Text fontSize="xs" key={deadlineAlert.id}>
-            {completionRule(deadlineAlert)}
+            {translate("deadlineAlerts.completionRule", {
+              interval: dayjs.duration(deadlineAlert.interval, "seconds").humanize(),
+              reference: translate(`deadlineAlerts.referenceType.${deadlineAlert.reference_type}`, {
+                defaultValue: deadlineAlert.reference_type,
+              }),
+            })}
           </Text>
         ))}
       </VStack>
@@ -199,7 +187,12 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
       </HStack>
       {alert === undefined ? undefined : (
         <Text color="fg.muted" fontSize="xs">
-          {completionRule(alert)}
+          {translate("deadlineAlerts.completionRule", {
+            interval: dayjs.duration(alert.interval, "seconds").humanize(),
+            reference: translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
+              defaultValue: alert.reference_type,
+            }),
+          })}
         </Text>
       )}
       <HStack gap={1}>

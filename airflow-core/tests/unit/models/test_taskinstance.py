@@ -4077,6 +4077,24 @@ def test_clear_task_instances_preserves_detail_level(dag_maker, session):
 
 
 @pytest.mark.db_test
+@pytest.mark.parametrize("flag", [True, False])
+def test_clear_task_instances_honors_trace_sampled_conf(dag_maker, session, flag):
+    """The regenerated carrier honors the airflow/trace_sampled override from dag run conf."""
+    with dag_maker("test_clear_trace_sampled"):
+        EmptyOperator(task_id="t1")
+    dag_run = dag_maker.create_dagrun(conf={"airflow/trace_sampled": flag})
+    ti = dag_run.get_task_instance("t1", session=session)
+    ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+
+    clear_task_instances([ti], session)
+
+    new_ctx = TraceContextTextMapPropagator().extract(dag_run.context_carrier)
+    span_ctx = trace.get_current_span(new_ctx).get_span_context()
+    assert span_ctx.trace_flags.sampled is flag
+
+
+@pytest.mark.db_test
 def test_task_instance_repr_does_not_raise_for_deferred_columns(dag_maker, session):
     """``TaskInstance.__repr__`` must survive *any* deferred column it reads.
 
