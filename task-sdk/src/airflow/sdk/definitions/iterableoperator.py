@@ -212,7 +212,6 @@ class IterableOperator(BaseOperator):
     ) -> BaseOperator:
         from airflow.sdk.execution_time.context import context_update_for_unmapped
 
-        self._number_of_tasks += 1
         unmapped_task = self._operator.unmap(mapped_kwargs)
         # Make sure deferred operators will always raise a DeferredTask exception when executed
         unmapped_task.start_from_trigger = False
@@ -431,13 +430,16 @@ class IterableOperator(BaseOperator):
         mapped_kwargs: Context,
         jinja_env: jinja2.Environment,
         try_number: int = 0,
-    ) -> IndexedTaskInstance:
-        run_id = context["ti"].run_id
-        map_index = context["ti"].map_index
-        operator = self._unmap_operator(context.copy(), mapped_kwargs, jinja_env)
-        return self._create_mapped_task(
-            run_id=run_id, map_index=map_index, index=index, try_number=try_number, operator=operator
-        )
+    ) -> IndexedTaskInstance | None:
+        self._number_of_tasks += 1
+        if index > -1:
+            run_id = context["ti"].run_id
+            map_index = context["ti"].map_index
+            operator = self._unmap_operator(context.copy(), mapped_kwargs, jinja_env)
+            return self._create_mapped_task(
+                run_id=run_id, map_index=map_index, index=index, try_number=try_number, operator=operator
+            )
+        return None
 
     def _create_mapped_task(
         self, run_id: str, map_index: int | None, index: int, try_number: int, operator: BaseOperator
@@ -488,14 +490,13 @@ class IterableOperator(BaseOperator):
             self._create_task(
                 context=context,
                 index=index,
-                try_number=failed_tasks[str(index)],
+                try_number=failed_tasks.get(str(index), -1),
                 jinja_env=jinja_env,
                 mapped_kwargs=value,
             )
             for index, value in enumerate(self.expand_input.iter_values(context=context))
-            if str(index) in failed_tasks
         )
-        return self._run_tasks(context=context, tasks=tasks)
+        return self._run_tasks(context=context, tasks=filter(None, tasks))
 
 
 class MappedIterableOperator(MappedOperator):
