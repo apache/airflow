@@ -32,7 +32,7 @@ from functools import cached_property
 from http import HTTPStatus
 from multiprocessing import Process
 from pathlib import Path
-from typing import IO, TYPE_CHECKING
+from typing import IO, TYPE_CHECKING, NoReturn
 
 import anyio
 from aiofiles import open as aio_open
@@ -67,7 +67,7 @@ from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.configuration import AirflowConfigParser
-    from airflow.executors.workloads import ExecuteTask
+    from airflow.providers.edge3.models.types import ExecuteTypeBody
     from airflow.providers.edge3.worker_api.datamodels import EdgeJobFetched
 
 logger = logging.getLogger(__name__)
@@ -422,7 +422,7 @@ class EdgeWorker:
             return EdgeWorkerState.MAINTENANCE_MODE
         return EdgeWorkerState.IDLE
 
-    def _run_job_via_supervisor(self, workload: ExecuteTask, error_file_path: Path) -> int:
+    def _run_job_via_supervisor(self, workload: ExecuteTypeBody, error_file_path: Path) -> NoReturn:
         """Run a task by calling the supervisor directly (executes inside a forked child process)."""
         _reset_parent_signal_state()
 
@@ -435,7 +435,7 @@ class EdgeWorker:
             if AIRFLOW_V_3_3_PLUS:
                 from airflow.executors.base_executor import BaseExecutor
 
-                BaseExecutor.run_workload(
+                exit_code = BaseExecutor.run_workload(
                     workload=workload,
                     server=self._execution_api_server_url,
                 )
@@ -448,7 +448,7 @@ class EdgeWorker:
                     f"dag_id={ti.dag_id} task_id={ti.task_id} run_id={ti.run_id} map_index={ti.map_index} "
                     f"try_number={ti.try_number}"
                 )
-                supervise(
+                exit_code = supervise(
                     # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
                     # Same like in airflow/executors/local_executor.py:_execute_workload()
                     ti=ti,  # type: ignore[arg-type]
@@ -458,14 +458,19 @@ class EdgeWorker:
                     server=self._execution_api_server_url,
                     log_path=workload.log_path,
                 )
-            return 0
         except Exception:
             logger.exception("Task execution failed")
             with suppress(Exception):
                 error_file_path.write_text(traceback.format_exc())
-            return 1
+            exit_code = 1
 
-    def _launch_job_subprocess(self, workload: ExecuteTask) -> tuple[subprocess.Popen, Path]:
+        # Exit explicitly so the real exit code propagates to the parent process.
+        # the child would always exit 0 without this, so a failed supervisor
+        # (non-zero ``exit_code``, e.g. when ``run_workload`` reports a task failure without raising)
+        # would be misreported as success by the parent's ``Job.is_success`` check.
+        sys.exit(exit_code)
+
+    def _launch_job_subprocess(self, workload: ExecuteTypeBody) -> tuple[subprocess.Popen, Path]:
         """Launch workload via a fresh Python interpreter (subprocess.Popen)."""
         env = os.environ.copy()
         if self._execution_api_server_url:
@@ -500,11 +505,11 @@ class EdgeWorker:
         logger.info(
             "Launched task subprocess pid=%d for %s",
             process.pid,
-            workload.ti.id,
+            workload.display_name if AIRFLOW_V_3_3_PLUS else workload.ti.id,
         )
         return process, stderr_file_path
 
-    def _launch_job_fork(self, workload: ExecuteTask) -> tuple[Process, Path]:
+    def _launch_job_fork(self, workload: ExecuteTypeBody) -> tuple[Process, Path]:
         """Launch workload by forking the current process (multiprocessing.Process)."""
         # Improvement: Use frozen GC to prevent child process from copying unnecessary memory
         # See _spawn_workers_with_gc_freeze() in airflow-core/src/airflow/executors/local_executor.py
@@ -515,10 +520,14 @@ class EdgeWorker:
             kwargs={"workload": workload, "error_file_path": error_file_path},
         )
         process.start()
-        logger.info("Launched task fork pid=%d for %s", process.pid, workload.ti.id)
+        logger.info(
+            "Launched task fork pid=%d for %s",
+            process.pid,
+            workload.display_name if AIRFLOW_V_3_3_PLUS else workload.ti.id,
+        )
         return process, error_file_path
 
-    def _launch_job(self, edge_job: EdgeJobFetched, workload: ExecuteTask, logfile: Path) -> Job:
+    def _launch_job(self, edge_job: EdgeJobFetched, workload: ExecuteTypeBody, logfile: Path) -> Job:
         """
         Launch a task process.
 
@@ -673,7 +682,7 @@ class EdgeWorker:
 
         logger.info("Received job: %s", edge_job.identifier)
 
-        workload: ExecuteTask = edge_job.command
+        workload: ExecuteTypeBody = edge_job.command
         if TYPE_CHECKING:
             assert workload.log_path  # We need to assume this is defined in here
         logfile = Path(self.base_log_folder, workload.log_path)

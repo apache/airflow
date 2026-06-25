@@ -18,6 +18,8 @@
  */
 import dayjs from "dayjs";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+import tz from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
@@ -32,10 +34,13 @@ import type {
 } from "./types";
 
 dayjs.extend(isSameOrBefore);
+dayjs.extend(utc);
+dayjs.extend(tz);
 
 // Calendar color constants
 export const PLANNED_COLOR = { _dark: "stone.600", _light: "stone.500" };
 const EMPTY_COLOR = { _dark: "gray.700", _light: "gray.100" };
+const RUNNING_COLOR = { _dark: "cyan.700", _light: "cyan.400" };
 
 const TOTAL_COLOR_INTENSITIES = [
   EMPTY_COLOR, // 0
@@ -58,11 +63,11 @@ const getActualRunCount = (counts: RunCounts, viewMode: CalendarColorMode) =>
 
 const getPendingRunCount = (counts: RunCounts) => counts.planned + counts.queued;
 
-const createDailyDataMap = (data: Array<CalendarTimeRangeResponse>) => {
+const createDailyDataMap = (data: Array<CalendarTimeRangeResponse>, timezone: string) => {
   const dailyDataMap = new Map<string, Array<CalendarTimeRangeResponse>>();
 
   data.forEach((run) => {
-    const dateStr = run.date.slice(0, 10); // "YYYY-MM-DD"
+    const dateStr = dayjs(run.date).tz(timezone).format("YYYY-MM-DD");
     const dailyRuns = dailyDataMap.get(dateStr);
 
     if (dailyRuns) {
@@ -75,11 +80,11 @@ const createDailyDataMap = (data: Array<CalendarTimeRangeResponse>) => {
   return dailyDataMap;
 };
 
-const createHourlyDataMap = (data: Array<CalendarTimeRangeResponse>) => {
+const createHourlyDataMap = (data: Array<CalendarTimeRangeResponse>, timezone: string) => {
   const hourlyDataMap = new Map<string, Array<CalendarTimeRangeResponse>>();
 
   data.forEach((run) => {
-    const hourStr = run.date.slice(0, 13); // "YYYY-MM-DDTHH"
+    const hourStr = dayjs(run.date).tz(timezone).format("YYYY-MM-DDTHH");
     const hourlyRuns = hourlyDataMap.get(hourStr);
 
     if (hourlyRuns) {
@@ -117,12 +122,13 @@ export const calculateRunCounts = (runs: Array<CalendarTimeRangeResponse>): RunC
 export const generateDailyCalendarData = (
   data: Array<CalendarTimeRangeResponse>,
   selectedYear: number,
+  timezone: string,
 ): DailyCalendarData => {
-  const dailyDataMap = createDailyDataMap(data);
+  const dailyDataMap = createDailyDataMap(data, timezone);
 
   const weeks = [];
-  const startOfYear = dayjs().year(selectedYear).startOf("year");
-  const endOfYear = dayjs().year(selectedYear).endOf("year");
+  const startOfYear = dayjs().tz(timezone).year(selectedYear).startOf("year");
+  const endOfYear = dayjs().tz(timezone).year(selectedYear).endOf("year");
 
   let currentDate = startOfYear.startOf("week");
   const endDate = endOfYear.endOf("week");
@@ -144,15 +150,21 @@ export const generateDailyCalendarData = (
   return weeks;
 };
 
+type HourlyOptions = {
+  selectedMonth: number;
+  selectedYear: number;
+  timezone: string;
+};
+
 export const generateHourlyCalendarData = (
   data: Array<CalendarTimeRangeResponse>,
-  selectedYear: number,
-  selectedMonth: number,
+  options: HourlyOptions,
 ): HourlyCalendarData => {
-  const hourlyDataMap = createHourlyDataMap(data);
+  const { selectedMonth, selectedYear, timezone } = options;
+  const hourlyDataMap = createHourlyDataMap(data, timezone);
 
-  const monthStart = dayjs().year(selectedYear).month(selectedMonth).startOf("month");
-  const monthEnd = dayjs().year(selectedYear).month(selectedMonth).endOf("month");
+  const monthStart = dayjs().tz(timezone).year(selectedYear).month(selectedMonth).startOf("month");
+  const monthEnd = dayjs().tz(timezone).year(selectedYear).month(selectedMonth).endOf("month");
   const monthData = [];
 
   let currentDate = monthStart;
@@ -174,11 +186,18 @@ export const generateHourlyCalendarData = (
   return { days: monthData, month: monthStart.format("MMM YYYY") };
 };
 
+type BoundsOptions = {
+  granularity: CalendarGranularity;
+  timezone: string;
+  viewMode: CalendarColorMode;
+};
+
 export const calculateDataBounds = (
   data: Array<CalendarTimeRangeResponse>,
-  viewMode: CalendarColorMode,
-  granularity: CalendarGranularity,
+  options: BoundsOptions,
 ): { maxCount: number; minCount: number } => {
+  const { granularity, timezone, viewMode } = options;
+
   if (data.length === 0) {
     return { maxCount: 0, minCount: 0 };
   }
@@ -186,7 +205,7 @@ export const calculateDataBounds = (
   const counts: Array<number> = [];
   const pendingCounts: Array<number> = [];
   const mapCreator = granularity === "daily" ? createDailyDataMap : createHourlyDataMap;
-  const dataMap = mapCreator(data);
+  const dataMap = mapCreator(data, timezone);
 
   dataMap.forEach((runs) => {
     const runCounts = calculateRunCounts(runs);
@@ -220,12 +239,87 @@ export const calculateDataBounds = (
   };
 };
 
+type ScaleOptions = {
+  granularity: CalendarGranularity;
+  timezone: string;
+  viewMode: CalendarColorMode;
+};
+
+type ColorValue = string | { _dark: string; _light: string };
+
+type ResolveColorParams = {
+  failedColor: ColorValue;
+  failedCount: number;
+  hasPending: boolean;
+  runningCount: number;
+  successColor: ColorValue;
+  successCount: number;
+};
+
+const resolveCellColor = ({
+  failedColor,
+  failedCount,
+  hasPending,
+  runningCount,
+  successColor,
+  successCount,
+}: ResolveColorParams): ColorValue | { primary: ColorValue; secondary: ColorValue } => {
+  const hasActual = failedCount > 0 || runningCount > 0 || successCount > 0;
+
+  if (hasPending && hasActual) {
+    let primaryColor: ColorValue = EMPTY_COLOR;
+
+    if (failedCount > 0) {
+      primaryColor = failedColor;
+    } else if (runningCount > 0) {
+      primaryColor = RUNNING_COLOR;
+    } else if (successCount > 0) {
+      primaryColor = successColor;
+    }
+
+    return {
+      primary: primaryColor,
+      secondary: PLANNED_COLOR,
+    };
+  }
+
+  if (hasPending && !hasActual) {
+    return PLANNED_COLOR;
+  }
+
+  if (hasActual) {
+    if (failedCount > 0 && runningCount > 0) {
+      return { primary: failedColor, secondary: RUNNING_COLOR };
+    }
+
+    if (failedCount > 0 && successCount > 0) {
+      return { primary: failedColor, secondary: successColor };
+    }
+
+    if (runningCount > 0 && successCount > 0) {
+      return { primary: RUNNING_COLOR, secondary: successColor };
+    }
+
+    if (failedCount > 0) {
+      return failedColor;
+    }
+    if (runningCount > 0) {
+      return RUNNING_COLOR;
+    }
+    if (successCount > 0) {
+      return successColor;
+    }
+  }
+
+  return EMPTY_COLOR;
+};
+
 export const createCalendarScale = (
   data: Array<CalendarTimeRangeResponse>,
-  viewMode: CalendarColorMode,
-  granularity: CalendarGranularity,
+  options: ScaleOptions,
 ): CalendarScale => {
-  const { maxCount, minCount } = calculateDataBounds(data, viewMode, granularity);
+  const { granularity, timezone, viewMode } = options;
+  const { maxCount, minCount } = calculateDataBounds(data, { granularity, timezone, viewMode });
 
   // Handle empty data case
   if (maxCount === 0) {
@@ -243,22 +337,23 @@ export const createCalendarScale = (
 
     return {
       getColor: (counts: RunCounts) => {
-        const actualCount = getActualRunCount(counts, viewMode);
+        const failedCount = counts.failed;
+        const runningCount = viewMode === "total" ? counts.running : 0;
+        const successCount = viewMode === "total" ? counts.success : 0;
+
         const hasPending = getPendingRunCount(counts) > 0;
-        const hasActual = actualCount > 0;
 
-        if (hasPending && hasActual) {
-          return {
-            actual: singleColor,
-            planned: PLANNED_COLOR,
-          };
-        }
+        const failedColor = FAILURE_COLOR_INTENSITIES[2] ?? EMPTY_COLOR;
+        const successColor = TOTAL_COLOR_INTENSITIES[2] ?? EMPTY_COLOR;
 
-        if (hasPending && !hasActual) {
-          return PLANNED_COLOR;
-        }
-
-        return actualCount === 0 ? EMPTY_COLOR : singleColor;
+        return resolveCellColor({
+          failedColor,
+          failedCount,
+          hasPending,
+          runningCount,
+          successColor,
+          successCount,
+        });
       },
       legendItems: [
         { color: EMPTY_COLOR, label: "0" },
@@ -288,54 +383,43 @@ export const createCalendarScale = (
     | string
     | { _dark: string; _light: string }
     | {
-        actual: string | { _dark: string; _light: string };
-        planned: string | { _dark: string; _light: string };
+        primary: string | { _dark: string; _light: string };
+        secondary: string | { _dark: string; _light: string };
       } => {
-    const actualCount = getActualRunCount(counts, viewMode);
+    const failedCount = counts.failed;
+    const runningCount = viewMode === "total" ? counts.running : 0;
+    const successCount = viewMode === "total" ? counts.success : 0;
+
     const hasPending = getPendingRunCount(counts) > 0;
-    const hasActual = actualCount > 0;
 
-    if (hasPending && hasActual) {
-      let actualColor = colorScheme[0] ?? EMPTY_COLOR;
-
+    const getIntensityColor = (count: number, scheme: Array<ColorValue>) => {
+      if (count === 0) {
+        return scheme[0] ?? EMPTY_COLOR;
+      }
       for (let index = uniqueThresholds.length - 1; index >= 1; index -= 1) {
         const threshold = uniqueThresholds[index];
 
-        if (threshold !== undefined && actualCount >= threshold) {
-          actualColor = colorScheme[Math.min(index, colorScheme.length - 1)] ?? EMPTY_COLOR;
-          break;
+        if (threshold !== undefined && count >= threshold) {
+          return scheme[Math.min(index, scheme.length - 1)] ?? EMPTY_COLOR;
         }
       }
 
-      if (actualCount > 0 && actualColor === colorScheme[0]) {
-        actualColor = colorScheme[1] ?? EMPTY_COLOR;
-      }
+      return scheme[1] ?? EMPTY_COLOR;
+    };
 
-      return {
-        actual: actualColor,
-        planned: PLANNED_COLOR,
-      };
-    }
+    const failedColor =
+      failedCount > 0 ? getIntensityColor(failedCount, FAILURE_COLOR_INTENSITIES) : EMPTY_COLOR;
+    const successColor =
+      successCount > 0 ? getIntensityColor(successCount, TOTAL_COLOR_INTENSITIES) : EMPTY_COLOR;
 
-    if (hasPending && !hasActual) {
-      return PLANNED_COLOR;
-    }
-
-    const targetCount = actualCount;
-
-    if (targetCount === 0) {
-      return colorScheme[0] ?? EMPTY_COLOR;
-    }
-
-    for (let index = uniqueThresholds.length - 1; index >= 1; index -= 1) {
-      const threshold = uniqueThresholds[index];
-
-      if (threshold !== undefined && targetCount >= threshold) {
-        return colorScheme[Math.min(index, colorScheme.length - 1)] ?? EMPTY_COLOR;
-      }
-    }
-
-    return colorScheme[1] ?? EMPTY_COLOR;
+    return resolveCellColor({
+      failedColor,
+      failedCount,
+      hasPending,
+      runningCount,
+      successColor,
+      successCount,
+    });
   };
 
   const legendItems: Array<LegendItem> = [];

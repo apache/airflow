@@ -26,14 +26,19 @@ import { useSearchParams } from "react-router-dom";
 import { useVariableServiceGetVariables } from "openapi/queries";
 import type { VariableResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
-import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
+import {
+  SelectionHeaderCheckbox,
+  SelectionProvider,
+  SelectionRowCheckbox,
+  useRowSelection,
+  type GetColumnsParams,
+} from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { SearchBar } from "src/components/SearchBar";
 import { Tooltip } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
-import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
@@ -51,33 +56,18 @@ type ColumnProps = {
 };
 
 const getColumns = ({
-  allRowsSelected,
+  hasSelection,
   multiTeam,
-  onRowSelect,
-  onSelectAll,
   open,
-  selectedRows,
   translate,
-}: ColumnProps & GetColumnsParams): Array<ColumnDef<VariableResponse>> => {
+}: { hasSelection: boolean } & ColumnProps & GetColumnsParams): Array<ColumnDef<VariableResponse>> => {
   const columns: Array<ColumnDef<VariableResponse>> = [
     {
       accessorKey: "select",
-      cell: ({ row }) => (
-        <Checkbox
-          borderWidth={1}
-          checked={selectedRows.get(row.original.key)}
-          onCheckedChange={(event) => onRowSelect(row.original.key, Boolean(event.checked))}
-        />
-      ),
+      cell: ({ row }) => <SelectionRowCheckbox rowKey={row.original.key} />,
       enableHiding: false,
       enableSorting: false,
-      header: () => (
-        <Checkbox
-          borderWidth={1}
-          checked={allRowsSelected}
-          onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
-        />
-      ),
+      header: () => <SelectionHeaderCheckbox />,
       meta: {
         skeletonWidth: 10,
       },
@@ -92,9 +82,9 @@ const getColumns = ({
       cell: ({ row }) => (
         <Box minWidth={0} overflowWrap="anywhere" wordBreak="break-word">
           <TrimText
-            charLimit={open ? row.original.value.length : undefined}
+            charLimit={open ? (row.original.value?.length ?? 0) : undefined}
             showTooltip
-            text={row.original.value}
+            text={row.original.value ?? null}
           />
         </Box>
       ),
@@ -129,8 +119,8 @@ const getColumns = ({
       accessorKey: "actions",
       cell: ({ row: { original } }) => (
         <Flex justifyContent="end">
-          <EditVariableButton disabled={selectedRows.size > 0} variable={original} />
-          <DeleteVariableButton deleteKey={original.key} disabled={selectedRows.size > 0} />
+          <EditVariableButton disabled={hasSelection} variable={original} />
+          <DeleteVariableButton deleteKey={original.key} disabled={hasSelection} />
         </Flex>
       ),
       enableSorting: false,
@@ -176,12 +166,9 @@ export const Variables = () => {
     });
 
   const columns = getColumns({
-    allRowsSelected,
+    hasSelection: selectedRows.size > 0,
     multiTeam: multiTeamEnabled,
-    onRowSelect: handleRowSelect,
-    onSelectAll: handleSelectAll,
     open,
-    selectedRows,
     translate,
   });
 
@@ -201,7 +188,12 @@ export const Variables = () => {
   };
 
   return (
-    <>
+    <SelectionProvider
+      allRowsSelected={allRowsSelected}
+      onRowSelect={handleRowSelect}
+      onSelectAll={handleSelectAll}
+      selectedRows={selectedRows}
+    >
       <VStack alignItems="none">
         <SearchBar
           advancedSearch={advancedSearch}
@@ -246,6 +238,6 @@ export const Variables = () => {
           <ActionBar.CloseTrigger onClick={clearSelections} />
         </ActionBar.Content>
       </ActionBar.Root>
-    </>
+    </SelectionProvider>
   );
 };

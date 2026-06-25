@@ -26,6 +26,7 @@ from airflow.api.common.trigger_dag import trigger_dag
 from airflow.api_fastapi.core_api.datamodels.assets import AssetAliasResponse, AssetResponse
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import deprecated_for_airflowctl
 from airflow.exceptions import AirflowConfigException
 from airflow.models.asset import AssetAliasModel, AssetModel, TaskOutletAssetReference
 from airflow.utils import cli as cli_utils
@@ -123,6 +124,7 @@ def asset_details(args, *, session: Session = NEW_SESSION) -> None:
     AirflowConsole().print_as(data=data, output=args.output)
 
 
+@deprecated_for_airflowctl("airflowctl assets materialize")
 @cli_utils.action_cli
 @provide_session
 def asset_materialize(args, *, session: Session = NEW_SESSION) -> None:

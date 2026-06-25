@@ -26,6 +26,47 @@
 Changelog
 ---------
 
+2.18.1
+......
+
+Misc
+~~~~
+
+* ``Add openlineage system tests for missing use cases (#68664)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Small operator improvements in openlineage system tests (#68677)``
+   * ``Load example DAGs from providers via ProvidersManager (continuation of #57320) (#66161)``
+
+2.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``Openlineage: Read HTTP API key auth from Airflow connection (#66342)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Self-heal ProcessPoolExecutor on BrokenProcessPool (#67400)``
+
+Misc
+~~~~
+
+* ``Remove further findings from positional session check (#67712)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct README.rst common compat version reference inconsistency (#67554)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``tests: Add new options to test operator (#67195)``
+
+
 2.17.0
 ......
 

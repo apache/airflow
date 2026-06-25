@@ -18,39 +18,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-from typing import Any, get_args, get_origin
+from typing import Any
 
 from pydantic import BaseModel, ValidationError
-
-
-def iter_base_model_classes(output_type: Any) -> Iterator[type[BaseModel]]:
-    """
-    Yield every Pydantic ``BaseModel`` subclass reachable from ``output_type``.
-
-    pydantic-ai accepts ``output_type`` as a single class, a ``Union`` /
-    ``Optional`` of classes, a list of classes (multi-output), or a parameterized
-    generic such as ``list[MyModel]``. The agent may return an instance of any
-    ``BaseModel`` reachable from the type expression, so each must be registered
-    for XCom deserialization, not just the top-level ``output_type``.
-    """
-    seen: set[type] = set()
-    stack: list[Any] = [output_type]
-    while stack:
-        t = stack.pop()
-        # ``list[A]`` returns ``True`` for ``isinstance(t, type)`` on Python 3.10+
-        # but has a non-None ``get_origin``; check origin first so we recurse
-        # into its args instead of treating ``list[A]`` as a leaf type.
-        origin = get_origin(t)
-        if origin is not None:
-            stack.extend(get_args(t))
-            continue
-        if isinstance(t, type):
-            if t in seen:
-                continue
-            seen.add(t)
-            if issubclass(t, BaseModel):
-                yield t
 
 
 def rehydrate_pydantic_output(

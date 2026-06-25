@@ -28,6 +28,7 @@ from datetime import datetime
 from io import StringIO
 from multiprocessing import Process
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import call, patch
 
@@ -48,6 +49,7 @@ from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerState,
     EdgeWorkerVersionException,
 )
+from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
 from airflow.providers.edge3.worker_api.datamodels import (
     EdgeJobFetched,
     WorkerRegistrationReturn,
@@ -57,6 +59,12 @@ from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
+
+if TYPE_CHECKING:
+    from airflow.executors.workloads import ExecuteCallback
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.executors.workloads import ExecuteCallback
 
 pytest.importorskip("pydantic", minversion="2.0.0")
 pytestmark = [pytest.mark.asyncio]
@@ -80,6 +88,23 @@ MOCK_COMMAND = {
     "dag_rel_path": "mock.py",
     "log_path": "mock.log",
     "bundle_info": {"name": "hello", "version": "abc"},
+    "type": "ExecuteTask",
+}
+
+MOCK_CALLBACK_COMMAND = {
+    "token": "mock",
+    "callback": {
+        "id": "12345678-1234-5678-1234-567812345678",
+        "fetch_method": "import_path",
+        "data": {
+            "path": "builtins.dict",
+            "kwargs": {"a": 1, "b": 2, "c": 3},
+        },
+    },
+    "dag_rel_path": "test.py",
+    "log_path": "test.log",
+    "bundle_info": {"name": "test_bundle", "version": "1.0"},
+    "type": "ExecuteCallback",
 }
 
 
@@ -338,12 +363,15 @@ class TestEdgeWorker:
         worker_with_job: EdgeWorker,
         tmp_path: Path,
     ):
+        mock_supervise.return_value = 0
         worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
         edge_job = worker_with_job.jobs.pop().edge_job
         error_file_path = tmp_path / "fork-error.log"
-        result = worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
+        with mock.patch("os.setpgrp"), pytest.raises(SystemExit) as exc_info:
+            worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
 
-        assert result == 0
+        # The child process must exit 0 on success so the parent's Job.is_success check passes.
+        assert exc_info.value.code == 0
         assert not error_file_path.exists()  # no error written on success
 
     @patch("airflow.executors.base_executor.BaseExecutor.run_workload")
@@ -357,12 +385,15 @@ class TestEdgeWorker:
         worker_with_job: EdgeWorker,
         tmp_path: Path,
     ):
+        mock_run_workload.return_value = 0
         worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
         edge_job = worker_with_job.jobs.pop().edge_job
         error_file_path = tmp_path / "fork-error.log"
-        result = worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
+        with mock.patch("os.setpgrp"), pytest.raises(SystemExit) as exc_info:
+            worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
 
-        assert result == 0
+        # The child process must exit 0 on success so the parent's Job.is_success check passes.
+        assert exc_info.value.code == 0
         assert not error_file_path.exists()  # no error written on success
 
     @patch("airflow.sdk.execution_time.supervisor.supervise")
@@ -378,9 +409,10 @@ class TestEdgeWorker:
         worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
         edge_job = worker_with_job.jobs.pop().edge_job
         error_file_path = tmp_path / "fork-error.log"
-        result = worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
+        with mock.patch("os.setpgrp"), pytest.raises(SystemExit) as exc_info:
+            worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
 
-        assert result == 1
+        assert exc_info.value.code == 1
         assert error_file_path.exists()
         assert "Supervise failed" in error_file_path.read_text()
 
@@ -399,11 +431,51 @@ class TestEdgeWorker:
         worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
         edge_job = worker_with_job.jobs.pop().edge_job
         error_file_path = tmp_path / "fork-error.log"
-        result = worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
+        with mock.patch("os.setpgrp"), pytest.raises(SystemExit) as exc_info:
+            worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
 
-        assert result == 1
+        assert exc_info.value.code == 1
         assert error_file_path.exists()
         assert "Supervise failed" in error_file_path.read_text()
+
+    @patch("airflow.executors.base_executor.BaseExecutor.run_workload")
+    @pytest.mark.skipif(not hasattr(os, "fork"), reason="Requires the fork start method")
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS, reason="Test is for Airflow >= 3.3.0 where BaseExecutor.run_workload is used"
+    )
+    def test_fork_child_exits_nonzero_when_supervisor_raises(
+        self,
+        mock_run_workload,
+        worker_with_job: EdgeWorker,
+        tmp_path: Path,
+    ):
+        """
+        A supervisor exception must make the forked child terminate with a non-zero exit code so the
+        parent's Job.is_success reports the failure.
+        """
+        import multiprocessing
+
+        mock_run_workload.side_effect = RuntimeError("supervisor crashed")
+        worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
+        edge_job = worker_with_job.jobs.pop().edge_job
+        error_file_path = tmp_path / "fork-error.log"
+
+        # Use the fork context explicitly so the child inherits the patched run_workload in memory.
+        process = multiprocessing.get_context("fork").Process(
+            target=worker_with_job._run_job_via_supervisor,
+            kwargs={"workload": edge_job.command, "error_file_path": error_file_path},
+        )
+        process.start()
+        process.join(timeout=30)
+
+        # With ``return 1`` this would have been 0; ``sys.exit(1)`` propagates the non-zero code.
+        assert process.exitcode == 1
+        # And the parent's success check therefore reports failure instead of a false success.
+        job = Job(edge_job=edge_job, process=process, logfile=tmp_path / "file.log")  # type: ignore[arg-type]
+        assert job.is_success is False
+        # Confirm the non-zero exit came from the supervisor failure path (not an unrelated early error).
+        assert error_file_path.exists()
+        assert "supervisor crashed" in error_file_path.read_text()
 
     @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
     @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job")
@@ -1123,14 +1195,15 @@ class TestSignalHandling:
             mock.patch("os.setpgrp", side_effect=lambda: order("setpgrp")),
             mock.patch(
                 "airflow.executors.base_executor.BaseExecutor.run_workload",
-                side_effect=lambda **_: order("supervise"),
+                side_effect=lambda **_: (order("supervise"), 0)[1],
             ),
         ):
-            rc = worker._run_job_via_supervisor(
-                workload=self._make_workload(),
-                error_file_path=tmp_path / "fork-error.log",
-            )
-        assert rc == 0
+            with pytest.raises(SystemExit) as exc_info:
+                worker._run_job_via_supervisor(
+                    workload=self._make_workload(),
+                    error_file_path=tmp_path / "fork-error.log",
+                )
+        assert exc_info.value.code == 0
         assert [c.args[0] for c in order.call_args_list] == ["reset", "setpgrp", "supervise"]
 
     def test_shutdown_handler_is_idempotent(self, worker_with_one_job):
@@ -1150,3 +1223,25 @@ class TestSignalHandling:
         with mock.patch("os.kill", side_effect=ProcessLookupError):
             worker_with_one_job.shutdown_handler()
         assert worker_with_one_job.drain is True
+
+
+class TestEdgeJobFetchedSerialization:
+    """Test that EdgeJobFetched serializes and deserializes with both ExecuteTask and ExecuteCallback."""
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The tests should be skipped for Airflow < 3.3")
+    def test_serialize_with_execute_callback(self):
+        fetched = EdgeJobFetched(
+            dag_id=EXECUTE_CALLBACK_TAG,
+            task_id="12345678-1234-5678-1234-567812345678",
+            run_id=f"{EXECUTE_CALLBACK_TAG}-12345678-1234-5678-1234-567812345678",
+            map_index=-1,
+            try_number=0,
+            concurrency_slots=1,
+            command=MOCK_CALLBACK_COMMAND,  # type: ignore[arg-type]
+        )
+        serialized = fetched.model_dump_json()
+        deserialized = EdgeJobFetched(**json.loads(serialized))
+
+        assert deserialized.dag_id == EXECUTE_CALLBACK_TAG
+        assert deserialized.command.type == EXECUTE_CALLBACK_TAG
+        assert isinstance(deserialized.command, ExecuteCallback)
