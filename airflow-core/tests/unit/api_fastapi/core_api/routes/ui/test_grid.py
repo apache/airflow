@@ -1174,9 +1174,7 @@ class TestGetGridDataEndpoint:
         by_task_id = {ti["task_id"]: ti for ti in data["task_instances"]}
 
         assert by_task_id[TASK_ID]["has_note"] is True
-        assert all(
-            not ti["has_note"] for task_id, ti in by_task_id.items() if task_id != TASK_ID
-        )
+        assert all(not ti["has_note"] for task_id, ti in by_task_id.items() if task_id != TASK_ID)
 
     @staticmethod
     def _parse_ndjson(response) -> list[dict]:
