@@ -280,6 +280,16 @@ async def _async_get_connection(conn_id: str) -> Connection:
     raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
 
+def _mask_and_deserialize_variable(raw: str, key: str, deserialize_json: bool) -> Any:
+    mask_secret(raw, key)
+    if not deserialize_json:
+        return raw
+    val = json.loads(raw)
+    if not isinstance(val, str):
+        mask_secret(val)
+    return val
+
+
 def _get_variable(key: str, deserialize_json: bool) -> Any:
     from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
@@ -288,13 +298,7 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     try:
         var_val = SecretCache.get_variable(key)
         if var_val is not None:
-            if deserialize_json:
-                import json
-
-                var_val = json.loads(var_val)
-            if isinstance(var_val, str):
-                mask_secret(var_val, key)
-            return var_val
+            return _mask_and_deserialize_variable(var_val, key, deserialize_json)
     except SecretCache.NotPresentException:
         pass  # Continue to check backends
 
@@ -307,13 +311,7 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
             if var_val is not None:
                 # Save raw value before deserialization to maintain cache consistency
                 SecretCache.save_variable(key, var_val)
-                if deserialize_json:
-                    import json
-
-                    var_val = json.loads(var_val)
-                if isinstance(var_val, str):
-                    mask_secret(var_val, key)
-                return var_val
+                return _mask_and_deserialize_variable(var_val, key, deserialize_json)
         except AirflowSecretsBackendAccessDenied:
             # Authoritative deny — must NOT fall through to a less-restrictive backend.
             raise

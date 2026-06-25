@@ -360,6 +360,59 @@ class TestVariableAccessor:
         val = accessor.get("nonexistent_var_key", default="default_value")
         assert val == "default_value"
 
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_masks_from_cache(self, mock_mask_secret):
+        """SecretCache hit path applies the same masking as the backends path."""
+        from airflow.sdk.execution_time.cache import SecretCache
+
+        raw_json = '{"password": "s3cr3t", "host": "db.example.com"}'
+        with mock.patch.object(SecretCache, "get_variable", return_value=raw_json):
+            accessor = VariableAccessor(deserialize_json=True)
+            val = accessor.db_config
+
+        assert val == {"password": "s3cr3t", "host": "db.example.com"}
+        mock_mask_secret.assert_any_call(raw_json, "db_config")
+        mock_mask_secret.assert_any_call({"password": "s3cr3t", "host": "db.example.com"})
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_value_masks_secret(self, mock_mask_secret, mock_supervisor_comms):
+        """var.value.<key> masks the string value when the key name is sensitive."""
+        accessor = VariableAccessor(deserialize_json=False)
+        mock_supervisor_comms.send.return_value = VariableResult(key="my_password", value="s3cr3t")
+
+        val = accessor.my_password
+
+        assert val == "s3cr3t"
+        mock_mask_secret.assert_called_once_with("s3cr3t", "my_password")
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_masks_raw_string_and_dict_values(self, mock_mask_secret, mock_supervisor_comms):
+        """var.json.<key> masks both the raw JSON string and the deserialized dict's sensitive fields."""
+        accessor = VariableAccessor(deserialize_json=True)
+        raw_json = '{"password": "s3cr3t", "host": "db.example.com"}'
+        mock_supervisor_comms.send.return_value = VariableResult(key="db_config", value=raw_json)
+
+        val = accessor.db_config
+
+        assert val == {"password": "s3cr3t", "host": "db.example.com"}
+        # First call: raw JSON string with variable key (masks if key name is sensitive)
+        mock_mask_secret.assert_any_call(raw_json, "db_config")
+        # Second call: deserialized dict so internal sensitive fields like "password" get masked
+        mock_mask_secret.assert_any_call({"password": "s3cr3t", "host": "db.example.com"})
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_sensitive_key_masks_raw_json(self, mock_mask_secret, mock_supervisor_comms):
+        """var.json.<sensitive_key> masks the entire raw JSON string because the variable key is sensitive."""
+        accessor = VariableAccessor(deserialize_json=True)
+        raw_json = '{"endpoint": "https://api.example.com", "token": "abc123"}'
+        mock_supervisor_comms.send.return_value = VariableResult(key="my_secret", value=raw_json)
+
+        val = accessor.my_secret
+
+        assert val == {"endpoint": "https://api.example.com", "token": "abc123"}
+        mock_mask_secret.assert_any_call(raw_json, "my_secret")
+        mock_mask_secret.assert_any_call({"endpoint": "https://api.example.com", "token": "abc123"})
+
 
 class TestCurrentContext:
     def test_current_context_roundtrip(self):
