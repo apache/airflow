@@ -791,6 +791,28 @@ class TestCLIDBClean:
     def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
+    @patch("airflow.cli.commands.db_command.timezone.utcnow")
+    @patch("airflow.cli.commands.db_command.run_cleanup")
+    def test_clean_all_expired_sessions(self, run_cleanup_mock, utcnow_mock):
+        now = pendulum.datetime(2024, 1, 1, tz="UTC")
+        utcnow_mock.return_value = now
+
+        args = self.parser.parse_args(["db", "clean-all-expired-sessions", "-y"])
+        db_command.cleanup_expired_sessions(args)
+
+        run_cleanup_mock.assert_called_once_with(
+            table_names=["session"],
+            dag_ids=None,
+            exclude_dag_ids=None,
+            dry_run=False,
+            clean_before_timestamp=now,
+            verbose=False,
+            confirm=False,
+            skip_archive=True,
+            batch_size=None,
+            error_on_cleanup_failure=False,
+        )
+
     @pytest.mark.parametrize("timezone", ["UTC", "Europe/Berlin", "America/Los_Angeles"])
     @patch("airflow.cli.commands.db_command.run_cleanup")
     def test_date_timezone_omitted(self, run_cleanup_mock, timezone):

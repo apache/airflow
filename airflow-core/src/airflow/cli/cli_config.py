@@ -1784,6 +1784,18 @@ DB_COMMANDS = (
         ),
     ),
     ActionCommand(
+        name="clean-all-expired-sessions",
+        help="Purge expired session records in the metastore",
+        func=lazy_load_command("airflow.cli.commands.db_command.cleanup_expired_sessions"),
+        args=(
+            ARG_DB_DRY_RUN,
+            ARG_VERBOSE,
+            ARG_YES,
+            ARG_DB_BATCH_SIZE,
+            ARG_DB_ERROR_ON_CLEANUP_FAILURE,
+        ),
+    ),
+    ActionCommand(
         name="export-archived",
         help="Export archived data from the archive tables",
         func=lazy_load_command("airflow.cli.commands.db_command.export_archived"),

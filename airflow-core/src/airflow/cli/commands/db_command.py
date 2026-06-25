@@ -28,7 +28,7 @@ from tenacity import Retrying, stop_after_attempt, wait_fixed
 
 from airflow import settings
 from airflow.exceptions import AirflowException
-from airflow.utils import cli as cli_utils, db
+from airflow.utils import cli as cli_utils, db, timezone
 from airflow.utils.db import _REVISION_HEADS_MAP
 from airflow.utils.db_cleanup import config_dict, drop_archived_tables, export_archived_records, run_cleanup
 from airflow.utils.db_manager import _callable_accepts_use_migration_files
@@ -365,6 +365,24 @@ def cleanup_tables(args):
         batch_size=args.batch_size,
         dag_ids=args.dag_ids,
         exclude_dag_ids=args.exclude_dag_ids,
+        error_on_cleanup_failure=args.error_on_cleanup_failure,
+    )
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def cleanup_expired_sessions(args):
+    """Purge expired session records in metadata database."""
+    run_cleanup(
+        table_names=["session"],
+        dry_run=args.dry_run,
+        clean_before_timestamp=timezone.utcnow(),
+        verbose=args.verbose,
+        confirm=not args.yes,
+        skip_archive=True,
+        batch_size=args.batch_size,
+        dag_ids=None,
+        exclude_dag_ids=None,
         error_on_cleanup_failure=args.error_on_cleanup_failure,
     )
 
