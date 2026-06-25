@@ -23,7 +23,6 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 if not AIRFLOW_V_3_3_PLUS:
     pytest.skip("Store backend requires Airflow >= 3.3", allow_module_level=True)
 
-from airflow._shared.state import AssetScope, TaskScope
 from airflow.providers.common.io.store import backend
 from airflow.providers.common.io.store.backend import (
     StoreObjectStorageBackend,
@@ -35,6 +34,9 @@ from airflow.providers.common.io.store.backend import (
 from airflow.sdk import ObjectStoragePath
 
 from tests_common.test_utils.config import conf_vars
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.sdk.state import AssetScope, TaskScope
 
 
 @pytest.fixture(autouse=True)
@@ -68,6 +70,7 @@ def conf_overrides(base_path):
         yield base_path
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task state store requires Airflow >= 3.3")
 class TestPathBuilders:
     def test_task_path_segments(self, conf_overrides):
         scope = TaskScope(dag_id="my_dag", run_id="run_1", task_id="my_task", map_index=-1)
