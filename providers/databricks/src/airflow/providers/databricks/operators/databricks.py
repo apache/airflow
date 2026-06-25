@@ -54,6 +54,7 @@ from airflow.providers.databricks.utils.databricks import (
     validate_trigger_event,
 )
 from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMixin
+from airflow.providers.databricks.utils.query_tags import build_query_tags, dict_to_query_tag_list
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
@@ -1297,10 +1298,15 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
     :param do_xcom_push: Whether we should push statement_id to xcom.:
     :param timeout: The timeout for the Airflow task executing the SQL statement. By default a value of 3600 seconds is used.
     :param deferrable: Run operator in the deferrable mode.
+    :param query_tags: Optional dictionary of query tags to attach to the SQL statement. Tags are
+        passed as the ``query_tags`` field in the Databricks Statement Execution REST API request body.
+        See https://docs.databricks.com/api/workspace/statementexecution/executestatement
+    :param include_airflow_query_tags: If True, add Airflow DAG/task/run metadata as query tags.
+        Defaults to True.
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ("databricks_conn_id",)
+    template_fields: Sequence[str] = ("databricks_conn_id", "query_tags")
     template_ext: Sequence[str] = (".json-tpl",)
     # Databricks brand color (blue) under white text
     ui_color = "#1CB1C2"
@@ -1323,9 +1329,11 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
         wait_for_termination: bool = True,
         timeout: float = 3600,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        query_tags: dict[str, str | None] | None = None,
+        include_airflow_query_tags: bool = True,
         **kwargs,
     ) -> None:
-        """Create a new ``DatabricksSubmitRunOperator``."""
+        """Create a new ``DatabricksSQLStatementsOperator``."""
         super().__init__(**kwargs)
         self.statement = statement
         self.warehouse_id = warehouse_id
@@ -1339,6 +1347,8 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
         self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
+        self.query_tags = query_tags or {}
+        self.include_airflow_query_tags = include_airflow_query_tags
 
         # This variable will be used in case our task gets killed.
         self.statement_id: str | None = None
@@ -1360,6 +1370,7 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
         )
 
     def execute(self, context: Context):
+        tags = build_query_tags(context, self.query_tags, self.include_airflow_query_tags)
         json = {
             "statement": self.statement,
             "warehouse_id": self.warehouse_id,
@@ -1371,6 +1382,8 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
             # execution state.
             "wait_timeout": "0s",
         }
+        if tags:
+            json["query_tags"] = dict_to_query_tag_list(tags)
         self.statement_id = self._hook.post_sql_statement(json)
         if self.do_xcom_push and context is not None:
             context["ti"].xcom_push(key=XCOM_STATEMENT_ID_KEY, value=self.statement_id)
