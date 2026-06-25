@@ -28,6 +28,7 @@ import pytest
 from airflow.sdk import TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
@@ -118,6 +119,23 @@ def test_task_mapping_override_default_args():
 def test_map_unknown_arg_raises():
     with pytest.raises(TypeError, match=r"argument 'file'"):
         BaseOperator.partial(task_id="a").expand(file=[1, 2, {"a": "b"}])
+
+
+@pytest.mark.parametrize(
+    "size",
+    [
+        pytest.param(None),
+        pytest.param(0),
+        pytest.param(3),
+    ],
+)
+def test_map_batch_size(size: int | None):
+    with DAG("test-dag", schedule=None):
+        if size is not None:
+            mapped = MockOperator.partial(task_id="task_2").batch(size=size)._expand(DictOfListsExpandInput({"arg1": [1, 2, 3]}), strict=False)
+        else:
+            mapped = MockOperator.partial(task_id="task_2")._expand(DictOfListsExpandInput({"arg1": [1, 2, 3]}), strict=False)
+        assert mapped.batch_size == size
 
 
 def test_map_xcom_arg():

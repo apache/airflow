@@ -519,7 +519,7 @@ class MappedIterableOperator(MappedOperator):
 
     @property
     def batch_size(self) -> int:
-        return self.delegate.partial_kwargs.get("batch_size", 0)
+        return self.delegate.batch_size
 
     @property
     def retries(self) -> int:

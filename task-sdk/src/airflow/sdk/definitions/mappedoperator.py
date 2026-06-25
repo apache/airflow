@@ -697,6 +697,10 @@ class MappedOperator(AbstractOperator):
     def render_template_as_native_obj(self, value: bool | None) -> None:
         self.partial_kwargs["render_template_as_native_obj"] = value
 
+    @property
+    def batch_size(self) -> int:
+        return self.partial_kwargs.get("batch_size", 0)
+
     def get_dag(self) -> DAG | None:
         """Implement Operator."""
         return self.dag
