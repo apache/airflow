@@ -60,14 +60,11 @@ bundle = VersionBundle(
         AddConnectionTestEndpoint,
         AddAwaitingInputStatePayload,
         AddTaskInstanceQueueField,
-        AddPartitionDateField,
-    ),
-    Version(
-        "2026-06-16",
         AddRetryPolicyFields,
         AddTeamNameField,
         AddTaskAndAssetStateStoreEndpoints,
         AddAssetsByAliasEndpoint,
+        AddPartitionDateField,
     ),
     Version(
         "2026-04-06",

@@ -108,7 +108,7 @@ from airflow.api_fastapi.core_api.services.public.dag_run import (
     perform_clear_dag_run,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.exceptions import AirflowBadRequest, DagVersionNotFound, ParamValidationError
+from airflow.exceptions import DagVersionNotFound, ParamValidationError
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent
 from airflow.models.dag_version import DagVersion
@@ -732,8 +732,6 @@ def trigger_dag_run(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
     except DagVersionNotFound as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
-    except AirflowBadRequest as e:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
 
 @dag_run_router.get(
