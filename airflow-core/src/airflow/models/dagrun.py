@@ -65,6 +65,7 @@ from sqlalchemy.sql.functions import coalesce
 from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import (
     TASK_SPAN_DETAIL_LEVEL_KEY,
+    TRACE_SAMPLED_KEY,
     new_dagrun_trace_carrier,
     override_ids,
 )
@@ -174,6 +175,24 @@ def dagrun_trace_attributes(dr) -> dict[str, str]:
     if run_type is not None:
         attributes["airflow.dag_run.run_type"] = str(run_type)
     return attributes
+
+
+def trace_sampled_override(conf) -> bool | None:
+    """
+    Head-sampling override from the ``airflow/trace_sampled`` run conf key.
+
+    Returns the forced SAMPLED flag only when the conf value is an explicit bool
+    (True = always trace this run, False = never); otherwise None, meaning no
+    override and the configured sampler decides. Non-bool values are ignored
+    rather than coerced, so a malformed value never silently flips sampling or
+    fails run creation.
+    """
+    if not conf:
+        return None
+    raw = conf.get(TRACE_SAMPLED_KEY)
+    if isinstance(raw, bool):
+        return raw
+    return None
 
 
 class DagRun(Base, LoggingMixin):
@@ -409,6 +428,7 @@ class DagRun(Base, LoggingMixin):
         self.context_carrier: dict[str, str] = new_dagrun_trace_carrier(
             task_span_detail_level=self.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY, None),
             attributes=dagrun_trace_attributes(self),  # these are for potential use by head sampler
+            force_sampled=trace_sampled_override(self.conf),
         )
 
         if not isinstance(partition_key, str | None):

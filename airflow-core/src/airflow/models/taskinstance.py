@@ -407,7 +407,11 @@ def clear_task_instances(
             session.merge(ti)
 
     if dag_run_state is not False and tis:
-        from airflow.models.dagrun import DagRun, dagrun_trace_attributes  # Avoid circular import
+        from airflow.models.dagrun import (  # Avoid circular import
+            DagRun,
+            dagrun_trace_attributes,
+            trace_sampled_override,
+        )
 
         run_ids_by_dag_id = defaultdict(set)
         for instance in tis:
@@ -431,6 +435,7 @@ def clear_task_instances(
             dr.context_carrier = new_dagrun_trace_carrier(
                 task_span_detail_level=dr.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY) if dr.conf else None,
                 attributes=dagrun_trace_attributes(dr),
+                force_sampled=trace_sampled_override(dr.conf),
             )
 
             _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)
