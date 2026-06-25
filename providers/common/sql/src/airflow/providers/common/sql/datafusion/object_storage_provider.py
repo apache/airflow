@@ -49,24 +49,41 @@ _STORAGE_TYPE_PROVIDER_HINTS: dict[str, str] = {
 }
 
 
+def _missing_provider_message(type_key: str) -> str:
+    hint = _STORAGE_TYPE_PROVIDER_HINTS.get(type_key, "the appropriate provider package")
+    return f"No ObjectStorageProvider registered for storage type '{type_key}'. Install or upgrade {hint}."
+
+
+def _get_legacy_object_storage_provider(type_key: str) -> ObjectStorageProvider:
+    if type_key == StorageType.S3.value:
+        try:
+            from airflow.providers.amazon.aws.datafusion.object_storage import S3ObjectStorageProvider
+        except ImportError as err:
+            raise ValueError(_missing_provider_message(type_key)) from err
+        return S3ObjectStorageProvider()
+
+    raise ValueError(_missing_provider_message(type_key))
+
+
 def get_object_storage_provider(storage_type: StorageType) -> ObjectStorageProvider:
     """Get an object storage provider based on the storage type."""
     if storage_type == StorageType.LOCAL:
         return LocalObjectStorageProvider()
 
-    from airflow.providers_manager import ProvidersManager
-
-    registry = ProvidersManager().object_storage_providers
     type_key = storage_type.value
 
+    from airflow.providers_manager import ProvidersManager
+
+    manager = ProvidersManager()
+    if not hasattr(manager, "object_storage_providers"):
+        return _get_legacy_object_storage_provider(type_key)
+
+    registry = manager.object_storage_providers
     if type_key in registry:
         provider_cls = import_string(registry[type_key].provider_class_name)
         return provider_cls()
 
-    hint = _STORAGE_TYPE_PROVIDER_HINTS.get(type_key, "the appropriate provider package")
-    raise ValueError(
-        f"No ObjectStorageProvider registered for storage type '{type_key}'. Install or upgrade {hint}."
-    )
+    raise ValueError(_missing_provider_message(type_key))
 
 
 def __getattr__(name: str) -> Any:
