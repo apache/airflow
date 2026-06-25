@@ -509,3 +509,29 @@ class TestImapHook:
 
         assert result is True
         assert 1 <= mock_conn.fetch.call_count <= 2
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_overwrite_false(self, mock_imaplib, mock_open_method):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+        # Simulate FileExistsError for the first two attempts
+        mock_file = mock_open().return_value
+        mock_open_method.side_effect = [FileExistsError(), FileExistsError(), mock_file]
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("test1.csv", "test_directory", overwrite_file=False)
+
+        called_path = mock_open_method.call_args[0][0]
+        assert "test1_2.csv" in called_path
+        assert mock_open_method.call_count == 3
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_overwrite_true(self, mock_imaplib, mock_open_method):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("test1.csv", "test_directory", overwrite_file=True)
+
+        called_path = mock_open_method.call_args[0][0]
+        assert called_path.endswith("test1.csv")
