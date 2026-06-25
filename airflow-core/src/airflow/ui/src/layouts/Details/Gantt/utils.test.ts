@@ -257,6 +257,14 @@ describe("transformGanttData", () => {
     });
 
     expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({
+      end_when: "2024-03-14T10:05:00+00:00",
+      state: "queued",
+    });
+    expect(result[1]).toMatchObject({
+      end_when: "2024-03-14T10:05:00+00:00",
+      state: "success",
+    });
     expect(result[0]?.state).toBe("queued");
     expect(result[1]?.state).toBe("success");
   });

@@ -35,6 +35,8 @@ export type GanttDataItem = {
   scheduled_when?: string | null;
   /** Actual task execution start_date — consistent across all segments of the same try. */
   start_when?: string | null;
+  /** Actual task execution end_date — consistent across all segments of the same try. */
+  end_when?: string | null;
   state?: TaskInstanceState | null;
   taskId: string;
   tryNumber?: number;
@@ -140,6 +142,7 @@ export const transformGanttData = ({
               ...(scheduledMs === undefined ? {} : { scheduled_when: scheduledDttm }),
               ...(queuedMs === undefined ? {} : { queued_when: queuedDttm }),
               ...(startDate === null ? {} : { start_when: startDate }),
+              ...(endDate === null ? {} : { end_when: endDate }),
             };
 
             let endMs: number;
