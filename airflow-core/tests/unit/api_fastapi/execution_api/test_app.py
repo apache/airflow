@@ -17,9 +17,12 @@
 from __future__ import annotations
 
 import asyncio
+import gc
+import threading
 from unittest import mock
 from uuid import UUID
 
+import httpx
 import pytest
 from fastapi import Request
 from fastapi.params import Security as SecurityParam
@@ -28,6 +31,7 @@ from fastapi.testclient import TestClient
 from opentelemetry import context as otel_context, propagate as otel_propagate
 
 from airflow.api_fastapi.execution_api.app import (
+    InProcessExecutionAPI,
     _extract_w3c_trace_context,
     create_task_execution_api_app,
 )
@@ -132,6 +136,45 @@ def test_routes_with_task_instance_id_param_enforce_ti_self(client):
         "ti:self scope. Add `Security(require_auth, scopes=['ti:self'])` to the router, or add the "
         "path to TI_ID_ROUTES_WITHOUT_TI_SELF with a justification:\n" + "\n".join(sorted(offenders))
     )
+
+
+@conf_vars({("api_auth", "jwt_secret"): None})
+def test_in_process_execution_api_runs_without_jwt_secret():
+    """The in-process API must not require ``api_auth/jwt_secret`` to be configured."""
+    api = InProcessExecutionAPI()
+    with httpx.Client(transport=api.transport) as client:
+        response = client.get("http://localhost/health")
+    assert response.status_code == 200
+
+
+def test_in_process_execution_api_transport_lifecycle():
+    """The background loop + thread lifecycle is tied to the ``.transport``, not the factory instance.
+
+    Callers build a sync ``Client`` from ``InProcessExecutionAPI().transport`` and drop the factory
+    object. Dropping the instance must NOT stop the loop while the transport is still held -- doing so
+    left every later request hanging on a stopped loop. Dropping the transport must stop the loop and
+    join the daemon thread (the a2wsgi background-thread leak guard).
+    """
+    before = {t for t in threading.enumerate() if t.name == "InProcessExecutionAPI-loop"}
+
+    api = InProcessExecutionAPI()
+    transport = api.transport  # triggers loop + thread creation; the transport is what callers keep
+
+    new_threads = {t for t in threading.enumerate() if t.name == "InProcessExecutionAPI-loop"} - before
+    assert len(new_threads) == 1
+    thread = new_threads.pop()
+    assert thread.is_alive()
+
+    # Dropping only the factory instance must leave the loop running for the still-live transport.
+    del api
+    gc.collect()
+    assert thread.is_alive()
+
+    # Dropping the transport runs the weakref.finalize: loop stopped, daemon thread joined (no leak).
+    del transport
+    gc.collect()
+    thread.join(timeout=5)
+    assert not thread.is_alive()
 
 
 class TestCorrelationIdMiddleware:

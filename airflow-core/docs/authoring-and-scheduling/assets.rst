@@ -631,7 +631,19 @@ partition match can be produced, so the downstream Dag is not triggered for
 that key.
 
 Inside partitioned Dag runs, access the resolved partition through
-``dag_run.partition_key``.
+``dag_run.partition_key``. When the consumer's partition mapper can
+resolve the key to a ``datetime``, that value is also available as
+``dag_run.partition_date``, so templates can use
+``{{ partition_date | ds }}``. This covers the ``StartOf*Mapper`` family
+(which decode the key directly), ``IdentityMapper`` (which carries the
+producer's ``partition_date`` through), and composite mappers —
+``RollupMapper``, ``ChainMapper`` and ``FanOutMapper`` — whose effective
+child mapper is temporal (they delegate the anchor to that child).
+Mappers whose key carries no temporal meaning (``ProductMapper``,
+``AllowedKeyMapper`` and custom mappers that do not implement
+``to_partition_date``) leave ``partition_date`` ``None`` even when the
+resulting key is date-shaped, so those consumers should keep parsing
+``partition_key``.
 
 You can also trigger a DagRun manually with a partition key (for example,
 through the Trigger Dag window in the UI, or through the REST API by
@@ -769,7 +781,7 @@ semantics (the default).
         DAG,
         Asset,
         FixedKeyMapper,
-        PartitionAtRuntime,
+        PartitionedAtRuntime,
         PartitionedAssetTimetable,
         RollupMapper,
         SegmentWindow,
@@ -780,7 +792,7 @@ semantics (the default).
 
     @asset(
         uri="file://incoming/player-stats/multi-region.csv",
-        schedule=PartitionAtRuntime(),
+        schedule=PartitionedAtRuntime(),
     )
     def multi_region_player_stats(self, outlet_events):
         # Emit one event per region in a single run.
@@ -824,17 +836,17 @@ Setting partition keys at runtime
 When the partition key is not known ahead of time (for example, a watermark
 discovered from the source data, a late-arriving file, or a backfill request),
 let the producing task decide it while it runs. Schedule the producer with
-``PartitionAtRuntime()`` and record the key(s) on the emitted event with
+``PartitionedAtRuntime()`` and record the key(s) on the emitted event with
 ``outlet_events[self].add_partitions(...)``:
 
 .. code-block:: python
 
-    from airflow.sdk import PartitionAtRuntime, asset
+    from airflow.sdk import PartitionedAtRuntime, asset
 
 
     @asset(
         uri="file://incoming/player-stats/live-region.csv",
-        schedule=PartitionAtRuntime(),
+        schedule=PartitionedAtRuntime(),
     )
     def live_region_player_stats(self, outlet_events):
         # The key is only known once the task runs.
@@ -850,7 +862,7 @@ keys collapse to a single event:
 
     @asset(
         uri="file://incoming/player-stats/multi-region.csv",
-        schedule=PartitionAtRuntime(),
+        schedule=PartitionedAtRuntime(),
     )
     def multi_region_player_stats(self, outlet_events):
         outlet_events[self].add_partitions(["us", "eu", "apac"])
