@@ -101,3 +101,32 @@ class TestS3ToFTPOperatorInit:
             with patch.object(op.log, "info") as mock_log:
                 op._download_from_s3(mock_s3_hook, MagicMock(), S3_KEY, FTP_PATH)
             mock_log.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "object_suffix",
+        [
+            pytest.param("../../../../etc/cron.d/evil", id="dotdot-segments"),
+            pytest.param("subdir/../../../escape", id="dotdot-cancels-base"),
+        ],
+    )
+    def test_validate_destination_path_rejects_escape(self, object_suffix):
+        # In multi-file mode the destination is ``ftp_path`` plus a key suffix
+        # returned by ``list_keys``; a crafted object name must not place the
+        # upload outside the configured ``ftp_path`` on the FTP server.
+        op = S3ToFTPOperator(
+            task_id="trav",
+            s3_bucket=BUCKET,
+            s3_key="incoming/",
+            ftp_path="/srv/ftp/incoming/",
+        )
+        with pytest.raises(ValueError, match="escapes configured ftp_path"):
+            op._validate_destination_path(op.ftp_path + object_suffix)
+
+    def test_validate_destination_path_allows_contained(self):
+        op = S3ToFTPOperator(
+            task_id="benign",
+            s3_bucket=BUCKET,
+            s3_key="incoming/",
+            ftp_path="/srv/ftp/incoming/",
+        )
+        op._validate_destination_path(op.ftp_path + "sub/dir/report.csv")

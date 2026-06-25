@@ -375,3 +375,34 @@ class TestS3ToSFTPOperatorInit:
             with patch.object(op.log, "info") as mock_log:
                 op._download_from_s3(MagicMock(), mock_s3_hook, S3_KEY, SFTP_PATH)
             mock_log.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "object_suffix",
+        [
+            pytest.param("../../../../etc/cron.d/evil", id="dotdot-segments"),
+            pytest.param("subdir/../../../escape", id="dotdot-cancels-base"),
+        ],
+    )
+    def test_validate_destination_path_rejects_escape(self, object_suffix):
+        # In multi-file mode the destination is ``sftp_path`` plus a key suffix
+        # returned by ``list_keys``; a crafted object name must not place the
+        # upload outside the configured ``sftp_path`` on the SFTP server.
+        op = S3ToSFTPOperator(
+            task_id="trav",
+            s3_bucket=BUCKET,
+            s3_key="incoming/",
+            sftp_path="/srv/sftp/incoming/",
+            sftp_conn_id=SFTP_CONN_ID,
+        )
+        with pytest.raises(ValueError, match="escapes configured sftp_path"):
+            op._validate_destination_path(op.sftp_path + object_suffix)
+
+    def test_validate_destination_path_allows_contained(self):
+        op = S3ToSFTPOperator(
+            task_id="benign",
+            s3_bucket=BUCKET,
+            s3_key="incoming/",
+            sftp_path="/srv/sftp/incoming/",
+            sftp_conn_id=SFTP_CONN_ID,
+        )
+        op._validate_destination_path(op.sftp_path + "sub/dir/report.csv")

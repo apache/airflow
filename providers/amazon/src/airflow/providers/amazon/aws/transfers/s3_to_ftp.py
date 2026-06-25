@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import posixpath
 from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
@@ -84,7 +85,28 @@ class S3ToFTPOperator(BaseOperator):
         self.ftp_conn_id = ftp_conn_id
         self.fail_on_file_not_exist = fail_on_file_not_exist
 
+    def _validate_destination_path(self, destination: str) -> None:
+        # In multi-file mode the destination is ``ftp_path`` concatenated with a
+        # key suffix returned by ``list_keys``. S3 object names are arbitrary
+        # strings controlled by whoever can write to the source bucket, so ``..``
+        # segments or an absolute name could place the upload outside the
+        # configured ``ftp_path`` once the FTP server resolves it on its host.
+        base = posixpath.normpath(self.ftp_path)
+        resolved = posixpath.normpath(destination)
+        escapes = (
+            resolved == ".."
+            or resolved.startswith("../")
+            or (posixpath.isabs(resolved) and not posixpath.isabs(base))
+            or (base != "." and resolved != base and not resolved.startswith(base.rstrip("/") + "/"))
+        )
+        if escapes:
+            raise ValueError(
+                f"Refusing to upload S3 object to {destination!r}: resolved path "
+                f"escapes configured ftp_path {self.ftp_path!r}."
+            )
+
     def _download_from_s3(self, s3_hook: S3Hook, ftp_hook: FTPHook, s3_key: str, ftp_path: str) -> None:
+        self._validate_destination_path(ftp_path)
         if not s3_hook.check_for_key(s3_key, self.s3_bucket):
             if self.fail_on_file_not_exist:
                 raise FileNotFoundError(f"Key {s3_key!r} not found in S3 bucket {self.s3_bucket!r}")
