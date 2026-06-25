@@ -232,8 +232,8 @@ class BatchedOperator(BatchableOperator[OperatorPartial]):
         register_with_dag: bool = True,
     ) -> MappedOperator:
         from airflow.providers.standard.operators.empty import EmptyOperator
-        from airflow.sdk.bases.skipmixin import SkipMixin
         from airflow.sdk import BaseSensorOperator
+        from airflow.sdk.bases.skipmixin import SkipMixin
 
         ensure_xcomarg_return_value(expand_input.value)
 
