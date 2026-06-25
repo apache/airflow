@@ -529,6 +529,46 @@ class TestKubernetesExecutor:
                 None,
                 id="500 Internal Server Error (webhook failure) (retry failed)",
             ),
+            pytest.param(
+                HTTPResponse(body='{"message": "Bad Gateway"}', status=502),
+                1,
+                True,
+                State.SUCCESS,
+                None,
+                id="502 Bad Gateway (transient, requeued, retry next loop)",
+            ),
+            pytest.param(
+                HTTPResponse(
+                    body='{"message": "apiserver is shutting down"}',
+                    status=503,
+                    headers={"Retry-After": "1"},
+                ),
+                1,
+                True,
+                State.SUCCESS,
+                1,
+                id="503 Service Unavailable (Retry-After honored, requeued after retry delay)",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "Gateway Timeout"}', status=504),
+                1,
+                True,
+                State.SUCCESS,
+                None,
+                id="504 Gateway Timeout (transient, requeued, retry next loop)",
+            ),
+            pytest.param(
+                HTTPResponse(
+                    body='{"message": "apiserver is shutting down"}',
+                    status=503,
+                    headers={"Retry-After": "1"},
+                ),
+                1,
+                True,
+                State.FAILED,
+                1,
+                id="503 Service Unavailable (retries exhausted, failed)",
+            ),
         ],
     )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")

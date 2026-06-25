@@ -343,18 +343,26 @@ class KubernetesExecutor(BaseExecutor):
 
                     headers = e.headers or {}
                     retries = self.task_publish_retries[key]
-                    # In case of exceeded quota or conflict errors, requeue the task as per the task_publish_max_retries
-                    # In case of a rate limit, wait and do not create new pods for "Retry-After" seconds
+                    # Requeue transient failures (exceeded-quota / stale-version conflicts and the
+                    # api server's 429 / 5xx) up to task_publish_max_retries; anything else fails.
                     can_retry_publish = (
                         self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries
                     )
                     message = body.get("message", "")
+                    # Retry-After (seconds): the apiserver sets it on 429 (APF throttling) and on 503
+                    # while shutting down. Ignore a malformed value rather than crashing the loop.
+                    retry_after = headers.get("Retry-After")
+                    try:
+                        retry_after_seconds = int(retry_after) if retry_after is not None else None
+                    except (TypeError, ValueError):
+                        retry_after_seconds = None
                     if (
                         (str(e.status) == "403" and "exceeded quota" in message)
                         or (str(e.status) == "409" and "object has been modified" in message)
                         or (str(e.status) == "410" and "too old resource version" in message)
                         or str(e.status) == "500"
                         or str(e.status) == "429"
+                        or str(e.status) in ("502", "503", "504")
                     ) and can_retry_publish:
                         self.log.warning(
                             "[Try %s of %s] Kube ApiException for Task: (%s). Reason: %r. Message: %s",
@@ -368,13 +376,16 @@ class KubernetesExecutor(BaseExecutor):
                         self.task_queue.put(task)
                         self.task_publish_retries[key] = retries + 1
 
-                        if str(e.status) == "429":
+                        # Pause the loop until Retry-After when the server told us to back off (429, or
+                        # 503 on apiserver shutdown); other transient 5xx retry on the next loop.
+                        if str(e.status) == "429" or retry_after_seconds is not None:
                             self.create_pods_after = datetime.now() + timedelta(
-                                seconds=int(headers.get("Retry-After", "0"))
+                                seconds=retry_after_seconds or 0
                             )
                             self.log.warning(
-                                "Got rate limit from k8s api, skipping pod creation until %s",
+                                "Backing off pod creation until %s after status %s from k8s api",
                                 self.create_pods_after,
+                                e.status,
                             )
                             # stop pod creation to stop api requests
                             break
