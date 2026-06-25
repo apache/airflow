@@ -16,10 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
+from unittest import mock
 
 import pytest
 
+from airflow import plugins_manager
+from airflow._shared.module_loading import qualname
 from airflow.partition_mappers.base import RollupMapper
 from airflow.partition_mappers.temporal import (
     StartOfDayMapper,
@@ -34,9 +37,15 @@ from airflow.partition_mappers.window import (
     HourWindow,
     MonthWindow,
     QuarterWindow,
+    SegmentWindow,
     WeekWindow,
+    Window,
     YearWindow,
 )
+from airflow.serialization.decoders import decode_partition_mapper, decode_window
+from airflow.serialization.encoders import _serializer, encode_partition_mapper, encode_window
+from airflow.serialization.enums import Encoding
+from airflow.serialization.helpers import WindowNotSupported
 
 
 class TestHourWindow:
@@ -144,6 +153,126 @@ class TestYearWindow:
     def test_rejects_non_day_one_input(self):
         with pytest.raises(ValueError, match="expects a period start on day 1"):
             list(YearWindow().to_upstream(datetime(2024, 1, 31)))
+
+
+class TestDirection:
+    def test_default_direction_is_forward(self):
+        assert WeekWindow().direction is Window.Direction.FORWARD
+
+    @pytest.mark.parametrize(
+        ("window", "anchor", "expected"),
+        [
+            pytest.param(
+                HourWindow(direction=Window.Direction.BACKWARD),
+                datetime(2024, 3, 4, 0),
+                [datetime(2024, 3, 4, 0) - timedelta(minutes=59) + timedelta(minutes=i) for i in range(60)],
+                id="hour",
+            ),
+            pytest.param(
+                DayWindow(direction=Window.Direction.BACKWARD),
+                datetime(2024, 3, 4),
+                [datetime(2024, 3, 4) - timedelta(hours=23) + timedelta(hours=i) for i in range(24)],
+                id="day",
+            ),
+            pytest.param(
+                WeekWindow(direction=Window.Direction.BACKWARD),
+                datetime(2024, 3, 4),  # Monday
+                [datetime(2024, 2, 27) + timedelta(days=i) for i in range(7)],
+                id="week",
+            ),
+            pytest.param(
+                MonthWindow(direction=Window.Direction.BACKWARD),
+                datetime(2024, 3, 1),
+                # 2024-02 has 29 days (leap year); trailing period = Feb 2 … Mar 1 (29 members)
+                [datetime(2024, 2, d) for d in range(2, 30)] + [datetime(2024, 3, 1)],
+                id="month_backward_trailing",
+            ),
+            pytest.param(
+                QuarterWindow(direction=Window.Direction.BACKWARD),
+                datetime(2024, 1, 1),
+                [datetime(2023, 11, 1), datetime(2023, 12, 1), datetime(2024, 1, 1)],
+                id="quarter_backward_trailing",
+            ),
+            pytest.param(
+                YearWindow(direction=Window.Direction.BACKWARD),
+                datetime(2024, 1, 1),
+                [datetime(2023, m, 1) for m in range(2, 13)] + [datetime(2024, 1, 1)],
+                id="year_backward_trailing",
+            ),
+        ],
+    )
+    def test_backward_yields_trailing_period_ending_at_anchor(self, window, anchor, expected):
+        result = list(window.to_upstream(anchor))
+        assert result == expected
+        assert result[-1] == anchor
+
+    def test_month_backward_trailing_not_calendar_month(self):
+        """Month backward yields the trailing period (prev_month_start, anchor], not a calendar month."""
+        anchor = datetime(2024, 3, 1)
+        result = list(MonthWindow(direction=Window.Direction.BACKWARD).to_upstream(anchor))
+        # Must include anchor (Mar 1) and must NOT include prev_month_start (Feb 1)
+        assert datetime(2024, 3, 1) in result
+        assert datetime(2024, 2, 1) not in result
+
+    @pytest.mark.parametrize(
+        "window",
+        [
+            pytest.param(MonthWindow(direction=Window.Direction.BACKWARD), id="month"),
+            pytest.param(QuarterWindow(direction=Window.Direction.BACKWARD), id="quarter"),
+            pytest.param(YearWindow(direction=Window.Direction.BACKWARD), id="year"),
+        ],
+    )
+    def test_backward_on_non_day_one_raises(self, window):
+        """_require_day_one fires before the backward shift — non-day-1 + BACKWARD direction still raises."""
+        with pytest.raises(ValueError, match="expects a period start on day 1"):
+            list(window.to_upstream(datetime(2024, 3, 15)))
+
+    @pytest.mark.parametrize(
+        "window",
+        [
+            pytest.param(HourWindow(direction=Window.Direction.FORWARD), id="hour"),
+            pytest.param(DayWindow(direction=Window.Direction.FORWARD), id="day"),
+            pytest.param(WeekWindow(direction=Window.Direction.FORWARD), id="week"),
+            pytest.param(MonthWindow(direction=Window.Direction.FORWARD), id="month"),
+            pytest.param(QuarterWindow(direction=Window.Direction.FORWARD), id="quarter"),
+            pytest.param(YearWindow(direction=Window.Direction.FORWARD), id="year"),
+        ],
+    )
+    def test_serialize_roundtrip_with_forward(self, window):
+        """Window.Direction.FORWARD survives serialize → deserialize; behaviour is identical."""
+        restored = decode_window(encode_window(window))
+        assert restored.direction is Window.Direction.FORWARD
+        assert type(restored) is type(window)
+        if isinstance(window, WeekWindow):
+            anchor = datetime(2024, 3, 4)
+            assert list(restored.to_upstream(anchor)) == list(window.to_upstream(anchor))
+
+    @pytest.mark.parametrize(
+        "window_cls",
+        [HourWindow, DayWindow, WeekWindow, MonthWindow, QuarterWindow, YearWindow],
+    )
+    def test_serialize_roundtrip_backward(self, window_cls):
+        window = window_cls(direction=Window.Direction.BACKWARD)
+        restored = decode_window(encode_window(window))
+        assert restored.direction is Window.Direction.BACKWARD
+        assert type(restored) is window_cls
+        if window_cls is WeekWindow:
+            anchor = datetime(2024, 3, 4)
+            assert list(restored.to_upstream(anchor)) == list(window.to_upstream(anchor))
+
+    @pytest.mark.parametrize(
+        ("window_cls", "anchor", "expected_count"),
+        [
+            (HourWindow, datetime(2024, 3, 15, 7, 30), 60),
+            (DayWindow, datetime(2024, 3, 15), 24),
+            (WeekWindow, datetime(2024, 3, 13), 7),  # Wed, non-Monday
+        ],
+        ids=["hour", "day", "week"],
+    )
+    def test_backward_non_day_one_does_not_raise(self, window_cls, anchor, expected_count):
+        window = window_cls(direction=Window.Direction.BACKWARD)
+        result = list(window.to_upstream(anchor))
+        assert len(result) == expected_count
 
 
 class TestRollupMapperComposition:
@@ -257,9 +386,6 @@ class TestRollupMapperComposition:
         assert mapper.to_upstream("2024") == frozenset(f"2024-{m:02d}" for m in range(1, 13))
 
     def test_serialize_round_trip(self):
-        from airflow.serialization.decoders import decode_partition_mapper
-        from airflow.serialization.encoders import encode_partition_mapper
-
         mapper = RollupMapper(
             upstream_mapper=StartOfWeekMapper(input_format="%Y-%m-%d", output_format="%Y-%m-%d"),
             window=WeekWindow(),
@@ -306,9 +432,6 @@ class TestRollupMapperComposition:
         ],
     )
     def test_window_serialize_round_trip(self, upstream_factory, window, downstream_key):
-        from airflow.serialization.decoders import decode_partition_mapper
-        from airflow.serialization.encoders import encode_partition_mapper
-
         mapper = RollupMapper(upstream_mapper=upstream_factory(), window=window)
         restored = decode_partition_mapper(encode_partition_mapper(mapper))
         assert isinstance(restored, RollupMapper)
@@ -316,30 +439,133 @@ class TestRollupMapperComposition:
         assert restored.to_upstream(downstream_key) == mapper.to_upstream(downstream_key)
 
 
-class TestWindowSerializationGate:
-    """``encode_window`` / ``decode_window`` must reject non-built-in Windows.
+class TestDirectionValidation:
+    """Window.__init__ must coerce valid strings and reject invalid ones at construction time."""
 
-    Custom Window subclasses are not supported: a tampered serialized Dag
-    could otherwise name any importable class and have the scheduler
-    ``import_string`` it during deserialization.
+    @pytest.mark.parametrize(
+        ("direction_input", "expected_member"),
+        [
+            pytest.param(Window.Direction.FORWARD, Window.Direction.FORWARD, id="enum_forward"),
+            pytest.param(Window.Direction.BACKWARD, Window.Direction.BACKWARD, id="enum_backward"),
+            pytest.param("forward", Window.Direction.FORWARD, id="str_forward"),
+            pytest.param("backward", Window.Direction.BACKWARD, id="str_backward"),
+        ],
+    )
+    def test_valid_direction_coerced_to_enum(self, direction_input, expected_member):
+        window = WeekWindow(direction=direction_input)
+        assert window.direction is expected_member
+
+    @pytest.mark.parametrize(
+        "bad_value",
+        [
+            pytest.param("forwrd", id="typo_forwrd"),
+            pytest.param("backwards", id="typo_backwards"),
+            pytest.param("FORWARD", id="wrong_case"),
+            pytest.param("", id="empty_string"),
+        ],
+    )
+    def test_invalid_direction_raises_value_error(self, bad_value):
+        with pytest.raises(ValueError, match=r"is not a valid Window\.Direction"):
+            WeekWindow(direction=bad_value)
+
+
+class TestSegmentWindow:
+    def test_to_upstream_returns_full_set_ignoring_anchor(self):
+        w = SegmentWindow(["us", "eu", "apac"])
+        result_a = frozenset(w.to_upstream("any-anchor"))
+        result_b = frozenset(w.to_upstream("different-anchor"))
+        assert result_a == frozenset({"us", "eu", "apac"})
+        assert result_a == result_b
+
+    def test_expected_decoded_type_is_str(self):
+        assert SegmentWindow.expected_decoded_type is str
+
+    @pytest.mark.parametrize(
+        ("segments", "match"),
+        [
+            pytest.param([], "at least one segment key", id="empty-list"),
+            pytest.param(iter([]), "at least one segment key", id="empty-iterator"),
+            pytest.param([1, "b"], "must be str", id="int-element"),
+            pytest.param([None, "b"], "must be str", id="none-element"),
+            pytest.param(["", "b"], "non-empty", id="empty-string-first"),
+            pytest.param(["a", ""], "non-empty", id="empty-string-second"),
+        ],
+    )
+    def test_rejects_invalid_segments(self, segments, match):
+        with pytest.raises(ValueError, match=match):
+            SegmentWindow(segments)
+
+    def test_deduplication(self):
+        w = SegmentWindow(["us", "us", "eu"])
+        assert frozenset(w.to_upstream("any")) == frozenset({"us", "eu"})
+
+    def test_serialize_uses_sorted_order(self):
+        w = SegmentWindow(["z", "a", "m"])
+        assert w.serialize() == {"segments": ["a", "m", "z"]}
+
+    def test_deserialize_round_trip(self):
+        w = SegmentWindow(["us", "eu", "apac"])
+        restored = SegmentWindow.deserialize(w.serialize())
+        assert isinstance(restored, SegmentWindow)
+        assert frozenset(restored.to_upstream("any")) == frozenset({"us", "eu", "apac"})
+
+
+class CustomRegWindow(Window):
+    """A custom Window subclass defined at module scope so it has a stable qualname."""
+
+    def to_upstream(self, decoded_downstream):
+        return [decoded_downstream]
+
+
+class TestWindowSerializationGate:
+    """``encode_window`` / ``decode_window`` accept registered custom Windows and reject unregistered ones.
+
+    A tampered serialized Dag naming an unregistered import path is still
+    rejected; only classes that appear on a plugin's ``windows`` attribute
+    are allowed through.
     """
 
-    def test_encode_rejects_custom_window_subclass(self):
-        from airflow.partition_mappers.window import Window
-        from airflow.serialization.encoders import encode_window
-        from airflow.serialization.helpers import WindowNotSupported
+    @pytest.fixture
+    def window_plugin(self, monkeypatch):
+        """Patch the plugins manager to expose CustomRegWindow under its qualname."""
+        qn = qualname(CustomRegWindow)
+        monkeypatch.setattr(
+            plugins_manager,
+            "get_windows_plugins",
+            lambda: {qn: CustomRegWindow},
+        )
 
-        class CustomWindow(Window):
+    @pytest.mark.usefixtures("window_plugin")
+    def test_registered_custom_window_round_trips(self):
+        w = CustomRegWindow()
+        restored = decode_window(encode_window(w))
+        assert type(restored) is CustomRegWindow
+        assert restored.to_upstream("x") == ["x"]
+
+    def test_unregistered_custom_window_raises_on_encode(self):
+        class UnregisteredWindow(Window):
             def to_upstream(self, decoded_downstream):
                 return ()
 
-        with pytest.raises(WindowNotSupported, match="CustomWindow"):
-            encode_window(CustomWindow())
+        with pytest.raises(WindowNotSupported, match="UnregisteredWindow"):
+            encode_window(UnregisteredWindow())
 
-    def test_decode_rejects_non_core_import_path(self):
-        from airflow.serialization.decoders import decode_window
-        from airflow.serialization.enums import Encoding
-        from airflow.serialization.helpers import WindowNotSupported
+    def test_unregistered_import_path_raises_on_decode(self):
+        with mock.patch("airflow.serialization.decoders.import_string") as mock_import:
+            with pytest.raises(WindowNotSupported, match="os.system"):
+                decode_window({Encoding.TYPE: "os.system", Encoding.VAR: {}})
+        mock_import.assert_not_called()
 
-        with pytest.raises(WindowNotSupported, match="os.system"):
-            decode_window({Encoding.TYPE: "os.system", Encoding.VAR: {}})
+    def test_builtin_windows_fast_path_unchanged(self):
+        # The fast-path dict must contain exactly 7 entries, one per builtin SDK class.
+        # Verify that every entry maps to the canonical core import path.
+        expected = {
+            "airflow.partition_mappers.window.HourWindow",
+            "airflow.partition_mappers.window.DayWindow",
+            "airflow.partition_mappers.window.WeekWindow",
+            "airflow.partition_mappers.window.MonthWindow",
+            "airflow.partition_mappers.window.QuarterWindow",
+            "airflow.partition_mappers.window.SegmentWindow",
+            "airflow.partition_mappers.window.YearWindow",
+        }
+        assert set(_serializer.BUILTIN_WINDOWS.values()) == expected

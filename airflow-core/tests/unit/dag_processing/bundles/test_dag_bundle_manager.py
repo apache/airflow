@@ -466,4 +466,13 @@ def test_multiple_bundles_one_fails(clear_db, session):
 
 
 def test_get_all_bundle_names():
-    assert DagBundlesManager().get_all_bundle_names() == ["dags-folder", "example_dags"]
+    bundle_names = DagBundlesManager().get_all_bundle_names()
+    # Built-in bundles are always present.
+    assert "dags-folder" in bundle_names
+    assert "example_dags" in bundle_names
+    # Any other bundle exposed here comes from a provider's example_dags
+    # folder discovered via ProvidersManager. Their presence depends on
+    # which providers are installed in the environment, so we only check
+    # the naming suffix instead of pinning an exact list.
+    extra = [n for n in bundle_names if n not in {"dags-folder", "example_dags"}]
+    assert all(n.endswith("-example-dags") for n in extra)

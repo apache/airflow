@@ -32,6 +32,7 @@ import pytest
 from uuid6 import uuid7
 
 from airflow.sdk.api.client import Client, TaskInstanceOperations
+from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.coordinators._subprocess import (
     SubprocessCoordinator,
     _accept_connections,
@@ -43,16 +44,16 @@ from airflow.sdk.coordinators._subprocess import (
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
-from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 if not AIRFLOW_V_3_3_PLUS:
     pytest.skip("Coordinator is only compatible with Airflow >= 3.3.0", allow_module_level=True)
 
 
-def _make_ti(dag_id: str = "tutorial_dag", queue: str = "socket") -> TaskInstanceDTO:
-    return TaskInstanceDTO(
+def _make_ti(dag_id: str = "tutorial_dag", queue: str = "socket") -> TaskInstance:
+    return TaskInstance(
         id=uuid7(),
         dag_version_id=uuid7(),
         task_id="task_1",
@@ -60,9 +61,7 @@ def _make_ti(dag_id: str = "tutorial_dag", queue: str = "socket") -> TaskInstanc
         run_id="run_1",
         try_number=1,
         map_index=-1,
-        pool_slots=1,
         queue=queue,
-        priority_weight=1,
     )
 
 
@@ -368,6 +367,41 @@ class TestConnectionFromProcess:
 
         try:
             assert _is_connection_from_process(conn, mock_proc) is True
+        finally:
+            conn.close()
+            client.close()
+            server.close()
+
+    def test_matches_dual_stack_ipv4_compatible_connection(self):
+        """A dual-stack child whose loopback is rendered in IPv4-compatible form is accepted.
+
+        Companion to :meth:`test_matches_dual_stack_ipv4_mapped_connection` for macOS
+        (#68938): there the JVM's loopback connection is reported by ``psutil`` as the
+        deprecated IPv4-compatible ``::127.0.0.1`` rather than the IPv4-mapped
+        ``::ffff:127.0.0.1`` seen on Linux. Both forms must canonicalize to plain
+        ``127.0.0.1`` or the ownership check rejects the Java task. The OS will not
+        reliably establish a routable ``::`` connection on demand, so ``psutil``'s view of
+        the child's connections is mocked to the form macOS actually reports.
+        """
+        server = _start_server()
+        _, server_port = server.getsockname()
+        client = socket.socket()
+        client.connect(("127.0.0.1", server_port))
+        conn, _ = server.accept()
+        child_port = conn.getpeername()[1]
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.pid = os.getpid()
+
+        # On macOS psutil reports the child's dual-stack loopback in IPv4-compatible form.
+        compat_conn = MagicMock(
+            laddr=("::127.0.0.1", child_port),
+            raddr=("::127.0.0.1", server_port),
+        )
+        try:
+            with patch("airflow.sdk.coordinators._subprocess.psutil.Process") as mock_process:
+                mock_process.return_value.children.return_value = []
+                mock_process.return_value.net_connections.return_value = [compat_conn]
+                assert _is_connection_from_process(conn, mock_proc) is True
         finally:
             conn.close()
             client.close()
@@ -764,6 +798,27 @@ class TestPopenActivitySubprocessStart:
         kwargs = mock_on_started.call_args.kwargs
         assert kwargs["ti"] is ti
         assert kwargs["dag_rel_path"] == "bundle"
+
+    @conf_vars({("logging", "logging_level"): "DEBUG"})
+    def test_resolved_log_level_passed_to_subprocess_env(self, mock_client):
+        """A language SDK runtime gets the resolved task log level via the environment at launch."""
+        _, popen_mock, _ = self._start_with_mocks(mock_client, command=["/bin/true"])
+        env = popen_mock.call_args.kwargs["env"]
+        assert env["AIRFLOW__LOGGING__LOGGING_LEVEL"] == "DEBUG"
+
+    @conf_vars({("logging", "namespace_levels"): "sqlalchemy=INFO, botocore=WARNING"})
+    def test_namespace_levels_passed_to_subprocess_env(self, mock_client):
+        """Per-logger levels are propagated verbatim for the runtime to parse."""
+        _, popen_mock, _ = self._start_with_mocks(mock_client, command=["/bin/true"])
+        env = popen_mock.call_args.kwargs["env"]
+        assert env["AIRFLOW__LOGGING__NAMESPACE_LEVELS"] == "sqlalchemy=INFO, botocore=WARNING"
+
+    @conf_vars({("logging", "namespace_levels"): ""})
+    def test_namespace_levels_omitted_when_unset(self, mock_client):
+        """An empty value has no pairs to parse, so the variable is left out."""
+        _, popen_mock, _ = self._start_with_mocks(mock_client, command=["/bin/true"])
+        env = popen_mock.call_args.kwargs["env"]
+        assert env["AIRFLOW__LOGGING__NAMESPACE_LEVELS"] == ""
 
     def test_register_pipe_readers_called_with_four_sockets(self, mock_client):
         """Both socketpair read-ends and both TCP sockets must be registered, with a data kwarg."""

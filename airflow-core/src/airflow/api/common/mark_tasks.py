@@ -137,6 +137,8 @@ def find_task_relatives(
             yield task.task_id
         if downstream:
             for relative in task.get_flat_relatives(upstream=False):
+                if relative.is_teardown:
+                    continue
                 yield relative.task_id
         if upstream:
             for relative in task.get_flat_relatives(upstream=True):
@@ -191,7 +193,7 @@ def get_run_ids(
         dates.update(
             info.logical_date
             for info in dag.iter_dagrun_infos_between(start_date, end_date)
-            if info.logical_date  # todo: AIP-76 this will not find anything where logical date is null
+            if info.logical_date  # runs with a null logical_date are not matched here
         )
         run_ids = [dr.run_id for dr in DagRun.find(dag_id=dag.dag_id, logical_date=dates, session=session)]
     return run_ids

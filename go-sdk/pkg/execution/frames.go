@@ -242,6 +242,19 @@ func mapStringOr(m map[string]any, key string, def string) string {
 	return s
 }
 
+// mapBoolOr extracts a bool value from a map, returning the default if missing.
+func mapBoolOr(m map[string]any, key string, def bool) bool {
+	v, ok := m[key]
+	if !ok {
+		return def
+	}
+	b, ok := v.(bool)
+	if !ok {
+		return def
+	}
+	return b
+}
+
 // mapStringPtr extracts a nullable string value from a map. It returns nil
 // when the key is missing or the value is nil (i.e. JSON null / Python None),
 // and a pointer to the string when a value is present. Use this for fields

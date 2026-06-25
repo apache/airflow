@@ -72,6 +72,7 @@ Task Decorators:
 .. autoapifunction:: airflow.sdk.teardown
 
 .. autofunction:: airflow.sdk.task
+.. autofunction:: airflow.sdk.result
 .. autofunction:: airflow.sdk.setup
 .. autofunction:: airflow.sdk.teardown
 .. autofunction:: airflow.sdk.asset
@@ -241,11 +242,17 @@ Partition Mapper
 
 .. autoapiclass:: airflow.sdk.RollupMapper
 
+.. autoapiclass:: airflow.sdk.WaitForAll
+
+.. autoapiclass:: airflow.sdk.MinimumCount
+
 .. autoapiclass:: airflow.sdk.ProductMapper
 
 .. autoapiclass:: airflow.sdk.AllowedKeyMapper
 
 .. autoapiclass:: airflow.sdk.FanOutMapper
+
+.. autoapiclass:: airflow.sdk.FixedKeyMapper
 
 Rollup Windows
 ~~~~~~~~~~~~~~
@@ -263,6 +270,8 @@ Rollup Windows
 .. autoapiclass:: airflow.sdk.QuarterWindow
 
 .. autoapiclass:: airflow.sdk.YearWindow
+
+.. autoapiclass:: airflow.sdk.SegmentWindow
 
 I/O Helpers
 -----------

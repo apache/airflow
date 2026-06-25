@@ -30,16 +30,22 @@ from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.common.sql.config import DataSourceConfig
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+
+if AIRFLOW_V_3_3_PLUS:
+    # On 3.3+ cores require_approval pauses the task in AWAITING_INPUT; older cores defer to
+    # HITLTrigger. Both signals carry method_name/kwargs/timeout, so the approval tests assert
+    # against whichever pause signal the running core uses.
+    from airflow.sdk.exceptions import TaskAwaitingInput as ApprovalPauseSignal
+else:
+    ApprovalPauseSignal = TaskDeferred  # type: ignore[assignment, misc]
 
 
 def _make_mock_run_result(output):
     """Create a mock AgentRunResult compatible with log_run_summary."""
     mock_result = MagicMock()
     mock_result.output = output
-    mock_result.usage.return_value = MagicMock(
-        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
-    )
+    mock_result.usage = MagicMock(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
     mock_result.response = MagicMock(model_name="test-model")
     mock_result.all_messages.return_value = []
     return mock_result
@@ -477,7 +483,7 @@ class TestLLMSQLQueryOperatorApproval:
         )
         ctx = _make_context()
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with pytest.raises(ApprovalPauseSignal) as exc_info:
             op.execute(context=ctx)
 
         assert exc_info.value.method_name == "execute_complete"
@@ -523,7 +529,7 @@ class TestLLMSQLQueryOperatorApproval:
         )
         ctx = _make_context()
 
-        with pytest.raises(TaskDeferred):
+        with pytest.raises(ApprovalPauseSignal):
             op.execute(context=ctx)
 
         upsert_kwargs = mock_upsert.call_args[1]
@@ -547,7 +553,7 @@ class TestLLMSQLQueryOperatorApproval:
         )
         ctx = _make_context()
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with pytest.raises(ApprovalPauseSignal) as exc_info:
             op.execute(context=ctx)
 
         assert exc_info.value.timeout == timeout
@@ -585,7 +591,7 @@ class TestLLMSQLQueryOperatorApproval:
         )
         ctx = _make_context()
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with pytest.raises(ApprovalPauseSignal) as exc_info:
             op.execute(context=ctx)
 
         assert exc_info.value.kwargs["generated_output"] == "SELECT 1"

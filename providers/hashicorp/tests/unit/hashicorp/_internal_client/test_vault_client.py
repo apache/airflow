@@ -371,6 +371,61 @@ class TestVaultClient:
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
     @mock.patch("googleapiclient.discovery.build")
     @mock.patch("time.time")
+    def test_gcp_adc_compute_engine_default_email_refresh(
+        self, mock_time, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes
+    ):
+        from google.auth import compute_engine
+
+        mock_client = mock.MagicMock()
+        mock_hvac_client.return_value = mock_client
+        mock_get_scopes.return_value = ["scope1", "scope2"]
+
+        mock_credentials = mock.MagicMock(spec=compute_engine.Credentials)
+        mock_credentials.service_account_email = "default"
+
+        def refresh(_request):
+            mock_credentials.service_account_email = "service_account_email"
+
+        mock_credentials.refresh.side_effect = refresh
+        mock_get_credentials.return_value = (mock_credentials, "project_id")
+
+        mock_sign_jwt = (
+            mock_google_build.return_value.projects.return_value.serviceAccounts.return_value.signJwt
+        )
+        mock_sign_jwt.return_value.execute.return_value = {"signedJwt": "mocked_jwt"}
+
+        mock_time.return_value = 1234567890.0
+        iat = 1234567890
+        exp = iat + 900
+
+        vault_client = _VaultClient(
+            auth_type="gcp",
+            gcp_scopes="scope1,scope2",
+            role_id="role",
+            url="http://localhost:8180",
+            session=None,
+        )
+
+        client = vault_client.client
+
+        mock_credentials.refresh.assert_called_once()
+        args, kwargs = mock_sign_jwt.call_args
+        payload = json.loads(kwargs["body"]["payload"])
+
+        assert kwargs["name"] == "projects/project_id/serviceAccounts/service_account_email"
+        assert payload["iat"] == iat
+        assert payload["exp"] == exp
+        assert payload["sub"] == "service_account_email"
+
+        client.auth.gcp.login.assert_called_with(role="role", jwt="mocked_jwt")
+        client.is_authenticated.assert_called_with()
+        assert vault_client.kv_engine_version == 2
+
+    @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._get_scopes")
+    @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.get_credentials_and_project_id")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
+    @mock.patch("googleapiclient.discovery.build")
+    @mock.patch("time.time")
     def test_gcp_different_auth_mount_point(
         self,
         mock_time,

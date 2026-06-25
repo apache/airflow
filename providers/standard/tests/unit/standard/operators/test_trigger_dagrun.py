@@ -105,7 +105,7 @@ class TestDagRunOperator:
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.models.dagbundle import DagBundleModel
 
-                session.execute(delete(DagBundleModel))
+                session.execute(delete(DagBundleModel).where(DagBundleModel.name == "test_bundle"))
             session.commit()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
@@ -202,6 +202,35 @@ class TestDagRunOperator:
         base_url = conf.get("api", "base_url", fallback="/").lower()
         expected_url = f"{base_url}dags/{TRIGGERED_DAG_ID}/runs/test_run_id"
         assert link == expected_url, f"Expected {expected_url}, but got {link}"
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    def test_trigger_dagrun_pushes_extra_link_xcom_before_exception(self):
+        """
+        Eagerly push the "Triggered DAG" extra-link URL so the UI button is available
+        while the task is still running/deferred, not only after finalize() runs.
+        """
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunLink
+        from airflow.utils import helpers
+
+        build_url_fn = getattr(helpers, "build_airflow_dagrun_url", None)
+        if not build_url_fn:
+            pytest.skip("Skipping because build_airflow_dagrun_url is not available in this Airflow version")
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            trigger_run_id="custom_run_id",
+        )
+
+        ti_mock = mock.MagicMock()
+        with pytest.raises(DagRunTriggerException):
+            task.execute(context={"task_instance": ti_mock})
+
+        expected_url = build_url_fn(dag_id=TRIGGERED_DAG_ID, run_id="custom_run_id")
+        ti_mock.xcom_push.assert_called_once_with(
+            key=TriggerDagRunLink().xcom_key,
+            value=expected_url,
+        )
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
     def test_trigger_dagrun_custom_run_id(self):

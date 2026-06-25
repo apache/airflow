@@ -55,10 +55,12 @@ __all__ = [
     "EventsTimetable",
     "ExceptionRetryPolicy",
     "FanOutMapper",
+    "FixedKeyMapper",
     "HourWindow",
     "IdentityMapper",
     "Label",
     "Metadata",
+    "MinimumCount",
     "MonthWindow",
     "MultipleCronTriggerTimetable",
     "NEVER_EXPIRE",
@@ -77,6 +79,7 @@ __all__ = [
     "RetryPolicy",
     "RetryRule",
     "RollupMapper",
+    "SegmentWindow",
     "SkipMixin",
     "SyncCallback",
     "StartOfDayMapper",
@@ -90,6 +93,7 @@ __all__ = [
     "TaskInstanceState",
     "TriggerRule",
     "Variable",
+    "WaitForAll",
     "WeekWindow",
     "WeightRule",
     "Window",
@@ -106,6 +110,7 @@ __all__ = [
     "literal",
     "lineage",
     "macros",
+    "result",
     "setup",
     "task",
     "task_group",
@@ -147,13 +152,17 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
     from airflow.sdk.definitions.dag import DAG, dag
     from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
-    from airflow.sdk.definitions.decorators import setup, task, teardown
+    from airflow.sdk.definitions.decorators import result, setup, task, teardown
     from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
     from airflow.sdk.definitions.param import Param, ParamsDict
     from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
-    from airflow.sdk.definitions.partition_mappers.base import PartitionMapper, RollupMapper
+    from airflow.sdk.definitions.partition_mappers.base import (
+        PartitionMapper,
+        RollupMapper,
+    )
     from airflow.sdk.definitions.partition_mappers.chain import ChainMapper
+    from airflow.sdk.definitions.partition_mappers.fixed_key import FixedKeyMapper
     from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
     from airflow.sdk.definitions.partition_mappers.product import ProductMapper
     from airflow.sdk.definitions.partition_mappers.temporal import (
@@ -165,11 +174,16 @@ if TYPE_CHECKING:
         StartOfWeekMapper,
         StartOfYearMapper,
     )
+    from airflow.sdk.definitions.partition_mappers.wait_policy import (
+        MinimumCount,
+        WaitForAll,
+    )
     from airflow.sdk.definitions.partition_mappers.window import (
         DayWindow,
         HourWindow,
         MonthWindow,
         QuarterWindow,
+        SegmentWindow,
         WeekWindow,
         Window,
         YearWindow,
@@ -244,10 +258,12 @@ __lazy_imports: dict[str, str] = {
     "EventsTimetable": ".definitions.timetables.events",
     "ExceptionRetryPolicy": ".definitions.retry_policy",
     "FanOutMapper": ".definitions.partition_mappers.temporal",
+    "FixedKeyMapper": ".definitions.partition_mappers.fixed_key",
     "HourWindow": ".definitions.partition_mappers.window",
     "IdentityMapper": ".definitions.partition_mappers.identity",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
+    "MinimumCount": ".definitions.partition_mappers.wait_policy",
     "MonthWindow": ".definitions.partition_mappers.window",
     "MultipleCronTriggerTimetable": ".definitions.timetables.trigger",
     "ObjectStoragePath": ".io.path",
@@ -266,6 +282,7 @@ __lazy_imports: dict[str, str] = {
     "RetryRule": ".definitions.retry_policy",
     "RollupMapper": ".definitions.partition_mappers.base",
     "SecretCache": ".execution_time.cache",
+    "SegmentWindow": ".definitions.partition_mappers.window",
     "SkipMixin": ".bases.skipmixin",
     "SyncCallback": ".definitions.callback",
     "StartOfDayMapper": ".definitions.partition_mappers.temporal",
@@ -279,6 +296,7 @@ __lazy_imports: dict[str, str] = {
     "TaskInstanceState": ".api.datamodels._generated",
     "TriggerRule": ".api.datamodels._generated",
     "Variable": ".definitions.variable",
+    "WaitForAll": ".definitions.partition_mappers.wait_policy",
     "WeekWindow": ".definitions.partition_mappers.window",
     "WeightRule": ".api.datamodels._generated",
     "Window": ".definitions.partition_mappers.window",
@@ -296,6 +314,7 @@ __lazy_imports: dict[str, str] = {
     "literal": ".definitions.template",
     "lineage": ".lineage",
     "macros": ".execution_time",
+    "result": ".definitions.decorators",
     "setup": ".definitions.decorators",
     "task": ".definitions.decorators",
     "task_group": ".definitions.decorators",
