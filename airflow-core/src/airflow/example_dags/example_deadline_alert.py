@@ -30,9 +30,8 @@ from airflow.sdk import DAG, AsyncCallback, DeadlineAlert, DeadlineReference, ta
 log = logging.getLogger(__name__)
 
 
-async def notify_deadline_missed(**kwargs):
+async def notify_deadline_missed(context: dict, **kwargs):
     """Async callback executed by the Triggerer when the deadline is missed."""
-    context = kwargs.get("context", {})
     dag_run = context.get("dag_run")
     log.warning("Deadline missed for dag_run=%s", dag_run)
 
