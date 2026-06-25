@@ -39,8 +39,8 @@ const (
 )
 
 // PullXComsConcurrently pulls a batch of XComs sequentially then concurrently
-// (one goroutine per item), proving the injected sdk.Client is concurrency-safe,
-// and returns both timings.
+// (one goroutine per item), exercising concurrent reads of the injected
+// sdk.Client, and returns both timings.
 func PullXComsConcurrently(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, error) {
 	ti := ctx.TaskInstance()
 	// PushXCom needs only the ids off the TaskInstance, not the UUID.
