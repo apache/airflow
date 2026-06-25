@@ -137,6 +137,23 @@ export const transformGanttData = ({
             const queuedMs = queuedDttm === null ? undefined : dayjs(queuedDttm).valueOf();
             const scheduledMs = scheduledDttm === null ? undefined : dayjs(scheduledDttm).valueOf();
 
+            // Effective task end for tooltips: the real end_date, or "now" while a started task
+            // is still running. Mirrors startDate/start_when so end_when stays on the same scale —
+            // both are skipped together for a not-yet-started task and fall back to the bar's own
+            // bounds.
+            const effectiveEndDate =
+              endDate ?? (hasTaskRunning && startDate !== null ? new Date().toISOString() : null);
+
+            // Carry scheduled/queued/start/end times on every segment of a try so the tooltip
+            // reports the task's actual start and end on the scheduled and queued bars too, not
+            // just the execution bar's own bounds.
+            const tryWhenForTooltip = {
+              ...(scheduledMs === undefined ? {} : { scheduled_when: scheduledDttm }),
+              ...(queuedMs === undefined ? {} : { queued_when: queuedDttm }),
+              ...(startDate === null ? {} : { start_when: startDate }),
+              ...(effectiveEndDate === null ? {} : { end_when: effectiveEndDate }),
+            };
+
             let endMs: number;
 
             if (hasTaskRunning) {
@@ -146,17 +163,6 @@ export const transformGanttData = ({
             } else {
               endMs = dayjs(endDate).valueOf();
             }
-
-            // Include scheduled/queued/start/end times in tooltip data whenever the timestamps exist.
-            // start_when/end_when are carried on every segment of a try so the tooltip reports the
-            // task's actual start and end on the scheduled and queued bars too, not just the
-            // execution bar's own bounds.
-            const tryWhenForTooltip = {
-              ...(scheduledMs === undefined ? {} : { scheduled_when: scheduledDttm }),
-              ...(queuedMs === undefined ? {} : { queued_when: queuedDttm }),
-              ...(startDate === null ? {} : { start_when: startDate }),
-              ...(startDate === null && !hasTaskRunning ? {} : { end_when: dayjs(endMs).toISOString() }),
-            };
 
             if (scheduledMs !== undefined) {
               const scheduledEndMs =
