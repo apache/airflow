@@ -153,7 +153,7 @@ Deletes *all* asset state store keys for the asset.
 Using ``asset_state_store`` inside a Watcher Trigger
 -----------------------------------------------------
 
-:class:`~airflow.triggers.base.BaseEventTrigger` subclasses (watcher triggers) can read and write asset state store directly from within ``run()``. The triggerer injects ``self.asset_state_store`` before ``run()`` is called, scoped to the asset the trigger is watching.
+:class:`~airflow.triggers.base.BaseEventTrigger` subclasses (watcher triggers) can read and write asset state store directly from within ``run()``. The triggerer injects ``self.asset_state_store`` before ``run()`` is called, scoped to the asset the trigger is watching. It is not available during ``__init__`` or ``serialize()``, only access it from within ``run()``.
 
 Unlike task-based access (where the asset is identified by an inlet or outlet declaration), the accessor in a watcher trigger is automatically bound to the watched asset, so no subscripting is needed.
 
@@ -203,7 +203,7 @@ The corresponding :class:`~airflow.sdk.definitions.asset.AssetWatcher` wires the
 
     from airflow.sdk import Asset, AssetWatcher
 
-    # Import trigger from internal module (wherever it was written)
+    from my_dag.triggers import PollEventsTrigger
 
     my_asset = Asset(
         name="orders_api",

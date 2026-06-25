@@ -133,7 +133,7 @@ def _put_asset_state_store(
     backend = get_state_backend()
     if isinstance(backend, MetastoreBackend):
         if token.id == NULL_UUID:
-            # A watcher trigger writing via the triggerer's in-process client has a null-UUID
+            # Since the asset state store routes do not have `task_instance_id` in their path params, the default kicks in which is"00000000-0000-0000-0000-000000000000"
             backend.set_asset_state_store(
                 scope,
                 key,
@@ -142,7 +142,6 @@ def _put_asset_state_store(
                 session=session,
             )
         else:
-            # Retrieve TI fields, since token.id is not NULL_UUID
             ti_fields = _fetch_ti_writer_fields(token, session)
             dag_id, run_id, task_id, map_index = ti_fields
 

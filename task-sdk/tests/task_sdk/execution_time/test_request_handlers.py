@@ -159,7 +159,7 @@ def test_get_asset_state_store_by_uri_passes_through_error_response(client):
         ),
     ],
 )
-def test_asset_store_store_delegates_to_client(client, handler, msg, call_kwargs, method):
+def test_asset_store_delegates_to_client(client, handler, msg, call_kwargs, method):
     result, dump_opts = handler(client, msg(**call_kwargs))
 
     getattr(client.asset_state_store, method).assert_called_once_with(**call_kwargs)
