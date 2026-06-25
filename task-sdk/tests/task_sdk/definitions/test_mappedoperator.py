@@ -132,9 +132,15 @@ def test_map_unknown_arg_raises():
 def test_map_batch_size(size: int | None):
     with DAG("test-dag", schedule=None):
         if size is not None:
-            mapped = MockOperator.partial(task_id="task_2").batch(size=size)._expand(DictOfListsExpandInput({"arg1": [1, 2, 3]}), strict=False)
+            mapped = (
+                MockOperator.partial(task_id="task_2")
+                .batch(size=size)
+                ._expand(DictOfListsExpandInput({"arg1": [1, 2, 3]}), strict=False)
+            )
         else:
-            mapped = MockOperator.partial(task_id="task_2")._expand(DictOfListsExpandInput({"arg1": [1, 2, 3]}), strict=False)
+            mapped = MockOperator.partial(task_id="task_2")._expand(
+                DictOfListsExpandInput({"arg1": [1, 2, 3]}), strict=False
+            )
         assert mapped.batch_size == size
 
 
