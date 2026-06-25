@@ -23,11 +23,14 @@ Common Data Models for Airflow REST API.
 from __future__ import annotations
 
 import enum
+import logging
 from typing import Annotated, Any, Generic, Literal, TypeVar, Union
 
 from pydantic import BeforeValidator, Discriminator, Field, Tag, TypeAdapter, ValidationError
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+
+log = logging.getLogger(__name__)
 
 # Asset Scheduling Expression Data Models
 #
@@ -136,6 +139,7 @@ def _coerce_unrecognized_expression_to_none(value: Any) -> Any:
     try:
         _asset_expression_adapter.validate_python(value)
     except ValidationError:
+        log.warning("Dropping unrecognized asset_expression shape to None: %r", value)
         return None
     return value
 
