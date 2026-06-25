@@ -529,6 +529,46 @@ class TestKubernetesExecutor:
                 None,
                 id="500 Internal Server Error (webhook failure) (retry failed)",
             ),
+            pytest.param(
+                HTTPResponse(body='{"message": "Bad Gateway"}', status=502),
+                1,
+                True,
+                State.SUCCESS,
+                None,
+                id="502 Bad Gateway (transient, requeued, retry next loop)",
+            ),
+            pytest.param(
+                HTTPResponse(
+                    body='{"message": "apiserver is shutting down"}',
+                    status=503,
+                    headers={"Retry-After": "1"},
+                ),
+                1,
+                True,
+                State.SUCCESS,
+                1,
+                id="503 Service Unavailable (Retry-After honored, requeued after retry delay)",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "Gateway Timeout"}', status=504),
+                1,
+                True,
+                State.SUCCESS,
+                None,
+                id="504 Gateway Timeout (transient, requeued, retry next loop)",
+            ),
+            pytest.param(
+                HTTPResponse(
+                    body='{"message": "apiserver is shutting down"}',
+                    status=503,
+                    headers={"Retry-After": "1"},
+                ),
+                1,
+                True,
+                State.FAILED,
+                1,
+                id="503 Service Unavailable (retries exhausted, failed)",
+            ),
         ],
     )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
@@ -980,6 +1020,59 @@ class TestKubernetesExecutor:
                     command=["airflow", "tasks", "run", "true", "x"],
                 )
                 executor.sync()
+                assert executor.create_pods_after is not None
+                assert not executor.task_queue.empty()
+            finally:
+                executor.end()
+
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.get_async_kube_client",
+        new_callable=mock.AsyncMock,
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_async_pod_creation_requeues_and_backs_off_on_503(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, mock_get_async_client, data_file
+    ):
+        """A 503 + Retry-After from the async client (apiserver shutting down) requeues and backs off."""
+        from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
+
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.api_client.sanitize_for_serialization.return_value = {}
+        mock_get_kube_client.return_value = mock_kube_client
+
+        unavailable_exc = AsyncApiException(status=503, reason="Service Unavailable")
+        unavailable_exc.body = '{"message": "apiserver is shutting down"}'
+        unavailable_exc.headers = {"Retry-After": "1"}
+
+        mock_async_api = mock.MagicMock()
+        mock_async_api.create_namespaced_pod = mock.AsyncMock(side_effect=unavailable_exc)
+        mock_async_api.api_client.close = mock.AsyncMock()
+        mock_get_async_client.return_value = mock_async_api
+
+        config = {
+            ("kubernetes_executor", "pod_template_file"): template_file,
+            ("kubernetes_executor", "async_pod_creation"): "True",
+        }
+        with conf_vars(config):
+            executor = KubernetesExecutor()
+            executor.job_id = 5
+            executor._last_completed_pod_adoption = time.monotonic()
+            executor.task_publish_max_retries = 1
+            executor.start()
+            try:
+                executor.execute_async(
+                    key=TaskInstanceKey("dag", "task", "run_id", 1),
+                    queue=None,
+                    command=["airflow", "tasks", "run", "true", "x"],
+                )
+                executor.sync()
+                assert mock_async_api.create_namespaced_pod.await_count == 1
+                # 503 is transient -> task is requeued (not failed) and the next loop backs off.
                 assert executor.create_pods_after is not None
                 assert not executor.task_queue.empty()
             finally:

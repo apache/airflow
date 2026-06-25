@@ -437,16 +437,32 @@ class KubernetesExecutor(BaseExecutor):
 
             headers = e.headers or {}
             retries: int = self.task_publish_retries[key]
-            # In case of exceeded quota or conflict errors, requeue the task as per the task_publish_max_retries
-            # In case of a rate limit, wait and do not create new pods for "Retry-After" seconds
+            # Requeue transient failures (exceeded-quota / stale-version conflicts and the api
+            # server's 429 / 5xx) up to task_publish_max_retries; anything else fails immediately.
             can_retry_publish = self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries
             message: str = body.get("message", "")
+            # Retry-After (seconds) tells us when to come back: the apiserver sets it on 429 (APF
+            # throttling) and on 503 while shutting down. Ignore a malformed value rather than
+            # crashing the scheduler loop on int().
+            retry_after_raw: str | None = headers.get("Retry-After")
+            try:
+                retry_after_seconds: int | None = (
+                    int(retry_after_raw) if retry_after_raw is not None else None
+                )
+            except (TypeError, ValueError):
+                retry_after_seconds = None
+            transient_5xx = (
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                HTTPStatus.BAD_GATEWAY,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                HTTPStatus.GATEWAY_TIMEOUT,
+            )
             if (
                 (e.status == HTTPStatus.FORBIDDEN and "exceeded quota" in message)
                 or (e.status == HTTPStatus.CONFLICT and "object has been modified" in message)
                 or (e.status == HTTPStatus.GONE and "too old resource version" in message)
-                or e.status == HTTPStatus.INTERNAL_SERVER_ERROR
                 or e.status == HTTPStatus.TOO_MANY_REQUESTS
+                or e.status in transient_5xx
             ) and can_retry_publish:
                 self.log.warning(
                     "[Try %s of %s] Kube ApiException for Task: (%s). Reason: %r. Message: %s",
@@ -460,13 +476,14 @@ class KubernetesExecutor(BaseExecutor):
                 self.task_queue.put(task)
                 self.task_publish_retries[key] = retries + 1
 
-                if e.status == HTTPStatus.TOO_MANY_REQUESTS:
-                    self.create_pods_after = datetime.now() + timedelta(
-                        seconds=int(headers.get("Retry-After", "0"))
-                    )
+                # Pause the whole loop until Retry-After when the server told us to back off (429, or
+                # 503 on apiserver shutdown). Transient 5xx without the header retry on the next loop.
+                if e.status == HTTPStatus.TOO_MANY_REQUESTS or retry_after_seconds is not None:
+                    self.create_pods_after = datetime.now() + timedelta(seconds=retry_after_seconds or 0)
                     self.log.warning(
-                        "Got rate limit from k8s api, skipping pod creation until %s",
+                        "Backing off pod creation until %s after status %s from k8s api",
                         self.create_pods_after,
+                        e.status,
                     )
                     # stop pod creation to stop api requests
                     return True
