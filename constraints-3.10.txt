@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-24T09:16:43.167624
+# This constraints file was automatically generated on 2026-06-25T17:14:22.126604
 # via `uv pip install --resolution highest` for the "v3-3-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -75,7 +75,7 @@ aiohttp==3.14.1
 aioitertools==0.13.0
 aiomysql==0.3.2
 aiosignal==1.4.0
-aiosmtplib==5.1.1
+aiosmtplib==5.1.2
 aiosqlite==0.21.0
 airbyte-api==0.53.0
 akeyless==5.0.28
@@ -468,12 +468,12 @@ mdurl==0.1.2
 memray==1.19.3
 mergedeep==1.3.4
 methodtools==0.4.7
-microsoft-kiota-abstractions==1.10.3
-microsoft-kiota-authentication-azure==1.10.3
-microsoft-kiota-http==1.10.3
-microsoft-kiota-serialization-json==1.10.3
-microsoft-kiota-serialization-text==1.10.3
-mistune==3.2.1
+microsoft-kiota-abstractions==1.11.5
+microsoft-kiota-authentication-azure==1.11.5
+microsoft-kiota-http==1.11.5
+microsoft-kiota-serialization-json==1.11.5
+microsoft-kiota-serialization-text==1.11.5
+mistune==3.3.0
 mmh3==5.2.1
 more-itertools==11.1.0
 msal-extensions==1.3.1
@@ -708,7 +708,7 @@ webencodings==0.5.1
 websocket-client==1.8.0
 websockets==16.0
 wirerope==1.0.0
-wrapt==2.2.1
+wrapt==2.2.2
 xmlsec==1.3.17
 xmltodict==1.0.4
 yandex-query-client==0.1.4
