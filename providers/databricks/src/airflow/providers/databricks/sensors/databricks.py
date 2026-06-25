@@ -65,7 +65,7 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
         wait_for_termination: bool = True,
         timeout: float = 3600,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        query_tags: dict[str, Any] | None = None,
+        query_tags: dict[str, str | None] | None = None,
         include_airflow_query_tags: bool = True,
         **kwargs,
     ):
