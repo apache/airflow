@@ -890,6 +890,54 @@ function common::get_constraints_location() {
     fi
 }
 
+function common::resolve_build_constraints() {
+    BUILD_CONSTRAINTS_INSTALL_FLAGS=()
+    if [[ -z ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION=} ]]; then
+        return
+    fi
+
+    local target="${HOME}/build-constraints.txt"
+    if [[ ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION} =~ ^https?:// ]]; then
+        echo
+        echo "${COLOR_BLUE}Downloading build constraints from ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION} to ${target}${COLOR_RESET}"
+        echo
+        rm -f "${target}"
+        if ! curl -sSf -o "${target}" "${AIRFLOW_BUILD_CONSTRAINTS_LOCATION}"; then
+            rm -f "${target}"
+            echo
+            echo "${COLOR_RED}Build constraints file not found at explicitly set ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION}${COLOR_RESET}"
+            echo
+            exit 1
+        fi
+    else
+        if [[ ! -f ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION} || ! -s ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION} ]]; then
+            echo
+            echo "${COLOR_RED}Build constraints must be a non-empty file: ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION}${COLOR_RESET}"
+            echo
+            exit 1
+        fi
+        echo
+        echo "${COLOR_BLUE}Copying build constraints from ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION} to ${target}${COLOR_RESET}"
+        echo
+        if [[ ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION} != "${target}" ]]; then
+            cp "${AIRFLOW_BUILD_CONSTRAINTS_LOCATION}" "${target}"
+        fi
+    fi
+
+    if [[ ! -s ${target} ]]; then
+        rm -f "${target}"
+        echo
+        echo "${COLOR_RED}Build constraints file is empty: ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION}${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+    if [[ ${PACKAGING_TOOL} == "uv" ]]; then
+        BUILD_CONSTRAINTS_INSTALL_FLAGS=(--build-constraints "${target}")
+    else
+        BUILD_CONSTRAINTS_INSTALL_FLAGS=(--build-constraint "${target}")
+    fi
+}
+
 function common::show_packaging_tool_version_and_location() {
    echo "PATH=${PATH}"
    echo "Installed pip: $(pip --version): $(which pip)"
@@ -1027,9 +1075,11 @@ function install_airflow_and_providers_from_docker_context_files(){
 
     # This is needed to get distribution names for local context distributions
     if [[ -f "${HOME}/constraints.txt" ]]; then
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} --constraint ${HOME}/constraints.txt packaging
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            "${BUILD_CONSTRAINTS_INSTALL_FLAGS[@]}" --constraint ${HOME}/constraints.txt packaging
     else
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} packaging
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            "${BUILD_CONSTRAINTS_INSTALL_FLAGS[@]}" packaging
     fi
 
     if [[ -n ${AIRFLOW_EXTRAS=} ]]; then
@@ -1108,6 +1158,7 @@ function install_airflow_and_providers_from_docker_context_files(){
     set -x
     if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
         ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+        "${BUILD_CONSTRAINTS_INSTALL_FLAGS[@]}" \
         "${flags[@]}" \
         "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" "${airflow_distributions[@]}"; then
         set +x
@@ -1145,6 +1196,7 @@ function install_all_other_distributions_from_docker_context_files() {
     if [[ -n "${reinstalling_other_distributions}" ]]; then
         set -x
         ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            "${BUILD_CONSTRAINTS_INSTALL_FLAGS[@]}" \
             --force-reinstall --no-deps --no-index ${reinstalling_other_distributions}
         common::install_packaging_tools
         set +x
@@ -1155,6 +1207,7 @@ common::get_colors
 common::get_packaging_tool
 common::get_airflow_version_specification
 common::get_constraints_location
+common::resolve_build_constraints
 common::show_packaging_tool_version_and_location
 
 install_airflow_and_providers_from_docker_context_files
@@ -1289,7 +1342,8 @@ function install_from_sources() {
 }
 
 function install_from_external_spec() {
-     local installation_command_flags
+    common::resolve_build_constraints
+    local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
     else
@@ -1311,14 +1365,18 @@ function install_from_external_spec() {
         echo "${COLOR_BLUE}Installing all packages with highest resolutions. Installation method: ${AIRFLOW_INSTALLATION_METHOD}${COLOR_RESET}"
         echo
         set -x
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_TO_HIGHEST_RESOLUTION} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags}
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_TO_HIGHEST_RESOLUTION} \
+            ${ADDITIONAL_PIP_INSTALL_FLAGS} "${BUILD_CONSTRAINTS_INSTALL_FLAGS[@]}" \
+            ${installation_command_flags}
         set +x
     else
         echo
         echo "${COLOR_BLUE}Installing all packages with constraints. Installation method: ${AIRFLOW_INSTALLATION_METHOD}${COLOR_RESET}"
         echo
         set -x
-        if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} --constraint "${HOME}/constraints.txt"; then
+        if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            "${BUILD_CONSTRAINTS_INSTALL_FLAGS[@]}" ${installation_command_flags} \
+            --constraint "${HOME}/constraints.txt"; then
             set +x
             if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
                 echo
@@ -1391,6 +1449,7 @@ function install_additional_dependencies() {
         set -x
         ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_TO_HIGHEST_RESOLUTION} \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            "${BUILD_CONSTRAINTS_INSTALL_FLAGS[@]}" \
             ${ADDITIONAL_PYTHON_DEPS}
         set +x
         common::install_packaging_tools
@@ -1406,6 +1465,7 @@ function install_additional_dependencies() {
         set -x
         ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_IF_NEEDED} \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            "${BUILD_CONSTRAINTS_INSTALL_FLAGS[@]}" \
             ${ADDITIONAL_PYTHON_DEPS}
         set +x
         common::install_packaging_tools
@@ -1421,6 +1481,7 @@ common::get_colors
 common::get_packaging_tool
 common::get_airflow_version_specification
 common::get_constraints_location
+common::resolve_build_constraints
 common::show_packaging_tool_version_and_location
 
 install_additional_dependencies
@@ -1936,6 +1997,7 @@ ARG CONSTRAINTS_GITHUB_REPOSITORY="apache/airflow"
 ARG AIRFLOW_CONSTRAINTS_MODE="constraints"
 ARG AIRFLOW_CONSTRAINTS_REFERENCE=""
 ARG AIRFLOW_CONSTRAINTS_LOCATION=""
+ARG AIRFLOW_BUILD_CONSTRAINTS_LOCATION=""
 ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 # By default do not fallback to installation without constraints because it can hide problems with constraints
 ARG AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION="false"
@@ -1991,6 +2053,7 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_CONSTRAINTS_MODE=${AIRFLOW_CONSTRAINTS_MODE} \
     AIRFLOW_CONSTRAINTS_REFERENCE=${AIRFLOW_CONSTRAINTS_REFERENCE} \
     AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION} \
+    AIRFLOW_BUILD_CONSTRAINTS_LOCATION=${AIRFLOW_BUILD_CONSTRAINTS_LOCATION} \
     AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION=${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} \
     DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH} \
     PATH=${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH} \

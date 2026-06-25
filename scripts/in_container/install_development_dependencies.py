@@ -32,6 +32,7 @@ import json
 import sys
 
 from in_container_utils import AIRFLOW_ROOT_PATH, click, console, run_command
+from install_airflow_and_providers import _get_build_constraints_flags, resolve_build_constraints_file
 from packaging.requirements import Requirement
 
 
@@ -43,6 +44,11 @@ from packaging.requirements import Requirement
     help="Constraints file or url to use for installation",
 )
 @click.option(
+    "--build-constraints-location",
+    envvar="AIRFLOW_BUILD_CONSTRAINTS_LOCATION",
+    help="Explicit build constraints URL or local non-empty file.",
+)
+@click.option(
     "--github-actions",
     is_flag=True,
     default=False,
@@ -50,7 +56,9 @@ from packaging.requirements import Requirement
     envvar="GITHUB_ACTIONS",
     help="Running in GitHub Actions",
 )
-def install_development_dependencies(constraint: str, github_actions: bool):
+def install_development_dependencies(
+    constraint: str, build_constraints_location: str | None, github_actions: bool
+):
     pyproject_toml_of_devel_commons = (AIRFLOW_ROOT_PATH / "devel-common" / "pyproject.toml").read_text()
     development_dependencies: list[str] = []
     in_devel_common_dependencies = False
@@ -88,7 +96,16 @@ def install_development_dependencies(constraint: str, github_actions: bool):
         path.parent.as_posix() for path in (AIRFLOW_ROOT_PATH / "shared").glob("*/pyproject.toml")
     )
     development_dependencies.extend(shared_distributions)
-    command = ["uv", "pip", "install", *development_dependencies, "--constraints", constraint]
+    build_constraints_file = resolve_build_constraints_file(build_constraints_location)
+    command = [
+        "uv",
+        "pip",
+        "install",
+        *development_dependencies,
+        *_get_build_constraints_flags(build_constraints_file),
+        "--constraints",
+        constraint,
+    ]
     result = run_command(command, check=False, github_actions=github_actions)
     if result.returncode != 0:
         console.print("[yellow]Failed to install development dependencies with constraints[/]\n")

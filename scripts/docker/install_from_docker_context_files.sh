@@ -44,9 +44,11 @@ function install_airflow_and_providers_from_docker_context_files(){
 
     # This is needed to get distribution names for local context distributions
     if [[ -f "${HOME}/constraints.txt" ]]; then
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} --constraint ${HOME}/constraints.txt packaging
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            "${BUILD_CONSTRAINTS_INSTALL_FLAGS[@]}" --constraint ${HOME}/constraints.txt packaging
     else
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} packaging
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            "${BUILD_CONSTRAINTS_INSTALL_FLAGS[@]}" packaging
     fi
 
     if [[ -n ${AIRFLOW_EXTRAS=} ]]; then
@@ -125,6 +127,7 @@ function install_airflow_and_providers_from_docker_context_files(){
     set -x
     if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
         ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+        "${BUILD_CONSTRAINTS_INSTALL_FLAGS[@]}" \
         "${flags[@]}" \
         "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" "${airflow_distributions[@]}"; then
         set +x
@@ -166,6 +169,7 @@ function install_all_other_distributions_from_docker_context_files() {
     if [[ -n "${reinstalling_other_distributions}" ]]; then
         set -x
         ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            "${BUILD_CONSTRAINTS_INSTALL_FLAGS[@]}" \
             --force-reinstall --no-deps --no-index ${reinstalling_other_distributions}
         common::install_packaging_tools
         set +x
@@ -176,6 +180,7 @@ common::get_colors
 common::get_packaging_tool
 common::get_airflow_version_specification
 common::get_constraints_location
+common::resolve_build_constraints
 common::show_packaging_tool_version_and_location
 
 install_airflow_and_providers_from_docker_context_files

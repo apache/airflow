@@ -32,6 +32,7 @@ function install_additional_dependencies() {
         set -x
         ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_TO_HIGHEST_RESOLUTION} \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            "${BUILD_CONSTRAINTS_INSTALL_FLAGS[@]}" \
             ${ADDITIONAL_PYTHON_DEPS}
         set +x
         common::install_packaging_tools
@@ -47,6 +48,7 @@ function install_additional_dependencies() {
         set -x
         ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_IF_NEEDED} \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            "${BUILD_CONSTRAINTS_INSTALL_FLAGS[@]}" \
             ${ADDITIONAL_PYTHON_DEPS}
         set +x
         common::install_packaging_tools
@@ -62,6 +64,7 @@ common::get_colors
 common::get_packaging_tool
 common::get_airflow_version_specification
 common::get_constraints_location
+common::resolve_build_constraints
 common::show_packaging_tool_version_and_location
 
 install_additional_dependencies

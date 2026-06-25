@@ -23,6 +23,8 @@ import os
 import re
 import shutil
 import sys
+import urllib.error
+import urllib.request
 from functools import cache
 from pathlib import Path
 from typing import NamedTuple
@@ -201,6 +203,48 @@ def get_airflow_constraints_location(
     )
 
 
+def _download_build_constraints(url: str, target: Path) -> bool:
+    try:
+        urllib.request.urlretrieve(url, target)
+    except (OSError, urllib.error.URLError):
+        return False
+    return True
+
+
+def resolve_build_constraints_file(build_constraints_location: str | None) -> Path | None:
+    """Resolve an explicitly configured build constraints location."""
+    if not build_constraints_location:
+        return None
+
+    if build_constraints_location.startswith(("http://", "https://")):
+        target = Path(os.environ["HOME"]) / "build-constraints.txt"
+        target.unlink(missing_ok=True)
+        if not _download_build_constraints(build_constraints_location, target) or not (
+            target.is_file() and target.stat().st_size > 0
+        ):
+            target.unlink(missing_ok=True)
+            console.print(
+                f"[red]Build constraints file is unavailable or empty at explicitly set "
+                f"{build_constraints_location}"
+            )
+            sys.exit(1)
+        return target
+
+    local_path = Path(build_constraints_location).expanduser()
+    if not local_path.is_file() or local_path.stat().st_size == 0:
+        console.print(
+            f"[red]Build constraints must be an existing non-empty file: {build_constraints_location}"
+        )
+        sys.exit(1)
+    return local_path
+
+
+def _get_build_constraints_flags(build_constraints_file: Path | None) -> list[str]:
+    if build_constraints_file and build_constraints_file.is_file() and build_constraints_file.stat().st_size:
+        return ["--build-constraints", str(build_constraints_file)]
+    return []
+
+
 def get_providers_constraints_location(
     default_constraints_branch: str,
     github_repository: str,
@@ -257,6 +301,7 @@ class InstallationSpec(NamedTuple):
     airflow_task_sdk_distribution: str | None
     airflow_ctl_distribution: str | None
     airflow_ctl_constraints_location: str | None
+    build_constraints_file: Path | None
     compile_ui_assets: bool | None
     mount_ui_dist: bool
     provider_distributions: list[str]
@@ -336,6 +381,7 @@ def find_installation_spec(
     airflow_constraints_location: str | None,
     airflow_constraints_reference: str,
     airflow_extras: str,
+    build_constraints_location: str | None,
     install_airflow_with_constraints: bool,
     default_constraints_branch: str,
     github_repository: str,
@@ -562,6 +608,7 @@ def find_installation_spec(
         airflow_task_sdk_distribution=airflow_task_sdk_distribution,
         airflow_ctl_distribution=airflow_ctl_distribution,
         airflow_ctl_constraints_location=airflow_ctl_constraints_location,
+        build_constraints_file=resolve_build_constraints_file(build_constraints_location),
         compile_ui_assets=compile_ui_assets,
         mount_ui_dist=mount_ui_dist,
         provider_distributions=provider_distributions_list,
@@ -850,6 +897,11 @@ FUTURE_CONTENT = "from __future__ import annotations"
     help="Airflow constraints reference constraints reference: constraints-(BRANCH or TAG)",
 )
 @click.option(
+    "--build-constraints-location",
+    envvar="AIRFLOW_BUILD_CONSTRAINTS_LOCATION",
+    help="Explicit build constraints URL or local non-empty file.",
+)
+@click.option(
     "--airflow-extras",
     default="",
     show_default=True,
@@ -971,6 +1023,7 @@ def install_airflow_and_providers(
     airflow_constraints_location: str,
     airflow_constraints_reference: str,
     airflow_extras: str,
+    build_constraints_location: str | None,
     default_constraints_branch: str,
     github_actions: bool,
     github_repository: str,
@@ -1004,6 +1057,7 @@ def install_airflow_and_providers(
         airflow_constraints_location=airflow_constraints_location,
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
+        build_constraints_location=build_constraints_location,
         install_airflow_with_constraints=install_airflow_with_constraints,
         default_constraints_branch=default_constraints_branch,
         github_repository=github_repository,
@@ -1156,6 +1210,7 @@ def _install_airflow_and_optionally_providers_together(
     for provider_package in installation_spec.provider_distributions:
         base_install_cmd.append(provider_package)
     install_providers_command = base_install_cmd.copy()
+    install_providers_command.extend(_get_build_constraints_flags(installation_spec.build_constraints_file))
     if installation_spec.provider_constraints_location:
         console.print(
             f"[bright_blue]Installing with provider constraints: {installation_spec.provider_constraints_location}\n"
@@ -1170,7 +1225,7 @@ def _install_airflow_and_optionally_providers_together(
             )
             run_command(base_install_cmd, github_actions=github_actions, check=True)
     else:
-        run_command(base_install_cmd, github_actions=github_actions, check=True)
+        run_command(install_providers_command, github_actions=github_actions, check=True)
 
 
 def _install_airflow_ctl_with_constraints(installation_spec: InstallationSpec, github_actions: bool):
@@ -1191,6 +1246,7 @@ def _install_airflow_ctl_with_constraints(installation_spec: InstallationSpec, g
     if installation_spec.airflow_distribution:
         base_install_airflow_ctl_cmd.append(installation_spec.airflow_distribution)
     install_airflow_ctl_cmd = base_install_airflow_ctl_cmd.copy()
+    install_airflow_ctl_cmd.extend(_get_build_constraints_flags(installation_spec.build_constraints_file))
     if installation_spec.airflow_ctl_constraints_location:
         console.print(f"[bright_blue]Use constraints: {installation_spec.airflow_ctl_constraints_location}")
         install_airflow_ctl_cmd.extend(["--constraint", installation_spec.airflow_ctl_constraints_location])
@@ -1204,7 +1260,7 @@ def _install_airflow_ctl_with_constraints(installation_spec: InstallationSpec, g
             run_command(base_install_airflow_ctl_cmd, github_actions=github_actions, check=True)
     else:
         console.print()
-        run_command(base_install_airflow_ctl_cmd, github_actions=github_actions, check=True)
+        run_command(install_airflow_ctl_cmd, github_actions=github_actions, check=True)
 
 
 def _install_only_airflow_airflow_core_task_sdk_with_constraints(
@@ -1256,6 +1312,7 @@ def _install_only_airflow_airflow_core_task_sdk_with_constraints(
         )
         console.print()
     install_airflow_cmd = base_install_airflow_cmd.copy()
+    install_airflow_cmd.extend(_get_build_constraints_flags(installation_spec.build_constraints_file))
     if installation_spec.airflow_constraints_location:
         console.print(f"[bright_blue]Use constraints: {installation_spec.airflow_constraints_location}")
         install_airflow_cmd.extend(["--constraint", installation_spec.airflow_constraints_location])

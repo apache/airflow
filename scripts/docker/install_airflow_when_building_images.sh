@@ -95,7 +95,8 @@ function install_from_sources() {
 }
 
 function install_from_external_spec() {
-     local installation_command_flags
+    common::resolve_build_constraints
+    local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
     else
@@ -117,14 +118,18 @@ function install_from_external_spec() {
         echo "${COLOR_BLUE}Installing all packages with highest resolutions. Installation method: ${AIRFLOW_INSTALLATION_METHOD}${COLOR_RESET}"
         echo
         set -x
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_TO_HIGHEST_RESOLUTION} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags}
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_TO_HIGHEST_RESOLUTION} \
+            ${ADDITIONAL_PIP_INSTALL_FLAGS} "${BUILD_CONSTRAINTS_INSTALL_FLAGS[@]}" \
+            ${installation_command_flags}
         set +x
     else
         echo
         echo "${COLOR_BLUE}Installing all packages with constraints. Installation method: ${AIRFLOW_INSTALLATION_METHOD}${COLOR_RESET}"
         echo
         set -x
-        if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} --constraint "${HOME}/constraints.txt"; then
+        if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            "${BUILD_CONSTRAINTS_INSTALL_FLAGS[@]}" ${installation_command_flags} \
+            --constraint "${HOME}/constraints.txt"; then
             set +x
             if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
                 echo

@@ -134,6 +134,56 @@ function common::get_constraints_location() {
     fi
 }
 
+# The resolved flags are consumed by scripts that source common.sh.
+# shellcheck disable=SC2034
+function common::resolve_build_constraints() {
+    BUILD_CONSTRAINTS_INSTALL_FLAGS=()
+    if [[ -z ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION=} ]]; then
+        return
+    fi
+
+    local target="${HOME}/build-constraints.txt"
+    if [[ ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION} =~ ^https?:// ]]; then
+        echo
+        echo "${COLOR_BLUE}Downloading build constraints from ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION} to ${target}${COLOR_RESET}"
+        echo
+        rm -f "${target}"
+        if ! curl -sSf -o "${target}" "${AIRFLOW_BUILD_CONSTRAINTS_LOCATION}"; then
+            rm -f "${target}"
+            echo
+            echo "${COLOR_RED}Build constraints file not found at explicitly set ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION}${COLOR_RESET}"
+            echo
+            exit 1
+        fi
+    else
+        if [[ ! -f ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION} || ! -s ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION} ]]; then
+            echo
+            echo "${COLOR_RED}Build constraints must be a non-empty file: ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION}${COLOR_RESET}"
+            echo
+            exit 1
+        fi
+        echo
+        echo "${COLOR_BLUE}Copying build constraints from ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION} to ${target}${COLOR_RESET}"
+        echo
+        if [[ ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION} != "${target}" ]]; then
+            cp "${AIRFLOW_BUILD_CONSTRAINTS_LOCATION}" "${target}"
+        fi
+    fi
+
+    if [[ ! -s ${target} ]]; then
+        rm -f "${target}"
+        echo
+        echo "${COLOR_RED}Build constraints file is empty: ${AIRFLOW_BUILD_CONSTRAINTS_LOCATION}${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+    if [[ ${PACKAGING_TOOL} == "uv" ]]; then
+        BUILD_CONSTRAINTS_INSTALL_FLAGS=(--build-constraints "${target}")
+    else
+        BUILD_CONSTRAINTS_INSTALL_FLAGS=(--build-constraint "${target}")
+    fi
+}
+
 function common::show_packaging_tool_version_and_location() {
    echo "PATH=${PATH}"
    echo "Installed pip: $(pip --version): $(which pip)"
