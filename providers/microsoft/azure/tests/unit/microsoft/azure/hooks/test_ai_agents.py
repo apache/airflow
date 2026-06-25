@@ -307,6 +307,20 @@ class TestAzureAIAgentsHook:
         with pytest.raises(ValueError, match="did not include a version"):
             get_agent_version({})
 
+    def test_get_agent_version_from_agent_create_response(self):
+        agent_response = {
+            "object": "agent",
+            "id": AGENT_NAME,
+            "versions": {
+                "latest": {
+                    "object": "agent.version",
+                    "version": "1",
+                    "status": "creating",
+                }
+            },
+        }
+        assert get_agent_version(agent_response) == "1"
+
 
 class TestAzureAIAgentsAsyncHook:
     pytestmark = pytest.mark.asyncio

@@ -85,8 +85,19 @@ def get_version_status(version: Any) -> str:
 
 
 def get_agent_version(version: Any) -> str:
-    """Return the version identifier from a Hosted agent version payload."""
+    """
+    Return the version identifier from a Hosted agent version or agent payload.
+
+    Accepts both a ``agent.version`` object (returned by POST /agents/{name}/versions and
+    GET /agents/{name}/versions/{version}) and a top-level ``agent`` object (returned by
+    POST /agents), extracting the version from ``versions.latest.version`` in the latter case.
+    """
     agent_version = get_resource_attr(version, "version") or get_resource_attr(version, "agent_version")
+    if agent_version is None:
+        # POST /agents returns an agent object; the initial version lives under versions.latest
+        versions = get_resource_attr(version, "versions")
+        latest = get_resource_attr(versions, "latest") if versions is not None else None
+        agent_version = get_resource_attr(latest, "version") if latest is not None else None
     if agent_version is None:
         raise ValueError("Azure AI Hosted agent response did not include a version.")
     return str(agent_version)
