@@ -247,8 +247,9 @@ class TestJavaSDKAnnotationExample:
 # three sequential JVM + Spark startups in a constrained CI container.
 _SPARK_TASK_TIMEOUT = 1200
 
-# Derived from the fixed in-memory dataset in ScalaSparkExample.scala: 5 sales
-# rows whose amounts (100+200+300+150+250) sum to 1000.
+# Mirror the fixed dataset that is the single source of truth in
+# ScalaSparkExample.scala (``SalesData.rows``): 5 sales rows whose amounts
+# (100+200+300+150+250) sum to 1000. Keep these in sync if that dataset changes.
 _SPARK_EXPECTED_ROW_COUNT = 5
 _SPARK_EXPECTED_TOTAL_REVENUE = 1000
 
@@ -292,6 +293,14 @@ class TestJavaSDKScalaSparkExample:
         assert extract_xcom.get("value") == _SPARK_EXPECTED_ROW_COUNT, (
             f"Expected spark_extract to push row count {_SPARK_EXPECTED_ROW_COUNT}, "
             f"got {extract_xcom.get('value')!r}"
+        )
+
+        transform_xcom = self.airflow_client.get_xcom_value(
+            dag_id="scala_spark_example", task_id="spark_transform", run_id=run_id, key="return_value"
+        )
+        assert transform_xcom.get("value") == _SPARK_EXPECTED_TOTAL_REVENUE, (
+            f"Expected spark_transform to aggregate total revenue {_SPARK_EXPECTED_TOTAL_REVENUE}, "
+            f"got {transform_xcom.get('value')!r}"
         )
 
         load_xcom = self.airflow_client.get_xcom_value(

@@ -40,9 +40,6 @@ private object SalesData {
     (4, "clothing", 150L),
     (5, "books", 250L),
   )
-
-  val rowCount: Long = rows.size.toLong // 5
-  val totalRevenue: Long = rows.map(_._3).sum // 1000
 }
 
 private object SparkEtl {
@@ -96,6 +93,8 @@ class SparkTransform extends Task {
   private val log: Logger = LogManager.getLogger(classOf[SparkTransform])
 
   override def execute(context: Context, client: Client): Unit = {
+    // Read the upstream count only to demonstrate XCom passing between JVM
+    // tasks; the aggregation below recomputes from the source dataset.
     val extractedCount = SparkEtl.readUpstreamLong(client, context, SparkEtl.ExtractTaskId)
     log.info("Transform received {} records from extract", java.lang.Long.valueOf(extractedCount))
 
