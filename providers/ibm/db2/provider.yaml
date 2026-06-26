@@ -47,7 +47,7 @@ hooks:
 
 connection-types:
   - hook-class-name: airflow.providers.ibm.db2.hooks.db2.Db2Hook
-    connection-type: Db2
+    connection-type: ibmdb2
     hook-name: IBM Db2
     ui-field-behaviour:
       hidden-fields: []

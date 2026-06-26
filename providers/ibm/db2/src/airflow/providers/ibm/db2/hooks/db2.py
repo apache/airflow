@@ -27,6 +27,8 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.ibm.db2.dialects.db2 import Db2Dialect
 
 if TYPE_CHECKING:
+    import ibm_db_dbi
+
     from airflow.providers.common.sql.dialects.dialect import Dialect
 
 
@@ -44,13 +46,13 @@ class Db2Hook(DbApiHook):
     Any additional Db2 connection string parameters can be added to the extra field.
     Parameter names will be automatically converted to uppercase.
 
-    :param db2_conn_id: The :ref:`Db2 connection id <howto/connection:Db2>`
+    :param conn_id: The :ref:`Db2 connection id <howto/connection:ibmdb2>`
         reference to a specific Db2 database.
     """
 
-    conn_name_attr = "db2_conn_id"
+    conn_name_attr = "conn_id"
     default_conn_name = "db2_default"
-    conn_type = "Db2"
+    conn_type = "ibmdb2"
     hook_name = "IBM Db2"
     supports_autocommit = True
     supports_executemany = True
@@ -105,6 +107,9 @@ class Db2Hook(DbApiHook):
             # Add all extra parameters to connection string
             # Parameter names are automatically converted to uppercase for Db2
             for key, value in extra.items():
+                # Skip None/null values - they should not be added to connection string
+                if value is None:
+                    continue
                 # Convert boolean values to appropriate strings
                 if isinstance(value, bool):
                     converted_value = "true" if value else "false"
@@ -114,7 +119,7 @@ class Db2Hook(DbApiHook):
 
         return ";".join(conn_str_parts) + ";"
 
-    def get_conn(self) -> Any:
+    def get_conn(self) -> ibm_db_dbi.Connection:
         """
         Return ibm_db_dbi connection object.
 
@@ -146,13 +151,17 @@ class Db2Hook(DbApiHook):
         if extra:
             query_params = {}
             for key, value in extra.items():
+                # Skip None/null values - they should not be added to query string
+                if value is None:
+                    continue
                 # Convert boolean values to appropriate strings
                 if isinstance(value, bool):
                     query_params[key.upper()] = "true" if value else "false"
                 else:
                     query_params[key.upper()] = str(value)
 
-            query_string = urlencode(query_params)
-            return f"{base_uri}?{query_string}"
+            if query_params:  # Only add query string if there are non-null parameters
+                query_string = urlencode(query_params)
+                return f"{base_uri}?{query_string}"
 
         return base_uri

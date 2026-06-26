@@ -66,7 +66,7 @@ class TestDb2Hook:
         mock_db_conn = MagicMock()
         mock_connect.return_value = mock_db_conn
 
-        hook = Db2Hook(db2_conn_id="db2_default")
+        hook = Db2Hook(conn_id="db2_default")
         conn = hook.get_conn()
 
         # Verify connection was created
@@ -90,7 +90,7 @@ class TestDb2Hook:
         mock_db_conn = MagicMock()
         mock_connect.return_value = mock_db_conn
 
-        hook = Db2Hook(db2_conn_id="db2_default")
+        hook = Db2Hook(conn_id="db2_default")
         conn = hook.get_conn()
 
         # Verify connection was created
@@ -107,7 +107,7 @@ class TestDb2Hook:
         """Test get_uri method."""
         mock_get_connection.return_value = mock_connection
 
-        hook = Db2Hook(db2_conn_id="db2_default")
+        hook = Db2Hook(conn_id="db2_default")
         uri = hook.get_uri()
 
         # Verify URI format
@@ -127,7 +127,7 @@ class TestDb2Hook:
         )
         mock_get_connection.return_value = conn
 
-        hook = Db2Hook(db2_conn_id="db2_default")
+        hook = Db2Hook(conn_id="db2_default")
         uri = hook.get_uri()
 
         # Verify password is URL encoded
@@ -147,7 +147,7 @@ class TestDb2Hook:
         )
         mock_get_connection.return_value = conn
 
-        hook = Db2Hook(db2_conn_id="db2_default")
+        hook = Db2Hook(conn_id="db2_default")
         uri = hook.get_uri()
 
         # Verify URI uses defaults
@@ -155,9 +155,9 @@ class TestDb2Hook:
 
     def test_hook_attributes(self):
         """Test hook class attributes."""
-        assert Db2Hook.conn_name_attr == "db2_conn_id"
+        assert Db2Hook.conn_name_attr == "conn_id"
         assert Db2Hook.default_conn_name == "db2_default"
-        assert Db2Hook.conn_type == "Db2"
+        assert Db2Hook.conn_type == "ibmdb2"
         assert Db2Hook.hook_name == "IBM Db2"
         assert Db2Hook.supports_autocommit is True
         assert Db2Hook.supports_executemany is True
@@ -167,7 +167,7 @@ class TestDb2Hook:
         """Test get_conn_str method."""
         mock_get_connection.return_value = mock_connection
 
-        hook = Db2Hook(db2_conn_id="db2_default")
+        hook = Db2Hook(conn_id="db2_default")
         conn_str = hook.get_conn_str()
 
         # Verify connection string contains expected parameters
@@ -183,7 +183,7 @@ class TestDb2Hook:
         """Test get_conn_str method with SSL configuration."""
         mock_get_connection.return_value = mock_connection_with_extras
 
-        hook = Db2Hook(db2_conn_id="db2_default")
+        hook = Db2Hook(conn_id="db2_default")
         conn_str = hook.get_conn_str()
 
         # Verify connection string contains SSL parameters
@@ -196,7 +196,7 @@ class TestDb2Hook:
         from airflow.providers.ibm.db2.dialects.db2 import Db2Dialect
 
         mock_get_conn.return_value = mock_connection
-        hook = Db2Hook(db2_conn_id="db2_default")
+        hook = Db2Hook(conn_id="db2_default")
 
         assert hook.dialect_name == "db2"
         assert isinstance(hook.dialect, Db2Dialect)
