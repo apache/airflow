@@ -387,7 +387,6 @@ class TestWorkerDuplicateHostnameCheck:
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="configure_logging only called in Airflow 3+")
-@pytest.mark.backend("mysql", "postgres")
 @pytest.mark.usefixtures("conf_stale_bundle_cleanup_disabled")
 class TestWorkerJsonLogs:
     @classmethod
