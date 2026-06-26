@@ -224,6 +224,44 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret_with_base(path, key)
 
+    def get_connection(self, conn_id: str, team_name: str | None = None):
+        """
+        Return connection object with a given ``conn_id``.
+
+        Overrides the base to accept ``team_name`` on all supported Airflow versions and
+        to fall back to the compat SDK Connection when the framework-level class injection
+        (``deserialize_connection`` / ``_get_connection_class``) is not yet available.
+
+        :param conn_id: connection id
+        :param team_name: Team name associated to the task trying to access the connection (if any)
+        :return: Connection object or None
+        """
+        value = self.get_conn_value(conn_id=conn_id, team_name=team_name)
+        if value is None:
+            return None
+        # Prefer the base-class deserializer when available — it uses _get_connection_class()
+        # which the framework populates with the right Connection class per execution context.
+        if hasattr(self, "deserialize_connection"):
+            return self.deserialize_connection(conn_id=conn_id, value=value)
+        # Fallback for older Airflow that predates _get_connection_class / deserialize_connection.
+        from airflow.providers.common.compat.sdk import Connection
+
+        value = value.strip()
+        if value.startswith("{"):
+            return Connection.from_json(value=value, conn_id=conn_id)
+        if hasattr(Connection, "from_uri"):
+            return Connection.from_uri(uri=value, conn_id=conn_id)
+        try:
+            return Connection(conn_id=conn_id, uri=value)  # type: ignore[call-arg]
+        except (TypeError, ValueError):
+            self.log.warning(
+                "Cannot deserialize conn_uri for connection '%s': upgrade to Airflow 3.2+ "
+                "or store the connection using individual fields (conn_type, host, login, "
+                "etc.) in Vault.",
+                conn_id,
+            )
+            return None
+
     def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
         """
         Retrieve a connection from Vault as a serialized string.
