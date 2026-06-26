@@ -373,6 +373,11 @@ def get_provider_info():
                 "tags": ["aws"],
             },
             {
+                "integration-name": "Amazon MSK",
+                "external-doc-url": "https://aws.amazon.com/msk/",
+                "tags": ["aws"],
+            },
+            {
                 "integration-name": "Amazon S3 Vectors",
                 "external-doc-url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-vectors.html",
                 "logo": "/docs/integration-logos/Amazon-Simple-Storage-Service-S3_light-bg@4x.png",
@@ -880,6 +885,7 @@ def get_provider_info():
                 "integration-name": "Amazon Neptune",
                 "python-modules": ["airflow.providers.amazon.aws.hooks.neptune"],
             },
+            {"integration-name": "Amazon MSK", "python-modules": ["airflow.providers.amazon.aws.hooks.msk"]},
         ],
         "bundles": [
             {
