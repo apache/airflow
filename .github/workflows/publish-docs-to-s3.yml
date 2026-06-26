@@ -116,7 +116,7 @@ jobs:
       ]'), github.event.sender.login)
     steps:
       - name: "Checkout for wave provider derivation"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
           ref: ${{ inputs.ref }}
@@ -235,7 +235,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout current version first to clean-up stuff"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
           path: current-version
@@ -253,7 +253,7 @@ jobs:
       # registry buildx cache pushed by the last "main" Test workflow so that layer rebuilds
       # are avoided whenever the ref is close enough to main for the cache to apply.
       - name: "Checkout ${{ inputs.ref }} "
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
           ref: ${{ inputs.ref }}
@@ -362,7 +362,7 @@ jobs:
       built: ${{ steps.sdk-present.outputs.exists }}
     steps:
       - name: "Checkout ${{ inputs.ref }}"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
           ref: ${{ inputs.ref }}
@@ -427,7 +427,7 @@ jobs:
         # but it will build the CI image from the version of Airflow that is used to check out things
         # We also fetch the whole history to be able to prepare SBOM files
       - name: "Checkout current version with all history for SBOM"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
           fetch-depth: 0
