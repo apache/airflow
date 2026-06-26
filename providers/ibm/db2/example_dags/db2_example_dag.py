@@ -67,7 +67,7 @@ def db2_example_dag() -> None:
     @task
     def cleanup_tables():
         """Drop tables if they exist to ensure clean state."""
-        hook = Db2Hook(db2_conn_id="db2_default")
+        hook = Db2Hook(conn_id="db2_default")
 
         for table in ["EMPLOYEES_BACKUP", "EMPLOYEES"]:
             try:
@@ -117,7 +117,7 @@ def db2_example_dag() -> None:
     @task
     def query_employees():
         """Query employees and return results using Db2Hook."""
-        hook = Db2Hook(db2_conn_id="db2_default")
+        hook = Db2Hook(conn_id="db2_default")
 
         # Execute query and fetch results
         sql = "SELECT employee_id, first_name, last_name, department, salary FROM employees ORDER BY employee_id"
@@ -167,7 +167,7 @@ def db2_example_dag() -> None:
     @task
     def display_statistics():
         """Display department statistics using Db2Hook."""
-        hook = Db2Hook(db2_conn_id="db2_default")
+        hook = Db2Hook(conn_id="db2_default")
 
         sql = """
             SELECT
@@ -211,7 +211,7 @@ def db2_example_dag() -> None:
     @task
     def verify_backup():
         """Verify backup table was created successfully."""
-        hook = Db2Hook(db2_conn_id="db2_default")
+        hook = Db2Hook(conn_id="db2_default")
 
         # Count records in both tables
         original_count = hook.get_first("SELECT COUNT(*) FROM employees")[0]
