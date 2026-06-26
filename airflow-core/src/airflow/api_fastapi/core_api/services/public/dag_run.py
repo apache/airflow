@@ -212,8 +212,10 @@ def patch_dag_run_state(
 
 
 def patch_dag_run_note(*, dag_run: DagRun, note: str | None, user: BaseUser) -> None:
-    """Set or update a Dag Run's note."""
-    if dag_run.dag_run_note is None:
+    """Set, update, or clear a Dag Run's note. An empty note removes it so the run is left without a note."""
+    if note == "":
+        dag_run.dag_run_note = None
+    elif dag_run.dag_run_note is None:
         dag_run.note = (note, user.get_id())
     else:
         dag_run.dag_run_note.content = note
