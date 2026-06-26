@@ -38,8 +38,8 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     VariableDetails,
 )
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_7_PLUS, AIRFLOW_V_3_2_PLUS
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_7_PLUS, AIRFLOW_V_3_2_PLUS
 
 if AIRFLOW_V_3_2_PLUS:
     from airflow.api_fastapi.auth.managers.models.resource_details import TeamDetails
@@ -65,8 +65,6 @@ from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
     KeycloakAuthManager,
 )
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
-
-from tests_common.test_utils.config import conf_vars
 
 
 def _build_access_token(payload: dict[str, object]) -> str:
@@ -396,7 +394,9 @@ class TestKeycloakAuthManager:
         auth_manager.http_session.post = Mock(return_value=resp)
         caplog.set_level("WARNING", logger="airflow.providers.keycloak.auth_manager.keycloak_auth_manager")
 
-        result = auth_manager.is_authorized_dag(method="GET", details=DagDetails(id="dag_0", team_name="team-a"), user=user)
+        result = auth_manager.is_authorized_dag(
+            method="GET", details=DagDetails(id="dag_0", team_name="team-a"), user=user
+        )
 
         assert result is False
         assert "Keycloak authorization resource is missing; denying access" in caplog.text

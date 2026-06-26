@@ -82,7 +82,11 @@ KEYCLOAK_RESOURCE_NOT_FOUND_ERROR = "resource with id [{resource_name}] does not
 
 
 def _is_missing_keycloak_resource_response(resource_name: str, status_code: int, text: Any) -> bool:
-    return status_code == 500 and isinstance(text, str) and KEYCLOAK_RESOURCE_NOT_FOUND_ERROR.format(resource_name=resource_name).lower() in text.lower()
+    return (
+        status_code == 500
+        and isinstance(text, str)
+        and KEYCLOAK_RESOURCE_NOT_FOUND_ERROR.format(resource_name=resource_name).lower() in text.lower()
+    )
 
 
 TEAM_SCOPED_RESOURCES = frozenset(
@@ -444,7 +448,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             raise AirflowException(
                 f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
             )
-        if is_team_resource and _is_missing_keycloak_resource_response(resource_name, resp.status_code, resp.text):
+        if is_team_resource and _is_missing_keycloak_resource_response(
+            resource_name, resp.status_code, resp.text
+        ):
             log.warning("Keycloak authorization resource is missing; denying access. Response: %s", resp.text)
             return False
         raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
