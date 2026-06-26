@@ -31,6 +31,7 @@ from airflow_breeze.utils.packages import (
     expand_all_provider_distributions,
     find_matching_long_package_names,
     get_available_distributions,
+    get_cross_provider_dependencies_for_extras,
     get_cross_provider_dependent_packages,
     get_dist_package_name_prefix,
     get_long_package_name,
@@ -261,6 +262,30 @@ def test_validate_provider_info_with_schema():
 )
 def test_get_min_airflow_version(provider_id: str, min_version: str):
     assert get_min_airflow_version(provider_id) == min_version
+
+
+def test_get_cross_provider_dependencies_for_extras(monkeypatch):
+    monkeypatch.setattr(
+        "airflow_breeze.utils.packages.get_cross_provider_dependent_packages",
+        lambda provider_id: ["common.compat", "common.sql", "google", "apache.beam"],
+    )
+    monkeypatch.setattr(
+        "airflow_breeze.utils.packages.get_suspended_provider_ids",
+        lambda: ["apache.beam"],
+    )
+    monkeypatch.setattr(
+        "airflow_breeze.utils.packages.get_provider_requirements",
+        lambda provider_id: ["apache-airflow-providers-common-compat"],
+    )
+    monkeypatch.setattr(
+        "airflow_breeze.utils.packages.get_provider_optional_dependencies",
+        lambda provider_id: {
+            "common.compat": ["apache-airflow-providers-common-compat"],
+            "common.sql": ["apache-airflow-providers-common-sql"],
+        },
+    )
+
+    assert get_cross_provider_dependencies_for_extras("test.provider") == ["common.sql", "google"]
 
 
 def test_convert_cross_package_dependencies_to_table():
