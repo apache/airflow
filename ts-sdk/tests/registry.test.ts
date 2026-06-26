@@ -18,7 +18,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { TaskRegistry } from "../src/registry.js";
+import { TaskRegistry } from "../src/sdk/registry.js";
 
 describe("registry", () => {
   it("registers and retrieves a handler", async () => {

@@ -37,12 +37,14 @@ pnpm add @apache-airflow/ts-sdk
 ## Task Handlers
 
 ```ts
-import { registerTask } from "@apache-airflow/ts-sdk";
+import { registerTask, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
 
-registerTask({ dagId: "example_dag", taskId: "say_hello" }, async ({ ctx, client }) => {
+export async function sayHello({ ctx, client }: TaskHandlerArgs) {
   const greeting = await client.getVariable("greeting");
   return { message: `Hello from ${ctx.taskId}: ${greeting}` };
-});
+}
+
+registerTask({ dagId: "example_dag", taskId: "say_hello" }, sayHello);
 ```
 
 Non-`undefined` return values are pushed to XCom under the `"return_value"`
@@ -51,9 +53,10 @@ key by the active runtime, matching Python `@task` behavior.
 ## Intended Coordinator Usage
 
 This PR only adds the TypeScript-side public interface. The coordinator runtime
-will be added separately, but the intended authoring shape matches the other
-non-Python SDKs: a Python Dag declares the scheduling shape with stub tasks, and
-the TypeScript module registers handlers with matching task IDs.
+will be added separately. Declaring Airflow Dags in TypeScript is not supported
+yet; the Dag is still declared in Python. The intended authoring shape matches
+the other non-Python SDKs: a Python Dag declares the scheduling shape with stub
+tasks, and the TypeScript module registers handlers with matching task IDs.
 
 Python Dag:
 
@@ -78,9 +81,9 @@ sales_pipeline()
 TypeScript handlers:
 
 ```ts
-import { registerTask } from "@apache-airflow/ts-sdk";
+import { registerTask, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
 
-registerTask({ dagId: "sales_pipeline", taskId: "extract" }, async ({ client }) => {
+export async function extract({ client }: TaskHandlerArgs) {
   const connection = await client.getConnection("sales_db");
   const rowCount = Number((await client.getVariable("daily_row_count")) ?? "0");
 
@@ -88,9 +91,9 @@ registerTask({ dagId: "sales_pipeline", taskId: "extract" }, async ({ client }) 
     connectionId: connection?.id ?? null,
     rowCount,
   };
-});
+}
 
-registerTask({ dagId: "sales_pipeline", taskId: "transform" }, async ({ client }) => {
+export async function transform({ client }: TaskHandlerArgs) {
   const extracted = await client.getXCom<{ rowCount: number }>({
     key: "return_value",
     taskId: "extract",
@@ -99,14 +102,19 @@ registerTask({ dagId: "sales_pipeline", taskId: "transform" }, async ({ client }
   return {
     transformedRows: extracted?.rowCount ?? 0,
   };
-});
+}
+
+registerTask({ dagId: "sales_pipeline", taskId: "extract" }, extract);
+registerTask({ dagId: "sales_pipeline", taskId: "transform" }, transform);
 ```
 
 The Python stub defines the Dag dependency graph. The TypeScript handler does
 the work and uses `TaskClient` for task-time Airflow data access. Register each
 handler with the Python Dag's `dag_id` and the stub task's `task_id`. The
-follow-up coordinator runtime will launch Node.js, find the registered handler
-for that Dag/task pair, and run it.
+handler function is the reusable task implementation; `registerTask` binds that
+handler to a Python stub Dag/task identity for coordinator mode. A future
+TypeScript Dag authoring API can attach the same handlers without changing the
+handler code.
 
 ## TaskClient
 

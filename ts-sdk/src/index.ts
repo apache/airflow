@@ -17,9 +17,9 @@
  * under the License.
  */
 
-export { registerTask, listRegisteredTasks } from "./registry.js";
-export { VariableNotFoundError } from "./client.js";
-export type { TaskClient } from "./client.js";
-export type { ConnectionResult, GetXComOpts, JsonValue, SetXComOpts } from "./client-types.js";
-export type { TaskRegistration } from "./registry.js";
-export type { TaskContext, TaskHandler, TaskHandlerArgs } from "./task.js";
+export { registerTask, listRegisteredTasks } from "./sdk/registry.js";
+export { VariableNotFoundError } from "./sdk/client.js";
+export type { TaskClient } from "./sdk/client.js";
+export type { ConnectionResult, GetXComOpts, JsonValue, SetXComOpts } from "./sdk/client-types.js";
+export type { TaskRegistration } from "./sdk/registry.js";
+export type { TaskContext, TaskHandler, TaskHandlerArgs } from "./sdk/task.js";

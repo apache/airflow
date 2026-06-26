@@ -241,7 +241,7 @@ repos:
         require_serial: true
       - id: ts-sdk-lint
         name: Lint TypeScript SDK
-        entry: ./scripts/ci/prek/ts_sdk_lint.py
+        entry: ./ts-sdk/scripts/ci/prek/ts_sdk_lint.py
         language: node
         files: |
           (?x)

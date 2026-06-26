@@ -17,6 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "scripts" / "ci" / "prek"))
+
 from common_prek_utils import AIRFLOW_ROOT_PATH, run_command
 
 if __name__ not in ("__main__", "__mp_main__"):
