@@ -161,6 +161,7 @@ def build_posix_wrapper_command(
     Build a POSIX shell wrapper that runs the command detached.
 
     The wrapper:
+
     - Creates the job directory
     - Starts the command detached in its own session via ``setsid`` (falling back to
       ``nohup`` when ``setsid`` is unavailable)
@@ -230,6 +231,7 @@ def build_windows_wrapper_command(
     Build a PowerShell wrapper that runs the command detached via Start-Process.
 
     The wrapper:
+
     - Creates the job directory
     - Starts the command in a new detached PowerShell process
     - Redirects stdout/stderr to the log file
