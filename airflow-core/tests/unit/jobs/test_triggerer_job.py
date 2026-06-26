@@ -78,12 +78,14 @@ from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDe
 from airflow.sdk import DAG, BaseHook, BaseOperator
 from airflow.sdk.api.client import Client
 from airflow.sdk.execution_time.comms import (
+    AssetStateStoreResponse,
     AssetStateStoreResult,
     ClearAssetStateStoreByName,
     ClearAssetStateStoreByUri,
     DeleteAssetStateStoreByName,
     DeleteAssetStateStoreByUri,
     ErrorResponse,
+    ErrorType,
     GetAssetStateStoreByName,
     GetAssetStateStoreByUri,
     OKResponse,
