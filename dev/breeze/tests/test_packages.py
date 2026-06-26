@@ -277,13 +277,6 @@ def test_get_cross_provider_dependencies_for_extras(monkeypatch):
         "airflow_breeze.utils.packages.get_provider_requirements",
         lambda provider_id: ["apache-airflow-providers-common-compat"],
     )
-    monkeypatch.setattr(
-        "airflow_breeze.utils.packages.get_provider_optional_dependencies",
-        lambda provider_id: {
-            "common.compat": ["apache-airflow-providers-common-compat"],
-            "common.sql": ["apache-airflow-providers-common-sql"],
-        },
-    )
 
     assert get_cross_provider_dependencies_for_extras("test.provider") == ["common.sql", "google"]
 
