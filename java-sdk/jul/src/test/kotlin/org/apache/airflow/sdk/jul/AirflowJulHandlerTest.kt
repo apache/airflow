@@ -83,6 +83,31 @@ class AirflowJulHandlerTest {
     }
   }
 
+  @Test
+  fun `setup with clean false keeps existing root handlers`() {
+    val root = Logger.getLogger("")
+    val original = root.handlers.toList()
+    val preexisting = ConsoleHandler()
+    try {
+      original.forEach { root.removeHandler(it) }
+      root.addHandler(preexisting)
+
+      AirflowJulHandler.setup(clean = false)
+
+      assertEquals(2, root.handlers.size)
+      assertTrue(root.handlers.contains(preexisting))
+      assertEquals(1, root.handlers.count { it is AirflowJulHandler })
+
+      // Idempotent: a second call does not add another AirflowJulHandler.
+      AirflowJulHandler.setup(clean = false)
+      assertEquals(2, root.handlers.size)
+      assertEquals(1, root.handlers.count { it is AirflowJulHandler })
+    } finally {
+      root.handlers.forEach { root.removeHandler(it) }
+      original.forEach { root.addHandler(it) }
+    }
+  }
+
   // Mapping:
   //   > 1000 -> CRITICAL
   //   > 900  -> ERROR   (SEVERE = 1000)
