@@ -389,7 +389,7 @@ class TestKeycloakAuthManager:
     def test_is_authorized_missing_keycloak_resource(self, auth_manager, user, caplog):
         resp = Mock()
         resp.status_code = 500
-        resp.text = "resource not found: Dag:team-a"
+        resp.text = "Resource with id [Dag:team-a] does not exist."
         auth_manager.http_session.post = Mock(return_value=resp)
         caplog.set_level("WARNING", logger="airflow.providers.keycloak.auth_manager.keycloak_auth_manager")
 
@@ -397,7 +397,7 @@ class TestKeycloakAuthManager:
 
         assert result is False
         assert "Keycloak authorization resource is missing; denying access" in caplog.text
-        assert "resource not found: Dag:team-a" in caplog.text
+        assert "Resource with id [Dag:team-a] does not exist." in caplog.text
 
     @pytest.mark.parametrize(
         "function",

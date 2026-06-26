@@ -78,11 +78,11 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 RESOURCE_ID_ATTRIBUTE_NAME = "resource_id"
-KEYCLOAK_RESOURCE_NOT_FOUND_ERROR = "resource not found:"
+KEYCLOAK_RESOURCE_NOT_FOUND_ERROR = "resource with id [{resource_name}] does not exist"
 
 
-def _is_missing_keycloak_resource_response(status_code: int, text: Any) -> bool:
-    return status_code == 500 and isinstance(text, str) and KEYCLOAK_RESOURCE_NOT_FOUND_ERROR in text.lower()
+def _is_missing_keycloak_resource_response(resource_name: str, status_code: int, text: Any) -> bool:
+    return status_code == 500 and isinstance(text, str) and KEYCLOAK_RESOURCE_NOT_FOUND_ERROR.format(resource_name=resource_name).lower() in text.lower()
 
 
 TEAM_SCOPED_RESOURCES = frozenset(
@@ -407,16 +407,19 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
 
         context_attributes = prune_dict(attributes or {})
+
+        is_team_resource = bool(
+            team_name
+            and conf.getboolean("core", "multi_team", fallback=False)
+            and resource_type in TEAM_SCOPED_RESOURCES
+        )
+
         if resource_id:
             context_attributes[RESOURCE_ID_ATTRIBUTE_NAME] = resource_id
         elif method == "GET":
             method = "LIST"
 
-        if (
-            team_name
-            and conf.getboolean("core", "multi_team", fallback=False)
-            and resource_type in TEAM_SCOPED_RESOURCES
-        ):
+        if is_team_resource:
             resource_name = f"{resource_type.value}:{team_name}"
         else:
             resource_name = resource_type.value
@@ -441,7 +444,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             raise AirflowException(
                 f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
             )
-        if _is_missing_keycloak_resource_response(resp.status_code, resp.text):
+        if is_team_resource and _is_missing_keycloak_resource_response(resource_name, resp.status_code, resp.text):
             log.warning("Keycloak authorization resource is missing; denying access. Response: %s", resp.text)
             return False
         raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
