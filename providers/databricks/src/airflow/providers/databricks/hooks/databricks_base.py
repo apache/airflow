@@ -51,6 +51,7 @@ from tenacity import (
 
 from airflow import __version__
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.providers.databricks.exceptions import DatabricksApiError
 from airflow.providers_manager import ProvidersManager
 
 try:
@@ -1150,7 +1151,7 @@ class BaseDatabricksHook(BaseHook):
         except requests_exceptions.HTTPError as e:
             if wrap_http_errors:
                 msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
-                raise AirflowException(msg)
+                raise DatabricksApiError(msg, http_status_code=e.response.status_code) from e
             raise
 
     async def _a_do_api_call(self, endpoint_info: tuple[str, str], json: dict[str, Any] | None = None):
@@ -1211,7 +1212,9 @@ class BaseDatabricksHook(BaseHook):
         except RetryError:
             raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
         except aiohttp.ClientResponseError as err:
-            raise AirflowException(f"Response: {err.message}, Status Code: {err.status}")
+            raise DatabricksApiError(
+                f"Response: {err.message}, Status Code: {err.status}", http_status_code=err.status
+            ) from err
 
     @staticmethod
     def _get_error_code(exception: BaseException) -> str:

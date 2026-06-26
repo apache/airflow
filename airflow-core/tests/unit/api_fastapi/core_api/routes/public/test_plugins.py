@@ -34,7 +34,7 @@ class TestGetPlugins:
             # Filters
             (
                 {},
-                16,
+                18,
                 [
                     "InformaticaProviderPlugin",
                     "MetadataCollectionPlugin",
@@ -49,21 +49,23 @@ class TestGetPlugins:
                     "plugin-b",
                     "plugin-c",
                     "postload",
+                    "prefix_strip_mapper_plugin",
                     "priority_weight_strategy_plugin",
+                    "scheduled_runtime_partition_timetable_plugin",
                     "test_plugin",
                     "workday_timetable_plugin",
                 ],
             ),
             (
                 {"limit": 3, "offset": 3},
-                16,
+                18,
                 [
                     "business_day_window_plugin",
                     "databricks_workflow",
                     "decreasing_priority_weight_strategy_plugin",
                 ],
             ),
-            ({"limit": 1}, 16, ["InformaticaProviderPlugin"]),
+            ({"limit": 1}, 18, ["InformaticaProviderPlugin"]),
         ],
     )
     def test_should_respond_200(
@@ -166,7 +168,7 @@ class TestGetPlugins:
         assert len(plugins_page) == 7
         assert "test_plugin_invalid" not in [p["name"] for p in plugins_page]
 
-        assert body["total_entries"] == 16
+        assert body["total_entries"] == 18
 
 
 @skip_if_force_lowest_dependencies_marker
