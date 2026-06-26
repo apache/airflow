@@ -122,26 +122,26 @@ def test_map_unknown_arg_raises():
 
 
 @pytest.mark.parametrize(
-    "size",
+    ("size", "expected"),
     [
-        pytest.param(None),
-        pytest.param(0),
-        pytest.param(3),
+        pytest.param(None, 0),
+        pytest.param(0, 0),
+        pytest.param(3, 3),
     ],
 )
-def test_map_batch_size(size: int | None):
+def test_map_batch_size(size: int | None, expected: int):
     with DAG("test-dag", schedule=None):
         if size is not None:
             mapped = (
                 MockOperator.partial(task_id="task_2")
                 .batch(size=size)
-                ._expand(DictOfListsExpandInput({"arg1": [1, 2, 3]}), strict=False)
+                ._iterate(DictOfListsExpandInput({"arg1": [1, 2, 3]}), strict=False)
             )
         else:
             mapped = MockOperator.partial(task_id="task_2")._expand(
                 DictOfListsExpandInput({"arg1": [1, 2, 3]}), strict=False
             )
-        assert mapped.batch_size == size
+        assert mapped.batch_size == expected
 
 
 def test_map_xcom_arg():
