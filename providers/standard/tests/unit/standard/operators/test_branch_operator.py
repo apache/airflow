@@ -26,7 +26,6 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.branch import BaseBranchOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.utils.skipmixin import XCOM_SKIPMIXIN_FOLLOWED, XCOM_SKIPMIXIN_KEY
-from airflow.sdk import task
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -369,16 +368,13 @@ class TestBranchOperator:
         ],
     )
     def test_branch_inside_task_group(self, dag_maker, branch_return):
-        """
-        Branch inside a TaskGroup must skip non-selected siblings, whether the branch
-        callable returns the fully-qualified task id ("tg.path_a") or the id relative to
-        the enclosing group ("path_a"). Regression test for branching inside TaskGroups.
-        """
+        """Branch inside a TaskGroup skips non-selected siblings, for full-qualified or relative paths."""
+        from airflow.sdk import task
 
         dag_id = f"branch_in_task_group_{branch_return.replace('.', '_')}"
 
         with dag_maker(
-            dag_id,
+            dag_id=dag_id,
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
             schedule=INTERVAL,
             serialized=True,
@@ -405,6 +401,7 @@ class TestBranchOperator:
         states = {
             ti.task_id: ti.state for ti in dag_maker.session.scalars(select(TI).where(TI.dag_id == dag_id))
         }
+
         assert states["tg.choose_path"] == State.SUCCESS
         assert states["tg.path_a"] is None
         assert states["tg.path_b"] == State.SKIPPED
