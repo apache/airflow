@@ -2472,6 +2472,7 @@ export type LightGridTaskInstanceSummary = {
     min_start_date: string | null;
     max_end_date: string | null;
     dag_version_number?: number | null;
+    has_note?: boolean;
 };
 
 /**
