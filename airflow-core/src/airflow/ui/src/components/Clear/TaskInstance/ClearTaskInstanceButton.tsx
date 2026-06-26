@@ -17,13 +17,14 @@
  * under the License.
  */
 import { useDisclosure } from "@chakra-ui/react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearGroupTaskInstanceDialog } from "src/components/Clear/TaskInstance/ClearGroupTaskInstanceDialog";
 import { IconButton } from "src/components/ui";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
+import { useShortcut } from "src/hooks/useShortcut";
 
 import ClearTaskInstanceDialog from "./ClearTaskInstanceDialog";
 
@@ -58,17 +59,17 @@ const ClearTaskInstanceButton = ({
 
   const selectedInstance = taskInstance ?? groupTaskInstance;
 
-  useHotkeys(
-    "shift+c",
-    () => {
+  useShortcut({
+    ...SHORTCUTS.runActions.clearTaskInstance,
+    callback: () => {
       if (onOpen && selectedInstance) {
         onOpen(selectedInstance);
       } else {
         onOpenInternal();
       }
     },
-    { enabled: isHotkeyEnabled },
-  );
+    options: { enabled: isHotkeyEnabled },
+  });
 
   const label = allMapped
     ? isHotkeyEnabled

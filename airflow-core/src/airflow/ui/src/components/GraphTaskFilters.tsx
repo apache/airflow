@@ -25,7 +25,6 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiSearch } from "react-icons/fi";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -39,6 +38,8 @@ import { NumberInputField, NumberInputRoot } from "src/components/ui/NumberInput
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { taskInstanceStateOptions } from "src/constants/stateOptions";
 import { useGroups } from "src/context/groups";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
+import { useShortcut } from "src/hooks/useShortcut";
 
 export const GraphTaskFilters = () => {
   const { t: translate } = useTranslation(["dag", "tasks"]);
@@ -140,7 +141,11 @@ export const GraphTaskFilters = () => {
 
   const [isOpen, setIsOpen] = useState(false);
 
-  useHotkeys("mod+shift+f", () => setIsOpen(true), { preventDefault: true });
+  useShortcut({
+    ...SHORTCUTS.filters.openGraphFilters,
+    callback: () => setIsOpen(true),
+    options: { preventDefault: true },
+  });
 
   const panelTitle = translate("dag:panel.graphFilters.title");
 

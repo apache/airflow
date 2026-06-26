@@ -22,6 +22,7 @@ import threading
 from unittest import mock
 from uuid import UUID
 
+import httpx
 import pytest
 from fastapi import Request
 from fastapi.params import Security as SecurityParam
@@ -135,6 +136,15 @@ def test_routes_with_task_instance_id_param_enforce_ti_self(client):
         "ti:self scope. Add `Security(require_auth, scopes=['ti:self'])` to the router, or add the "
         "path to TI_ID_ROUTES_WITHOUT_TI_SELF with a justification:\n" + "\n".join(sorted(offenders))
     )
+
+
+@conf_vars({("api_auth", "jwt_secret"): None})
+def test_in_process_execution_api_runs_without_jwt_secret():
+    """The in-process API must not require ``api_auth/jwt_secret`` to be configured."""
+    api = InProcessExecutionAPI()
+    with httpx.Client(transport=api.transport) as client:
+        response = client.get("http://localhost/health")
+    assert response.status_code == 200
 
 
 def test_in_process_execution_api_transport_lifecycle():
