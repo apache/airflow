@@ -338,7 +338,7 @@ class DagBag(LoggingMixin):
                 if dag.fileloc is None:
                     dag.fileloc = filepath
 
-                # Add the bundle_name to the DAG
+                # Add the bundle_name to the Dag
                 dag.bundle_name = self.bundle_name
 
                 # Validate before adding to bag (matches original _process_modules behavior)
