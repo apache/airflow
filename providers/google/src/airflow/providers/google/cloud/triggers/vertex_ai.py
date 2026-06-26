@@ -31,7 +31,7 @@ from google.cloud.aiplatform_v1 import (
 )
 
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineAsyncHook, _serialize_value
+from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineAsyncHook, serialize_value
 from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import BatchPredictionJobAsyncHook
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobAsyncHook
 from airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job import (
@@ -130,101 +130,6 @@ class BaseVertexAIJobTrigger(BaseTrigger):
         return self.job_serializer_class.to_dict(job)
 
 
-class AgentEngineDeleteTrigger(BaseTrigger):
-    """Trigger that waits until a Vertex AI Agent Engine delete operation completes."""
-
-    def __init__(
-        self,
-        location: str,
-        agent_engine_id: str,
-        operation_name: str,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        poll_interval: float = 30,
-        timeout: float | None = None,
-    ):
-        super().__init__()
-        self.location = location
-        self.agent_engine_id = agent_engine_id
-        self.gcp_conn_id = gcp_conn_id
-        self.impersonation_chain = impersonation_chain
-        self.poll_interval = poll_interval
-        self.timeout = timeout
-        self.operation_name = operation_name
-
-    def serialize(self) -> tuple[str, dict[str, Any]]:
-        return (
-            "airflow.providers.google.cloud.triggers.vertex_ai.AgentEngineDeleteTrigger",
-            {
-                "location": self.location,
-                "agent_engine_id": self.agent_engine_id,
-                "gcp_conn_id": self.gcp_conn_id,
-                "impersonation_chain": self.impersonation_chain,
-                "poll_interval": self.poll_interval,
-                "timeout": self.timeout,
-                "operation_name": self.operation_name,
-            },
-        )
-
-    @cached_property
-    def async_hook(self) -> AgentEngineAsyncHook:
-        return AgentEngineAsyncHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-
-    async def run(self) -> AsyncIterator[TriggerEvent]:
-        start_time = time.monotonic()
-        try:
-            while True:
-                operation = await self.async_hook.get_agent_engine_operation(
-                    location=self.location,
-                    operation_name=self.operation_name,
-                )
-                if operation.get("done"):
-                    if operation.get("error"):
-                        yield TriggerEvent(
-                            {
-                                "status": "error",
-                                "message": str(operation["error"]),
-                                "agent_engine_id": self.agent_engine_id,
-                            }
-                        )
-                        return
-                    yield TriggerEvent(
-                        {
-                            "status": "success",
-                            "message": "Agent Engine deleted",
-                            "agent_engine_id": self.agent_engine_id,
-                        }
-                    )
-                    return
-
-                if self.timeout is not None and time.monotonic() - start_time >= self.timeout:
-                    yield TriggerEvent(
-                        {
-                            "status": "timeout",
-                            "message": (
-                                f"Timed out waiting for Agent Engine {self.agent_engine_id} to be deleted"
-                            ),
-                            "agent_engine_id": self.agent_engine_id,
-                        }
-                    )
-                    return
-
-                self.log.info("Waiting for Agent Engine %s to be deleted.", self.agent_engine_id)
-                await asyncio.sleep(self.poll_interval)
-        except Exception as err:
-            self.log.exception("Exception occurred while waiting for Agent Engine deletion.")
-            yield TriggerEvent(
-                {
-                    "status": "error",
-                    "message": f"Failed while polling Agent Engine deletion: {err}",
-                    "agent_engine_id": self.agent_engine_id,
-                }
-            )
-
-
 class AgentEngineQueryJobTrigger(BaseTrigger):
     """Trigger that waits until a Vertex AI Agent Engine query job completes."""
 
@@ -232,7 +137,7 @@ class AgentEngineQueryJobTrigger(BaseTrigger):
         self,
         project_id: str,
         location: str,
-        operation_name: str,
+        operation_id: str,
         config: vertexai_types.CheckQueryJobAgentEngineConfigOrDict | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -242,7 +147,7 @@ class AgentEngineQueryJobTrigger(BaseTrigger):
         super().__init__()
         self.project_id = project_id
         self.location = location
-        self.operation_name = operation_name
+        self.operation_id = operation_id
         self.config = config
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -255,8 +160,8 @@ class AgentEngineQueryJobTrigger(BaseTrigger):
             {
                 "project_id": self.project_id,
                 "location": self.location,
-                "operation_name": self.operation_name,
-                "config": _serialize_value(self.config),
+                "operation_id": self.operation_id,
+                "config": serialize_value(self.config),
                 "gcp_conn_id": self.gcp_conn_id,
                 "impersonation_chain": self.impersonation_chain,
                 "poll_interval": self.poll_interval,
@@ -278,11 +183,11 @@ class AgentEngineQueryJobTrigger(BaseTrigger):
                 query_job = await self.async_hook.check_query_agent_engine_job(
                     project_id=self.project_id,
                     location=self.location,
-                    operation_name=self.operation_name,
+                    operation_id=self.operation_id,
                     config=self.config,
                 )
                 status = getattr(query_job, "status", None)
-                serialized_query_job = _serialize_value(query_job)
+                serialized_query_job = serialize_value(query_job)
                 if status == "SUCCESS":
                     yield TriggerEvent(
                         {
@@ -296,7 +201,7 @@ class AgentEngineQueryJobTrigger(BaseTrigger):
                     yield TriggerEvent(
                         {
                             "status": "error",
-                            "message": f"Agent Engine query job {self.operation_name} failed.",
+                            "message": f"Agent Engine query job {self.operation_id} failed.",
                             "query_job": serialized_query_job,
                         }
                     )
@@ -306,7 +211,7 @@ class AgentEngineQueryJobTrigger(BaseTrigger):
                         {
                             "status": "error",
                             "message": (
-                                f"Agent Engine query job {self.operation_name} completed with "
+                                f"Agent Engine query job {self.operation_id} completed with "
                                 f"unexpected status {status}."
                             ),
                             "query_job": serialized_query_job,
@@ -318,13 +223,13 @@ class AgentEngineQueryJobTrigger(BaseTrigger):
                     yield TriggerEvent(
                         {
                             "status": "timeout",
-                            "message": f"Timed out waiting for Agent Engine query job {self.operation_name}",
+                            "message": f"Timed out waiting for Agent Engine query job {self.operation_id}",
                             "query_job": serialized_query_job,
                         }
                     )
                     return
 
-                self.log.info("Waiting for Agent Engine query job %s to complete.", self.operation_name)
+                self.log.info("Waiting for Agent Engine query job %s to complete.", self.operation_id)
                 await asyncio.sleep(self.poll_interval)
         except Exception as err:
             self.log.exception("Exception occurred while waiting for Agent Engine query job.")
@@ -332,7 +237,7 @@ class AgentEngineQueryJobTrigger(BaseTrigger):
                 {
                     "status": "error",
                     "message": f"Failed while polling Agent Engine query job: {err}",
-                    "query_job": {"operation_name": self.operation_name},
+                    "query_job": {"operation_id": self.operation_id},
                 }
             )
 

@@ -37,16 +37,28 @@ if TYPE_CHECKING:
     from vertexai._genai import types
 
 
-def _serialize_value(value: Any) -> Any:
+VERTEX_AI_AGENT_ENGINE_API_VERSION = "v1beta1"
+VERTEX_AI_AGENT_ENGINE_OPERATION_URL = (
+    "https://{location}-aiplatform.googleapis.com/{api_version}/{operation_name}"
+)
+DEFAULT_AGENT_ENGINE_OPERATION_REQUEST_TIMEOUT = 60.0
+
+
+def extract_operation_id(operation_name: str) -> str:
+    """Extract the operation ID from a fully qualified operation name."""
+    return operation_name.rstrip("/").split("/")[-1]
+
+
+def serialize_value(value: Any) -> Any:
     """Recursively convert SDK model objects to JSON-serializable types."""
     if hasattr(value, "model_dump"):
         return value.model_dump(mode="json")
     if isinstance(value, dict):
-        return {key: _serialize_value(item) for key, item in value.items()}
+        return {key: serialize_value(item) for key, item in value.items()}
     if isinstance(value, list):
-        return [_serialize_value(item) for item in value]
+        return [serialize_value(item) for item in value]
     if isinstance(value, tuple):
-        return tuple(_serialize_value(item) for item in value)
+        return tuple(serialize_value(item) for item in value)
     return value
 
 
@@ -78,10 +90,21 @@ class AgentEngineHook(GoogleBaseHook):
         """Build a fully qualified Agent Engine resource name."""
         return f"projects/{project_id}/locations/{location}/reasoningEngines/{agent_engine_id}"
 
+    @staticmethod
+    def extract_operation_id(operation_name: str) -> str:
+        """Extract the operation ID from a fully qualified operation name."""
+        return extract_operation_id(operation_name)
+
+    @staticmethod
+    def build_operation_name(project_id: str, location: str, operation_id: str) -> str:
+        """Build a fully qualified Agent Engine operation name."""
+        return f"projects/{project_id}/locations/{location}/operations/{operation_id}"
+
     @GoogleBaseHook.fallback_to_default_project_id
     def create_agent_engine(
         self,
         location: str,
+        agent_engine: Any | None = None,
         agent: Any | None = None,
         config: types.AgentEngineConfigOrDict | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
@@ -90,19 +113,21 @@ class AgentEngineHook(GoogleBaseHook):
         Create an Agent Engine.
 
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param agent_engine: Optional. Deprecated alias for ``agent``.
         :param agent: Optional. The agent object to deploy.
         :param config: Optional. Configuration for the Agent Engine.
         :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
             configured in the connection.
         """
         client = self.get_agent_engine_client(project_id=project_id, location=location)
-        return client.create(agent=agent, config=config)
+        return client.create(agent_engine=agent_engine, agent=agent, config=config)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_agent_engine(
         self,
         location: str,
         agent_engine_id: str,
+        config: types.GetAgentEngineConfigOrDict | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> types.AgentEngine:
         """
@@ -110,19 +135,20 @@ class AgentEngineHook(GoogleBaseHook):
 
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param agent_engine_id: Required. The Agent Engine ID.
+        :param config: Optional. Configuration for getting the Agent Engine.
         :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
             configured in the connection.
         """
         client = self.get_agent_engine_client(project_id=project_id, location=location)
         name = self.build_agent_engine_name(project_id, location, agent_engine_id)
-        return client.get(name=name)
+        return client.get(name=name, config=config)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def query_agent_engine(
+    def run_query_job(
         self,
         location: str,
         agent_engine_id: str,
-        config: types.RunQueryJobAgentEngineConfigOrDict,
+        config: types.RunQueryJobAgentEngineConfigOrDict | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> types.RunQueryJobResult:
         """
@@ -130,7 +156,7 @@ class AgentEngineHook(GoogleBaseHook):
 
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param agent_engine_id: Required. The Agent Engine ID.
-        :param config: Required. Configuration for the query job (``query``, ``output_gcs_uri``).
+        :param config: Optional. Configuration for the query job (``query``, ``output_gcs_uri``).
         :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
             configured in the connection.
         """
@@ -142,7 +168,7 @@ class AgentEngineHook(GoogleBaseHook):
     def check_query_agent_engine_job(
         self,
         location: str,
-        operation_name: str,
+        operation_id: str,
         config: types.CheckQueryJobAgentEngineConfigOrDict | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> types.CheckQueryJobResult:
@@ -150,19 +176,20 @@ class AgentEngineHook(GoogleBaseHook):
         Check a query job on an Agent Engine.
 
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
-        :param operation_name: Required. The query job operation name.
+        :param operation_id: Required. The query job operation ID.
         :param config: Optional. Configuration for checking the query job.
         :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
             configured in the connection.
         """
         client = self.get_agent_engine_client(project_id=project_id, location=location)
+        operation_name = self.build_operation_name(project_id, location, operation_id)
         return client.check_query_job(name=operation_name, config=config)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def wait_for_query_agent_engine_job(
         self,
         location: str,
-        operation_name: str,
+        operation_id: str,
         config: types.CheckQueryJobAgentEngineConfigOrDict | None = None,
         poll_interval: float = 30,
         timeout: float | None = None,
@@ -172,7 +199,7 @@ class AgentEngineHook(GoogleBaseHook):
         Wait until an Agent Engine query job completes.
 
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
-        :param operation_name: Required. The query job operation name.
+        :param operation_id: Required. The query job operation ID.
         :param config: Optional. Configuration for checking the query job.
         :param poll_interval: Time, in seconds, to wait between checks.
         :param timeout: Optional timeout, in seconds.
@@ -180,11 +207,12 @@ class AgentEngineHook(GoogleBaseHook):
             configured in the connection.
         """
         start_time = time.monotonic()
+        operation_name = self.build_operation_name(project_id, location, operation_id)
         while True:
             query_job = self.check_query_agent_engine_job(
                 project_id=project_id,
                 location=location,
-                operation_name=operation_name,
+                operation_id=operation_id,
                 config=config,
             )
             status = getattr(query_job, "status", None)
@@ -208,6 +236,7 @@ class AgentEngineHook(GoogleBaseHook):
         agent_engine_id: str,
         config: types.AgentEngineConfigOrDict,
         agent: Any | None = None,
+        agent_engine: Any | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> types.AgentEngine:
         """
@@ -217,12 +246,13 @@ class AgentEngineHook(GoogleBaseHook):
         :param agent_engine_id: Required. The Agent Engine ID.
         :param config: Required. Configuration for the Agent Engine update.
         :param agent: Optional. The updated agent object to deploy.
+        :param agent_engine: Optional. Deprecated alias for ``agent``.
         :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
             configured in the connection.
         """
         client = self.get_agent_engine_client(project_id=project_id, location=location)
         name = self.build_agent_engine_name(project_id, location, agent_engine_id)
-        return client.update(name=name, agent=agent, config=config)
+        return client.update(name=name, agent=agent, agent_engine=agent_engine, config=config)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_agent_engine(
@@ -248,36 +278,61 @@ class AgentEngineHook(GoogleBaseHook):
         name = self.build_agent_engine_name(project_id, location, agent_engine_id)
         return client.delete(name=name, force=force, config=config)
 
-    def get_agent_engine_operation(self, location: str, operation_name: str) -> dict[str, Any]:
-        """Return a Vertex AI Agent Engine long-running operation."""
-        url = (
-            operation_name
-            if operation_name.startswith("http")
-            else f"https://{location}-aiplatform.googleapis.com/v1beta1/{operation_name}"
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_agent_engine_operation(
+        self,
+        location: str,
+        operation_id: str,
+        request_timeout: float | None = DEFAULT_AGENT_ENGINE_OPERATION_REQUEST_TIMEOUT,
+        project_id: str = PROVIDE_PROJECT_ID,
+    ) -> dict[str, Any]:
+        """
+        Return a Vertex AI Agent Engine long-running operation.
+
+        :param location: The ID of the Google Cloud location that the service belongs to.
+        :param operation_id: The Agent Engine operation ID.
+        :param request_timeout: Optional timeout, in seconds, for the operation request.
+        :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
+            configured in the connection.
+        """
+        operation_name = self.build_operation_name(project_id, location, operation_id)
+        url = VERTEX_AI_AGENT_ENGINE_OPERATION_URL.format(
+            location=location,
+            api_version=VERTEX_AI_AGENT_ENGINE_API_VERSION,
+            operation_name=operation_name,
         )
         session = google.auth.transport.requests.AuthorizedSession(self.get_credentials())
-        response = session.get(url)
+        response = session.get(url, timeout=request_timeout)
         response.raise_for_status()
         return response.json()
 
+    @GoogleBaseHook.fallback_to_default_project_id
     def wait_for_agent_engine_operation(
         self,
         location: str,
-        operation_name: str,
+        operation_id: str,
         poll_interval: float = 30,
         timeout: float | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> None:
         """
         Wait until an Agent Engine operation completes.
 
         :param location: The ID of the Google Cloud location that the service belongs to.
-        :param operation_name: The Agent Engine operation name.
+        :param operation_id: The Agent Engine operation ID.
         :param poll_interval: Time, in seconds, to wait between checks.
         :param timeout: Optional timeout, in seconds.
+        :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
+            configured in the connection.
         """
         start_time = time.monotonic()
+        operation_name = self.build_operation_name(project_id, location, operation_id)
         while True:
-            operation = self.get_agent_engine_operation(location=location, operation_name=operation_name)
+            operation = self.get_agent_engine_operation(
+                project_id=project_id,
+                location=location,
+                operation_id=operation_id,
+            )
             if operation.get("done"):
                 if operation.get("error"):
                     raise RuntimeError(
@@ -307,18 +362,26 @@ class AgentEngineAsyncHook(GoogleBaseAsyncHook):
             **kwargs,
         )
 
-    async def get_agent_engine_operation(self, location: str, operation_name: str) -> dict[str, Any]:
+    async def get_agent_engine_operation(
+        self,
+        location: str,
+        operation_id: str,
+        request_timeout: float | None = DEFAULT_AGENT_ENGINE_OPERATION_REQUEST_TIMEOUT,
+        project_id: str = PROVIDE_PROJECT_ID,
+    ) -> dict[str, Any]:
         """Return a Vertex AI Agent Engine long-running operation."""
         sync_hook = await self.get_sync_hook()
         return await sync_to_async(sync_hook.get_agent_engine_operation)(
+            project_id=project_id,
             location=location,
-            operation_name=operation_name,
+            operation_id=operation_id,
+            request_timeout=request_timeout,
         )
 
     async def check_query_agent_engine_job(
         self,
         location: str,
-        operation_name: str,
+        operation_id: str,
         config: types.CheckQueryJobAgentEngineConfigOrDict | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> types.CheckQueryJobResult:
@@ -327,6 +390,6 @@ class AgentEngineAsyncHook(GoogleBaseAsyncHook):
         return await sync_to_async(sync_hook.check_query_agent_engine_job)(
             project_id=project_id,
             location=location,
-            operation_name=operation_name,
+            operation_id=operation_id,
             config=config,
         )

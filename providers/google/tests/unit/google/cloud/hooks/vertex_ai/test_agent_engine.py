@@ -35,6 +35,8 @@ AGENT_ENGINE_ID = "123"
 AGENT_ENGINE_NAME = "projects/test-project/locations/us-central1/reasoningEngines/123"
 OPERATION_NAME = "projects/test-project/locations/us-central1/operations/delete-123"
 QUERY_OPERATION_NAME = "projects/test-project/locations/us-central1/operations/query-123"
+OPERATION_ID = "delete-123"
+QUERY_OPERATION_ID = "query-123"
 CONFIG = {"display_name": "test-agent-engine"}
 QUERY_CONFIG = {"query": "hello", "output_gcs_uri": "gs://test-bucket/query-output/"}
 CHECK_QUERY_CONFIG = {"retrieve_result": True}
@@ -70,6 +72,7 @@ class TestAgentEngineHookWithDefaultProjectId:
 
         mock_get_client.assert_called_once_with(self.hook, project_id=GCP_PROJECT, location=GCP_LOCATION)
         mock_get_client.return_value.create.assert_called_once_with(
+            agent_engine=None,
             agent=None,
             config=CONFIG,
         )
@@ -83,12 +86,24 @@ class TestAgentEngineHookWithDefaultProjectId:
             agent_engine_id=AGENT_ENGINE_ID,
         )
 
-        mock_get_client.return_value.get.assert_called_once_with(name=AGENT_ENGINE_NAME)
+        mock_get_client.return_value.get.assert_called_once_with(name=AGENT_ENGINE_NAME, config=None)
         assert result == mock_get_client.return_value.get.return_value
 
     @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
-    def test_query_agent_engine(self, mock_get_client):
-        result = self.hook.query_agent_engine(
+    def test_get_agent_engine_with_config(self, mock_get_client):
+        result = self.hook.get_agent_engine(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            agent_engine_id=AGENT_ENGINE_ID,
+            config=CONFIG,
+        )
+
+        mock_get_client.return_value.get.assert_called_once_with(name=AGENT_ENGINE_NAME, config=CONFIG)
+        assert result == mock_get_client.return_value.get.return_value
+
+    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
+    def test_run_query_job(self, mock_get_client):
+        result = self.hook.run_query_job(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
             agent_engine_id=AGENT_ENGINE_ID,
@@ -106,7 +121,7 @@ class TestAgentEngineHookWithDefaultProjectId:
         result = self.hook.check_query_agent_engine_job(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            operation_name=QUERY_OPERATION_NAME,
+            operation_id=QUERY_OPERATION_ID,
             config=CHECK_QUERY_CONFIG,
         )
 
@@ -123,7 +138,7 @@ class TestAgentEngineHookWithDefaultProjectId:
         result = self.hook.wait_for_query_agent_engine_job(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            operation_name=QUERY_OPERATION_NAME,
+            operation_id=QUERY_OPERATION_ID,
             config=CHECK_QUERY_CONFIG,
         )
 
@@ -131,7 +146,7 @@ class TestAgentEngineHookWithDefaultProjectId:
             self.hook,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            operation_name=QUERY_OPERATION_NAME,
+            operation_id=QUERY_OPERATION_ID,
             config=CHECK_QUERY_CONFIG,
         )
         assert result == mock_check_query_job.return_value
@@ -146,7 +161,7 @@ class TestAgentEngineHookWithDefaultProjectId:
         result = self.hook.wait_for_query_agent_engine_job(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            operation_name=QUERY_OPERATION_NAME,
+            operation_id=QUERY_OPERATION_ID,
             config=CHECK_QUERY_CONFIG,
             poll_interval=10,
         )
@@ -164,7 +179,7 @@ class TestAgentEngineHookWithDefaultProjectId:
             self.hook.wait_for_query_agent_engine_job(
                 project_id=GCP_PROJECT,
                 location=GCP_LOCATION,
-                operation_name=QUERY_OPERATION_NAME,
+                operation_id=QUERY_OPERATION_ID,
                 config=CHECK_QUERY_CONFIG,
             )
 
@@ -182,7 +197,7 @@ class TestAgentEngineHookWithDefaultProjectId:
             self.hook.wait_for_query_agent_engine_job(
                 project_id=GCP_PROJECT,
                 location=GCP_LOCATION,
-                operation_name=QUERY_OPERATION_NAME,
+                operation_id=QUERY_OPERATION_ID,
                 config=CHECK_QUERY_CONFIG,
             )
 
@@ -201,7 +216,7 @@ class TestAgentEngineHookWithDefaultProjectId:
             self.hook.wait_for_query_agent_engine_job(
                 project_id=GCP_PROJECT,
                 location=GCP_LOCATION,
-                operation_name=QUERY_OPERATION_NAME,
+                operation_id=QUERY_OPERATION_ID,
                 config=CHECK_QUERY_CONFIG,
                 timeout=1,
             )
@@ -220,6 +235,25 @@ class TestAgentEngineHookWithDefaultProjectId:
         mock_get_client.return_value.update.assert_called_once_with(
             name=AGENT_ENGINE_NAME,
             agent=None,
+            agent_engine=None,
+            config=CONFIG,
+        )
+        assert result == mock_get_client.return_value.update.return_value
+
+    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
+    def test_update_agent_engine_with_agent_engine_alias(self, mock_get_client):
+        result = self.hook.update_agent_engine(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            agent_engine_id=AGENT_ENGINE_ID,
+            agent_engine=mock.sentinel.agent_engine,
+            config=CONFIG,
+        )
+
+        mock_get_client.return_value.update.assert_called_once_with(
+            name=AGENT_ENGINE_NAME,
+            agent=None,
+            agent_engine=mock.sentinel.agent_engine,
             config=CONFIG,
         )
         assert result == mock_get_client.return_value.update.return_value
@@ -247,30 +281,51 @@ class TestAgentEngineHookWithDefaultProjectId:
         mock_session.return_value.get.return_value.json.return_value = {"name": OPERATION_NAME, "done": True}
 
         result = self.hook.get_agent_engine_operation(
+            project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            operation_name=OPERATION_NAME,
+            operation_id=OPERATION_ID,
         )
 
         mock_session.assert_called_once_with(mock.sentinel.credentials)
         mock_session.return_value.get.assert_called_once_with(
-            f"https://{GCP_LOCATION}-aiplatform.googleapis.com/v1beta1/{OPERATION_NAME}"
+            f"https://{GCP_LOCATION}-aiplatform.googleapis.com/v1beta1/{OPERATION_NAME}",
+            timeout=60.0,
         )
         mock_session.return_value.get.return_value.raise_for_status.assert_called_once_with()
         assert result == {"name": OPERATION_NAME, "done": True}
+
+    @mock.patch(AGENT_ENGINE_STRING.format("google.auth.transport.requests.AuthorizedSession"), autospec=True)
+    def test_get_agent_engine_operation_with_request_timeout(self, mock_session):
+        self.hook.get_credentials = mock.Mock(return_value=mock.sentinel.credentials, spec=())
+        mock_session.return_value.get.return_value.json.return_value = {"name": OPERATION_NAME, "done": True}
+
+        self.hook.get_agent_engine_operation(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            operation_id=OPERATION_ID,
+            request_timeout=10,
+        )
+
+        mock_session.return_value.get.assert_called_once_with(
+            f"https://{GCP_LOCATION}-aiplatform.googleapis.com/v1beta1/{OPERATION_NAME}",
+            timeout=10,
+        )
 
     @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_operation"), autospec=True)
     def test_wait_for_agent_engine_operation_returns_when_done(self, mock_get_operation):
         mock_get_operation.return_value = {"name": OPERATION_NAME, "done": True}
 
         self.hook.wait_for_agent_engine_operation(
+            project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            operation_name=OPERATION_NAME,
+            operation_id=OPERATION_ID,
         )
 
         mock_get_operation.assert_called_once_with(
             self.hook,
+            project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            operation_name=OPERATION_NAME,
+            operation_id=OPERATION_ID,
         )
 
     @mock.patch(AGENT_ENGINE_STRING.format("time.sleep"), autospec=True)
@@ -281,8 +336,9 @@ class TestAgentEngineHookWithDefaultProjectId:
         mock_get_operation.side_effect = [running_operation, running_operation, done_operation]
 
         self.hook.wait_for_agent_engine_operation(
+            project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            operation_name=OPERATION_NAME,
+            operation_id=OPERATION_ID,
             poll_interval=10,
         )
 
@@ -296,8 +352,9 @@ class TestAgentEngineHookWithDefaultProjectId:
 
         with pytest.raises(RuntimeError, match="Agent Engine operation .* failed"):
             self.hook.wait_for_agent_engine_operation(
+                project_id=GCP_PROJECT,
                 location=GCP_LOCATION,
-                operation_name=OPERATION_NAME,
+                operation_id=OPERATION_ID,
             )
 
     @mock.patch(AGENT_ENGINE_STRING.format("time.sleep"), autospec=True)
@@ -309,8 +366,9 @@ class TestAgentEngineHookWithDefaultProjectId:
 
         with pytest.raises(TimeoutError, match="Timed out waiting for Agent Engine operation"):
             self.hook.wait_for_agent_engine_operation(
+                project_id=GCP_PROJECT,
                 location=GCP_LOCATION,
-                operation_name=OPERATION_NAME,
+                operation_id=OPERATION_ID,
                 timeout=1,
             )
 
@@ -332,13 +390,16 @@ class TestAgentEngineAsyncHook:
         self.hook.get_sync_hook = mock.AsyncMock(return_value=sync_hook)
 
         result = await self.hook.get_agent_engine_operation(
+            project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            operation_name=OPERATION_NAME,
+            operation_id=OPERATION_ID,
         )
 
         sync_hook.get_agent_engine_operation.assert_called_once_with(
+            project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            operation_name=OPERATION_NAME,
+            operation_id=OPERATION_ID,
+            request_timeout=60.0,
         )
         assert result == {"name": OPERATION_NAME, "done": True}
 
@@ -351,14 +412,14 @@ class TestAgentEngineAsyncHook:
         result = await self.hook.check_query_agent_engine_job(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            operation_name=QUERY_OPERATION_NAME,
+            operation_id=QUERY_OPERATION_ID,
             config=CHECK_QUERY_CONFIG,
         )
 
         sync_hook.check_query_agent_engine_job.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            operation_name=QUERY_OPERATION_NAME,
+            operation_id=QUERY_OPERATION_ID,
             config=CHECK_QUERY_CONFIG,
         )
         assert result == mock.sentinel.query_job
