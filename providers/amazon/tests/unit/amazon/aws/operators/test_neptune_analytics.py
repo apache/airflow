@@ -407,7 +407,7 @@ class TestNeptuneCreatePrivateGraphEndpointOperator:
         )
 
         result = operator.execute_complete(
-            context=None, event={"status": "success", "value": GRAPH_ID, "vpc_id": VPC_ID}
+            context=None, event={"status": "success", "graph_id": GRAPH_ID}, vpc_id=VPC_ID
         )
 
         # mock_conn.get_private_graph_endpoint.assert_called_once_with(
@@ -1271,7 +1271,7 @@ class TestNeptuneCancelImportTaskOperator:
             import_task_id=TASK_ID,
         )
 
-        event = {"status": "success", "value": TASK_ID}
+        event = {"status": "success", "import_task_id": TASK_ID}
         result = operator.execute_complete(None, event)
 
         assert result == {"import_task_id": TASK_ID}

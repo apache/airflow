@@ -197,13 +197,13 @@ class NeptuneCreateGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
             raise NeptuneGraphCreationFailedError(
                 validated_event.get(
                     "message",
-                    f"Neptune graph {validated_event.get('return_key')} creation did not complete successfully",
+                    f"Neptune graph {validated_event.get('graph_id')} creation did not complete successfully",
                 )
             )
 
-        self.log.info("Neptune graph %s complete", self.graph_id)
+        self.log.info("Neptune graph %s complete", validated_event["graph_id"])
 
-        return {"graph_id": self.graph_id}
+        return {"graph_id": validated_event["graph_id"]}
 
 
 class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
@@ -239,6 +239,7 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
     template_fields: Sequence[str] = aws_template_fields(
         "graph_identifier", "vpc_id", "subnet_ids", "vpc_security_group_ids"
     )
+    operator_extra_links = (VpcEndpointLink(),)
 
     def __init__(
         self,
@@ -335,7 +336,9 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
 
         return {"vpc_endpoint_id": endpoint_id, "graph_id": self.graph_identifier, "vpc_id": self.vpc_id}
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None, vpc_id: str | None = None
+    ) -> dict[str, Any]:
         validated_event = validate_execute_complete_event(event)
 
         if validated_event.get("status") != "success":
@@ -343,8 +346,7 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
                 validated_event.get("message", "Endpoint failed to create")
             )
 
-        graph_id = validated_event["value"]
-        vpc_id = validated_event["vpc_id"]
+        graph_id = validated_event["graph_id"]
         vpc_endpoint_id = self.hook._get_graph_endpoint_id(graph_id=graph_id, vpc_id=vpc_id)
         return {"vpc_endpoint_id": vpc_endpoint_id, "graph_id": graph_id, "vpc_id": vpc_id}
 
@@ -531,13 +533,13 @@ class NeptuneDeleteGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None):
         validated_event = validate_execute_complete_event(event)
-        graph_id = validated_event.get("graph_id")
+        graph_id = validated_event.get("graph_id", "")
         if validated_event.get("status") != "success":
             raise NeptuneGraphDeletionFailedError(
                 validated_event.get("message", f"Neptune graph {graph_id} deletion failed")
             )
 
-        self.log.info("Neptune graph %s deleted", validated_event.get("graph_id", graph_id))
+        self.log.info("Neptune graph %s deleted", graph_id)
 
 
 class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
@@ -756,7 +758,7 @@ class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]
     ) -> None:
         """Defers for import task completion."""
         validated_event = validate_execute_complete_event(event)
-        graph_id = validated_event.get("value")
+        graph_id = validated_event.get("graph_id")
 
         if validated_event.get("status") != "success":
             raise NeptuneGraphCreationFailedError(
@@ -947,8 +949,9 @@ class NeptuneCancelImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         :ref:`howto/operator:NeptuneCancelImportTaskOperator`
 
     :param import_task_id: Neptune Graph import task id to cancel.
-    :param wait_for_completion: Whether to wait for the endpoint to be available. (default: True)
-    :param deferrable: If True, the operator will wait asynchronously for the endpoint to become available.
+    :param wait_for_completion: Whether to wait for the task to be cancelled. If the task is already
+        in a completed state, the operator will end successfully. (default: True)
+    :param deferrable: If True, the operator will wait asynchronously for the task to be cancelled.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
     :param waiter_delay: Time in seconds to wait between status checks.
@@ -1020,6 +1023,6 @@ class NeptuneCancelImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
                 validated_event.get("message", "Error while waiting for Neptune import task cancellation")
             )
 
-        task_id = validated_event.get("value", "")
+        task_id = validated_event.get("import_task_id", "")
         self.log.info("Import task %s cancelled", task_id)
         return {"import_task_id": task_id}
