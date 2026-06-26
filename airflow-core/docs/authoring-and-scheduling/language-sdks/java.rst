@@ -688,7 +688,7 @@ As a general recommendation, set ``java_executable`` to an absolute path rather 
 corporate environments where the Airflow admin may not control the system-wide ``java`` (the same
 reasoning behind pinning a Python version).
 
-For example, if you install the JDK with Homebrew on macOS it is not symlinked onto ``$PATH``, so
+For example, if you install the JDK with Homebrew on macOS, its ``java`` is not on ``$PATH``, so
 point ``java_executable`` at it explicitly:
 
 .. code-block:: ini
