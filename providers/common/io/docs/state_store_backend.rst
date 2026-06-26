@@ -23,7 +23,7 @@ task and asset state in the Airflow metadata database. For larger values, you ma
 object storage instead.
 
 To enable object storage for task and asset state store, set ``backend`` in the ``[state_store]`` section to
-``airflow.providers.common.io.state_store.backend.StateStoreObjectStorageBackend``, and set
+``airflow.providers.common.io.state_store.backend.StateStateStoreObjectStorageBackend``, and set
 ``state_store_objectstorage_path`` to the desired base location. The connection id is obtained from the user
 part of the URL, e.g. ``state_store_objectstorage_path = s3://conn_id@mybucket/task-state/``.
 
@@ -40,7 +40,7 @@ Optionally set ``state_store_objectstorage_compression`` to an fsspec-supported 
 The following example stores all task and asset state in S3, compressed with gzip::
 
       [state_store]
-      backend = airflow.providers.common.io.state_store.backend.StateStoreObjectStorageBackend
+      backend = airflow.providers.common.io.state_store.backend.StateStateStoreObjectStorageBackend
 
       [common.io]
       state_store_objectstorage_path = s3://conn_id@mybucket/task-state/
@@ -49,7 +49,7 @@ The following example stores all task and asset state in S3, compressed with gzi
 To only offload values larger than 1 MB::
 
       [state_store]
-      backend = airflow.providers.common.io.state_store.backend.StateStoreObjectStorageBackend
+      backend = airflow.providers.common.io.state_store.backend.StateStateStoreObjectStorageBackend
 
       [common.io]
       state_store_objectstorage_path = s3://conn_id@mybucket/task-state/
@@ -58,7 +58,7 @@ To only offload values larger than 1 MB::
 Using the local filesystem (useful for development)::
 
       [state_store]
-      backend = airflow.providers.common.io.state_store.backend.StateStoreObjectStorageBackend
+      backend = airflow.providers.common.io.state_store.backend.StateStateStoreObjectStorageBackend
 
       [common.io]
       state_store_objectstorage_path = file:///var/airflow/task-state/

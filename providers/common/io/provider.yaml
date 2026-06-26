@@ -118,7 +118,7 @@ config:
       state_store_objectstorage_path:
         description: |
           Base path on object storage for the task/asset state store backend, in URL format.
-          When set, StateStoreObjectStorageBackend will persist task and asset state under this
+          When set, StateStateStoreObjectStorageBackend will persist task and asset state under this
           prefix, organised as <dag_id>/<run_id>/<task_id>/<map_index>/<key> for tasks and
           assets/<asset_identifier>/<key> for assets.
         version_added: 1.8.0

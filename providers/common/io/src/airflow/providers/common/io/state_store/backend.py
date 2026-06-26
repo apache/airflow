@@ -127,7 +127,7 @@ def _scope_path(scope: StoreScope, key: str) -> ObjectStoragePath:
             raise TypeError(f"Unknown scope type: {type(scope)}")
 
 
-class StoreObjectStorageBackend(BaseStoreBackend):
+class StateStoreObjectStorageBackend(BaseStoreBackend):
     """
     Object-storage backend for task and asset store.
 
