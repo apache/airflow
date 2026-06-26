@@ -95,7 +95,10 @@ def upgrade():
 
                 try:
                     original_data = pickle.loads(pickle_data)
-                    json_data = json.dumps(original_data)
+                    # Strip the U+0000 (NUL) escape that json.dumps emits for embedded null
+                    # bytes; PostgreSQL JSON/JSONB cannot store it, so without this the row
+                    # would raise and be dropped below (silently losing the conf).
+                    json_data = json.dumps(original_data).replace('\\u0000', '')
                     conn.execute(
                         text("""
                                                 UPDATE dag_run

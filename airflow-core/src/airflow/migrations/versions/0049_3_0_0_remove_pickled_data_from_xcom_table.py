@@ -47,7 +47,7 @@ def upgrade():
     # 1. Create an archived table (`_xcom_archive`) to store the current "pickled" data in the xcom table
     # 2. Extract and archive the pickled data using the condition
     # 3. Delete the pickled data from the xcom table so that we can update the column type
-    # 4. Sanitize non-standard JSON tokens (NaN, Infinity, -Infinity) to quoted strings
+    # 4. Sanitize values illegal in strict JSON/JSONB: quote NaN/Infinity/-Infinity, strip the U+0000 (NUL) escape
     # 5. Update the XCom.value column type to JSON from LargeBinary/LongBlob
 
     conn = op.get_bind()
@@ -112,16 +112,22 @@ def upgrade():
     # Delete the pickled data from the xcom table so that we can update the column type
     conn.execute(text(f"DELETE FROM xcom WHERE value IS NOT NULL AND {condition}"))
 
-    # Sanitize non-standard JSON tokens (NaN, Infinity, -Infinity) to quoted strings.
-    # These are valid Python float representations but illegal in strict JSON; they must
-    # be quoted before the column type is changed to JSON/JSONB.
+    # Sanitize values that round-trip through pickle but are illegal in strict JSON/JSONB
+    # before changing the column type:
+    #   * NaN / Infinity / -Infinity -> quoted strings (valid Python floats, illegal JSON).
+    #   * the U+0000 (NUL) escape -> stripped. PostgreSQL JSON/JSONB cannot represent it
+    #     ("unsupported Unicode escape sequence ... cannot be converted to text") and,
+    #     unlike the non-finite floats, it cannot be quoted/kept, so it is removed.
+    #     json.dumps() emits a literal NUL as the 6-char escape, never a raw 0x00 byte, so
+    #     stripping the escape covers values produced by normal XCom serialization.
     if dialect == "postgresql":
         conn.execute(
             text(r"""
                 UPDATE xcom
                 SET value = convert_to(
                     regexp_replace(
-                        convert_from(value, 'UTF8'),
+                        -- Strip the U+0000 (NUL) escape; illegal in JSON/JSONB and not quotable.
+                        replace(convert_from(value, 'UTF8'), '\u0000', ''),
                         -- Group 1 captures the preceding delimiter (:, comma, or [)
                         -- or ^ for a bare scalar value (the entire XCom value is just NaN).
                         -- A lookahead is used for the closing delimiter instead of a
@@ -154,7 +160,8 @@ def upgrade():
                 UPDATE xcom
                 SET value = CONVERT(
                     REGEXP_REPLACE(
-                        CONVERT(value USING utf8mb4),
+                        -- Strip the U+0000 (NUL) escape before the cast (illegal JSON; see PostgreSQL branch).
+                        REPLACE(CONVERT(value USING utf8mb4), '\\\\u0000', ''),
                         -- Same lookahead strategy as PostgreSQL (see above).
                         -- Python string escaping: \\\\[ → SQL \\[ → regex \\[ → literal [
                         -- and \\\\] inside the character class → SQL \\] → regex \\] → literal ]
@@ -184,7 +191,7 @@ def upgrade():
                     REPLACE(
                         REPLACE(
                             -- Step 1: replace NaN first so it doesn't interfere with Infinity.
-                            REPLACE(CAST(value AS TEXT), 'NaN', '"NaN"'),
+                            REPLACE(REPLACE(CAST(value AS TEXT), '\\u0000', ''), 'NaN', '"NaN"'),
                             -- Step 2: replace Infinity (also matches the Infinity in -Infinity,
                             -- turning -Infinity into -"Infinity").
                             'Infinity', '"Infinity"'
