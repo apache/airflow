@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/connection:Db2:
+.. _howto/connection:ibmdb2:
 
 IBM Db2 Connection
 ==================
