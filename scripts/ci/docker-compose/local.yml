@@ -91,6 +91,9 @@ services:
         source: ../../../docs
         target: /opt/airflow/docs
       - type: bind
+        source: ../../../docs-theme
+        target: /opt/airflow/docs-theme
+      - type: bind
         source: ../../../generated
         target: /opt/airflow/generated
       - type: bind
