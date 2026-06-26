@@ -224,7 +224,13 @@ def patch_dag_run(
 
     for attr_name, attr_value_raw in data.items():
         if attr_name == "state" and patch_body.state is not None:
-            patch_dag_run_state(dag=dag, dag_run=dag_run, state=patch_body.state, session=session)
+            patch_dag_run_state(
+                dag=dag,
+                dag_run=dag_run,
+                state=patch_body.state,
+                overwrite=patch_body.overwrite,
+                session=session,
+            )
         elif attr_name == "note":
             updated_dag_run = session.get(DagRun, dag_run.id)
             if updated_dag_run is not None:

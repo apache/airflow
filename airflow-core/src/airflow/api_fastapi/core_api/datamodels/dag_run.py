@@ -48,6 +48,10 @@ class DAGRunPatchBody(StrictBaseModel):
 
     state: DagRunMutableStates | None = None
     note: str | None = Field(None, max_length=1000)
+    overwrite: bool = Field(
+        default=True,
+        description="If false, skip already-finished tasks and only mark unfinished ones.",
+    )
 
 
 class BulkDAGRunBody(StrictBaseModel):

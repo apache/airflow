@@ -16,14 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex, Heading, VStack } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
+import { Box, Button, Flex, Heading, Text, VStack } from "@chakra-ui/react";
+import { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FiChevronDown } from "react-icons/fi";
 
 import type { DagRunMutableStates, DAGRunResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
-import { Dialog } from "src/components/ui";
+import { Dialog, Menu } from "src/components/ui";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
 
 type Props = {
@@ -33,12 +34,15 @@ type Props = {
   readonly state: DagRunMutableStates;
 };
 
+const variant = (overwrite: boolean) => (overwrite ? "withOverwrite" : "withoutOverwrite");
+
 const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
   const { t: translate } = useTranslation();
 
   const [note, setNote] = useState<string | null>(dagRun.note);
+  const [overwrite, setOverwrite] = useState(true);
 
   useEffect(() => {
     if (open) {
@@ -51,6 +55,10 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
     onClose();
   };
   const { isPending, mutate } = usePatchDagRun({ dagId, dagRunId, onSuccess: handleClose });
+
+  const confirm = () => {
+    mutate({ dagId, dagRunId, requestBody: { note, overwrite, state } });
+  };
 
   return (
     <Dialog.Root
@@ -81,18 +89,58 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
           <ActionAccordion note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
+              borderRightRadius={0}
               data-testid="mark-run-as-confirm"
               loading={isPending}
-              onClick={() => {
-                mutate({
-                  dagId,
-                  dagRunId,
-                  requestBody: { note, state },
-                });
-              }}
+              onClick={confirm}
             >
-              {translate("modal.confirm")}
+              {translate(`dags:runAndTaskActions.markAs.overwrite.${variant(overwrite)}.title`)}
             </Button>
+            <Menu.Root positioning={{ placement: "bottom-end" }}>
+              <Menu.Trigger asChild>
+                <Button
+                  aria-label={translate("dags:runAndTaskActions.markAs.overwrite.menuLabel")}
+                  borderLeftRadius={0}
+                  borderLeftWidth={1}
+                  data-testid="mark-run-as-options"
+                  loading={isPending}
+                  px={2}
+                >
+                  <FiChevronDown />
+                </Button>
+              </Menu.Trigger>
+              <Menu.Content minW="xs">
+                <Menu.RadioItemGroup
+                  onValueChange={({ value }) => setOverwrite(value === "true")}
+                  value={String(overwrite)}
+                >
+                  {[true, false].map((value, index) => (
+                    <Fragment key={String(value)}>
+                      {index > 0 ? <Menu.Separator /> : undefined}
+                      <Menu.RadioItem
+                        alignItems="start"
+                        data-testid={`mark-run-as-overwrite-${String(value)}`}
+                        value={String(value)}
+                      >
+                        <Box minW={5} pt={1}>
+                          <Menu.ItemIndicator />
+                        </Box>
+                        <VStack align="start" gap={0}>
+                          <Text fontWeight="bold">
+                            {translate(`dags:runAndTaskActions.markAs.overwrite.${variant(value)}.title`)}
+                          </Text>
+                          <Text color="fg.muted" fontSize="sm">
+                            {translate(
+                              `dags:runAndTaskActions.markAs.overwrite.${variant(value)}.description`,
+                            )}
+                          </Text>
+                        </VStack>
+                      </Menu.RadioItem>
+                    </Fragment>
+                  ))}
+                </Menu.RadioItemGroup>
+              </Menu.Content>
+            </Menu.Root>
           </Flex>
         </Dialog.Body>
       </Dialog.Content>

@@ -221,6 +221,7 @@ def set_dag_run_state_to_success(
     dag: SerializedDAG,
     run_id: str | None = None,
     commit: bool = False,
+    overwrite: bool = True,
     session: SASession = NEW_SESSION,
 ) -> list[TaskInstance]:
     """
@@ -231,6 +232,7 @@ def set_dag_run_state_to_success(
     :param dag: the Dag of which to alter state
     :param run_id: the run_id to start looking from
     :param commit: commit Dag and tasks to be altered to the database
+    :param overwrite: if False, skip already-finished tasks and only mark unfinished ones
     :param session: database session
     :return: If commit is true, list of tasks that have been updated,
              otherwise list of tasks that will be updated
@@ -263,6 +265,19 @@ def set_dag_run_state_to_success(
     tasks_to_mark_success = [task for task in tasks if not task.is_teardown] + [
         task for task in teardown_tasks if task.task_id not in unfinished_teardown_task_ids
     ]
+    if not overwrite:
+        unfinished_task_ids = set(
+            session.scalars(
+                select(TaskInstance.task_id).where(
+                    TaskInstance.dag_id == dag.dag_id,
+                    TaskInstance.run_id == run_id,
+                    or_(TaskInstance.state.is_(None), TaskInstance.state.in_(State.unfinished)),
+                )
+            )
+        )
+        tasks_to_mark_success = [
+            task for task in tasks_to_mark_success if task.task_id in unfinished_task_ids
+        ]
     for task in tasks_to_mark_success:
         task.dag = dag
     return set_state(
@@ -280,6 +295,7 @@ def set_dag_run_state_to_failed(
     dag: SerializedDAG,
     run_id: str | None = None,
     commit: bool = False,
+    overwrite: bool = True,
     session: SASession = NEW_SESSION,
 ) -> list[TaskInstance]:
     """
@@ -290,6 +306,7 @@ def set_dag_run_state_to_failed(
     :param dag: the Dag of which to alter state
     :param run_id: the Dag run_id to start looking from
     :param commit: commit Dag and tasks to be altered to the database
+    :param overwrite: if False, skip already-finished tasks and only mark unfinished ones
     :param session: database session
     :return: If commit is true, list of tasks that have been updated,
              otherwise list of tasks that will be updated
@@ -319,14 +336,26 @@ def set_dag_run_state_to_failed(
         ).all()
     )
 
+    # Overwriting also re-marks finished tasks as failed.
+    tis_to_fail = list(running_tis)
+    if overwrite:
+        tis_to_fail += session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.run_id == run_id,
+                TaskInstance.task_id.in_(task_ids),
+                TaskInstance.state.in_(State.finished),
+            )
+        ).all()
+
     # Do not kill teardown tasks
-    task_ids_of_running_tis = {ti.task_id for ti in running_tis if not dag.task_dict[ti.task_id].is_teardown}
+    task_ids_to_fail = {ti.task_id for ti in tis_to_fail if not dag.task_dict[ti.task_id].is_teardown}
 
     def _set_running_task(task: Operator) -> Operator:
         task.dag = dag
         return task
 
-    running_tasks = [_set_running_task(task) for task in dag.tasks if task.task_id in task_ids_of_running_tis]
+    running_tasks = [_set_running_task(task) for task in dag.tasks if task.task_id in task_ids_to_fail]
 
     # Mark non-finished tasks as SKIPPED.
     pending_tis: list[TaskInstance] = list(
