@@ -28,6 +28,7 @@ Create Date: 2024-12-01 08:33:15.425141
 from __future__ import annotations
 
 import json
+import math
 import pickle
 from textwrap import dedent
 
@@ -42,6 +43,28 @@ down_revision = "38770795785f"
 branch_labels = None
 depends_on = None
 airflow_version = "3.0.0"
+
+
+def _json_safe(obj):
+    """Replace non-finite floats with their quoted string form before json.dumps.
+
+    Pickled ``conf`` may contain ``float('nan')`` / ``inf`` / ``-inf``. ``json.dumps``
+    (with the default ``allow_nan=True``) emits the bare tokens ``NaN`` / ``Infinity`` /
+    ``-Infinity``, which PostgreSQL JSON/JSONB rejects. Quoting them to strings mirrors
+    the SQL sanitization in migration 0049 (xcom) so the value is preserved rather than
+    dropped by the per-row error handler below.
+    """
+    if isinstance(obj, float):
+        if math.isnan(obj):
+            return "NaN"
+        if math.isinf(obj):
+            return "Infinity" if obj > 0 else "-Infinity"
+        return obj
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_safe(v) for v in obj]
+    return obj
 
 
 def upgrade():
@@ -95,10 +118,12 @@ def upgrade():
 
                 try:
                     original_data = pickle.loads(pickle_data)
-                    # Strip the U+0000 (NUL) escape that json.dumps emits for embedded null
-                    # bytes; PostgreSQL JSON/JSONB cannot store it, so without this the row
-                    # would raise and be dropped below (silently losing the conf).
-                    json_data = json.dumps(original_data).replace('\\u0000', '')
+                    # Sanitize values legal in pickle but illegal in strict JSON/JSONB so the
+                    # row is preserved instead of dropped by the except below:
+                    #   * NaN / Infinity / -Infinity  -> quoted strings (see _json_safe).
+                    #   * the U+0000 (NUL) escape that json.dumps emits for null bytes -> stripped
+                    #     (PostgreSQL JSON/JSONB cannot store it and it cannot be quoted/kept).
+                    json_data = json.dumps(_json_safe(original_data)).replace('\\u0000', '')
                     conn.execute(
                         text("""
                                                 UPDATE dag_run
