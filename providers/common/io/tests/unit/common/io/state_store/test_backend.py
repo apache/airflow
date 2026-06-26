@@ -25,7 +25,7 @@ if not AIRFLOW_V_3_3_PLUS:
 
 from airflow.providers.common.io.state_store import backend
 from airflow.providers.common.io.state_store.backend import (
-    StateStateStoreObjectStorageBackend,
+    StateStoreObjectStorageBackend,
     _asset_path,
     _read,
     _task_path,
@@ -133,10 +133,10 @@ class TestIOPrimitives:
         assert path.exists()
 
 
-class TestStateStateStoreObjectStorageBackend:
+class TestStateStoreObjectStorageBackend:
     @pytest.fixture
     def store(self, conf_overrides):
-        return StateStateStoreObjectStorageBackend()
+        return StateStoreObjectStorageBackend()
 
     @pytest.fixture
     def task_scope(self):
@@ -212,7 +212,7 @@ class TestStateStateStoreObjectStorageBackend:
             }
         ):
             backend._get_threshold.cache_clear()
-            store = StateStateStoreObjectStorageBackend()
+            store = StateStoreObjectStorageBackend()
             ref = store.serialize_task_store_to_ref(value={"x": 1}, key="k", scope=task_scope)
             assert ref.startswith("file://")
 
@@ -224,7 +224,7 @@ class TestStateStateStoreObjectStorageBackend:
             }
         ):
             backend._get_threshold.cache_clear()
-            store = StateStateStoreObjectStorageBackend()
+            store = StateStoreObjectStorageBackend()
             ref = store.serialize_asset_store_to_ref(value={"x": 1}, key="k", scope=asset_scope)
             assert ref.startswith("file://")
 
@@ -236,7 +236,7 @@ class TestStateStateStoreObjectStorageBackend:
             }
         ):
             backend._get_threshold.cache_clear()
-            store = StateStateStoreObjectStorageBackend()
+            store = StateStoreObjectStorageBackend()
             ref = store.serialize_task_store_to_ref(value={"x": 1}, key="k", scope=task_scope)
             assert not ref.startswith("file://")
             assert store.deserialize_task_store_from_ref(ref) == {"x": 1}
@@ -249,7 +249,7 @@ class TestStateStateStoreObjectStorageBackend:
             }
         ):
             backend._get_threshold.cache_clear()
-            store = StateStateStoreObjectStorageBackend()
+            store = StateStoreObjectStorageBackend()
             ref = store.serialize_asset_store_to_ref(value={"x": 1}, key="k", scope=asset_scope)
             assert not ref.startswith("file://")
             assert store.deserialize_asset_store_from_ref(ref) == {"x": 1}
