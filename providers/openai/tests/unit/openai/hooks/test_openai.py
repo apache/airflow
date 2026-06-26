@@ -641,3 +641,157 @@ def test_get_conn_with_openai_client_kwargs(mock_client):
         base_url=None,
         organization="organization_in_extra",
     )
+
+
+def _make_workload_identity_conn(conn_id, extra):
+    conn = Connection(
+        conn_id=conn_id,
+        conn_type="openai",
+        extra={
+            "auth_type": "workload_identity",
+            "identity_provider_id": "idp-123",
+            "service_account_id": "sa-456",
+            **extra,
+        },
+    )
+    os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.get_uri()
+    return conn
+
+
+@pytest.mark.parametrize(
+    ("conn_id", "extra", "factory_attr", "expected_kwargs"),
+    [
+        (
+            "wi_k8s",
+            {"workload_identity_provider": "kubernetes", "token_file_path": "/var/run/token"},
+            "k8s_service_account_token_provider",
+            {"token_file_path": "/var/run/token"},
+        ),
+        (
+            "wi_k8s_default",
+            {"workload_identity_provider": "kubernetes"},
+            "k8s_service_account_token_provider",
+            {},
+        ),
+        (
+            "wi_azure",
+            {
+                "workload_identity_provider": "azure",
+                "resource": "https://cognitiveservices.azure.com/",
+                "client_id": "client-789",
+            },
+            "azure_managed_identity_token_provider",
+            {"resource": "https://cognitiveservices.azure.com/", "client_id": "client-789"},
+        ),
+        (
+            "wi_gcp",
+            {"workload_identity_provider": "gcp", "audience": "https://api.openai.com/v1"},
+            "gcp_id_token_provider",
+            {"audience": "https://api.openai.com/v1"},
+        ),
+    ],
+)
+@patch("airflow.providers.openai.hooks.openai.OpenAI")
+def test_get_conn_workload_identity_token_source(mock_client, conn_id, extra, factory_attr, expected_kwargs):
+    provider = object()
+    with patch(
+        f"airflow.providers.openai.hooks.openai.{factory_attr}", return_value=provider
+    ) as mock_factory:
+        conn = _make_workload_identity_conn(conn_id, extra)
+        OpenAIHook(conn_id=conn.conn_id).get_conn()
+    mock_factory.assert_called_once_with(**expected_kwargs)
+    mock_client.assert_called_once_with(
+        workload_identity={
+            "identity_provider_id": "idp-123",
+            "service_account_id": "sa-456",
+            "provider": provider,
+        },
+        base_url=None,
+    )
+
+
+@patch("airflow.providers.openai.hooks.openai.OpenAI")
+@patch("airflow.providers.openai.hooks.openai.import_string")
+def test_get_conn_workload_identity_custom(mock_import_string, mock_client):
+    def get_token():
+        return "token"
+
+    mock_import_string.return_value = get_token
+    conn = _make_workload_identity_conn(
+        "wi_custom",
+        {
+            "workload_identity_provider": "custom",
+            "token_provider": "my.module.get_token",
+            "token_type": "id",
+            "refresh_buffer_seconds": 300,
+        },
+    )
+    OpenAIHook(conn_id=conn.conn_id).get_conn()
+    mock_import_string.assert_called_once_with("my.module.get_token")
+    mock_client.assert_called_once_with(
+        workload_identity={
+            "identity_provider_id": "idp-123",
+            "service_account_id": "sa-456",
+            "provider": {"token_type": "id", "get_token": get_token},
+            "refresh_buffer_seconds": 300,
+        },
+        base_url=None,
+    )
+
+
+@patch("airflow.providers.openai.hooks.openai.k8s_service_account_token_provider")
+@patch("airflow.providers.openai.hooks.openai.OpenAI")
+def test_get_conn_workload_identity_ignores_stray_api_key(mock_client, mock_provider):
+    provider = object()
+    mock_provider.return_value = provider
+    conn = _make_workload_identity_conn(
+        "wi_stray_api_key",
+        {
+            "workload_identity_provider": "kubernetes",
+            "openai_client_kwargs": {"api_key": "leftover-key"},
+        },
+    )
+    OpenAIHook(conn_id=conn.conn_id).get_conn()
+    # ``api_key`` is popped for every path, so it is never forwarded alongside ``workload_identity``.
+    mock_client.assert_called_once_with(
+        workload_identity={
+            "identity_provider_id": "idp-123",
+            "service_account_id": "sa-456",
+            "provider": provider,
+        },
+        base_url=None,
+    )
+
+
+def test_get_conn_invalid_auth_type():
+    conn = Connection(conn_id="bad_auth", conn_type="openai", extra={"auth_type": "oauth"})
+    os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.get_uri()
+    with pytest.raises(ValueError, match="Unsupported auth_type 'oauth'"):
+        OpenAIHook(conn_id=conn.conn_id).get_conn()
+
+
+def test_get_conn_invalid_workload_identity_provider():
+    conn = _make_workload_identity_conn("bad_wi_provider", {"workload_identity_provider": "saml"})
+    with pytest.raises(ValueError, match="Unsupported workload_identity_provider 'saml'"):
+        OpenAIHook(conn_id=conn.conn_id).get_conn()
+
+
+def test_get_conn_workload_identity_missing_required_key():
+    conn = Connection(
+        conn_id="wi_missing_key",
+        conn_type="openai",
+        extra={
+            "auth_type": "workload_identity",
+            "workload_identity_provider": "kubernetes",
+            "service_account_id": "sa-456",
+        },
+    )
+    os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.get_uri()
+    with pytest.raises(ValueError, match="Missing required 'identity_provider_id'"):
+        OpenAIHook(conn_id=conn.conn_id).get_conn()
+
+
+def test_get_conn_workload_identity_custom_missing_token_provider():
+    conn = _make_workload_identity_conn("wi_custom_missing", {"workload_identity_provider": "custom"})
+    with pytest.raises(ValueError, match="Missing required 'token_provider'"):
+        OpenAIHook(conn_id=conn.conn_id).get_conn()

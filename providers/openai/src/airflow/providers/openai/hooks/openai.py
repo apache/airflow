@@ -23,8 +23,14 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, BinaryIO, Literal
 
 from openai import OpenAI
+from openai.auth import (
+    azure_managed_identity_token_provider,
+    gcp_id_token_provider,
+    k8s_service_account_token_provider,
+)
 
 if TYPE_CHECKING:
+    from openai.auth import SubjectTokenProvider, WorkloadIdentity
     from openai.types import (
         FileDeleted,
         FileObject,
@@ -43,6 +49,7 @@ if TYPE_CHECKING:
         ChatCompletionUserMessageParam,
     )
     from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
+from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
 
@@ -108,17 +115,95 @@ class OpenAIHook(BaseHook):
         return self.get_conn()
 
     def get_conn(self) -> OpenAI:
-        """Return an OpenAI connection object."""
+        """
+        Return an OpenAI connection object.
+
+        The authentication mechanism is selected with the ``auth_type`` key in the connection
+        ``extra`` (default ``"api_key"``):
+
+        * ``"api_key"`` -- use the API key from the connection password (or ``openai_client_kwargs``).
+        * ``"workload_identity"`` -- exchange a short-lived identity token for API access using the
+          OpenAI client's workload identity support. See :meth:`_build_workload_identity`.
+        """
         conn = self.get_connection(self.conn_id)
         extras = conn.extra_dejson
         openai_client_kwargs = extras.get("openai_client_kwargs", {})
-        api_key = openai_client_kwargs.pop("api_key", None) or conn.password
         base_url = openai_client_kwargs.pop("base_url", None) or conn.host or None
-        return OpenAI(
-            api_key=api_key,
-            base_url=base_url,
-            **openai_client_kwargs,
+        # Pop api_key for every path so it is never forwarded alongside ``workload_identity``
+        # (the OpenAI client rejects both being set at once).
+        api_key = openai_client_kwargs.pop("api_key", None)
+        auth_type = extras.get("auth_type", "api_key")
+
+        if auth_type == "api_key":
+            return OpenAI(api_key=api_key or conn.password, base_url=base_url, **openai_client_kwargs)
+
+        if auth_type == "workload_identity":
+            return OpenAI(
+                workload_identity=self._build_workload_identity(extras),
+                base_url=base_url,
+                **openai_client_kwargs,
+            )
+
+        raise ValueError(
+            f"Unsupported auth_type {auth_type!r} for OpenAI connection {self.conn_id!r}; "
+            "expected 'api_key' or 'workload_identity'."
         )
+
+    def _build_workload_identity(self, extras: dict[str, Any]) -> WorkloadIdentity:
+        """
+        Build the OpenAI ``workload_identity`` config from the connection ``extra``.
+
+        Returns the ``workload_identity`` mapping (``identity_provider_id``, ``service_account_id``,
+        ``provider``, and optional ``refresh_buffer_seconds``) for the token source selected by
+        ``workload_identity_provider``. Raises ``ValueError`` when a required key is missing or the
+        source is unknown. See :ref:`howto/connection:openai` for the full key reference.
+        """
+        for key in ("identity_provider_id", "service_account_id"):
+            if key not in extras:
+                raise ValueError(
+                    f"Missing required {key!r} for workload_identity auth on OpenAI connection "
+                    f"{self.conn_id!r}."
+                )
+
+        provider_name = extras.get("workload_identity_provider")
+        provider: SubjectTokenProvider
+        if provider_name == "kubernetes":
+            kwargs = {key: extras[key] for key in ("token_file_path",) if key in extras}
+            provider = k8s_service_account_token_provider(**kwargs)
+        elif provider_name == "azure":
+            kwargs = {
+                key: extras[key]
+                for key in ("resource", "object_id", "client_id", "msi_res_id", "api_version")
+                if key in extras
+            }
+            provider = azure_managed_identity_token_provider(**kwargs)
+        elif provider_name == "gcp":
+            kwargs = {key: extras[key] for key in ("audience",) if key in extras}
+            provider = gcp_id_token_provider(**kwargs)
+        elif provider_name == "custom":
+            if "token_provider" not in extras:
+                raise ValueError(
+                    f"Missing required 'token_provider' for custom workload_identity auth on OpenAI "
+                    f"connection {self.conn_id!r}."
+                )
+            provider = {
+                "token_type": extras.get("token_type", "jwt"),
+                "get_token": import_string(extras["token_provider"]),
+            }
+        else:
+            raise ValueError(
+                f"Unsupported workload_identity_provider {provider_name!r} for OpenAI connection "
+                f"{self.conn_id!r}; expected one of 'kubernetes', 'azure', 'gcp', 'custom'."
+            )
+
+        workload_identity: WorkloadIdentity = {
+            "identity_provider_id": extras["identity_provider_id"],
+            "service_account_id": extras["service_account_id"],
+            "provider": provider,
+        }
+        if "refresh_buffer_seconds" in extras:
+            workload_identity["refresh_buffer_seconds"] = extras["refresh_buffer_seconds"]
+        return workload_identity
 
     def create_chat_completion(
         self,
