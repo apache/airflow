@@ -1773,7 +1773,7 @@ def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
 
 
 def test_execute_task_exports_context_vars_thread_safely(create_runtime_ti, mock_supervisor_comms):
-    """Test that _execute_task exports airflow context via thread-safe context vars (not os.environ)."""
+    """Test that _execute_task exports airflow context via thread-safe context vars."""
     from airflow.sdk.execution_time.context import get_airflow_context_var
 
     captured_vars = {}
@@ -1796,10 +1796,8 @@ def test_execute_task_exports_context_vars_thread_safely(create_runtime_ti, mock
     assert captured_vars["dag_id"] == "dag_with_ctx_vars"
     assert captured_vars["task_id"] == "test_task"
 
-    # os.environ should NOT be updated (this is the race condition fix)
-    assert (
-        "AIRFLOW_CTX_DAG_ID" not in os.environ or os.environ.get("AIRFLOW_CTX_DAG_ID") != "dag_with_ctx_vars"
-    )
+    # os.environ should be updated
+    assert os.environ.get("AIRFLOW_CTX_DAG_ID") == "dag_with_ctx_vars"
 
 
 def test_execute_success_task_with_rendered_map_index(create_runtime_ti, mock_supervisor_comms):
