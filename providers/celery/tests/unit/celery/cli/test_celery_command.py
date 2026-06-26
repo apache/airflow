@@ -392,7 +392,6 @@ class TestWorkerJsonLogs:
     @classmethod
     def setup_class(cls):
         with conf_vars({("core", "executor"): "CeleryExecutor"}):
-            importlib.reload(executor_loader)
             importlib.reload(cli_parser)
             cls.parser = cli_parser.get_parser()
 
