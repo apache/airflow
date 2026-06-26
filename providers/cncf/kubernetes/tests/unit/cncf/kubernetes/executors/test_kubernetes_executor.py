@@ -30,7 +30,7 @@ from aiohttp import ClientConnectionError
 from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from sqlalchemy import inspect
-from urllib3 import HTTPResponse
+from urllib3 import HTTPConnectionPool, HTTPResponse
 from urllib3.exceptions import MaxRetryError, ProtocolError
 
 from airflow.jobs.job import Job
@@ -1177,7 +1177,9 @@ class TestKubernetesExecutor:
         [
             pytest.param(ProtocolError("Connection aborted."), 1, True, id="connection reset (requeued)"),
             pytest.param(
-                MaxRetryError(None, "/api/v1/namespaces/default/pods", reason=Exception("refused")),
+                MaxRetryError(
+                    HTTPConnectionPool("localhost"), "/api/v1/namespaces/default/pods", Exception("refused")
+                ),
                 1,
                 True,
                 id="client connect retries exhausted (requeued)",
