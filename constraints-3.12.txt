@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-24T05:33:07.439584
+# This constraints file was automatically generated on 2026-06-26T16:29:42.658045
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -72,7 +72,7 @@ aiohttp==3.14.1
 aioitertools==0.13.0
 aiomysql==0.3.2
 aiosignal==1.4.0
-aiosmtplib==5.1.1
+aiosmtplib==5.1.2
 aiosqlite==0.21.0
 airbyte-api==0.53.0
 akeyless==5.0.28
@@ -114,7 +114,6 @@ apache-airflow-providers-apprise==2.3.4
 apache-airflow-providers-arangodb==2.9.5
 apache-airflow-providers-asana==2.11.4
 apache-airflow-providers-atlassian-jira==3.3.4
-apache-airflow-providers-celery==3.20.0
 apache-airflow-providers-clickhousedb==1.0.0
 apache-airflow-providers-cloudant==4.3.5
 apache-airflow-providers-cohere==1.6.6
@@ -132,7 +131,6 @@ apache-airflow-providers-docker==4.5.7
 apache-airflow-providers-edge3==4.0.0
 apache-airflow-providers-elasticsearch==6.7.0
 apache-airflow-providers-exasol==4.10.3
-apache-airflow-providers-fab==3.7.0
 apache-airflow-providers-facebook==3.9.5
 apache-airflow-providers-ftp==3.15.1
 apache-airflow-providers-git==0.4.0
@@ -146,7 +144,6 @@ apache-airflow-providers-influxdb==2.11.0
 apache-airflow-providers-informatica==0.2.0
 apache-airflow-providers-jdbc==5.5.0
 apache-airflow-providers-jenkins==4.2.6
-apache-airflow-providers-keycloak==0.8.0
 apache-airflow-providers-microsoft-azure==13.5.0
 apache-airflow-providers-microsoft-mssql==4.7.0
 apache-airflow-providers-microsoft-psrp==3.2.6
@@ -213,7 +210,7 @@ azure-datalake-store==0.0.53
 azure-identity==1.25.3
 azure-keyvault-secrets==4.11.0
 azure-kusto-data==6.0.4
-azure-mgmt-compute==38.0.0
+azure-mgmt-compute==38.1.0
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==15.0.0
 azure-mgmt-core==1.6.0
@@ -461,12 +458,12 @@ mdurl==0.1.2
 memray==1.19.3
 mergedeep==1.3.4
 methodtools==0.4.7
-microsoft-kiota-abstractions==1.10.3
-microsoft-kiota-authentication-azure==1.10.3
-microsoft-kiota-http==1.10.3
-microsoft-kiota-serialization-json==1.10.3
-microsoft-kiota-serialization-text==1.10.3
-mistune==3.2.1
+microsoft-kiota-abstractions==1.11.5
+microsoft-kiota-authentication-azure==1.11.5
+microsoft-kiota-http==1.11.5
+microsoft-kiota-serialization-json==1.11.5
+microsoft-kiota-serialization-text==1.11.5
+mistune==3.3.1
 mmh3==5.2.1
 more-itertools==11.1.0
 msal-extensions==1.3.1
@@ -591,7 +588,7 @@ python-telegram-bot==22.8
 python3-saml==1.16.0
 pytokens==0.4.1
 pytz==2026.2
-pyvespa==1.2.1
+pyvespa==1.2.2
 pywinrm==0.5.0
 pyzmq==27.1.0
 qdrant-client==1.18.0
@@ -607,7 +604,7 @@ requests-oauthlib==2.0.0
 requests-toolbelt==1.0.0
 requests==2.34.2
 requests_ntlm==1.3.0
-retryhttp==1.4.0
+retryhttp==1.5.0
 rich-argparse==1.8.0
 rich-toolkit==0.20.1
 rich==13.9.4
@@ -635,7 +632,7 @@ smbprotocol==1.16.1
 smmap==5.0.3
 sniffio==1.3.1
 snowflake-connector-python==4.6.0
-snowflake-sqlalchemy==1.10.1
+snowflake-sqlalchemy==1.10.2
 sortedcontainers==2.4.0
 soupsieve==2.8.4
 spython==0.3.14
@@ -698,7 +695,7 @@ webencodings==0.5.1
 websocket-client==1.8.0
 websockets==16.0
 wirerope==1.0.0
-wrapt==2.2.1
+wrapt==2.2.2
 xmlsec==1.3.17
 xmltodict==1.0.4
 yandex-query-client==0.1.4
