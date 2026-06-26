@@ -150,6 +150,49 @@ def test_get_uri():
     assert uri == expected_uri
 
 
+CONN_ID_WITH_HTTP_PATH_EXTRA = "databricks_with_http_path_extra"
+
+
+@pytest.fixture
+def create_connection_with_http_path_extra(create_connection_without_db):
+    create_connection_without_db(
+        Connection(
+            conn_id=CONN_ID_WITH_HTTP_PATH_EXTRA,
+            conn_type="databricks",
+            host=HOST,
+            login=None,
+            password=TOKEN,
+            extra={"http_path": HTTP_PATH},
+        )
+    )
+
+
+def test_sqlalchemy_url_with_http_path_from_connection_extra(create_connection_with_http_path_extra):
+    hook = DatabricksSqlHook(databricks_conn_id=CONN_ID_WITH_HTTP_PATH_EXTRA, catalog=CATALOG, schema=SCHEMA)
+    url = hook.sqlalchemy_url.render_as_string(hide_password=False)
+    expected_url = (
+        f"databricks://token:{TOKEN}@{HOST}?"
+        f"catalog={CATALOG}&http_path={quote_plus(HTTP_PATH)}&schema={SCHEMA}"
+    )
+    assert url == expected_url
+
+
+def test_get_uri_with_http_path_from_connection_extra(create_connection_with_http_path_extra):
+    hook = DatabricksSqlHook(databricks_conn_id=CONN_ID_WITH_HTTP_PATH_EXTRA, catalog=CATALOG, schema=SCHEMA)
+    uri = hook.get_uri()
+    expected_uri = (
+        f"databricks://token:{TOKEN}@{HOST}?"
+        f"catalog={CATALOG}&http_path={quote_plus(HTTP_PATH)}&schema={SCHEMA}"
+    )
+    assert uri == expected_uri
+
+
+def test_resolve_http_path_raises_when_not_provided():
+    hook = DatabricksSqlHook(databricks_conn_id=DEFAULT_CONN_ID)
+    with pytest.raises(ValueError, match="http_path should be provided"):
+        hook._resolve_http_path()
+
+
 def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
     return [(field,) for field in fields]
 

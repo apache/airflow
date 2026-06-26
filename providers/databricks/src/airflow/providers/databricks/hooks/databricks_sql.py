@@ -184,20 +184,26 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         else:
             return endpoint
 
+    def _resolve_http_path(self) -> str:
+        """Resolve http_path from explicit parameter, endpoint name, or connection extra."""
+        if self._http_path:
+            return self._http_path
+        if self._sql_endpoint_name:
+            endpoint = self._get_sql_endpoint_by_name(self._sql_endpoint_name)
+            self._http_path = endpoint["odbc_params"]["path"]
+            return self._http_path
+        if "http_path" in self.databricks_conn.extra_dejson:
+            self._http_path = self.databricks_conn.extra_dejson["http_path"]
+            return self._http_path
+        raise ValueError(
+            "http_path should be provided either explicitly, "
+            "or in extra parameter of Databricks connection, "
+            "or sql_endpoint_name should be specified"
+        )
+
     def get_conn(self) -> AirflowConnection:
         """Return a Databricks SQL connection object."""
-        if not self._http_path:
-            if self._sql_endpoint_name:
-                endpoint = self._get_sql_endpoint_by_name(self._sql_endpoint_name)
-                self._http_path = endpoint["odbc_params"]["path"]
-            elif "http_path" in self.databricks_conn.extra_dejson:
-                self._http_path = self.databricks_conn.extra_dejson["http_path"]
-            else:
-                raise AirflowException(
-                    "http_path should be provided either explicitly, "
-                    "or in extra parameter of Databricks connection, "
-                    "or sql_endpoint_name should be specified"
-                )
+        self._resolve_http_path()
 
         prev_token = self._token
         new_token = self._get_token(raise_error=True)
@@ -255,7 +261,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             )
 
         url_query = {
-            "http_path": self._http_path,
+            "http_path": self._resolve_http_path(),
             "catalog": self.catalog,
             "schema": self.schema,
         }
