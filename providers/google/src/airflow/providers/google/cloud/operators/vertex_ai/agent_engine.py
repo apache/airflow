@@ -266,7 +266,7 @@ class RunQueryJobOperator(GoogleCloudBaseOperator):
                 method_name="execute_complete",
             )
 
-        query_job = self.hook.wait_for_query_agent_engine_job(
+        completed_job = self.hook.wait_for_query_agent_engine_job(
             project_id=self.project_id,
             location=self.location,
             operation_id=operation_id,
@@ -275,7 +275,7 @@ class RunQueryJobOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
         )
         self.log.info("Agent Engine query job %s completed.", operation_name)
-        return serialize_value(query_job)
+        return serialize_value(completed_job)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
         if event is None:
