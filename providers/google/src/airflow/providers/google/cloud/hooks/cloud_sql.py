@@ -66,6 +66,7 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseAsyncHook,
     GoogleBaseHook,
     get_field,
+    is_operation_in_progress_exception,
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -324,9 +325,18 @@ class CloudSQLHook(GoogleBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.operation_in_progress_retry()
     def export_instance(self, instance: str, body: dict, project_id: str):
         """
         Export data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump or CSV file.
+
+        Cloud SQL serializes administrative operations per instance, so submitting an export while
+        another admin operation is already running on the same instance fails with HTTP 409
+        ``operationInProgress``. The ``operation_in_progress_retry`` decorator retries the submit on
+        HTTP 409/429 with exponential backoff (capped at 300s between attempts) until the API accepts
+        it. This makes ``export_instance`` consistent with the other admin methods on this hook that
+        already carry the decorator (``create_instance``, ``patch_instance``, ``delete_instance``,
+        ``create_database``, ``patch_database``, ``delete_database``).
 
         :param instance: Database instance ID of the Cloud SQL instance. This does not include the
             project ID.
@@ -345,10 +355,53 @@ class CloudSQLHook(GoogleBaseHook):
         operation_name = response["name"]
         return operation_name
 
+    @GoogleBaseHook.operation_in_progress_retry()
+    def _submit_import(self, instance: str, body: dict, project_id: str) -> str:
+        """
+        Submit an import request for a Cloud SQL instance, retrying while an operation is in progress.
+
+        Cloud SQL serializes administrative operations per instance, so submitting an import while
+        another admin operation is already running on the same instance fails with HTTP 409
+        ``operationInProgress``. The ``operation_in_progress_retry`` decorator retries the submit on
+        HTTP 409/429 with exponential backoff (capped at 300s between attempts) until the API accepts
+        it. The decorator deliberately wraps only this submit call: a 409/429 here guarantees the
+        import was rejected, so repeating it is safe.
+
+        :param instance: Database instance ID. This does not include the project ID.
+        :param body: The request body, as described in
+            https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/import#request-body
+        :param project_id: Project ID of the project that contains the instance.
+        :return: The name of the accepted import operation.
+        """
+        try:
+            response = (
+                self.get_conn()
+                .instances()
+                .import_(project=project_id, instance=instance, body=body)
+                .execute(num_retries=self.num_retries)
+            )
+            return response["name"]
+        except HttpError as ex:
+            # ``operation_in_progress_retry`` retries on the raw ``HttpError`` (status 409/429), not on
+            # ``AirflowException``. Re-raise operation-in-progress errors unchanged so the decorator can
+            # see and retry them; otherwise the 409 would be wrapped below and the retry never triggers.
+            # Genuinely terminal HttpErrors still get the friendly message.
+            if is_operation_in_progress_exception(ex):
+                raise
+            raise AirflowException(f"Importing instance {instance} failed: {ex.content}")
+
     @GoogleBaseHook.fallback_to_default_project_id
     def import_instance(self, instance: str, body: dict, project_id: str) -> None:
         """
         Import data into a Cloud SQL instance from a SQL dump or CSV file in Cloud Storage.
+
+        The submit call is retried on HTTP 409 ``operationInProgress`` / 429 (see ``_submit_import``),
+        consistent with the other admin methods on this hook that carry the decorator
+        (``create_instance``, ``patch_instance``, ``delete_instance``, ``create_database``,
+        ``patch_database``, ``delete_database``). The status polling that follows runs outside the
+        retry scope: once the import was accepted, a retryable polling error must fail the task
+        rather than restart the method, because re-submitting an accepted import would import the
+        same data twice.
 
         :param instance: Database instance ID. This does not include the
             project ID.
@@ -358,14 +411,8 @@ class CloudSQLHook(GoogleBaseHook):
             to None or missing, the default project_id from the Google Cloud connection is used.
         :return: None
         """
+        operation_name = self._submit_import(instance=instance, body=body, project_id=project_id)
         try:
-            response = (
-                self.get_conn()
-                .instances()
-                .import_(project=project_id, instance=instance, body=body)
-                .execute(num_retries=self.num_retries)
-            )
-            operation_name = response["name"]
             self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
         except HttpError as ex:
             raise AirflowException(f"Importing instance {instance} failed: {ex.content}")
