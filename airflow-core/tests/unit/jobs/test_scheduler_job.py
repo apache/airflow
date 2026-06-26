@@ -423,6 +423,7 @@ class TestSchedulerJob:
             load_op_links=False,
             cache_size=123,
             cache_ttl=456,
+            stats_prefix="scheduler.dag_bag",
         )
 
     def test_no_orphan_process_will_be_left(self):

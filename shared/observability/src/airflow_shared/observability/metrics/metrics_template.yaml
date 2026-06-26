@@ -345,6 +345,24 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "scheduler.dag_bag.cache_hit"
+    description: "Number of cache hits when retrieving SerializedDAG from DBDagBag in the scheduler"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.dag_bag.cache_miss"
+    description: "Number of cache misses when retrieving SerializedDAG from DBDagBag in the scheduler"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.dag_bag.cache_clear"
+    description: "Number of times the DBDagBag cache was cleared in the scheduler"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "connection_test.success"
     description: "Number of worker-dispatched connection tests that completed successfully."
     type: "counter"
@@ -375,6 +393,12 @@ metrics:
 
   - name: "api_server.dag_bag.cache_size"
     description: "Current number of SerializedDAG objects cached in the API server's DBDagBag"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.dag_bag.cache_size"
+    description: "Number of SerializedDAG objects currently cached in DBDagBag in the scheduler"
     type: "gauge"
     legacy_name: "-"
     name_variables: []

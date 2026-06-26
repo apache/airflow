@@ -2760,7 +2760,7 @@ scheduler:
       version_added: 3.3.0
       type: integer
       example: ~
-      default: "3600"
+      default: "10800"
     partition_mapper_max_downstream_keys:
       description: |
         Maximum number of downstream partition keys produced by a single

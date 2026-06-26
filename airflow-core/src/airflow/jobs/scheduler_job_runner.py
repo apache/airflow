@@ -348,7 +348,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if log:
             self._log = log
         dag_cache_size = conf.getint("scheduler", "dag_cache_size", fallback=1024)
-        dag_cache_ttl_config = conf.getint("scheduler", "dag_cache_ttl", fallback=3600)
+        dag_cache_ttl_config = conf.getint("scheduler", "dag_cache_ttl", fallback=10800)
 
         if dag_cache_size < 0:
             self.log.warning("scheduler dag_cache_size must be >= 0, using unbounded dict")
@@ -364,6 +364,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             load_op_links=False,
             cache_size=dag_cache_size,
             cache_ttl=dag_cache_ttl,
+            stats_prefix="scheduler.dag_bag",
         )
 
         # Set of (dag_id, asset_name, asset_uri) tuples for trigger policies that
