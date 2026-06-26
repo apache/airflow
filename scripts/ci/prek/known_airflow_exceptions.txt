@@ -1,7 +1,7 @@
 airflow-core/src/airflow/api/common/delete_dag.py::1
 airflow-core/src/airflow/api_fastapi/core_api/app.py::1
 airflow-core/src/airflow/cli/cli_parser.py::1
-airflow-core/src/airflow/cli/commands/dag_command.py::1
+airflow-core/src/airflow/cli/commands/dag_command.py::3
 airflow-core/src/airflow/cli/commands/db_command.py::1
 airflow-core/src/airflow/config_templates/airflow_local_settings.py::1
 airflow-core/src/airflow/dag_processing/dagbag.py::1
@@ -65,7 +65,7 @@ providers/amazon/src/airflow/providers/amazon/aws/hooks/sagemaker_unified_studio
 providers/amazon/src/airflow/providers/amazon/aws/links/emr.py::2
 providers/amazon/src/airflow/providers/amazon/aws/operators/appflow.py::3
 providers/amazon/src/airflow/providers/amazon/aws/operators/athena.py::3
-providers/amazon/src/airflow/providers/amazon/aws/operators/batch.py::7
+providers/amazon/src/airflow/providers/amazon/aws/operators/batch.py::5
 providers/amazon/src/airflow/providers/amazon/aws/operators/bedrock.py::6
 providers/amazon/src/airflow/providers/amazon/aws/operators/comprehend.py::2
 providers/amazon/src/airflow/providers/amazon/aws/operators/datasync.py::10

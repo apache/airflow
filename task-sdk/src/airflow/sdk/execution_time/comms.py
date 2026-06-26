@@ -943,7 +943,6 @@ class DeleteTaskStateStore(BaseModel):
 
 class ClearTaskStateStore(BaseModel):
     ti_id: UUID
-    all_map_indices: bool = False
     type: Literal["ClearTaskStateStore"] = "ClearTaskStateStore"
 
 

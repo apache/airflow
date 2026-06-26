@@ -48,6 +48,7 @@ except ImportError:  # pragma: no cover - cores before the worker-side registrat
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
+    from pydantic_ai.messages import ModelMessage
     from pydantic_ai.toolsets.abstract import AbstractToolset
     from pydantic_ai.usage import UsageLimits
 
@@ -166,6 +167,22 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         Cannot be combined with ``durable=True`` (durable replay assumes a
         stable per-step call order that code mode does not guarantee).
         Default ``False``.
+    :param message_history: Prior conversation to seed the run with, for
+        multi-turn sessions that span task runs. Accepts a ``list`` of
+        pydantic-ai ``ModelMessage`` objects, or their JSON form as ``str`` /
+        ``bytes`` -- e.g.
+        ``"{{ ti.xcom_pull(task_ids='ask', key='message_history', default='[]') }}"``
+        (pass ``default='[]'`` so the first run, with no XCom yet, starts a fresh
+        session instead of failing to parse the string ``"None"``). ``None``
+        (default) is a single-turn run -- no behavior change. When set (an empty
+        ``[]`` / ``""`` starts a fresh session), the full transcript after the run
+        -- ``result.all_messages()`` -- is pushed to XCom under the key
+        ``message_history`` so the next run can resume. Persisting that transcript
+        under a session key (e.g. in object storage) is the DAG's responsibility.
+        The transcript is cumulative and grows each turn; for long sessions use an
+        object-storage XCom backend or trim old turns. Not supported together with
+        ``enable_hitl_review`` (raises) -- the post-review transcript is not yet
+        recoverable.
 
     **HITL Review parameters** (requires the ``hitl_review`` plugin):
 
@@ -199,6 +216,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         "model_id",
         "system_prompt",
         "agent_params",
+        "message_history",
     )
 
     operator_extra_links = (HITLReviewLink(),)
@@ -217,6 +235,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         usage_limits: UsageLimits | None = None,
         durable: bool = False,
         code_mode: bool = False,
+        message_history: list[ModelMessage] | str | bytes | None = None,
         # Agent feedback parameters
         enable_hitl_review: bool = False,
         max_hitl_iterations: int = 5,
@@ -240,6 +259,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.enable_tool_logging = enable_tool_logging
         self.agent_params = agent_params or {}
         self.usage_limits = usage_limits
+        self.message_history = message_history
 
         self.durable = durable
         self.code_mode = code_mode
@@ -255,6 +275,13 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             # ordering can differ between the original run and a retry, breaking
             # replay. Reject the combination rather than silently mis-replaying.
             raise ValueError("durable=True and code_mode=True cannot be used together.")
+
+        if message_history is not None and enable_hitl_review:
+            # The post-review transcript is not recoverable today (run_hitl_review
+            # returns only the final string), so emitting the pre-review transcript
+            # would silently drop the human-approved turns. Block until HITL can
+            # surface the final message history.
+            raise ValueError("message_history and enable_hitl_review=True cannot be used together.")
 
         self.enable_hitl_review = enable_hitl_review
         self.max_hitl_iterations = max_hitl_iterations
@@ -331,6 +358,11 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
         agent = self._build_agent()
 
+        run_kwargs: dict[str, Any] = {"usage_limits": self.usage_limits}
+        history = self._resolve_message_history()
+        if history is not None:
+            run_kwargs["message_history"] = history
+
         storage = self._durable_storage
         counter = self._durable_counter
         if self.durable and storage is not None and counter is not None:
@@ -343,9 +375,9 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             resolved_model = infer_model(agent.model)
             caching_model = CachingModel(resolved_model, storage=storage, counter=counter)
             with agent.override(model=caching_model):
-                result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
+                result = agent.run_sync(self.prompt, **run_kwargs)
         else:
-            result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
+            result = agent.run_sync(self.prompt, **run_kwargs)
 
         log_run_summary(self.log, result)
 
@@ -367,6 +399,9 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
         if self._durable_storage is not None:
             self._durable_storage.cleanup()
+
+        if self.message_history is not None:
+            self._emit_message_history(context, result)
 
         output = result.output
 
@@ -390,6 +425,36 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         if self._serialize_model_output and isinstance(output, BaseModel):
             output = output.model_dump()
         return output
+
+    def _resolve_message_history(self) -> list[ModelMessage] | None:
+        """
+        Deserialize :attr:`message_history` into a list of pydantic-ai messages.
+
+        ``None`` means single-turn (no history passed to the run). A ``str`` /
+        ``bytes`` value is parsed as the JSON the operator emits to XCom; a list
+        (of ``ModelMessage`` objects or their dict form) is validated as-is.
+        """
+        raw = self.message_history
+        if raw is None:
+            return None
+        if isinstance(raw, (str, bytes)) and not raw.strip():
+            # A template that renders to empty (no prior XCom) starts a fresh session.
+            return []
+        # pydantic-ai is imported lazily here to match this module's pattern of
+        # keeping pydantic-ai out of DAG-parse-time imports.
+        from pydantic_ai.messages import ModelMessagesTypeAdapter
+
+        if isinstance(raw, (str, bytes)):
+            return ModelMessagesTypeAdapter.validate_json(raw)
+        return ModelMessagesTypeAdapter.validate_python(raw)
+
+    def _emit_message_history(self, context: Context, result: Any) -> None:
+        """Push the full post-run transcript to XCom for the next turn to resume."""
+        # Lazy import: see _resolve_message_history.
+        from pydantic_ai.messages import ModelMessagesTypeAdapter
+
+        transcript = ModelMessagesTypeAdapter.dump_json(result.all_messages()).decode()
+        context["task_instance"].xcom_push(key="message_history", value=transcript)
 
     def regenerate_with_feedback(self, *, feedback: str, message_history: Any) -> tuple[str, Any]:
         """Re-run the agent with *feedback* appended to the conversation history."""

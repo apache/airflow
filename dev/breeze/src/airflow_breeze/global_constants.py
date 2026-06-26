@@ -285,7 +285,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "26.1.2"
-UV_VERSION = "0.11.19"
+UV_VERSION = "0.11.21"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -311,6 +311,11 @@ class TarBallType(Enum):
 DESTINATION_LOCATIONS = [
     "s3://live-docs-airflow-apache-org/docs/",
     "s3://staging-docs-airflow-apache-org/docs/",
+]
+
+SCHEMA_DESTINATION_LOCATIONS = [
+    "s3://live-docs-airflow-apache-org/schemas/",
+    "s3://staging-docs-airflow-apache-org/schemas/",
 ]
 
 PACKAGES_METADATA_EXCLUDE_NAMES = ["docker-stack", "apache-airflow-providers"]

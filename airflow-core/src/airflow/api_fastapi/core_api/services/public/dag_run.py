@@ -35,7 +35,12 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
 )
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
-from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, get_latest_version_of_dag
+from airflow.api_fastapi.common.dagbag import (
+    DagBagDep,
+    get_dag_for_run,
+    get_latest_version_of_dag,
+    resolve_run_on_latest_version,
+)
 from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
@@ -45,11 +50,15 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkDeleteAction,
     BulkUpdateAction,
 )
-from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunBody, DagRunMutableStates
+from airflow.api_fastapi.core_api.datamodels.dag_run import (
+    BulkDAGRunBody,
+    ClearPartitionsBody,
+    DagRunMutableStates,
+)
 from airflow.api_fastapi.core_api.datamodels.task_instances import NewTaskResponse
-from airflow.api_fastapi.core_api.services.public.common import BulkService, resolve_run_on_latest_version
+from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.dagrun import DagRun
+from airflow.models.dagrun import DagRun, clear_partition_runs
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.utils.session import create_session_async
@@ -150,6 +159,31 @@ def perform_clear_dag_run(
     return dag_run_cleared
 
 
+def clear_partition_fields(
+    *,
+    dag: SerializedDAG,
+    body: ClearPartitionsBody,
+    dag_id: str,
+    session: Session,
+) -> tuple[int, int]:
+    """
+    Reset partition_key and partition_date to None on matching runs.
+
+    Returns (dag_runs_cleared, task_instances_cleared).
+    """
+    return clear_partition_runs(
+        dag=dag,
+        dag_id=dag_id,
+        run_id=body.run_id,
+        partition_key=body.partition_key,
+        partition_date_start=body.partition_date_start,
+        partition_date_end=body.partition_date_end,
+        clear_tis=body.clear_task_instances,
+        dry_run=body.dry_run,
+        session=session,
+    )
+
+
 def patch_dag_run_state(
     *,
     dag: SerializedDAG,
@@ -214,10 +248,11 @@ class DagRunWaiter:
                 task_ids=self.result_task_ids,
                 dag_ids=self.dag_id,
             )
+        # XComModel.get_many() orders XCom by timestamp. Reset this to make
+        # mapped task results stable since execution order is not guaranteed.
+        xcom_query = xcom_query.order_by(None).order_by(XComModel.task_id, XComModel.map_index)
         async with create_session_async() as session:
-            xcom_results = (
-                await session.scalars(xcom_query.order_by(XComModel.task_id, XComModel.map_index))
-            ).all()
+            xcom_results = (await session.scalars(xcom_query)).all()
 
         def _group_xcoms(g: Iterator[XComModel | tuple[XComModel]]) -> Any:
             entries = [row[0] if isinstance(row, tuple) else row for row in g]

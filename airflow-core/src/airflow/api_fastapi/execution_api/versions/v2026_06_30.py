@@ -137,3 +137,17 @@ class AddTaskAndAssetStateStoreEndpoints(VersionChange):
         endpoint("/store/asset/by-uri/value", ["DELETE"]).didnt_exist,
         endpoint("/store/asset/by-uri/clear", ["DELETE"]).didnt_exist,
     )
+
+
+class AddPartitionDateField(VersionChange):
+    """Expose the consumer DagRun's partition datetime on the execution API so consumer tasks can template it."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(DagRun).field("partition_date").didnt_exist,)
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_partition_date_from_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``partition_date`` from the nested ``dag_run`` payload for older clients."""
+        if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
+            response.body["dag_run"].pop("partition_date", None)

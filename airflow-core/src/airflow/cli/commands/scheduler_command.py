@@ -30,6 +30,7 @@ from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils import cli as cli_utils
 from airflow.utils.memray_utils import MemrayTraceComponents, enable_memray_trace
+from airflow.utils.process_utils import set_component_mp_start_method
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.scheduler_health import serve_health_check
 
@@ -38,6 +39,7 @@ log = logging.getLogger(__name__)
 
 @enable_memray_trace(component=MemrayTraceComponents.scheduler)
 def _run_scheduler_job(args) -> None:
+    set_component_mp_start_method("scheduler")
     job_runner = SchedulerJobRunner(
         job=Job(),
         num_runs=args.num_runs,
