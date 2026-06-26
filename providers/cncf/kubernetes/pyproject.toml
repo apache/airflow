@@ -77,17 +77,21 @@ dependencies = [
     # limiting minimum airflow version supported in cncf.kubernetes provider, due to the
     # potential breaking changes in Airflow Core as well (kubernetes is added as extra, so Airflow
     # core is not hard-limited via install-requirements, only by extra).
-    # 36.0.0 is excluded because it shipped an in-cluster auth regression
-    # (https://github.com/kubernetes-client/python/issues/2582), fixed in 36.0.1. 35.0.0 is the only
-    # 35.x release and ignores NO_PROXY (https://github.com/kubernetes-client/python/issues/2520),
-    # fixed in the 36.x line, so a proxied install resolves to 36.0.1+.
-    "kubernetes>=35.0.0,!=36.0.0,<37.0.0",
+    # 36.x is capped out. Client 36.x renamed the bearer-token auth key from 'authorization' to
+    # 'BearerToken' (https://github.com/kubernetes-client/python/issues/2582); code that hand-builds
+    # a Configuration with api_key={'authorization': ...} (e.g. the google GKE hook) then loses the
+    # "Bearer " prefix and sends the raw token, so the cluster rejects requests with 401. 36.0.1
+    # fixed only the load_incluster_config/load_kube_config loaders, not that path. (The same 36.x
+    # Configuration change is also behind the in-cluster pickling crash, #68827.) 35.x is the last
+    # known-good line; re-enable 36.x only after the provider auth paths are fixed and validated.
+    # Tracked at https://github.com/apache/airflow/issues/69023
+    "kubernetes>=35.0.0,<36.0.0",
     # Urllib 2.6.0 breaks kubernetes client because kubernetes client uses deprecated in 2.0.0 and
     # removed in 2.6.0 `getheaders()` call (instead of `headers` property.
     # Tracked in https://github.com/kubernetes-client/python/issues/2477
     "urllib3>=2.1.0,!=2.6.0",
     # the version is limited to the next MAJOR version and should by synced with the kubernetes version
-    "kubernetes_asyncio>=32.0.0,<37.0.0",
+    "kubernetes_asyncio>=32.0.0,<36.0.0",
 ]
 
 [dependency-groups]

@@ -59,9 +59,9 @@ PIP package                                 Version required
 ``asgiref``                                 ``>=3.5.2; python_version < "3.14"``
 ``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
 ``cryptography``                            ``>=44.0.3``
-``kubernetes``                              ``>=35.0.0,!=36.0.0,<37.0.0``
+``kubernetes``                              ``>=35.0.0,<36.0.0``
 ``urllib3``                                 ``>=2.1.0,!=2.6.0``
-``kubernetes_asyncio``                      ``>=32.0.0,<37.0.0``
+``kubernetes_asyncio``                      ``>=32.0.0,<36.0.0``
 ==========================================  ======================================
 
 Cross provider package dependencies
