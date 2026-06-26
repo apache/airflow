@@ -46,6 +46,7 @@ from airflow._shared.timezones import timezone
 from airflow.exceptions import (
     AirflowException,
     AirflowSkipException,
+    NotMapped,
 )
 from airflow.models.asset import (
     AssetActive,
@@ -3283,7 +3284,8 @@ class TestMappedTaskInstanceReceiveValue:
         show_task = dag.get_task("show")
         assert show_task.get_parse_time_mapped_ti_count() == 2
         mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
-        assert len(mapped_tis) == 0  # Expanded at parse!
+        with pytest.raises(NotMapped):
+            len(mapped_tis)
         assert max_map_index is None
 
         tis = session.scalars(
@@ -3332,7 +3334,7 @@ class TestMappedTaskInstanceReceiveValue:
         for ti in tis:
             ti.refresh_from_task(show_task)
             dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
-        assert outputs == [(2, 5), (2, 10), (4, 5), (4, 10), (8, 5), (8, 10)]
+        assert outputs == [(2, 5), (4, 5), (8, 5), (2, 10), (4, 10), (8, 10)]
 
     def test_map_in_group(self, tmp_path: pathlib.Path, dag_maker, session):
         out = tmp_path.joinpath("out")
