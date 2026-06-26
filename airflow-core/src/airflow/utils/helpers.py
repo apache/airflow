@@ -55,16 +55,14 @@ def validate_key(k: str, max_length: int = 250):
     if not isinstance(k, str):
         raise TypeError(f"The key has to be a string and is {type(k)}:{k}")
     if len(k) > max_length:
-        raise AirflowException(f"The key: {k} has to be less than {max_length} characters")
+        raise ValueError(f"The key: {k} has to be less than {max_length} characters")
     if not KEY_REGEX.match(k):
-        raise AirflowException(
+        raise ValueError(
             f"The key {k!r} has to be made of alphanumeric characters, dashes, "
             f"dots and underscores exclusively"
         )
     if ".." in k and not conf.getboolean("core", "allow_double_dot_in_ids", fallback=False):
-        raise AirflowException(
-            f"The key {k!r} must not contain consecutive dots ('..') to prevent path traversal"
-        )
+        raise ValueError(f"The key {k!r} must not contain consecutive dots ('..') to prevent path traversal")
 
 
 def ask_yesno(question: str, default: bool | None = None, output_fn=print) -> bool:

@@ -1112,7 +1112,7 @@ class TestKubernetesPodOperatorSystem:
         # Name is now in template fields, and it's final value requires context
         # so we need to execute for name validation
         context = create_context(k)
-        with pytest.raises(AirflowException):
+        with pytest.raises((ValueError, AirflowException), match="has to be"):
             k.execute(context)
 
     def test_on_kill(self):

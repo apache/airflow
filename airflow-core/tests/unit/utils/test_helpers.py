@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.utils import helpers
@@ -131,24 +130,24 @@ class TestHelpers:
                 "key with space",
                 "The key 'key with space' has to be made of alphanumeric "
                 "characters, dashes, dots and underscores exclusively",
-                AirflowException,
+                ValueError,
             ),
             (
                 "key_with_!",
                 "The key 'key_with_!' has to be made of alphanumeric "
                 "characters, dashes, dots and underscores exclusively",
-                AirflowException,
+                ValueError,
             ),
-            (" " * 251, f"The key: {' ' * 251} has to be less than 250 characters", AirflowException),
+            (" " * 251, f"The key: {' ' * 251} has to be less than 250 characters", ValueError),
             (
                 "my..key",
                 "The key 'my..key' must not contain consecutive dots ('..') to prevent path traversal",
-                AirflowException,
+                ValueError,
             ),
             (
                 "..",
                 "The key '..' must not contain consecutive dots ('..') to prevent path traversal",
-                AirflowException,
+                ValueError,
             ),
         ],
     )
