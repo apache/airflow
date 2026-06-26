@@ -37,6 +37,7 @@ from airflow.providers.common.compat.openlineage.facet import (
     SQLJobFacet,
 )
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, TaskDeferred
+from airflow.providers.databricks.exceptions import DatabricksApiError
 from airflow.providers.databricks.hooks.databricks import RunState, SQLStatementState
 from airflow.providers.databricks.operators.databricks import (
     DatabricksCreateJobsOperator,
@@ -1782,6 +1783,25 @@ class TestDatabricksSubmitRunOperatorDurable:
         assert op.run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_resubmits_when_stored_run_no_longer_exists(self, db_mock_class):
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID, json={"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK}
+        )
+        db_mock = db_mock_class.return_values
+        db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run.side_effect = [
+            DatabricksApiError("Response: RESOURCE_DOES_NOT_EXIST, Status Code: 404", http_status_code=404),
+            self._state("TERMINATED", "SUCCESS"),
+        ]
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = 999
+
+        op.execute(self._context(task_store))
+        db_mock.submit_run.assert_called_once()
+        task_store.set.assert_called_once_with("databricks_run_id", RUN_ID)
+        assert op.run_id == RUN_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_durable_false_never_touches_task_state_store(self, db_mock_class):
         op = DatabricksSubmitRunOperator(
             task_id=TASK_ID, json={"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK}, durable=False
@@ -1830,6 +1850,7 @@ class TestDatabricksSubmitRunOperatorDurable:
             ("TERMINATED:FAILED", False),
             ("SKIPPED:", False),
             ("INTERNAL_ERROR:", False),
+            ("NOT_FOUND:", False),
         ],
     )
     def test_is_job_active(self, status, expected):

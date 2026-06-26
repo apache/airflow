@@ -30,7 +30,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, BaseOperatorLink, XCom, conf
-from airflow.providers.databricks.exceptions import DatabricksOperatorPayloadError
+from airflow.providers.databricks.exceptions import DatabricksApiError, DatabricksOperatorPayloadError
 from airflow.providers.databricks.hooks.databricks import (
     DatabricksHook,
     RunLifeCycleState,
@@ -924,13 +924,20 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         # Databricks splits run state across life_cycle_state and result_state; the mixin's status
         # interface is a single string, so encode both as "LIFE_CYCLE:RESULT" and decode them in
         # is_job_active / is_job_succeeded.
-        run_info = self._hook.get_run(external_id)
+        try:
+            run_info = self._hook.get_run(external_id)
+        except DatabricksApiError as e:
+            # A stored run whose history expired (or was deleted) returns 404. Report a sentinel that
+            # is neither active nor succeeded so the mixin resubmits fresh instead of failing the task.
+            if e.http_status_code == 404:
+                return "NOT_FOUND:"
+            raise
         state = RunState(**run_info["state"])
         return f"{state.life_cycle_state}:{state.result_state}"
 
     def is_job_active(self, status: str) -> bool:
         life_cycle_state = status.split(":", 1)[0]
-        return life_cycle_state not in ("TERMINATED", "SKIPPED", "INTERNAL_ERROR")
+        return life_cycle_state not in ("TERMINATED", "SKIPPED", "INTERNAL_ERROR", "NOT_FOUND")
 
     def is_job_succeeded(self, status: str) -> bool:
         return status == "TERMINATED:SUCCESS"
