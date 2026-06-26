@@ -47,12 +47,16 @@ def create_dag_bag() -> DBDagBag:
 
     # Use unbounded dict (no eviction) if cache_size is 0
     if cache_size <= 0:
-        return DBDagBag(cache_size=0)
+        return DBDagBag(cache_size=0, stats_prefix="api_server.dag_bag")
 
     # Disable TTL if cache_ttl is 0
     cache_ttl: int | None = cache_ttl_config if cache_ttl_config > 0 else None
 
-    return DBDagBag(cache_size=cache_size, cache_ttl=cache_ttl)
+    return DBDagBag(
+        cache_size=cache_size,
+        cache_ttl=cache_ttl,
+        stats_prefix="api_server.dag_bag",
+    )
 
 
 def dag_bag_from_app(request: Request) -> DBDagBag:
