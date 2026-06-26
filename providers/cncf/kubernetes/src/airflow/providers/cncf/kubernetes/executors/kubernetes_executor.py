@@ -45,6 +45,7 @@ from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookExceptio
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
     POD_EXECUTOR_DONE_KEY,
+    FailureDetails,
     KubernetesJob,
     KubernetesResults,
 )
@@ -113,6 +114,19 @@ class KubernetesExecutor(BaseExecutor):
         self.task_publish_max_retries = self.conf.getint(
             "kubernetes_executor", "task_publish_max_retries", fallback=0
         )
+        self.pod_launch_failure_attempts: Counter[TaskInstanceKey] = Counter()
+        self.pod_launch_failure_max_retries = self.conf.getint(
+            "kubernetes_executor", "pod_launch_failure_retries", fallback=1
+        )
+        excluded_reasons = self.conf.get(
+            "kubernetes_executor", "pod_launch_failure_excluded_container_reasons", fallback="Error"
+        )
+        self.pod_launch_failure_excluded_container_reasons = frozenset(
+            reason.strip() for reason in excluded_reasons.split(",") if reason.strip()
+        )
+        # Job specs are retained by key so a pod that fails before the task process starts can be
+        # requeued without the scheduler observing the failure or consuming a task-level retry.
+        self.last_known_jobs: dict[TaskInstanceKey, KubernetesJob] = {}
         self.completed: dict[tuple[str, str], KubernetesResults] = {}
         self.create_pods_after: datetime | None = None
 
@@ -304,9 +318,9 @@ class KubernetesExecutor(BaseExecutor):
                 )
 
         self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
-        self.task_queue.put(
-            KubernetesJob(key, command, kube_executor_config, pod_template_file, coordinator_kube_image)
-        )
+        job = KubernetesJob(key, command, kube_executor_config, pod_template_file, coordinator_kube_image)
+        self.last_known_jobs[key] = job
+        self.task_queue.put(job)
 
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
         from airflow.executors import workloads
@@ -545,6 +559,7 @@ class KubernetesExecutor(BaseExecutor):
         if state == ADOPTED:
             # When the task pod is adopted by another executor,
             # then remove the task from the current executor running queue.
+            self.last_known_jobs.pop(key, None)
             try:
                 self.running.remove(key)
             except KeyError:
@@ -552,6 +567,9 @@ class KubernetesExecutor(BaseExecutor):
             return
 
         if state == TaskInstanceState.RUNNING:
+            # The task process started, so any later failure is an execution failure that should
+            # not be requeued by the pre-execution path below.
+            self.last_known_jobs.pop(key, None)
             self.event_buffer[key] = state, None
             return
 
@@ -568,6 +586,37 @@ class KubernetesExecutor(BaseExecutor):
             self.kube_scheduler.patch_pod_executor_done(pod_name=pod_name, namespace=namespace)
             self.log.info("Patched pod %s in namespace %s to mark it as done", key, namespace)
 
+        if state == TaskInstanceState.FAILED and self._is_pre_execution_failure(
+            state,
+            self._get_task_instance_state(key, session=session),
+            failure_details,
+            self.pod_launch_failure_excluded_container_reasons,
+        ):
+            attempts = self.pod_launch_failure_attempts[key]
+            job = self.last_known_jobs.get(key)
+            can_requeue = (
+                self.pod_launch_failure_max_retries == -1 or attempts < self.pod_launch_failure_max_retries
+            )
+            if can_requeue and job is not None:
+                self.pod_launch_failure_attempts[key] = attempts + 1
+                self.log.warning(
+                    "[Try %s of %s] Pod %s/%s for task %s failed before the task process started "
+                    "(container_reason: %s). Requeuing without consuming a task retry.",
+                    attempts + 1,
+                    self.pod_launch_failure_max_retries,
+                    namespace,
+                    pod_name,
+                    key,
+                    failure_details.get("container_reason") if failure_details else None,
+                )
+                # Leave the key in self.running and do not write to event_buffer: the scheduler
+                # never observes this failure, so no task-level retry is consumed.
+                self.task_queue.put(job)
+                return
+
+        self.last_known_jobs.pop(key, None)
+        self.pod_launch_failure_attempts.pop(key, None)
+
         try:
             self.running.remove(key)
         except KeyError:
@@ -576,16 +625,50 @@ class KubernetesExecutor(BaseExecutor):
 
         # If we don't have a TI state, look it up from the db. event_buffer expects the TI state
         if state is None:
-            from airflow.models.taskinstance import TaskInstance
-
-            filter_for_tis = TaskInstance.filter_for_tis([key])
-            if filter_for_tis is not None:
-                state = session.scalar(select(TaskInstance.state).where(filter_for_tis))
-            else:
-                state = None
-            state = TaskInstanceState(state) if state else None
+            state = self._get_task_instance_state(key, session=session)
 
         self.event_buffer[key] = state, termination_reason
+
+    def _get_task_instance_state(self, key: TaskInstanceKey, *, session: Session) -> TaskInstanceState | None:
+        """Look up the current task instance state from the metadata database."""
+        from airflow.models.taskinstance import TaskInstance
+
+        filter_for_tis = TaskInstance.filter_for_tis([key])
+        if filter_for_tis is None:
+            return None
+        db_state = session.scalar(select(TaskInstance.state).where(filter_for_tis))
+        return TaskInstanceState(db_state) if db_state else None
+
+    @staticmethod
+    def _is_pre_execution_failure(
+        state: TaskInstanceState | str | None,
+        ti_state: TaskInstanceState | None,
+        failure_details: FailureDetails | None,
+        excluded_container_reasons: frozenset[str],
+    ) -> bool:
+        """
+        Return ``True`` if a failed pod's task process never started running.
+
+        Both conditions are required:
+
+        - ``state`` is ``FAILED``: the pod actually terminated.
+        - ``ti_state`` is ``QUEUED``: the task instance never transitioned to ``running``, so no
+          task code ran. This is the authoritative signal and holds regardless of the specific
+          container failure reason (node drain, autoscaler scale-down, transient image pull
+          error, deferrable resume pod killed before ``execute_complete`` started, etc.).
+
+        Pods whose ``container_reason`` is in ``excluded_container_reasons`` are not treated as
+        pre-execution failures. The default exclusion of ``Error`` covers a container that
+        started executing but whose worker process exited before writing ``running`` to the
+        database, which is most likely an Airflow-specific startup error.
+        """
+        if state != TaskInstanceState.FAILED or ti_state != TaskInstanceState.QUEUED:
+            return False
+        if failure_details:
+            container_reason = failure_details.get("container_reason")
+            if container_reason and container_reason in excluded_container_reasons:
+                return False
+        return True
 
     def _get_pod_namespace(self, ti: TaskInstance):
         pod_override = (ti.executor_config or {}).get("pod_override")
