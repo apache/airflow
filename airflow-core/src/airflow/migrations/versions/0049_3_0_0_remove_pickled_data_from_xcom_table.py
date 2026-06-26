@@ -41,6 +41,86 @@ depends_on = None
 airflow_version = "3.0.0"
 
 
+# --- Value-sanitization SQL, factored out so migration tests can run the real statements
+# against an isolated table. ``table`` defaults to "xcom" so the production calls below stay
+# byte-for-byte identical to the original inline SQL. Both classes of value that are legal in
+# the pickled blob but illegal in strict JSON/JSONB are handled: non-finite floats
+# (NaN/Infinity/-Infinity, quoted) and the U+0000 (NUL) escape (stripped).
+_XCOM_PG_SANITIZE_SQL = r"""
+                UPDATE xcom
+                SET value = convert_to(
+                    regexp_replace(
+                        -- Strip the U+0000 (NUL) escape; illegal in JSON/JSONB and not quotable.
+                        replace(convert_from(value, 'UTF8'), '\u0000', ''),
+                        -- Group 1 captures the preceding delimiter (:, comma, or [)
+                        -- or ^ for a bare scalar value (the entire XCom value is just NaN).
+                        -- A lookahead is used for the closing delimiter instead of a
+                        -- consuming group so that consecutive tokens in an array
+                        -- (e.g. [NaN, Infinity]) are each matched independently.
+                        -- NaN and Infinity are done in the same query to avoid another table scan.
+                        '([:,\[]\s*|^)(NaN|-?Infinity)(?=\s*[,}\]]|$)',
+                        '\1"\2"',
+                        'g'
+                    ),
+                    'UTF8'
+                )
+                WHERE value IS NOT NULL AND get_byte(value, 0) != 128
+            """
+_XCOM_MYSQL_SANITIZE_SQL = """
+                UPDATE xcom
+                SET value = CONVERT(
+                    REGEXP_REPLACE(
+                        -- Strip the U+0000 (NUL) escape before the cast (illegal JSON; see PostgreSQL branch).
+                        REPLACE(CONVERT(value USING utf8mb4), '\\\\u0000', ''),
+                        -- Same lookahead strategy as PostgreSQL (see above).
+                        -- Python string escaping: \\\\[ → SQL \\[ → regex \\[ → literal [
+                        -- and \\\\] inside the character class → SQL \\] → regex \\] → literal ]
+                        -- The 'c' flag enforces case-sensitive matching (NaN ≠ nan).
+                        -- NaN and Infinity are done in the same query to avoid another table scan.
+                        '(:|,|\\\\[|^)[ ]*(NaN|-?Infinity)(?=[ ]*[,}\\\\]]|$)',
+                        '$1"$2"',
+                        1,
+                        0,
+                        'c'
+                    ) USING BINARY
+                )
+                WHERE value IS NOT NULL AND HEX(SUBSTRING(value, 1, 1)) != '80'
+            """
+_XCOM_SQLITE_SANITIZE_SQL = """
+                UPDATE xcom
+                SET value = CAST(
+                    REPLACE(
+                        REPLACE(
+                            -- Step 1: replace NaN first so it doesn't interfere with Infinity.
+                            REPLACE(REPLACE(CAST(value AS TEXT), '\\u0000', ''), 'NaN', '"NaN"'),
+                            -- Step 2: replace Infinity (also matches the Infinity in -Infinity,
+                            -- turning -Infinity into -"Infinity").
+                            'Infinity', '"Infinity"'
+                        ),
+                        -- Step 3: fix the -"Infinity" artifact left by step 2.
+                        '-"Infinity"', '"-Infinity"'
+                    ) AS BLOB)
+                -- NOTE: SQLite lacks REGEXP_REPLACE, so plain REPLACE is used.
+                -- This is a substring operation and will incorrectly alter XCom values
+                -- that contain the literal text 'NaN' or 'Infinity' inside a JSON string
+                -- (e.g. {"msg": "NaN detected"}).  In practice such values are rare and
+                -- SQLite is not recommended for production deployments.
+                WHERE value IS NOT NULL AND hex(substr(value, 1, 1)) != '80'
+            """
+
+
+def _xcom_pg_sanitize_sql(table: str = "xcom") -> str:
+    return _XCOM_PG_SANITIZE_SQL.replace("UPDATE xcom", f"UPDATE {table}")
+
+
+def _xcom_mysql_sanitize_sql(table: str = "xcom") -> str:
+    return _XCOM_MYSQL_SANITIZE_SQL.replace("UPDATE xcom", f"UPDATE {table}")
+
+
+def _xcom_sqlite_sanitize_sql(table: str = "xcom") -> str:
+    return _XCOM_SQLITE_SANITIZE_SQL.replace("UPDATE xcom", f"UPDATE {table}")
+
+
 def upgrade():
     """Apply Remove pickled data from xcom table."""
     # Summary of the change:
@@ -121,28 +201,7 @@ def upgrade():
     #     json.dumps() emits a literal NUL as the 6-char escape, never a raw 0x00 byte, so
     #     stripping the escape covers values produced by normal XCom serialization.
     if dialect == "postgresql":
-        conn.execute(
-            text(r"""
-                UPDATE xcom
-                SET value = convert_to(
-                    regexp_replace(
-                        -- Strip the U+0000 (NUL) escape; illegal in JSON/JSONB and not quotable.
-                        replace(convert_from(value, 'UTF8'), '\u0000', ''),
-                        -- Group 1 captures the preceding delimiter (:, comma, or [)
-                        -- or ^ for a bare scalar value (the entire XCom value is just NaN).
-                        -- A lookahead is used for the closing delimiter instead of a
-                        -- consuming group so that consecutive tokens in an array
-                        -- (e.g. [NaN, Infinity]) are each matched independently.
-                        -- NaN and Infinity are done in the same query to avoid another table scan.
-                        '([:,\[]\s*|^)(NaN|-?Infinity)(?=\s*[,}\]]|$)',
-                        '\1"\2"',
-                        'g'
-                    ),
-                    'UTF8'
-                )
-                WHERE value IS NOT NULL AND get_byte(value, 0) != 128
-            """)
-        )
+        conn.execute(text(_xcom_pg_sanitize_sql()))
 
         op.execute(
             """
@@ -155,28 +214,7 @@ def upgrade():
             """
         )
     elif dialect == "mysql":
-        conn.execute(
-            text("""
-                UPDATE xcom
-                SET value = CONVERT(
-                    REGEXP_REPLACE(
-                        -- Strip the U+0000 (NUL) escape before the cast (illegal JSON; see PostgreSQL branch).
-                        REPLACE(CONVERT(value USING utf8mb4), '\\\\u0000', ''),
-                        -- Same lookahead strategy as PostgreSQL (see above).
-                        -- Python string escaping: \\\\[ → SQL \\[ → regex \\[ → literal [
-                        -- and \\\\] inside the character class → SQL \\] → regex \\] → literal ]
-                        -- The 'c' flag enforces case-sensitive matching (NaN ≠ nan).
-                        -- NaN and Infinity are done in the same query to avoid another table scan.
-                        '(:|,|\\\\[|^)[ ]*(NaN|-?Infinity)(?=[ ]*[,}\\\\]]|$)',
-                        '$1"$2"',
-                        1,
-                        0,
-                        'c'
-                    ) USING BINARY
-                )
-                WHERE value IS NOT NULL AND HEX(SUBSTRING(value, 1, 1)) != '80'
-            """)
-        )
+        conn.execute(text(_xcom_mysql_sanitize_sql()))
 
         op.add_column("xcom", sa.Column("value_json", sa.JSON(), nullable=True))
         op.execute("UPDATE xcom SET value_json = CAST(value AS CHAR CHARACTER SET utf8mb4)")
@@ -184,29 +222,7 @@ def upgrade():
         op.alter_column("xcom", "value_json", existing_type=sa.JSON(), new_column_name="value")
 
     elif dialect == "sqlite":
-        conn.execute(
-            text("""
-                UPDATE xcom
-                SET value = CAST(
-                    REPLACE(
-                        REPLACE(
-                            -- Step 1: replace NaN first so it doesn't interfere with Infinity.
-                            REPLACE(REPLACE(CAST(value AS TEXT), '\\u0000', ''), 'NaN', '"NaN"'),
-                            -- Step 2: replace Infinity (also matches the Infinity in -Infinity,
-                            -- turning -Infinity into -"Infinity").
-                            'Infinity', '"Infinity"'
-                        ),
-                        -- Step 3: fix the -"Infinity" artifact left by step 2.
-                        '-"Infinity"', '"-Infinity"'
-                    ) AS BLOB)
-                -- NOTE: SQLite lacks REGEXP_REPLACE, so plain REPLACE is used.
-                -- This is a substring operation and will incorrectly alter XCom values
-                -- that contain the literal text 'NaN' or 'Infinity' inside a JSON string
-                -- (e.g. {"msg": "NaN detected"}).  In practice such values are rare and
-                -- SQLite is not recommended for production deployments.
-                WHERE value IS NOT NULL AND hex(substr(value, 1, 1)) != '80'
-            """)
-        )
+        conn.execute(text(_xcom_sqlite_sanitize_sql()))
         # Rename the existing `value` column to `value_old`
         with op.batch_alter_table("xcom", schema=None) as batch_op:
             batch_op.alter_column("value", new_column_name="value_old")
