@@ -45,6 +45,7 @@ from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_completed,
     container_is_running,
 )
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodNotFoundException
 from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
 from airflow.utils import yaml
@@ -1065,25 +1066,51 @@ class AsyncKubernetesHook(KubernetesHook):
                 await kube_client.close()
 
     @generic_api_retry
-    async def get_pod(self, name: str, namespace: str) -> V1Pod:
+    async def get_pod(self, name: str, namespace: str, *, pod: V1Pod | None = None) -> V1Pod:
         """
         Get pod's object.
 
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
+        :param pod: The last known pod object (optional), used to check if the pod was running.
         """
         async with self.get_conn() as connection:
-            try:
-                v1_api = async_client.CoreV1Api(connection)
-                pod: V1Pod = await v1_api.read_namespaced_pod(
-                    name=name,
-                    namespace=namespace,
-                )
-                return pod
-            except HTTPError as e:
-                if hasattr(e, "status") and e.status == 403:
-                    raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
-                raise KubernetesApiError from e
+            v1_api = async_client.CoreV1Api(connection)
+            retries = 3
+            delay = 2
+            for attempt in range(retries + 1):
+                try:
+                    current_pod: V1Pod = await v1_api.read_namespaced_pod(
+                        name=name,
+                        namespace=namespace,
+                    )
+                    return current_pod
+                except async_client.ApiException as e:
+                    if e.status == 404:
+                        was_running = (
+                            pod and pod.status and pod.status.phase and pod.status.phase != "Pending"
+                        )
+                        if attempt < retries and not was_running:
+                            self.log.info(
+                                "Pod '%s' not found in namespace '%s'. Retrying in %s seconds...",
+                                name,
+                                namespace,
+                                delay,
+                            )
+                            await asyncio.sleep(delay)
+                            delay *= 2
+                            continue
+                        raise PodNotFoundException(
+                            f"Pod '{name}' not found in namespace '{namespace}'. "
+                            f"This may be caused by pod preemption (e.g., by higher-priority daemonset pods)."
+                        ) from e
+                    raise
+                except HTTPError as e:
+                    if hasattr(e, "status") and e.status == 403:
+                        raise KubernetesApiPermissionError(
+                            "Permission denied (403) from Kubernetes API."
+                        ) from e
+                    raise KubernetesApiError from e
 
     @generic_api_retry
     async def delete_pod(self, name: str, namespace: str, grace_period_seconds: int | None = None):

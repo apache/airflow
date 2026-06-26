@@ -941,10 +941,31 @@ class PodManager(LoggingMixin):
     @generic_api_retry
     def read_pod(self, pod: V1Pod) -> V1Pod:
         """Read POD information."""
-        try:
-            return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
-        except HTTPError as e:
-            raise KubernetesApiException(f"There was an error reading the kubernetes API: {e}")
+        retries = 3
+        delay = 2
+        for attempt in range(retries + 1):
+            try:
+                return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
+            except ApiException as e:
+                if e.status == 404:
+                    was_running = pod.status and pod.status.phase and pod.status.phase != "Pending"
+                    if attempt < retries and not was_running:
+                        self.log.info(
+                            "Pod '%s' not found in namespace '%s'. Retrying in %s seconds...",
+                            pod.metadata.name,
+                            pod.metadata.namespace,
+                            delay,
+                        )
+                        time.sleep(delay)
+                        delay *= 2
+                        continue
+                    raise PodNotFoundException(
+                        f"Pod '{pod.metadata.name}' not found in namespace '{pod.metadata.namespace}'. "
+                        f"This may be caused by pod preemption (e.g., by higher-priority daemonset pods)."
+                    ) from e
+                raise
+            except HTTPError as e:
+                raise KubernetesApiException(f"There was an error reading the kubernetes API: {e}")
 
     def await_xcom_sidecar_container_start(
         self, pod: V1Pod, timeout: int = 900, log_interval: int = 30
