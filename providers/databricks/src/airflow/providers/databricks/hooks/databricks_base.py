@@ -110,6 +110,7 @@ class BaseDatabricksHook(BaseHook):
         "token",
         "host",
         "use_azure_managed_identity",
+        "use_gcp_workload_federation",
         DEFAULT_AZURE_CREDENTIAL_SETTING_KEY,
         "azure_managed_identity_client_id",
         "azure_ad_endpoint",
@@ -990,6 +991,51 @@ class BaseDatabricksHook(BaseHook):
                 f"Was able to fetch some metadata, but it doesn't look like Azure Metadata: {response_json}"
             )
 
+    def _get_wif_databricks_token(self) -> str:
+        """
+        Get a Databricks OAuth token using GCP Workload Identity Federation.
+
+        This method generates a Google OIDC ID token that can be used to authenticate
+        with Databricks on GCP. It supports service account impersonation.
+
+        :return: Google OIDC ID token for Databricks authentication.
+        """
+        if not self.host:
+            raise AirflowException("Databricks host is not provided in the connection.")
+
+        try:
+            import google.auth
+            import google.auth.transport.requests
+            from google.auth import impersonated_credentials
+            from google.oauth2 import id_token
+
+            audience = f"https://{self.host}"
+            target_sa_email = self.databricks_conn.login
+            source_credentials, _ = google.auth.default()
+
+            current_email = getattr(source_credentials, "service_account_email", None)
+            if current_email == target_sa_email:
+                self.log.debug("Already running as %s. Fetching direct token.", target_sa_email)
+                auth_request = google.auth.transport.requests.Request()
+                return id_token.fetch_id_token(auth_request, audience)
+            self.log.debug("Impersonating %s from base identity %s", target_sa_email, current_email)
+            impersonated_creds = impersonated_credentials.Credentials(
+                source_credentials=source_credentials,
+                target_principal=target_sa_email,
+                target_scopes=["https://www.googleapis.com/auth/cloud-platform"],
+                lifetime=300,
+            )
+            id_creds = impersonated_credentials.IDTokenCredentials(
+                target_credentials=impersonated_creds,
+                target_audience=audience,
+                include_email=True,
+            )
+            auth_request = google.auth.transport.requests.Request()
+            id_creds.refresh(auth_request)
+            return id_creds.token
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(e)
+
     def _get_token(self, raise_error: bool = False) -> str | None:
         if "token" in self.databricks_conn.extra_dejson:
             self.log.info(
@@ -1021,6 +1067,8 @@ class BaseDatabricksHook(BaseHook):
         ):
             self.log.debug("Using Kubernetes OIDC token federation.")
             return self._get_federated_databricks_token(self._get_oidc_token_service_url())
+        if self.databricks_conn.extra_dejson.get("use_gcp_workload_federation"):
+            return self._get_wif_databricks_token()
         if raise_error:
             raise AirflowException("Token authentication isn't configured")
 

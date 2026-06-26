@@ -101,6 +101,12 @@ Extra (optional)
       a user inside workspace)
     * ``azure_managed_identity_client_id``: optional client ID of the user-assigned managed identity. This parameter is only required if you're using a user-assigned managed identity. If not specified, the hook will attempt to authenticate using a system-assigned managed identity.
 
+    Following parameters are necessary for authentication using Google Cloud Workload Identity Federation:
+
+    * ``use_gcp_workload_federation``: required boolean flag to specify whether authentication via GCP Workload Identity Federation should be used.
+    * ``login``: optional email of the Google Cloud service account to impersonate (e.g., ``my-sa@my-gcp-project.iam.gserviceaccount.com``). If not provided, the identity of the Google Cloud environment's service account will be used directly. 
+      The base service account (where Airflow is running) must have the "Workload Identity User" IAM role (``roles/iam.workloadIdentityUser``) on this target service account if impersonation is used.
+
     The following parameters are necessary if using authentication with Kubernetes OIDC token federation:
 
     * ``federated_k8s``: set ``login`` to ``"federated_k8s"`` or add this as a boolean flag in extra parameters (``{"federated_k8s": true}``). When enabled, the hook will fetch a JWT token from Kubernetes and exchange it for a Databricks OAuth token using the `OIDC token exchange API <https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-exchange.html>`_. This authentication method only works when Airflow is running inside a Kubernetes cluster (e.g., AWS EKS, Azure AKS, Google GKE).
