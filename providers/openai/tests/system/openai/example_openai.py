@@ -78,7 +78,7 @@ def example_openai_dag():
         task_id="embedding_using_xcom_data",
         conn_id="openai_default",
         input_text=task_to_store_input_text_in_xcom(),
-        model="text-embedding-ada-002",
+        model="text-embedding-3-small",
     )
 
     OpenAIEmbeddingOperator(
@@ -90,13 +90,13 @@ def example_openai_dag():
             input_kwarg1="input_kwarg1_value",
             input_kwarg2="input_kwarg2_value",
         ),
-        model="text-embedding-ada-002",
+        model="text-embedding-3-small",
     )
     OpenAIEmbeddingOperator(
         task_id="embedding_using_text",
         conn_id="openai_default",
         input_text=texts,
-        model="text-embedding-ada-002",
+        model="text-embedding-3-small",
     )
     # [END howto_operator_openai_embedding]
 

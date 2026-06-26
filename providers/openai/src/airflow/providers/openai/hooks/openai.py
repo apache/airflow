@@ -129,7 +129,7 @@ class OpenAIHook(BaseHook):
             | ChatCompletionToolMessageParam
             | ChatCompletionFunctionMessageParam
         ],
-        model: str = "gpt-3.5-turbo",
+        model: str = "gpt-4o-mini",
         **kwargs: Any,
     ) -> list[ChatCompletionMessage]:
         """
@@ -141,7 +141,7 @@ class OpenAIHook(BaseHook):
         response = self.conn.chat.completions.create(model=model, messages=messages, **kwargs)
         return response.choices
 
-    def create_assistant(self, model: str = "gpt-3.5-turbo", **kwargs: Any) -> Assistant:
+    def create_assistant(self, model: str = "gpt-4o-mini", **kwargs: Any) -> Assistant:
         """
         Create an OpenAI assistant using the given model.
 
@@ -297,7 +297,7 @@ class OpenAIHook(BaseHook):
     def create_embeddings(
         self,
         text: str | list[str] | list[int] | list[list[int]],
-        model: str = "text-embedding-ada-002",
+        model: str = "text-embedding-3-small",
         **kwargs: Any,
     ) -> list[float]:
         """
