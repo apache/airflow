@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import json
 
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient
@@ -224,48 +224,30 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret_with_base(path, key)
 
-    # Make sure connection is imported this way for type checking, otherwise when importing
-    # the backend it will get a circular dependency and fail
-    if TYPE_CHECKING:
-        from airflow.providers.common.compat.sdk import Connection
-
-    def get_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:
+    def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
         """
-        Get connection from Vault as secret.
+        Retrieve a connection from Vault as a serialized string.
 
-        Prioritize conn_uri if exists, if not fall back to normal Connection creation.
+        Returns the ``conn_uri`` value verbatim when present, otherwise serializes
+        the secret dict to JSON.  The base-class ``get_connection`` deserializes the
+        returned string using the Connection class that the framework injected for the
+        current execution context (ORM Connection on the server, SDK Connection in
+        workers), which avoids triggering SQLAlchemy mapper initialization in
+        task-execution subprocesses such as PythonVirtualenvOperator.
 
-        :return: A Connection object constructed from Vault data
+        :param conn_id: connection id
+        :param team_name: Team name associated to the task trying to access the connection (if any)
+        :return: Serialized connection string or None
         """
-        # Use the compat SDK Connection (Pydantic in Airflow 3, SQLAlchemy in Airflow 2) to avoid
-        # triggering SQLAlchemy mapper initialization for unrelated models (e.g. DagModel) in
-        # task-execution subprocesses such as PythonVirtualenvOperator.
-        from airflow.providers.common.compat.sdk import Connection
-
         response = self._get_team_or_global_secret(self.connections_path, team_name, conn_id)
         if response is None:
             return None
 
         uri = response.get("conn_uri")
         if uri:
-            # from_uri is available on the SDK Connection (Airflow 3.2+ / task-sdk 1.2.0+).
-            # On Airflow 2 the SQLAlchemy Connection accepts uri= in its __init__.
-            # On Airflow 3.0/3.1 the attrs-based Connection has neither from_uri nor a uri=
-            # constructor arg; return None so the secrets-backend loop tries the next backend.
-            if hasattr(Connection, "from_uri"):
-                return Connection.from_uri(uri, conn_id=conn_id)
-            try:
-                return Connection(conn_id=conn_id, uri=uri)  # type: ignore[call-arg]
-            except (TypeError, ValueError):
-                self.log.warning(
-                    "Cannot deserialize conn_uri for connection '%s': upgrade to Airflow 3.2+ "
-                    "or store the connection using individual fields (conn_type, host, login, "
-                    "etc.) in Vault.",
-                    conn_id,
-                )
-                return None
+            return uri
 
-        return Connection(conn_id=conn_id, **response)
+        return json.dumps(response)
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """

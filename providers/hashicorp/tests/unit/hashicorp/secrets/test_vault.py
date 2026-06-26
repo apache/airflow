@@ -122,8 +122,9 @@ class TestVaultSecrets:
         }
 
         test_client = VaultBackend(**kwargs)
+        test_client._set_connection_class(SdkConnection)
         connection = test_client.get_connection(conn_id="test_postgres")
-        assert connection.get_uri() == "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
+        assert connection.get_uri() == "postgres://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
 
     @pytest.mark.parametrize(
         ("side_effects", "extra_kwargs", "exp_paths", "team_name"),
@@ -181,6 +182,7 @@ class TestVaultSecrets:
         )
 
         test_client = VaultBackend(**kwargs)
+        test_client._set_connection_class(SdkConnection)
         connection = test_client.get_connection(conn_id="test_postgres", team_name=team_name)
         mock_client.secrets.kv.v2.read_secret_version.assert_has_calls(
             [
@@ -193,7 +195,7 @@ class TestVaultSecrets:
                 for path in exp_paths
             ]
         )
-        assert connection.get_uri() == "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
+        assert connection.get_uri() == "postgres://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_connection_without_predefined_mount_point(self, mock_hvac):
@@ -235,8 +237,9 @@ class TestVaultSecrets:
         }
 
         test_client = VaultBackend(**kwargs)
+        test_client._set_connection_class(SdkConnection)
         connection = test_client.get_connection(conn_id="airflow/test_postgres")
-        assert connection.get_uri() == "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
+        assert connection.get_uri() == "postgres://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
 
         # When mount_point=None and conn_id does not contain "/",
         # backend should return None and not call Vault
@@ -607,6 +610,7 @@ class TestVaultSecrets:
         }
 
         test_client = VaultBackend(**kwargs)
+        test_client._set_connection_class(SdkConnection)
         connection = test_client.get_connection(conn_id="test_postgres")
         assert connection.get_uri() == "postgres://airflow:airflow@host:5432/airflow"
         mock_client.auth.jwt.jwt_login.assert_called_with(
@@ -728,6 +732,7 @@ class TestVaultSecrets:
         }
 
         backend = VaultBackend(**kwargs)
+        backend._set_connection_class(SdkConnection)
 
         connection = backend.get_connection("my_conn")
 
@@ -806,6 +811,7 @@ class TestVaultSecrets:
             url="http://127.0.0.1:8200",
             token="token",
         )
+        backend._set_connection_class(SdkConnection)
         conn = backend.get_connection("trino_default")
 
         assert isinstance(conn, SdkConnection), (
@@ -836,6 +842,7 @@ class TestVaultSecrets:
             url="http://127.0.0.1:8200",
             token="token",
         )
+        backend._set_connection_class(SdkConnection)
         conn = backend.get_connection("my_conn")
 
         assert isinstance(conn, SdkConnection), (
