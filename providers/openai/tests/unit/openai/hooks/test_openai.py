@@ -17,9 +17,10 @@
 from __future__ import annotations
 
 import os
-from unittest.mock import mock_open, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
+from openai import OpenAI
 from openai.pagination import SyncCursorPage
 from openai.types import (
     Batch,
@@ -82,7 +83,10 @@ def mock_openai_connection():
 
 @pytest.fixture
 def mock_openai_hook(mock_openai_connection):
-    with patch("airflow.providers.openai.hooks.openai.OpenAI"):
+    # spec=OpenAI guards top-level namespace access (an unknown attribute on the client fails);
+    # the method surface (``conn.responses.create``) is type-checked by mypy against the SDK stubs.
+    with patch("airflow.providers.openai.hooks.openai.OpenAI") as mock_client:
+        mock_client.return_value = MagicMock(spec=OpenAI)
         yield OpenAIHook(conn_id=mock_openai_connection.conn_id)
 
 
@@ -301,6 +305,60 @@ def test_create_chat_completion(mock_openai_hook, mock_completion):
     completion = mock_openai_hook.create_chat_completion(model=MODEL, messages=messages)
     choice = completion[0]
     assert choice.message.content == "Hello there, how may I assist you today?"
+
+
+def test_create_response(mock_openai_hook):
+    expected = mock_openai_hook.conn.responses.create.return_value
+    result = mock_openai_hook.create_response(input="Hello", model=MODEL)
+    mock_openai_hook.conn.responses.create.assert_called_once_with(model=MODEL, input="Hello")
+    assert result is expected
+
+
+def test_get_response(mock_openai_hook):
+    expected = mock_openai_hook.conn.responses.retrieve.return_value
+    result = mock_openai_hook.get_response("resp_123")
+    mock_openai_hook.conn.responses.retrieve.assert_called_once_with("resp_123")
+    assert result is expected
+
+
+def test_delete_response(mock_openai_hook):
+    mock_openai_hook.delete_response("resp_123")
+    mock_openai_hook.conn.responses.delete.assert_called_once_with("resp_123")
+
+
+def test_cancel_response(mock_openai_hook):
+    expected = mock_openai_hook.conn.responses.cancel.return_value
+    result = mock_openai_hook.cancel_response("resp_123")
+    mock_openai_hook.conn.responses.cancel.assert_called_once_with("resp_123")
+    assert result is expected
+
+
+def test_create_conversation(mock_openai_hook):
+    expected = mock_openai_hook.conn.conversations.create.return_value
+    result = mock_openai_hook.create_conversation(metadata={"topic": "demo"})
+    mock_openai_hook.conn.conversations.create.assert_called_once_with(metadata={"topic": "demo"})
+    assert result is expected
+
+
+def test_get_conversation(mock_openai_hook):
+    expected = mock_openai_hook.conn.conversations.retrieve.return_value
+    result = mock_openai_hook.get_conversation("conv_123")
+    mock_openai_hook.conn.conversations.retrieve.assert_called_once_with("conv_123")
+    assert result is expected
+
+
+def test_update_conversation(mock_openai_hook):
+    expected = mock_openai_hook.conn.conversations.update.return_value
+    result = mock_openai_hook.update_conversation("conv_123", metadata={"topic": "demo"})
+    mock_openai_hook.conn.conversations.update.assert_called_once_with("conv_123", metadata={"topic": "demo"})
+    assert result is expected
+
+
+def test_delete_conversation(mock_openai_hook):
+    expected = mock_openai_hook.conn.conversations.delete.return_value
+    result = mock_openai_hook.delete_conversation("conv_123")
+    mock_openai_hook.conn.conversations.delete.assert_called_once_with("conv_123")
+    assert result is expected
 
 
 def test_create_assistant(mock_openai_hook, mock_assistant):

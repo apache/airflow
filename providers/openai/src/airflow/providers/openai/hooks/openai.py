@@ -48,6 +48,8 @@ if TYPE_CHECKING:
         ChatCompletionToolMessageParam,
         ChatCompletionUserMessageParam,
     )
+    from openai.types.conversations import Conversation, ConversationDeletedResource
+    from openai.types.responses import Response
     from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import BaseHook
@@ -225,6 +227,68 @@ class OpenAIHook(BaseHook):
         """
         response = self.conn.chat.completions.create(model=model, messages=messages, **kwargs)
         return response.choices
+
+    def create_response(self, input: Any, model: str = "gpt-4o-mini", **kwargs: Any) -> Response:
+        """
+        Create a model response using the Responses API.
+
+        :param input: Text, image, or file input(s) to the model.
+        :param model: ID of the model to use.
+        """
+        return self.conn.responses.create(model=model, input=input, **kwargs)
+
+    def get_response(self, response_id: str, **kwargs: Any) -> Response:
+        """
+        Retrieve a previously created model response.
+
+        :param response_id: The ID of the response to retrieve.
+        """
+        return self.conn.responses.retrieve(response_id, **kwargs)
+
+    def delete_response(self, response_id: str) -> None:
+        """
+        Delete a model response.
+
+        :param response_id: The ID of the response to delete.
+        """
+        self.conn.responses.delete(response_id)
+
+    def cancel_response(self, response_id: str) -> Response:
+        """
+        Cancel an in-progress response created with ``background=True``.
+
+        :param response_id: The ID of the response to cancel.
+        """
+        return self.conn.responses.cancel(response_id)
+
+    def create_conversation(self, **kwargs: Any) -> Conversation:
+        """Create a conversation that can be reused across responses to persist state."""
+        return self.conn.conversations.create(**kwargs)
+
+    def get_conversation(self, conversation_id: str) -> Conversation:
+        """
+        Retrieve a conversation.
+
+        :param conversation_id: The ID of the conversation to retrieve.
+        """
+        return self.conn.conversations.retrieve(conversation_id)
+
+    def update_conversation(self, conversation_id: str, metadata: dict[str, str]) -> Conversation:
+        """
+        Update a conversation's metadata.
+
+        :param conversation_id: The ID of the conversation to update.
+        :param metadata: Set of key-value pairs to attach to the conversation.
+        """
+        return self.conn.conversations.update(conversation_id, metadata=metadata)
+
+    def delete_conversation(self, conversation_id: str) -> ConversationDeletedResource:
+        """
+        Delete a conversation.
+
+        :param conversation_id: The ID of the conversation to delete.
+        """
+        return self.conn.conversations.delete(conversation_id)
 
     def create_assistant(self, model: str = "gpt-4o-mini", **kwargs: Any) -> Assistant:
         """
