@@ -647,14 +647,11 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def run_next_batch(self, next_jobs: list[KubernetesJob]) -> list[tuple[KubernetesJob, Exception | None]]:
         """
-        Build and create a batch of worker pods, parallelizing the create API calls.
+        Build pod requests synchronously, then create them concurrently via the async client.
 
-        Pod request objects are built synchronously (pod-mutation hook, reconciliation),
-        then the create calls are issued concurrently against the Kubernetes API using the
-        asynchronous client, bounded by ``pod_creation_max_concurrency``. Returns one
-        ``(job, exception)`` pair per job (``exception`` is ``None`` on success). Build and
-        create failures are returned rather than raised so the caller can apply the same
-        per-task handling as the sequential path.
+        Bounded by ``pod_creation_max_concurrency``. Returns one ``(job, exception)`` per job —
+        build and create failures are returned, not raised, so the caller handles them like the
+        sequential path.
         """
         built: list[tuple[KubernetesJob, k8s.V1Pod | None, Exception | None]] = []
         for job in next_jobs:

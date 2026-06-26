@@ -493,24 +493,17 @@ class KubernetesExecutor(BaseExecutor):
                 self.task_queue.task_done()
 
     def _record_pod_creation_batch(self, count: int, duration_seconds: float) -> None:
-        """
-        Emit per-scheduler-loop pod-creation batch metrics (duration and size).
-
-        Both creation paths emit these under the same names, so an ``async_pod_creation``
-        off-vs-on comparison measures the same thing.
-        """
+        """Emit per-loop pod-creation batch metrics (duration, size); both paths use the same names."""
         Stats.timing("kubernetes_executor.pod_creation_batch_duration", timedelta(seconds=duration_seconds))
         Stats.gauge("kubernetes_executor.pod_creation_batch_size", count)
 
     def _handle_pod_publish_error(self, task: KubernetesJob, e: Exception) -> bool:
         """
-        Handle a failure to build or create a worker pod for a task.
+        Handle a build/create failure for a worker pod; shared by both creation paths.
 
-        Shared by the sequential and concurrent creation paths. The sequential path raises
-        the sync client's ApiException and the concurrent path the async client's; both expose
-        the same status/body/reason/headers, so they are handled uniformly. Returns True if pod
-        creation should stop for the remainder of this scheduler loop (Kubernetes rate limit),
-        False otherwise.
+        The sync and async clients' ApiExceptions expose the same fields, so they are handled
+        uniformly. Returns True if pod creation should stop for the rest of this scheduler loop
+        (rate limit), else False.
         """
         from kubernetes.client.rest import ApiException
         from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
