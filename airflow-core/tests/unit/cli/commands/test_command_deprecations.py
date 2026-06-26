@@ -43,6 +43,8 @@ MIGRATED_CLI_COMMANDS = [
     (pool_command.pool_import, "airflowctl pools import"),
     (pool_command.pool_export, "airflowctl pools export"),
     (asset_command.asset_materialize, "airflowctl assets materialize"),
+    (asset_command.asset_list, "airflowctl assets list / airflowctl assets list-aliases"),
+    (asset_command.asset_details, "airflowctl assets get / airflowctl assets get-by-alias"),
 ]
 
 
