@@ -22,6 +22,7 @@ Example Airflow Dag for Google Vertex AI Agent Engine operations.
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -31,11 +32,10 @@ if TYPE_CHECKING:
 
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.vertex_ai.agent_engine import (
-    CheckQueryAgentEngineOperator,
     CreateAgentEngineOperator,
     DeleteAgentEngineOperator,
     GetAgentEngineOperator,
-    QueryAgentEngineOperator,
+    RunQueryJobOperator,
     UpdateAgentEngineOperator,
 )
 
@@ -56,14 +56,26 @@ CONTAINER_URI = os.environ.get(
 )
 
 AGENT_ENGINE_ID = "{{ task_instance.xcom_pull(task_ids='create_agent_engine')['name'].split('/')[-1] }}"
-QUERY_OPERATION_NAME = "{{ task_instance.xcom_pull(task_ids='query_agent_engine')['job_name'] }}"
 BUCKET_NAME = f"bucket-{DAG_ID}-{ENV_ID}".replace("_", "-")
 DISPLAY_NAME = f"airflow-agent-engine-{ENV_ID}"
 
 QUERY_CONFIG: vertexai_types.RunQueryJobAgentEngineConfigDict = {
-    "query": "Respond with a short acknowledgement.",
+    "query": json.dumps(
+        {
+            "dag_id": "vertex_ai_agent_engine_operations",
+            "run_id": "manual__agent_engine_system_test",
+            "dag_file": "providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_agent_engine.py",
+            "failed_task": {
+                "task_id": "transform",
+                "state": "failed",
+                "try_number": 1,
+            },
+            "log_excerpt": "KeyError: 'rowz'",
+        }
+    ),
     "output_gcs_uri": f"gs://{BUCKET_NAME}/query-output/",
 }
+
 
 with DAG(
     DAG_ID,
@@ -85,6 +97,10 @@ with DAG(
             "max_instances": 1,
             "resource_limits": {"cpu": "1", "memory": "1Gi"},
             "container_spec": {"image_uri": CONTAINER_URI},
+            "env_vars": {
+                "AGENT_USE_MODEL": "false",
+                "AGENT_USE_MOCKS": "true",
+            },
             "class_methods": [
                 {
                     "name": "query",
@@ -110,26 +126,17 @@ with DAG(
         project_id=PROJECT_ID,
     )
 
-    # [START how_to_cloud_vertex_ai_query_agent_engine_operator]
-    query_agent_engine = QueryAgentEngineOperator(
-        task_id="query_agent_engine",
+    # [START how_to_cloud_vertex_ai_run_query_job_operator]
+    run_query_job = RunQueryJobOperator(
+        task_id="run_query_job",
         project_id=PROJECT_ID,
         location=LOCATION,
         agent_engine_id=AGENT_ENGINE_ID,
         config=QUERY_CONFIG,
-    )
-    # [END how_to_cloud_vertex_ai_query_agent_engine_operator]
-
-    # [START how_to_cloud_vertex_ai_check_query_agent_engine_operator]
-    check_query_agent_engine = CheckQueryAgentEngineOperator(
-        task_id="check_query_agent_engine",
-        project_id=PROJECT_ID,
-        location=LOCATION,
-        operation_name=QUERY_OPERATION_NAME,
-        config={"retrieve_result": True},
+        check_config={"retrieve_result": True},
         deferrable=True,
     )
-    # [END how_to_cloud_vertex_ai_check_query_agent_engine_operator]
+    # [END how_to_cloud_vertex_ai_run_query_job_operator]
 
     # [START how_to_cloud_vertex_ai_update_agent_engine_operator]
     update_agent_engine = UpdateAgentEngineOperator(
@@ -151,7 +158,6 @@ with DAG(
         location=LOCATION,
         agent_engine_id=AGENT_ENGINE_ID,
         force=True,
-        deferrable=True,
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END how_to_cloud_vertex_ai_delete_agent_engine_operator]
@@ -167,8 +173,7 @@ with DAG(
         create_agent_engine
         >> get_agent_engine
         >> create_bucket
-        >> query_agent_engine
-        >> check_query_agent_engine
+        >> run_query_job
         >> update_agent_engine
         >> delete_agent_engine
         >> delete_bucket

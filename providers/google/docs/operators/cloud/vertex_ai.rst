@@ -48,31 +48,19 @@ To get an Agent Engine you can use
     :end-before: [END how_to_cloud_vertex_ai_get_agent_engine_operator]
 
 To run a query job on an Agent Engine you can use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.QueryAgentEngineOperator`.
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.RunQueryJobOperator`.
 The operator uses the public ``run_query_job`` SDK method. The ``config`` parameter
-is required and must include ``query`` and ``output_gcs_uri``. The SDK writes query
-input and output through Google Cloud Storage and the operator returns the serialized
-query job result metadata, including the job name and GCS URIs. This operator starts
-the query job and does not wait for the query job output.
+can include ``query`` and ``output_gcs_uri``. The SDK writes query input and output
+through Google Cloud Storage. By default, the operator waits for the query job to
+complete and returns the serialized query job result. Set ``retrieve_result`` to
+``True`` in ``check_config`` to return the query job result from Google Cloud Storage.
+The same operation can be performed in the deferrable mode.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_agent_engine.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_query_agent_engine_operator]
-    :end-before: [END how_to_cloud_vertex_ai_query_agent_engine_operator]
-
-To wait for a query job and retrieve its output you can use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.CheckQueryAgentEngineOperator`.
-The operator uses the public ``check_query_job`` SDK method. The ``config`` parameter
-is optional. Set ``retrieve_result`` to ``True`` in ``config`` to return the query job
-result from Google Cloud Storage. The same operation can be performed in the
-deferrable mode.
-
-.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_agent_engine.py
-    :language: python
-    :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_check_query_agent_engine_operator]
-    :end-before: [END how_to_cloud_vertex_ai_check_query_agent_engine_operator]
+    :start-after: [START how_to_cloud_vertex_ai_run_query_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_run_query_job_operator]
 
 To update an Agent Engine you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.UpdateAgentEngineOperator`.
@@ -85,8 +73,7 @@ To update an Agent Engine you can use
 
 To delete an Agent Engine you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.DeleteAgentEngineOperator`.
-By default, the operator waits until the delete operation completes. The same operation
-can be performed in the deferrable mode.
+By default, the operator waits until the delete operation completes.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_agent_engine.py
     :language: python

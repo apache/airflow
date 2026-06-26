@@ -24,12 +24,13 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import conf
-from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineHook, _serialize_value
-from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.vertex_ai import (
-    AgentEngineDeleteTrigger,
-    AgentEngineQueryJobTrigger,
+from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import (
+    AgentEngineHook,
+    extract_operation_id,
+    serialize_value,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.cloud.triggers.vertex_ai import AgentEngineQueryJobTrigger
 
 if TYPE_CHECKING:
     from vertexai._genai import types
@@ -40,8 +41,8 @@ if TYPE_CHECKING:
 def _serialize_agent_engine(agent_engine: types.AgentEngine) -> dict[str, Any]:
     api_resource = getattr(agent_engine, "api_resource", None)
     if api_resource is not None:
-        return _serialize_value(api_resource)
-    return _serialize_value(agent_engine)
+        return serialize_value(api_resource)
+    return serialize_value(agent_engine)
 
 
 class CreateAgentEngineOperator(GoogleCloudBaseOperator):
@@ -51,6 +52,7 @@ class CreateAgentEngineOperator(GoogleCloudBaseOperator):
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
     :param agent: Optional. The agent object to deploy.
+    :param agent_engine: Optional. Deprecated alias for ``agent``.
     :param config: Optional. Configuration for the Agent Engine.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term credentials.
@@ -60,6 +62,7 @@ class CreateAgentEngineOperator(GoogleCloudBaseOperator):
         "project_id",
         "location",
         "agent",
+        "agent_engine",
         "config",
         "gcp_conn_id",
         "impersonation_chain",
@@ -71,6 +74,7 @@ class CreateAgentEngineOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         agent: Any | None = None,
+        agent_engine: Any | None = None,
         config: types.AgentEngineConfigOrDict | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -80,6 +84,7 @@ class CreateAgentEngineOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.location = location
         self.agent = agent
+        self.agent_engine = agent_engine
         self.config = config
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -97,6 +102,7 @@ class CreateAgentEngineOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
             location=self.location,
             agent=self.agent,
+            agent_engine=self.agent_engine,
             config=self.config,
         )
         result = _serialize_agent_engine(agent_engine)
@@ -111,56 +117,7 @@ class GetAgentEngineOperator(GoogleCloudBaseOperator):
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
     :param agent_engine_id: Required. The Agent Engine ID.
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param impersonation_chain: Optional service account to impersonate using short-term credentials.
-    """
-
-    template_fields = ("project_id", "location", "agent_engine_id", "gcp_conn_id", "impersonation_chain")
-
-    def __init__(
-        self,
-        *,
-        project_id: str,
-        location: str,
-        agent_engine_id: str,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.project_id = project_id
-        self.location = location
-        self.agent_engine_id = agent_engine_id
-        self.gcp_conn_id = gcp_conn_id
-        self.impersonation_chain = impersonation_chain
-
-    @cached_property
-    def hook(self) -> AgentEngineHook:
-        return AgentEngineHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-
-    def execute(self, context: Context) -> dict[str, Any]:
-        self.log.info("Getting Agent Engine %s.", self.agent_engine_id)
-        agent_engine = self.hook.get_agent_engine(
-            project_id=self.project_id,
-            location=self.location,
-            agent_engine_id=self.agent_engine_id,
-        )
-        result = _serialize_agent_engine(agent_engine)
-        self.log.info("Agent Engine %s was retrieved.", self.agent_engine_id)
-        return result
-
-
-class QueryAgentEngineOperator(GoogleCloudBaseOperator):
-    """
-    Run a query job on a Vertex AI Agent Engine.
-
-    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-    :param location: Required. The ID of the Google Cloud location that the service belongs to.
-    :param agent_engine_id: Required. The Agent Engine ID.
-    :param config: Required. Configuration for the query job (``query``, ``output_gcs_uri``).
+    :param config: Optional. Configuration for getting the Agent Engine.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term credentials.
     """
@@ -180,7 +137,7 @@ class QueryAgentEngineOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         agent_engine_id: str,
-        config: types.RunQueryJobAgentEngineConfigOrDict,
+        config: types.GetAgentEngineConfigOrDict | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -201,25 +158,28 @@ class QueryAgentEngineOperator(GoogleCloudBaseOperator):
         )
 
     def execute(self, context: Context) -> dict[str, Any]:
-        self.log.info("Running query job on Agent Engine %s.", self.agent_engine_id)
-        query_job = self.hook.query_agent_engine(
+        self.log.info("Getting Agent Engine %s.", self.agent_engine_id)
+        agent_engine = self.hook.get_agent_engine(
             project_id=self.project_id,
             location=self.location,
             agent_engine_id=self.agent_engine_id,
             config=self.config,
         )
-        self.log.info("Query job was started on Agent Engine %s.", self.agent_engine_id)
-        return _serialize_value(query_job)
+        result = _serialize_agent_engine(agent_engine)
+        self.log.info("Agent Engine %s was retrieved.", self.agent_engine_id)
+        return result
 
 
-class CheckQueryAgentEngineOperator(GoogleCloudBaseOperator):
+class RunQueryJobOperator(GoogleCloudBaseOperator):
     """
-    Check a query job on a Vertex AI Agent Engine.
+    Run a query job on a Vertex AI Agent Engine.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
-    :param operation_name: Required. The query job operation name (e.g. from the ``job_name`` field of the result of ``QueryAgentEngineOperator``).
-    :param config: Optional. Configuration for checking the query job.
+    :param agent_engine_id: Required. The Agent Engine ID.
+    :param config: Optional. Configuration for the query job (``query``, ``output_gcs_uri``).
+    :param check_config: Optional. Configuration for checking the query job.
+    :param wait_for_completion: Whether to wait until the query job completes.
     :param poll_interval: Time, in seconds, to wait between checks.
     :param timeout: Optional timeout, in seconds.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
@@ -230,8 +190,9 @@ class CheckQueryAgentEngineOperator(GoogleCloudBaseOperator):
     template_fields = (
         "project_id",
         "location",
-        "operation_name",
+        "agent_engine_id",
         "config",
+        "check_config",
         "gcp_conn_id",
         "impersonation_chain",
     )
@@ -241,8 +202,10 @@ class CheckQueryAgentEngineOperator(GoogleCloudBaseOperator):
         *,
         project_id: str,
         location: str,
-        operation_name: str,
-        config: types.CheckQueryJobAgentEngineConfigOrDict | None = None,
+        agent_engine_id: str,
+        config: types.RunQueryJobAgentEngineConfigOrDict | None = None,
+        check_config: types.CheckQueryJobAgentEngineConfigOrDict | None = None,
+        wait_for_completion: bool = True,
         poll_interval: float = 30,
         timeout: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -253,8 +216,10 @@ class CheckQueryAgentEngineOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
         self.project_id = project_id
         self.location = location
-        self.operation_name = operation_name
+        self.agent_engine_id = agent_engine_id
         self.config = config
+        self.check_config = check_config
+        self.wait_for_completion = wait_for_completion
         self.poll_interval = poll_interval
         self.timeout = timeout
         self.gcp_conn_id = gcp_conn_id
@@ -269,14 +234,30 @@ class CheckQueryAgentEngineOperator(GoogleCloudBaseOperator):
         )
 
     def execute(self, context: Context) -> dict[str, Any]:
-        self.log.info("Checking Agent Engine query job %s.", self.operation_name)
+        self.log.info("Running query job on Agent Engine %s.", self.agent_engine_id)
+        query_job = self.hook.run_query_job(
+            project_id=self.project_id,
+            location=self.location,
+            agent_engine_id=self.agent_engine_id,
+            config=self.config,
+        )
+        result = serialize_value(query_job)
+        self.log.info("Query job was started on Agent Engine %s.", self.agent_engine_id)
+        if not self.wait_for_completion:
+            return result
+
+        operation_name = getattr(query_job, "job_name", None)
+        if not operation_name:
+            raise RuntimeError("Agent Engine query job did not include an operation name.")
+        operation_id = extract_operation_id(operation_name)
+
         if self.deferrable:
             self.defer(
                 trigger=AgentEngineQueryJobTrigger(
                     project_id=self.project_id,
                     location=self.location,
-                    operation_name=self.operation_name,
-                    config=self.config,
+                    operation_id=operation_id,
+                    config=self.check_config,
                     gcp_conn_id=self.gcp_conn_id,
                     impersonation_chain=self.impersonation_chain,
                     poll_interval=self.poll_interval,
@@ -288,14 +269,13 @@ class CheckQueryAgentEngineOperator(GoogleCloudBaseOperator):
         query_job = self.hook.wait_for_query_agent_engine_job(
             project_id=self.project_id,
             location=self.location,
-            operation_name=self.operation_name,
-            config=self.config,
+            operation_id=operation_id,
+            config=self.check_config,
             poll_interval=self.poll_interval,
             timeout=self.timeout,
         )
-        result = _serialize_value(query_job)
-        self.log.info("Agent Engine query job %s completed.", self.operation_name)
-        return result
+        self.log.info("Agent Engine query job %s completed.", operation_name)
+        return serialize_value(query_job)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
         if event is None:
@@ -316,6 +296,7 @@ class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
     :param agent_engine_id: Required. The Agent Engine ID.
     :param agent: Optional. The updated agent object to deploy.
+    :param agent_engine: Optional. Deprecated alias for ``agent``.
     :param config: Required. Configuration for the Agent Engine update.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term credentials.
@@ -326,6 +307,7 @@ class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
         "location",
         "agent_engine_id",
         "agent",
+        "agent_engine",
         "config",
         "gcp_conn_id",
         "impersonation_chain",
@@ -339,6 +321,7 @@ class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
         agent_engine_id: str,
         config: types.AgentEngineConfigOrDict,
         agent: Any | None = None,
+        agent_engine: Any | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -348,6 +331,7 @@ class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
         self.location = location
         self.agent_engine_id = agent_engine_id
         self.agent = agent
+        self.agent_engine = agent_engine
         self.config = config
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -366,6 +350,7 @@ class UpdateAgentEngineOperator(GoogleCloudBaseOperator):
             location=self.location,
             agent_engine_id=self.agent_engine_id,
             agent=self.agent,
+            agent_engine=self.agent_engine,
             config=self.config,
         )
         result = _serialize_agent_engine(agent_engine)
@@ -387,7 +372,6 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
     :param timeout: Optional timeout, in seconds.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term credentials.
-    :param deferrable: Run operator in the deferrable mode.
     """
 
     template_fields = (
@@ -413,7 +397,6 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -427,7 +410,6 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
         self.timeout = timeout
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        self.deferrable = deferrable
 
     @cached_property
     def hook(self) -> AgentEngineHook:
@@ -445,50 +427,25 @@ class DeleteAgentEngineOperator(GoogleCloudBaseOperator):
             force=self.force,
             config=self.config,
         )
-        result = _serialize_value(operation)
+        result = serialize_value(operation)
         if not self.wait_for_completion:
             return result
 
         operation_name = getattr(operation, "name", None)
         if not operation_name:
             raise RuntimeError("Delete Agent Engine operation did not include an operation name.")
+        operation_id = extract_operation_id(operation_name)
 
         if getattr(operation, "done", False):
             self.log.info("Agent Engine %s was deleted.", self.agent_engine_id)
             return result
 
-        if self.deferrable:
-            self.defer(
-                trigger=AgentEngineDeleteTrigger(
-                    location=self.location,
-                    agent_engine_id=self.agent_engine_id,
-                    gcp_conn_id=self.gcp_conn_id,
-                    impersonation_chain=self.impersonation_chain,
-                    poll_interval=self.poll_interval,
-                    timeout=self.timeout,
-                    operation_name=operation_name,
-                ),
-                method_name="execute_complete",
-                kwargs={"operation": result},
-            )
-
         self.hook.wait_for_agent_engine_operation(
+            project_id=self.project_id,
             location=self.location,
-            operation_name=operation_name,
+            operation_id=operation_id,
             poll_interval=self.poll_interval,
             timeout=self.timeout,
         )
         self.log.info("Agent Engine %s was deleted.", self.agent_engine_id)
         return result
-
-    def execute_complete(
-        self, context: Context, event: dict[str, Any] | None = None, operation: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        if event is None:
-            raise RuntimeError("No event received in trigger callback")
-        if event["status"] == "success":
-            self.log.info("Agent Engine %s deleted.", event["agent_engine_id"])
-            return operation or {}
-        if event["status"] == "timeout":
-            raise TimeoutError(event["message"])
-        raise RuntimeError(event["message"])
