@@ -1787,7 +1787,7 @@ class TestDatabricksSubmitRunOperatorDurable:
         op = DatabricksSubmitRunOperator(
             task_id=TASK_ID, json={"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK}
         )
-        db_mock = db_mock_class.return_values
+        db_mock = db_mock_class.return_value
         db_mock.submit_run.return_value = RUN_ID
         db_mock.get_run.side_effect = [
             DatabricksApiError("Response: RESOURCE_DOES_NOT_EXIST, Status Code: 404", http_status_code=404),
