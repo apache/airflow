@@ -35,6 +35,7 @@ from requests.auth import HTTPBasicAuth
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.databricks.exceptions import DatabricksApiError
 from airflow.providers.databricks.hooks.databricks import (
     GET_RUN_ENDPOINT,
     SUBMIT_RUN_ENDPOINT,
@@ -403,6 +404,19 @@ class TestDatabricksHook:
                 hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
             mock_errors.assert_not_called()
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_failing_do_api_call_raises_exception(self, mock_requests):
+        hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
+
+        setup_mock_requests(mock_requests, requests_exceptions.HTTPError, status_code=404)
+
+        with pytest.raises(DatabricksApiError) as exc_info:
+            hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+
+        assert exc_info.value.http_status_code == 404
+        # simple backcompat check, so that we do not break existing code that expects AirflowException
+        assert isinstance(exc_info.value, AirflowException)
 
     def test_do_api_call_succeeds_after_retrying(self):
         hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)

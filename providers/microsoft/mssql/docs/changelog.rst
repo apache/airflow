@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+4.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Azure, Fabric and instance MSSQL Asset URI validation (#67999)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.6.1
 .....
 

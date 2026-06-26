@@ -96,6 +96,7 @@ Automatic injection is supported for the following operators:
 
 - :class:`~airflow.providers.apache.livy.operators.livy.LivyOperator`
 - :class:`~airflow.providers.apache.spark.operators.spark_submit.SparkSubmitOperator`
+- :class:`~airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator`
 - :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateBatchOperator`
 - :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator`
 - :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`

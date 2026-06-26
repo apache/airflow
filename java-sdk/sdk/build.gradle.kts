@@ -21,6 +21,7 @@ val airflowSupervisorSchemaVersion: String by project
 
 plugins {
     `java-library`
+    `java-test-fixtures`
     id("airflow-jvm-conventions")
     id("airflow-publish")
     id("org.jetbrains.dokka") version "2.2.0"
@@ -251,6 +252,9 @@ publishing {
         create<MavenPublication>("mavenJava") {
             artifactId = "airflow-sdk"
             from(components["java"])
+            // test-fixtures are not published to Maven Central.
+            suppressPomMetadataWarningsFor("testFixturesApiElements")
+            suppressPomMetadataWarningsFor("testFixturesRuntimeElements")
             artifact(javadocJar)
             pom {
                 name = "Apache Airflow Java SDK"

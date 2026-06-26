@@ -72,6 +72,7 @@
     "expectedDuration": "預計時長",
     "lastSchedulingDecision": "最後排程決策",
     "mappedPartitionKey": "映射分區鍵",
+    "partitionDate": "資產分區日期",
     "partitionKey": "資產分區鍵",
     "queuedAt": "開始排隊時間",
     "runAfter": "最早可執行時間",
@@ -179,9 +180,12 @@
   "note": {
     "add": "新增筆記",
     "dagRun": "Dag 執行筆記",
+    "edit": "編輯筆記",
     "label": "筆記",
     "placeholder": "新增筆記...",
-    "taskInstance": "任務實例筆記"
+    "preview": "預覽",
+    "taskInstance": "任務實例筆記",
+    "write": "撰寫"
   },
   "overallStatus": "整體狀態",
   "partitionedDagRun_one": "分區的 Dag 執行",

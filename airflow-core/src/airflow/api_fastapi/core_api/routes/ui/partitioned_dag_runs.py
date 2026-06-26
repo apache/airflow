@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeAlias, cast
 
 import structlog
 from fastapi import Depends, HTTPException, status
@@ -474,15 +474,16 @@ def get_pending_partitioned_dag_run(
     total_required = sum(a.required_count for a in assets)
     asset_expression = dag_model.asset_expression if dag_model is not None else None
 
-    return PartitionedDagRunDetailResponse(
-        id=partitioned_dag_run.id,
-        dag_id=dag_id,
-        partition_key=partition_key,
-        created_at=partitioned_dag_run.created_at.isoformat() if partitioned_dag_run.created_at else None,
-        updated_at=partitioned_dag_run.updated_at.isoformat() if partitioned_dag_run.updated_at else None,
-        created_dag_run_id=partitioned_dag_run.created_dag_run_id,
-        assets=assets,
-        total_required=total_required,
-        total_received=total_received,
-        asset_expression=asset_expression,
-    )
+    model_data: dict[str, Any] = {
+        "id": partitioned_dag_run.id,
+        "dag_id": dag_id,
+        "partition_key": partition_key,
+        "created_at": partitioned_dag_run.created_at.isoformat() if partitioned_dag_run.created_at else None,
+        "updated_at": partitioned_dag_run.updated_at.isoformat() if partitioned_dag_run.updated_at else None,
+        "created_dag_run_id": partitioned_dag_run.created_dag_run_id,
+        "assets": assets,
+        "total_required": total_required,
+        "total_received": total_received,
+        "asset_expression": asset_expression,
+    }
+    return PartitionedDagRunDetailResponse.model_validate(model_data)

@@ -108,6 +108,7 @@ List of default extras in the production Dockerfile:
 * mysql
 * odbc
 * openlineage
+* opensearch
 * pandas
 * postgres
 * redis

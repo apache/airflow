@@ -139,7 +139,7 @@ reported as such are described in "What is NOT considered a security vulnerabili
 - In `airflow-core`, functions with a `session` parameter must not call `session.commit()`. Use keyword-only `session` parameters.
 - Imports at top of file. Valid exceptions: circular imports, lazy loading for worker isolation, `TYPE_CHECKING` blocks.
 - Guard heavy type-only imports (e.g., `kubernetes.client`) with `TYPE_CHECKING` in multi-process code paths.
-- Define dedicated exception classes or use existing exceptions such as `ValueError` instead of raising the broad `AirflowException` directly. Each error case should have a specific exception type that conveys what went wrong.
+- Define dedicated exception classes or use existing exceptions such as `ValueError` instead of raising the broad `AirflowException` directly. Each error case should have a specific exception type that conveys what went wrong. **Never add new direct `raise AirflowException(...)` usages — the community is actively reducing them, not adding more, and the `check-no-new-airflow-exceptions` prek hook enforces this across `airflow-core`, `airflow-ctl`, `task-sdk`, `providers`, and `shared`.** Prefer a Python built-in (`ValueError`, `TypeError`, `OSError`, …) or a dedicated class in the appropriate `exceptions.py`. The only acceptable way an `AirflowException` line may move is relocating an already-existing one verbatim during a refactor (e.g. moving code between files) — that is not a new usage. When you touch code that already raises `AirflowException`, prefer narrowing it to a more specific exception rather than leaving or duplicating it.
 - Translate domain-layer exceptions to `HTTPException` at FastAPI route boundaries. In `airflow-core/src/airflow/core_api/` route handlers, catch errors raised by domain code (e.g., `ValueError` from `airflow.state.metastore.MetastoreStateBackend` for a missing row or invalid input) and re-raise as `HTTPException` with the right status (`404` for not-found, `400` for invalid input). Otherwise they propagate as `500 Internal Server Error`, leaking internals and misleading clients.
 - Bulk `DELETE`/`UPDATE` in the scheduler loop or any synchronous interval task (e.g. `call_regular_interval` callbacks) must be batched with `LIMIT` and committed between batches — never issue a single unbounded bulk write against a user-driven table. Unbounded bulk writes hold row locks for the entire transaction (blocking concurrent writers) and stall the scheduler main loop. Filter columns used by the cleanup must be indexed. Follow the batching pattern in `airflow-core/src/airflow/utils/db_cleanup.py`.
 - Name functions and methods with action verbs: `get_`, `extract_`, `find_`, `compute_`, `build_`, etc. Avoid noun-only names like `_serialize_keys` or `_base_names` — they read as attributes, not callables. Predicates (`is_`, `has_`) are the one exception.
@@ -168,6 +168,15 @@ Write commit messages focused on user impact, not implementation details.
 - **Good:** `Fix airflow dags test command failure without serialized Dags`
 - **Good:** `UI: Fix Grid view not refreshing after task actions`
 - **Bad:** `Initialize Dag bundles in CLI get_dag function`
+- **Bad:** `fix(cli): dags test failure` — Airflow does not use Conventional Commits
+  (`feat:`, `fix:`, `chore:` …). Write the subject as plain prose. A `commit-msg`
+  prek hook (`check-no-conventional-commit-message`) rejects these, and CI checks
+  every commit of the PR.
+
+**Always run `prek install` before committing any code.** It installs the
+`commit-msg` hook (in addition to `pre-commit`) so the Conventional Commits guard
+runs locally; a clone that ran `prek install` before this hook existed must re-run
+it to pick up the new hook type.
 
 Use the **imperative mood** and a plain message — do **not** use Conventional Commits prefixes
 (`fix:`, `feat:`, `chore:`, `docs:`, `refactor:`, …). apache/airflow does not follow that
@@ -439,6 +448,22 @@ disclosure rules (the PR body still keeps its own `Generated-by:`
 block under the AI-disclosure checkbox; commit messages still follow
 the no-self-as-co-author rule above). Do not skip the footer to
 shorten a message — attribution applies regardless of message length.
+
+#### Do not tag individuals
+
+AI agents MUST NOT mention or tag individual contributors, committers,
+PMC members, or maintainers using GitHub usernames (e.g. `@user`) unless
+explicitly instructed by a human reviewer. When suggesting who might be
+relevant to a discussion, refer to roles, teams, code ownership
+information, labels, or components instead of individuals. This keeps
+notification noise down and avoids pulling people into threads they have
+not chosen to join.
+
+The only exceptions are mentions a human has explicitly authorized —
+including the `@<github-handle>` in the `Drafted-by: … reviewed by
+@<handle>` footer above, which names the reviewer who approved the
+message — and replying within a thread to people already actively
+participating in that same PR/issue discussion.
 
 ## apache-steward framework
 

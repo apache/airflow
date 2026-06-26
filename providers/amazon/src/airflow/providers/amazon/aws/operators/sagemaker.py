@@ -350,8 +350,8 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
                 trigger=SageMakerTrigger(
                     job_name=self.config["ProcessingJobName"],
                     job_type="Processing",
-                    poke_interval=self.check_interval,
-                    max_attempts=self.max_attempts,
+                    waiter_delay=self.check_interval,
+                    waiter_max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
@@ -366,7 +366,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         if validated_event["status"] != "success":
             raise AirflowException(f"Error while running job: {validated_event}")
 
-        self.log.info(validated_event["message"])
+        self.log.info("SageMaker job %s completed.", validated_event["job_name"])
         self.serialized_job = serialize(self.hook.describe_processing_job(validated_event["job_name"]))
         self.log.info("%s completed successfully.", self.task_id)
         return {"Processing": self.serialized_job}
@@ -602,7 +602,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
                 trigger=SageMakerTrigger(
                     job_name=endpoint_info["EndpointName"],
                     job_type="endpoint",
-                    poke_interval=self.check_interval,
+                    waiter_delay=self.check_interval,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
@@ -829,8 +829,8 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
                 trigger=SageMakerTrigger(
                     job_name=transform_config["TransformJobName"],
                     job_type="Transform",
-                    poke_interval=self.check_interval,
-                    max_attempts=self.max_attempts,
+                    waiter_delay=self.check_interval,
+                    waiter_max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
@@ -852,7 +852,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
         validated_event = validate_execute_complete_event(event)
 
-        self.log.info(validated_event["message"])
+        self.log.info("SageMaker job %s completed.", validated_event["job_name"])
         return self.serialize_result(validated_event["job_name"])
 
     def serialize_result(self, job_name: str) -> dict[str, dict]:
@@ -1003,7 +1003,7 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
                 trigger=SageMakerTrigger(
                     job_name=self.config["HyperParameterTuningJobName"],
                     job_type="tuning",
-                    poke_interval=self.check_interval,
+                    waiter_delay=self.check_interval,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
@@ -1234,8 +1234,8 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                 trigger=SageMakerTrigger(
                     job_name=self.config["TrainingJobName"],
                     job_type="Training",
-                    poke_interval=self.check_interval,
-                    max_attempts=self.max_attempts,
+                    waiter_delay=self.check_interval,
+                    waiter_max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
@@ -1249,7 +1249,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         if validated_event["status"] != "success":
             raise AirflowException(f"Error while running job: {validated_event}")
 
-        self.log.info(validated_event["message"])
+        self.log.info("SageMaker job %s completed.", validated_event["job_name"])
         return self.serialize_result(validated_event["job_name"])
 
     def serialize_result(self, job_name: str) -> dict[str, dict]:

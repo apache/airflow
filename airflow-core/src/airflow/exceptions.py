@@ -146,7 +146,12 @@ class DagNotPartitionedError(ValueError):
 
 
 class InvalidPartitionKeyError(ValueError):
-    """Raise when a partition_key value is empty or exceeds the maximum allowed length."""
+    """
+    Raise when a partition_key value is invalid.
+
+    1. empty or exceeds the maximum allowed length
+    2. cannot be decoded to a partition_date by the timetable
+    """
 
 
 class DagRunAlreadyExists(AirflowBadRequest):
