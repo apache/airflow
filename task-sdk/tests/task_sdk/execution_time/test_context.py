@@ -1530,6 +1530,36 @@ class TestTaskStateStoreAccessor:
         mock_supervisor_comms.asend.assert_called_once_with(ClearTaskStateStore(ti_id=self.TI_ID))
         mock_supervisor_comms.send.assert_not_called()
 
+    @pytest.mark.asyncio
+    async def test_adelete_purges_via_async_backend(self, mock_supervisor_comms):
+        """adelete awaits the async backend instead of blocking on the sync delete."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+        backend = MagicMock(spec=BaseStoreBackend)
+
+        with patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend",
+            return_value=backend,
+        ):
+            await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).adelete("job_id")
+
+        backend.adelete.assert_awaited_once_with(self.SCOPE, "job_id")
+        backend.delete.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aclear_purges_via_async_backend(self, mock_supervisor_comms):
+        """aclear awaits the async backend instead of blocking on the sync clear."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+        backend = MagicMock(spec=BaseStoreBackend)
+
+        with patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend",
+            return_value=backend,
+        ):
+            await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aclear()
+
+        backend.aclear.assert_awaited_once_with(self.SCOPE)
+        backend.clear.assert_not_called()
+
 
 class TestAssetStateStoreAccessor:
     ASSET_NAME = "debug_watcher_asset"
@@ -1974,6 +2004,41 @@ class TestTaskStateStoreAccessorWithCustomBackend:
         assert "job_id" not in backend._actual_key_value_store
         assert "checkpoint" not in backend._actual_key_value_store
         mock_supervisor_comms.send.assert_any_call(ClearTaskStateStore(ti_id=self.TI_ID))
+
+    @pytest.mark.asyncio
+    async def test_aset_returns_reference_to_storage(self, mock_supervisor_comms, backend, time_machine):
+        """aset() stores actual value in backend and sends mem:// reference via comms."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+        expected_ref = f"mem://{self.SCOPE.dag_id}/{self.SCOPE.run_id}/{self.SCOPE.task_id}/{self.SCOPE.map_index}/job_id"
+
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        time_machine.move_to(frozen_dt, tick=False)
+
+        await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aset("job_id", "app_001")
+
+        mock_supervisor_comms.asend.assert_called_once_with(
+            SetTaskStateStore(
+                ti_id=self.TI_ID,
+                key="job_id",
+                value=_wrap_external_ref(expected_ref),
+                expires_at=frozen_dt + timedelta(days=30),
+            )
+        )
+        assert backend._actual_key_value_store["job_id"] == "app_001"
+        assert backend.reference["job_id"] == expected_ref
+
+    @pytest.mark.asyncio
+    async def test_aget_resolves_reference_to_actual_value(self, mock_supervisor_comms, backend):
+        """aget() fetches mem:// reference from DB, resolves it to actual value via backend."""
+        ref = _wrap_external_ref(
+            f"mem://{self.SCOPE.dag_id}/{self.SCOPE.run_id}/{self.SCOPE.task_id}/{self.SCOPE.map_index}/job_id"
+        )
+        backend._actual_key_value_store["job_id"] = "app_001"
+        mock_supervisor_comms.asend.return_value = TaskStateStoreResult(value=ref)
+
+        result = await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aget("job_id")
+
+        assert result == "app_001"
 
 
 class TestAssetStateStoreAccessorWithCustomBackend:
