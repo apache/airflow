@@ -4057,15 +4057,38 @@ def test_api_client_clears_dag_bag_override_when_dag_is_none():
         in_process_api_server.cache_clear()
 
 
+class TestResolveChildTarget:
+    """Test rehydrating the exec'd child's entry point from _AIRFLOW_CHILD_TARGET."""
+
+    def test_empty_defaults_to_subprocess_main(self):
+        assert supervisor._resolve_child_target("") is supervisor._subprocess_main
+
+    def test_module_level_function(self):
+        resolved = supervisor._resolve_child_target("airflow.sdk.execution_time.supervisor:_subprocess_main")
+        assert resolved is supervisor._subprocess_main
+
+    def test_classmethod_entry_point(self):
+        """A ``module:ClassName.method`` target rehydrates the bound classmethod (e.g. the triggerer's)."""
+        resolved = supervisor._resolve_child_target(
+            "airflow.sdk.execution_time.supervisor:WatchedSubprocess.start"
+        )
+        assert resolved == supervisor.WatchedSubprocess.start
+        assert callable(resolved)
+
+    def test_start_rejects_non_importable_target_under_exec(self):
+        """A closure/lambda target can't be named for the exec'd child, so start() fails fast."""
+        with pytest.raises(ValueError, match="top-level importable target"):
+            supervisor.WatchedSubprocess.start(target=lambda: None, use_exec=True)
+
+
 @pytest.mark.usefixtures("disable_capturing")
 class TestChildExecMain:
     """Test the macOS fork+exec child entry point."""
 
-    def test_uses_fds_012_and_requests_log_channel(self, monkeypatch):
-        """_child_exec_main wraps FDs 0/1/2 as sockets, passes log_fd=0, sets _AIRFLOW_FORK_EXEC."""
+    def test_uses_fds_0123_and_inherits_log_channel(self, monkeypatch):
+        """_child_exec_main wraps FDs 0/1/2 as sockets and passes log_fd=3 (inherited log channel)."""
         # _child_exec_main expects FDs 0/1/2 to be sockets (dup2'd by the
-        # parent before exec).  It passes log_fd=0 to _fork_main (structured
-        # logging is requested later via ResendLoggingFD).
+        # parent before exec) and the structured log channel inherited on FD 3.
         req_a, req_b = socket.socketpair()
         out_a, out_b = socket.socketpair()
         err_a, err_b = socket.socketpair()
@@ -4074,6 +4097,9 @@ class TestChildExecMain:
         saved_0 = os.dup(0)
         saved_1 = os.dup(1)
         saved_2 = os.dup(2)
+
+        # The parent names the entry point to run via this env var.
+        monkeypatch.setenv("_AIRFLOW_CHILD_TARGET", "airflow.sdk.execution_time.supervisor:_subprocess_main")
 
         try:
             os.dup2(req_a.fileno(), 0)
@@ -4101,11 +4127,10 @@ class TestChildExecMain:
             assert captured["requests_fd"] == 0
             assert captured["stdout_fd"] == 1
             assert captured["stderr_fd"] == 2
-            assert captured["log_fd"] == 0
+            assert captured["log_fd"] == 3
             assert captured["target"] is supervisor._subprocess_main
-            # _child_exec_main sets this so the task runner knows to request
-            # the log channel via ResendLoggingFD.
-            assert os.environ.pop("_AIRFLOW_FORK_EXEC") == "1"
+            # The env var is consumed (popped) so it does not leak to grandchildren.
+            assert "_AIRFLOW_CHILD_TARGET" not in os.environ
         finally:
             # Restore original FDs.
             os.dup2(saved_0, 0)
