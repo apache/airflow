@@ -122,7 +122,8 @@ class TestVaultSecrets:
         }
 
         test_client = VaultBackend(**kwargs)
-        test_client._set_connection_class(SdkConnection)
+        if hasattr(test_client, "_set_connection_class"):
+            test_client._set_connection_class(SdkConnection)
         connection = test_client.get_connection(conn_id="test_postgres")
         assert connection.get_uri() == "postgres://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
 
@@ -182,7 +183,8 @@ class TestVaultSecrets:
         )
 
         test_client = VaultBackend(**kwargs)
-        test_client._set_connection_class(SdkConnection)
+        if hasattr(test_client, "_set_connection_class"):
+            test_client._set_connection_class(SdkConnection)
         connection = test_client.get_connection(conn_id="test_postgres", team_name=team_name)
         mock_client.secrets.kv.v2.read_secret_version.assert_has_calls(
             [
@@ -237,7 +239,8 @@ class TestVaultSecrets:
         }
 
         test_client = VaultBackend(**kwargs)
-        test_client._set_connection_class(SdkConnection)
+        if hasattr(test_client, "_set_connection_class"):
+            test_client._set_connection_class(SdkConnection)
         connection = test_client.get_connection(conn_id="airflow/test_postgres")
         assert connection.get_uri() == "postgres://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
 
@@ -610,7 +613,8 @@ class TestVaultSecrets:
         }
 
         test_client = VaultBackend(**kwargs)
-        test_client._set_connection_class(SdkConnection)
+        if hasattr(test_client, "_set_connection_class"):
+            test_client._set_connection_class(SdkConnection)
         connection = test_client.get_connection(conn_id="test_postgres")
         assert connection.get_uri() == "postgres://airflow:airflow@host:5432/airflow"
         mock_client.auth.jwt.jwt_login.assert_called_with(
@@ -732,7 +736,8 @@ class TestVaultSecrets:
         }
 
         backend = VaultBackend(**kwargs)
-        backend._set_connection_class(SdkConnection)
+        if hasattr(backend, "_set_connection_class"):
+            backend._set_connection_class(SdkConnection)
 
         connection = backend.get_connection("my_conn")
 
@@ -781,6 +786,10 @@ class TestVaultSecrets:
         mock_hvac.Client.assert_not_called()
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @pytest.mark.skipif(
+        not hasattr(VaultBackend, "_set_connection_class"),
+        reason="Connection class injection requires BaseSecretsBackend._set_connection_class (Airflow 3.2+)",
+    )
     def test_get_connection_returns_sdk_connection_not_sqlalchemy_model(self, mock_hvac):
         """get_connection must return the SDK (Pydantic) Connection, not the SQLAlchemy ORM model.
 
@@ -822,8 +831,8 @@ class TestVaultSecrets:
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @pytest.mark.skipif(
-        not hasattr(SdkConnection, "from_uri"),
-        reason="conn_uri deserialization requires Connection.from_uri (Airflow 3.2+ / task-sdk 1.2.0+)",
+        not hasattr(SdkConnection, "from_uri") or not hasattr(VaultBackend, "_set_connection_class"),
+        reason="conn_uri deserialization requires Connection.from_uri and _set_connection_class (Airflow 3.2+)",
     )
     def test_get_connection_via_uri_returns_sdk_connection(self, mock_hvac):
         mock_client = mock.MagicMock()
