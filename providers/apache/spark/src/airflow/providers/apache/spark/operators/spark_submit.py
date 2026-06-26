@@ -583,4 +583,3 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             yarn_track_via_rm_api=self._yarn_track_via_rm_api,
             yarn_rm_auth=self._yarn_rm_auth,
         )
-    
