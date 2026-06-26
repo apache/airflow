@@ -30,6 +30,7 @@ from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
 from airflow.sdk.definitions.dag import DAG
+from airflow.sdk.definitions.iterableoperator import IterableOperator, MappedIterableOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.execution_time.comms import (
@@ -122,26 +123,24 @@ def test_map_unknown_arg_raises():
 
 
 @pytest.mark.parametrize(
-    ("size", "expected"),
+    "size",
     [
-        pytest.param(None, 0),
-        pytest.param(0, 0),
-        pytest.param(3, 3),
+        pytest.param(0),
+        pytest.param(3),
     ],
 )
-def test_map_batch_size(size: int | None, expected: int):
+def test_map_batch_size(size: int):
     with DAG("test-dag", schedule=None):
-        if size is not None:
-            mapped = (
-                MockOperator.partial(task_id="task_2")
-                .batch(size=size)
-                ._iterate(DictOfListsExpandInput({"arg1": [1, 2, 3]}), strict=False)
-            )
+        mapped = (
+            MockOperator.partial(task_id="task_2")
+            .batch(size=size)
+            ._iterate(DictOfListsExpandInput({"arg1": [1, 2, 3]}), strict=False)
+        )
+        if size > 0:
+            assert isinstance(mapped, MappedIterableOperator)
+            assert mapped.batch_size == size
         else:
-            mapped = MockOperator.partial(task_id="task_2")._expand(
-                DictOfListsExpandInput({"arg1": [1, 2, 3]}), strict=False
-            )
-        assert mapped.batch_size == expected
+            assert isinstance(mapped, IterableOperator)
 
 
 def test_map_xcom_arg():
