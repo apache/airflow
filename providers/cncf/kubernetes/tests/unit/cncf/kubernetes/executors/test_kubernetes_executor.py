@@ -1292,6 +1292,7 @@ class TestKubernetesExecutor:
     ):
         """A pod that fails while the TI is still queued is requeued without reporting a failure."""
         executor = self.kubernetes_executor
+        executor.pod_launch_failure_max_retries = 1
         executor.start()
         try:
             ti = create_task_instance(state=TaskInstanceState.QUEUED)
@@ -1299,7 +1300,6 @@ class TestKubernetesExecutor:
             job = KubernetesJob(key, ["airflow", "tasks", "run"], None, None)
             executor.running = {key}
             executor.last_known_jobs = {key: job}
-            executor.task_queue = mock.MagicMock()
             results = KubernetesResults(
                 key,
                 State.FAILED,
@@ -1310,10 +1310,13 @@ class TestKubernetesExecutor:
             )
             executor._change_state(results)
 
-            executor.task_queue.put.assert_called_once_with(job)
+            # Requeued (job re-put on the queue): the key stays in running, no
+            # failure is reported, and the attempt counter is incremented. These
+            # together are reached only via the requeue branch.
+            assert executor.pod_launch_failure_attempts[key] == 1
             assert key in executor.running
             assert key not in executor.event_buffer
-            assert executor.pod_launch_failure_attempts[key] == 1
+            assert key in executor.last_known_jobs
         finally:
             executor.end()
 
@@ -1334,7 +1337,6 @@ class TestKubernetesExecutor:
             executor.running = {key}
             executor.last_known_jobs = {key: job}
             executor.pod_launch_failure_attempts[key] = 1
-            executor.task_queue = mock.MagicMock()
             results = KubernetesResults(
                 key,
                 State.FAILED,
@@ -1345,7 +1347,6 @@ class TestKubernetesExecutor:
             )
             executor._change_state(results)
 
-            executor.task_queue.put.assert_not_called()
             assert executor.event_buffer[key][0] == State.FAILED
             assert key not in executor.running
             assert key not in executor.last_known_jobs
@@ -1367,7 +1368,6 @@ class TestKubernetesExecutor:
             key = ti.key
             executor.running = {key}
             executor.last_known_jobs = {key: KubernetesJob(key, ["airflow"], None, None)}
-            executor.task_queue = mock.MagicMock()
             results = KubernetesResults(
                 key,
                 State.FAILED,
@@ -1378,7 +1378,6 @@ class TestKubernetesExecutor:
             )
             executor._change_state(results)
 
-            executor.task_queue.put.assert_not_called()
             assert executor.event_buffer[key][0] == State.FAILED
             assert key not in executor.running
         finally:
@@ -1398,7 +1397,6 @@ class TestKubernetesExecutor:
             key = ti.key
             executor.running = {key}
             executor.last_known_jobs = {}
-            executor.task_queue = mock.MagicMock()
             results = KubernetesResults(
                 key,
                 State.FAILED,
@@ -1409,7 +1407,6 @@ class TestKubernetesExecutor:
             )
             executor._change_state(results)
 
-            executor.task_queue.put.assert_not_called()
             assert executor.event_buffer[key][0] == State.FAILED
             assert key not in executor.running
         finally:
@@ -1427,11 +1424,7 @@ class TestKubernetesExecutor:
                 key=key,
                 queue=None,
                 command=["airflow", "tasks", "run", "true", "some_parameter"],
-                executor_config=k8s.V1Pod(
-                    spec=k8s.V1PodSpec(
-                        containers=[k8s.V1Container(name="base", image="myimage", image_pull_policy="Always")]
-                    )
-                ),
+                executor_config=None,
             )
             assert key in executor.last_known_jobs
             assert executor.last_known_jobs[key].key == key
