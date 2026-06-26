@@ -345,11 +345,12 @@ def get_partitioned_dag_runs(
     if dag_id.value is None:
         asset_expressions = {dm.dag_id: dm.asset_expression for dm in dag_models.values()}
 
-    return PartitionedDagRunCollectionResponse(
-        partitioned_dag_runs=results,
-        total=total_entries,
-        asset_expressions=asset_expressions,
-    )
+    model_data: dict[str, Any] = {
+        "partitioned_dag_runs": results,
+        "total": total_entries,
+        "asset_expressions": asset_expressions,
+    }
+    return PartitionedDagRunCollectionResponse.model_validate(model_data)
 
 
 @partitioned_dag_runs_router.get(
