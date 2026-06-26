@@ -311,7 +311,7 @@ class KiotaRequestAdapterHook(BaseHook):
             scopes = scopes.split(",")
         verify = config.get("verify", True)
         trust_env = config.get("trust_env", False)
-        allowed_hosts = (config.get("allowed_hosts", authority) or "").split(",")
+        allowed_hosts = [host for host in (config.get("allowed_hosts", authority) or "").split(",") if host]
 
         self.log.info(
             "Creating Microsoft Graph SDK client %s for conn_id: %s",

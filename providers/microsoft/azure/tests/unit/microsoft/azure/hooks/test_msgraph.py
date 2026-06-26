@@ -570,6 +570,19 @@ class TestKiotaRequestAdapterHook:
             adapter.send_no_response_content_async.assert_called_once()
             assert hook.conn_id not in hook.cached_request_adapters
 
+    @pytest.mark.asyncio
+    async def test_allowed_hosts_is_empty_list_when_not_configured(self):
+        """an unset allowed_hosts/authority must yield []."""
+        KiotaRequestAdapterHook.cached_request_adapters.clear()
+        with patch_hook():
+            with patch(
+                "airflow.providers.microsoft.azure.hooks.msgraph.AzureIdentityAuthenticationProvider"
+            ) as mock_auth_provider:
+                hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+                await hook.get_async_conn()
+
+                assert mock_auth_provider.call_args.kwargs["allowed_hosts"] == []
+
 
 class TestKiotaRequestAdapterHookProtocol:
     """Test protocol handling in KiotaRequestAdapterHook."""
