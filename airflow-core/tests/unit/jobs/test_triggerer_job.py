@@ -854,7 +854,7 @@ class TestTriggerSupervisorAssetStateStore:
 
         self._handle(supervisor, GetAssetStateStoreByName(name="asset_a", key="watermark"))
 
-        supervisor.client.asset_state_store.get.assert_called_once_with(key="watermark", name="asset_a")
+        supervisor.client.asset_state_store.get.assert_called_once_with("watermark", name="asset_a")
         supervisor.send_msg.assert_called_once_with(
             AssetStateStoreResult(value="2026-01-01"), request_id=7, error=None
         )
@@ -864,7 +864,7 @@ class TestTriggerSupervisorAssetStateStore:
 
         self._handle(supervisor, GetAssetStateStoreByUri(uri="s3://bucket/a", key="watermark"))
 
-        supervisor.client.asset_state_store.get.assert_called_once_with(key="watermark", uri="s3://bucket/a")
+        supervisor.client.asset_state_store.get.assert_called_once_with("watermark", uri="s3://bucket/a")
         supervisor.send_msg.assert_called_once_with(
             AssetStateStoreResult(value="2026-01-01"), request_id=7, error=None
         )
@@ -883,7 +883,7 @@ class TestTriggerSupervisorAssetStateStore:
         )
 
         supervisor.client.asset_state_store.set.assert_called_once_with(
-            key="watermark", value="2026-01-01", name="asset_a"
+            "watermark", "2026-01-01", name="asset_a"
         )
         supervisor.send_msg.assert_called_once_with(OKResponse(ok=True), request_id=7, error=None)
 
@@ -893,22 +893,20 @@ class TestTriggerSupervisorAssetStateStore:
         )
 
         supervisor.client.asset_state_store.set.assert_called_once_with(
-            key="watermark", value="2026-01-01", uri="s3://bucket/a"
+            "watermark", "2026-01-01", uri="s3://bucket/a"
         )
         supervisor.send_msg.assert_called_once_with(OKResponse(ok=True), request_id=7, error=None)
 
     def test_delete_by_name(self, supervisor):
         self._handle(supervisor, DeleteAssetStateStoreByName(name="asset_a", key="watermark"))
 
-        supervisor.client.asset_state_store.delete.assert_called_once_with(key="watermark", name="asset_a")
+        supervisor.client.asset_state_store.delete.assert_called_once_with("watermark", name="asset_a")
         supervisor.send_msg.assert_called_once_with(OKResponse(ok=True), request_id=7, error=None)
 
     def test_delete_by_uri(self, supervisor):
         self._handle(supervisor, DeleteAssetStateStoreByUri(uri="s3://bucket/a", key="watermark"))
 
-        supervisor.client.asset_state_store.delete.assert_called_once_with(
-            key="watermark", uri="s3://bucket/a"
-        )
+        supervisor.client.asset_state_store.delete.assert_called_once_with("watermark", uri="s3://bucket/a")
         supervisor.send_msg.assert_called_once_with(OKResponse(ok=True), request_id=7, error=None)
 
     def test_clear_by_name(self, supervisor):
