@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeAlias, cast
 
 import structlog
 from fastapi import Depends, HTTPException, status
@@ -334,7 +334,7 @@ def get_partitioned_dag_runs(
     if dag_id.value is None:
         asset_expressions = {dm.dag_id: dm.asset_expression for dm in dag_models.values()}
 
-    model_data = {
+    model_data: dict[str, Any] = {
         "partitioned_dag_runs": results,
         "total": len(results),
         "asset_expressions": asset_expressions,
@@ -464,7 +464,7 @@ def get_pending_partitioned_dag_run(
     total_required = sum(a.required_count for a in assets)
     asset_expression = dag_model.asset_expression if dag_model is not None else None
 
-    model_data = {
+    model_data: dict[str, Any] = {
         "id": partitioned_dag_run.id,
         "dag_id": dag_id,
         "partition_key": partition_key,

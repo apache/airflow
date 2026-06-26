@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import structlog
 from fastapi import Depends, HTTPException, status
@@ -147,7 +147,7 @@ def next_run_assets(
             )
             for row in raw_rows
         ]
-        model_data = {"asset_expression": dag_model.asset_expression, "events": events}
+        model_data: dict[str, Any] = {"asset_expression": dag_model.asset_expression, "events": events}
         return NextRunAssetsResponse.model_validate(model_data)
 
     # Partitioned Dags: enrich with per-asset received/required counts and rollup flag.
