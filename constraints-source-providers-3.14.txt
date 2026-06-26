@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-26T16:25:50.027063
+# This constraints file was automatically generated on 2026-06-26T21:52:56.416515
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -594,7 +594,6 @@ redis==6.4.0
 redshift_connector==2.1.15
 referencing==0.37.0
 regex==2026.5.9
-requests-file==3.0.1
 requests-kerberos==0.15.0
 requests-mock==1.12.1
 requests-oauthlib==2.0.0
@@ -629,7 +628,7 @@ sentry-sdk==2.63.0
 setproctitle==1.3.7
 setuptools==82.0.1
 shellingham==1.5.4
-simple-salesforce==1.12.9
+simple-salesforce==1.11.4
 six==1.17.0
 slack_sdk==3.42.0
 smart_open==7.6.1
@@ -760,7 +759,6 @@ yandexcloud==0.395.0
 yarl==1.24.2
 ydb-dbapi==0.1.22
 ydb==3.29.4
-zeep==4.3.2
 zenpy==2.0.57
 zipp==4.1.0
 zope.event==6.2
