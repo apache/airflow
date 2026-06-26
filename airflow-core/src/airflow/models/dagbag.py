@@ -63,8 +63,7 @@ class DBDagBag:
     Internal class for retrieving dags from the database.
 
     Optionally supports LRU+TTL caching when cache_size is provided.
-    The scheduler uses this without caching, while the API server can
-    enable caching via configuration.
+    Callers can enable bounded caching by passing cache_size and cache_ttl.
 
     :meta private:
     """
