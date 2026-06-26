@@ -105,9 +105,9 @@ Extra (optional)
       triggerer) REST API and token paths use ``aiohttp`` with a session that does **not** trust the
       environment, so proxy environment variables are ignored there and the ``proxies`` extra is required to
       proxy them. Use the extra when you need a proxy on the asynchronous paths, when you want to force a
-      specific proxy regardless of the worker environment, or when only some endpoints should be proxied.
+      specific proxy regardless of the worker environment, or when proxy access should apply only to selected endpoints.
       When both are configured, the ``proxies`` extra takes precedence over the environment variables. The
-      Azure managed-identity path (``use_azure_managed_identity``) is intentionally never proxied. It
+      Azure managed-identity path (``use_azure_managed_identity``) intentionally does not use the configured proxy. It
       authenticates against the link-local ``IMDS`` endpoint (``169.254.169.254``), which must be reached
       directly; keep that address in ``NO_PROXY`` if your environment sets a global proxy.
 
