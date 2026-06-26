@@ -4099,7 +4099,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-celery"
-version = "3.20.0"
+version = "3.21.0"
 source = { editable = "providers/celery" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5145,7 +5145,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-fab"
-version = "3.7.0"
+version = "3.7.1"
 source = { editable = "providers/fab" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5385,7 +5385,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-google"
-version = "22.2.0"
+version = "22.2.1"
 source = { editable = "providers/google" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6112,7 +6112,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-keycloak"
-version = "0.8.0"
+version = "0.8.1"
 source = { editable = "providers/keycloak" }
 dependencies = [
     { name = "apache-airflow" },
