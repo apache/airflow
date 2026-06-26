@@ -24,7 +24,7 @@ from functools import singledispatch
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import ForeignKey, Integer, String, Text, delete, func, or_, select, update
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
@@ -92,6 +92,7 @@ class Trigger(Base):
     """
 
     __tablename__ = "trigger"
+    __table_args__ = (Index("dt_flow_idx_trigger_triggerer_queue_id", "triggerer_id", "queue", "id"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     classpath: Mapped[str] = mapped_column(String(1000), nullable=False)
