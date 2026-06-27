@@ -29,7 +29,7 @@ from airflow.providers.common.compat.sdk import dag, task
 
 
 # [START howto_hook_llamaindex_embed]
-@dag(schedule=None)
+@dag(schedule=None, tags=["example"])
 def example_llamaindex_embed():
     """Chunk + embed a directory of documents and persist the index locally."""
 
@@ -58,7 +58,7 @@ example_llamaindex_embed()
 
 
 # [START howto_hook_llamaindex_retrieve]
-@dag(schedule=None)
+@dag(schedule=None, tags=["example"])
 def example_llamaindex_retrieve():
     """Load a persisted index and run similarity search."""
 
@@ -80,7 +80,7 @@ example_llamaindex_retrieve()
 
 
 # [START howto_hook_llamaindex_cloud_persist]
-@dag(schedule=None)
+@dag(schedule=None, tags=["example"])
 def example_llamaindex_cloud_persist():
     """Persist the index directly to S3 -- no separate upload step."""
 
@@ -109,7 +109,7 @@ example_llamaindex_cloud_persist()
 
 
 # [START howto_hook_llamaindex_byo_embed_model]
-@dag(schedule=None)
+@dag(schedule=None, tags=["example"])
 def example_llamaindex_byo_embed_model():
     """Use a non-OpenAI embedding by instantiating the LlamaIndex class directly.
 

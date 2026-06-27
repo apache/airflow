@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 from datetime import timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
@@ -179,6 +179,58 @@ class TestDbtCloudRunJobOperator:
         with pytest.raises(DbtCloudJobRunException):
             dbt_op.execute(MagicMock())
         assert not mock_defer.called
+
+    @patch(
+        "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_status",
+        return_value=DbtCloudJobRunStatus.QUEUED.value,
+    )
+    @patch("airflow.providers.dbt.cloud.operators.dbt.DbtCloudRunJobOperator.defer")
+    @patch("airflow.providers.dbt.cloud.operators.dbt.DbtCloudRunJobTrigger")
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_connection")
+    @patch(
+        "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.trigger_job_run",
+        return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE),
+    )
+    def test_execute_deferrable_does_not_pass_execution_timeout_to_defer(
+        self,
+        mock_trigger_job_run,
+        mock_dbt_hook,
+        mock_dbt_trigger,
+        mock_defer,
+        mock_job_run_status,
+    ):
+        dbt_op = DbtCloudRunJobOperator(
+            dbt_cloud_conn_id=ACCOUNT_ID_CONN,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            check_interval=1,
+            timeout=3,
+            dag=self.dag,
+            deferrable=True,
+            execution_timeout=timedelta(seconds=3),
+        )
+
+        dbt_op.execute(MagicMock())
+
+        # Explicitly pass timeout=None to defer() so Airflow's framework-level
+        # deferred timeout handling does not raise TaskDeferredTimeout before
+        # execute_complete() can perform dbt job cancellation.
+        mock_defer.assert_called_once_with(
+            method_name="execute_complete",
+            trigger=mock_dbt_trigger.return_value,
+            timeout=None,
+        )
+
+        # The dbt trigger should still receive the calculated execution deadline
+        # used for dbt job cancellation handling within execute_complete().
+        mock_dbt_trigger.assert_called_once_with(
+            conn_id=ACCOUNT_ID_CONN,
+            run_id=5555,
+            end_time=ANY,
+            execution_deadline=ANY,
+            account_id=None,
+            poll_interval=1,
+        )
 
     @pytest.mark.parametrize(
         "status",

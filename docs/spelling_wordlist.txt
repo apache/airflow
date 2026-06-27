@@ -23,10 +23,12 @@ adobjects
 AdsInsights
 adsinsights
 afterall
+agentcore
 agentic
 ai
 aio
 aiobotocore
+AIP
 aiplatform
 Airbnb
 airbnb
@@ -184,6 +186,7 @@ bigquery
 BigQueryHook
 Bigtable
 bigtable
+bitmask
 Bitnami
 bitshift
 bitwise
@@ -243,6 +246,10 @@ classpath
 classpaths
 cleartext
 cli
+ClickHouse
+clickhouse
+clickhousedb
+clickstream
 ClientSecretCredential
 cloudant
 CloudantV
@@ -273,6 +280,7 @@ ColumnLineageDatasetFacet
 CommandType
 comparator
 compat
+composable
 Compute
 compute
 ComputeManagementClient
@@ -304,6 +312,7 @@ ContainerPort
 contentUrl
 contextmgr
 contrib
+cooldown
 copyable
 CoreV
 coroutine
@@ -464,6 +473,7 @@ devel
 DevOps
 devtools
 df
+dictConfig
 dicts
 Dingding
 dingding
@@ -499,6 +509,7 @@ doesn
 doesnt
 dom
 Dont
+dotfiles
 DownloadReportV
 downscaling
 downstreams
@@ -551,6 +562,7 @@ enableAutoScale
 enablement
 encodable
 encryptor
+endian
 enqueue
 enqueued
 Entra
@@ -637,6 +649,7 @@ Filesystem
 filesystem
 filesystems
 filetype
+finalStatus
 fips
 firebase
 Firehose
@@ -686,6 +699,7 @@ gdbm
 gdrive
 gelf
 gemini
+GenAI
 generateUploadUrl
 geq
 getattr
@@ -721,6 +735,7 @@ googleapis
 GoogleDisplayVideo
 gpu
 gpus
+Gradle
 Grafana
 graphviz
 Groq
@@ -784,7 +799,10 @@ hyperparameter
 hyperparameters
 IaC
 iam
+IBM
+ibm
 ibmcloudant
+ibmmq
 IdC
 ideation
 idempotence
@@ -831,6 +849,7 @@ instanceTemplates
 InstanceType
 instanceType
 instantiation
+InstructionPart
 integrations
 ints
 intvl
@@ -859,7 +878,9 @@ iteratively
 iTerm
 iterm
 itertools
+Jaeger
 Jarek
+JavaCoordinator
 javascript
 jaydebeapi
 Jdbc
@@ -894,9 +915,11 @@ js
 Json
 json
 jsonl
+JsonValue
 juli
 Jupyter
 jupyter
+jvm
 jwks
 JWT
 jwt
@@ -946,6 +969,8 @@ Kylin
 kylin
 Kyverno
 Lakehouse
+langchain
+Langfuse
 LanguageServiceClient
 lastname
 latencies
@@ -1047,10 +1072,13 @@ mongo
 mongodb
 monospace
 moto
+MQ
+mq
 msfabric
 msg
 msgraph
 mssql
+mtime
 mTLS
 multi-cloud
 multimodal
@@ -1083,6 +1111,7 @@ neo4j
 neptune
 neq
 NetworkPolicy
+newsfragments
 NFS
 nginx
 nobr
@@ -1116,10 +1145,13 @@ observability
 od
 odbc
 odps
+OIDC
 ok
 oklch
 Okta
 okta
+OL
+ol
 Ollama
 onboarded
 onboarding
@@ -1130,9 +1162,11 @@ openai
 openapi
 openfaas
 OpenID
+openjdk
 openlineage
 OpenSearch
 opensearch
+OpenTelemetry
 oper
 OperatorLineage
 Opsgenie
@@ -1140,6 +1174,7 @@ opsgenie
 Optimise
 optimise
 optimizationObjective
+OptIn
 optionality
 ora
 oracledb
@@ -1151,6 +1186,7 @@ oss
 ot
 OTel
 otel
+OTLP
 PaaS
 Pagerduty
 pagerduty
@@ -1239,6 +1275,7 @@ Preload
 preload
 prepend
 prepended
+prepends
 preprocess
 Preprocessed
 preprocessing
@@ -1300,6 +1337,7 @@ PythonOperator
 pythonpath
 pyvespa
 pywinrm
+pyyaml
 Qdrant
 qdrant
 Qingping
@@ -1333,6 +1371,7 @@ rebase
 Rebasing
 Recency
 recurse
+redeclare
 redelivery
 Redhat
 redis
@@ -1352,6 +1391,7 @@ renderer
 renderers
 renewer
 reparse
+reparsed
 replicaSet
 repo
 repos
@@ -1379,6 +1419,7 @@ Roadmap
 roadmap
 roc
 RoleBinding
+rollup
 rom
 romeoandjuliet
 rootcss
@@ -1557,7 +1598,9 @@ Streamable
 strftime
 Stringified
 stringified
+stringify
 Struct
+StructuredTool
 STS
 subchart
 subclassed
@@ -1605,6 +1648,7 @@ summarization
 superclass
 sur
 svg
+swappable
 symlink
 symlinks
 synthesises
@@ -1860,6 +1904,7 @@ XComs
 Xiaodong
 xlarge
 xml
+Xmx
 xpath
 XSS
 xyz

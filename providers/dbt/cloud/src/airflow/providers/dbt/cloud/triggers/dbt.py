@@ -80,7 +80,7 @@ class DbtCloudRunJobTrigger(BaseTrigger):
         hook = DbtCloudHook(self.conn_id, **self.hook_params)
         try:
             while True:
-                now = time.monotonic()
+                now = time.time()
 
                 job_run_status = await hook.get_job_status(self.run_id, self.account_id)
 

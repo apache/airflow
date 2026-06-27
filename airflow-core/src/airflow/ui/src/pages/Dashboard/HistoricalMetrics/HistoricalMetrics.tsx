@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Box, VStack, SimpleGrid, GridItem, Flex, Heading } from "@chakra-ui/react";
-import dayjs from "dayjs";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PiBooks } from "react-icons/pi";
@@ -25,20 +24,19 @@ import { PiBooks } from "react-icons/pi";
 import { useAssetServiceGetAssetEvents, useDashboardServiceHistoricalMetrics } from "openapi/queries";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { useAutoRefresh } from "src/utils";
 
 import { DagRunMetrics } from "./DagRunMetrics";
 import { MetricSectionSkeleton } from "./MetricSectionSkeleton";
 import { TaskInstanceMetrics } from "./TaskInstanceMetrics";
 
-const defaultHour = "24";
+type HistoricalMetricsProps = {
+  readonly endDate: string;
+  readonly startDate: string;
+};
 
-export const HistoricalMetrics = () => {
+export const HistoricalMetrics = ({ endDate, startDate }: HistoricalMetricsProps) => {
   const { t: translate } = useTranslation("dashboard");
-  const now = dayjs();
-  const [startDate, setStartDate] = useState(now.subtract(Number(defaultHour), "hour").toISOString());
-  const [endDate, setEndDate] = useState(now.toISOString());
   const [assetSortBy, setAssetSortBy] = useState("-timestamp");
 
   const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
@@ -70,13 +68,6 @@ export const HistoricalMetrics = () => {
       </Flex>
       <ErrorAlert error={error} />
       <VStack alignItems="left" gap={2}>
-        <TimeRangeSelector
-          defaultValue={defaultHour}
-          endDate={endDate}
-          setEndDate={setEndDate}
-          setStartDate={setStartDate}
-          startDate={startDate}
-        />
         <SimpleGrid columns={{ base: 1, lg: 10 }} gap={2}>
           <GridItem colSpan={{ base: 1, lg: 7 }}>
             {isLoading ? <MetricSectionSkeleton /> : undefined}

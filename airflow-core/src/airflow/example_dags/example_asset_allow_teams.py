@@ -23,8 +23,9 @@ membership. By default, a consuming DAG only receives events from DAGs within th
 Usage:
     - ``team_analytics_producer`` (belonging to ``team_analytics``) produces events on ``shared_data``.
     - ``team_ml_consumer`` (belonging to ``team_ml``) consumes ``shared_data``.
-    - Because ``shared_data`` has ``access_control=AssetAccessControl(producer_teams=["team_analytics"])``,
-      events from ``team_analytics`` are accepted by ``team_ml_consumer``.
+    - Because ``shared_data`` has ``access_control=AssetAccessControl(producer_teams=["team_analytics"],
+      allow_global=False)``, events from ``team_analytics`` are accepted by ``team_ml_consumer``, while
+      teamless (global) DAG producers are blocked.
     - Without ``access_control``, the cross-team event would be blocked.
 """
 
@@ -36,12 +37,13 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import DAG, Asset, AssetAccessControl
 
 # [START asset_access_control]
-# Define an asset that accepts events from team_analytics.
+# Define an asset that accepts events from team_analytics but blocks global (teamless) producers.
 shared_data = Asset(
     name="shared_data",
     uri="s3://data-lake/shared/output.csv",
     access_control=AssetAccessControl(
         producer_teams=["team_analytics"],
+        allow_global=False,
     ),
 )
 
@@ -52,7 +54,7 @@ with DAG(
     start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
     schedule="@daily",
     catchup=False,
-    tags=["team_analytics", "produces", "asset-scheduled", "allow-teams"],
+    tags=["example", "team_analytics", "produces", "asset-scheduled", "allow-teams"],
 ) as producer_dag:
     BashOperator(
         task_id="produce_shared_data",
@@ -68,7 +70,7 @@ with DAG(
     start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
     schedule=[shared_data],
     catchup=False,
-    tags=["team_ml", "consumes", "asset-scheduled", "allow-teams"],
+    tags=["example", "team_ml", "consumes", "asset-scheduled", "allow-teams"],
 ) as consumer_dag:
     BashOperator(
         task_id="consume_shared_data",

@@ -327,6 +327,12 @@ www-hash.txt
 # Vendored-in code
 /src/airflow/providers/google/_vendor/*
 
+# Java SDK build outputs
+/java-sdk/bin/*
+/java-sdk/build/*
+/java-sdk/*/bin/*
+/java-sdk/*/build/*
+
 # Git ignore file
 .gitignore
 

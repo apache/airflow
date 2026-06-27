@@ -382,7 +382,7 @@ def _build_tools(hook, index_dir: str, survey_csv_path: str) -> list:
 
 
 # [START example_langchain_tool_agent]
-@dag
+@dag(tags=["example"])
 def example_langchain_tool_agent():
     """
     Research agent with LangChain tools and human review.

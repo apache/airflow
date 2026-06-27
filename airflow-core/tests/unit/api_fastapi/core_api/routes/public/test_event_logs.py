@@ -20,10 +20,11 @@ from datetime import datetime, timezone
 from unittest import mock
 
 import pytest
+from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.models.log import Log
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_logs, clear_db_runs
@@ -49,6 +50,7 @@ EVENT_NORMAL = "NORMAL_EVENT"
 EVENT_WITH_OWNER = "EVENT_WITH_OWNER"
 EVENT_WITH_TASK_INSTANCE = "EVENT_WITH_TASK_INSTANCE"
 EVENT_WITH_OWNER_AND_TASK_INSTANCE = "EVENT_WITH_OWNER_AND_TASK_INSTANCE"
+EVENT_WITHOUT_DTTM = "EVENT_WITHOUT_DTTM"
 EVENT_NON_EXISTED_ID = 9999
 
 
@@ -62,7 +64,7 @@ class TestEventLogsEndpoint:
 
     @pytest.fixture(autouse=True)
     @provide_session
-    def setup(self, create_task_instance, session=None) -> dict[str, Log]:
+    def setup(self, create_task_instance, *, session: Session = NEW_SESSION) -> dict[str, Log]:
         """
         Setup event logs for testing.
         :return: Dictionary with event log keys and their corresponding IDs.
@@ -232,6 +234,19 @@ class TestGetEventLog(TestEventLogsEndpoint):
             user=mock.ANY,
         )
 
+    @provide_session
+    def test_should_return_404_for_log_without_dttm(self, test_client, *, session: Session = NEW_SESSION):  # noqa: PT028
+        event_log = Log(event=EVENT_WITHOUT_DTTM)
+        session.add(event_log)
+        session.flush()
+        event_log_id = event_log.id
+        event_log.dttm = None
+        session.commit()
+
+        response = test_client.get(f"/eventLogs/{event_log_id}")
+
+        assert response.status_code == 404
+
 
 class TestGetEventLogs(TestEventLogsEndpoint):
     @pytest.mark.parametrize(
@@ -348,6 +363,27 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         assert resp_json["total_entries"] == expected_total_entries
         for event_log, expected_event in zip(resp_json["event_logs"], expected_events):
             assert event_log["event"] == expected_event
+
+    @provide_session
+    def test_get_event_logs_excludes_logs_without_dttm(
+        self,
+        test_client,
+        *,
+        session: Session = NEW_SESSION,  # noqa: PT028
+    ):
+        event_log = Log(event=EVENT_WITHOUT_DTTM)
+        session.add(event_log)
+        session.flush()
+        event_log.dttm = None
+        session.commit()
+
+        with assert_queries_count(3):
+            response = test_client.get("/eventLogs", params={"order_by": "-when"})
+
+        assert response.status_code == 200
+        resp_json = response.json()
+        assert resp_json["total_entries"] == 4
+        assert EVENT_WITHOUT_DTTM not in {event_log["event"] for event_log in resp_json["event_logs"]}
 
     # Ordering of nulls values is DB specific.
     @pytest.mark.backend("sqlite")

@@ -38,6 +38,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleVersionLock
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag
+from airflow.models.dag import DagModel
 from airflow.sdk.exceptions import TaskNotFound
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
@@ -90,6 +91,7 @@ from airflow.sdk.log import mask_secret
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
 from airflow.utils.file import iter_airflow_imports
+from airflow.utils.helpers import prune_dict
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -386,7 +388,19 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
             callback(context)
         except Exception:
             log.exception("Callback failed", dag_id=request.dag_id)
-            stats.incr("dag.callback_exceptions", tags={"dag_id": request.dag_id})
+            stats.incr(
+                "dag.callback_exceptions",
+                tags=prune_dict(
+                    {
+                        "dag_id": request.dag_id,
+                        "team_name": (
+                            DagModel.get_team_name(request.dag_id)
+                            if conf.getboolean("core", "multi_team")
+                            else None
+                        ),
+                    }
+                ),
+            )
 
 
 def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: FilteringBoundLogger) -> None:
@@ -609,9 +623,19 @@ class DagFileProcessorProcess(WatchedSubprocess):
         )
 
     def _create_log_forwarder(
-        self, loggers: tuple[FilteringBoundLogger, ...], name: str, log_level: int = logging.INFO
+        self,
+        loggers: tuple[FilteringBoundLogger, ...],
+        name: str,
+        *,
+        data: bytes,
+        log_level: int = logging.INFO,
     ) -> Callable[[socket], bool]:
-        return super()._create_log_forwarder(loggers, name.replace("task.", "dag_processor.", 1), log_level)
+        return super()._create_log_forwarder(
+            loggers,
+            name.replace("task.", "dag_processor.", 1),
+            data=data,
+            log_level=log_level,
+        )
 
     def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:
         from airflow.sdk.api.datamodels._generated import (

@@ -35,7 +35,7 @@ with DAG(
     catchup=False,
     start_date=datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc),
     schedule="@daily",
-    tags=["produces"],
+    tags=["example", "produces"],
 ):
 
     @task(outlets=[asset])
@@ -49,7 +49,7 @@ with DAG(
     catchup=False,
     start_date=datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc),
     schedule="@daily",
-    tags=["produces"],
+    tags=["example", "produces"],
 ):
 
     @task(outlets=[asset])
@@ -63,7 +63,7 @@ with DAG(
     catchup=False,
     start_date=datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc),
     schedule="@daily",
-    tags=["produces"],
+    tags=["example", "produces"],
 ):
 
     def _asset_with_extra_from_classic_operator_post_execute(context, result):

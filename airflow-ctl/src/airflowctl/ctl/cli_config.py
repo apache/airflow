@@ -960,6 +960,15 @@ CONNECTION_COMMANDS = (
 
 DAG_COMMANDS = (
     ActionCommand(
+        name="next-execution",
+        help="Show the next scheduled execution time for a Dag",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.next_execution"),
+        args=(
+            ARG_DAG_ID,
+            ARG_OUTPUT,
+        ),
+    ),
+    ActionCommand(
         name="pause",
         help="Pause a Dag",
         func=lazy_load_command("airflowctl.ctl.commands.dag_command.pause"),
