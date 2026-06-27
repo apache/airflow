@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useMemo } from "react";
-
 import { useDagServiceGetDagRunStateCountsUi } from "openapi/queries";
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -39,7 +37,7 @@ export const useDagRunStateCounts = ({
     false;
 
   // Stable key: sort the dag_ids so pagination/sort order changes don't churn the cache.
-  const sortedDagIds = useMemo(() => [...dagIds].sort(), [dagIds]);
+  const sortedDagIds = [...dagIds].sort();
 
   return useDagServiceGetDagRunStateCountsUi({ dagIds: sortedDagIds, runAfterGte: startDate }, undefined, {
     enabled: sortedDagIds.length > 0,

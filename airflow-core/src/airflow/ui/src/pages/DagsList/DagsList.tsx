@@ -19,7 +19,7 @@
 import { Heading, HStack, Skeleton, VStack, type SelectValueChangeDetails, Box } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -310,19 +310,16 @@ export const DagsList = () => {
     dags: data?.dags,
     startDate,
   });
-  const runStateContext: RunStateCountsContext = useMemo(
-    () => ({
-      countsByDag: Object.fromEntries(
-        (runStateCountsData?.dags ?? []).map((entry) => [entry.dag_id, entry.state_counts]),
-      ),
-      isLoading: runStateCountsLoading,
-      stateCountLimit: runStateCountsData?.state_count_limit,
-    }),
-    [runStateCountsData, runStateCountsLoading],
-  );
+  const runStateContext: RunStateCountsContext = {
+    countsByDag: Object.fromEntries(
+      (runStateCountsData?.dags ?? []).map((entry) => [entry.dag_id, entry.state_counts]),
+    ),
+    isLoading: runStateCountsLoading,
+    stateCountLimit: runStateCountsData?.state_count_limit,
+  };
 
-  const columns = useMemo(() => createColumns(translate, runStateContext), [translate, runStateContext]);
-  const cardDef = useMemo(() => createCardDef(runStateContext), [runStateContext]);
+  const columns = createColumns(translate, runStateContext);
+  const cardDef = createCardDef(runStateContext);
 
   const handleSortChange = ({ value }: SelectValueChangeDetails<Array<string>>) => {
     setTableURLState({
