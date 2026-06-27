@@ -69,6 +69,7 @@ class BuilderTest {
       """,
       )
 
+    assertThat(compilation).succeeded()
     assertThat(compilation)
       .generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
       .hasSourceEquivalentTo(
@@ -77,7 +78,7 @@ class BuilderTest {
          package org.apache.airflow.example;
 
          import java.lang.Exception;
-         import java.lang.Integer;
+         import java.lang.Number;
          import java.lang.Override;
          import org.apache.airflow.sdk.Client;
          import org.apache.airflow.sdk.Context;
@@ -107,8 +108,66 @@ class BuilderTest {
            public static final class T3 implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
-               var value = (Integer) client.getXCom("t2");
+               var value = ((Number) client.getXCom("t2")).intValue();
                new TestExample().t3(context, value);
+             }
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
+  @DisplayName("widen primitive numerics directly and boxed numerics null-safely")
+  fun generateBuilderWidensNumericXCom() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task
+          public void t(
+              @Builder.XCom(task = "a") int i,
+              @Builder.XCom(task = "b") long l,
+              @Builder.XCom(task = "c") double d,
+              @Builder.XCom(task = "e") Integer boxed) {}
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleBuilder",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Exception;
+         import java.lang.Number;
+         import java.lang.Override;
+         import java.util.Optional;
+         import org.apache.airflow.sdk.Client;
+         import org.apache.airflow.sdk.Context;
+         import org.apache.airflow.sdk.Dag;
+         import org.apache.airflow.sdk.Task;
+
+         public final class TestExampleBuilder {
+           public static Dag build() {
+             var dag = new Dag("TestExample");
+             dag.addTask("t", T.class);
+             return dag;
+           }
+           public static final class T implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               var i = ((Number) client.getXCom("a")).intValue();
+               var l = ((Number) client.getXCom("b")).longValue();
+               var d = ((Number) client.getXCom("c")).doubleValue();
+               var boxed = Optional.ofNullable((Number) client.getXCom("e")).map(Number::intValue).orElse(null);
+               new TestExample().t(i, l, d, boxed);
              }
            }
          }
