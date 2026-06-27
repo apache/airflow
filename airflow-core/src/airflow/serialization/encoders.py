@@ -70,8 +70,8 @@ from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetRef
 from airflow.sdk.definitions.timetables.assets import (
     AssetTriggeredTimetable,
-    PartitionAtRuntime,
     PartitionedAssetTimetable,
+    PartitionedAtRuntime,
 )
 from airflow.sdk.definitions.timetables.simple import ContinuousTimetable, NullTimetable, OnceTimetable
 from airflow.sdk.definitions.timetables.trigger import CronPartitionTimetable
@@ -329,7 +329,7 @@ class _Serializer:
         MultipleCronTriggerTimetable: "airflow.timetables.trigger.MultipleCronTriggerTimetable",
         NullTimetable: "airflow.timetables.simple.NullTimetable",
         OnceTimetable: "airflow.timetables.simple.OnceTimetable",
-        PartitionAtRuntime: "airflow.timetables.simple.PartitionAtRuntime",
+        PartitionedAtRuntime: "airflow.timetables.simple.PartitionedAtRuntime",
         PartitionedAssetTimetable: "airflow.timetables.simple.PartitionedAssetTimetable",
     }
 
@@ -355,9 +355,9 @@ class _Serializer:
     @serialize_timetable.register(ContinuousTimetable)
     @serialize_timetable.register(NullTimetable)
     @serialize_timetable.register(OnceTimetable)
-    @serialize_timetable.register(PartitionAtRuntime)
+    @serialize_timetable.register(PartitionedAtRuntime)
     def _(
-        self, timetable: ContinuousTimetable | NullTimetable | OnceTimetable | PartitionAtRuntime
+        self, timetable: ContinuousTimetable | NullTimetable | OnceTimetable | PartitionedAtRuntime
     ) -> dict[str, Any]:
         return {}
 

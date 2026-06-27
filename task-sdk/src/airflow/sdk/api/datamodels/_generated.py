@@ -570,6 +570,7 @@ class BundleInfo(BaseModel):
 
     name: Annotated[str, Field(title="Name")]
     version: Annotated[str | None, Field(title="Version")] = None
+    version_data: Annotated[dict[str, Any] | None, Field(title="Version Data")] = None
 
 
 class TerminalTIState(str, Enum):

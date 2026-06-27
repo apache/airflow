@@ -35,6 +35,7 @@ from pydantic import (
 
 from airflow._shared.module_loading import qualname
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel, make_partial_model
+from airflow.api_fastapi.core_api.datamodels.common import MaybeAssetExpression
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.configuration import conf
@@ -191,7 +192,7 @@ class DAGDetailsResponse(DAGResponse):
 
     catchup: bool
     dag_run_timeout: timedelta | None
-    asset_expression: dict | None
+    asset_expression: MaybeAssetExpression
     doc_md: str | None
     start_date: datetime | None
     end_date: datetime | None

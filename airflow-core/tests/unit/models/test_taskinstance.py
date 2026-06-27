@@ -34,7 +34,7 @@ import uuid6
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from sqlalchemy import delete, func, inspect as sa_inspect, select
+from sqlalchemy import delete, func, inspect as sa_inspect, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import load_only
 from sqlalchemy.orm.attributes import set_committed_value
@@ -106,7 +106,7 @@ from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
-from airflow.timetables.simple import PartitionAtRuntime
+from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -1804,6 +1804,41 @@ class TestTaskInstance:
         ti = _create_task_instance(task=task, dag_version_id=mock.MagicMock())
         ti.set_duration()
         assert ti.duration is None
+
+    @pytest.mark.backend("sqlite")
+    @pytest.mark.parametrize(
+        ("start_date", "end_date", "expected_duration"),
+        [
+            (
+                timezone.datetime(2026, 6, 7, 12, 0, 1, 200000),
+                timezone.datetime(2026, 6, 7, 12, 0, 3, 500000),
+                2.3,
+            ),
+            (
+                timezone.datetime(2026, 6, 7, 12, 0, 59, 200000),
+                timezone.datetime(2026, 6, 7, 12, 1, 0, 500000),
+                1.3,
+            ),
+            (
+                timezone.datetime(2026, 6, 7, 12),
+                timezone.datetime(2026, 6, 7, 13),
+                3600.0,
+            ),
+        ],
+    )
+    def test_duration_expression_update_sqlite(
+        self, create_task_instance, session, start_date, end_date, expected_duration
+    ):
+        ti = create_task_instance()
+        ti.start_date = start_date
+        session.flush()
+
+        query = update(TI).where(TI.id == ti.id)
+        session.execute(TI.duration_expression_update(end_date, query, session.get_bind()))
+        ti.refresh_from_db(session=session)
+
+        assert ti.end_date == end_date
+        assert ti.duration == expected_duration
 
     def test_outlet_asset_extra(self, dag_maker: DagMaker, session: Session):
         from airflow.sdk.definitions.asset import Asset
@@ -3568,7 +3603,7 @@ def test_register_asset_changes_in_db_no_outlets_is_a_noop(dag_maker, session):
 
 def test_when_dag_run_has_partition_then_asset_does(dag_maker, session):
     asset = Asset(name="hello")
-    with dag_maker(dag_id="asset_event_tester", schedule=PartitionAtRuntime()) as dag:
+    with dag_maker(dag_id="asset_event_tester", schedule=PartitionedAtRuntime()) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dr = dag_maker.create_dagrun(partition_key="abc123", session=session)
     assert dr.partition_key == "abc123"
@@ -3591,7 +3626,7 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
     session,
 ):
     asset = Asset(name="hello")
-    with dag_maker(dag_id="asset_event_tester", schedule=PartitionAtRuntime(), session=session) as dag:
+    with dag_maker(dag_id="asset_event_tester", schedule=PartitionedAtRuntime(), session=session) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dag1_id = dag.dag_id
     dr = dag_maker.create_dagrun(partition_key="abc123", session=session)
@@ -3657,7 +3692,7 @@ def test_runtime_partition_key_does_not_backfill_dag_run_when_none(dag_maker, se
 def test_runtime_partition_key_does_not_overwrite_scheduler_partition(dag_maker, session):
     """Task-emitted key lands on the AssetEvent but does NOT overwrite a scheduler-set DagRun.partition_key."""
     asset = Asset(name="hello")
-    with dag_maker(dag_id="rt_pk_no_overwrite", schedule=PartitionAtRuntime()) as dag:
+    with dag_maker(dag_id="rt_pk_no_overwrite", schedule=PartitionedAtRuntime()) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dr = dag_maker.create_dagrun(partition_key="scheduler-key", session=session)
     [ti] = dr.get_task_instances(session=session)
@@ -3708,7 +3743,7 @@ def test_runtime_partition_key_inherits_dag_run_key_when_event_has_no_key(dag_ma
     can still be routed correctly.
     """
     asset = Asset(name="hello")
-    with dag_maker(dag_id="rt_pk_none", schedule=PartitionAtRuntime()) as dag:
+    with dag_maker(dag_id="rt_pk_none", schedule=PartitionedAtRuntime()) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dr = dag_maker.create_dagrun(partition_key="from-run", session=session)
     [ti] = dr.get_task_instances(session=session)
@@ -3728,7 +3763,7 @@ def test_runtime_partition_key_inherits_dag_run_key_when_event_has_no_key(dag_ma
 def test_runtime_partition_key_mixed_events_for_same_asset(dag_maker, session):
     """One event with an explicit key + one without produce two AssetEvents (explicit key + inherited run key)."""
     asset = Asset(name="hello")
-    with dag_maker(dag_id="rt_pk_mixed", schedule=PartitionAtRuntime()) as dag:
+    with dag_maker(dag_id="rt_pk_mixed", schedule=PartitionedAtRuntime()) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dr = dag_maker.create_dagrun(partition_key="from-run", session=session)
     [ti] = dr.get_task_instances(session=session)
@@ -3773,17 +3808,17 @@ def test_runtime_partition_key_event_stays_none_when_no_key_and_no_run_key(dag_m
     assert event.partition_key is None
 
 
-def test_runtime_partition_key_does_not_backfill_partition_at_runtime_run(dag_maker, session):
-    """Task-emitted key lands on AssetEvent but does NOT back-fill DagRun.partition_key on a PartitionAtRuntime run.
+def test_runtime_partition_key_does_not_backfill_partitioned_at_runtime_run(dag_maker, session):
+    """Task-emitted key lands on AssetEvent but does NOT back-fill DagRun.partition_key on a PartitionedAtRuntime run.
 
     Provenance contract: DagRun.partition_key is set only at run-creation/trigger time.
-    A PartitionAtRuntime Dag triggered via REST without a partition_key starts with
+    A PartitionedAtRuntime Dag triggered via REST without a partition_key starts with
     partition_key=None. Even when a task discovers a partition at runtime and emits an
     outlet event carrying an explicit key, DagRun.partition_key must remain None — the
     key belongs to the AssetEvent, not to the run's provenance.
     """
     asset = Asset(name="hello")
-    with dag_maker(dag_id="rt_pk_par_backfill", schedule=PartitionAtRuntime()) as dag:
+    with dag_maker(dag_id="rt_pk_par_backfill", schedule=PartitionedAtRuntime()) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dr = dag_maker.create_dagrun(session=session)
     assert dr.partition_key is None

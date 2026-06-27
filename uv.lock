@@ -4099,7 +4099,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-celery"
-version = "3.20.0"
+version = "3.21.0"
 source = { editable = "providers/celery" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5145,7 +5145,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-fab"
-version = "3.7.0"
+version = "3.7.1"
 source = { editable = "providers/fab" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5385,7 +5385,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-google"
-version = "22.2.0"
+version = "22.2.1"
 source = { editable = "providers/google" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6112,7 +6112,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-keycloak"
-version = "0.8.0"
+version = "0.8.1"
 source = { editable = "providers/keycloak" }
 dependencies = [
     { name = "apache-airflow" },
@@ -20889,18 +20889,6 @@ wheels = [
 ]
 
 [[package]]
-name = "requests-file"
-version = "3.0.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/3c/f8/5dc70102e4d337063452c82e1f0d95e39abfe67aa222ed8a5ddeb9df8de8/requests_file-3.0.1.tar.gz", hash = "sha256:f14243d7796c588f3521bd423c5dea2ee4cc730e54a3cac9574d78aca1272576", size = 6967, upload-time = "2025-10-20T18:56:42.279Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e1/d5/de8f089119205a09da657ed4784c584ede8381a0ce6821212a6d4ca47054/requests_file-3.0.1-py2.py3-none-any.whl", hash = "sha256:d0f5eb94353986d998f80ac63c7f146a307728be051d4d1cd390dbdb59c10fa2", size = 4514, upload-time = "2025-10-20T18:56:41.184Z" },
-]
-
-[[package]]
 name = "requests-kerberos"
 version = "0.15.0"
 source = { registry = "https://pypi.org/simple" }
@@ -21896,18 +21884,15 @@ wheels = [
 
 [[package]]
 name = "simple-salesforce"
-version = "1.12.9"
+version = "1.11.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "more-itertools" },
-    { name = "pyjwt", extra = ["crypto"] },
+    { name = "authlib" },
     { name = "requests" },
-    { name = "typing-extensions" },
-    { name = "zeep" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/65/3f/45d257baacb8ab9e31906d5252541c151e062cedbf2152df7cef5960342d/simple_salesforce-1.12.9.tar.gz", hash = "sha256:86d63c43cf6581847284f2538fd8b17aaea0727c63a947267759f7f242a4ef8e", size = 203899, upload-time = "2025-08-23T14:30:42.929Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/15/a8/9f3832c5229df89e115de112f57ae2d6b567ec47a885cce87c752f453423/simple-salesforce-1.11.4.tar.gz", hash = "sha256:3768fe40d04daa74409acccd9934fcf833697c6b239d9bf52d7f87a99efbe41e", size = 33101, upload-time = "2021-09-09T16:53:35.754Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f1/ab/a3b57812836755b2afa62fea86a71d37a9d898723538f7f82ae5c975fddf/simple_salesforce-1.12.9-py3-none-any.whl", hash = "sha256:1ea83b64d49208f1291119b847861638d5c1f6e4c8a8aa56b598878b2e63377f", size = 191560, upload-time = "2025-08-23T14:30:41.258Z" },
+    { url = "https://files.pythonhosted.org/packages/d2/84/777a88fc20615a0e42af2853f156fb436f09d0cdad64be584afa2312a8f4/simple_salesforce-1.11.4-py2.py3-none-any.whl", hash = "sha256:fbfa2940070007853d4ad437ac6064bfa55b20750f28e360cae72597450c36e5", size = 30314, upload-time = "2021-09-09T16:53:33.682Z" },
 ]
 
 [[package]]
@@ -24703,25 +24688,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/69/29/473641a18ab54333d8c0d4f2fe46d7acad03688378e9e7e79cf7c95cc4d7/ydb_dbapi-0.1.22.tar.gz", hash = "sha256:79df761d2bd67d532a7bae2e9a155f2f083e8de9a71c8398bbdeaceca692677f", size = 18856, upload-time = "2026-05-12T16:12:05.738Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3d/14/d3a1b14737d95f8192e66b08814a7fbddb4160a4ef4731fe795e9ca24708/ydb_dbapi-0.1.22-py3-none-any.whl", hash = "sha256:6825d004441fce4a4ab701f619c2d6045809ee764a26d246e546ac5ae7d7be12", size = 19123, upload-time = "2026-05-12T16:12:04.328Z" },
-]
-
-[[package]]
-name = "zeep"
-version = "4.3.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "attrs" },
-    { name = "isodate" },
-    { name = "lxml" },
-    { name = "platformdirs" },
-    { name = "pytz" },
-    { name = "requests" },
-    { name = "requests-file" },
-    { name = "requests-toolbelt" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e8/06/4f1d3ff61e930163565fb73616c6251e412a4d2fc7ed18214e1c2107258d/zeep-4.3.2.tar.gz", hash = "sha256:1a23a667ce9d73a0dbfdf15745bfa2b7ab0b6402135c0cd5067574838398e0e6", size = 166687, upload-time = "2025-09-15T10:26:03.4Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/cd/78/f43f3feb70d67cbe260ec5b682ecc3c1850c8f437f1df707495126e51817/zeep-4.3.2-py3-none-any.whl", hash = "sha256:ed08c3179709172bfaaa9b76a6a545f8a57043ec6218e64e9deb81ff1e0ff79b", size = 101853, upload-time = "2025-09-15T10:26:02.12Z" },
 ]
 
 [[package]]

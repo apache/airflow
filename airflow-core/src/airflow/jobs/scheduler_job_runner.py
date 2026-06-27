@@ -684,6 +684,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ranked_query.c.map_index_for_ordering,
                 )
                 .options(selectinload(TI.dag_model))
+                # Eager-load dag_version: TIs become transient (via make_transient) before
+                # ExecuteTask.make() reads ti.dag_version.version_data. Lazy loads on
+                # transient objects silently return None instead of raising DetachedInstanceError.
+                # Scope the second SELECT to version_data (the PK is auto-included) so we read
+                # two columns rather than the full DagVersion row.
+                .options(selectinload(TI.dag_version).load_only(DagVersion.version_data))
             )
 
             query = query.limit(max_tis)

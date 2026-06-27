@@ -315,6 +315,164 @@ export const $AssetEventResponse = {
     description: 'Asset event serializer for responses.'
 } as const;
 
+export const $AssetExpressionAlias = {
+    properties: {
+        alias: {
+            '$ref': '#/components/schemas/AssetExpressionAliasInfo'
+        }
+    },
+    type: 'object',
+    required: ['alias'],
+    title: 'AssetExpressionAlias',
+    description: 'An asset alias leaf: ``{"alias": {"name": ..., "group": ...}}``.'
+} as const;
+
+export const $AssetExpressionAliasInfo = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        group: {
+            type: 'string',
+            title: 'Group'
+        }
+    },
+    type: 'object',
+    required: ['name', 'group'],
+    title: 'AssetExpressionAliasInfo',
+    description: 'Body of an ``alias`` leaf node.'
+} as const;
+
+export const $AssetExpressionAll = {
+    properties: {
+        all: {
+            items: {
+                oneOf: [
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAsset'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAlias'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionRef'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAny'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAll'
+                    }
+                ]
+            },
+            type: 'array',
+            title: 'All'
+        }
+    },
+    type: 'object',
+    required: ['all'],
+    title: 'AssetExpressionAll',
+    description: 'An "and" node: ``{"all": [...]}`` -- satisfied when all children are satisfied.'
+} as const;
+
+export const $AssetExpressionAny = {
+    properties: {
+        any: {
+            items: {
+                oneOf: [
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAsset'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAlias'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionRef'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAny'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAll'
+                    }
+                ]
+            },
+            type: 'array',
+            title: 'Any'
+        }
+    },
+    type: 'object',
+    required: ['any'],
+    title: 'AssetExpressionAny',
+    description: 'An "or" node: ``{"any": [...]}`` -- satisfied when any child is satisfied.'
+} as const;
+
+export const $AssetExpressionAsset = {
+    properties: {
+        asset: {
+            '$ref': '#/components/schemas/AssetExpressionAssetInfo'
+        }
+    },
+    type: 'object',
+    required: ['asset'],
+    title: 'AssetExpressionAsset',
+    description: 'An asset leaf: ``{"asset": {"uri": ..., "name": ..., "group": ...}}``.'
+} as const;
+
+export const $AssetExpressionAssetInfo = {
+    properties: {
+        uri: {
+            type: 'string',
+            title: 'Uri'
+        },
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        group: {
+            type: 'string',
+            title: 'Group'
+        },
+        id: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Id'
+        }
+    },
+    type: 'object',
+    required: ['uri', 'name', 'group'],
+    title: 'AssetExpressionAssetInfo',
+    description: `Body of an \`\`asset\`\` leaf node.
+
+\`\`id\`\` is injected by \`\`DagModelOperation.update_dag_asset_expression\`\` when the expression is
+persisted; \`\`BaseAsset.as_expression()\`\` itself only emits \`\`uri\`\`/\`\`name\`\`/\`\`group\`\`. It is left
+optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
+degrades gracefully instead of failing response validation.`
+} as const;
+
+export const $AssetExpressionRef = {
+    properties: {
+        asset_ref: {
+            additionalProperties: {
+                type: 'string'
+            },
+            type: 'object',
+            title: 'Asset Ref'
+        }
+    },
+    type: 'object',
+    required: ['asset_ref'],
+    title: 'AssetExpressionRef',
+    description: 'An unresolved asset reference leaf: ``{"asset_ref": {"name": ...}}`` or ``{"asset_ref": {"uri": ...}}``.'
+} as const;
+
 export const $AssetResponse = {
     properties: {
         id: {
@@ -2808,8 +2966,23 @@ export const $DAGDetailsResponse = {
         asset_expression: {
             anyOf: [
                 {
-                    additionalProperties: true,
-                    type: 'object'
+                    oneOf: [
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAsset'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAlias'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionRef'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAny'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAll'
+                        }
+                    ]
                 },
                 {
                     type: 'null'
@@ -8993,8 +9166,23 @@ export const $DAGWithLatestDagRunsResponse = {
         asset_expression: {
             anyOf: [
                 {
-                    additionalProperties: true,
-                    type: 'object'
+                    oneOf: [
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAsset'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAlias'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionRef'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAny'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAll'
+                        }
+                    ]
                 },
                 {
                     type: 'null'
@@ -9737,6 +9925,11 @@ export const $LightGridTaskInstanceSummary = {
                 }
             ],
             title: 'Dag Version Number'
+        },
+        has_note: {
+            type: 'boolean',
+            title: 'Has Note',
+            default: false
         }
     },
     type: 'object',
@@ -9859,8 +10052,23 @@ export const $NextRunAssetsResponse = {
         asset_expression: {
             anyOf: [
                 {
-                    additionalProperties: true,
-                    type: 'object'
+                    oneOf: [
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAsset'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAlias'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionRef'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAny'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAll'
+                        }
+                    ]
                 },
                 {
                     type: 'null'
@@ -10082,8 +10290,23 @@ export const $PartitionedDagRunCollectionResponse = {
                     additionalProperties: {
                         anyOf: [
                             {
-                                additionalProperties: true,
-                                type: 'object'
+                                oneOf: [
+                                    {
+                                        '$ref': '#/components/schemas/AssetExpressionAsset'
+                                    },
+                                    {
+                                        '$ref': '#/components/schemas/AssetExpressionAlias'
+                                    },
+                                    {
+                                        '$ref': '#/components/schemas/AssetExpressionRef'
+                                    },
+                                    {
+                                        '$ref': '#/components/schemas/AssetExpressionAny'
+                                    },
+                                    {
+                                        '$ref': '#/components/schemas/AssetExpressionAll'
+                                    }
+                                ]
                             },
                             {
                                 type: 'null'
@@ -10170,8 +10393,23 @@ export const $PartitionedDagRunDetailResponse = {
         asset_expression: {
             anyOf: [
                 {
-                    additionalProperties: true,
-                    type: 'object'
+                    oneOf: [
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAsset'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAlias'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionRef'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAny'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAll'
+                        }
+                    ]
                 },
                 {
                     type: 'null'

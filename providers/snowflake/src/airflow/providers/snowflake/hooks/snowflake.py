@@ -453,37 +453,25 @@ class SnowflakeHook(DbApiHook):
             conn_config.pop("password", None)
         return conn_config
 
-    @cached_property
-    def _get_static_conn_params(self) -> dict[str, str | None]:
-        """
-        Return static Snowflake connection parameters.
+    def _build_base_conn_config(
+        self,
+        conn: Connection,
+        extra_dict: dict[str, Any],
+    ) -> dict[str, Any]:
 
-        These parameters are cached for the lifetime of the hook and exclude
-        time-sensitive values such as OAuth access tokens.
-        """
-        conn = self.get_connection(self.get_conn_id())
-        extra_dict = conn.extra_dejson
         account = self._get_field(extra_dict, "account") or ""
         warehouse = self._get_field(extra_dict, "warehouse") or ""
         database = self._get_field(extra_dict, "database") or ""
         region = self._get_field(extra_dict, "region") or ""
         role = self._get_field(extra_dict, "role") or ""
-        insecure_mode = _try_to_boolean(self._get_field(extra_dict, "insecure_mode"))
-        json_result_force_utf8_decoding = _try_to_boolean(
-            self._get_field(extra_dict, "json_result_force_utf8_decoding")
-        )
-        schema = conn.schema or ""
-        client_request_mfa_token = _try_to_boolean(self._get_field(extra_dict, "client_request_mfa_token"))
-        client_store_temporary_credential = _try_to_boolean(
-            self._get_field(extra_dict, "client_store_temporary_credential")
-        )
 
-        # authenticator and session_parameters never supported long name so we don't use _get_field
+        schema = conn.schema or ""
+
+        # authenticator and session_parameters never supported long name
         authenticator = extra_dict.get("authenticator", "snowflake")
         session_parameters = extra_dict.get("session_parameters")
-        workload_identity_provider = self._get_field(extra_dict, "workload_identity_provider")
 
-        conn_config = {
+        return {
             "user": conn.login,
             "password": conn.password or "",
             "schema": self.schema or schema,
@@ -494,9 +482,26 @@ class SnowflakeHook(DbApiHook):
             "role": self.role or role,
             "authenticator": self.authenticator or authenticator,
             "session_parameters": self.session_parameters or session_parameters,
-            # application is used to track origin of the requests
             "application": os.environ.get("AIRFLOW_SNOWFLAKE_PARTNER", "AIRFLOW"),
         }
+
+    def _add_connector_options(
+        self,
+        conn_config: dict[str, Any],
+        extra_dict: dict[str, Any],
+    ) -> None:
+        insecure_mode = _try_to_boolean(self._get_field(extra_dict, "insecure_mode"))
+
+        json_result_force_utf8_decoding = _try_to_boolean(
+            self._get_field(extra_dict, "json_result_force_utf8_decoding")
+        )
+
+        client_request_mfa_token = _try_to_boolean(self._get_field(extra_dict, "client_request_mfa_token"))
+
+        client_store_temporary_credential = _try_to_boolean(
+            self._get_field(extra_dict, "client_store_temporary_credential")
+        )
+
         if insecure_mode:
             conn_config["insecure_mode"] = insecure_mode
 
@@ -509,22 +514,44 @@ class SnowflakeHook(DbApiHook):
         if client_store_temporary_credential:
             conn_config["client_store_temporary_credential"] = client_store_temporary_credential
 
-        # Workload Identity Federation (keyless auth): when the connection sets
-        # ``authenticator=WORKLOAD_IDENTITY``, the connector also needs to know which
-        # cloud the workload runs on. One value (AWS, AZURE, GCP or OIDC) covers all
-        # providers. See https://docs.snowflake.com/en/user-guide/workload-identity-federation.
-        if workload_identity_provider:
-            conn_config["workload_identity_provider"] = workload_identity_provider
-            # AWS, AZURE and GCP fetch the identity token from the cloud's metadata
-            # service. OIDC instead requires the caller to supply the token, either
-            # inline (``token``) or from a file (``token_file_path``).
-            token = self._get_field(extra_dict, "token")
-            token_file_path = self._get_field(extra_dict, "token_file_path")
-            if token:
-                conn_config["token"] = token
-            if token_file_path:
-                conn_config["token_file_path"] = token_file_path
+        ocsp_fail_open = extra_dict.get("ocsp_fail_open")
 
+        if ocsp_fail_open is not None:
+            conn_config["ocsp_fail_open"] = _try_to_boolean(ocsp_fail_open)
+
+    def _add_workload_identity_config(
+        self,
+        conn_config: dict[str, Any],
+        extra_dict: dict[str, Any],
+    ) -> None:
+        workload_identity_provider = self._get_field(
+            extra_dict,
+            "workload_identity_provider",
+        )
+
+        if not workload_identity_provider:
+            return
+
+        conn_config["workload_identity_provider"] = workload_identity_provider
+
+        token = self._get_field(extra_dict, "token")
+        token_file_path = self._get_field(
+            extra_dict,
+            "token_file_path",
+        )
+
+        if token:
+            conn_config["token"] = token
+
+        if token_file_path:
+            conn_config["token_file_path"] = token_file_path
+
+    def _add_authentication_config(
+        self,
+        conn_config: dict[str, Any],
+        conn: Connection,
+        extra_dict: dict[str, Any],
+    ) -> None:
         p_key = self.get_private_key()
 
         if p_key:
@@ -537,41 +564,61 @@ class SnowflakeHook(DbApiHook):
             conn_config["private_key"] = pkb
             conn_config.pop("password", None)
 
-        refresh_token = self._get_field(extra_dict, "refresh_token") or ""
+        refresh_token = (
+            self._get_field(
+                extra_dict,
+                "refresh_token",
+            )
+            or ""
+        )
+
         if refresh_token:
             conn_config["refresh_token"] = refresh_token
             conn_config["authenticator"] = "oauth"
 
-        grant_type = self._get_field(extra_dict, "grant_type") or ""
+        grant_type = (
+            self._get_field(
+                extra_dict,
+                "grant_type",
+            )
+            or ""
+        )
+
         if grant_type:
             conn_config["grant_type"] = grant_type
         elif refresh_token:
             conn_config["grant_type"] = "refresh_token"
 
-        if conn_config.get("authenticator") == "oauth":
-            conn_config["azure_conn_id"] = extra_dict.get("azure_conn_id")
+        if conn_config.get("authenticator") != "oauth":
+            return
 
-            if not extra_dict.get("azure_conn_id"):
-                conn_config["token_endpoint"] = self._get_field(extra_dict, "token_endpoint") or ""
-                conn_config["scope"] = self._get_field(extra_dict, "scope")
-                conn_config["client_id"] = conn.login
-                conn_config["client_secret"] = conn.password
+        conn_config["azure_conn_id"] = extra_dict.get("azure_conn_id")
 
-        # configure custom target hostname and port, if specified
+        if not extra_dict.get("azure_conn_id"):
+            conn_config["token_endpoint"] = self._get_field(extra_dict, "token_endpoint") or ""
+
+            conn_config["scope"] = self._get_field(
+                extra_dict,
+                "scope",
+            )
+
+            conn_config["client_id"] = conn.login
+            conn_config["client_secret"] = conn.password
+
+    def _add_network_config(
+        self,
+        conn_config: dict[str, Any],
+        extra_dict: dict[str, Any],
+    ) -> None:
         snowflake_host = extra_dict.get("host")
         snowflake_port = extra_dict.get("port")
+
         if snowflake_host:
             conn_config["host"] = snowflake_host
+
         if snowflake_port:
             conn_config["port"] = snowflake_port
 
-        # if a value for ocsp_fail_open is set, pass it along.
-        # Note the check is for `is not None` so that we can pass along `False` as a value.
-        ocsp_fail_open = extra_dict.get("ocsp_fail_open")
-        if ocsp_fail_open is not None:
-            conn_config["ocsp_fail_open"] = _try_to_boolean(ocsp_fail_open)
-
-        # Add proxy configuration if specified
         proxy_host = self._get_field(extra_dict, "proxy_host")
         proxy_port = self._get_field(extra_dict, "proxy_port")
         proxy_user = self._get_field(extra_dict, "proxy_user")
@@ -579,12 +626,52 @@ class SnowflakeHook(DbApiHook):
 
         if proxy_host:
             conn_config["proxy_host"] = proxy_host
+
         if proxy_port:
             conn_config["proxy_port"] = int(proxy_port) if isinstance(proxy_port, str) else proxy_port
+
         if proxy_user:
             conn_config["proxy_user"] = proxy_user
+
         if proxy_password:
             conn_config["proxy_password"] = proxy_password
+
+    @cached_property
+    def _get_static_conn_params(self) -> dict[str, str | None]:
+        """
+        Return static Snowflake connection parameters.
+
+        These parameters are cached for the lifetime of the hook and exclude
+        time-sensitive values such as OAuth access tokens.
+        """
+        conn = self.get_connection(self.get_conn_id())
+        extra_dict = conn.extra_dejson
+
+        conn_config = self._build_base_conn_config(
+            conn,
+            extra_dict,
+        )
+
+        self._add_connector_options(
+            conn_config,
+            extra_dict,
+        )
+
+        self._add_workload_identity_config(
+            conn_config,
+            extra_dict,
+        )
+
+        self._add_authentication_config(
+            conn_config,
+            conn,
+            extra_dict,
+        )
+
+        self._add_network_config(
+            conn_config,
+            extra_dict,
+        )
 
         return conn_config
 
