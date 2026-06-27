@@ -30,7 +30,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from vertexai._genai import types as vertexai_types
 
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.vertex_ai.agent_engine import (
     CreateAgentEngineOperator,
     DeleteAgentEngineOperator,
@@ -54,26 +53,21 @@ CONTAINER_URI = os.environ.get(
     "SYSTEM_TESTS_VERTEX_AI_AGENT_ENGINE_CONTAINER_URI",
     "us-central1-docker.pkg.dev/example-project/example-repository/example-agent:latest",
 )
+CONTAINER_ENV_VARS: dict[str, str] = json.loads(
+    os.environ.get("SYSTEM_TESTS_VERTEX_AI_AGENT_ENGINE_CONTAINER_ENV_VARS", "{}")
+)
+QUERY_STR = os.environ.get("SYSTEM_TESTS_VERTEX_AI_AGENT_ENGINE_QUERY", "test query")
+QUERY_OUTPUT_GCS_URI = os.environ.get(
+    "SYSTEM_TESTS_VERTEX_AI_AGENT_ENGINE_QUERY_OUTPUT_GCS_URI",
+    f"gs://{PROJECT_ID}-agent-engine-query-output/query-output/",
+)
 
 AGENT_ENGINE_ID = "{{ task_instance.xcom_pull(task_ids='create_agent_engine')['name'].split('/')[-1] }}"
-BUCKET_NAME = f"bucket-{DAG_ID}-{ENV_ID}".replace("_", "-")
 DISPLAY_NAME = f"airflow-agent-engine-{ENV_ID}"
 
 QUERY_CONFIG: vertexai_types.RunQueryJobAgentEngineConfigDict = {
-    "query": json.dumps(
-        {
-            "dag_id": "vertex_ai_agent_engine_operations",
-            "run_id": "manual__agent_engine_system_test",
-            "dag_file": "providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_agent_engine.py",
-            "failed_task": {
-                "task_id": "transform",
-                "state": "failed",
-                "try_number": 1,
-            },
-            "log_excerpt": "KeyError: 'rowz'",
-        }
-    ),
-    "output_gcs_uri": f"gs://{BUCKET_NAME}/query-output/",
+    "query": QUERY_STR,
+    "output_gcs_uri": QUERY_OUTPUT_GCS_URI,
 }
 
 
@@ -97,10 +91,7 @@ with DAG(
             "max_instances": 1,
             "resource_limits": {"cpu": "1", "memory": "1Gi"},
             "container_spec": {"image_uri": CONTAINER_URI},
-            "env_vars": {
-                "AGENT_USE_MODEL": "false",
-                "AGENT_USE_MOCKS": "true",
-            },
+            **({"env_vars": CONTAINER_ENV_VARS} if CONTAINER_ENV_VARS else {}),
             "class_methods": [
                 {
                     "name": "query",
@@ -120,12 +111,6 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_get_agent_engine_operator]
 
-    create_bucket = GCSCreateBucketOperator(
-        task_id="create_bucket",
-        bucket_name=BUCKET_NAME,
-        project_id=PROJECT_ID,
-    )
-
     # [START how_to_cloud_vertex_ai_run_query_job_operator]
     run_query_job = RunQueryJobOperator(
         task_id="run_query_job",
@@ -134,6 +119,8 @@ with DAG(
         agent_engine_id=AGENT_ENGINE_ID,
         config=QUERY_CONFIG,
         check_config={"retrieve_result": True},
+        poll_interval=10,
+        timeout=900,
         deferrable=True,
     )
     # [END how_to_cloud_vertex_ai_run_query_job_operator]
@@ -162,22 +149,7 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_delete_agent_engine_operator]
 
-    delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket",
-        bucket_name=BUCKET_NAME,
-        force=True,
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
-
-    (
-        create_agent_engine
-        >> get_agent_engine
-        >> create_bucket
-        >> run_query_job
-        >> update_agent_engine
-        >> delete_agent_engine
-        >> delete_bucket
-    )
+    (create_agent_engine >> get_agent_engine >> run_query_job >> update_agent_engine >> delete_agent_engine)
 
     # ### Everything below this line is not part of example ###
     # ### Just for system tests purpose ###
