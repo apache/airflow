@@ -556,9 +556,11 @@ class EcsRunTaskOperator(EcsBaseOperator):
                         waiter_delay=self.waiter_delay,
                         waiter_max_attempts=self.waiter_max_attempts,
                         aws_conn_id=self.aws_conn_id,
-                        region=self.region_name,
+                        region_name=self.region_name,
                         log_group=self.awslogs_group,
                         log_stream=self._get_logs_stream_name(),
+                        verify=self.verify,
+                        botocore_config=self.botocore_config,
                     ),
                     method_name="execute_complete",
                     # timeout is set to ensure that if a trigger dies, the timeout does not restart
