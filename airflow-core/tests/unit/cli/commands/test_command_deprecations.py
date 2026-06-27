@@ -30,10 +30,11 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.cli.commands import asset_command, dag_command, pool_command
+from airflow.cli.commands import asset_command, backfill_command, dag_command, pool_command
 
 # (command callable, expected airflowctl replacement recorded by the decorator)
 MIGRATED_CLI_COMMANDS = [
+    (backfill_command.create_backfill, "airflowctl backfill create"),
     (dag_command.dag_trigger, "airflowctl dags trigger"),
     (dag_command.dag_delete, "airflowctl dags delete"),
     (pool_command.pool_list, "airflowctl pools list"),
