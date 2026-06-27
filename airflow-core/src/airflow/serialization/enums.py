@@ -94,3 +94,4 @@ class DagAttributeTypes(str, Enum):
     TASK_INSTANCE_KEY = "task_instance_key"
     DEADLINE_ALERT = "deadline_alert"
     MAPPED_ARGUMENT = "mapped_argument"
+    DAG_PARAM = "dag_param"

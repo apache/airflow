@@ -2918,6 +2918,131 @@ def test_operator_expand_xcomarg_serde():
     assert xcom_arg.operator is serialized_dag.task_dict["op1"]
 
 
+def test_dagparam_in_partial_is_serialized_stably():
+    """
+    DagParam in partial() of a mapped task must not be serialized with a
+    memory address. Regression test for https://github.com/apache/airflow/issues/68941.
+    """
+    from airflow.sdk import task as sdk_task
+    from airflow.serialization.serialized_objects import _DagParamRef
+
+    with DAG(dag_id="test_dagparam_partial", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
+
+        @sdk_task
+        def add(value):
+            return value
+
+        add.partial(value=dag.param("p", "p_default_val")).expand(value=[1, 2, 3])
+
+    serialized = DagSerialization.to_dict(dag)
+    mapped_task_var = serialized["dag"]["tasks"][0]["__var"]
+
+    # The serialized partial_kwargs must NOT contain a memory-address repr.
+    partial_str = str(mapped_task_var.get("partial_kwargs", {}))
+    assert "object at 0x" not in partial_str, (
+        "DagParam in partial_kwargs was serialized with a memory address — version inflation risk"
+    )
+
+    # The serialized form must contain the stable dag_param encoding.
+    partial_kwargs = mapped_task_var["partial_kwargs"]
+    op_kwargs_var = partial_kwargs["op_kwargs"]["__var"]
+    dag_param_enc = op_kwargs_var["value"]
+    assert dag_param_enc["__type"] == "dag_param"
+    assert dag_param_enc["__var"]["name"] == "p"
+    assert dag_param_enc["__var"]["dag_id"] == "test_dagparam_partial"
+    assert dag_param_enc["__var"]["default"] == "p_default_val"
+
+    # Deserializing the individual operator should produce a _DagParamRef placeholder.
+    mapped_op_encoded = serialized["dag"]["tasks"][0]
+    from airflow.serialization.serialized_objects import BaseSerialization
+
+    deserialized_op = BaseSerialization.deserialize(mapped_op_encoded)
+    dag_param_ref = deserialized_op.partial_kwargs["op_kwargs"]["value"]
+    assert isinstance(dag_param_ref, _DagParamRef)
+    assert dag_param_ref.name == "p"
+    assert dag_param_ref.default == "p_default_val"
+
+
+def test_dagparam_in_partial_roundtrip():
+    """
+    DagParam in partial() round-trips through DagSerialization.to_dict / from_dict
+    and is properly resolved to a live DagParam that can resolve() at runtime.
+    """
+    from airflow.sdk import task as sdk_task
+    from airflow.sdk.definitions.param import DagParam
+
+    with DAG(dag_id="test_dagparam_roundtrip", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
+
+        @sdk_task
+        def add(value):
+            return value
+
+        add.partial(value=dag.param("p", "p_default_val")).expand(value=[1, 2, 3])
+
+    deserialized_dag: DAG = DagSerialization.from_dict(DagSerialization.to_dict(dag))
+
+    mapped_task = deserialized_dag.task_dict["add"]
+    assert hasattr(mapped_task, "partial_kwargs"), "Expected MappedOperator with partial_kwargs"
+    dag_param = mapped_task.partial_kwargs["op_kwargs"]["value"]
+
+    # The resolved DagParam must point to the deserialized DAG and resolve correctly.
+    assert isinstance(dag_param, DagParam)
+    assert dag_param._name == "p"
+    assert dag_param._default == "p_default_val"
+    assert dag_param.current_dag is deserialized_dag
+
+
+def test_dagparam_in_partial_version_stability():
+    """
+    Serializing a DAG with DagParam in partial() multiple times must produce
+    the same version hash (no inflation from non-deterministic memory addresses).
+    """
+    from airflow.sdk import task as sdk_task
+
+    with DAG(dag_id="test_dagparam_version", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
+
+        @sdk_task
+        def add(value):
+            return value
+
+        add.partial(value=dag.param("p", "p_default_val")).expand(value=[1, 2, 3])
+
+    serialized1 = DagSerialization.to_dict(dag)
+    serialized2 = DagSerialization.to_dict(dag)
+
+    version1 = serialized1["dag"].get("dag_version")
+    version2 = serialized2["dag"].get("dag_version")
+    # If dag_version is not present, compare the full dict (both must be equal).
+    assert serialized1 == serialized2, (
+        f"DagParam in partial() caused serialization to differ across runs (version inflation). "
+        f"Versions: {version1!r} vs {version2!r}"
+    )
+
+
+def test_dagparam_in_partial_no_default():
+    """DagParam with no default value (NOTSET) in partial() also serializes correctly."""
+    from airflow.sdk import task as sdk_task
+    from airflow.sdk.definitions.param import DagParam
+    from airflow.serialization.definitions.notset import NOTSET
+
+    with DAG(dag_id="test_dagparam_no_default", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
+
+        @sdk_task
+        def add(value):
+            return value
+
+        # dag.param with no default → DagParam._default is NOTSET
+        add.partial(value=dag.param("p")).expand(value=[1, 2, 3])
+
+    deserialized_dag: DAG = DagSerialization.from_dict(DagSerialization.to_dict(dag))
+
+    mapped_task = deserialized_dag.task_dict["add"]
+    dag_param = mapped_task.partial_kwargs["op_kwargs"]["value"]
+    assert isinstance(dag_param, DagParam)
+    assert dag_param._name == "p"
+    assert isinstance(dag_param._default, type(NOTSET))
+
+
 @pytest.mark.parametrize("strict", [True, False])
 def test_operator_expand_kwargs_literal_serde(strict):
     from airflow.sdk.definitions.xcom_arg import XComArg
