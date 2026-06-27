@@ -1553,6 +1553,7 @@ class TestPostAssetMaterialize(TestAssets):
             "last_scheduling_decision": None,
             "run_type": "asset_materialization",
             "state": "queued",
+            "tags": [],
             "triggered_by": "rest_api",
             "triggering_user_name": "test",
             "conf": {},

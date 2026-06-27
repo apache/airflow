@@ -300,6 +300,7 @@ def get_dag_run_dict(run: DagRun):
         "note": run.note,
         "dag_versions": get_dag_versions_dict(run.dag_versions),
         "partition_key": None,
+        "tags":[],
     }
 
 
@@ -428,7 +429,7 @@ class TestGetDagRuns:
     def test_return_correct_results_with_order_by(self, test_client, order_by, expected_order):
         # Test ascending order
 
-        with assert_queries_count(7):
+        with assert_queries_count(8):
             response = test_client.get("/dags/test_dag1/dagRuns", params={"order_by": order_by})
 
         assert response.status_code == 200
@@ -1035,7 +1036,7 @@ class TestGetDagRuns:
 class TestListDagRunsBatch:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_list_dag_runs_return_200(self, test_client, session):
-        with assert_queries_count(5):
+        with assert_queries_count(7):
             response = test_client.post("/dags/~/dagRuns/list", json={})
         assert response.status_code == 200
         body = response.json()
@@ -1077,7 +1078,7 @@ class TestListDagRunsBatch:
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_list_dag_runs_with_dag_ids_filter(self, test_client, dag_ids, status_code, expected_dag_id_list):
-        with assert_queries_count(5):
+        with assert_queries_count(7):
             response = test_client.post("/dags/~/dagRuns/list", json={"dag_ids": dag_ids})
         assert response.status_code == status_code
         assert set([each["dag_run_id"] for each in response.json()["dag_runs"]]) == set(expected_dag_id_list)
@@ -2323,6 +2324,7 @@ class TestTriggerDagRun:
             "duration": None,
             "run_type": "manual",
             "state": "queued",
+            "tags":[],
             "data_interval_end": expected_data_interval_end,
             "data_interval_start": expected_data_interval_start,
             "queued_at": fixed_now.replace("+00:00", "Z"),
@@ -2556,6 +2558,7 @@ class TestTriggerDagRun:
             "last_scheduling_decision": None,
             "run_type": "manual",
             "state": "queued",
+            "tags": [],
             "triggered_by": "rest_api",
             "triggering_user_name": "test",
             "conf": {},
@@ -2645,6 +2648,7 @@ class TestTriggerDagRun:
             "last_scheduling_decision": None,
             "run_type": "manual",
             "state": "queued",
+            "tags": [],
             "triggered_by": "rest_api",
             "triggering_user_name": "test",
             "conf": {},
