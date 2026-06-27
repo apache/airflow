@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-26T21:56:41.408820
+# This constraints file was automatically generated on 2026-06-27T11:53:17.877240
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -75,7 +75,7 @@ aiomysql==0.3.2
 aiosignal==1.4.0
 aiosmtplib==5.1.2
 aiosqlite==0.21.0
-airbyte-api==0.53.0
+airbyte-api==1.0.1
 akeyless==5.0.28
 alembic==1.18.4
 alibabacloud-adb20211201==3.7.0
@@ -270,7 +270,6 @@ croniter==6.2.2
 cryptography==48.0.1
 curlify==3.0.0
 databricks-sql-connector==4.2.5
-dataclasses-json==0.6.7
 datadog==0.52.1
 db-dtypes==1.7.0
 debugpy==1.8.21
@@ -329,8 +328,8 @@ google-cloud-automl==2.20.0
 google-cloud-batch==0.22.0
 google-cloud-bigquery-datatransfer==3.23.0
 google-cloud-bigquery-storage==2.39.0
-google-cloud-bigquery==3.42.0
-google-cloud-bigtable==2.38.0
+google-cloud-bigquery==3.42.1
+google-cloud-bigtable==2.39.0
 google-cloud-build==3.37.0
 google-cloud-compute==1.48.0
 google-cloud-container==2.65.0
@@ -341,31 +340,31 @@ google-cloud-dataform==0.11.0
 google-cloud-dataplex==2.20.0
 google-cloud-dataproc-metastore==1.23.0
 google-cloud-dataproc==5.28.0
-google-cloud-dlp==3.37.0
-google-cloud-kms==3.13.0
-google-cloud-language==2.20.0
+google-cloud-dlp==3.38.0
+google-cloud-kms==3.14.0
+google-cloud-language==2.21.0
 google-cloud-logging==3.16.0
-google-cloud-managedkafka==0.4.0
-google-cloud-memcache==1.15.0
+google-cloud-managedkafka==0.4.1
+google-cloud-memcache==1.16.0
 google-cloud-monitoring==2.31.0
-google-cloud-orchestration-airflow==1.21.0
-google-cloud-os-login==2.21.0
+google-cloud-orchestration-airflow==1.22.0
+google-cloud-os-login==2.22.0
 google-cloud-pubsub==2.39.0
-google-cloud-redis==2.21.0
-google-cloud-resource-manager==1.17.0
-google-cloud-run==0.16.0
+google-cloud-redis==2.22.0
+google-cloud-resource-manager==1.18.0
+google-cloud-run==0.16.1
 google-cloud-secret-manager==2.29.0
 google-cloud-spanner==3.68.0
 google-cloud-speech==2.40.0
 google-cloud-storage-control==1.12.0
 google-cloud-storage-transfer==1.21.0
 google-cloud-storage==3.12.0
-google-cloud-tasks==2.22.0
-google-cloud-texttospeech==2.36.0
-google-cloud-translate==3.26.0
-google-cloud-videointelligence==2.19.0
-google-cloud-vision==3.14.0
-google-cloud-workflows==1.22.0
+google-cloud-tasks==2.23.0
+google-cloud-texttospeech==2.37.0
+google-cloud-translate==3.27.0
+google-cloud-videointelligence==2.20.0
+google-cloud-vision==3.15.0
+google-cloud-workflows==1.23.0
 google-crc32c==1.8.0
 google-genai==1.75.0
 google-resumable-media==2.10.0
@@ -428,7 +427,6 @@ joblib==1.5.3
 joserfc==1.7.1
 jpype1==1.7.1
 jsonpath-ng==1.8.0
-jsonpath-python==1.1.6
 jsonschema-specifications==2025.9.1
 jsonschema==4.26.0
 jupyter_client==8.9.1
@@ -453,7 +451,7 @@ lxml==6.1.1
 lz4==4.4.5
 markdown-it-py==4.2.0
 marshmallow-sqlalchemy==1.5.0
-marshmallow==3.26.2
+marshmallow==4.3.0
 matplotlib-inline==0.2.2
 mdit-py-plugins==0.6.1
 mdurl==0.1.2
@@ -465,7 +463,7 @@ microsoft-kiota-authentication-azure==1.11.5
 microsoft-kiota-http==1.11.5
 microsoft-kiota-serialization-json==1.11.5
 microsoft-kiota-serialization-text==1.11.5
-mistune==3.3.1
+mistune==3.3.2
 mmh3==5.2.1
 more-itertools==11.1.0
 msal-extensions==1.3.1
@@ -673,7 +671,6 @@ truststore==0.10.4
 typer==0.25.1
 types-protobuf==7.34.1.20260518
 types-requests==2.33.0.20260518
-typing-inspect==0.9.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
 tzdata==2026.2
