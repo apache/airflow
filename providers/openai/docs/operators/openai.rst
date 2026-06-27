@@ -78,6 +78,12 @@ For example, to create a conversation and continue it across responses:
     conversation = hook.create_conversation()
     hook.create_response(input="Hello", conversation=conversation.id)
 
+.. note::
+
+    The Assistants/Threads hook methods (``create_assistant``, ``create_thread``, ``create_run`` and
+    related) are deprecated, mirroring OpenAI's deprecation of the Assistants API. Migrate to the
+    Responses and Conversations methods above.
+
 .. _howto/operator:OpenAITriggerBatchOperator:
 
 OpenAITriggerBatchOperator
