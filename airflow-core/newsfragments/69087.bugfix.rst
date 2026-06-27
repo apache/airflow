@@ -1,0 +1,1 @@
+Initialize versioned Dag bundles for callback queueing when bundle_version is None (e.g. with disable_bundle_versioning=True), so callbacks resolve a usable bundle path instead of an uninitialized one.
