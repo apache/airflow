@@ -83,6 +83,9 @@ pools:
 providers:
   list: "List all installed Airflow providers"
 
+tasks:
+  states-for-dag-run: "Get the status of all task instances in a Dag run"
+
 variables:
   get: "Retrieve a variable by its key"
   list: "List all variables"
