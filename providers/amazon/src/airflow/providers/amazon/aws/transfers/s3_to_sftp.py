@@ -17,13 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import posixpath
 from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.utils import validate_destination_path
 from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
@@ -107,26 +107,6 @@ class S3ToSFTPOperator(BaseOperator):
         parsed_s3_key = urlsplit(s3_key)
         return parsed_s3_key.path.lstrip("/")
 
-    def _validate_destination_path(self, destination: str) -> None:
-        # In multi-file mode the destination is ``sftp_path`` concatenated with a
-        # key suffix returned by ``list_keys``. S3 object names are arbitrary
-        # strings controlled by whoever can write to the source bucket, so ``..``
-        # segments or an absolute name could place the upload outside the
-        # configured ``sftp_path`` once the SFTP server resolves it on its host.
-        base = posixpath.normpath(self.sftp_path)
-        resolved = posixpath.normpath(destination)
-        escapes = (
-            resolved == ".."
-            or resolved.startswith("../")
-            or (posixpath.isabs(resolved) and not posixpath.isabs(base))
-            or (base != "." and resolved != base and not resolved.startswith(base.rstrip("/") + "/"))
-        )
-        if escapes:
-            raise ValueError(
-                f"Refusing to upload S3 object to {destination!r}: resolved path "
-                f"escapes configured sftp_path {self.sftp_path!r}."
-            )
-
     def _download_from_s3(
         self,
         sftp_client: paramiko.SFTPClient,
@@ -134,7 +114,7 @@ class S3ToSFTPOperator(BaseOperator):
         s3_key: str,
         sftp_path: str,
     ) -> None:
-        self._validate_destination_path(sftp_path)
+        validate_destination_path(sftp_path, self.sftp_path, base_name="sftp_path")
         if not s3_hook.check_for_key(s3_key, self.s3_bucket):
             if self.fail_on_file_not_exist:
                 raise FileNotFoundError(f"Key {s3_key!r} not found in S3 bucket {self.s3_bucket!r}")

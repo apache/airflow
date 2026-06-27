@@ -22,6 +22,7 @@ from unittest import mock
 import pytest
 
 from airflow.providers.amazon.aws.transfers.s3_to_ftp import S3ToFTPOperator
+from airflow.providers.amazon.aws.utils import validate_destination_path
 
 TASK_ID = "test_s3_to_ftp"
 BUCKET = "test-s3-bucket"
@@ -113,20 +114,10 @@ class TestS3ToFTPOperatorInit:
         # In multi-file mode the destination is ``ftp_path`` plus a key suffix
         # returned by ``list_keys``; a crafted object name must not place the
         # upload outside the configured ``ftp_path`` on the FTP server.
-        op = S3ToFTPOperator(
-            task_id="trav",
-            s3_bucket=BUCKET,
-            s3_key="incoming/",
-            ftp_path="/srv/ftp/incoming/",
-        )
+        ftp_path = "/srv/ftp/incoming/"
         with pytest.raises(ValueError, match="escapes configured ftp_path"):
-            op._validate_destination_path(op.ftp_path + object_suffix)
+            validate_destination_path(ftp_path + object_suffix, ftp_path, base_name="ftp_path")
 
     def test_validate_destination_path_allows_contained(self):
-        op = S3ToFTPOperator(
-            task_id="benign",
-            s3_bucket=BUCKET,
-            s3_key="incoming/",
-            ftp_path="/srv/ftp/incoming/",
-        )
-        op._validate_destination_path(op.ftp_path + "sub/dir/report.csv")
+        ftp_path = "/srv/ftp/incoming/"
+        validate_destination_path(ftp_path + "sub/dir/report.csv", ftp_path, base_name="ftp_path")
