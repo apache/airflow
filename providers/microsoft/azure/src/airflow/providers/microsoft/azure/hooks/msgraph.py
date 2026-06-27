@@ -295,11 +295,11 @@ class KiotaRequestAdapterHook(BaseHook):
         return None
 
     @staticmethod
-    def get_allowed_hosts(authority: str, config: dict) -> list[str]:
+    def get_allowed_hosts(authority: str | None, config: dict) -> list[str]:
         allowed_hosts = config.get("allowed_hosts", authority)
         if not allowed_hosts:
             return []
-        return allowed_hosts.split(",")
+        return [host for host in allowed_hosts.split(",") if host]
 
     def _build_request_adapter(self, connection) -> tuple[str, RequestAdapter]:
         client_id = connection.login

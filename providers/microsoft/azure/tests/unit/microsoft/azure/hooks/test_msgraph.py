@@ -571,13 +571,13 @@ class TestKiotaRequestAdapterHook:
             assert hook.conn_id not in hook.cached_request_adapters
 
     def test_allowed_hosts_is_empty_list_when_not_configured(self):
-    """An unset allowed_hosts/authority must yield []."""
+        """An unset allowed_hosts/authority must yield []."""
         actual = KiotaRequestAdapterHook.get_allowed_hosts(None, {})
 
         assert actual == []
 
     def test_allowed_hosts_from_config(self):
-    """A configured allowed_hosts string must be split into a list."""
+        """A configured allowed_hosts string must be split into a list."""
         actual = KiotaRequestAdapterHook.get_allowed_hosts(
             None, {"allowed_hosts": "api.powerbi.com,login.microsoftonline.com"}
         )
