@@ -1629,12 +1629,18 @@ class S3Hook(AwsBaseHook):
         extra_args = {**self.extra_args}
         if self._requester_pays:
             extra_args["RequestPayer"] = "requester"
-        s3_obj.download_fileobj(
-            file,
-            ExtraArgs=extra_args,
-            Config=self.transfer_config,
-        )
-        file.flush()
+        try:
+            s3_obj.download_fileobj(
+                file,
+                ExtraArgs=extra_args,
+                Config=self.transfer_config,
+            )
+            file.flush()
+        finally:
+            # The file is created with delete=False / opened by us, so closing the
+            # handle keeps the data on disk while releasing the descriptor even when
+            # the download raises.
+            file.close()
         get_hook_lineage_collector().add_input_asset(
             context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
         )
