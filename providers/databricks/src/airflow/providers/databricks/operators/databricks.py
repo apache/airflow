@@ -54,6 +54,7 @@ from airflow.providers.databricks.utils.databricks import (
     validate_trigger_event,
 )
 from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMixin
+from airflow.providers.databricks.utils.query_tags import build_query_tags, dict_to_query_tag_list
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
@@ -652,6 +653,13 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
         .. seealso::
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
+    :param openlineage_inject_parent_job_info: If True, injects OpenLineage parent job information
+        into the ``new_cluster`` ``spark_conf`` so the Spark job emits a ``parentRunFacet`` linking
+        back to the Airflow task. Defaults to the
+        ``openlineage.spark_inject_parent_job_info`` config value.
+    :param openlineage_inject_transport_info: If True, injects OpenLineage transport configuration
+        into the ``new_cluster`` ``spark_conf`` so the Spark job sends OL events to the same backend
+        as Airflow. Defaults to the ``openlineage.spark_inject_transport_info`` config value.
 
     .. note::
         If the operator's ``params`` dict is non-empty, it is automatically forwarded into the
@@ -716,6 +724,12 @@ class DatabricksSubmitRunOperator(BaseOperator):
         wait_for_termination: bool = True,
         git_source: dict[str, str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        openlineage_inject_parent_job_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_parent_job_info", fallback=False
+        ),
+        openlineage_inject_transport_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_transport_info", fallback=False
+        ),
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksSubmitRunOperator``."""
@@ -743,6 +757,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
+        self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
+        self.openlineage_inject_transport_info = openlineage_inject_transport_info
 
         # This variable will be used in case our task gets killed.
         self.run_id: int | None = None
@@ -830,12 +846,36 @@ class DatabricksSubmitRunOperator(BaseOperator):
             else:
                 _inject_airflow_params_into_task(json, params_dump)
 
+        if self.openlineage_inject_parent_job_info or self.openlineage_inject_transport_info:
+            self.log.info("Automatic injection of OpenLineage information into Spark properties is enabled.")
+            json = self._inject_openlineage_properties_into_databricks_job(json, context)
+
         normalised = cast("dict[str, Any]", normalise_json_content(json))
         self.run_id = self._hook.submit_run(normalised)
         if self.deferrable:
             _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
         else:
             _handle_databricks_operator_execution(self, self._hook, self.log, context)
+
+    def _inject_openlineage_properties_into_databricks_job(self, json: dict, context: Context) -> dict:
+        try:
+            from airflow.providers.databricks.utils.openlineage import (
+                inject_openlineage_properties_into_databricks_job,
+            )
+
+            return inject_openlineage_properties_into_databricks_job(
+                job=json,
+                context=context,
+                inject_parent_job_info=self.openlineage_inject_parent_job_info,
+                inject_transport_info=self.openlineage_inject_transport_info,
+            )
+        except Exception as e:
+            self.log.warning(
+                "An error occurred while trying to inject OpenLineage information. "
+                "Databricks job has not been modified by OpenLineage.",
+                exc_info=e,
+            )
+            return json
 
     def on_kill(self):
         if self.run_id:
@@ -1258,10 +1298,15 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
     :param do_xcom_push: Whether we should push statement_id to xcom.:
     :param timeout: The timeout for the Airflow task executing the SQL statement. By default a value of 3600 seconds is used.
     :param deferrable: Run operator in the deferrable mode.
+    :param query_tags: Optional dictionary of query tags to attach to the SQL statement. Tags are
+        passed as the ``query_tags`` field in the Databricks Statement Execution REST API request body.
+        See https://docs.databricks.com/api/workspace/statementexecution/executestatement
+    :param include_airflow_query_tags: If True, add Airflow DAG/task/run metadata as query tags.
+        Defaults to True.
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ("databricks_conn_id",)
+    template_fields: Sequence[str] = ("databricks_conn_id", "query_tags")
     template_ext: Sequence[str] = (".json-tpl",)
     # Databricks brand color (blue) under white text
     ui_color = "#1CB1C2"
@@ -1284,9 +1329,11 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
         wait_for_termination: bool = True,
         timeout: float = 3600,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        query_tags: dict[str, str | None] | None = None,
+        include_airflow_query_tags: bool = True,
         **kwargs,
     ) -> None:
-        """Create a new ``DatabricksSubmitRunOperator``."""
+        """Create a new ``DatabricksSQLStatementsOperator``."""
         super().__init__(**kwargs)
         self.statement = statement
         self.warehouse_id = warehouse_id
@@ -1300,6 +1347,8 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
         self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
+        self.query_tags = query_tags or {}
+        self.include_airflow_query_tags = include_airflow_query_tags
 
         # This variable will be used in case our task gets killed.
         self.statement_id: str | None = None
@@ -1321,6 +1370,7 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
         )
 
     def execute(self, context: Context):
+        tags = build_query_tags(context, self.query_tags, self.include_airflow_query_tags)
         json = {
             "statement": self.statement,
             "warehouse_id": self.warehouse_id,
@@ -1332,6 +1382,8 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
             # execution state.
             "wait_timeout": "0s",
         }
+        if tags:
+            json["query_tags"] = dict_to_query_tag_list(tags)
         self.statement_id = self._hook.post_sql_statement(json)
         if self.do_xcom_push and context is not None:
             context["ti"].xcom_push(key=XCOM_STATEMENT_ID_KEY, value=self.statement_id)

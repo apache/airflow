@@ -340,13 +340,15 @@ Add the artifact:
 
     implementation("org.apache.airflow:airflow-sdk-jul:${version}")
 
-and call ``AirflowJulHandler.install()`` on startup to attach the handler to the
-JUL root logger before any task runs:
+and call ``AirflowJulHandler.setup()`` on startup, before any task runs. It clears the JUL root
+logger's existing handlers (including the default ``ConsoleHandler``, whose stderr output Airflow
+would otherwise capture as ``task.stderr`` at ERROR level, duplicating each record and mislabeling
+its level) and installs ``AirflowJulHandler`` in their place:
 
 .. code-block:: java
 
     public static void main(String[] args) {
-        AirflowJulHandler.install();
+        AirflowJulHandler.setup();
         Server.create(args).serve(new MyBundle());
     }
 
@@ -668,6 +670,40 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - ``10.0``
      - Seconds to wait for the JVM subprocess to connect after launch.  Increase this if your
        JVM startup is slow (e.g. on constrained hardware or with a large classpath).
+
+.. note::
+
+  The ``[sdk]`` configuration is read at startup, so changes to ``coordinators`` or
+  ``queue_to_coordinator`` (for example adding ``jvm_args``) only take effect after you restart the
+  scheduler (or ``airflow standalone``). A rebuilt bundle JAR, by contrast, is picked up on the next
+  task launch without a restart, because a fresh JVM is spawned per task instance.
+
+.. _java-sdk/java-executable:
+
+Pinning the Java executable
+---------------------------
+
+As a general recommendation, set ``java_executable`` to an absolute path rather than relying on
+``java`` resolving from ``$PATH``. This pins tasks to a known JDK, which matters most in production or
+corporate environments where the Airflow admin may not control the system-wide ``java`` (the same
+reasoning behind pinning a Python version).
+
+For example, if you install the JDK with Homebrew on macOS, its ``java`` is not on ``$PATH``, so
+point ``java_executable`` at it explicitly:
+
+.. code-block:: ini
+
+    [sdk]
+    coordinators = {
+      "java-jdk17": {
+        "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+        "kwargs": {
+          "jars_root": ["/opt/airflow/jars"],
+          "java_executable": "/opt/homebrew/opt/openjdk@17/bin/java"
+        }
+      }
+    }
+    queue_to_coordinator = {"java": "java-jdk17"}
 
 .. _java-sdk/limitations:
 

@@ -26,6 +26,7 @@ from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOper
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, SQLStatementState
 from airflow.providers.databricks.operators.databricks import DEFER_METHOD_NAME
 from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMixin
+from airflow.providers.databricks.utils.query_tags import build_query_tags, dict_to_query_tag_list
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -40,6 +41,7 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
         "databricks_conn_id",
         "statement",
         "statement_id",
+        "query_tags",
     )
     template_ext: Sequence[str] = (".json-tpl",)
     ui_color = "#1CB1C2"
@@ -63,6 +65,8 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
         wait_for_termination: bool = True,
         timeout: float = 3600,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        query_tags: dict[str, str | None] | None = None,
+        include_airflow_query_tags: bool = True,
         **kwargs,
     ):
         # Handle the scenario where either both statement and statement_id are set/not set
@@ -91,6 +95,8 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
         self.deferrable = deferrable
         self.timeout = timeout
         self.do_xcom_push = do_xcom_push
+        self.query_tags = query_tags or {}
+        self.include_airflow_query_tags = include_airflow_query_tags
 
     @cached_property
     def _hook(self):
@@ -108,6 +114,7 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
     def execute(self, context: Context):
         if not self.statement_id:
             # Otherwise, we'll go ahead and "submit" the statement
+            tags = build_query_tags(context, self.query_tags, self.include_airflow_query_tags)
             json = {
                 "statement": self.statement,
                 "warehouse_id": self.warehouse_id,
@@ -116,6 +123,8 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
                 "parameters": self.parameters,
                 "wait_timeout": "0s",
             }
+            if tags:
+                json["query_tags"] = dict_to_query_tag_list(tags)
 
             self.statement_id = self._hook.post_sql_statement(json)
             self.log.info("SQL Statement submitted with statement_id: %s", self.statement_id)

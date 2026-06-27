@@ -42,11 +42,25 @@ with DAG(
     neo4j_task = Neo4jOperator(
         task_id="run_neo4j_query",
         neo4j_conn_id="neo4j_conn_id",
-        sql='MATCH (tom {name: "Tom Hanks", date: "{{ds}}"}) RETURN tom',
+        cypher='MATCH (tom {name: "Tom Hanks", date: "{{ds}}"}) RETURN tom',
         dag=dag,
     )
 
     # [END run_query_neo4j_operator]
+
+    # [START run_query_neo4j_operator_with_parameters]
+
+    neo4j_task_with_parameters = Neo4jOperator(
+        task_id="run_neo4j_query_with_parameters",
+        neo4j_conn_id="neo4j_conn_id",
+        parameters={"name": "Tom Hanks"},
+        cypher='MATCH (actor {name: $name, date: "{{ds}}"}) RETURN actor',
+        dag=dag,
+    )
+
+    # [END run_query_neo4j_operator_with_parameters]
+
+    neo4j_task >> neo4j_task_with_parameters
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
