@@ -241,7 +241,11 @@ def load_policy_plugins(pm: pluggy.PluginManager):
 
 
 def _get_async_conn_uri_from_sync(sync_uri):
-    AIO_LIBS_MAPPING = {"sqlite": "aiosqlite", "postgresql": "asyncpg", "mysql": "aiomysql"}
+    AIO_LIBS_MAPPING = {
+        "sqlite": "aiosqlite",
+        "postgresql": "psycopg_async" if _USE_PSYCOPG3 else "asyncpg",
+        "mysql": "aiomysql",
+    }
     """Mapping of sync scheme to async scheme."""
 
     scheme, rest = sync_uri.split(":", maxsplit=1)
