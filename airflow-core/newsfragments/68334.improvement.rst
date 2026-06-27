@@ -1,0 +1,1 @@
+Expose owner_display_name in the /api/v2/eventLogs response and add owner_display_name, owner_display_name_pattern, and owner_display_name_prefix_pattern filter/sort parameters. The Audit Log UI "User" column now displays the human-readable display name when present, falling back to owner.
