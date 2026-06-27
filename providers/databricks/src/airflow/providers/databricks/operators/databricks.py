@@ -19,14 +19,18 @@
 
 from __future__ import annotations
 
+import ast
+import copy
 import hashlib
+import json as json_utils
 import time
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, BaseOperatorLink, XCom, conf
+from airflow.providers.databricks.exceptions import DatabricksOperatorPayloadError
 from airflow.providers.databricks.hooks.databricks import (
     DatabricksHook,
     RunLifeCycleState,
@@ -50,6 +54,7 @@ from airflow.providers.databricks.utils.databricks import (
     validate_trigger_event,
 )
 from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMixin
+from airflow.providers.databricks.utils.query_tags import build_query_tags, dict_to_query_tag_list
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
@@ -133,15 +138,15 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                         "%s but since repair run is set, repairing the run with all failed tasks",
                         error_message,
                     )
-                    job_id = operator.json["job_id"]
+                    job_id = operator._merged_json["job_id"]
                     update_job_for_repair(operator, hook, job_id, run_state)
                     latest_repair_id = hook.get_latest_repair_id(operator.run_id)
                     repair_json = {"run_id": operator.run_id, "rerun_all_failed_tasks": True}
                     if latest_repair_id is not None:
                         repair_json["latest_repair_id"] = latest_repair_id
-                    if "job_parameters" in operator.json:
-                        repair_json["job_parameters"] = operator.json["job_parameters"]
-                    operator.json["latest_repair_id"] = hook.repair_run(repair_json)
+                    if "job_parameters" in operator._merged_json:
+                        repair_json["job_parameters"] = operator._merged_json["job_parameters"]
+                    hook.repair_run(repair_json)
                     _handle_databricks_operator_execution(operator, hook, log, context)
                 raise AirflowException(error_message)
 
@@ -281,6 +286,64 @@ def _inject_airflow_params_into_task(task: dict, params: dict) -> None:
             task_def[field] = dict(params)
 
 
+def _coerce_json_to_dict(json: Any) -> dict[str, Any]:
+    if json is None:
+        return {}
+    if isinstance(json, Mapping):
+        return dict(json)
+    if isinstance(json, str):
+        return _parse_json_string_to_dict(json)
+    raise DatabricksOperatorPayloadError(
+        f"Databricks json payload must resolve to a mapping, not {type(json).__name__}."
+    )
+
+
+def _parse_json_string_to_dict(json: str) -> dict[str, Any]:
+    """
+    Parse a rendered ``json`` payload string into a dict.
+
+    A templated ``json`` payload may render to a string in two shapes:
+
+    * valid JSON (double-quoted keys/values), or
+    * a Python dict literal (single-quoted), which is what classic Jinja produces when it renders a
+      ``dict`` pulled from XCom, e.g. ``json="{{ ti.xcom_pull(task_ids='payload') }}"``.
+
+    Both are accepted: JSON is tried first, then ``ast.literal_eval`` as a fallback for the dict-literal
+    case. Anything that is not a mapping (or cannot be parsed) raises ``DatabricksOperatorPayloadError``.
+    Prefer passing an ``XComArg`` (``producer.output``) when possible — it resolves to a real ``dict`` at
+    runtime and never goes through this string parser.
+    """
+    if not json:
+        return {}
+    try:
+        parsed_json = json_utils.loads(json)
+    except json_utils.JSONDecodeError:
+        try:
+            parsed_json = ast.literal_eval(json)
+        except (SyntaxError, ValueError, TypeError, MemoryError) as err:
+            raise DatabricksOperatorPayloadError(
+                "Databricks json payload string must be valid JSON or a Python literal dict."
+            ) from err
+
+    if not isinstance(parsed_json, Mapping):
+        raise DatabricksOperatorPayloadError(
+            f"Databricks json payload must resolve to a mapping, not {type(parsed_json).__name__}."
+        )
+    return dict(parsed_json)
+
+
+def _merge_json_with_named_parameters(
+    json: Any, named_parameters: Mapping[str, Any | None]
+) -> dict[str, Any]:
+    merged_json = _coerce_json_to_dict(json)
+    merged_json.update(
+        (param_name, param_value)
+        for param_name, param_value in named_parameters.items()
+        if param_value is not None
+    )
+    return merged_json
+
+
 class DatabricksJobRunLink(BaseOperatorLink):
     """Constructs a link to monitor a Databricks Job Run."""
 
@@ -309,6 +372,10 @@ class DatabricksCreateJobsOperator(BaseOperator):
         be merged with this json dictionary if they are provided.
         If there are conflicts during the merge, the named parameters will
         take precedence and override the top level json keys. (templated)
+        When templated, ``json`` may resolve to a mapping, a JSON string, or a Python-dict-literal
+        string (the latter is what classic Jinja produces when rendering a dict pulled from XCom).
+        To avoid the string round-trip, prefer passing an ``XComArg`` (e.g. ``producer.output``),
+        which resolves to a real ``dict`` at runtime.
 
         .. seealso::
             For more information about templating see :ref:`concepts:jinja-templating`.
@@ -353,7 +420,23 @@ class DatabricksCreateJobsOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ("json", "databricks_conn_id")
+    template_fields: Sequence[str] = (
+        "json",
+        "name",
+        "description",
+        "tags",
+        "tasks",
+        "job_clusters",
+        "email_notifications",
+        "webhook_notifications",
+        "notification_settings",
+        "timeout_seconds",
+        "schedule",
+        "max_concurrent_runs",
+        "git_source",
+        "access_control_list",
+        "databricks_conn_id",
+    )
     # Databricks brand color (blue) under white text
     ui_color = "#1CB1C2"
     ui_fgcolor = "#fff"
@@ -384,40 +467,45 @@ class DatabricksCreateJobsOperator(BaseOperator):
     ) -> None:
         """Create a new ``DatabricksCreateJobsOperator``."""
         super().__init__(**kwargs)
-        self.json = json or {}
+        self.json = json
+        self.name = name
+        self.description = description
+        self.tags = tags
+        self.tasks = tasks
+        self.job_clusters = job_clusters
+        self.email_notifications = email_notifications
+        self.webhook_notifications = webhook_notifications
+        self.notification_settings = notification_settings
+        self.timeout_seconds = timeout_seconds
+        self.schedule = schedule
+        self.max_concurrent_runs = max_concurrent_runs
+        self.git_source = git_source
+        self.access_control_list = access_control_list
         self.databricks_conn_id = databricks_conn_id
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
         self.databricks_retry_args = databricks_retry_args
-        if name is not None:
-            self.json["name"] = name
-        if description is not None:
-            self.json["description"] = description
-        if tags is not None:
-            self.json["tags"] = tags
-        if tasks is not None:
-            self.json["tasks"] = tasks
-        if job_clusters is not None:
-            self.json["job_clusters"] = job_clusters
-        if email_notifications is not None:
-            self.json["email_notifications"] = email_notifications
-        if webhook_notifications is not None:
-            self.json["webhook_notifications"] = webhook_notifications
-        if notification_settings is not None:
-            self.json["notification_settings"] = notification_settings
-        if timeout_seconds is not None:
-            self.json["timeout_seconds"] = timeout_seconds
-        if schedule is not None:
-            self.json["schedule"] = schedule
-        if max_concurrent_runs is not None:
-            self.json["max_concurrent_runs"] = max_concurrent_runs
-        if git_source is not None:
-            self.json["git_source"] = git_source
-        if access_control_list is not None:
-            self.json["access_control_list"] = access_control_list
-        if self.json:
-            self.json = normalise_json_content(self.json)
+
+    def _get_named_json_parameters(self) -> dict[str, Any | None]:
+        return {
+            "name": self.name,
+            "description": self.description,
+            "tags": self.tags,
+            "tasks": self.tasks,
+            "job_clusters": self.job_clusters,
+            "email_notifications": self.email_notifications,
+            "webhook_notifications": self.webhook_notifications,
+            "notification_settings": self.notification_settings,
+            "timeout_seconds": self.timeout_seconds,
+            "schedule": self.schedule,
+            "max_concurrent_runs": self.max_concurrent_runs,
+            "git_source": self.git_source,
+            "access_control_list": self.access_control_list,
+        }
+
+    def _get_merged_json(self) -> dict[str, Any]:
+        return _merge_json_with_named_parameters(self.json, self._get_named_json_parameters())
 
     @cached_property
     def _hook(self):
@@ -430,14 +518,15 @@ class DatabricksCreateJobsOperator(BaseOperator):
         )
 
     def execute(self, context: Context) -> int:
-        if "name" not in self.json:
+        json = cast("dict[str, Any]", normalise_json_content(self._get_merged_json()))
+        if "name" not in json:
             raise AirflowException("Missing required parameter: name")
-        job_id = self._hook.find_job_id_by_name(self.json["name"])
-        if not self.json.get("parameters") and self.params:
-            self.json["parameters"] = [{"name": k, "default": v} for k, v in dict(self.params).items()]
+        job_id = self._hook.find_job_id_by_name(json["name"])
+        if not json.get("parameters") and self.params:
+            json["parameters"] = [{"name": k, "default": v} for k, v in dict(self.params).items()]
         if job_id is None:
-            return self._hook.create_job(self.json)
-        self._hook.reset_job(str(job_id), self.json)
+            return self._hook.create_job(json)
+        self._hook.reset_job(str(job_id), json)
         return job_id
 
 
@@ -463,6 +552,10 @@ class DatabricksSubmitRunOperator(BaseOperator):
         be merged with this json dictionary if they are provided.
         If there are conflicts during the merge, the named parameters will
         take precedence and override the top level json keys. (templated)
+        When templated, ``json`` may resolve to a mapping, a JSON string, or a Python-dict-literal
+        string (the latter is what classic Jinja produces when rendering a dict pulled from XCom).
+        To avoid the string round-trip, prefer passing an ``XComArg`` (e.g. ``producer.output``),
+        which resolves to a real ``dict`` at runtime.
 
         .. seealso::
             For more information about templating see :ref:`concepts:jinja-templating`.
@@ -560,6 +653,13 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
         .. seealso::
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
+    :param openlineage_inject_parent_job_info: If True, injects OpenLineage parent job information
+        into the ``new_cluster`` ``spark_conf`` so the Spark job emits a ``parentRunFacet`` linking
+        back to the Airflow task. Defaults to the
+        ``openlineage.spark_inject_parent_job_info`` config value.
+    :param openlineage_inject_transport_info: If True, injects OpenLineage transport configuration
+        into the ``new_cluster`` ``spark_conf`` so the Spark job sends OL events to the same backend
+        as Airflow. Defaults to the ``openlineage.spark_inject_transport_info`` config value.
 
     .. note::
         If the operator's ``params`` dict is non-empty, it is automatically forwarded into the
@@ -572,7 +672,25 @@ class DatabricksSubmitRunOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ("json", "databricks_conn_id")
+    template_fields: Sequence[str] = (
+        "json",
+        "tasks",
+        "spark_jar_task",
+        "notebook_task",
+        "spark_python_task",
+        "spark_submit_task",
+        "pipeline_task",
+        "dbt_task",
+        "new_cluster",
+        "existing_cluster_id",
+        "libraries",
+        "run_name",
+        "timeout_seconds",
+        "idempotency_token",
+        "access_control_list",
+        "git_source",
+        "databricks_conn_id",
+    )
     template_ext: Sequence[str] = (".json-tpl",)
     # Databricks brand color (blue) under white text
     ui_color = "#1CB1C2"
@@ -606,11 +724,32 @@ class DatabricksSubmitRunOperator(BaseOperator):
         wait_for_termination: bool = True,
         git_source: dict[str, str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        openlineage_inject_parent_job_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_parent_job_info", fallback=False
+        ),
+        openlineage_inject_transport_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_transport_info", fallback=False
+        ),
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksSubmitRunOperator``."""
         super().__init__(**kwargs)
-        self.json = json or {}
+        self.json = json
+        self.tasks = tasks
+        self.spark_jar_task = spark_jar_task
+        self.notebook_task = notebook_task
+        self.spark_python_task = spark_python_task
+        self.spark_submit_task = spark_submit_task
+        self.pipeline_task = pipeline_task
+        self.dbt_task = dbt_task
+        self.new_cluster = new_cluster
+        self.existing_cluster_id = existing_cluster_id
+        self.libraries = libraries
+        self.run_name = run_name
+        self.timeout_seconds = timeout_seconds
+        self.idempotency_token = idempotency_token
+        self.access_control_list = access_control_list
+        self.git_source = git_source
         self.databricks_conn_id = databricks_conn_id
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
@@ -618,47 +757,51 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
-        if tasks is not None:
-            self.json["tasks"] = tasks
-        if spark_jar_task is not None:
-            self.json["spark_jar_task"] = spark_jar_task
-        if notebook_task is not None:
-            self.json["notebook_task"] = notebook_task
-        if spark_python_task is not None:
-            self.json["spark_python_task"] = spark_python_task
-        if spark_submit_task is not None:
-            self.json["spark_submit_task"] = spark_submit_task
-        if pipeline_task is not None:
-            self.json["pipeline_task"] = pipeline_task
-        if dbt_task is not None:
-            self.json["dbt_task"] = dbt_task
-        if new_cluster is not None:
-            self.json["new_cluster"] = new_cluster
-        if existing_cluster_id is not None:
-            self.json["existing_cluster_id"] = existing_cluster_id
-        if libraries is not None:
-            self.json["libraries"] = libraries
-        if run_name is not None:
-            self.json["run_name"] = run_name
-        if timeout_seconds is not None:
-            self.json["timeout_seconds"] = timeout_seconds
-        if "run_name" not in self.json:
-            self.json["run_name"] = run_name or kwargs["task_id"]
-        if idempotency_token is not None:
-            self.json["idempotency_token"] = idempotency_token
-        if access_control_list is not None:
-            self.json["access_control_list"] = access_control_list
-        if git_source is not None:
-            self.json["git_source"] = git_source
-
-        if "dbt_task" in self.json and "git_source" not in self.json:
-            raise AirflowException("git_source is required for dbt_task")
-        if pipeline_task is not None and "pipeline_id" in pipeline_task and "pipeline_name" in pipeline_task:
-            raise AirflowException("'pipeline_name' is not allowed in conjunction with 'pipeline_id'")
+        self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
+        self.openlineage_inject_transport_info = openlineage_inject_transport_info
 
         # This variable will be used in case our task gets killed.
         self.run_id: int | None = None
         self.do_xcom_push = do_xcom_push
+
+    def _get_named_json_parameters(self) -> dict[str, Any | None]:
+        return {
+            "tasks": self.tasks,
+            "spark_jar_task": self.spark_jar_task,
+            "notebook_task": self.notebook_task,
+            "spark_python_task": self.spark_python_task,
+            "spark_submit_task": self.spark_submit_task,
+            "pipeline_task": self.pipeline_task,
+            "dbt_task": self.dbt_task,
+            "new_cluster": self.new_cluster,
+            "existing_cluster_id": self.existing_cluster_id,
+            "libraries": self.libraries,
+            "run_name": self.run_name,
+            "timeout_seconds": self.timeout_seconds,
+            "idempotency_token": self.idempotency_token,
+            "access_control_list": self.access_control_list,
+            "git_source": self.git_source,
+        }
+
+    def _get_merged_json(self) -> dict[str, Any]:
+        json = _merge_json_with_named_parameters(self.json, self._get_named_json_parameters())
+        if "run_name" not in json:
+            json["run_name"] = self.task_id
+        return json
+
+    @staticmethod
+    def _validate_merged_json(json: Mapping[str, Any]) -> None:
+        if "dbt_task" in json and "git_source" not in json:
+            raise DatabricksOperatorPayloadError("git_source is required for dbt_task")
+        pipeline_task = json.get("pipeline_task")
+        if (
+            isinstance(pipeline_task, Mapping)
+            and "pipeline_id" in pipeline_task
+            and "pipeline_name" in pipeline_task
+        ):
+            raise DatabricksOperatorPayloadError(
+                "'pipeline_name' is not allowed in conjunction with 'pipeline_id'"
+            )
 
     @cached_property
     def _hook(self):
@@ -674,32 +817,65 @@ class DatabricksSubmitRunOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
+        # Work on an isolated deep copy so the per-task ``params`` injection below cannot mutate the
+        # (templated) named fields (e.g. ``self.tasks`` / ``self.notebook_task``) in place, which would
+        # break re-rendering on a retry. ``self.json`` and the named template fields are never written.
+        json = copy.deepcopy(self._get_merged_json())
+        self._validate_merged_json(json)
+        # Validate payload types up front so an invalid payload fails before any Databricks API call
+        # (parity with DatabricksRunNowOperator). The payload is re-normalised after param injection below.
+        normalise_json_content(json)
         if (
-            "pipeline_task" in self.json
-            and self.json["pipeline_task"].get("pipeline_id") is None
-            and self.json["pipeline_task"].get("pipeline_name")
+            isinstance(json.get("pipeline_task"), Mapping)
+            and json["pipeline_task"].get("pipeline_id") is None
+            and json["pipeline_task"].get("pipeline_name")
         ):
             # If pipeline_id is not provided, we need to fetch it from the pipeline_name
-            pipeline_name = self.json["pipeline_task"]["pipeline_name"]
-            self.json["pipeline_task"]["pipeline_id"] = self._hook.find_pipeline_id_by_name(pipeline_name)
-            del self.json["pipeline_task"]["pipeline_name"]
+            pipeline_name = json["pipeline_task"]["pipeline_name"]
+            json["pipeline_task"] = dict(json["pipeline_task"])
+            json["pipeline_task"]["pipeline_id"] = self._hook.find_pipeline_id_by_name(pipeline_name)
+            del json["pipeline_task"]["pipeline_name"]
 
         if self.params:
             params_dump = dict(self.params)
-            tasks = self.json.get("tasks")
+            tasks = json.get("tasks")
             if isinstance(tasks, list):
                 for task in tasks:
                     if isinstance(task, dict):
                         _inject_airflow_params_into_task(task, params_dump)
             else:
-                _inject_airflow_params_into_task(self.json, params_dump)
+                _inject_airflow_params_into_task(json, params_dump)
 
-        json_normalised = normalise_json_content(self.json)
-        self.run_id = self._hook.submit_run(json_normalised)
+        if self.openlineage_inject_parent_job_info or self.openlineage_inject_transport_info:
+            self.log.info("Automatic injection of OpenLineage information into Spark properties is enabled.")
+            json = self._inject_openlineage_properties_into_databricks_job(json, context)
+
+        normalised = cast("dict[str, Any]", normalise_json_content(json))
+        self.run_id = self._hook.submit_run(normalised)
         if self.deferrable:
             _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
         else:
             _handle_databricks_operator_execution(self, self._hook, self.log, context)
+
+    def _inject_openlineage_properties_into_databricks_job(self, json: dict, context: Context) -> dict:
+        try:
+            from airflow.providers.databricks.utils.openlineage import (
+                inject_openlineage_properties_into_databricks_job,
+            )
+
+            return inject_openlineage_properties_into_databricks_job(
+                job=json,
+                context=context,
+                inject_parent_job_info=self.openlineage_inject_parent_job_info,
+                inject_transport_info=self.openlineage_inject_transport_info,
+            )
+        except Exception as e:
+            self.log.warning(
+                "An error occurred while trying to inject OpenLineage information. "
+                "Databricks job has not been modified by OpenLineage.",
+                exc_info=e,
+            )
+            return json
 
     def on_kill(self):
         if self.run_id:
@@ -806,6 +982,10 @@ class DatabricksRunNowOperator(BaseOperator):
         be merged with this json dictionary if they are provided.
         If there are conflicts during the merge, the named parameters will
         take precedence and override the top level json keys. (templated)
+        When templated, ``json`` may resolve to a mapping, a JSON string, or a Python-dict-literal
+        string (the latter is what classic Jinja produces when rendering a dict pulled from XCom).
+        To avoid the string round-trip, prefer passing an ``XComArg`` (e.g. ``producer.output``),
+        which resolves to a real ``dict`` at runtime.
 
         .. seealso::
             For more information about templating see :ref:`concepts:jinja-templating`.
@@ -902,7 +1082,20 @@ class DatabricksRunNowOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ("json", "databricks_conn_id")
+    template_fields: Sequence[str] = (
+        "json",
+        "job_id",
+        "job_name",
+        "job_parameters",
+        "dbt_commands",
+        "notebook_params",
+        "python_params",
+        "python_named_params",
+        "jar_params",
+        "spark_submit_params",
+        "idempotency_token",
+        "databricks_conn_id",
+    )
     template_ext: Sequence[str] = (".json-tpl",)
     # Databricks brand color (blue) under white text
     ui_color = "#1CB1C2"
@@ -938,7 +1131,17 @@ class DatabricksRunNowOperator(BaseOperator):
     ) -> None:
         """Create a new ``DatabricksRunNowOperator``."""
         super().__init__(**kwargs)
-        self.json = json or {}
+        self.json = json
+        self.job_id = job_id
+        self.job_name = job_name
+        self.job_parameters = job_parameters
+        self.dbt_commands = dbt_commands
+        self.notebook_params = notebook_params
+        self.python_params = python_params
+        self.python_named_params = python_named_params
+        self.jar_params = jar_params
+        self.spark_submit_params = spark_submit_params
+        self.idempotency_token = idempotency_token
         self.databricks_conn_id = databricks_conn_id
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
@@ -950,33 +1153,31 @@ class DatabricksRunNowOperator(BaseOperator):
         self.databricks_repair_reason_new_settings = databricks_repair_reason_new_settings or {}
         self.cancel_previous_runs = cancel_previous_runs
 
-        if job_id is not None:
-            self.json["job_id"] = job_id
-        if job_name is not None:
-            self.json["job_name"] = job_name
-        if "job_id" in self.json and "job_name" in self.json:
-            raise AirflowException("Argument 'job_name' is not allowed with argument 'job_id'")
-        if notebook_params is not None:
-            self.json["notebook_params"] = notebook_params
-        if python_params is not None:
-            self.json["python_params"] = python_params
-        if python_named_params is not None:
-            self.json["python_named_params"] = python_named_params
-        if jar_params is not None:
-            self.json["jar_params"] = jar_params
-        if spark_submit_params is not None:
-            self.json["spark_submit_params"] = spark_submit_params
-        if idempotency_token is not None:
-            self.json["idempotency_token"] = idempotency_token
-        if job_parameters is not None:
-            self.json["job_parameters"] = job_parameters
-        if dbt_commands is not None:
-            self.json["dbt_commands"] = dbt_commands
-        if self.json:
-            self.json = normalise_json_content(self.json)
         # This variable will be used in case our task gets killed.
         self.run_id: int | None = None
         self.do_xcom_push = do_xcom_push
+
+    def _get_named_json_parameters(self) -> dict[str, Any | None]:
+        return {
+            "job_id": self.job_id,
+            "job_name": self.job_name,
+            "job_parameters": self.job_parameters,
+            "dbt_commands": self.dbt_commands,
+            "notebook_params": self.notebook_params,
+            "python_params": self.python_params,
+            "python_named_params": self.python_named_params,
+            "jar_params": self.jar_params,
+            "spark_submit_params": self.spark_submit_params,
+            "idempotency_token": self.idempotency_token,
+        }
+
+    def _get_merged_json(self) -> dict[str, Any]:
+        return _merge_json_with_named_parameters(self.json, self._get_named_json_parameters())
+
+    @staticmethod
+    def _validate_merged_json(json: Mapping[str, Any]) -> None:
+        if "job_id" in json and "job_name" in json:
+            raise DatabricksOperatorPayloadError("Argument 'job_name' is not allowed with argument 'job_id'")
 
     @cached_property
     def _hook(self):
@@ -992,26 +1193,34 @@ class DatabricksRunNowOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
+        json = self._get_merged_json()
+        self._validate_merged_json(json)
+        # Validate payload types before touching the hook so an invalid payload fails fast,
+        # before find_job_id_by_name / cancel_all_runs hit the Databricks API.
+        json = cast("dict[str, Any]", normalise_json_content(json))
         hook = self._hook
-        if "job_name" in self.json:
-            job_id = hook.find_job_id_by_name(self.json["job_name"])
+        if "job_name" in json:
+            job_id = hook.find_job_id_by_name(json["job_name"])
             if job_id is None:
-                raise AirflowException(f"Job ID for job name {self.json['job_name']} can not be found")
-            self.json["job_id"] = job_id
-            del self.json["job_name"]
+                raise DatabricksOperatorPayloadError(
+                    f"Job ID for job name {json['job_name']} can not be found"
+                )
+            json["job_id"] = job_id
+            del json["job_name"]
 
         if self.cancel_previous_runs:
-            if (job_id := self.json.get("job_id")) is None:
+            if (job_id := json.get("job_id")) is None:
                 raise ValueError(
                     "cancel_previous_runs=True requires either job_id or job_name to be provided."
                 )
 
             hook.cancel_all_runs(job_id)
 
-        if not self.json.get("job_parameters") and self.params:
-            self.json["job_parameters"] = dict(self.params)
+        if not json.get("job_parameters") and self.params:
+            json["job_parameters"] = dict(self.params)
 
-        self.run_id = hook.run_now(self.json)
+        self._merged_json = json
+        self.run_id = hook.run_now(json)
         if self.deferrable:
             _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
         else:
@@ -1036,9 +1245,14 @@ class DatabricksRunNowOperator(BaseOperator):
                 repair_json = {"run_id": self.run_id, "rerun_all_failed_tasks": True}
                 if latest_repair_id is not None:
                     repair_json["latest_repair_id"] = latest_repair_id
-                if "job_parameters" in self.json:
-                    repair_json["job_parameters"] = self.json["job_parameters"]
-                self.json["latest_repair_id"] = self._hook.repair_run(repair_json)
+                # Reconstruct the payload from the (re-rendered) template fields + named params instead
+                # of reading a mutated self.json: on a deferral resume this is a fresh process, so any
+                # value written to self.json in execute() is gone. _get_merged_json() also recovers a
+                # job_parameters supplied via the named ``job_parameters=`` argument, not only inside json=.
+                merged = self._get_merged_json()
+                if "job_parameters" in merged:
+                    repair_json["job_parameters"] = merged["job_parameters"]
+                self._hook.repair_run(repair_json)
                 _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
 
     def on_kill(self) -> None:
@@ -1084,10 +1298,15 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
     :param do_xcom_push: Whether we should push statement_id to xcom.:
     :param timeout: The timeout for the Airflow task executing the SQL statement. By default a value of 3600 seconds is used.
     :param deferrable: Run operator in the deferrable mode.
+    :param query_tags: Optional dictionary of query tags to attach to the SQL statement. Tags are
+        passed as the ``query_tags`` field in the Databricks Statement Execution REST API request body.
+        See https://docs.databricks.com/api/workspace/statementexecution/executestatement
+    :param include_airflow_query_tags: If True, add Airflow DAG/task/run metadata as query tags.
+        Defaults to True.
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ("databricks_conn_id",)
+    template_fields: Sequence[str] = ("databricks_conn_id", "query_tags")
     template_ext: Sequence[str] = (".json-tpl",)
     # Databricks brand color (blue) under white text
     ui_color = "#1CB1C2"
@@ -1110,9 +1329,11 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
         wait_for_termination: bool = True,
         timeout: float = 3600,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        query_tags: dict[str, str | None] | None = None,
+        include_airflow_query_tags: bool = True,
         **kwargs,
     ) -> None:
-        """Create a new ``DatabricksSubmitRunOperator``."""
+        """Create a new ``DatabricksSQLStatementsOperator``."""
         super().__init__(**kwargs)
         self.statement = statement
         self.warehouse_id = warehouse_id
@@ -1126,6 +1347,8 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
         self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
+        self.query_tags = query_tags or {}
+        self.include_airflow_query_tags = include_airflow_query_tags
 
         # This variable will be used in case our task gets killed.
         self.statement_id: str | None = None
@@ -1147,6 +1370,7 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
         )
 
     def execute(self, context: Context):
+        tags = build_query_tags(context, self.query_tags, self.include_airflow_query_tags)
         json = {
             "statement": self.statement,
             "warehouse_id": self.warehouse_id,
@@ -1158,6 +1382,8 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
             # execution state.
             "wait_timeout": "0s",
         }
+        if tags:
+            json["query_tags"] = dict_to_query_tag_list(tags)
         self.statement_id = self._hook.post_sql_statement(json)
         if self.do_xcom_push and context is not None:
             context["ti"].xcom_push(key=XCOM_STATEMENT_ID_KEY, value=self.statement_id)

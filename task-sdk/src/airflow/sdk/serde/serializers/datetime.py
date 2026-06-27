@@ -95,6 +95,12 @@ def deserialize(cls: type, version: int, data: dict | str) -> datetime.date | da
     if cls is datetime.datetime and isinstance(data, dict):
         return datetime.datetime.fromtimestamp(float(data[TIMESTAMP]), tz=tz)
 
+    if cls is datetime.datetime and isinstance(data, int | float):
+        # Legacy BaseSerialization stored datetimes as a bare UTC timestamp float
+        # (rather than serde's {timestamp, tz} dict). Round-trip that form so trigger
+        # kwargs encoded via BaseSerialization can be read back through serde.
+        return datetime.datetime.fromtimestamp(float(data), tz=datetime.timezone.utc)
+
     if cls is DateTime and isinstance(data, dict):
         return DateTime.fromtimestamp(float(data[TIMESTAMP]), tz=tz)
 

@@ -20,6 +20,7 @@ from __future__ import annotations
 import gc
 import multiprocessing
 import os
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -48,6 +49,19 @@ skip_non_fork_mp_start = pytest.mark.skipif(
     multiprocessing.get_start_method() != "fork",
     reason="mock patching in test doesn't work with non-fork multiprocessing start methods",
 )
+
+
+class TestLocalExecutorMpStartMethod:
+    @mock.patch("airflow.executors.local_executor.multiprocessing.get_start_method", autospec=True)
+    def test_is_mp_using_fork_resolved_per_instance(self, mock_get_start_method):
+        """``is_mp_using_fork`` is resolved at ``__init__`` (reflecting any configured start
+        method) rather than once at import time."""
+        mock_get_start_method.return_value = "fork"
+        assert LocalExecutor(parallelism=1).is_mp_using_fork is True
+
+        mock_get_start_method.return_value = "forkserver"
+        assert LocalExecutor(parallelism=1).is_mp_using_fork is False
+
 
 skip_fork_mp_start = pytest.mark.skipif(
     multiprocessing.get_start_method() == "fork",
@@ -359,7 +373,7 @@ class TestLocalExecutor:
             # Verify each executor has its own workers dict
             assert team_a_executor.workers is not team_b_executor.workers
 
-            if LocalExecutor.is_mp_using_fork:
+            if team_a_executor.is_mp_using_fork:
                 # fork pre-spawns all workers at start()
                 assert len(team_a_executor.workers) == 2
                 assert len(team_b_executor.workers) == 3
@@ -389,7 +403,7 @@ class TestLocalExecutor:
 
         executor.start()
 
-        if LocalExecutor.is_mp_using_fork:
+        if executor.is_mp_using_fork:
             assert len(executor.workers) == 2
         else:
             # forkserver/spawn use lazy spawning
@@ -451,7 +465,7 @@ class TestLocalExecutorCallbackSupport:
         )
         callback_workload = workloads.ExecuteCallback(
             callback=callback_data,
-            dag_rel_path="test.py",
+            dag_rel_path=Path("test.py"),
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
             token="test_token",
             log_path="test.log",
@@ -463,6 +477,7 @@ class TestLocalExecutorCallbackSupport:
             id=self.CALLBACK_UUID,
             callback_path="test.module.my_callback",
             callback_kwargs={"arg1": "val1"},
+            dag_rel_path=Path("test.py"),
             log_path="test.log",
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
             token=TestLocalExecutorCallbackSupport.TEST_TOKEN,
@@ -481,7 +496,7 @@ class TestLocalExecutorCallbackSupport:
         )
         callback_workload = workloads.ExecuteCallback(
             callback=callback_data,
-            dag_rel_path="test.py",
+            dag_rel_path=Path("test.py"),
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
             token="test_token",
             log_path="test.log",

@@ -26,12 +26,18 @@ from typing import TYPE_CHECKING
 import structlog
 from sqlalchemy import delete, select
 
-from airflow._shared.state import AssetScope, BaseStoreBackend, StoreScope, TaskScope
+from airflow._shared.state import (
+    AssetScope,
+    AssetStateStoreWriterKind,
+    BaseStoreBackend,
+    StoreScope,
+    TaskScope,
+)
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
-from airflow.models.asset_store import AssetStoreModel
+from airflow.models.asset_state_store import AssetStateStoreModel
 from airflow.models.dagrun import DagRun
-from airflow.models.task_store import TaskStoreModel
+from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.typing_compat import assert_never
 from airflow.utils.session import NEW_SESSION, create_session, create_session_async, provide_session
 from airflow.utils.sqlalchemy import get_dialect_name
@@ -84,7 +90,29 @@ def _build_upsert_stmt(
     return stmt
 
 
-class MetastoreStoreBackend(BaseStoreBackend):
+def _build_asset_writer_fields(
+    kind: AssetStateStoreWriterKind | None,
+    dag_id: str | None,
+    run_id: str | None,
+    task_id: str | None,
+    map_index: int | None,
+    *,
+    value: str,
+    now: datetime,
+) -> tuple[dict, dict]:
+    kind_str = kind.value if kind is not None else None
+    writer_info = dict(
+        last_updated_by_kind=kind_str,
+        last_updated_by_dag_id=dag_id,
+        last_updated_by_run_id=run_id,
+        last_updated_by_task_id=task_id,
+        last_updated_by_map_index=map_index,
+    )
+    update_fields = dict(value=value, updated_at=now, **(writer_info if kind is not None else {}))
+    return writer_info, update_fields
+
+
+class MetastoreBackend(BaseStoreBackend):
     """Default state backend for tasks and assets. Stores task and asset state in the Airflow metadata database."""
 
     @provide_session
@@ -93,9 +121,9 @@ class MetastoreStoreBackend(BaseStoreBackend):
             assert session is not None
         match scope:
             case TaskScope():
-                return self._get_task_store(scope, key, session=session)
+                return self._get_task_state_store(scope, key, session=session)
             case AssetScope():
-                return self._get_asset_store(scope, key, session=session)
+                return self._get_asset_state_store(scope, key, session=session)
             case _:
                 assert_never(scope)
 
@@ -113,9 +141,9 @@ class MetastoreStoreBackend(BaseStoreBackend):
             assert session is not None
         match scope:
             case TaskScope():
-                self._set_task_store(scope, key, value, expires_at=expires_at, session=session)
+                self._store_task_state(scope, key, value, expires_at=expires_at, session=session)
             case AssetScope():
-                self._set_asset_store(scope, key, value, session=session)
+                self._store_asset_state(scope, key, value, session=session)
             case _:
                 assert_never(scope)
 
@@ -125,9 +153,9 @@ class MetastoreStoreBackend(BaseStoreBackend):
             assert session is not None
         match scope:
             case TaskScope():
-                self._delete_task_store(scope, key, session=session)
+                self._delete_task_state_store(scope, key, session=session)
             case AssetScope():
-                self._delete_asset_store(scope, key, session=session)
+                self._delete_asset_state_store(scope, key, session=session)
             case _:
                 assert_never(scope)
 
@@ -143,9 +171,9 @@ class MetastoreStoreBackend(BaseStoreBackend):
             assert session is not None
         match scope:
             case TaskScope():
-                self._clear_task_store(scope, all_map_indices=all_map_indices, session=session)
+                self._clear_task_state_store(scope, all_map_indices=all_map_indices, session=session)
             case AssetScope():
-                self._clear_asset_store(scope, session=session)
+                self._clear_asset_state_store(scope, session=session)
             case _:
                 assert_never(scope)
 
@@ -153,9 +181,9 @@ class MetastoreStoreBackend(BaseStoreBackend):
         async with _async_session(session) as s:
             match scope:
                 case TaskScope():
-                    return await self._aget_task_store(scope, key, session=s)
+                    return await self._aget_task_state_store(scope, key, session=s)
                 case AssetScope():
-                    return await self._aget_asset_store(scope, key, session=s)
+                    return await self._aget_asset_state_store(scope, key, session=s)
                 case _:
                     assert_never(scope)
 
@@ -171,9 +199,9 @@ class MetastoreStoreBackend(BaseStoreBackend):
         async with _async_session(session) as s:
             match scope:
                 case TaskScope():
-                    await self._aset_task_store(scope, key, value, expires_at=expires_at, session=s)
+                    await self._aset_task_state_store(scope, key, value, expires_at=expires_at, session=s)
                 case AssetScope():
-                    await self._aset_asset_store(scope, key, value, session=s)
+                    await self._aset_asset_state_store(scope, key, value, session=s)
                 case _:
                     assert_never(scope)
 
@@ -181,9 +209,9 @@ class MetastoreStoreBackend(BaseStoreBackend):
         async with _async_session(session) as s:
             match scope:
                 case TaskScope():
-                    await self._adelete_task_store(scope, key, session=s)
+                    await self._adelete_task_state_store(scope, key, session=s)
                 case AssetScope():
-                    await self._adelete_asset_store(scope, key, session=s)
+                    await self._adelete_asset_state_store(scope, key, session=s)
                 case _:
                     assert_never(scope)
 
@@ -193,25 +221,25 @@ class MetastoreStoreBackend(BaseStoreBackend):
         async with _async_session(session) as s:
             match scope:
                 case TaskScope():
-                    await self._aclear_task_store(scope, all_map_indices=all_map_indices, session=s)
+                    await self._aclear_task_state_store(scope, all_map_indices=all_map_indices, session=s)
                 case AssetScope():
-                    await self._aclear_asset_store(scope, session=s)
+                    await self._aclear_asset_state_store(scope, session=s)
                 case _:
                     assert_never(scope)
 
-    def _get_task_store(self, scope: TaskScope, key: str, *, session: Session) -> str | None:
+    def _get_task_state_store(self, scope: TaskScope, key: str, *, session: Session) -> str | None:
         row = session.scalar(
-            select(TaskStoreModel).where(
-                TaskStoreModel.dag_id == scope.dag_id,
-                TaskStoreModel.run_id == scope.run_id,
-                TaskStoreModel.task_id == scope.task_id,
-                TaskStoreModel.map_index == scope.map_index,
-                TaskStoreModel.key == key,
+            select(TaskStateStoreModel).where(
+                TaskStateStoreModel.dag_id == scope.dag_id,
+                TaskStateStoreModel.run_id == scope.run_id,
+                TaskStateStoreModel.task_id == scope.task_id,
+                TaskStateStoreModel.map_index == scope.map_index,
+                TaskStateStoreModel.key == key,
             )
         )
         return row.value if row is not None else None
 
-    def _set_task_store(
+    def _store_task_state(
         self,
         scope: TaskScope,
         key: str,
@@ -242,67 +270,114 @@ class MetastoreStoreBackend(BaseStoreBackend):
         )
         stmt = _build_upsert_stmt(
             get_dialect_name(session),
-            TaskStoreModel,
+            TaskStateStoreModel,
             ["dag_run_id", "task_id", "map_index", "key"],
             values,
             dict(value=value, updated_at=now, expires_at=expires_at),
         )
         session.execute(stmt)
 
-    def _delete_task_store(self, scope: TaskScope, key: str, *, session: Session) -> None:
+    def _delete_task_state_store(self, scope: TaskScope, key: str, *, session: Session) -> None:
         session.execute(
-            delete(TaskStoreModel).where(
-                TaskStoreModel.dag_id == scope.dag_id,
-                TaskStoreModel.run_id == scope.run_id,
-                TaskStoreModel.task_id == scope.task_id,
-                TaskStoreModel.map_index == scope.map_index,
-                TaskStoreModel.key == key,
+            delete(TaskStateStoreModel).where(
+                TaskStateStoreModel.dag_id == scope.dag_id,
+                TaskStateStoreModel.run_id == scope.run_id,
+                TaskStateStoreModel.task_id == scope.task_id,
+                TaskStateStoreModel.map_index == scope.map_index,
+                TaskStateStoreModel.key == key,
             )
         )
 
-    def _clear_task_store(self, scope: TaskScope, *, all_map_indices: bool = False, session: Session) -> None:
+    def _clear_task_state_store(
+        self, scope: TaskScope, *, all_map_indices: bool = False, session: Session
+    ) -> None:
         conditions = [
-            TaskStoreModel.dag_id == scope.dag_id,
-            TaskStoreModel.run_id == scope.run_id,
-            TaskStoreModel.task_id == scope.task_id,
+            TaskStateStoreModel.dag_id == scope.dag_id,
+            TaskStateStoreModel.run_id == scope.run_id,
+            TaskStateStoreModel.task_id == scope.task_id,
         ]
         if not all_map_indices:
-            conditions.append(TaskStoreModel.map_index == scope.map_index)
-        session.execute(delete(TaskStoreModel).where(*conditions))
+            conditions.append(TaskStateStoreModel.map_index == scope.map_index)
+        session.execute(delete(TaskStateStoreModel).where(*conditions))
 
-    def _get_asset_store(self, scope: AssetScope, key: str, *, session: Session) -> str | None:
+    def _get_asset_state_store(self, scope: AssetScope, key: str, *, session: Session) -> str | None:
         row = session.scalar(
-            select(AssetStoreModel).where(
-                AssetStoreModel.asset_id == scope.asset_id,
-                AssetStoreModel.key == key,
+            select(AssetStateStoreModel).where(
+                AssetStateStoreModel.asset_id == scope.asset_id,
+                AssetStateStoreModel.key == key,
             )
         )
         return row.value if row is not None else None
 
-    def _set_asset_store(self, scope: AssetScope, key: str, value: str, *, session: Session) -> None:
+    def _store_asset_state(
+        self,
+        scope: AssetScope,
+        key: str,
+        value: str,
+        *,
+        kind: AssetStateStoreWriterKind | None = None,
+        dag_id: str | None = None,
+        run_id: str | None = None,
+        task_id: str | None = None,
+        map_index: int | None = None,
+        session: Session,
+    ) -> None:
         now = timezone.utcnow()
-        values = dict(asset_id=scope.asset_id, key=key, value=value, updated_at=now)
+        writer_info, update_fields = _build_asset_writer_fields(
+            kind, dag_id, run_id, task_id, map_index, value=value, now=now
+        )
+        values = dict(asset_id=scope.asset_id, key=key, value=value, updated_at=now, **writer_info)
         stmt = _build_upsert_stmt(
             get_dialect_name(session),
-            AssetStoreModel,
+            AssetStateStoreModel,
             ["asset_id", "key"],
             values,
-            dict(value=value, updated_at=now),
+            update_fields,
         )
         session.execute(stmt)
 
-    def _delete_asset_store(self, scope: AssetScope, key: str, *, session: Session) -> None:
+    @provide_session
+    def set_asset_state_store(
+        self,
+        scope: AssetScope,
+        key: str,
+        value: str,
+        *,
+        kind: AssetStateStoreWriterKind,
+        dag_id: str | None = None,
+        run_id: str | None = None,
+        task_id: str | None = None,
+        map_index: int | None = None,
+        session: Session | None = NEW_SESSION,
+    ) -> None:
+        """Write an asset state store entry, recording who made the write."""
+        kind.validate_writer_fields(dag_id, run_id, task_id, map_index)
+        if TYPE_CHECKING:
+            assert session is not None
+        self._store_asset_state(
+            scope,
+            key,
+            value,
+            kind=kind,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+            session=session,
+        )
+
+    def _delete_asset_state_store(self, scope: AssetScope, key: str, *, session: Session) -> None:
         session.execute(
-            delete(AssetStoreModel).where(
-                AssetStoreModel.asset_id == scope.asset_id,
-                AssetStoreModel.key == key,
+            delete(AssetStateStoreModel).where(
+                AssetStateStoreModel.asset_id == scope.asset_id,
+                AssetStateStoreModel.key == key,
             )
         )
 
-    def _clear_asset_store(self, scope: AssetScope, *, session: Session) -> None:
+    def _clear_asset_state_store(self, scope: AssetScope, *, session: Session) -> None:
         session.execute(
-            delete(AssetStoreModel).where(
-                AssetStoreModel.asset_id == scope.asset_id,
+            delete(AssetStateStoreModel).where(
+                AssetStateStoreModel.asset_id == scope.asset_id,
             )
         )
 
@@ -321,49 +396,51 @@ class MetastoreStoreBackend(BaseStoreBackend):
             total = 0
             with create_session() as session:
                 while True:
-                    id_query = select(TaskStoreModel.id).where(where_clause)
+                    id_query = select(TaskStateStoreModel.id).where(where_clause)
                     if batch_size > 0:
                         id_query = id_query.limit(batch_size)
                     ids = session.scalars(id_query).all()
                     if not ids:
                         break
-                    session.execute(delete(TaskStoreModel).where(TaskStoreModel.id.in_(ids)))
+                    session.execute(delete(TaskStateStoreModel).where(TaskStateStoreModel.id.in_(ids)))
                     session.commit()
                     total += len(ids)
                     if batch_size <= 0 or len(ids) < batch_size:
                         break
             return total
 
-        deleted = _delete_batched(TaskStoreModel.expires_at < now)
-        log.info("Deleted expired task_store rows", rows_deleted=deleted)
+        deleted = _delete_batched(TaskStateStoreModel.expires_at < now)
+        log.info("Deleted expired task_state_store rows", rows_deleted=deleted)
 
     def _summary_dry_run(self) -> dict[str, list]:
         """Return rows that would be deleted by cleanup() without deleting anything."""
         now = timezone.utcnow()
         cols = (
-            TaskStoreModel.dag_id,
-            TaskStoreModel.run_id,
-            TaskStoreModel.task_id,
-            TaskStoreModel.map_index,
-            TaskStoreModel.key,
+            TaskStateStoreModel.dag_id,
+            TaskStateStoreModel.run_id,
+            TaskStateStoreModel.task_id,
+            TaskStateStoreModel.map_index,
+            TaskStateStoreModel.key,
         )
         with create_session() as session:
-            expired = session.execute(select(*cols).where(TaskStoreModel.expires_at < now)).all()
+            expired = session.execute(select(*cols).where(TaskStateStoreModel.expires_at < now)).all()
         return {"expired": list(expired)}
 
-    async def _aget_task_store(self, scope: TaskScope, key: str, *, session: AsyncSession) -> str | None:
+    async def _aget_task_state_store(
+        self, scope: TaskScope, key: str, *, session: AsyncSession
+    ) -> str | None:
         row = await session.scalar(
-            select(TaskStoreModel).where(
-                TaskStoreModel.dag_id == scope.dag_id,
-                TaskStoreModel.run_id == scope.run_id,
-                TaskStoreModel.task_id == scope.task_id,
-                TaskStoreModel.map_index == scope.map_index,
-                TaskStoreModel.key == key,
+            select(TaskStateStoreModel).where(
+                TaskStateStoreModel.dag_id == scope.dag_id,
+                TaskStateStoreModel.run_id == scope.run_id,
+                TaskStateStoreModel.task_id == scope.task_id,
+                TaskStateStoreModel.map_index == scope.map_index,
+                TaskStateStoreModel.key == key,
             )
         )
         return row.value if row is not None else None
 
-    async def _aset_task_store(
+    async def _aset_task_state_store(
         self,
         scope: TaskScope,
         key: str,
@@ -395,77 +472,120 @@ class MetastoreStoreBackend(BaseStoreBackend):
         # get_dialect_name expects a sync Session; sync_session is the underlying Session the async wrapper delegates to
         stmt = _build_upsert_stmt(
             get_dialect_name(session.sync_session),
-            TaskStoreModel,
+            TaskStateStoreModel,
             ["dag_run_id", "task_id", "map_index", "key"],
             values,
             dict(value=value, updated_at=now, expires_at=expires_at),
         )
         await session.execute(stmt)
 
-    async def _adelete_task_store(self, scope: TaskScope, key: str, *, session: AsyncSession) -> None:
+    async def _adelete_task_state_store(self, scope: TaskScope, key: str, *, session: AsyncSession) -> None:
         await session.execute(
-            delete(TaskStoreModel).where(
-                TaskStoreModel.dag_id == scope.dag_id,
-                TaskStoreModel.run_id == scope.run_id,
-                TaskStoreModel.task_id == scope.task_id,
-                TaskStoreModel.map_index == scope.map_index,
-                TaskStoreModel.key == key,
+            delete(TaskStateStoreModel).where(
+                TaskStateStoreModel.dag_id == scope.dag_id,
+                TaskStateStoreModel.run_id == scope.run_id,
+                TaskStateStoreModel.task_id == scope.task_id,
+                TaskStateStoreModel.map_index == scope.map_index,
+                TaskStateStoreModel.key == key,
             )
         )
 
-    async def _aclear_task_store(
+    async def _aclear_task_state_store(
         self, scope: TaskScope, *, all_map_indices: bool = False, session: AsyncSession
     ) -> None:
         conditions = [
-            TaskStoreModel.dag_id == scope.dag_id,
-            TaskStoreModel.run_id == scope.run_id,
-            TaskStoreModel.task_id == scope.task_id,
+            TaskStateStoreModel.dag_id == scope.dag_id,
+            TaskStateStoreModel.run_id == scope.run_id,
+            TaskStateStoreModel.task_id == scope.task_id,
         ]
         if not all_map_indices:
-            conditions.append(TaskStoreModel.map_index == scope.map_index)
-        await session.execute(delete(TaskStoreModel).where(*conditions))
+            conditions.append(TaskStateStoreModel.map_index == scope.map_index)
+        await session.execute(delete(TaskStateStoreModel).where(*conditions))
 
-    async def _aget_asset_store(self, scope: AssetScope, key: str, *, session: AsyncSession) -> str | None:
+    async def _aget_asset_state_store(
+        self, scope: AssetScope, key: str, *, session: AsyncSession
+    ) -> str | None:
         row = await session.scalar(
-            select(AssetStoreModel).where(
-                AssetStoreModel.asset_id == scope.asset_id,
-                AssetStoreModel.key == key,
+            select(AssetStateStoreModel).where(
+                AssetStateStoreModel.asset_id == scope.asset_id,
+                AssetStateStoreModel.key == key,
             )
         )
         return row.value if row is not None else None
 
-    async def _aset_asset_store(
-        self, scope: AssetScope, key: str, value: str, *, session: AsyncSession
+    async def _aset_asset_state_store(
+        self,
+        scope: AssetScope,
+        key: str,
+        value: str,
+        *,
+        kind: AssetStateStoreWriterKind | None = None,
+        dag_id: str | None = None,
+        run_id: str | None = None,
+        task_id: str | None = None,
+        map_index: int | None = None,
+        session: AsyncSession,
     ) -> None:
         now = timezone.utcnow()
-        values = dict(asset_id=scope.asset_id, key=key, value=value, updated_at=now)
+        writer_info, update_fields = _build_asset_writer_fields(
+            kind, dag_id, run_id, task_id, map_index, value=value, now=now
+        )
+        values = dict(asset_id=scope.asset_id, key=key, value=value, updated_at=now, **writer_info)
         # get_dialect_name expects a sync Session; sync_session is the underlying Session the async wrapper delegates to
         stmt = _build_upsert_stmt(
             get_dialect_name(session.sync_session),
-            AssetStoreModel,
+            AssetStateStoreModel,
             ["asset_id", "key"],
             values,
-            dict(value=value, updated_at=now),
+            update_fields,
         )
         await session.execute(stmt)
 
-    async def _adelete_asset_store(self, scope: AssetScope, key: str, *, session: AsyncSession) -> None:
+    async def aset_asset_state_store(
+        self,
+        scope: AssetScope,
+        key: str,
+        value: str,
+        *,
+        kind: AssetStateStoreWriterKind,
+        dag_id: str | None = None,
+        run_id: str | None = None,
+        task_id: str | None = None,
+        map_index: int | None = None,
+        session: AsyncSession | None = None,
+    ) -> None:
+        """Write an asset state store entry, recording who made the write."""
+        kind.validate_writer_fields(dag_id, run_id, task_id, map_index)
+        async with _async_session(session) as s:
+            await self._aset_asset_state_store(
+                scope,
+                key,
+                value,
+                kind=kind,
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                map_index=map_index,
+                session=s,
+            )
+
+    async def _adelete_asset_state_store(self, scope: AssetScope, key: str, *, session: AsyncSession) -> None:
         await session.execute(
-            delete(AssetStoreModel).where(
-                AssetStoreModel.asset_id == scope.asset_id,
-                AssetStoreModel.key == key,
+            delete(AssetStateStoreModel).where(
+                AssetStateStoreModel.asset_id == scope.asset_id,
+                AssetStateStoreModel.key == key,
             )
         )
 
-    async def _aclear_asset_store(self, scope: AssetScope, *, session: AsyncSession) -> None:
+    async def _aclear_asset_state_store(self, scope: AssetScope, *, session: AsyncSession) -> None:
         await session.execute(
-            delete(AssetStoreModel).where(
-                AssetStoreModel.asset_id == scope.asset_id,
+            delete(AssetStateStoreModel).where(
+                AssetStateStoreModel.asset_id == scope.asset_id,
             )
         )
 
 
 @functools.cache
-def _get_db_backend() -> MetastoreStoreBackend:
-    """Return a cached MetastoreStoreBackend instance for DB-direct access."""
-    return MetastoreStoreBackend()
+def _get_db_backend() -> MetastoreBackend:
+    """Return a cached MetastoreBackend instance for DB-direct access."""
+    return MetastoreBackend()

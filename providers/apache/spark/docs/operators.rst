@@ -190,7 +190,7 @@ independently on the cluster. If the Airflow worker dies while the Spark job is 
 Airflow loses track of it and the behaviour to submit a brand new job would be wasting
 the compute already done or even cause conflicts if the Spark job itself is not designed to be idempotent.
 
-Now, the ``SparkSubmitOperator`` solves this by persisting the driver ID to ``task_state`` immediately after
+Now, the ``SparkSubmitOperator`` solves this by persisting the driver ID to ``task_state_store`` immediately after
 submission. On retry, it reads the ID back and reconnects to the already-running driver instead of
 resubmitting.
 
@@ -212,8 +212,48 @@ The reconnection polling calls the Spark standalone REST API
 See :doc:`connections/spark-submit` for how to configure these fields.
 
 .. note::
-    Crash recovery in cluster mode requires Airflow 3.3+ (``task_state`` support). On earlier
+    Crash recovery in cluster mode requires Airflow 3.3+ (``task_state_store`` support). On earlier
     versions the operator falls back to the previous behavior of always submitting fresh.
+
+Tracking driver status via Kubernetes API
+""""""""""""""""""""""""""""""""""""""""""
+
+When running in Kubernetes cluster mode, ``spark-submit`` blocks for the duration of the job.
+The JVM runs processes which does nothing but polling of the pod phase and holds heap space for
+the entire duration. This is not ideal for long-running jobs, especially when the driver is idle
+for long periods (e.g. waiting for data or user input).
+
+Set ``track_driver_via_k8s_api=True`` to have the operator track the driver pod status via the
+Python Kubernetes client rather than holding ``spark-submit`` open for the full job duration:
+
+.. code-block:: python
+
+   from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
+
+   run_spark = SparkSubmitOperator(
+       task_id="run_spark",
+       application="local:///opt/spark/examples/jars/spark-examples.jar",
+       conn_id="spark_k8s",
+       deploy_mode="cluster",
+       track_driver_via_k8s_api=True,
+       durable=True,
+   )
+
+**Requirements**
+
+* The Spark connection ``master`` must be ``k8s://...`` and ``deploy_mode`` must be ``cluster``.
+* Do not set ``spark.kubernetes.submission.waitAppCompletion=true`` in your ``conf`` — this
+  conflicts with the flag and a ``ValueError`` will be raised at task start.
+* The Airflow worker must be able to reach the Kubernetes API server and have permission to
+  read and delete pods in the driver's namespace; otherwise pod tracking and cleanup will fail.
+* Set ``durable=True`` (the default) to enable crash recovery: the driver pod name is
+  persisted to task state before polling begins, so a worker crash and retry reconnects to the
+  existing pod instead of submitting a fresh one. Set ``durable=False`` to always
+  submit a fresh driver on retry.
+* Pod completion is detected from ``pod.status.phase``. If your driver pods have sidecar
+  containers (e.g. Istio injection enabled for the driver namespace), the pod phase may not
+  advance to ``Succeeded`` until all sidecars exit. In that case the poll loop will wait
+  indefinitely — set ``execution_timeout`` as a hard bound.
 
 YARN ResourceManager API tracking
 """""""""""""""""""""""""""""""""

@@ -26,10 +26,11 @@ import org.apache.airflow.sdk.Dag
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.execution.comm.BundleInfo
 import org.apache.airflow.sdk.execution.comm.DagRun
+import org.apache.airflow.sdk.execution.comm.RetryTask
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.comm.SucceedTask
 import org.apache.airflow.sdk.execution.comm.TIRunContext
-import org.apache.airflow.sdk.execution.comm.TaskInstanceDTO
+import org.apache.airflow.sdk.execution.comm.TaskInstance
 import org.apache.airflow.sdk.execution.comm.TaskState
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
@@ -64,6 +65,25 @@ class TaskTest {
     Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
   }
 
+  @Test
+  @DisplayName("Should return retry when task throws and should_retry is true")
+  fun shouldReturnRetryWhenTaskThrowsAndShouldRetryIsTrue() {
+    val details = startupDetails(taskId = "failing")
+    details.tiContext?.shouldRetry = true
+    val result = runTask(bundleWith("failing", FailingTask::class.java), details, noOpClient())
+
+    Assertions.assertInstanceOf(RetryTask::class.java, result)
+  }
+
+  @Test
+  @DisplayName("Should return failed when task throws an Error")
+  fun shouldReturnFailedWhenTaskThrowsError() {
+    val result = runTask(bundleWith("erroring", ErrorThrowingTask::class.java), startupDetails(taskId = "erroring"), noOpClient())
+
+    Assertions.assertInstanceOf(TaskState::class.java, result)
+    Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+  }
+
   private fun bundleWith(
     taskId: String,
     taskClass: Class<out Task>,
@@ -76,7 +96,7 @@ class TaskTest {
   private fun startupDetails(taskId: String): StartupDetails =
     StartupDetails().also {
       it.ti =
-        TaskInstanceDTO().also { o ->
+        TaskInstance().also { o ->
           o.id = UUID.randomUUID()
           o.taskId = taskId
           o.dagId = "test_dag"
@@ -143,5 +163,12 @@ class TaskTest {
       context: Context,
       client: Client,
     ): Unit = throw IllegalStateException("boom")
+  }
+
+  class ErrorThrowingTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ): Unit = throw NoClassDefFoundError("simulated")
   }
 }

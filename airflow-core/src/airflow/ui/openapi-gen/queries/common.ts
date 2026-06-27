@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryResult } from "@tanstack/react-query";
-import { AssetService, AssetStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<TData = AssetServiceGetAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
@@ -671,13 +671,15 @@ export const UseImportErrorServiceGetImportErrorKeyFn = ({ importErrorId }: {
 export type ImportErrorServiceGetImportErrorsDefaultResponse = Awaited<ReturnType<typeof ImportErrorService.getImportErrors>>;
 export type ImportErrorServiceGetImportErrorsQueryResult<TData = ImportErrorServiceGetImportErrorsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useImportErrorServiceGetImportErrorsKey = "ImportErrorServiceGetImportErrors";
-export const UseImportErrorServiceGetImportErrorsKeyFn = ({ filenamePattern, filenamePrefixPattern, limit, offset, orderBy }: {
+export const UseImportErrorServiceGetImportErrorsKeyFn = ({ bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }: {
+  bundleName?: string;
+  filename?: string;
   filenamePattern?: string;
   filenamePrefixPattern?: string;
   limit?: number;
   offset?: number;
   orderBy?: string[];
-} = {}, queryKey?: Array<unknown>) => [useImportErrorServiceGetImportErrorsKey, ...(queryKey ?? [{ filenamePattern, filenamePrefixPattern, limit, offset, orderBy }])];
+} = {}, queryKey?: Array<unknown>) => [useImportErrorServiceGetImportErrorsKey, ...(queryKey ?? [{ bundleName, filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }])];
 export type JobServiceGetJobsDefaultResponse = Awaited<ReturnType<typeof JobService.getJobs>>;
 export type JobServiceGetJobsQueryResult<TData = JobServiceGetJobsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useJobServiceGetJobsKey = "JobServiceGetJobs";
@@ -733,42 +735,42 @@ export const UseProviderServiceGetProvidersKeyFn = ({ limit, offset }: {
   limit?: number;
   offset?: number;
 } = {}, queryKey?: Array<unknown>) => [useProviderServiceGetProvidersKey, ...(queryKey ?? [{ limit, offset }])];
-export type AssetStoreServiceListAssetStoreDefaultResponse = Awaited<ReturnType<typeof AssetStoreService.listAssetStore>>;
-export type AssetStoreServiceListAssetStoreQueryResult<TData = AssetStoreServiceListAssetStoreDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useAssetStoreServiceListAssetStoreKey = "AssetStoreServiceListAssetStore";
-export const UseAssetStoreServiceListAssetStoreKeyFn = ({ assetId, limit, offset }: {
+export type AssetStateStoreServiceListAssetStateStoreDefaultResponse = Awaited<ReturnType<typeof AssetStateStoreService.listAssetStateStore>>;
+export type AssetStateStoreServiceListAssetStateStoreQueryResult<TData = AssetStateStoreServiceListAssetStateStoreDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useAssetStateStoreServiceListAssetStateStoreKey = "AssetStateStoreServiceListAssetStateStore";
+export const UseAssetStateStoreServiceListAssetStateStoreKeyFn = ({ assetId, limit, offset }: {
   assetId: number;
   limit?: number;
   offset?: number;
-}, queryKey?: Array<unknown>) => [useAssetStoreServiceListAssetStoreKey, ...(queryKey ?? [{ assetId, limit, offset }])];
-export type AssetStoreServiceGetAssetStoreDefaultResponse = Awaited<ReturnType<typeof AssetStoreService.getAssetStore>>;
-export type AssetStoreServiceGetAssetStoreQueryResult<TData = AssetStoreServiceGetAssetStoreDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useAssetStoreServiceGetAssetStoreKey = "AssetStoreServiceGetAssetStore";
-export const UseAssetStoreServiceGetAssetStoreKeyFn = ({ assetId, key }: {
+}, queryKey?: Array<unknown>) => [useAssetStateStoreServiceListAssetStateStoreKey, ...(queryKey ?? [{ assetId, limit, offset }])];
+export type AssetStateStoreServiceGetAssetStateStoreDefaultResponse = Awaited<ReturnType<typeof AssetStateStoreService.getAssetStateStore>>;
+export type AssetStateStoreServiceGetAssetStateStoreQueryResult<TData = AssetStateStoreServiceGetAssetStateStoreDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useAssetStateStoreServiceGetAssetStateStoreKey = "AssetStateStoreServiceGetAssetStateStore";
+export const UseAssetStateStoreServiceGetAssetStateStoreKeyFn = ({ assetId, key }: {
   assetId: number;
   key: string;
-}, queryKey?: Array<unknown>) => [useAssetStoreServiceGetAssetStoreKey, ...(queryKey ?? [{ assetId, key }])];
-export type TaskStoreServiceListTaskStoreDefaultResponse = Awaited<ReturnType<typeof TaskStoreService.listTaskStore>>;
-export type TaskStoreServiceListTaskStoreQueryResult<TData = TaskStoreServiceListTaskStoreDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useTaskStoreServiceListTaskStoreKey = "TaskStoreServiceListTaskStore";
-export const UseTaskStoreServiceListTaskStoreKeyFn = ({ dagId, dagRunId, limit, mapIndex, offset, taskId }: {
+}, queryKey?: Array<unknown>) => [useAssetStateStoreServiceGetAssetStateStoreKey, ...(queryKey ?? [{ assetId, key }])];
+export type TaskStateStoreServiceListTaskStateStoreDefaultResponse = Awaited<ReturnType<typeof TaskStateStoreService.listTaskStateStore>>;
+export type TaskStateStoreServiceListTaskStateStoreQueryResult<TData = TaskStateStoreServiceListTaskStateStoreDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useTaskStateStoreServiceListTaskStateStoreKey = "TaskStateStoreServiceListTaskStateStore";
+export const UseTaskStateStoreServiceListTaskStateStoreKeyFn = ({ dagId, dagRunId, limit, mapIndex, offset, taskId }: {
   dagId: string;
   dagRunId: string;
   limit?: number;
   mapIndex?: number;
   offset?: number;
   taskId: string;
-}, queryKey?: Array<unknown>) => [useTaskStoreServiceListTaskStoreKey, ...(queryKey ?? [{ dagId, dagRunId, limit, mapIndex, offset, taskId }])];
-export type TaskStoreServiceGetTaskStoreDefaultResponse = Awaited<ReturnType<typeof TaskStoreService.getTaskStore>>;
-export type TaskStoreServiceGetTaskStoreQueryResult<TData = TaskStoreServiceGetTaskStoreDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useTaskStoreServiceGetTaskStoreKey = "TaskStoreServiceGetTaskStore";
-export const UseTaskStoreServiceGetTaskStoreKeyFn = ({ dagId, dagRunId, key, mapIndex, taskId }: {
+}, queryKey?: Array<unknown>) => [useTaskStateStoreServiceListTaskStateStoreKey, ...(queryKey ?? [{ dagId, dagRunId, limit, mapIndex, offset, taskId }])];
+export type TaskStateStoreServiceGetTaskStateStoreDefaultResponse = Awaited<ReturnType<typeof TaskStateStoreService.getTaskStateStore>>;
+export type TaskStateStoreServiceGetTaskStateStoreQueryResult<TData = TaskStateStoreServiceGetTaskStateStoreDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useTaskStateStoreServiceGetTaskStateStoreKey = "TaskStateStoreServiceGetTaskStateStore";
+export const UseTaskStateStoreServiceGetTaskStateStoreKeyFn = ({ dagId, dagRunId, key, mapIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   key: string;
   mapIndex?: number;
   taskId: string;
-}, queryKey?: Array<unknown>) => [useTaskStoreServiceGetTaskStoreKey, ...(queryKey ?? [{ dagId, dagRunId, key, mapIndex, taskId }])];
+}, queryKey?: Array<unknown>) => [useTaskStateStoreServiceGetTaskStateStoreKey, ...(queryKey ?? [{ dagId, dagRunId, key, mapIndex, taskId }])];
 export type XcomServiceGetXcomEntryDefaultResponse = Awaited<ReturnType<typeof XcomService.getXcomEntry>>;
 export type XcomServiceGetXcomEntryQueryResult<TData = XcomServiceGetXcomEntryDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useXcomServiceGetXcomEntryKey = "XcomServiceGetXcomEntry";
@@ -1045,6 +1047,7 @@ export type DagRunServiceTriggerDagRunMutationResult = Awaited<ReturnType<typeof
 export type DagRunServiceClearDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.clearDagRun>>;
 export type DagRunServiceGetListDagRunsBatchMutationResult = Awaited<ReturnType<typeof DagRunService.getListDagRunsBatch>>;
 export type DagRunServiceClearDagRunsMutationResult = Awaited<ReturnType<typeof DagRunService.clearDagRuns>>;
+export type DagRunServiceClearDagRunPartitionsMutationResult = Awaited<ReturnType<typeof DagRunService.clearDagRunPartitions>>;
 export type DagServiceFavoriteDagMutationResult = Awaited<ReturnType<typeof DagService.favoriteDag>>;
 export type DagServiceUnfavoriteDagMutationResult = Awaited<ReturnType<typeof DagService.unfavoriteDag>>;
 export type TaskInstanceServiceGetTaskInstancesBatchMutationResult = Awaited<ReturnType<typeof TaskInstanceService.getTaskInstancesBatch>>;
@@ -1056,8 +1059,8 @@ export type AuthLinksServiceGenerateTokenMutationResult = Awaited<ReturnType<typ
 export type BackfillServicePauseBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.pauseBackfill>>;
 export type BackfillServiceUnpauseBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.unpauseBackfill>>;
 export type BackfillServiceCancelBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.cancelBackfill>>;
-export type AssetStoreServiceSetAssetStoreMutationResult = Awaited<ReturnType<typeof AssetStoreService.setAssetStore>>;
-export type TaskStoreServiceSetTaskStoreMutationResult = Awaited<ReturnType<typeof TaskStoreService.setTaskStore>>;
+export type AssetStateStoreServiceSetAssetStateStoreMutationResult = Awaited<ReturnType<typeof AssetStateStoreService.setAssetStateStore>>;
+export type TaskStateStoreServiceSetTaskStateStoreMutationResult = Awaited<ReturnType<typeof TaskStateStoreService.setTaskStateStore>>;
 export type DagParsingServiceReparseDagFileMutationResult = Awaited<ReturnType<typeof DagParsingService.reparseDagFile>>;
 export type ConnectionServicePatchConnectionMutationResult = Awaited<ReturnType<typeof ConnectionService.patchConnection>>;
 export type ConnectionServiceBulkConnectionsMutationResult = Awaited<ReturnType<typeof ConnectionService.bulkConnections>>;
@@ -1075,7 +1078,7 @@ export type TaskInstanceServicePatchTaskInstanceDryRunMutationResult = Awaited<R
 export type TaskInstanceServiceUpdateHitlDetailMutationResult = Awaited<ReturnType<typeof TaskInstanceService.updateHitlDetail>>;
 export type PoolServicePatchPoolMutationResult = Awaited<ReturnType<typeof PoolService.patchPool>>;
 export type PoolServiceBulkPoolsMutationResult = Awaited<ReturnType<typeof PoolService.bulkPools>>;
-export type TaskStoreServicePatchTaskStoreMutationResult = Awaited<ReturnType<typeof TaskStoreService.patchTaskStore>>;
+export type TaskStateStoreServicePatchTaskStateStoreMutationResult = Awaited<ReturnType<typeof TaskStateStoreService.patchTaskStateStore>>;
 export type XcomServiceUpdateXcomEntryMutationResult = Awaited<ReturnType<typeof XcomService.updateXcomEntry>>;
 export type VariableServicePatchVariableMutationResult = Awaited<ReturnType<typeof VariableService.patchVariable>>;
 export type VariableServiceBulkVariablesMutationResult = Awaited<ReturnType<typeof VariableService.bulkVariables>>;
@@ -1087,9 +1090,9 @@ export type DagRunServiceDeleteDagRunMutationResult = Awaited<ReturnType<typeof 
 export type DagServiceDeleteDagMutationResult = Awaited<ReturnType<typeof DagService.deleteDag>>;
 export type TaskInstanceServiceDeleteTaskInstanceMutationResult = Awaited<ReturnType<typeof TaskInstanceService.deleteTaskInstance>>;
 export type PoolServiceDeletePoolMutationResult = Awaited<ReturnType<typeof PoolService.deletePool>>;
-export type AssetStoreServiceClearAssetStoreMutationResult = Awaited<ReturnType<typeof AssetStoreService.clearAssetStore>>;
-export type AssetStoreServiceDeleteAssetStoreMutationResult = Awaited<ReturnType<typeof AssetStoreService.deleteAssetStore>>;
-export type TaskStoreServiceClearTaskStoreMutationResult = Awaited<ReturnType<typeof TaskStoreService.clearTaskStore>>;
-export type TaskStoreServiceDeleteTaskStoreMutationResult = Awaited<ReturnType<typeof TaskStoreService.deleteTaskStore>>;
+export type AssetStateStoreServiceClearAssetStateStoreMutationResult = Awaited<ReturnType<typeof AssetStateStoreService.clearAssetStateStore>>;
+export type AssetStateStoreServiceDeleteAssetStateStoreMutationResult = Awaited<ReturnType<typeof AssetStateStoreService.deleteAssetStateStore>>;
+export type TaskStateStoreServiceClearTaskStateStoreMutationResult = Awaited<ReturnType<typeof TaskStateStoreService.clearTaskStateStore>>;
+export type TaskStateStoreServiceDeleteTaskStateStoreMutationResult = Awaited<ReturnType<typeof TaskStateStoreService.deleteTaskStateStore>>;
 export type XcomServiceDeleteXcomEntryMutationResult = Awaited<ReturnType<typeof XcomService.deleteXcomEntry>>;
 export type VariableServiceDeleteVariableMutationResult = Awaited<ReturnType<typeof VariableService.deleteVariable>>;

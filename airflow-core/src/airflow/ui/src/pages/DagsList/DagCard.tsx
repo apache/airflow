@@ -45,7 +45,13 @@ export const DagCard = ({ dag }: Props) => {
   const refetchInterval = useAutoRefresh({});
 
   return (
-    <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} overflow="hidden">
+    <Box
+      borderColor="border.emphasized"
+      borderRadius={8}
+      borderWidth={1}
+      data-testid="dag-card"
+      overflow="hidden"
+    >
       <Flex alignItems="center" bg="bg.muted" justifyContent="space-between" px={3} py={1}>
         <HStack>
           <Tooltip content={dag.description} disabled={!Boolean(dag.description)}>
@@ -56,7 +62,7 @@ export const DagCard = ({ dag }: Props) => {
           <DagTags tags={dag.tags} />
         </HStack>
         <HStack gap={1}>
-          <NeedsReviewBadge dagId={dag.dag_id} pendingActions={dag.pending_actions} />
+          <NeedsReviewBadge pendingActions={dag.pending_actions} />
           <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
           <TriggerDAGButton
             allowedRunTypes={dag.allowed_run_types}

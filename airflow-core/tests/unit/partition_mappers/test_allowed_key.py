@@ -19,6 +19,9 @@ from __future__ import annotations
 import pytest
 
 from airflow.partition_mappers.allowed_key import AllowedKeyMapper
+from airflow.serialization.decoders import decode_partition_mapper
+from airflow.serialization.encoders import encode_partition_mapper
+from airflow.serialization.enums import Encoding
 
 
 class TestAllowedKeyMapper:
@@ -46,3 +49,17 @@ class TestAllowedKeyMapper:
         assert pm.serialize() == {"allowed_keys": []}
         with pytest.raises(ValueError, match="not in allowed keys"):
             pm.to_downstream("any")
+
+    def test_max_downstream_keys_encode_decode_roundtrip(self):
+        """max_downstream_keys=5 survives encode_partition_mapper → decode_partition_mapper."""
+
+        mapper = AllowedKeyMapper(["us", "eu", "apac", "latam", "africa"], max_downstream_keys=5)
+        restored = decode_partition_mapper(encode_partition_mapper(mapper))
+        assert restored.max_downstream_keys == 5
+
+    def test_max_downstream_keys_absent_from_default_encoded_payload(self):
+        """max_downstream_keys must NOT appear in the encoded payload when not set (zero-bloat contract)."""
+
+        mapper = AllowedKeyMapper(["us", "eu"])
+        encoded_var = encode_partition_mapper(mapper)[Encoding.VAR]
+        assert "max_downstream_keys" not in encoded_var

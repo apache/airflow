@@ -65,6 +65,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -959,6 +965,12 @@ components:
           - type: string
           - type: 'null'
           title: Version
+        version_data:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Version Data
       type: object
       required:
       - name
@@ -1271,10 +1283,6 @@ components:
           type: string
           format: uuid
           title: Id
-        dag_version_id:
-          type: string
-          format: uuid
-          title: Dag Version Id
         task_id:
           type: string
           title: Task Id
@@ -1287,45 +1295,55 @@ components:
         try_number:
           type: integer
           title: Try Number
+        dag_version_id:
+          type: string
+          format: uuid
+          title: Dag Version Id
         map_index:
           type: integer
           title: Map Index
           default: -1
-        pool_slots:
-          type: integer
-          title: Pool Slots
-        queue:
-          type: string
-          title: Queue
-        priority_weight:
-          type: integer
-          title: Priority Weight
-        parent_context_carrier:
+        hostname:
           anyOf:
-          - additionalProperties: true
-            type: object
+          - type: string
           - type: 'null'
-          title: Parent Context Carrier
+          title: Hostname
         context_carrier:
           anyOf:
           - additionalProperties: true
             type: object
           - type: 'null'
           title: Context Carrier
+        queue:
+          type: string
+          title: Queue
+          default: default
+        pool_slots:
+          type: integer
+          title: Pool Slots
+        priority_weight:
+          type: integer
+          title: Priority Weight
       type: object
       required:
       - id
-      - dag_version_id
       - task_id
       - dag_id
       - run_id
       - try_number
+      - dag_version_id
       - pool_slots
-      - queue
       - priority_weight
       title: TaskInstanceDTO
-      description: TaskInstanceDTO with executor-specific ``external_executor_id``
-        field and ``key`` property.
+      description: 'The versioned execution API ``TaskInstance`` schema plus executor-only
+        fields.
+
+
+        The base class is the single source of truth for the fields a worker needs;
+
+        the fields added here are executor concerns (queueing order and pool
+
+        accounting) the worker never reads.'
     TaskInstanceState:
       type: string
       enum:
@@ -1341,6 +1359,7 @@ components:
       - upstream_failed
       - skipped
       - deferred
+      - awaiting_input
       title: TaskInstanceState
       description: 'All possible states that a Task Instance can be in.
 

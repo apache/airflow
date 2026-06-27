@@ -1,0 +1,842 @@
+[
+    {
+        "eventType": "START",
+        "inputs": [
+            {
+                "namespace": "s3://all-facets-bucket",
+                "name": "input/data.csv",
+                "facets": {
+                    "custom_input_ds_facet": {
+                        "key": "value"
+                    },
+                    "schema": {
+                        "fields": [
+                            {
+                                "name": "id",
+                                "type": "INTEGER",
+                                "description": "Unique row identifier",
+                                "ordinal_position": 1
+                            },
+                            {
+                                "name": "name",
+                                "type": "VARCHAR",
+                                "description": "Full name of the entity",
+                                "ordinal_position": 2
+                            },
+                            {
+                                "name": "address",
+                                "type": "STRUCT",
+                                "description": "Nested address record",
+                                "ordinal_position": 3,
+                                "fields": [
+                                    {
+                                        "name": "street",
+                                        "type": "VARCHAR",
+                                        "description": "Street address line",
+                                        "ordinal_position": 1
+                                    },
+                                    {
+                                        "name": "city",
+                                        "type": "VARCHAR",
+                                        "description": "City name",
+                                        "ordinal_position": 2
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "dataSource": {
+                        "name": "all-facets-source",
+                        "uri": "s3://all-facets-bucket"
+                    },
+                    "columnLineage": {
+                        "fields": {
+                            "name": {
+                                "inputFields": [
+                                    {
+                                        "namespace": "s3://upstream",
+                                        "name": "upstream/data.csv",
+                                        "field": "full_name",
+                                        "transformations": [
+                                            {
+                                                "type": "DIRECT",
+                                                "subtype": "IDENTITY",
+                                                "description": "Direct copy of the full_name field",
+                                                "masking": false
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "transformationDescription": "Column passed through without modification",
+                                "transformationType": "IDENTITY"
+                            }
+                        }
+                    },
+                    "documentation": {
+                        "description": "Input dataset for all-facets comprehensive serialization test",
+                        "contentType": "text/plain"
+                    },
+                    "inputStatistics": {
+                        "rowCount": 1000,
+                        "size": 8192,
+                        "fileCount": 1
+                    },
+                    "dataQualityAssertions": {
+                        "assertions": [
+                            {
+                                "assertion": "not_null",
+                                "success": true,
+                                "column": "id",
+                                "severity": "ERROR",
+                                "name": "id_not_null_check",
+                                "description": "Checks that id column has no null values",
+                                "expected": "0 nulls",
+                                "actual": "0 nulls",
+                                "content": "{\"nullCount\": 0}",
+                                "contentType": "application/json",
+                                "params": {
+                                    "sample_size": "1000"
+                                }
+                            },
+                            {
+                                "assertion": "row_count_above_threshold",
+                                "success": true,
+                                "severity": "WARNING",
+                                "name": "row_count_check",
+                                "description": "Checks that row count is above the minimum threshold",
+                                "expected": ">= 100",
+                                "actual": "1000"
+                            }
+                        ]
+                    },
+                    "ownership": {
+                        "owners": [
+                            {
+                                "name": "team:data-engineering",
+                                "type": "team"
+                            },
+                            {
+                                "name": "user:jane.smith@example.com",
+                                "type": "user"
+                            }
+                        ]
+                    },
+                    "tags": {
+                        "tags": [
+                            {
+                                "key": "env",
+                                "value": "test",
+                                "source": "airflow-system-test"
+                            },
+                            {
+                                "key": "source",
+                                "value": "s3",
+                                "source": "airflow-system-test"
+                            },
+                            {
+                                "key": "format",
+                                "value": "csv",
+                                "source": "airflow-system-test",
+                                "field": "id"
+                            }
+                        ]
+                    },
+                    "catalog": {
+                        "framework": "iceberg",
+                        "type": "TABLE",
+                        "name": "all_facets_input",
+                        "metadataUri": "s3://metastore/all_facets.json",
+                        "warehouseUri": "s3://all-facets-bucket/warehouse",
+                        "source": "s3://all-facets-bucket/catalog.json",
+                        "catalogProperties": {
+                            "location": "s3://all-facets-bucket/warehouse/all_facets_input"
+                        }
+                    },
+                    "dataQualityMetrics": {
+                        "columnMetrics": {
+                            "id": {
+                                "nullCount": 0,
+                                "distinctCount": 1000,
+                                "sum": 500500.0,
+                                "count": 1000,
+                                "min": 1.0,
+                                "max": 1000.0,
+                                "quantiles": {
+                                    "0.25": 250.0,
+                                    "0.5": 500.0,
+                                    "0.75": 750.0
+                                }
+                            },
+                            "name": {
+                                "nullCount": 5,
+                                "distinctCount": 980,
+                                "count": 1000
+                            }
+                        },
+                        "rowCount": 1000,
+                        "bytes": 8192,
+                        "fileCount": 1
+                    },
+                    "dataQualityMetricsInput": {
+                        "columnMetrics": {
+                            "id": {
+                                "nullCount": 0,
+                                "distinctCount": 1000,
+                                "sum": 500500.0,
+                                "count": 1000,
+                                "min": 1.0,
+                                "max": 1000.0,
+                                "quantiles": {
+                                    "0.25": 250.0,
+                                    "0.5": 500.0,
+                                    "0.75": 750.0
+                                }
+                            }
+                        },
+                        "rowCount": 1000,
+                        "bytes": 8192,
+                        "fileCount": 1
+                    },
+                    "datasetType": {
+                        "datasetType": "TABLE",
+                        "subType": "ICEBERG_TABLE"
+                    },
+                    "hierarchy": {
+                        "hierarchy": [
+                            {
+                                "type": "catalog",
+                                "name": "aws-glue"
+                            },
+                            {
+                                "type": "database",
+                                "name": "analytics"
+                            },
+                            {
+                                "type": "schema",
+                                "name": "public"
+                            }
+                        ]
+                    },
+                    "inputSubset": {
+                        "inputCondition": {
+                            "partitions": [
+                                {
+                                    "dimensions": {
+                                        "business_date": "2024-10-15",
+                                        "country": "PL"
+                                    },
+                                    "identifier": "2024-01-01/us-east-1"
+                                }
+                            ],
+                            "type": "partition"
+                        }
+                    }
+                }
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "snowflake://account",
+                "name": "analytics.public.all_facets_output",
+                "facets": {
+                    "custom_output_ds_facet": {
+                        "key": "value"
+                    },
+                    "outputStatistics": {
+                        "rowCount": 500,
+                        "size": 4096,
+                        "fileCount": 1
+                    },
+                    "storage": {
+                        "storageLayer": "snowflake",
+                        "fileFormat": "table"
+                    },
+                    "symlinks": {
+                        "identifiers": [
+                            {
+                                "namespace": "snowflake://account",
+                                "name": "analytics.public.all_facets_output_alias",
+                                "type": "TABLE"
+                            }
+                        ]
+                    },
+                    "version": {
+                        "datasetVersion": "v1.0.0"
+                    },
+                    "lifecycleStateChange": {
+                        "lifecycleStateChange": "CREATE",
+                        "previousIdentifier": {
+                            "name": "analytics.public.all_facets_output_v0",
+                            "namespace": "snowflake://account"
+                        }
+                    },
+                    "outputSubset": {
+                        "outputCondition": {
+                            "partitions": [
+                                {
+                                    "dimensions": {
+                                        "business_date": "2024-10-15",
+                                        "country": "PL"
+                                    },
+                                    "identifier": "2024-01-01"
+                                }
+                            ],
+                            "type": "partition"
+                        }
+                    }
+                }
+            }
+        ],
+        "run": {
+            "facets": {
+                "custom_run_facet": {
+                    "key": "value"
+                },
+                "tags": {
+                    "tags": [
+                        {
+                            "key": "test_type",
+                            "value": "all_facets",
+                            "source": "airflow-system-test"
+                        },
+                        {
+                            "key": "openlineage_client_version",
+                            "source": "OPENLINEAGE_CLIENT",
+                            "value": "{{ result is string }}"
+                        }
+                    ]
+                },
+                "externalQuery": {
+                    "externalQueryId": "all-facets-query-id-001",
+                    "source": "snowflake://account"
+                },
+                "testRun": {
+                    "tests": [
+                        {
+                            "name": "all_facets_test",
+                            "status": "success",
+                            "severity": "WARNING",
+                            "type": "integration",
+                            "description": "Checks all facets are emitted and serialized correctly",
+                            "expected": "all_facets_present",
+                            "actual": "all_facets_present",
+                            "content": "{\"facetCount\": 37}",
+                            "contentType": "application/json",
+                            "params": {
+                                "batch": "1"
+                            }
+                        }
+                    ]
+                },
+                "errorMessage": {
+                    "message": "Non-fatal warning detected during extraction phase",
+                    "programmingLanguage": "python",
+                    "stackTrace": "{{ result is string }}"
+                },
+                "executionParameters": {
+                    "parameters": [
+                        {
+                            "key": "executor-cores",
+                            "name": "executor-cores",
+                            "description": "Number of CPU cores per executor",
+                            "value": "4"
+                        },
+                        {
+                            "key": "executor-memory",
+                            "name": "executor-memory",
+                            "description": "Memory allocated per executor in gigabytes",
+                            "value": "8g"
+                        }
+                    ]
+                },
+                "extractionError": {
+                    "totalTasks": 10,
+                    "failedTasks": 1,
+                    "errors": [
+                        {
+                            "errorMessage": "Unable to parse column 'event_ts' as TIMESTAMP",
+                            "stackTrace": "{{ result is string }}",
+                            "task": "parse_schema",
+                            "taskNumber": 3
+                        }
+                    ]
+                },
+                "jobDependencies": {
+                    "upstream": [
+                        {
+                            "job": {
+                                "namespace": "default",
+                                "name": "upstream_etl_job"
+                            },
+                            "run": {
+                                "runId": "00000000-0000-0000-0000-000000000001"
+                            },
+                            "dependency_type": "WAIT",
+                            "sequence_trigger_rule": "ALL_DONE",
+                            "status_trigger_rule": "ALL_SUCCESS"
+                        }
+                    ],
+                    "downstream": [],
+                    "trigger_rule": "ALL_SUCCESS"
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_all_facets_dag.all_facets_task",
+            "facets": {
+                "custom_job_facet": {
+                    "key": "value"
+                },
+                "tags": {
+                    "tags": [
+                        {
+                            "key": "domain",
+                            "value": "data-platform",
+                            "source": "airflow-system-test"
+                        },
+                        {
+                            "key": "team",
+                            "value": "data-engineering",
+                            "source": "airflow-system-test"
+                        }
+                    ]
+                },
+                "sourceCodeLocation": {
+                    "type": "git",
+                    "url": "https://github.com/apache/airflow/blob/main/providers/openlineage/tests/system/openlineage/example_openlineage_all_facets_dag.py",
+                    "repoUrl": "https://github.com/apache/airflow",
+                    "path": "providers/openlineage/tests/system/openlineage/example_openlineage_all_facets_dag.py",
+                    "version": "main",
+                    "tag": "v2.10.0",
+                    "branch": "main",
+                    "pullRequestNumber": "12345"
+                },
+                "documentation": {
+                    "description": "All-facets test operator emitting every available OL facet"
+                },
+                "sql": {
+                    "query": "SELECT id, name FROM analytics.public.all_facets_output WHERE id IS NOT NULL",
+                    "dialect": "snowflake_sql"
+                },
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ result is string }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "s3://all-facets-bucket",
+                "name": "input/data.csv",
+                "facets": {
+                    "schema": {
+                        "fields": [
+                            {
+                                "name": "id",
+                                "type": "INTEGER",
+                                "description": "Unique row identifier",
+                                "ordinal_position": 1
+                            },
+                            {
+                                "name": "name",
+                                "type": "VARCHAR",
+                                "description": "Full name of the entity",
+                                "ordinal_position": 2
+                            },
+                            {
+                                "name": "address",
+                                "type": "STRUCT",
+                                "description": "Nested address record",
+                                "ordinal_position": 3,
+                                "fields": [
+                                    {
+                                        "name": "street",
+                                        "type": "VARCHAR",
+                                        "description": "Street address line",
+                                        "ordinal_position": 1
+                                    },
+                                    {
+                                        "name": "city",
+                                        "type": "VARCHAR",
+                                        "description": "City name",
+                                        "ordinal_position": 2
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "dataSource": {
+                        "name": "all-facets-source",
+                        "uri": "s3://all-facets-bucket"
+                    },
+                    "columnLineage": {
+                        "fields": {
+                            "name": {
+                                "inputFields": [
+                                    {
+                                        "namespace": "s3://upstream",
+                                        "name": "upstream/data.csv",
+                                        "field": "full_name",
+                                        "transformations": [
+                                            {
+                                                "type": "DIRECT",
+                                                "subtype": "IDENTITY",
+                                                "description": "Direct copy of the full_name field",
+                                                "masking": false
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "transformationDescription": "Column passed through without modification",
+                                "transformationType": "IDENTITY"
+                            }
+                        }
+                    },
+                    "documentation": {
+                        "description": "Input dataset for all-facets comprehensive serialization test",
+                        "contentType": "text/plain"
+                    },
+                    "inputStatistics": {
+                        "rowCount": 1000,
+                        "size": 8192,
+                        "fileCount": 1
+                    },
+                    "dataQualityAssertions": {
+                        "assertions": [
+                            {
+                                "assertion": "not_null",
+                                "success": true,
+                                "column": "id",
+                                "severity": "ERROR",
+                                "name": "id_not_null_check",
+                                "description": "Checks that id column has no null values",
+                                "expected": "0 nulls",
+                                "actual": "0 nulls",
+                                "content": "{\"nullCount\": 0}",
+                                "contentType": "application/json",
+                                "params": {
+                                    "sample_size": "1000"
+                                }
+                            },
+                            {
+                                "assertion": "row_count_above_threshold",
+                                "success": true,
+                                "severity": "WARNING",
+                                "name": "row_count_check",
+                                "description": "Checks that row count is above the minimum threshold",
+                                "expected": ">= 100",
+                                "actual": "1000"
+                            }
+                        ]
+                    },
+                    "ownership": {
+                        "owners": [
+                            {
+                                "name": "team:data-engineering",
+                                "type": "team"
+                            },
+                            {
+                                "name": "user:jane.smith@example.com",
+                                "type": "user"
+                            }
+                        ]
+                    },
+                    "tags": {
+                        "tags": [
+                            {
+                                "key": "env",
+                                "value": "test",
+                                "source": "airflow-system-test"
+                            },
+                            {
+                                "key": "source",
+                                "value": "s3",
+                                "source": "airflow-system-test"
+                            },
+                            {
+                                "key": "format",
+                                "value": "csv",
+                                "source": "airflow-system-test",
+                                "field": "id"
+                            }
+                        ]
+                    },
+                    "catalog": {
+                        "framework": "iceberg",
+                        "type": "TABLE",
+                        "name": "all_facets_input",
+                        "metadataUri": "s3://metastore/all_facets.json",
+                        "warehouseUri": "s3://all-facets-bucket/warehouse",
+                        "source": "s3://all-facets-bucket/catalog.json",
+                        "catalogProperties": {
+                            "location": "s3://all-facets-bucket/warehouse/all_facets_input"
+                        }
+                    },
+                    "dataQualityMetrics": {
+                        "columnMetrics": {
+                            "id": {
+                                "nullCount": 0,
+                                "distinctCount": 1000,
+                                "sum": 500500.0,
+                                "count": 1000,
+                                "min": 1.0,
+                                "max": 1000.0,
+                                "quantiles": {
+                                    "0.25": 250.0,
+                                    "0.5": 500.0,
+                                    "0.75": 750.0
+                                }
+                            },
+                            "name": {
+                                "nullCount": 5,
+                                "distinctCount": 980,
+                                "count": 1000
+                            }
+                        },
+                        "rowCount": 1000,
+                        "bytes": 8192,
+                        "fileCount": 1
+                    },
+                    "dataQualityMetricsInput": {
+                        "columnMetrics": {
+                            "id": {
+                                "nullCount": 0,
+                                "distinctCount": 1000,
+                                "sum": 500500.0,
+                                "count": 1000,
+                                "min": 1.0,
+                                "max": 1000.0,
+                                "quantiles": {
+                                    "0.25": 250.0,
+                                    "0.5": 500.0,
+                                    "0.75": 750.0
+                                }
+                            }
+                        },
+                        "rowCount": 1000,
+                        "bytes": 8192,
+                        "fileCount": 1
+                    },
+                    "datasetType": {
+                        "datasetType": "TABLE",
+                        "subType": "ICEBERG_TABLE"
+                    },
+                    "hierarchy": {
+                        "hierarchy": [
+                            {
+                                "type": "catalog",
+                                "name": "aws-glue"
+                            },
+                            {
+                                "type": "database",
+                                "name": "analytics"
+                            },
+                            {
+                                "type": "schema",
+                                "name": "public"
+                            }
+                        ]
+                    },
+                    "inputSubset": {
+                        "inputCondition": {
+                            "partitions": [
+                                {
+                                    "dimensions": {
+                                        "business_date": "2024-10-15",
+                                        "country": "PL"
+                                    },
+                                    "identifier": "2024-01-01/us-east-1"
+                                }
+                            ],
+                            "type": "partition"
+                        }
+                    }
+                }
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "snowflake://account",
+                "name": "analytics.public.all_facets_output",
+                "facets": {
+                    "outputStatistics": {
+                        "rowCount": 500,
+                        "size": 4096,
+                        "fileCount": 1
+                    },
+                    "storage": {
+                        "storageLayer": "snowflake",
+                        "fileFormat": "table"
+                    },
+                    "symlinks": {
+                        "identifiers": [
+                            {
+                                "namespace": "snowflake://account",
+                                "name": "analytics.public.all_facets_output_alias",
+                                "type": "TABLE"
+                            }
+                        ]
+                    },
+                    "version": {
+                        "datasetVersion": "v1.0.0"
+                    },
+                    "lifecycleStateChange": {
+                        "lifecycleStateChange": "CREATE",
+                        "previousIdentifier": {
+                            "name": "analytics.public.all_facets_output_v0",
+                            "namespace": "snowflake://account"
+                        }
+                    },
+                    "outputSubset": {
+                        "outputCondition": {
+                            "partitions": [
+                                {
+                                    "dimensions": {
+                                        "business_date": "2024-10-15",
+                                        "country": "PL"
+                                    },
+                                    "identifier": "2024-01-01"
+                                }
+                            ],
+                            "type": "partition"
+                        }
+                    }
+                }
+            }
+        ],
+        "run": {
+            "facets": {
+                "tags": {
+                    "tags": [
+                        {
+                            "key": "test_type",
+                            "value": "all_facets",
+                            "source": "airflow-system-test"
+                        },
+                        {
+                            "key": "openlineage_client_version",
+                            "source": "OPENLINEAGE_CLIENT",
+                            "value": "{{ result is string }}"
+                        }
+                    ]
+                },
+                "externalQuery": {
+                    "externalQueryId": "all-facets-query-id-001",
+                    "source": "snowflake://account"
+                },
+                "testRun": {
+                    "tests": [
+                        {
+                            "name": "all_facets_test",
+                            "status": "success",
+                            "severity": "WARNING",
+                            "type": "integration",
+                            "description": "Checks all facets are emitted and serialized correctly",
+                            "expected": "all_facets_present",
+                            "actual": "all_facets_present",
+                            "content": "{\"facetCount\": 37}",
+                            "contentType": "application/json",
+                            "params": {
+                                "batch": "1"
+                            }
+                        }
+                    ]
+                },
+                "errorMessage": {
+                    "message": "Non-fatal warning detected during extraction phase",
+                    "programmingLanguage": "python",
+                    "stackTrace": "{{ result is string }}"
+                },
+                "executionParameters": {
+                    "parameters": [
+                        {
+                            "key": "executor-cores",
+                            "name": "executor-cores",
+                            "description": "Number of CPU cores per executor",
+                            "value": "4"
+                        },
+                        {
+                            "key": "executor-memory",
+                            "name": "executor-memory",
+                            "description": "Memory allocated per executor in gigabytes",
+                            "value": "8g"
+                        }
+                    ]
+                },
+                "extractionError": {
+                    "totalTasks": 10,
+                    "failedTasks": 1,
+                    "errors": [
+                        {
+                            "errorMessage": "Unable to parse column 'event_ts' as TIMESTAMP",
+                            "stackTrace": "{{ result is string }}",
+                            "task": "parse_schema",
+                            "taskNumber": 3
+                        }
+                    ]
+                },
+                "jobDependencies": {
+                    "upstream": [
+                        {
+                            "job": {
+                                "namespace": "default",
+                                "name": "upstream_etl_job"
+                            },
+                            "run": {
+                                "runId": "00000000-0000-0000-0000-000000000001"
+                            },
+                            "dependency_type": "WAIT",
+                            "sequence_trigger_rule": "ALL_DONE",
+                            "status_trigger_rule": "ALL_SUCCESS"
+                        }
+                    ],
+                    "downstream": [],
+                    "trigger_rule": "ALL_SUCCESS"
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_all_facets_dag.all_facets_task",
+            "facets": {
+                "tags": {
+                    "tags": [
+                        {
+                            "key": "domain",
+                            "value": "data-platform",
+                            "source": "airflow-system-test"
+                        },
+                        {
+                            "key": "team",
+                            "value": "data-engineering",
+                            "source": "airflow-system-test"
+                        }
+                    ]
+                },
+                "sourceCodeLocation": {
+                    "type": "git",
+                    "url": "https://github.com/apache/airflow/blob/main/providers/openlineage/tests/system/openlineage/example_openlineage_all_facets_dag.py",
+                    "repoUrl": "https://github.com/apache/airflow",
+                    "path": "providers/openlineage/tests/system/openlineage/example_openlineage_all_facets_dag.py",
+                    "version": "main",
+                    "tag": "v2.10.0",
+                    "branch": "main",
+                    "pullRequestNumber": "12345"
+                },
+                "documentation": {
+                    "description": "All-facets test operator emitting every available OL facet"
+                },
+                "sql": {
+                    "query": "SELECT id, name FROM analytics.public.all_facets_output WHERE id IS NOT NULL",
+                    "dialect": "snowflake_sql"
+                },
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ result is string }}"
+                }
+            }
+        }
+    }
+]

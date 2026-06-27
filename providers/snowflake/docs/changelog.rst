@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+6.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Snowflake Workload Identity Federation (WIF) support (#68107)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Improve SnowflakeSqlApiOperator error message on query status check failure (#66642)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix compat test flakiness in SnowflakeSqlApiHook timeout test (#67641)``
+
 6.13.0
 ......
 
