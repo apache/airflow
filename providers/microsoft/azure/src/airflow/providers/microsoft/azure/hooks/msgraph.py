@@ -294,6 +294,13 @@ class KiotaRequestAdapterHook(BaseHook):
             return proxies
         return None
 
+    @staticmethod
+    def get_allowed_hosts(authority: str, config: dict) -> list[str]:
+        allowed_hosts = config.get("allowed_hosts", authority)
+        if not allowed_hosts:
+            return []
+        return allowed_hosts.split(",")
+
     def _build_request_adapter(self, connection) -> tuple[str, RequestAdapter]:
         client_id = connection.login
         client_secret = connection.password
@@ -311,7 +318,7 @@ class KiotaRequestAdapterHook(BaseHook):
             scopes = scopes.split(",")
         verify = config.get("verify", True)
         trust_env = config.get("trust_env", False)
-        allowed_hosts = [host for host in (config.get("allowed_hosts", authority) or "").split(",") if host]
+        allowed_hosts = self.get_allowed_hosts(authority, config)
 
         self.log.info(
             "Creating Microsoft Graph SDK client %s for conn_id: %s",
