@@ -205,6 +205,14 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "scheduler.dagruns.not_started"
+    description: "Number of scheduled DagRuns that have not started after their scheduled time
+    plus the configured ``[scheduler] dagrun_late_threshold``. This includes due runs without a
+    DagRun row and scheduled DagRuns still in the queued state."
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "ti.start"
     description: "Number of started task in a given Dag. Similar to {job_name}_start but for task.
     Metric with dag_id and task_id tagging."

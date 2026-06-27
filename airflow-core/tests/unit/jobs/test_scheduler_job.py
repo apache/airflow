@@ -8998,6 +8998,86 @@ class TestSchedulerJob:
 
         assert recorded == [("scheduler.dagruns.running", 2)]
 
+    @time_machine.travel("2024-01-01T00:00:00+00:00", tick=False)
+    @conf_vars({("scheduler", "dagrun_late_threshold"): "15.0"})
+    def test_emit_not_started_dagruns_metric_counts_uncreated_and_queued(
+        self, dag_maker, monkeypatch, session
+    ):
+        now = timezone.utcnow()
+
+        with dag_maker("uncreated_late"):
+            pass
+        dag_model = dag_maker.dag_model
+        dag_model.is_paused = False
+        dag_model.is_stale = False
+        dag_model.has_import_errors = False
+        dag_model.exceeds_max_non_backfill = False
+        dag_model.next_dagrun = now - timedelta(minutes=2)
+        dag_model.next_dagrun_create_after = now - timedelta(seconds=60)
+
+        with dag_maker("uncreated_on_time"):
+            pass
+        dag_model = dag_maker.dag_model
+        dag_model.is_paused = False
+        dag_model.is_stale = False
+        dag_model.has_import_errors = False
+        dag_model.exceeds_max_non_backfill = False
+        dag_model.next_dagrun = now
+        dag_model.next_dagrun_create_after = now - timedelta(seconds=5)
+
+        with dag_maker("queued_late"):
+            pass
+        dag_maker.create_dagrun(
+            run_id="scheduled_queued_late",
+            run_type=DagRunType.SCHEDULED,
+            state=DagRunState.QUEUED,
+            logical_date=now - timedelta(minutes=2),
+            run_after=now - timedelta(seconds=60),
+        )
+        dag_maker.create_dagrun(
+            run_id="scheduled_queued_on_time",
+            run_type=DagRunType.SCHEDULED,
+            state=DagRunState.QUEUED,
+            logical_date=now - timedelta(minutes=1),
+            run_after=now - timedelta(seconds=5),
+        )
+        dag_maker.create_dagrun(
+            run_id="manual_queued_late",
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.QUEUED,
+            logical_date=now - timedelta(minutes=3),
+            run_after=now - timedelta(seconds=60),
+        )
+        session.flush()
+
+        recorded: list[tuple[str, int]] = []
+
+        def _fake_gauge(metric: str, value: int, *_, **__):
+            recorded.append((metric, value))
+
+        monkeypatch.setattr("airflow._shared.observability.metrics.stats.gauge", _fake_gauge, raising=True)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        self.job_runner._emit_not_started_dagruns_metric(session=session)
+
+        assert recorded == [("scheduler.dagruns.not_started", 2)]
+
+    @conf_vars({("scheduler", "dagrun_late_threshold"): "15.0"})
+    def test_emit_not_started_dagruns_metric_emits_zero_count(self, monkeypatch, session):
+        recorded: list[tuple[str, int]] = []
+
+        def _fake_gauge(metric: str, value: int, *_, **__):
+            recorded.append((metric, value))
+
+        monkeypatch.setattr("airflow._shared.observability.metrics.stats.gauge", _fake_gauge, raising=True)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        self.job_runner._emit_not_started_dagruns_metric(session=session)
+
+        assert recorded == [("scheduler.dagruns.not_started", 0)]
+
     # Multi-team scheduling tests
     def test_multi_team_get_team_names_for_dag_ids_success(self, dag_maker, session):
         """Test successful team name resolution for multiple DAG IDs."""

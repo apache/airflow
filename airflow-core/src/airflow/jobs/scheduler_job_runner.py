@@ -1723,7 +1723,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             timers.call_regular_interval(
                 conf.getfloat("scheduler", "dagrun_metrics_interval", fallback=30.0),
-                self._emit_running_dags_metric,
+                self._emit_dagrun_metrics,
             )
 
         timers.call_regular_interval(
@@ -3219,6 +3219,39 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         stmt = select(func.count()).select_from(DagRun).where(DagRun.state == DagRunState.RUNNING)
         running_dags = float(session.scalar(stmt) or 0)
         stats.gauge("scheduler.dagruns.running", running_dags)
+
+    @provide_session
+    def _emit_dagrun_metrics(self, *, session: Session = NEW_SESSION) -> None:
+        self._emit_running_dags_metric(session=session)
+        self._emit_not_started_dagruns_metric(session=session)
+
+    def _emit_not_started_dagruns_metric(self, *, session: Session) -> None:
+        cutoff = timezone.utcnow() - timedelta(seconds=conf.getfloat("scheduler", "dagrun_late_threshold"))
+
+        uncreated_count = session.scalar(
+            select(func.count())
+            .select_from(DagModel)
+            .where(
+                DagModel.is_paused == expression.false(),
+                DagModel.is_stale == expression.false(),
+                DagModel.has_import_errors == expression.false(),
+                DagModel.exceeds_max_non_backfill == expression.false(),
+                DagModel.next_dagrun.is_not(None),
+                DagModel.next_dagrun_create_after.is_not(None),
+                DagModel.next_dagrun_create_after <= cutoff,
+            )
+        )
+        queued_count = session.scalar(
+            select(func.count())
+            .select_from(DagRun)
+            .where(
+                DagRun.run_type == DagRunType.SCHEDULED,
+                DagRun.state == DagRunState.QUEUED,
+                DagRun.run_after <= cutoff,
+            )
+        )
+        not_started_count = int(uncreated_count or 0) + int(queued_count or 0)
+        stats.gauge("scheduler.dagruns.not_started", not_started_count)
 
     @provide_session
     def _emit_pool_metrics(self, *, session: Session = NEW_SESSION) -> None:

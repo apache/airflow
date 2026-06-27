@@ -2628,6 +2628,16 @@ scheduler:
       type: float
       example: ~
       default: "30.0"
+    dagrun_late_threshold:
+      description: |
+        How many seconds after the scheduled time a scheduled DagRun may remain
+        uncreated or queued before the scheduler includes it in the
+        ``scheduler.dagruns.not_started`` gauge.
+        Set to ``0.0`` to treat any delay as late.
+      version_added: 3.2.0
+      type: float
+      example: ~
+      default: "15.0"
     scheduler_health_check_threshold:
       description: |
         If the last scheduler heartbeat happened more than ``[scheduler] scheduler_health_check_threshold``
