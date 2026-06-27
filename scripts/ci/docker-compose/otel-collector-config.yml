@@ -22,6 +22,7 @@ receivers:
   otlp:
     protocols:
       http:
+        endpoint: 0.0.0.0:4318
 
 processors:
   batch:
@@ -32,7 +33,7 @@ exporters:
     tls:
       insecure: true
 
-  logging:
+  debug:
     verbosity: detailed
   prometheus:
     endpoint: 0.0.0.0:8889
@@ -44,9 +45,9 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [logging, otlp/jaeger]
+      exporters: [debug, otlp/jaeger]
 
     metrics:
       receivers: [otlp]
       processors: [batch]
-      exporters: [logging, prometheus]
+      exporters: [debug, prometheus]

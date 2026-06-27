@@ -33,6 +33,7 @@ Changelog
 Bug Fixes
 ~~~~~~~~~
 
+* ``Make cncf.kubernetes model deserialization picklable in-cluster (#68848)``
 * ``Run 'await_pod_start' before 'await_init_containers_completion' to prevent hanging when streaming init-container logs (#68450)``
 * ``Kubernetes Pod Operator - handle pod preemption before container creation (#68328)``
 
@@ -41,10 +42,12 @@ Misc
 
 * ``Make pod patching logic explicitly reflect when a pod is retained (#68507)``
 * ``Fix mypy errors for task_instance access in provider triggers (#68685)``
+* ``Remove leftovers from #45184 clear_not_launched_queued_tasks removal (#68698)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``[main] Upgrade important CI environment (#68322)``
+   * ``[main] Upgrade important CI environment (#68560)``
    * ``Add regression test for KPO awaiting pod start before init-container logs (#68503)``
 
 10.18.0

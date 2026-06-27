@@ -67,7 +67,7 @@ __all__ = [
     "ObjectStoragePath",
     "Param",
     "ParamsDict",
-    "PartitionAtRuntime",
+    "PartitionedAtRuntime",
     "PartitionedAssetTimetable",
     "PartitionMapper",
     "PokeReturnValue",
@@ -199,8 +199,8 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.timetables.assets import (
         AssetOrTimeSchedule,
-        PartitionAtRuntime,
         PartitionedAssetTimetable,
+        PartitionedAtRuntime,
     )
     from airflow.sdk.definitions.timetables.events import EventsTimetable
     from airflow.sdk.definitions.timetables.interval import (
@@ -269,7 +269,7 @@ __lazy_imports: dict[str, str] = {
     "ObjectStoragePath": ".io.path",
     "Param": ".definitions.param",
     "ParamsDict": ".definitions.param",
-    "PartitionAtRuntime": ".definitions.timetables.assets",
+    "PartitionedAtRuntime": ".definitions.timetables.assets",
     "PartitionedAssetTimetable": ".definitions.timetables.assets",
     "PartitionMapper": ".definitions.partition_mappers.base",
     "PokeReturnValue": ".bases.sensor",

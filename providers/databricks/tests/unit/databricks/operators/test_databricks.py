@@ -2981,6 +2981,107 @@ class TestDatabricksSQLStatementsOperator:
         }
         assert result.job_facets == {"sql": SQLJobFacet(query="normalized" + query)}
 
+    def test_query_tags_defaults(self):
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID, statement="select * from test.test;", warehouse_id=WAREHOUSE_ID
+        )
+        assert op.query_tags == {}
+        assert op.include_airflow_query_tags is True
+
+    def test_query_tags_in_template_fields(self):
+        assert "query_tags" in DatabricksSQLStatementsOperator.template_fields
+
+    def test_query_tags_stored(self):
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="select * from test.test;",
+            warehouse_id=WAREHOUSE_ID,
+            query_tags={"env": "prod"},
+        )
+        assert op.query_tags == {"env": "prod"}
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_execute_passes_query_tags_to_post_sql_statement(self, db_mock_class):
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="select * from test.test;",
+            warehouse_id=WAREHOUSE_ID,
+            query_tags={"team": "data"},
+            include_airflow_query_tags=False,
+        )
+        op.execute(None)
+
+        posted_json = db_mock.post_sql_statement.call_args[0][0]
+        assert posted_json["query_tags"] == [{"key": "team", "value": "data"}]
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_execute_omits_query_tags_when_none(self, db_mock_class):
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="select * from test.test;",
+            warehouse_id=WAREHOUSE_ID,
+            include_airflow_query_tags=False,
+        )
+        op.execute(None)
+
+        posted_json = db_mock.post_sql_statement.call_args[0][0]
+        assert "query_tags" not in posted_json
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_execute_includes_airflow_query_tags(self, db_mock_class):
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="select * from test.test;",
+            warehouse_id=WAREHOUSE_ID,
+            query_tags={"custom": "value"},
+        )
+        mock_ti = mock.MagicMock(spec=["dag_id", "task_id", "run_id", "try_number", "map_index", "xcom_push"])
+        mock_ti.dag_id = "my_dag"
+        mock_ti.task_id = "my_task"
+        mock_ti.run_id = "run_1"
+        mock_ti.try_number = 1
+        mock_ti.map_index = -1
+
+        op.execute(context={"ti": mock_ti})
+
+        posted_json = db_mock.post_sql_statement.call_args[0][0]
+        tag_keys = {t["key"] for t in posted_json["query_tags"]}
+        assert "airflow_dag_id" in tag_keys
+        assert "custom" in tag_keys
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_custom_query_tags_override_airflow_tags(self, db_mock_class):
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="select * from test.test;",
+            warehouse_id=WAREHOUSE_ID,
+            query_tags={"airflow_dag_id": "overridden"},
+        )
+        mock_ti = mock.MagicMock(spec=["dag_id", "task_id", "run_id", "try_number", "map_index", "xcom_push"])
+        mock_ti.dag_id = "original"
+        mock_ti.task_id = "t"
+        mock_ti.run_id = "r"
+        mock_ti.try_number = 1
+        mock_ti.map_index = -1
+
+        op.execute(context={"ti": mock_ti})
+
+        posted_json = db_mock.post_sql_statement.call_args[0][0]
+        tag_map = {t["key"]: t["value"] for t in posted_json["query_tags"]}
+        assert tag_map["airflow_dag_id"] == "overridden"
+
 
 class TestDatabricksNotebookOperator:
     def test_is_instance_of_databricks_task_base_operator(self):

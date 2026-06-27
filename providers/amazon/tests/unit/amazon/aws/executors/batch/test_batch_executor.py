@@ -814,6 +814,7 @@ class TestAwsBatchExecutor:
             task.dag_model = mock.Mock()
             task.dag_model.bundle_name = "test_bundle"
             task.dag_model.relative_fileloc = "test_dag.py"
+            task.dag_version = mock.Mock(version_data=None)
             task.dag_run = mock.Mock()
             task.dag_run.bundle_version = "1.0.0"
             task.dag_run.context_carrier = {}
