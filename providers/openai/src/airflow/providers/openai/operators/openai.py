@@ -54,7 +54,7 @@ class OpenAIEmbeddingOperator(BaseOperator):
         self,
         conn_id: str,
         input_text: str | list[str] | list[int] | list[list[int]],
-        model: str = "text-embedding-ada-002",
+        model: str = "text-embedding-3-small",
         embedding_kwargs: dict | None = None,
         **kwargs: Any,
     ):
