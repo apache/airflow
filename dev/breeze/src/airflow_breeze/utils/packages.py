@@ -694,13 +694,20 @@ def get_cross_provider_dependencies_for_extras(provider_id: str) -> list[str]:
     if not cross_provider_dependencies:
         return []
 
+    from packaging.requirements import Requirement
+    from packaging.utils import canonicalize_name
+
     suspended_provider_ids = get_suspended_provider_ids()
-    required_dependencies = "\n".join(get_provider_requirements(provider_id))
+    required_package_names = {
+        canonicalize_name(Requirement(requirement).name)
+        for requirement in get_provider_requirements(provider_id)
+    }
+
     return [
         cross_provider_id
         for cross_provider_id in cross_provider_dependencies
         if cross_provider_id not in suspended_provider_ids
-        and get_pip_package_name(cross_provider_id) not in required_dependencies
+        and canonicalize_name(get_pip_package_name(cross_provider_id)) not in required_package_names
     ]
 
 

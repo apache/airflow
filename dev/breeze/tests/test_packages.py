@@ -264,21 +264,42 @@ def test_get_min_airflow_version(provider_id: str, min_version: str):
     assert get_min_airflow_version(provider_id) == min_version
 
 
-def test_get_cross_provider_dependencies_for_extras(monkeypatch):
+@pytest.mark.parametrize(
+    ("cross_provider_deps", "suspended_ids", "requirements", "expected"),
+    [
+        pytest.param(
+            ["common.compat", "common.sql", "google", "apache.beam"],
+            ["apache.beam"],
+            ["apache-airflow-providers-common-compat>=1.2.3"],
+            ["common.sql", "google"],
+            id="filters_suspended_and_required",
+        ),
+        pytest.param(
+            ["common.sql"],
+            [],
+            ["apache-airflow-providers-common-sql-extra>=1.0.0"],
+            ["common.sql"],
+            id="substring_collision_not_filtered",
+        ),
+    ],
+)
+def test_get_cross_provider_dependencies_for_extras(
+    monkeypatch, cross_provider_deps, suspended_ids, requirements, expected
+):
     monkeypatch.setattr(
         "airflow_breeze.utils.packages.get_cross_provider_dependent_packages",
-        lambda provider_id: ["common.compat", "common.sql", "google", "apache.beam"],
+        lambda provider_id: cross_provider_deps,
     )
     monkeypatch.setattr(
         "airflow_breeze.utils.packages.get_suspended_provider_ids",
-        lambda: ["apache.beam"],
+        lambda: suspended_ids,
     )
     monkeypatch.setattr(
         "airflow_breeze.utils.packages.get_provider_requirements",
-        lambda provider_id: ["apache-airflow-providers-common-compat"],
+        lambda provider_id: requirements,
     )
 
-    assert get_cross_provider_dependencies_for_extras("test.provider") == ["common.sql", "google"]
+    assert get_cross_provider_dependencies_for_extras("test.provider") == expected
 
 
 def test_convert_cross_package_dependencies_to_table():
