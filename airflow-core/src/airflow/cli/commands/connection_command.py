@@ -404,6 +404,7 @@ def connections_delete(args):
 
 
 @cli_utils.action_cli(check_db=False)
+@deprecated_for_airflowctl("airflowctl connections import")
 @providers_configuration_loaded
 def connections_import(args):
     """Import connections from a file."""
