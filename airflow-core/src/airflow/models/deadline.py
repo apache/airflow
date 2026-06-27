@@ -242,15 +242,12 @@ class Deadline(Base):
 
             return {
                 "dag_run": DAGRunResponse.model_validate(dagrun).model_dump(mode="json"),
-                "deadline": {"id": self.id, "deadline_time": self.deadline_time},
+                "deadline": {"id": str(self.id), "deadline_time": self.deadline_time},
             }
 
         if isinstance(self.callback, TriggererCallback):
-            # Update the callback with context before queuing
-            if "kwargs" not in self.callback.data:
-                self.callback.data["kwargs"] = {}
-            self.callback.data["kwargs"] = (self.callback.data.get("kwargs") or {}) | {
-                "context": get_simple_context()
+            self.callback.data = self.callback.data | {
+                "kwargs": (self.callback.data.get("kwargs") or {}) | {"context": get_simple_context()},
             }
 
             self.callback.queue(session=session)
@@ -258,14 +255,12 @@ class Deadline(Base):
             session.flush()
 
         elif isinstance(self.callback, ExecutorCallback):
-            if "kwargs" not in self.callback.data:
-                self.callback.data["kwargs"] = {}
-            self.callback.data["kwargs"] = (self.callback.data.get("kwargs") or {}) | {
-                "context": get_simple_context()
+            self.callback.data = self.callback.data | {
+                "kwargs": (self.callback.data.get("kwargs") or {}) | {"context": get_simple_context()},
+                "deadline_id": str(self.id),
+                "dag_run_id": str(self.dagrun.id),
+                "dag_id": self.dagrun.dag_id,
             }
-            self.callback.data["deadline_id"] = str(self.id)
-            self.callback.data["dag_run_id"] = str(self.dagrun.id)
-            self.callback.data["dag_id"] = self.dagrun.dag_id
 
             self.callback.state = CallbackState.PENDING
             session.add(self.callback)
