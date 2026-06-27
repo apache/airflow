@@ -389,7 +389,7 @@ class TestKeycloakAuthManager:
     @conf_vars({("core", "multi_team"): "True"})
     def test_is_authorized_missing_keycloak_resource(self, auth_manager, user, caplog):
         resp = Mock()
-        resp.status_code = 500
+        resp.status_code = 400
         resp.text = '{"error": "invalid_resource", "error_description": "Resource with id [Dag:team-a] does not exist."}'
         auth_manager.http_session.post = Mock(return_value=resp)
         caplog.set_level("WARNING", logger="airflow.providers.keycloak.auth_manager.keycloak_auth_manager")
@@ -676,7 +676,7 @@ class TestKeycloakAuthManager:
             dag_id = claims[RESOURCE_ID_ATTRIBUTE_NAME][0]
             response = Mock()
             if dag_id == "dag-missing":
-                response.status_code = 500
+                response.status_code = 400
                 response.text = '{"error":"invalid_resource", "error_description": "Resource with id [Dag:team-a] does not exist."}'
             else:
                 response.status_code = 200

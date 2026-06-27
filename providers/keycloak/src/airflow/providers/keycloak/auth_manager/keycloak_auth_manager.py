@@ -436,16 +436,15 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             return False
         if resp.status_code == 400:
             error = json.loads(resp.text)
-            raise AirflowException(
-                f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
-            )
-        if resp.status_code == 500 and is_team_resource:
-            error = json.loads(resp.text)
-            if error.get("error") == "invalid_resource":
+            if is_team_resource and error.get("error") == "invalid_resource":
+                # filter_authorized_dag_ids will return this error if team resources have not been added to the Keycloak Client.
                 log.warning(
                     "Keycloak authorization resource is missing; denying access. Response: %s", resp.text
                 )
                 return False
+            raise AirflowException(
+                f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
+            )
         raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
 
     def filter_authorized_dag_ids(
