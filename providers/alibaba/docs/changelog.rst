@@ -26,6 +26,17 @@
 Changelog
 ---------
 
+3.3.9
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix remote-log providers not satisfying RemoteLogIO upload contract (#68300)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.3.8
 .....
 

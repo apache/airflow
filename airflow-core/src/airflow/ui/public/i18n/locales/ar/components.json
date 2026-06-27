@@ -14,9 +14,12 @@
     "maxRuns": "الحد الأقصى للتشغيلات النشطة",
     "missingAndErroredRuns": "تشغيلات مفقودة وخاطئة",
     "missingRuns": "تشغيلات مفقودة",
+    "overrideExistingParams": "تجاوز المعلمات في التشغيلات الحالية",
     "permissionDenied": "فشل التشغيل التجريبي (Dry Run): ليس لدى المستخدم صلاحية لإنشاء تعبئات رجعية.",
     "reprocessBehavior": "اعادة معالجة السلوك",
     "run": "تشغيل التعبئة الرجعية",
+    "scheduleNotBackfillable": "جدول Dag هذا لا يدعم التعبئة الرجعية",
+    "schedulerPriorityHint": "تُرتَّب تشغيلات التعبئة الرجعية للـDag بعد تشغيلات الـDag غير الخاصة بالتعبئة الرجعية في كل دورة للمُجَدْوِل. قد تبقى تشغيلات التعبئة الرجعية في الانتظار لمدة أطول إذا وُجدت تشغيلات أخرى غير تعبئة رجعية.",
     "selectDescription": "تشغيل هذا Dag لنطاق من التواريخ",
     "selectLabel": "تعبئة رجعية",
     "title": "تشغيل التعبئة الرجعية",
@@ -48,12 +51,7 @@
     "invalidJson": "تنسيق JSON غير صالح: {{errorMessage}}"
   },
   "dagWarnings": {
-    "error_few": "أخطاء",
-    "error_many": "أخطاء",
     "error_one": "خطأ",
-    "error_other": "أخطاء",
-    "error_two": "خطآن",
-    "error_zero": "لا يوجد أي خطأ",
     "errorAndWarning": "1 خطأ و{{warningText}}",
     "warning_few": "{{count}} تحذيرات",
     "warning_many": "{{count}} تحذير",
@@ -96,6 +94,7 @@
     "files_zero": "لا يوجد أي ملف"
   },
   "flexibleForm": {
+    "durationPlaceholder": "أدخل المدة بصيغة ISO 8601",
     "placeholder": "اختر قيمة",
     "placeholderArray": "أدخل كل سلسلة في سطر جديد",
     "placeholderExamples": "ابدأ الكتابة لرؤية الخيارات",
@@ -103,6 +102,7 @@
     "validationErrorArrayNotArray": "القيمة يجب أن تكون مصفوفة.",
     "validationErrorArrayNotNumbers": "جميع العناصر في المصفوفة يجب أن تكون أرقامًا.",
     "validationErrorArrayNotObject": "جميع العناصر في المصفوفة يجب أن تكون كائنات.",
+    "validationErrorDuration": "صيغة مدة ISO 8601 غير صالحة",
     "validationErrorRequired": "هذا الحقل مطلوب"
   },
   "graph": {
@@ -120,7 +120,8 @@
     "taskCount_other": "{{count}} مهمة",
     "taskCount_two": "مهمتان",
     "taskCount_zero": "لا يوجد أي مهمة",
-    "taskGroup": "مجموعة المهام"
+    "taskGroup": "مجموعة المهام",
+    "zoomToTask": "تكبير إلى المهمة المحددة"
   },
   "limitedList": "+{{count}} المزيد",
   "limitedList.allItems": "جميع العناصر {{count}}:",
@@ -167,6 +168,7 @@
     "intervalStart": "البداية",
     "loading": "جارٍ تحميل معلومات Dag...",
     "loadingFailed": "فشل تحميل معلومات Dag. يرجى المحاولة مرة أخرى.",
+    "manualRunDenied": "التشغيلات اليدوية غير مسموح بها لهذا الـDag",
     "runIdHelp": "اختياري - سيتم توليده تلقائيًا إذا لم يتم توفيره.",
     "selectDescription": "تشغيل عملية واحدة من هذا Dag",
     "selectLabel": "تشغيلة واحدة",

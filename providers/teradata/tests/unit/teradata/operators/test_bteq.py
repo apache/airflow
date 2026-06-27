@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import logging
 import tempfile
-import unittest
 from unittest import mock
 
 import pytest
@@ -288,7 +287,3 @@ class TestBteqOperator:
         )
         result = op.execute({})
         assert result == 42  # still returns, but caller can fail on RC if desired
-
-
-if __name__ == "__main__":
-    unittest.main()

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import math
+import pickle
 import sys
 from collections.abc import Iterator
 from datetime import datetime, timedelta
@@ -27,7 +28,7 @@ from typing import TYPE_CHECKING
 import pendulum
 import pytest
 from dateutil import relativedelta
-from kubernetes.client import models as k8s
+from kubernetes.client import Configuration, models as k8s
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from uuid6 import uuid7
 
@@ -39,7 +40,6 @@ from airflow.exceptions import (
     AirflowFailException,
     AirflowRescheduleException,
     SerializationError,
-    TaskDeferred,
 )
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
@@ -104,7 +104,6 @@ from airflow.serialization.serialized_objects import (
     LazyDeserializedDAG,
     _has_kubernetes,
 )
-from airflow.triggers.base import BaseTrigger
 from airflow.utils.db import LazySelectSequence
 
 from unit.models import DEFAULT_DATE
@@ -570,42 +569,14 @@ def test_ser_of_asset_event_accessor():
     assert d[Asset(name="yo", uri="test://yo")].extra == {"this": "that", "the": "other"}
 
 
-class MyTrigger(BaseTrigger):
-    def __init__(self, hi):
-        self.hi = hi
-
-    def serialize(self):
-        return "unit.serialization.test_serialized_objects.MyTrigger", {"hi": self.hi}
-
-    async def run(self):
-        yield
-
-
 def test_roundtrip_exceptions():
-    """
-    This is for AIP-44 when we need to send certain non-error exceptions
-    as part of an RPC call e.g. TaskDeferred or AirflowRescheduleException.
-    """
+    """Non-error AirflowExceptions (e.g. AirflowRescheduleException) round-trip through BaseSerialization."""
     some_date = pendulum.now()
     resched_exc = AirflowRescheduleException(reschedule_date=some_date)
     ser = BaseSerialization.serialize(resched_exc)
     deser = BaseSerialization.deserialize(ser)
     assert isinstance(deser, AirflowRescheduleException)
     assert deser.reschedule_date == some_date
-    del ser
-    del deser
-    exc = TaskDeferred(
-        trigger=MyTrigger(hi="yo"),
-        method_name="meth_name",
-        kwargs={"have": "pie"},
-        timeout=timedelta(seconds=30),
-    )
-    ser = BaseSerialization.serialize(exc)
-    deser = BaseSerialization.deserialize(ser)
-    assert deser.trigger.hi == "yo"
-    assert deser.method_name == "meth_name"
-    assert deser.kwargs == {"have": "pie"}
-    assert deser.timeout == timedelta(seconds=30)
 
 
 @pytest.mark.parametrize(
@@ -1418,6 +1389,39 @@ class TestKubernetesImportAvoidance:
         assert decoded.metadata.name == "test-pod"
 
         _has_kubernetes.cache_clear()
+
+    def test_deserialized_v1pod_does_not_capture_unpicklable_config(self, monkeypatch):
+        """A deserialized V1Pod must not capture the in-cluster Configuration.
+
+        In-cluster, the kubernetes client installs a process-global default ``Configuration`` whose
+        ``refresh_api_key_hook`` is an unpicklable local closure. Under kubernetes-client v36,
+        ``ApiClient.__deserialize_model`` copies that config onto the pod and every nested model, so a
+        naively deserialized ``pod_override`` cannot be pickled onto the KubernetesExecutor queue and
+        crashes the scheduler. Deserializing through a fresh ``Configuration`` keeps the pod picklable.
+        """
+        k8s = pytest.importorskip("kubernetes.client.models")
+
+        def _make_unpicklable_hook():
+            def _refresh_api_key(config):
+                return None
+
+            return _refresh_api_key
+
+        dirty = Configuration()
+        dirty.refresh_api_key_hook = _make_unpicklable_hook()
+        monkeypatch.setattr(Configuration, "_default", dirty, raising=False)
+
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name="test-pod"),
+            spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base", image="airflow:3")]),
+        )
+        decoded = BaseSerialization.deserialize(BaseSerialization.serialize(pod))
+
+        assert isinstance(decoded, k8s.V1Pod)
+        # The top-level pod and every nested model must carry a clean, picklable Configuration.
+        pickle.dumps(decoded)
+        assert decoded.local_vars_configuration.refresh_api_key_hook is None
+        assert decoded.spec.containers[0].local_vars_configuration.refresh_api_key_hook is None
 
 
 @pytest.mark.db_test

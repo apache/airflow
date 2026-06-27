@@ -137,6 +137,17 @@ func transform(ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger
 	return nil
 }
 
-func load() error {
-	return fmt.Errorf("Please fail")
+// load fails on its first attempt and succeeds on the retry. With retries
+// configured on the stub task, the first failure makes the supervisor mark the
+// task UP_FOR_RETRY -- which only works because the Go SDK now emits a
+// RetryTask frame (instead of a terminal FAILED) when ti_context.should_retry
+// is set. The retry then runs this task again and it returns nil.
+func load(ctx sdk.TIRunContext, log *slog.Logger) error {
+	tryNumber := ctx.TaskInstance().TryNumber
+	if tryNumber == 1 {
+		log.InfoContext(ctx, "Please fail", "try_number", tryNumber)
+		return fmt.Errorf("Please fail")
+	}
+	log.InfoContext(ctx, "Recovered on retry", "try_number", tryNumber)
+	return nil
 }

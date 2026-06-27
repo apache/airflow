@@ -921,6 +921,7 @@ class AssetPartitionDagRun(Base):
     target_dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     created_dag_run_id: Mapped[int | None] = mapped_column(Integer(), nullable=True)
     partition_key: Mapped[str] = mapped_column(StringID(), nullable=False)
+    partition_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # Serialized snapshot of the rollup definition (mapper + window for every
     # partitioned asset in the timetable) at the time this APDR was created.
     # The scheduler discards APDRs whose stored fingerprint no longer matches

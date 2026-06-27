@@ -48,6 +48,7 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
 log = logging.getLogger(__name__)
 
@@ -56,9 +57,9 @@ __all__ = ["emit_dataset_lineage"]
 
 def emit_dataset_lineage(
     *,
-    inputs: list[InputDataset] | None = None,
-    outputs: list[OutputDataset] | None = None,
-    task_instance: RuntimeTaskInstance | TaskInstance | None = None,
+    inputs: list[InputDataset | Dataset] | None = None,
+    outputs: list[OutputDataset | Dataset] | None = None,
+    task_instance: RuntimeTaskInstanceProtocol | RuntimeTaskInstance | TaskInstance | None = None,
     additional_run_facets: dict[str, RunFacet] | None = None,
     additional_job_facets: dict[str, JobFacet] | None = None,
     raise_on_error: bool = False,
@@ -159,8 +160,8 @@ def emit_dataset_lineage(
                 name=lineage_job_name(task_instance),
                 facets=job_facets,
             ),
-            inputs=inputs,
-            outputs=outputs,
+            inputs=inputs,  # type: ignore[arg-type]
+            outputs=outputs,  # type: ignore[arg-type]
             producer=_PRODUCER,
         )
 

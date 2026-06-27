@@ -37,7 +37,11 @@ from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
 from airflow.exceptions import AirflowConfigException
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+from airflow.providers.celery.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+)
 from airflow.providers.common.compat.sdk import conf
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
@@ -193,6 +197,20 @@ def logger_setup_handler(logger, **kwargs):
 @_providers_configuration_loaded
 def worker(args):
     """Start Airflow Celery worker."""
+    # Apply the configured multiprocessing start method before the worker creates any stdlib
+    # multiprocessing objects -- the serve_logs and stale-bundle-cleanup helper Processes started
+    # below, and the optional SecretCache Manager. CPython 3.14 switched the Unix default from fork
+    # to forkserver (gh-84559); under forkserver those helpers re-import Airflow and spin up extra
+    # forkserver/resource_tracker processes, inflating the worker's resident memory. Setting
+    # [celery] mp_start_method = fork (or [core] mp_start_method) restores the pre-3.14 behaviour.
+    # This governs stdlib multiprocessing only; Celery's prefork pool is driven by billiard, which
+    # keeps its own fork default and is unaffected. Guarded because set_component_mp_start_method
+    # only exists on Airflow 3.3+.
+    if AIRFLOW_V_3_3_PLUS:
+        from airflow.utils.process_utils import set_component_mp_start_method
+
+        set_component_mp_start_method("celery")
+
     team_config = None
     if hasattr(args, "team") and args.team:
         # Multi-team is enabled, create team-specific Celery app and use team based config

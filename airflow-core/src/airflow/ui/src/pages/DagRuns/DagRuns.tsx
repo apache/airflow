@@ -54,6 +54,7 @@ import BulkDeleteDagRunsButton from "./BulkDeleteDagRunsButton";
 import BulkMarkDagRunsAsButton from "./BulkMarkDagRunsAsButton";
 import { DagRunsFilters } from "./DagRunsFilters";
 import DeleteRunButton from "./DeleteRunButton";
+import RunNoteButton from "./RunNoteButton";
 
 // Matches the identifier the bulk Dag Run endpoint echoes back in its ``success`` /
 // ``errors`` lists, so the bulk response can deselect rows directly.
@@ -203,6 +204,7 @@ const runColumns = ({ dagId, translate }: ColumnProps): Array<ColumnDef<DAGRunRe
     accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
+        <RunNoteButton dagRun={row.original} />
         <ClearRunButton dagRun={row.original} />
         <MarkRunAsButton dagRun={row.original} />
         <DeleteRunButton dagRun={row.original} />

@@ -401,17 +401,9 @@ class TaskInstanceState(str, Enum):
     AWAITING_INPUT = "awaiting_input"
 
 
-class TaskStatesResponse(BaseModel):
+class TaskStateStorePutBody(BaseModel):
     """
-    Response for task states with run_id, task and state.
-    """
-
-    task_states: Annotated[dict[str, Any], Field(title="Task States")]
-
-
-class TaskStorePutBody(BaseModel):
-    """
-    Request body for setting a task store value.
+    Request body for setting a task state store value.
     """
 
     model_config = ConfigDict(
@@ -421,15 +413,23 @@ class TaskStorePutBody(BaseModel):
     expires_at: Annotated[AwareDatetime | None, Field(title="Expires At")] = None
 
 
-class TaskStoreResponse(BaseModel):
+class TaskStateStoreResponse(BaseModel):
     """
-    Task store value returned to a worker.
+    Task state store value returned to a worker.
     """
 
     model_config = ConfigDict(
         extra="forbid",
     )
     value: JsonValue
+
+
+class TaskStatesResponse(BaseModel):
+    """
+    Response for task states with run_id, task and state.
+    """
+
+    task_states: Annotated[dict[str, Any], Field(title="Task States")]
 
 
 class TerminalStateNonSuccess(str, Enum):
@@ -570,6 +570,7 @@ class BundleInfo(BaseModel):
 
     name: Annotated[str, Field(title="Name")]
     version: Annotated[str | None, Field(title="Version")] = None
+    version_data: Annotated[dict[str, Any] | None, Field(title="Version Data")] = None
 
 
 class TerminalTIState(str, Enum):
@@ -631,9 +632,9 @@ class AssetResponse(BaseModel):
     extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
 
 
-class AssetStorePutBody(BaseModel):
+class AssetStateStorePutBody(BaseModel):
     """
-    Request body for setting an asset store value.
+    Request body for setting an asset state store value.
     """
 
     model_config = ConfigDict(
@@ -642,9 +643,9 @@ class AssetStorePutBody(BaseModel):
     value: JsonValue
 
 
-class AssetStoreResponse(BaseModel):
+class AssetStateStoreResponse(BaseModel):
     """
-    Asset store value returned to a worker.
+    Asset state store value returned to a worker.
     """
 
     model_config = ConfigDict(
@@ -775,6 +776,7 @@ class DagRun(BaseModel):
     triggering_user_name: Annotated[str | None, Field(title="Triggering User Name")] = None
     consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    partition_date: Annotated[AwareDatetime | None, Field(title="Partition Date")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     team_name: Annotated[str | None, Field(title="Team Name")] = None
 

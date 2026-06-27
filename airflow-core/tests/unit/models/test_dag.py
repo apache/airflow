@@ -41,7 +41,7 @@ from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag
-from airflow.exceptions import AirflowException, DagNotPartitionedError
+from airflow.exceptions import AirflowException, DagNotPartitionedError, InvalidPartitionKeyError
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -71,7 +71,7 @@ from airflow.sdk import (
     DAG,
     BaseOperator,
     CronPartitionTimetable,
-    PartitionAtRuntime,
+    PartitionedAtRuntime,
     TaskGroup,
     setup,
     task as task_decorator,
@@ -220,8 +220,8 @@ class TestDag:
         assert dr is not None
 
         # Serialized DAG should now exist and DagRun would be created
-        ser = DBDagBag().get_latest_version_of_dag(dag_id, session=session)
-        assert ser is not None
+        set = DBDagBag().get_latest_version_of_dag(dag_id, session=session)
+        assert set is not None
         assert session.scalar(select(DagRun).where(DagRun.dag_id == dag_id)) is not None
 
     @conf_vars({("core", "load_examples"): "false"})
@@ -1559,7 +1559,7 @@ class TestDag:
         """DagRun-level type check rejects int partition_key even for partitioned Dags."""
         with dag_maker(
             "test_create_dagrun_partitioned_int_key",
-            schedule=PartitionAtRuntime(),
+            schedule=PartitionedAtRuntime(),
         ):
             ...
         with pytest.raises(
@@ -1582,7 +1582,7 @@ class TestDag:
             ("my-key", None, True),
             (None, None, False),
             ("my-key", CronPartitionTimetable("@daily", timezone="UTC"), False),
-            ("my-key", PartitionAtRuntime(), False),
+            ("my-key", PartitionedAtRuntime(), False),
         ],
     )
     def test_serialized_dag_validate_partition_key(
@@ -1601,6 +1601,38 @@ class TestDag:
                 sdag.validate_partition_key(partition_key)
         else:
             sdag.validate_partition_key(partition_key)  # must not raise
+
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.parametrize(
+        ("partition_key", "exc_type", "match"),
+        [
+            ("", InvalidPartitionKeyError, "empty or whitespace-only"),
+            ("   ", InvalidPartitionKeyError, "empty or whitespace-only"),
+            ("a" * 251, InvalidPartitionKeyError, "at most 250 characters"),
+        ],
+        ids=["empty", "whitespace", "over_limit"],
+    )
+    def test_validate_partition_key_rejects_invalid_content(self, partition_key, exc_type, match, dag_maker):
+        """validate_partition_key raises InvalidPartitionKeyError for empty or over-length keys."""
+        with dag_maker(
+            "test_validate_partition_key_content",
+            schedule=CronPartitionTimetable("@daily", timezone="UTC"),
+        ):
+            ...
+        sdag = dag_maker.serialized_dag
+        with pytest.raises(exc_type, match=match):
+            sdag.validate_partition_key(partition_key)
+
+    @pytest.mark.need_serialized_dag
+    def test_validate_partition_key_accepts_exactly_max_length(self, dag_maker):
+        """validate_partition_key accepts a key of exactly 250 characters."""
+        with dag_maker(
+            "test_validate_partition_key_at_limit",
+            schedule=CronPartitionTimetable("@daily", timezone="UTC"),
+        ):
+            ...
+        sdag = dag_maker.serialized_dag
+        sdag.validate_partition_key("a" * 250)  # must not raise
 
     def test_dag_add_task_sets_default_task_group(self):
         dag = DAG(dag_id="test_dag_add_task_sets_default_task_group", schedule=None, start_date=DEFAULT_DATE)
@@ -3401,6 +3433,78 @@ def test_iter_dagrun_infos_between(start_date, expected_infos):
     assert expected_infos == list(iterator)
 
 
+def test_iter_dagrun_infos_between_partitioned_timetable():
+    """iter_dagrun_infos_between dispatches to iter_partition_dagrun_infos for partitioned timetables.
+
+    Verifies:
+    - Full-sequence equality: result matches direct iter_partition_dagrun_infos call.
+    - The datetime window bounds partition_date directly (no day rounding); both ends inclusive.
+    - to_date's partition is present; the tick after to_date is absent.
+    """
+    dag = DAG(
+        dag_id="test_iter_dagrun_infos_between_partitioned",
+        start_date=DEFAULT_DATE,
+        schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+    )
+    EmptyOperator(task_id="dummy", dag=dag)
+    scheduler_dag = create_scheduler_dag(dag)
+
+    # Window: 3-day span so we get a non-trivial sequence to compare.
+    from_dt = pendulum.datetime(2026, 3, 10, tz="UTC")
+    to_dt = pendulum.datetime(2026, 3, 12, 23, 59, 59, tz="UTC")
+
+    result = list(scheduler_dag.iter_dagrun_infos_between(earliest=from_dt, latest=to_dt))
+
+    # Build expected sequence by calling iter_partition_dagrun_infos directly with the same window.
+    core_timetable = scheduler_dag.timetable
+    expected = list(
+        core_timetable.iter_partition_dagrun_infos(
+            earliest=from_dt,
+            latest=to_dt,
+        )
+    )
+
+    # Dispatch smoke-test: the partitioned path routes through iter_partition_dagrun_infos.
+    assert result == expected
+
+    # to_date's partition (2026-03-12) must be present (inclusive).
+    to_date_partition = pendulum.datetime(2026, 3, 12, tz="UTC")
+    assert any(info.run_after == to_date_partition for info in result)
+
+    # The partition for the day after to_date (2026-03-13) must be absent (half-open upper bound).
+    after_to_date_partition = pendulum.datetime(2026, 3, 13, tz="UTC")
+    assert not any(info.run_after == after_to_date_partition for info in result)
+
+
+def test_iter_dagrun_infos_between_partitioned_subday_window_not_widened():
+    """Guard: a sub-day window through the full iter_dagrun_infos_between chain must
+    not widen to the whole calendar day.
+
+    Pre-fix the partitioned path truncated the bounds to calendar dates and expanded them to
+    whole UTC days, so an hourly Dag backfilled for a single hour produced ~24 runs instead of 2.
+    This drives the public chain (whose signature is unchanged), so on pre-fix code it yields the
+    widened 24-tick sequence; on the fixed code it yields exactly the two ticks in the window.
+    """
+    dag = DAG(
+        dag_id="test_iter_dagrun_infos_between_partitioned_subday",
+        start_date=DEFAULT_DATE,
+        schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+    )
+    EmptyOperator(task_id="dummy", dag=dag)
+    scheduler_dag = create_scheduler_dag(dag)
+
+    from_dt = pendulum.datetime(2026, 3, 10, 8, tz="UTC")
+    to_dt = pendulum.datetime(2026, 3, 10, 9, tz="UTC")
+
+    result = list(scheduler_dag.iter_dagrun_infos_between(earliest=from_dt, latest=to_dt))
+
+    # Exactly the two ticks inside [08:00, 09:00] — not the 24 ticks of the whole day.
+    assert [info.run_after for info in result] == [
+        pendulum.datetime(2026, 3, 10, 8, tz="UTC"),
+        pendulum.datetime(2026, 3, 10, 9, tz="UTC"),
+    ]
+
+
 def test_iter_dagrun_infos_between_error(caplog):
     start = pendulum.instance(DEFAULT_DATE - datetime.timedelta(hours=1))
     end = pendulum.instance(DEFAULT_DATE)
@@ -4269,7 +4373,7 @@ def test_calculate_dagrun_date_fields(
     run = dag_maker.create_dagrun()
     serdag = dag_maker.serialized_dag
     dag_model = dag_maker.dag_model
-    dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=run)
+    dag_model.calculate_dagrun_date_fields(dag=serdag, reference_run=run)
     assert dag_model.next_dagrun_data_interval == next_interval
     assert dag_model.next_dagrun == next_run
     assert dag_model.next_dagrun_create_after == next_run_after
