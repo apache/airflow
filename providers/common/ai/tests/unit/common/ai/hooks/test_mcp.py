@@ -48,8 +48,8 @@ class TestMCPHookInit:
 
 
 class TestMCPHookGetConn:
-    @patch(_MCP_TOOLSET)
-    @patch(_HTTP_TRANSPORT)
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_HTTP_TRANSPORT, autospec=True)
     def test_http_transport(self, mock_transport_cls, mock_toolset_cls):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(
@@ -64,8 +64,8 @@ class TestMCPHookGetConn:
         mock_toolset_cls.assert_called_once_with(mock_transport_cls.return_value)
         assert result is mock_toolset_cls.return_value
 
-    @patch(_MCP_TOOLSET)
-    @patch(_HTTP_TRANSPORT)
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_HTTP_TRANSPORT, autospec=True)
     def test_http_is_default_transport(self, mock_transport_cls, mock_toolset_cls):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(
@@ -79,8 +79,8 @@ class TestMCPHookGetConn:
         mock_transport_cls.assert_called_once_with("http://localhost:3001/mcp", headers=None)
         mock_toolset_cls.assert_called_once_with(mock_transport_cls.return_value)
 
-    @patch(_MCP_TOOLSET)
-    @patch(_HTTP_TRANSPORT)
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_HTTP_TRANSPORT, autospec=True)
     def test_http_with_auth_token(self, mock_transport_cls, mock_toolset_cls):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(
@@ -97,8 +97,8 @@ class TestMCPHookGetConn:
             headers={"Authorization": "Bearer my-secret-token"},
         )
 
-    @patch(_MCP_TOOLSET)
-    @patch(_HTTP_TRANSPORT)
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_HTTP_TRANSPORT, autospec=True)
     def test_passes_tool_prefix(self, mock_transport_cls, mock_toolset_cls):
         hook = MCPHook(mcp_conn_id="test_conn", tool_prefix="weather")
         conn = Connection(
@@ -114,8 +114,8 @@ class TestMCPHookGetConn:
         mock_toolset_cls.return_value.prefixed.assert_called_once_with("weather")
         assert result is mock_toolset_cls.return_value.prefixed.return_value
 
-    @patch(_MCP_TOOLSET)
-    @patch(_SSE_TRANSPORT)
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_SSE_TRANSPORT, autospec=True)
     def test_sse_transport(self, mock_transport_cls, mock_toolset_cls):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(
@@ -131,8 +131,8 @@ class TestMCPHookGetConn:
         mock_toolset_cls.assert_called_once_with(mock_transport_cls.return_value)
         assert result is mock_toolset_cls.return_value
 
-    @patch(_MCP_TOOLSET)
-    @patch(_STDIO_TRANSPORT)
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_STDIO_TRANSPORT, autospec=True)
     def test_stdio_transport(self, mock_transport_cls, mock_toolset_cls):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(
@@ -147,8 +147,8 @@ class TestMCPHookGetConn:
         mock_toolset_cls.assert_called_once_with(mock_transport_cls.return_value, init_timeout=10)
         assert result is mock_toolset_cls.return_value
 
-    @patch(_MCP_TOOLSET)
-    @patch(_STDIO_TRANSPORT)
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_STDIO_TRANSPORT, autospec=True)
     def test_stdio_custom_timeout(self, mock_transport_cls, mock_toolset_cls):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(
@@ -164,8 +164,8 @@ class TestMCPHookGetConn:
         mock_transport_cls.assert_called_once_with(command="python", args=["-m", "server"])
         mock_toolset_cls.assert_called_once_with(mock_transport_cls.return_value, init_timeout=30)
 
-    @patch(_MCP_TOOLSET)
-    @patch(_STDIO_TRANSPORT)
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_STDIO_TRANSPORT, autospec=True)
     def test_args_string_converted_to_list(self, mock_transport_cls, mock_toolset_cls):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(
@@ -218,8 +218,8 @@ class TestMCPHookGetConn:
             with pytest.raises(ValueError, match="Unknown transport"):
                 hook.get_conn()
 
-    @patch(_MCP_TOOLSET)
-    @patch(_HTTP_TRANSPORT)
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_HTTP_TRANSPORT, autospec=True)
     def test_caches_server(self, mock_transport_cls, mock_toolset_cls):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(conn_id="test_conn", conn_type="mcp", host="http://localhost:3001/mcp")
@@ -232,8 +232,8 @@ class TestMCPHookGetConn:
 
 
 class TestMCPHookTestConnection:
-    @patch(_MCP_TOOLSET)
-    @patch(_HTTP_TRANSPORT)
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_HTTP_TRANSPORT, autospec=True)
     def test_successful_config(self, mock_transport_cls, mock_toolset_cls):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(conn_id="test_conn", conn_type="mcp", host="http://localhost:3001/mcp")
@@ -266,8 +266,8 @@ class TestMCPHookUIFieldBehaviour:
 
 
 class TestMCPHookTokenProvider:
-    @patch(_MCP_TOOLSET)
-    @patch(_HTTP_TRANSPORT)
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_HTTP_TRANSPORT, autospec=True)
     def test_http_uses_token_provider(self, mock_transport_cls, mock_toolset_cls):
         hook = MCPHook(mcp_conn_id="test_conn", token_provider=lambda: "minted-jwt")
         conn = Connection(conn_id="test_conn", conn_type="mcp", host="http://localhost:3001/mcp")
@@ -279,8 +279,8 @@ class TestMCPHookTokenProvider:
             headers={"Authorization": "Bearer minted-jwt"},
         )
 
-    @patch(_MCP_TOOLSET)
-    @patch(_HTTP_TRANSPORT)
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_HTTP_TRANSPORT, autospec=True)
     def test_token_provider_overrides_static_password(self, mock_transport_cls, mock_toolset_cls):
         hook = MCPHook(mcp_conn_id="test_conn", token_provider=lambda: "fresh")
         conn = Connection(
@@ -297,8 +297,8 @@ class TestMCPHookTokenProvider:
             headers={"Authorization": "Bearer fresh"},
         )
 
-    @patch(_MCP_TOOLSET)
-    @patch(_HTTP_TRANSPORT)
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_HTTP_TRANSPORT, autospec=True)
     def test_token_provider_called_when_establishing_connection(self, mock_transport_cls, mock_toolset_cls):
         provider = MagicMock(return_value="tok")
         hook = MCPHook(mcp_conn_id="test_conn", token_provider=provider)
@@ -308,15 +308,15 @@ class TestMCPHookTokenProvider:
 
         provider.assert_called_once_with()
 
-    @patch(_MCP_TOOLSET)
-    @patch(_HTTP_TRANSPORT)
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_HTTP_TRANSPORT, autospec=True)
     def test_masks_minted_token(self, mock_transport_cls, mock_toolset_cls):
         """The minted token must be registered with secret masking, like conn.password."""
         hook = MCPHook(mcp_conn_id="test_conn", token_provider=lambda: "minted-jwt")
         conn = Connection(conn_id="test_conn", conn_type="mcp", host="http://localhost:3001/mcp")
         with (
             patch.object(hook, "get_connection", return_value=conn),
-            patch("airflow.providers.common.ai.hooks.mcp.mask_secret") as mock_mask,
+            patch("airflow.providers.common.ai.hooks.mcp.mask_secret", autospec=True) as mock_mask,
         ):
             hook.get_conn()
 
@@ -331,8 +331,8 @@ class TestMCPHookTokenProvider:
             with pytest.raises(ValueError, match="must return a non-empty string token"):
                 hook.get_conn()
 
-    @patch(_MCP_TOOLSET)
-    @patch(_SSE_TRANSPORT)
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_SSE_TRANSPORT, autospec=True)
     def test_sse_uses_token_provider(self, mock_transport_cls, mock_toolset_cls):
         hook = MCPHook(mcp_conn_id="test_conn", token_provider=lambda: "minted")
         conn = Connection(
@@ -349,8 +349,8 @@ class TestMCPHookTokenProvider:
             headers={"Authorization": "Bearer minted"},
         )
 
-    @patch(_MCP_TOOLSET)
-    @patch(_STDIO_TRANSPORT)
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_STDIO_TRANSPORT, autospec=True)
     def test_stdio_does_not_invoke_token_provider(self, mock_transport_cls, mock_toolset_cls):
         """stdio has no HTTP headers, so the token provider must not be called."""
         provider = MagicMock(return_value="tok")
