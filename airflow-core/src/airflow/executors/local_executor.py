@@ -271,16 +271,13 @@ class LocalExecutor(BaseExecutor):
         # and an unbounded proc.join() will hang the scheduler indefinitely.
         try:
             for proc in self.workers.values():
-                if proc.is_alive():
-                    while proc.is_alive():
-                        self._read_results()
-                        proc.join(timeout=0.05)
+                while proc.is_alive():
+                    self._read_results()
+                    proc.join(timeout=0.05)
         except (KeyboardInterrupt, SystemExit):
             self.log.error("KeyboardInterrupt received during shutdown. Force terminating workers.")
-            for p in self.workers.values():
-                if p.is_alive():
-                    p.terminate()
-                    p.join(timeout=0.2)
+            for proc in self.workers.values():
+                self._terminate_worker_process(proc)
             raise
         finally:
             # Process any extra results before closing
@@ -297,9 +294,19 @@ class LocalExecutor(BaseExecutor):
         """Terminate all worker processes under control of the executor forcefully."""
         self.log.info("Terminating all LocalExecutor worker processes.")
         for proc in self.workers.values():
-            if proc.is_alive():
-                proc.terminate()
-                proc.join(timeout=0.2)
+            self._terminate_worker_process(proc)
+
+    def _terminate_worker_process(self, proc: multiprocessing.Process) -> None:
+        """Terminate a worker process, escalating to kill if it stays alive."""
+        if not proc.is_alive():
+            return
+
+        proc.terminate()
+        proc.join(timeout=0.2)
+        if proc.is_alive():
+            self.log.warning("Worker process %s did not stop after SIGTERM. Sending SIGKILL.", proc.pid)
+            proc.kill()
+            proc.join(timeout=0.2)
 
     def _process_workloads(self, workload_list):
         for workload in workload_list:
