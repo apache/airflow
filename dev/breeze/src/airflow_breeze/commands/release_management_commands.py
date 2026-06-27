@@ -100,6 +100,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES,
     DESTINATION_LOCATIONS,
     MULTI_PLATFORM,
+    SCHEMA_DESTINATION_LOCATIONS,
     UV_VERSION,
     get_airflow_version,
     get_airflowctl_version,
@@ -4831,6 +4832,67 @@ def publish_docs_to_s3(
             "Please check the version in the docs and try again.[/]"
         )
         sys.exit(1)
+
+
+@release_management_group.command(
+    name="publish-schemas-to-s3",
+    help="Publishes generated JSON schema artifacts (Execution API, Supervisor) to S3.",
+)
+@click.option(
+    "--execution-api",
+    help="Path to the generated Execution API OpenAPI JSON file.",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+)
+@click.option(
+    "--supervisor",
+    help="Path to the generated Supervisor schema JSON file.",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+)
+@click.option(
+    "--destination-location",
+    help="S3 location to publish the schemas under, e.g. "
+    "s3://live-docs-airflow-apache-org/schemas/. Each schema is written to "
+    "<location>/<schema-type>/<version>.json.",
+    type=NotVerifiedBetterChoice(SCHEMA_DESTINATION_LOCATIONS),
+    required=True,
+)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    help="Overwrite the dated schema file if it already exists in S3.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Dry run - only print what would be done.",
+)
+def publish_schemas_to_s3(
+    execution_api: Path | None,
+    supervisor: Path | None,
+    destination_location: str,
+    overwrite: bool,
+    dry_run: bool,
+):
+    from airflow_breeze.utils.publish_docs_to_s3 import publish_schemas_to_s3 as _publish_schemas_to_s3
+
+    if not execution_api and not supervisor:
+        console_print("[error]Provide at least one of --execution-api or --supervisor[/]")
+        sys.exit(1)
+
+    console_print("[info]Publishing schemas to S3[/]")
+    console_print(f"[info]Destination bucket location: {destination_location}[/]")
+    if execution_api:
+        console_print(f"[info]Execution API schema: {execution_api}[/]")
+    if supervisor:
+        console_print(f"[info]Supervisor schema: {supervisor}[/]")
+
+    _publish_schemas_to_s3(
+        destination_location=destination_location.rstrip("/"),
+        execution_api_schema=execution_api,
+        supervisor_schema=supervisor,
+        overwrite=overwrite,
+        dry_run=dry_run,
+    )
 
 
 @release_management_group.command(

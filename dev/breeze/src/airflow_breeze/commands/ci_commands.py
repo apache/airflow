@@ -906,7 +906,9 @@ def upgrade(
         pr_title = f"[{target_branch}] Upgrade important CI environment"
         pr_body = "This PR upgrades important dependencies of the CI environment."
 
-        # Check if there's already an open PR for this branch
+        # Check if there's already an open PR for this branch.
+        # gh pr list / gh pr ready filter by the bare head-branch name, not the
+        # "owner:branch" label that gh pr create needs for cross-fork PRs.
         existing_pr_result = run_command(
             [
                 "gh",
@@ -915,7 +917,7 @@ def upgrade(
                 "--repo",
                 "apache/airflow",
                 "--head",
-                head_ref,
+                branch_name,
                 "--base",
                 target_branch,
                 "--state",
@@ -945,7 +947,7 @@ def upgrade(
                         "--repo",
                         "apache/airflow",
                         "--undo",
-                        head_ref,
+                        branch_name,
                     ],
                     capture_output=True,
                     text=True,
@@ -981,10 +983,15 @@ def upgrade(
                 env=command_env,
             )
             if pr_result.returncode != 0:
-                console_print(f"[error]Failed to create PR:\n{pr_result.stdout}\n{pr_result.stderr}[/]")
-                sys.exit(1)
-            pr_url = pr_result.stdout.strip() if pr_result.returncode == 0 else ""
-            console_print(f"[success]PR created successfully: {pr_url}.[/]")
+                # The branch was already force-pushed, so an existing PR is already
+                # up to date — treat a duplicate as success rather than failing the run.
+                if "already exists" in pr_result.stderr:
+                    console_print(f"[success]PR already exists for {head_ref}, updated with force push.[/]")
+                else:
+                    console_print(f"[error]Failed to create PR:\n{pr_result.stdout}\n{pr_result.stderr}[/]")
+                    sys.exit(1)
+            else:
+                console_print(f"[success]PR created successfully: {pr_result.stdout.strip()}.[/]")
 
         # Switch back to appropriate branch and delete the temporary branch
         console_print(f"[info]Cleaning up temporary branch {branch_name}...[/]")
