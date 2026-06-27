@@ -521,7 +521,7 @@ def get_dag_runs(
         get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the Dag exists.
         query = query.filter(DagRun.dag_id == dag_id).options()
 
-    if tags != "":
+    if tags.value :
         query = query.join(DagTag, DagRun.dag_id == DagTag.dag_id)
 
     # Add join with DagVersion if dag_version filter is active

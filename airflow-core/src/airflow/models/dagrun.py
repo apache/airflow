@@ -192,6 +192,7 @@ class DagRun(Base, LoggingMixin):
     # Foreign key to LogTemplate. DagRun rows created prior to this column's
     # existence have this set to NULL. Later rows automatically populate this on
     # insert to point to the latest LogTemplate entry.
+    tags: Mapped[str | None] = mapped_column(String(512), nullable=True)
     log_template_id: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey("log_template.id", name="task_instance_log_template_id_fkey", ondelete="NO ACTION"),
@@ -347,6 +348,7 @@ class DagRun(Base, LoggingMixin):
         partition_key: str | None = None,
         partition_date: datetime | None = None,
         note: str | None = None,
+        tags: str | None = None,
     ):
         # For manual runs where logical_date is None, ensure no data_interval is set.
         if logical_date is None and data_interval is not None:
