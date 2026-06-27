@@ -111,16 +111,13 @@ class AirbyteHook(BaseHook):
         if self.conn["proxies"]:
             self.log.debug("Creating client proxy...")
             proxies = self.conn["proxies"]
-            # airbyte-api >= 1.0 requires an httpx-compatible client.
-            # httpx supports per-protocol proxies via transport mounts.
             mounts = {}
             if isinstance(proxies, dict):
                 for scheme, proxy_url in proxies.items():
-                    # Normalize scheme keys to httpx mount format (e.g. "http" -> "http://")
+                    # httpx mount keys require a "://" suffix
                     key = scheme if "://" in scheme else f"{scheme}://"
                     mounts[key] = httpx.HTTPTransport(proxy=proxy_url)
             else:
-                # Single proxy URL string — apply to all traffic
                 mounts = {
                     "http://": httpx.HTTPTransport(proxy=proxies),
                     "https://": httpx.HTTPTransport(proxy=proxies),
