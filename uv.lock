@@ -2906,7 +2906,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "airbyte-api", specifier = ">=0.52.0" },
+    { name = "airbyte-api", specifier = ">=0.52.0,<1.0.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "requests", specifier = ">=2.32.0" },

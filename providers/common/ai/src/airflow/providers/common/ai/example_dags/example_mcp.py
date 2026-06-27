@@ -74,19 +74,20 @@ example_mcp_multiple_servers()
 
 
 # ---------------------------------------------------------------------------
-# 3. Direct PydanticAI MCP servers (no Airflow connection needed)
+# 3. Direct PydanticAI MCP toolsets (no Airflow connection needed)
 # ---------------------------------------------------------------------------
-# AgentOperator accepts any PydanticAI AbstractToolset, including MCP servers
+# AgentOperator accepts any PydanticAI AbstractToolset, including MCPToolset
 # directly. Use this for prototyping or when you want full PydanticAI control.
 #
-#   from pydantic_ai.mcp import MCPServerStreamableHTTP, MCPServerStdio
+#   from fastmcp.client.transports import StdioTransport
+#   from pydantic_ai.mcp import MCPToolset
 #
 #   AgentOperator(
 #       task_id="direct_mcp",
 #       prompt="What tools are available?",
 #       llm_conn_id="pydanticai_default",
 #       toolsets=[
-#           MCPServerStreamableHTTP("http://localhost:3001/mcp"),
-#           MCPServerStdio("uvx", args=["mcp-run-python"]),
+#           MCPToolset("http://localhost:3001/mcp"),
+#           MCPToolset(StdioTransport(command="uvx", args=["mcp-run-python"])),
 #       ],
 #   )
