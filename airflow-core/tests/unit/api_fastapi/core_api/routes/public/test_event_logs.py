@@ -128,6 +128,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
                 {
                     "event": EVENT_WITH_OWNER,
                     "owner": OWNER,
+                    "owner_display_name": OWNER_DISPLAY_NAME,
                 },
             ),
             (
@@ -153,6 +154,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
                     "event": EVENT_WITH_OWNER_AND_TASK_INSTANCE,
                     "map_index": -1,
                     "owner": OWNER,
+                    "owner_display_name": OWNER_DISPLAY_NAME,
                     "run_id": DAG_RUN_ID,
                     "task_id": TASK_ID,
                     "task_display_name": TASK_DISPLAY_NAME,
@@ -185,6 +187,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
             if event_log.logical_date
             else None,
             "owner": expected_body.get("owner"),
+            "owner_display_name": expected_body.get("owner_display_name"),
             "extra": expected_body.get("extra"),
         }
 
@@ -284,6 +287,13 @@ class TestGetEventLogs(TestEventLogsEndpoint):
                 2,
                 [TASK_INSTANCE_EVENT, EVENT_WITH_OWNER_AND_TASK_INSTANCE],
             ),
+            # owner_display_name exact filter
+            (
+                {"owner_display_name": OWNER_DISPLAY_NAME},
+                200,
+                2,
+                [EVENT_WITH_OWNER, EVENT_WITH_OWNER_AND_TASK_INSTANCE],
+            ),
             # multiple equal filters
             (
                 {"event": EVENT_WITH_OWNER, "owner": OWNER},
@@ -347,6 +357,20 @@ class TestGetEventLogs(TestEventLogsEndpoint):
                 200,
                 2,
                 [EVENT_WITH_OWNER_AND_TASK_INSTANCE],
+            ),
+            # owner_display_name pattern filter
+            (
+                {"owner_display_name_pattern": "%Owner%"},
+                200,
+                2,
+                [EVENT_WITH_OWNER, EVENT_WITH_OWNER_AND_TASK_INSTANCE],
+            ),
+            # owner_display_name prefix pattern filter
+            (
+                {"owner_display_name_prefix_pattern": "Test"},
+                200,
+                2,
+                [EVENT_WITH_OWNER, EVENT_WITH_OWNER_AND_TASK_INSTANCE],
             ),
         ],
     )

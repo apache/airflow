@@ -100,6 +100,7 @@ def get_event_logs(
                     "event",
                     "logical_date",
                     "owner",
+                    "owner_display_name",
                     "extra",
                 ],
                 Log,
@@ -114,6 +115,9 @@ def get_event_logs(
     map_index: Annotated[FilterParam[int | None], Depends(filter_param_factory(Log.map_index, int | None))],
     try_number: Annotated[FilterParam[int | None], Depends(filter_param_factory(Log.try_number, int | None))],
     owner: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.owner, str | None))],
+    owner_display_name: Annotated[
+        FilterParam[str | None], Depends(filter_param_factory(Log.owner_display_name, str | None))
+    ],
     event: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.event, str | None))],
     excluded_events: Annotated[
         FilterParam[list[str] | None],
@@ -138,6 +142,10 @@ def get_event_logs(
     task_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.task_id, "task_id_pattern"))],
     run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.run_id, "run_id_pattern"))],
     owner_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.owner, "owner_pattern"))],
+    owner_display_name_pattern: Annotated[
+        _SearchParam,
+        Depends(search_param_factory(Log.owner_display_name, "owner_display_name_pattern")),
+    ],
     event_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.event, "event_pattern"))],
     # Prefix pattern search filters (index-friendly, case-sensitive)
     dag_id_prefix_pattern: Annotated[
@@ -155,6 +163,10 @@ def get_event_logs(
     owner_prefix_pattern: Annotated[
         _PrefixSearchParam,
         Depends(prefix_search_param_factory(Log.owner, "owner_prefix_pattern")),
+    ],
+    owner_display_name_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(Log.owner_display_name, "owner_display_name_prefix_pattern")),
     ],
     event_prefix_pattern: Annotated[
         _PrefixSearchParam,
@@ -185,6 +197,7 @@ def get_event_logs(
             map_index,
             try_number,
             owner,
+            owner_display_name,
             event,
             excluded_events,
             included_events,
@@ -199,6 +212,8 @@ def get_event_logs(
             run_id_prefix_pattern,
             owner_pattern,
             owner_prefix_pattern,
+            owner_display_name_pattern,
+            owner_display_name_prefix_pattern,
             event_pattern,
             event_prefix_pattern,
             # Permission
