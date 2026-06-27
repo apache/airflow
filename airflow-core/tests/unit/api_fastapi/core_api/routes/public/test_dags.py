@@ -137,7 +137,17 @@ class TestDagEndpoint:
             is_stale=False,
             is_paused=False,
             owners="airflow",
-            asset_expression={"any": [{"uri": "test://scheduled_asset"}]},
+            asset_expression={
+                "any": [
+                    {
+                        "asset": {
+                            "uri": "test://scheduled_asset",
+                            "name": "scheduled_asset",
+                            "group": "test-group",
+                        }
+                    }
+                ]
+            },
             max_active_tasks=16,
             max_active_runs=16,
             max_consecutive_failed_dag_runs=0,
@@ -156,7 +166,9 @@ class TestDagEndpoint:
             is_stale=False,
             is_paused=False,
             owners="airflow",
-            asset_expression={"any": [{"uri": "test://asset1"}]},
+            asset_expression={
+                "any": [{"asset": {"uri": "test://asset1", "name": "test_asset_1", "group": "test-group"}}]
+            },
             max_active_tasks=16,
             max_active_runs=16,
             max_consecutive_failed_dag_runs=0,
@@ -174,7 +186,11 @@ class TestDagEndpoint:
             is_stale=False,
             is_paused=False,
             owners="airflow",
-            asset_expression={"any": [{"uri": "s3://bucket/dataset"}]},
+            asset_expression={
+                "any": [
+                    {"asset": {"uri": "s3://bucket/dataset", "name": "dataset_asset", "group": "test-group"}}
+                ]
+            },
             max_active_tasks=16,
             max_active_runs=16,
             max_consecutive_failed_dag_runs=0,
@@ -1202,6 +1218,19 @@ class TestDagDetails(TestDagEndpoint):
         assert "is_favorite" in body
         assert isinstance(body["is_favorite"], bool)
         assert body["is_favorite"] is False
+
+    def test_dag_details_serves_legacy_asset_expression_as_null(self, session, test_client):
+        """A pre-3.0 dataset-format ``asset_expression`` that the typed model cannot describe is
+        served as ``null`` instead of 500ing the endpoint (handled by ``MaybeAssetExpression``)."""
+        dag_model = session.get(DagModel, DAG2_ID)
+        # The 2.x dataset scheduler stored bare-string leaves; the 3.0 column rename kept them verbatim.
+        dag_model.asset_expression = {"any": ["s3://legacy-a", "s3://legacy-b"]}
+        session.commit()
+
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+
+        assert response.status_code == 200
+        assert response.json()["asset_expression"] is None
 
     def test_dag_details_includes_active_runs_count(self, session, test_client):
         """Test that DAG details include the active_runs_count field."""

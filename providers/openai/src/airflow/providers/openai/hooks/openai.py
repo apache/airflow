@@ -23,8 +23,14 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, BinaryIO, Literal
 
 from openai import OpenAI
+from openai.auth import (
+    azure_managed_identity_token_provider,
+    gcp_id_token_provider,
+    k8s_service_account_token_provider,
+)
 
 if TYPE_CHECKING:
+    from openai.auth import SubjectTokenProvider, WorkloadIdentity
     from openai.types import (
         FileDeleted,
         FileObject,
@@ -42,7 +48,10 @@ if TYPE_CHECKING:
         ChatCompletionToolMessageParam,
         ChatCompletionUserMessageParam,
     )
+    from openai.types.conversations import Conversation, ConversationDeletedResource
+    from openai.types.responses import Response
     from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
+from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
 
@@ -108,17 +117,95 @@ class OpenAIHook(BaseHook):
         return self.get_conn()
 
     def get_conn(self) -> OpenAI:
-        """Return an OpenAI connection object."""
+        """
+        Return an OpenAI connection object.
+
+        The authentication mechanism is selected with the ``auth_type`` key in the connection
+        ``extra`` (default ``"api_key"``):
+
+        * ``"api_key"`` -- use the API key from the connection password (or ``openai_client_kwargs``).
+        * ``"workload_identity"`` -- exchange a short-lived identity token for API access using the
+          OpenAI client's workload identity support. See :meth:`_build_workload_identity`.
+        """
         conn = self.get_connection(self.conn_id)
         extras = conn.extra_dejson
         openai_client_kwargs = extras.get("openai_client_kwargs", {})
-        api_key = openai_client_kwargs.pop("api_key", None) or conn.password
         base_url = openai_client_kwargs.pop("base_url", None) or conn.host or None
-        return OpenAI(
-            api_key=api_key,
-            base_url=base_url,
-            **openai_client_kwargs,
+        # Pop api_key for every path so it is never forwarded alongside ``workload_identity``
+        # (the OpenAI client rejects both being set at once).
+        api_key = openai_client_kwargs.pop("api_key", None)
+        auth_type = extras.get("auth_type", "api_key")
+
+        if auth_type == "api_key":
+            return OpenAI(api_key=api_key or conn.password, base_url=base_url, **openai_client_kwargs)
+
+        if auth_type == "workload_identity":
+            return OpenAI(
+                workload_identity=self._build_workload_identity(extras),
+                base_url=base_url,
+                **openai_client_kwargs,
+            )
+
+        raise ValueError(
+            f"Unsupported auth_type {auth_type!r} for OpenAI connection {self.conn_id!r}; "
+            "expected 'api_key' or 'workload_identity'."
         )
+
+    def _build_workload_identity(self, extras: dict[str, Any]) -> WorkloadIdentity:
+        """
+        Build the OpenAI ``workload_identity`` config from the connection ``extra``.
+
+        Returns the ``workload_identity`` mapping (``identity_provider_id``, ``service_account_id``,
+        ``provider``, and optional ``refresh_buffer_seconds``) for the token source selected by
+        ``workload_identity_provider``. Raises ``ValueError`` when a required key is missing or the
+        source is unknown. See :ref:`howto/connection:openai` for the full key reference.
+        """
+        for key in ("identity_provider_id", "service_account_id"):
+            if key not in extras:
+                raise ValueError(
+                    f"Missing required {key!r} for workload_identity auth on OpenAI connection "
+                    f"{self.conn_id!r}."
+                )
+
+        provider_name = extras.get("workload_identity_provider")
+        provider: SubjectTokenProvider
+        if provider_name == "kubernetes":
+            kwargs = {key: extras[key] for key in ("token_file_path",) if key in extras}
+            provider = k8s_service_account_token_provider(**kwargs)
+        elif provider_name == "azure":
+            kwargs = {
+                key: extras[key]
+                for key in ("resource", "object_id", "client_id", "msi_res_id", "api_version")
+                if key in extras
+            }
+            provider = azure_managed_identity_token_provider(**kwargs)
+        elif provider_name == "gcp":
+            kwargs = {key: extras[key] for key in ("audience",) if key in extras}
+            provider = gcp_id_token_provider(**kwargs)
+        elif provider_name == "custom":
+            if "token_provider" not in extras:
+                raise ValueError(
+                    f"Missing required 'token_provider' for custom workload_identity auth on OpenAI "
+                    f"connection {self.conn_id!r}."
+                )
+            provider = {
+                "token_type": extras.get("token_type", "jwt"),
+                "get_token": import_string(extras["token_provider"]),
+            }
+        else:
+            raise ValueError(
+                f"Unsupported workload_identity_provider {provider_name!r} for OpenAI connection "
+                f"{self.conn_id!r}; expected one of 'kubernetes', 'azure', 'gcp', 'custom'."
+            )
+
+        workload_identity: WorkloadIdentity = {
+            "identity_provider_id": extras["identity_provider_id"],
+            "service_account_id": extras["service_account_id"],
+            "provider": provider,
+        }
+        if "refresh_buffer_seconds" in extras:
+            workload_identity["refresh_buffer_seconds"] = extras["refresh_buffer_seconds"]
+        return workload_identity
 
     def create_chat_completion(
         self,
@@ -129,7 +216,7 @@ class OpenAIHook(BaseHook):
             | ChatCompletionToolMessageParam
             | ChatCompletionFunctionMessageParam
         ],
-        model: str = "gpt-3.5-turbo",
+        model: str = "gpt-4o-mini",
         **kwargs: Any,
     ) -> list[ChatCompletionMessage]:
         """
@@ -141,7 +228,69 @@ class OpenAIHook(BaseHook):
         response = self.conn.chat.completions.create(model=model, messages=messages, **kwargs)
         return response.choices
 
-    def create_assistant(self, model: str = "gpt-3.5-turbo", **kwargs: Any) -> Assistant:
+    def create_response(self, input: Any, model: str = "gpt-4o-mini", **kwargs: Any) -> Response:
+        """
+        Create a model response using the Responses API.
+
+        :param input: Text, image, or file input(s) to the model.
+        :param model: ID of the model to use.
+        """
+        return self.conn.responses.create(model=model, input=input, **kwargs)
+
+    def get_response(self, response_id: str, **kwargs: Any) -> Response:
+        """
+        Retrieve a previously created model response.
+
+        :param response_id: The ID of the response to retrieve.
+        """
+        return self.conn.responses.retrieve(response_id, **kwargs)
+
+    def delete_response(self, response_id: str) -> None:
+        """
+        Delete a model response.
+
+        :param response_id: The ID of the response to delete.
+        """
+        self.conn.responses.delete(response_id)
+
+    def cancel_response(self, response_id: str) -> Response:
+        """
+        Cancel an in-progress response created with ``background=True``.
+
+        :param response_id: The ID of the response to cancel.
+        """
+        return self.conn.responses.cancel(response_id)
+
+    def create_conversation(self, **kwargs: Any) -> Conversation:
+        """Create a conversation that can be reused across responses to persist state."""
+        return self.conn.conversations.create(**kwargs)
+
+    def get_conversation(self, conversation_id: str) -> Conversation:
+        """
+        Retrieve a conversation.
+
+        :param conversation_id: The ID of the conversation to retrieve.
+        """
+        return self.conn.conversations.retrieve(conversation_id)
+
+    def update_conversation(self, conversation_id: str, metadata: dict[str, str]) -> Conversation:
+        """
+        Update a conversation's metadata.
+
+        :param conversation_id: The ID of the conversation to update.
+        :param metadata: Set of key-value pairs to attach to the conversation.
+        """
+        return self.conn.conversations.update(conversation_id, metadata=metadata)
+
+    def delete_conversation(self, conversation_id: str) -> ConversationDeletedResource:
+        """
+        Delete a conversation.
+
+        :param conversation_id: The ID of the conversation to delete.
+        """
+        return self.conn.conversations.delete(conversation_id)
+
+    def create_assistant(self, model: str = "gpt-4o-mini", **kwargs: Any) -> Assistant:
         """
         Create an OpenAI assistant using the given model.
 
@@ -297,7 +446,7 @@ class OpenAIHook(BaseHook):
     def create_embeddings(
         self,
         text: str | list[str] | list[int] | list[list[int]],
-        model: str = "text-embedding-ada-002",
+        model: str = "text-embedding-3-small",
         **kwargs: Any,
     ) -> list[float]:
         """

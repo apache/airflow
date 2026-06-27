@@ -84,6 +84,66 @@ export type AssetEventResponse = {
 };
 
 /**
+ * An asset alias leaf: ``{"alias": {"name": ..., "group": ...}}``.
+ */
+export type AssetExpressionAlias = {
+    alias: AssetExpressionAliasInfo;
+};
+
+/**
+ * Body of an ``alias`` leaf node.
+ */
+export type AssetExpressionAliasInfo = {
+    name: string;
+    group: string;
+};
+
+/**
+ * An "and" node: ``{"all": [...]}`` -- satisfied when all children are satisfied.
+ */
+export type AssetExpressionAll = {
+    all: Array<(AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll)>;
+};
+
+/**
+ * An "or" node: ``{"any": [...]}`` -- satisfied when any child is satisfied.
+ */
+export type AssetExpressionAny = {
+    any: Array<(AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll)>;
+};
+
+/**
+ * An asset leaf: ``{"asset": {"uri": ..., "name": ..., "group": ...}}``.
+ */
+export type AssetExpressionAsset = {
+    asset: AssetExpressionAssetInfo;
+};
+
+/**
+ * Body of an ``asset`` leaf node.
+ *
+ * ``id`` is injected by ``DagModelOperation.update_dag_asset_expression`` when the expression is
+ * persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``. It is left
+ * optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
+ * degrades gracefully instead of failing response validation.
+ */
+export type AssetExpressionAssetInfo = {
+    uri: string;
+    name: string;
+    group: string;
+    id?: number | null;
+};
+
+/**
+ * An unresolved asset reference leaf: ``{"asset_ref": {"name": ...}}`` or ``{"asset_ref": {"uri": ...}}``.
+ */
+export type AssetExpressionRef = {
+    asset_ref: {
+        [key: string]: (string);
+    };
+};
+
+/**
  * Asset serializer for responses.
  */
 export type AssetResponse = {
@@ -347,6 +407,18 @@ export type BulkDAGRunBody = {
  * Request body for the bulk clear Dag Runs endpoint.
  */
 export type BulkDAGRunClearBody = {
+    /**
+     * Select runs by exact partition key match. Mutually exclusive with the other partition selectors.
+     */
+    partition_key?: string | null;
+    /**
+     * Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.
+     */
+    partition_date_start?: string | null;
+    /**
+     * Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.
+     */
+    partition_date_end?: string | null;
     dry_run?: boolean;
     only_failed?: boolean;
     /**
@@ -358,7 +430,7 @@ export type BulkDAGRunClearBody = {
      */
     run_on_latest_version?: boolean | null;
     note?: string | null;
-    dag_runs: Array<BulkDAGRunBody>;
+    dag_runs?: Array<BulkDAGRunBody>;
 };
 
 export type BulkDeleteAction_BulkDAGRunBody_ = {
@@ -537,6 +609,45 @@ export type BulkUpdateAction_VariableBody_ = {
      */
     update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+/**
+ * Request body for the clearPartitions endpoint (column-reset: set partition fields to None).
+ */
+export type ClearPartitionsBody = {
+    /**
+     * Select runs by exact partition key match. Mutually exclusive with the other partition selectors.
+     */
+    partition_key?: string | null;
+    /**
+     * Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.
+     */
+    partition_date_start?: string | null;
+    /**
+     * Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.
+     */
+    partition_date_end?: string | null;
+    /**
+     * Select runs by exact run_id. Mutually exclusive with ``partition_key`` and partition date window.
+     */
+    run_id?: string | null;
+    /**
+     * Also clear task instances on the matched runs.
+     */
+    clear_task_instances?: boolean;
+    /**
+     * If True, compute counts without writing any changes.
+     */
+    dry_run?: boolean;
+};
+
+/**
+ * Response for the clearPartitions endpoint.
+ */
+export type ClearPartitionsResponse = {
+    dag_runs_cleared: number;
+    task_instances_cleared: number;
+    dry_run: boolean;
 };
 
 /**
@@ -746,9 +857,7 @@ export type DAGDetailsResponse = {
     owners: Array<(string)>;
     catchup: boolean;
     dag_run_timeout: string | null;
-    asset_expression: {
-    [key: string]: unknown;
-} | null;
+    asset_expression: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
     doc_md: string | null;
     start_date: string | null;
     end_date: string | null;
@@ -917,6 +1026,7 @@ export type DAGRunResponse = {
     bundle_version: string | null;
     dag_display_name: string;
     partition_key: string | null;
+    partition_date: string | null;
 };
 
 /**
@@ -2211,9 +2321,7 @@ export type DAGWithLatestDagRunsResponse = {
     next_dagrun_run_after: string | null;
     allowed_run_types: Array<DagRunType> | null;
     owners: Array<(string)>;
-    asset_expression: {
-    [key: string]: unknown;
-} | null;
+    asset_expression: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
     latest_dag_runs: Array<DAGRunLightResponse>;
     pending_actions: Array<HITLDetail>;
     is_favorite: boolean;
@@ -2420,6 +2528,7 @@ export type LightGridTaskInstanceSummary = {
     min_start_date: string | null;
     max_end_date: string | null;
     dag_version_number?: number | null;
+    has_note?: boolean;
 };
 
 /**
@@ -2456,9 +2565,7 @@ export type NextRunAssetEventResponse = {
  * Response for the ``next_run_assets`` endpoint.
  */
 export type NextRunAssetsResponse = {
-    asset_expression?: {
-    [key: string]: unknown;
-} | null;
+    asset_expression?: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
     events: Array<NextRunAssetEventResponse>;
     pending_partition_count?: number | null;
 };
@@ -2505,9 +2612,7 @@ export type PartitionedDagRunCollectionResponse = {
     partitioned_dag_runs: Array<PartitionedDagRunResponse>;
     total: number;
     asset_expressions?: {
-    [key: string]: ({
-    [key: string]: unknown;
-} | null);
+    [key: string]: (AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null);
 } | null;
 };
 
@@ -2524,9 +2629,7 @@ export type PartitionedDagRunDetailResponse = {
     assets: Array<PartitionedDagRunAssetResponse>;
     total_required: number;
     total_received: number;
-    asset_expression?: {
-    [key: string]: unknown;
-} | null;
+    asset_expression?: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
 };
 
 /**
@@ -3115,6 +3218,13 @@ export type ClearDagRunsData = {
 };
 
 export type ClearDagRunsResponse = ClearTaskInstanceCollectionResponse | DAGRunCollectionResponse;
+
+export type ClearDagRunPartitionsData = {
+    dagId: string;
+    requestBody: ClearPartitionsBody;
+};
+
+export type ClearDagRunPartitionsResponse = ClearPartitionsResponse;
 
 export type GetDagRunStatsData = {
     dagId: string;
@@ -5704,6 +5814,37 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: ClearTaskInstanceCollectionResponse | DAGRunCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/clearPartitions': {
+        post: {
+            req: ClearDagRunPartitionsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ClearPartitionsResponse;
                 /**
                  * Bad Request
                  */

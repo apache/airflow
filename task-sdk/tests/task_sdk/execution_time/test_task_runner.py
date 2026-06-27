@@ -2001,6 +2001,7 @@ class TestRuntimeTaskInstance:
             "ts_nodash": "20241201T010000",
             "ts_nodash_with_tz": "20241201T010000+0000",
             "partition_key": dr.partition_key,
+            "partition_date": dr.partition_date,
         }
 
     def test_partition_key_in_context(self, create_runtime_ti, mock_supervisor_comms):
@@ -2026,6 +2027,37 @@ class TestRuntimeTaskInstance:
         dr.partition_key = "some-partition"
         context = runtime_ti.get_template_context()
         assert context["partition_key"] == "some-partition"
+
+    def test_partition_date_in_context(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that partition_date from dag_run is exposed in the template context."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
+
+        dr = runtime_ti._ti_context_from_server.dag_run
+
+        mock_supervisor_comms.send.return_value = PrevSuccessfulDagRunResult(
+            data_interval_end=dr.logical_date - timedelta(hours=1),
+            data_interval_start=dr.logical_date - timedelta(hours=2),
+            start_date=dr.start_date - timedelta(hours=1),
+            end_date=dr.start_date,
+        )
+
+        context = runtime_ti.get_template_context()
+
+        # Default: partition_date is None
+        assert context["partition_date"] is None
+
+        # Set partition_date on dag_run and verify it surfaces in context
+        partition_date = timezone.datetime(2026, 5, 20, 1, 0, 0)
+        dr.partition_date = partition_date
+        context = runtime_ti.get_template_context()
+        assert context["partition_date"] == partition_date
+
+        # Naive datetime is coerced to tz-aware so Jinja `| ds` / `| ts` filters
+        # operate on a real awareness boundary.
+        dr.partition_date = datetime(2026, 5, 20, 1, 0, 0)
+        context = runtime_ti.get_template_context()
+        assert context["partition_date"].tzinfo is not None
 
     def test_lazy_loading_not_triggered_until_accessed(self, create_runtime_ti, mock_supervisor_comms):
         """Ensure lazy-loaded attributes are not resolved until accessed."""
@@ -5699,24 +5731,15 @@ class TestTaskInstanceStateOperations:
 
         mock_supervisor_comms.send.assert_any_call(DeleteTaskStateStore(ti_id=runtime_ti.id, key="job_id"))
 
-    @pytest.mark.parametrize(
-        ("call_kwargs", "expected_flag"),
-        [
-            pytest.param({}, False, id="default"),
-            pytest.param({"all_map_indices": True}, True, id="fleet-wipe"),
-        ],
-    )
-    def test_task_can_clear_state(self, call_kwargs, expected_flag, create_runtime_ti, mock_supervisor_comms):
+    def test_task_can_clear_state(self, create_runtime_ti, mock_supervisor_comms):
         class MyOperator(BaseOperator):
             def execute(self, context):
-                context["task_state_store"].clear(**call_kwargs)
+                context["task_state_store"].clear()
 
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
-        mock_supervisor_comms.send.assert_any_call(
-            ClearTaskStateStore(ti_id=runtime_ti.id, all_map_indices=expected_flag)
-        )
+        mock_supervisor_comms.send.assert_any_call(ClearTaskStateStore(ti_id=runtime_ti.id))
 
     @staticmethod
     def _watcher_side_effect(msg=None, *args, **kwargs):
@@ -5984,6 +6007,28 @@ class TestTaskInstanceStateOperations:
         )
 
     @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_clear_on_success_skips_backend_clear_when_no_custom_backend(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """clear_on_success does not call backend.clear() when no custom backend is configured."""
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        task = MyOperator(task_id="t")
+        runtime_ti = create_runtime_ti(task=task)
+
+        # no need to patch because default of _get_worker_state_store_backend() is None
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        sent_types = [
+            type(call.kwargs.get("msg") or (call.args[0] if call.args else None))
+            for call in mock_supervisor_comms.send.call_args_list
+        ]
+        assert ClearTaskStateStore not in sent_types
+
+    @conf_vars({("state_store", "clear_on_success"): "True"})
     def test_clear_on_success_clears_backend_without_comms_roundtrip(
         self, create_runtime_ti, mock_supervisor_comms
     ):
@@ -5997,8 +6042,15 @@ class TestTaskInstanceStateOperations:
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
 
-        with mock.patch(
-            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=mock_backend
+        with (
+            mock.patch(
+                "airflow.sdk.execution_time.context._get_worker_state_store_backend",
+                return_value=mock_backend,
+            ),
+            mock.patch(
+                "airflow.sdk.execution_time.task_runner._get_worker_state_store_backend",
+                return_value=mock_backend,
+            ),
         ):
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 

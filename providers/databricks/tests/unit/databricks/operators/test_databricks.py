@@ -1518,6 +1518,139 @@ class TestDatabricksSubmitRunOperator:
         db_mock_class.assert_not_called()
 
 
+class TestDatabricksSubmitRunOperatorOpenLineageInjection:
+    """Tests for OpenLineage parent job info and transport info injection in DatabricksSubmitRunOperator."""
+
+    @mock.patch(
+        "airflow.providers.databricks.utils.openlineage.inject_openlineage_properties_into_databricks_job"
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_inject_parent_job_info_called_when_enabled(self, db_mock_class, mock_inject):
+        mock_inject.side_effect = lambda job, context, inject_parent_job_info, inject_transport_info: {
+            **job,
+            "new_cluster": {
+                **job["new_cluster"],
+                "spark_conf": {"spark.openlineage.parentJobNamespace": "ns"},
+            },
+        }
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID,
+            new_cluster=NEW_CLUSTER,
+            notebook_task=NOTEBOOK_TASK,
+            openlineage_inject_parent_job_info=True,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        op.execute(None)
+
+        mock_inject.assert_called_once()
+        submitted = db_mock.submit_run.call_args.args[0]
+        assert submitted["new_cluster"]["spark_conf"]["spark.openlineage.parentJobNamespace"] == "ns"
+
+    @mock.patch(
+        "airflow.providers.databricks.utils.openlineage.inject_openlineage_properties_into_databricks_job"
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_inject_parent_job_info_not_called_when_disabled(self, db_mock_class, mock_inject):
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID,
+            new_cluster=NEW_CLUSTER,
+            notebook_task=NOTEBOOK_TASK,
+            openlineage_inject_parent_job_info=False,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        op.execute(None)
+
+        mock_inject.assert_not_called()
+
+    @mock.patch(
+        "airflow.providers.databricks.utils.openlineage.inject_openlineage_properties_into_databricks_job"
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_inject_transport_info_called_when_enabled(self, db_mock_class, mock_inject):
+        mock_inject.side_effect = lambda job, context, inject_parent_job_info, inject_transport_info: {
+            **job,
+            "new_cluster": {**job["new_cluster"], "spark_conf": {"spark.openlineage.transport.type": "http"}},
+        }
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID,
+            new_cluster=NEW_CLUSTER,
+            notebook_task=NOTEBOOK_TASK,
+            openlineage_inject_transport_info=True,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        op.execute(None)
+
+        mock_inject.assert_called_once()
+        submitted = db_mock.submit_run.call_args.args[0]
+        assert submitted["new_cluster"]["spark_conf"]["spark.openlineage.transport.type"] == "http"
+
+    @mock.patch(
+        "airflow.providers.databricks.utils.openlineage.inject_openlineage_properties_into_databricks_job"
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_inject_both_parent_and_transport_info(self, db_mock_class, mock_inject):
+        mock_inject.side_effect = lambda job, context, inject_parent_job_info, inject_transport_info: job
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID,
+            new_cluster=NEW_CLUSTER,
+            notebook_task=NOTEBOOK_TASK,
+            openlineage_inject_parent_job_info=True,
+            openlineage_inject_transport_info=True,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        op.execute(None)
+
+        mock_inject.assert_called_once()
+        _, call_kwargs = mock_inject.call_args
+        assert call_kwargs["inject_parent_job_info"] is True
+        assert call_kwargs["inject_transport_info"] is True
+
+    @mock.patch(
+        "airflow.providers.databricks.utils.openlineage.inject_openlineage_properties_into_databricks_job"
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_inject_parent_job_info_preserves_existing_config(self, db_mock_class, mock_inject):
+        """Existing ``spark_conf`` entries are preserved alongside the injected OpenLineage properties."""
+        new_cluster = {**NEW_CLUSTER, "spark_conf": {"spark.executor.memory": "8g"}}
+        mock_inject.side_effect = lambda job, context, inject_parent_job_info, inject_transport_info: {
+            **job,
+            "new_cluster": {
+                **job["new_cluster"],
+                "spark_conf": {
+                    **job["new_cluster"]["spark_conf"],
+                    "spark.openlineage.parentJobNamespace": "ns",
+                },
+            },
+        }
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID,
+            new_cluster=new_cluster,
+            notebook_task=NOTEBOOK_TASK,
+            openlineage_inject_parent_job_info=True,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        op.execute(None)
+
+        submitted = db_mock.submit_run.call_args.args[0]
+        assert submitted["new_cluster"]["spark_conf"]["spark.executor.memory"] == "8g"
+        assert submitted["new_cluster"]["spark_conf"]["spark.openlineage.parentJobNamespace"] == "ns"
+
+
 class TestDatabricksRunNowOperator:
     def test_init_with_named_parameters(self):
         """
@@ -2847,6 +2980,107 @@ class TestDatabricksSQLStatementsOperator:
             "externalQuery": ExternalQueryRunFacet(externalQueryId=STATEMENT_ID, source="dbx_namespace")
         }
         assert result.job_facets == {"sql": SQLJobFacet(query="normalized" + query)}
+
+    def test_query_tags_defaults(self):
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID, statement="select * from test.test;", warehouse_id=WAREHOUSE_ID
+        )
+        assert op.query_tags == {}
+        assert op.include_airflow_query_tags is True
+
+    def test_query_tags_in_template_fields(self):
+        assert "query_tags" in DatabricksSQLStatementsOperator.template_fields
+
+    def test_query_tags_stored(self):
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="select * from test.test;",
+            warehouse_id=WAREHOUSE_ID,
+            query_tags={"env": "prod"},
+        )
+        assert op.query_tags == {"env": "prod"}
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_execute_passes_query_tags_to_post_sql_statement(self, db_mock_class):
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="select * from test.test;",
+            warehouse_id=WAREHOUSE_ID,
+            query_tags={"team": "data"},
+            include_airflow_query_tags=False,
+        )
+        op.execute(None)
+
+        posted_json = db_mock.post_sql_statement.call_args[0][0]
+        assert posted_json["query_tags"] == [{"key": "team", "value": "data"}]
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_execute_omits_query_tags_when_none(self, db_mock_class):
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="select * from test.test;",
+            warehouse_id=WAREHOUSE_ID,
+            include_airflow_query_tags=False,
+        )
+        op.execute(None)
+
+        posted_json = db_mock.post_sql_statement.call_args[0][0]
+        assert "query_tags" not in posted_json
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_execute_includes_airflow_query_tags(self, db_mock_class):
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="select * from test.test;",
+            warehouse_id=WAREHOUSE_ID,
+            query_tags={"custom": "value"},
+        )
+        mock_ti = mock.MagicMock(spec=["dag_id", "task_id", "run_id", "try_number", "map_index", "xcom_push"])
+        mock_ti.dag_id = "my_dag"
+        mock_ti.task_id = "my_task"
+        mock_ti.run_id = "run_1"
+        mock_ti.try_number = 1
+        mock_ti.map_index = -1
+
+        op.execute(context={"ti": mock_ti})
+
+        posted_json = db_mock.post_sql_statement.call_args[0][0]
+        tag_keys = {t["key"] for t in posted_json["query_tags"]}
+        assert "airflow_dag_id" in tag_keys
+        assert "custom" in tag_keys
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_custom_query_tags_override_airflow_tags(self, db_mock_class):
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="select * from test.test;",
+            warehouse_id=WAREHOUSE_ID,
+            query_tags={"airflow_dag_id": "overridden"},
+        )
+        mock_ti = mock.MagicMock(spec=["dag_id", "task_id", "run_id", "try_number", "map_index", "xcom_push"])
+        mock_ti.dag_id = "original"
+        mock_ti.task_id = "t"
+        mock_ti.run_id = "r"
+        mock_ti.try_number = 1
+        mock_ti.map_index = -1
+
+        op.execute(context={"ti": mock_ti})
+
+        posted_json = db_mock.post_sql_statement.call_args[0][0]
+        tag_map = {t["key"]: t["value"] for t in posted_json["query_tags"]}
+        assert tag_map["airflow_dag_id"] == "overridden"
 
 
 class TestDatabricksNotebookOperator:

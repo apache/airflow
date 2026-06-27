@@ -297,6 +297,35 @@ class TestAsyncConnectionCache:
         assert cached_conn.conn_type == "mysql"
         assert cached_conn.host == "host"
 
+    @pytest.mark.asyncio
+    @patch("airflow.sdk.execution_time.context.amask_secret")
+    async def test_async_get_connection_masks_secrets(self, mock_amask_secret):
+        """Test that async connection secrets are masked from logs using amask_secret."""
+        from airflow.sdk.execution_time.context import _async_get_connection
+
+        conn_id = "test_conn"
+        conn = Connection(
+            conn_id=conn_id, conn_type="mysql", login="user", password="password", extra='{"key": "value"}'
+        )
+
+        mock_backend = MagicMock(spec=["aget_connection"])
+        mock_backend.aget_connection = AsyncMock(return_value=conn)
+
+        with patch(
+            "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded", return_value=[mock_backend]
+        ):
+            result = await _async_get_connection(conn_id)
+
+            assert result.conn_id == conn_id
+            # Check that password and extra were masked using amask_secret (async version)
+            mock_amask_secret.assert_has_calls(
+                [
+                    call("password"),
+                    call('{"key": "value"}'),
+                ],
+                any_order=True,
+            )
+
 
 class TestCacheDisabled:
     """Test behavior when cache is disabled."""
