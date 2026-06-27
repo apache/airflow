@@ -354,8 +354,11 @@ class PlainXComArg(XComArg):
                     ti_count=ti_count,
                     session=None,  # Not used in SDK implementation
                 )
-                # None means "no filtering needed" -> use NOTSET to pull all values
-                map_indexes = NOTSET if computed is None else computed
+                if computed is None:
+                    # Aggregate the mapped task group as a list, even for a single expansion (#69036) or all-None values (#48005)
+                    # Materialise eagerly (one slice request) so a task returning the value unchanged can still serialize it
+                    return LazyXComSequence(xcom_arg=self, ti=ti)[:]
+                map_indexes = computed
         result = ti.xcom_pull(
             task_ids=task_id,
             key=self.key,
