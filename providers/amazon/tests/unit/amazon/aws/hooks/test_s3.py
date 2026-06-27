@@ -77,6 +77,22 @@ def s3_bucket(mocked_s3_res):
     return bucket
 
 
+    def test_hook_lineage_reads_from_conf(self):
+        """Test that enable_hook_level_lineage defaults to conf value."""
+        from unittest.mock import patch
+        from airflow.configuration import conf
+
+        # When conf sets default_hook_lineage=False, hook should default to False
+        with patch.object(conf, "getboolean", return_value=False) as mock_conf:
+            hook = S3Hook()
+            mock_conf.assert_called_with("lineage", "default_hook_lineage", fallback=True)
+            assert hook.enable_hook_level_lineage is False
+
+        # Per-instance override still works even when conf says False
+        hook_override = S3Hook(enable_hook_level_lineage=True)
+        assert hook_override.enable_hook_level_lineage is True
+
+
 class TestAwsS3Hook:
     @mock_aws
     def test_get_conn(self):
@@ -2104,3 +2120,37 @@ def test_unify_and_provide_ordered_properly():
     matches = re.findall(r"@provide_bucket_name\s+@unify_bucket_name_and_key", code, re.MULTILINE)
     if matches:
         pytest.fail("@unify_bucket_name_and_key should be applied before @provide_bucket_name in S3Hook")
+
+
+class TestS3HookLineageConfig:
+    def test_hook_lineage_enabled_by_default(self):
+        from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
+        hook = S3Hook()
+        assert hook.enable_hook_level_lineage is True
+
+    def test_hook_lineage_disabled_when_flag_false(self):
+        from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
+        hook = S3Hook(enable_hook_level_lineage=False)
+        assert hook.enable_hook_level_lineage is False
+
+    from unittest import mock
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.get_hook_lineage_collector")
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_conn")
+    def test_load_string_skips_lineage_when_disabled(self, mock_conn, mock_collector):
+        from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
+        hook = S3Hook(enable_hook_level_lineage=False)
+        hook.load_string("data", "key", bucket_name="bucket", replace=True)
+        mock_collector.return_value.add_output_asset.assert_not_called()
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.get_hook_lineage_collector")
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_conn")
+    def test_load_string_exposes_lineage_when_enabled(self, mock_conn, mock_collector):
+        from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
+        hook = S3Hook(enable_hook_level_lineage=True)
+        hook.load_string("data", "key", bucket_name="bucket", replace=True)
+        mock_collector.return_value.add_output_asset.assert_called_once()
