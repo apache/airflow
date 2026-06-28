@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""TypeScript runtime coordinator that launches a Node.js subprocess for task execution."""
+"""Node.js runtime coordinator that launches a Node.js subprocess for task execution."""
 
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.api.datamodels._generated import TaskInstance
 
-log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.typescript")
+log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.node")
 
 BUNDLE_FILENAME = "bundle.mjs"
 METADATA_FILENAME = "airflow-metadata.yaml"
@@ -48,7 +48,7 @@ def _validate_schema_version(instance, _, value) -> str:
 
 
 @attrs.define
-class _TypescriptBundle:
+class _NodeBundle:
     path: pathlib.Path
     schema_version: str = attrs.field(validator=_validate_schema_version)
 
@@ -58,7 +58,8 @@ def _read_bundle_metadata(metadata_path: pathlib.Path) -> dict[str, Any]:
         raise ValueError(f"missing {METADATA_FILENAME}")
 
     try:
-        data = yaml.safe_load(metadata_path.read_text(encoding="utf-8"))
+        with metadata_path.open(encoding="utf-8") as metadata_file:
+            data = yaml.safe_load(metadata_file)
     except OSError as exc:
         raise ValueError(f"cannot read {METADATA_FILENAME}: {exc}") from exc
     except yaml.YAMLError as exc:
@@ -80,7 +81,7 @@ def _supervisor_schema_version(metadata: dict[str, Any]) -> str:
     return value
 
 
-def _find_bundle(bundles_root: Sequence[pathlib.Path]) -> _TypescriptBundle:
+def _find_bundle(bundles_root: Sequence[pathlib.Path]) -> _NodeBundle:
     """
     Locate the ``.mjs`` entry point in *bundles_root*.
 
@@ -92,18 +93,30 @@ def _find_bundle(bundles_root: Sequence[pathlib.Path]) -> _TypescriptBundle:
     metadata's ``dags`` section together with ``TaskInstance.dag_id`` and
     ``TaskInstance.task_id`` to select the bundle that owns a specific task.
     """
+    rejected: list[tuple[pathlib.Path, str]] = []
     for root in bundles_root:
         candidate = root / BUNDLE_FILENAME
         if not candidate.is_file():
             continue
-        metadata = _read_bundle_metadata(root / METADATA_FILENAME)
-        log.debug("Selected TypeScript bundle", path=candidate, root=root)
-        return _TypescriptBundle(
-            path=candidate,
-            schema_version=_supervisor_schema_version(metadata),
-        )
+        try:
+            metadata = _read_bundle_metadata(root / METADATA_FILENAME)
+            log.debug("Selected TypeScript bundle", path=candidate, root=root)
+            return _NodeBundle(
+                path=candidate,
+                schema_version=_supervisor_schema_version(metadata),
+            )
+        except (TypeError, ValueError) as exc:
+            log.debug(
+                "TypeScript bundle metadata rejected; skipping", path=candidate, root=root, error=str(exc)
+            )
+            rejected.append((candidate.resolve(), str(exc)))
 
     searched = os.pathsep.join(os.fspath(p.resolve()) for p in bundles_root)
+    if rejected:
+        details = "; ".join(f"{path}: {reason}" for path, reason in rejected)
+        raise FileNotFoundError(
+            f"Cannot find usable TypeScript bundle in {searched}: matching bundles were rejected ({details})"
+        )
     raise FileNotFoundError(f"Cannot find {BUNDLE_FILENAME} in {searched}")
 
 
@@ -118,7 +131,7 @@ def _convert_bundles_root(
 
 
 @attrs.define(kw_only=True)
-class TypescriptCoordinator(SubprocessCoordinator):
+class NodeCoordinator(SubprocessCoordinator):
     """
     Coordinator that launches a Node.js subprocess for task execution.
 
@@ -127,7 +140,7 @@ class TypescriptCoordinator(SubprocessCoordinator):
 
         {
             "ts": {
-                "classpath": "airflow.sdk.coordinators.typescript.TypescriptCoordinator",
+                "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
                 "kwargs": {
                     "node_executable": "node",
                     "bundles_root": ["/opt/airflow/ts-bundles"],

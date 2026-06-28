@@ -24,8 +24,8 @@ import pytest
 from uuid6 import uuid7
 
 from airflow.sdk.api.datamodels._generated import TaskInstance
-from airflow.sdk.coordinators.typescript.coordinator import (
-    TypescriptCoordinator,
+from airflow.sdk.coordinators.node.coordinator import (
+    NodeCoordinator,
     _find_bundle,
 )
 
@@ -69,16 +69,16 @@ def write_bundle(root: pathlib.Path, schema_version: str = SCHEMA_VERSION) -> pa
     return bundle
 
 
-class TestTypescriptCoordinatorAttributes:
+class TestNodeCoordinatorAttributes:
     def test_default_kwargs(self):
-        coordinator = TypescriptCoordinator(bundles_root="/airflow/ts-bundles")
+        coordinator = NodeCoordinator(bundles_root="/airflow/ts-bundles")
 
         assert coordinator.node_executable == "node"
         assert coordinator.bundles_root == [pathlib.Path("/airflow/ts-bundles")]
         assert coordinator.task_startup_timeout == 10.0
 
     def test_custom_kwargs(self):
-        coordinator = TypescriptCoordinator(
+        coordinator = NodeCoordinator(
             node_executable="/opt/node/bin/node",
             bundles_root=["/airflow/ts-bundles", "~/extra-bundles"],
             task_startup_timeout=30.0,
@@ -93,10 +93,10 @@ class TestTypescriptCoordinatorAttributes:
 
     def test_bundles_root_is_required(self):
         with pytest.raises(ValueError, match="Length of 'bundles_root' must be >= 1"):
-            TypescriptCoordinator(bundles_root=None)
+            NodeCoordinator(bundles_root=None)
 
 
-class TestTypescriptCoordinatorBundleSelection:
+class TestNodeCoordinatorBundleSelection:
     def test_find_bundle_returns_bundle_mjs(self, tmp_path):
         bundle = write_bundle(tmp_path)
 
@@ -126,7 +126,7 @@ class TestTypescriptCoordinatorBundleSelection:
     def test_find_bundle_rejects_bundle_without_metadata(self, tmp_path):
         (tmp_path / "bundle.mjs").write_text("export {};\n", encoding="utf-8")
 
-        with pytest.raises(ValueError, match="missing airflow-metadata.yaml"):
+        with pytest.raises(FileNotFoundError, match="missing airflow-metadata.yaml"):
             _find_bundle([tmp_path])
 
     @pytest.mark.parametrize(
@@ -141,7 +141,7 @@ class TestTypescriptCoordinatorBundleSelection:
         (tmp_path / "bundle.mjs").write_text("export {};\n", encoding="utf-8")
         (tmp_path / "airflow-metadata.yaml").write_text(metadata, encoding="utf-8")
 
-        with pytest.raises(ValueError, match=message):
+        with pytest.raises(FileNotFoundError, match=message):
             _find_bundle([tmp_path])
 
     def test_find_bundle_reports_unreadable_metadata(self, tmp_path, monkeypatch):
@@ -150,30 +150,32 @@ class TestTypescriptCoordinatorBundleSelection:
         def raise_os_error(self, *args, **kwargs):
             if self.name == "airflow-metadata.yaml":
                 raise PermissionError("denied")
-            return original_read_text(self, *args, **kwargs)
+            return original_open(self, *args, **kwargs)
 
-        original_read_text = pathlib.Path.read_text
-        monkeypatch.setattr(pathlib.Path, "read_text", raise_os_error)
+        original_open = pathlib.Path.open
+        monkeypatch.setattr(pathlib.Path, "open", raise_os_error)
 
-        with pytest.raises(ValueError, match="cannot read airflow-metadata.yaml"):
+        with pytest.raises(FileNotFoundError, match="cannot read airflow-metadata.yaml"):
             _find_bundle([tmp_path])
 
     def test_find_bundle_rejects_invalid_schema_version(self, tmp_path):
         write_bundle(tmp_path, schema_version="banana")
 
-        with pytest.raises(ValueError, match="Version 'banana' not found"):
+        with pytest.raises(FileNotFoundError, match="Version 'banana' not found"):
             _find_bundle([tmp_path])
 
-    def test_find_bundle_fails_on_invalid_first_bundle(self, tmp_path):
+    def test_find_bundle_skips_rejected_bundle_metadata(self, tmp_path):
         first = tmp_path / "first"
         second = tmp_path / "second"
         first.mkdir()
         second.mkdir()
         (first / "bundle.mjs").write_text("export {};\n", encoding="utf-8")
-        write_bundle(second)
+        bundle = write_bundle(second)
 
-        with pytest.raises(ValueError, match="missing airflow-metadata.yaml"):
-            _find_bundle([first, second])
+        found = _find_bundle([first, second])
+
+        assert found.path == bundle
+        assert found.schema_version == SCHEMA_VERSION
 
     def test_find_bundle_raises_with_searched_roots(self, tmp_path):
         first = tmp_path / "first"
@@ -189,10 +191,10 @@ class TestTypescriptCoordinatorBundleSelection:
         assert str(second.resolve()) in msg
 
 
-class TestTypescriptCoordinatorExecuteTaskCommand:
+class TestNodeCoordinatorExecuteTaskCommand:
     def test_build_execute_task_command_returns_node_bundle_and_schema_version(self, tmp_path):
         bundle = write_bundle(tmp_path)
-        coordinator = TypescriptCoordinator(
+        coordinator = NodeCoordinator(
             node_executable="/opt/node/bin/node",
             bundles_root=tmp_path,
         )

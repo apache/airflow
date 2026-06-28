@@ -16,13 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-TypeScript runtime coordinator for the Apache Airflow Task SDK.
+Node.js runtime coordinator for the Apache Airflow Task SDK.
 
-See :class:`TypescriptCoordinator` for details.
+See :class:`NodeCoordinator` for details.
 """
 
 from __future__ import annotations
 
-from airflow.sdk.coordinators.typescript.coordinator import TypescriptCoordinator
+from airflow.sdk.coordinators.node.coordinator import NodeCoordinator
 
-__all__ = ["TypescriptCoordinator"]
+__all__ = ["NodeCoordinator"]
