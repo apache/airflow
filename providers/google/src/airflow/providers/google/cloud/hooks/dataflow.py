@@ -1300,6 +1300,29 @@ class DataflowHook(GoogleBaseHook):
         return job_controller.job_reached_terminal_state(job)
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def fetch_job_id_by_name(
+        self,
+        prefix_name: str,
+        location: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+    ) -> str | None:
+        """
+        Fetch the ID of the Dataflow job whose name matches the given prefix.
+
+        :param prefix_name: Job name prefix to look up.
+        :param location: Location of the Dataflow job.
+        :param project_id: Google Cloud project ID in which to look up the job.
+        :return: Job ID if a matching job is found, else None.
+        """
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=project_id,
+            location=location,
+        )
+        jobs = jobs_controller._fetch_jobs_by_prefix_name(prefix_name.lower())
+        return jobs[0]["id"] if jobs else None
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_data_pipeline(
         self,
         body: dict,

@@ -1,0 +1,1 @@
+Fix deferrable ``BeamRunPythonPipelineOperator`` and ``BeamRunJavaPipelineOperator`` failing with ``400 Request must contain a job and project id`` when the Dataflow launcher does not emit a parseable job-ID line to stdout. The operators now poll the Dataflow API periodically while the launcher runs, resolving the job ID by name when stdout does not provide it.
