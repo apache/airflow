@@ -41,6 +41,7 @@ from airflow.providers.openlineage.utils.emission_policy import (
 from airflow.providers.openlineage.utils.utils import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
+    DagRunInfo,
     get_airflow_dag_run_facet,
     get_airflow_debug_facet,
     get_airflow_job_facet,
@@ -57,6 +58,7 @@ from airflow.providers.openlineage.utils.utils import (
     print_warning,
 )
 from airflow.settings import configure_orm
+from airflow.utils.helpers import prune_dict
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -268,9 +270,19 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
+            team_name = None
+            team_name = DagRunInfo.team_name(dagrun)
+
             if controls.extract_operator_metadata:
                 with Stats.timer(
-                    "ol.extract", tags={"event_type": event_type, "operator_name": operator_name}
+                    "ol.extract",
+                    tags=prune_dict(
+                        {
+                            "event_type": event_type,
+                            "operator_name": operator_name,
+                            "team_name": team_name,
+                        }
+                    ),
                 ):
                     task_metadata = self.extractor_manager.extract_metadata(
                         dagrun=dagrun,
@@ -284,6 +296,7 @@ class OpenLineageListener:
                     "Skipping OpenLineage operator metadata extraction for task `%s` due to emission_policy.",
                     task_instance.task_id,
                 )
+
                 task_metadata = OperatorLineage()
 
             redacted_event = self.adapter.start_task(
@@ -318,10 +331,23 @@ class OpenLineageListener:
                 },
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
+
+            airflow_facet = redacted_event.run.facets.get("airflow")
+            team_name = None
+
+            if airflow_facet:
+                team_name = getattr(airflow_facet.dagRun, "dag_team_name", None)
+
             Stats.gauge(
                 "ol.event.size",
                 event_size,
-                tags={"event_type": event_type, "operator_name": operator_name},
+                tags=prune_dict(
+                    {
+                        "event_type": event_type,
+                        "operator_name": operator_name,
+                        "team_name": team_name,
+                    }
+                ),
             )
 
         self._execute(on_running, "on_running", use_fork=True)
@@ -413,9 +439,19 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
+            team_name = None
+            team_name = DagRunInfo.team_name(dagrun)
+
             if controls.extract_operator_metadata:
                 with Stats.timer(
-                    "ol.extract", tags={"event_type": event_type, "operator_name": operator_name}
+                    "ol.extract",
+                    tags=prune_dict(
+                        {
+                            "event_type": event_type,
+                            "operator_name": operator_name,
+                            "team_name": team_name,
+                        }
+                    ),
                 ):
                     task_metadata = self.extractor_manager.extract_metadata(
                         dagrun=dagrun,
@@ -429,6 +465,7 @@ class OpenLineageListener:
                     "Skipping OpenLineage operator metadata extraction for task `%s` due to emission_policy.",
                     task_instance.task_id,
                 )
+
                 task_metadata = OperatorLineage()
 
             redacted_event = self.adapter.complete_task(
@@ -462,10 +499,23 @@ class OpenLineageListener:
                 },
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
+
+            airflow_facet = redacted_event.run.facets.get("airflow")
+            team_name = None
+
+            if airflow_facet:
+                team_name = getattr(airflow_facet.dagRun, "dag_team_name", None)
+
             Stats.gauge(
                 "ol.event.size",
                 event_size,
-                tags={"event_type": event_type, "operator_name": operator_name},
+                tags=prune_dict(
+                    {
+                        "event_type": event_type,
+                        "operator_name": operator_name,
+                        "team_name": team_name,
+                    }
+                ),
             )
 
         self._execute(on_success, "on_success", use_fork=True)
@@ -572,9 +622,19 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
+            team_name = None
+            team_name = DagRunInfo.team_name(dagrun)
+
             if controls.extract_operator_metadata:
                 with Stats.timer(
-                    "ol.extract", tags={"event_type": event_type, "operator_name": operator_name}
+                    "ol.extract",
+                    tags=prune_dict(
+                        {
+                            "event_type": event_type,
+                            "operator_name": operator_name,
+                            "team_name": team_name,
+                        }
+                    ),
                 ):
                     task_metadata = self.extractor_manager.extract_metadata(
                         dagrun=dagrun,
@@ -622,10 +682,23 @@ class OpenLineageListener:
                 },
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
+
+            airflow_facet = redacted_event.run.facets.get("airflow")
+            team_name = None
+
+            if airflow_facet:
+                team_name = getattr(airflow_facet.dagRun, "dag_team_name", None)
+
             Stats.gauge(
                 "ol.event.size",
                 event_size,
-                tags={"event_type": event_type, "operator_name": operator_name},
+                tags=prune_dict(
+                    {
+                        "event_type": event_type,
+                        "operator_name": operator_name,
+                        "team_name": team_name,
+                    }
+                ),
             )
 
         self._execute(on_failure, "on_failure", use_fork=True)
@@ -708,9 +781,19 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
+            team_name = None
+            team_name = DagRunInfo.team_name(dagrun)
+
             if controls.extract_operator_metadata:
                 with Stats.timer(
-                    "ol.extract", tags={"event_type": event_type, "operator_name": operator_name}
+                    "ol.extract",
+                    tags=prune_dict(
+                        {
+                            "event_type": event_type,
+                            "operator_name": operator_name,
+                            "team_name": team_name,
+                        }
+                    ),
                 ):
                     task_metadata = self.extractor_manager.extract_metadata(
                         dagrun=dagrun,
@@ -757,10 +840,23 @@ class OpenLineageListener:
                 },
             )
             event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
+
+            airflow_facet = redacted_event.run.facets.get("airflow")
+            team_name = None
+
+            if airflow_facet:
+                team_name = getattr(airflow_facet.dagRun, "dag_team_name", None)
+
             Stats.gauge(
                 "ol.event.size",
                 event_size,
-                tags={"event_type": event_type, "operator_name": operator_name},
+                tags=prune_dict(
+                    {
+                        "event_type": event_type,
+                        "operator_name": operator_name,
+                        "team_name": team_name,
+                    }
+                ),
             )
 
         self._execute(on_skipped, "on_skipped", use_fork=True)
