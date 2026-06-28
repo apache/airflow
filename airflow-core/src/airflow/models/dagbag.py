@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import time
 from collections.abc import MutableMapping
 from contextlib import nullcontext
@@ -42,6 +43,8 @@ if TYPE_CHECKING:
     from airflow.models import DagRun
     from airflow.models.serialized_dag import SerializedDagModel
     from airflow.serialization.definitions.dag import SerializedDAG
+
+log = logging.getLogger(__name__)
 
 
 class _CacheEntry(NamedTuple):
@@ -104,7 +107,14 @@ class DBDagBag:
     def _read_dag(self, serdag: SerializedDagModel) -> SerializedDAG | None:
         """Read and cache a SerializedDAG (with its ``dag_hash`` for staleness detection)."""
         serdag.load_op_links = self.load_op_links
-        dag = serdag.dag
+        try:
+            dag = serdag.dag
+        except Exception:
+            # A serialized blob that exists but cannot be reconstructed (unimportable operator class,
+            # incompatible serialization version, blob written under a synthetic bundle by
+            # dag.test()) is treated as "no live definition" so read-only callers return 404, not 500.
+            log.warning("Failed to deserialize DAG from %r; treating as not found", serdag, exc_info=True)
+            return None
         if not dag:
             return None
         with self._lock:

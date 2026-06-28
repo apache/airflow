@@ -77,6 +77,26 @@ class TestDBDagBag:
         assert result is None
         assert "v1" not in self.db_dag_bag._dags
 
+    def test__read_dag_returns_none_when_deserialization_fails(self):
+        """A blob that exists but cannot be deserialized is treated as absent, not propagated.
+
+        Keeps read-only API callers (e.g. the DAG detail page) returning 404 instead of 500 for a
+        Dag whose serialized definition references an unimportable class or an incompatible version.
+        """
+
+        class _Undeserializable:
+            load_op_links = True
+            dag_version_id = "v1"
+
+            @property
+            def dag(self):
+                raise ValueError("cannot deserialize")
+
+        result = self.db_dag_bag._read_dag(_Undeserializable())
+
+        assert result is None
+        assert "v1" not in self.db_dag_bag._dags
+
     def test_get_dag_fetches_from_db_on_miss(self):
         """It should query the DB and cache the result (with its hash) when not in cache."""
         mock_dag = MagicMock(spec=SerializedDAG)
