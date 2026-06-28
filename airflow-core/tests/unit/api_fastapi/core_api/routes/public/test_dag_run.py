@@ -672,9 +672,8 @@ class TestGetDagRuns:
     def test_cursor_pagination_nullable_sort_column_returns_all_rows(self, test_client, session):
         """Cursor pagination sorted by a nullable column must not silently drop rows.
 
-        Regression for https://github.com/apache/airflow/issues/68858: with a NULL in the
-        sort column the keyset predicate and the ORDER BY disagreed on NULL placement and
-        dropped every row on one side of the NULL/non-NULL boundary.
+        With a NULL in the sort column, the keyset predicate and the ORDER BY can disagree
+        on NULL placement and drop every row on one side of the NULL/non-NULL boundary.
         """
         # Null out one run's start_date so the NULL/non-NULL boundary is crossed mid-walk.
         run = session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN1_ID))

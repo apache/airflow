@@ -35,7 +35,7 @@ from typing import (
 from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, String, and_, case, func, not_, or_, select as sql_select, true as sql_true
+from sqlalchemy import Column, String, and_, func, not_, or_, select as sql_select, true as sql_true
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.inspection import inspect
 from sqlalchemy.sql.functions import FunctionElement
@@ -635,11 +635,11 @@ class SortParam(BaseParam[list[str]]):
         self._cached_resolution = resolved
         return self._cached_resolution
 
-    def to_orm(self, select: Select, *, reversed: bool = False, keyset: bool = False) -> Select:
+    def to_orm(self, select: Select, *, reversed: bool = False) -> Select:
         if self.skip_none is False:
             raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
 
-        resolved = self.get_keyset_columns() if keyset else self._resolve()
+        resolved = self._resolve()
         if reversed:
             columns = [col.asc() if is_desc else col.desc() for _, col, is_desc in resolved]
         else:
@@ -649,64 +649,6 @@ class SortParam(BaseParam[list[str]]):
     def get_resolved_columns(self) -> list[tuple[str, ColumnElement, bool]]:
         """Return resolved sort columns as (attr_name, column_element, is_descending) tuples."""
         return self._resolve()
-
-    @staticmethod
-    def _is_nullable_sort_column(column: ColumnElement) -> bool:
-        """Best-effort: whether *column* can produce NULLs (mapped attribute or raw Column)."""
-        mapped_columns = getattr(getattr(column, "property", None), "columns", None)
-        if mapped_columns:
-            return any(bool(getattr(c, "nullable", True)) for c in mapped_columns)
-        nullable = getattr(column, "nullable", None)
-        if nullable is not None:
-            return bool(nullable)
-        # Unknown expression: assume nullable so the keyset boundary stays correct.
-        return True
-
-    @staticmethod
-    def _null_rank(column: ColumnElement) -> ColumnElement:
-        """
-        Sort key that ranks NULLs as the largest value, deterministically across dialects.
-
-        SQLite/MySQL and old SQLite versions do not support ``NULLS FIRST/LAST``;
-        a portable ``CASE`` works everywhere and lets the keyset predicate agree
-        with the ``ORDER BY`` on where NULLs fall (0 = non-NULL, 1 = NULL). Ordered
-        together with the column's own direction this puts NULLs last for ascending
-        and first for descending sorts, matching PostgreSQL's default.
-        """
-        return case((column.is_(None), 1), else_=0)
-
-    def get_keyset_columns(self) -> list[tuple[str, ColumnElement, bool]]:
-        """
-        Expand resolved columns with a NULL-rank key before each nullable sort column.
-
-        Used for cursor (keyset) pagination so the ``ORDER BY`` and the keyset
-        predicate share one deterministic NULL placement. The rank follows the
-        column's own direction, so NULLs sort as the largest value (last when
-        ascending, first when descending), matching PostgreSQL's default, so
-        PostgreSQL result order is unchanged. Non-nullable columns (including the
-        primary-key tiebreaker) are left untouched. See :func:`expand_keyset_values`
-        for the matching cursor-value expansion.
-        """
-        expanded: list[tuple[str, ColumnElement, bool]] = []
-        for name, column, is_desc in self._resolve():
-            if self._is_nullable_sort_column(column):
-                expanded.append((f"{name}__null_rank", self._null_rank(column), is_desc))
-            expanded.append((name, column, is_desc))
-        return expanded
-
-    def expand_keyset_values(self, values: list[Any]) -> list[Any]:
-        """
-        Expand decoded cursor values to align with :func:`get_keyset_columns`.
-
-        Derives each null-rank value from the column value itself (``1`` for a
-        NULL boundary, ``0`` otherwise) so the cursor token format is unchanged.
-        """
-        expanded: list[Any] = []
-        for (_name, column, _is_desc), value in zip(self._resolve(), values, strict=True):
-            if self._is_nullable_sort_column(column):
-                expanded.append(1 if value is None else 0)
-            expanded.append(value)
-        return expanded
 
     def row_value(self, row: Any, name: str) -> Any:
         """

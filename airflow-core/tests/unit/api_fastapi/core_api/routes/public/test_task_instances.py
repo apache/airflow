@@ -2157,9 +2157,9 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
     def test_cursor_pagination_nullable_sort_column_returns_all_rows(self, test_client, session):
         """Cursor pagination sorted by a nullable column must not silently drop rows.
 
-        Regression for https://github.com/apache/airflow/issues/68858: with NULLs present
-        the keyset predicate and the ORDER BY disagreed on NULL placement, so every row on
-        one side of the NULL/non-NULL boundary was dropped without error.
+        With NULLs present, the keyset predicate and the ORDER BY can disagree on NULL
+        placement, so every row on one side of the NULL/non-NULL boundary is dropped
+        without error.
         """
         dag_id = "example_python_operator"
         # Three TIs with NULL start_date and three with distinct values, so both the NULL and
@@ -2205,7 +2205,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         """Forward then backward walk over a nullable column must agree, NULLs included.
 
         Backward pagination flips the sort direction, re-deriving the keyset bounds; this
-        guards that NULL placement stays consistent in both directions (issue #68858).
+        guards that NULL placement stays consistent in both directions.
         """
         dag_id = "example_python_operator"
         page_size = 3

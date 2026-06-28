@@ -126,7 +126,7 @@ class TestCursorPagination:
         token = _msgpack_cursor_token(["only-one-value"])
 
         with pytest.raises(HTTPException, match="does not match"):
-            apply_cursor_filter(select(TaskInstance), token, sp)
+            apply_cursor_filter(select(TaskInstance), token, sp, "sqlite")
 
     def test_apply_cursor_filter_ascending(self):
         sp = self._make_sort_param_with_resolved_columns(["start_date"])
@@ -136,7 +136,7 @@ class TestCursorPagination:
         ]
         token = _msgpack_cursor_token(values)
 
-        stmt = apply_cursor_filter(select(TaskInstance), token, sp)
+        stmt = apply_cursor_filter(select(TaskInstance), token, sp, "sqlite")
         sql = str(stmt)
         assert ">" in sql
 
@@ -148,7 +148,7 @@ class TestCursorPagination:
         ]
         token = _msgpack_cursor_token(values)
 
-        stmt = apply_cursor_filter(select(TaskInstance), token, sp)
+        stmt = apply_cursor_filter(select(TaskInstance), token, sp, "sqlite")
         sql = str(stmt)
         assert "<" in sql
 
@@ -193,60 +193,19 @@ class TestCursorPagination:
         sp.set_value(["_rendered_map_index", "map_index"])
         token = _msgpack_cursor_token([None, 49, "019462ab-1234-5678-9abc-def012345678"])
 
-        # Should not raise ArgumentError from SQLAlchemy.
-        stmt = apply_cursor_filter(select(TaskInstance), token, sp)
+        # Should not raise ArgumentError from SQLAlchemy; the NULL boundary is
+        # expressed with IS [NOT] NULL rather than a comparison against NULL.
+        stmt = apply_cursor_filter(select(TaskInstance), token, sp, "sqlite")
         sql = str(stmt)
-        assert "IS NULL" in sql
         assert "IS NOT NULL" in sql
-
-
-class TestSortParamKeysetColumns:
-    """Unit coverage for the NULLs-last keyset expansion added for cursor pagination."""
-
-    @pytest.mark.parametrize(
-        ("column", "expected"),
-        [
-            pytest.param(TaskInstance.start_date, True, id="mapped-nullable"),
-            pytest.param(TaskInstance.map_index, False, id="mapped-not-null"),
-            pytest.param(Column("x", String, nullable=True), True, id="raw-column"),
-            pytest.param(SimpleNamespace(), True, id="unknown-expression-defaults-nullable"),
-        ],
-    )
-    def test_is_nullable_sort_column(self, column, expected):
-        assert SortParam._is_nullable_sort_column(column) is expected
-
-    def test_get_keyset_columns_inserts_rank_before_nullable_only(self):
-        sp = SortParam(["id", "start_date", "map_index"], TaskInstance)
-        sp.set_value(["start_date"])
-        names = [name for name, _col, _desc in sp.get_keyset_columns()]
-        # start_date is nullable -> rank prepended; id (pk) is not -> untouched.
-        assert names == ["start_date__null_rank", "start_date", "id"]
-
-    def test_get_keyset_columns_no_rank_for_non_nullable_sort(self):
-        sp = SortParam(["id", "map_index"], TaskInstance)
-        sp.set_value(["map_index"])
-        names = [name for name, _col, _desc in sp.get_keyset_columns()]
-        assert names == ["map_index", "id"]
-
-    @pytest.mark.parametrize(
-        ("values", "expected"),
-        [
-            pytest.param(["2024-01-01", "uuid"], [0, "2024-01-01", "uuid"], id="non-null-rank-0"),
-            pytest.param([None, "uuid"], [1, None, "uuid"], id="null-rank-1"),
-        ],
-    )
-    def test_expand_keyset_values_aligns_with_columns(self, values, expected):
-        sp = SortParam(["id", "start_date"], TaskInstance)
-        sp.set_value(["start_date"])
-        assert sp.expand_keyset_values(values) == expected
 
 
 class TestKeysetPaginationNullableColumn:
     """End-to-end: cursor pagination over a nullable sort column returns every row exactly once.
 
-    Regression for https://github.com/apache/airflow/issues/68858. Before the fix the
-    keyset predicate and the ORDER BY disagreed on NULL placement, so one side of the
-    NULL/non-NULL boundary was silently dropped.
+    When the keyset predicate and the ORDER BY disagree on where NULLs fall, one side
+    of the NULL/non-NULL boundary is silently dropped. The predicate matches each
+    backend's native NULL placement so the ORDER BY stays a bare (indexable) column.
     """
 
     @staticmethod
@@ -274,9 +233,9 @@ class TestKeysetPaginationNullableColumn:
         collected: list[int] = []
         token = None
         for _ in range(50):  # guard against an infinite paging loop
-            stmt = sort.to_orm(select(model), keyset=True).limit(page_size)
+            stmt = sort.to_orm(select(model)).limit(page_size)
             if token is not None:
-                stmt = apply_cursor_filter(stmt, token, sort)
+                stmt = apply_cursor_filter(stmt, token, sort, "sqlite")
             rows = list(session.scalars(stmt))
             if not rows:
                 break
@@ -287,8 +246,8 @@ class TestKeysetPaginationNullableColumn:
     @pytest.mark.parametrize(
         ("order_by", "expected_order"),
         [
-            pytest.param(["val"], [4, 5, 6, 1, 2, 3], id="ascending-nulls-last"),
-            pytest.param(["-val"], [3, 2, 1, 6, 5, 4], id="descending-nulls-first"),
+            pytest.param(["val"], [1, 2, 3, 4, 5, 6], id="ascending-nulls-first"),
+            pytest.param(["-val"], [6, 5, 4, 3, 2, 1], id="descending-nulls-last"),
         ],
     )
     def test_forward_pagination_returns_all_rows(self, order_by, expected_order):
