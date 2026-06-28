@@ -96,8 +96,10 @@ PREFIX_RESOURCES_MAP = {details["prefix"]: resource for resource, details in RES
 
 def resource_name(dag_id: str, resource: str) -> str:
     """Return the resource name for a DAG id."""
-    if dag_id in RESOURCE_DETAILS_MAP.keys():
-        return dag_id
+    # NB: do not short-circuit when ``dag_id`` equals a reserved resource name
+    # (e.g. "DAGs"). A real ``dag_id`` can collide with one, and returning it
+    # unchanged would map the per-DAG resource onto the global resource. Only an
+    # already-prefixed value (e.g. "DAG:foo") is returned as-is.
     if dag_id.startswith(tuple(PREFIX_RESOURCES_MAP.keys())):
         return dag_id
     return f"{RESOURCE_DETAILS_MAP[resource]['prefix']}{dag_id}"

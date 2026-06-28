@@ -1273,3 +1273,22 @@ def test_add_user_uses_configured_hash_method(mock_hash, app, security_manager):
                 mock_hash.assert_called_with("plaintext", method="pbkdf2:sha256")
             finally:
                 delete_user(app, "hash_method_add_test")
+
+
+def test_resource_name_does_not_collide_with_reserved_resource_names():
+    """A dag_id equal to a reserved resource name must be prefixed, not returned as-is.
+
+    Regression for the case where a DAG literally named ``DAGs`` resolved to the
+    global all-DAGs resource instead of its own ``DAG:DAGs`` resource.
+    """
+    # "DAGs" is the global resource name *and* a valid dag_id — it must resolve to
+    # the per-DAG resource, never be returned unchanged.
+    assert permissions.resource_name(permissions.RESOURCE_DAG, permissions.RESOURCE_DAG) == "DAG:DAGs"
+    # Ordinary dag_ids are prefixed as before.
+    assert permissions.resource_name("my_dag", permissions.RESOURCE_DAG) == "DAG:my_dag"
+    # Already-prefixed names stay idempotent (the surviving short-circuit branch).
+    assert permissions.resource_name("DAG:my_dag", permissions.RESOURCE_DAG) == "DAG:my_dag"
+    # Sanity: an access_control sync resolves a DAG named "DAGs" to its per-DAG
+    # resource, so the permission is granted on "DAG:DAGs", never the global "DAGs".
+    # The grant in _sync_dag_view_permissions goes to exactly resource_name(dag_id, ...),
+    # so the assertion above is what guards the privilege-escalation regression.
