@@ -211,6 +211,7 @@ export const MarkdownMermaid = ({
                 width: "100%",
               },
             }}
+            /* Trusting mermaid's strict-mode sanitizer */
             dangerouslySetInnerHTML={{ __html: svg }}
             data-testid="markdown-mermaid-diagram"
           />
