@@ -223,6 +223,7 @@ class AzureAIAgentsHook(BaseHook):
         json_payload: dict[str, Any] | None = None,
         extra_headers: dict[str, str] | None = None,
         query_params: dict[str, str] | None = None,
+        include_api_version: bool = True,
     ) -> Any:
         conn = self.get_connection(self.conn_id)
         credential = self._get_credential(conn)
@@ -236,14 +237,14 @@ class AzureAIAgentsHook(BaseHook):
         if extra_headers:
             headers.update(extra_headers)
 
-        params = {"api-version": self.api_version}
+        params = {"api-version": self.api_version} if include_api_version else {}
         if query_params:
             params.update(query_params)
 
         response = self.session.request(
             method=method,
             url=url,
-            params=params,
+            params=params or None,
             headers=headers,
             json=json_payload,
         )
@@ -261,7 +262,14 @@ class AzureAIAgentsHook(BaseHook):
             raise
         if response.status_code == 204 or not response.content:
             return None
-        return response.json()
+        headers = getattr(response, "headers", None) or {}
+        content_type = str(headers.get("Content-Type", "")) if hasattr(headers, "get") else ""
+        if "json" in content_type:
+            return response.json()
+        try:
+            return response.json()
+        except ValueError:
+            return response.text
 
     @staticmethod
     def _get_response_error_body(response: Response) -> str | None:
@@ -277,20 +285,72 @@ class AzureAIAgentsHook(BaseHook):
     def _quote_resource_id(resource_id: str) -> str:
         return quote(resource_id, safe="")
 
-    def create_agent(self, agent_name: str, definition: dict[str, Any]) -> dict[str, Any]:
+    @staticmethod
+    def _build_agent_payload(
+        *,
+        definition: dict[str, Any],
+        metadata: dict[str, str] | None = None,
+        description: str | None = None,
+        blueprint_reference: dict[str, Any] | None = None,
+        agent_endpoint: dict[str, Any] | None = None,
+        agent_card: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"definition": definition}
+        optional_values = {
+            "metadata": metadata,
+            "description": description,
+            "blueprint_reference": blueprint_reference,
+            "agent_endpoint": agent_endpoint,
+            "agent_card": agent_card,
+        }
+        payload.update({key: value for key, value in optional_values.items() if value is not None})
+        return payload
+
+    def create_agent(
+        self,
+        agent_name: str,
+        definition: dict[str, Any],
+        *,
+        metadata: dict[str, str] | None = None,
+        description: str | None = None,
+        blueprint_reference: dict[str, Any] | None = None,
+        agent_endpoint: dict[str, Any] | None = None,
+        agent_card: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Create a Hosted agent and its first version."""
+        payload = self._build_agent_payload(
+            definition=definition,
+            metadata=metadata,
+            description=description,
+            blueprint_reference=blueprint_reference,
+            agent_endpoint=agent_endpoint,
+            agent_card=agent_card,
+        )
         return self._request(
             "POST",
             "agents",
-            json_payload={"name": agent_name, "definition": definition},
+            json_payload={"name": agent_name, **payload},
         )
 
-    def create_agent_version(self, agent_name: str, definition: dict[str, Any]) -> dict[str, Any]:
-        """Create a new Hosted agent version."""
+    def update_agent(
+        self,
+        agent_name: str,
+        definition: dict[str, Any],
+        *,
+        metadata: dict[str, str] | None = None,
+        description: str | None = None,
+        blueprint_reference: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Update a Hosted agent, creating a new version when the definition changes."""
         return self._request(
             "POST",
-            f"agents/{self._quote_resource_id(agent_name)}/versions",
-            json_payload={"definition": definition},
+            f"agents/{self._quote_resource_id(agent_name)}",
+            json_payload=self._build_agent_payload(
+                definition=definition,
+                metadata=metadata,
+                description=description,
+                blueprint_reference=blueprint_reference,
+            ),
         )
 
     def get_agent_version(self, agent_name: str, agent_version: str) -> dict[str, Any]:
@@ -300,10 +360,12 @@ class AzureAIAgentsHook(BaseHook):
             f"agents/{self._quote_resource_id(agent_name)}/versions/{self._quote_resource_id(agent_version)}",
         )
 
-    def delete_agent(self, agent_name: str, *, force: bool = False) -> None:
+    def delete_agent(self, agent_name: str, *, force: bool = False) -> dict[str, Any] | None:
         """Delete a Hosted agent and all versions."""
         query_params = {"force": "true"} if force else None
-        self._request("DELETE", f"agents/{self._quote_resource_id(agent_name)}", query_params=query_params)
+        return self._request(
+            "DELETE", f"agents/{self._quote_resource_id(agent_name)}", query_params=query_params
+        )
 
     def delete_agent_version(self, agent_name: str, agent_version: str) -> None:
         """Delete one Hosted agent version."""
@@ -324,20 +386,44 @@ class AzureAIAgentsHook(BaseHook):
         """Return True if version 1 is no longer retrievable for the Hosted agent."""
         return self.is_agent_version_deleted(agent_name=agent_name, agent_version="1")
 
-    def invoke_agent_responses(self, agent_name: str, input_data: dict[str, Any]) -> dict[str, Any]:
+    def invoke_agent_responses(
+        self,
+        agent_name: str,
+        input_data: dict[str, Any],
+        *,
+        agent_version: str | None = None,
+        user_isolation_key: str | None = None,
+    ) -> dict[str, Any]:
         """Invoke a Hosted agent through the OpenAI Responses protocol."""
+        agent_reference = {"type": "agent_reference", "name": agent_name}
+        if agent_version is not None:
+            agent_reference["version"] = agent_version
+        headers = {"x-ms-user-isolation-key": user_isolation_key} if user_isolation_key else None
         return self._request(
             "POST",
-            f"agents/{self._quote_resource_id(agent_name)}/endpoint/protocols/openai/responses",
-            json_payload=input_data,
+            "openai/v1/responses",
+            json_payload={**input_data, "agent_reference": agent_reference},
+            extra_headers=headers,
+            include_api_version=False,
         )
 
-    def invoke_agent_invocations(self, agent_name: str, input_data: dict[str, Any]) -> dict[str, Any]:
+    def invoke_agent_invocations(
+        self,
+        agent_name: str,
+        input_data: dict[str, Any],
+        *,
+        agent_session_id: str | None = None,
+        user_isolation_key: str | None = None,
+    ) -> Any:
         """Invoke a Hosted agent through the Invocations protocol."""
+        query_params = {"agent_session_id": agent_session_id} if agent_session_id else None
+        headers = {"x-ms-user-isolation-key": user_isolation_key} if user_isolation_key else None
         return self._request(
             "POST",
             f"agents/{self._quote_resource_id(agent_name)}/endpoint/protocols/invocations",
             json_payload=input_data,
+            extra_headers=headers,
+            query_params=query_params,
         )
 
 

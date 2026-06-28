@@ -47,6 +47,8 @@ CreateAzureAIAgentOperator
 To create an Azure AI Hosted agent from a container image, use the
 :class:`~airflow.providers.microsoft.azure.operators.ai_agents.CreateAzureAIAgentOperator`.
 The operator returns the created Hosted agent version as a serializable dictionary.
+Optional agent fields such as ``metadata``, ``description``, ``blueprint_reference``,
+``agent_endpoint``, and ``agent_card`` can be passed through to the Foundry API.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
@@ -61,6 +63,8 @@ UpdateAzureAIAgentOperator
 
 Hosted agent updates are published as new immutable versions. To create a new version, use the
 :class:`~airflow.providers.microsoft.azure.operators.ai_agents.UpdateAzureAIAgentOperator`.
+The operator accepts the same ``metadata``, ``description``, and ``blueprint_reference`` fields
+documented by the update endpoint.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
@@ -75,6 +79,8 @@ RunAzureAIAgentOperator
 
 To invoke an Azure AI Hosted agent through the OpenAI Responses protocol, use the
 :class:`~airflow.providers.microsoft.azure.operators.ai_agents.RunAzureAIAgentOperator`.
+The operator sends the agent reference for the selected ``agent_name`` in the Responses request
+payload. Pass ``agent_version`` to target a specific Hosted agent version.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
@@ -82,7 +88,9 @@ To invoke an Azure AI Hosted agent through the OpenAI Responses protocol, use th
     :start-after: [START howto_operator_azure_ai_agent_run]
     :end-before: [END howto_operator_azure_ai_agent_run]
 
-The same operator can call the ``invocations`` protocol when the hosted container exposes it.
+The same operator can call the ``invocations`` protocol when the hosted container exposes it. Pass
+``agent_session_id`` to reuse an existing Hosted agent session, and ``user_isolation_key`` to scope
+endpoint resources to a specific end user.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
