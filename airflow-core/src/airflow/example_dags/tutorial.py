@@ -98,12 +98,12 @@ with DAG(
     date
     ```
 
-    Display math is rendered with KaTeX. This tutorial starts one task and then
+    Math fences are rendered with KaTeX. This tutorial starts one task and then
     branches into two downstream tasks:
 
-    $$
+    ```math
     1\\ \\text{upstream task} + 2\\ \\text{downstream tasks} = 3\\ \\text{tasks}
-    $$
+    ```
 
     The same dependency is shown as a Mermaid diagram:
 

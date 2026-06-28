@@ -155,8 +155,8 @@ Adding Dag and Tasks documentation
 ----------------------------------
 You can add documentation to your Dag or individual tasks. Dag documentation is rendered as Markdown in the UI.
 Task documentation can be in plain text, markdown, reStructuredText, JSON, or YAML. When you use ``doc_md`` for
-task documentation, Airflow renders common Markdown features such as inline code, fenced code blocks, Mermaid diagrams
-in ``mermaid`` fences, and display math blocks delimited with ``$$`` that render with KaTeX.
+task documentation, Airflow renders common Markdown features such as inline code, fenced code blocks, fenced code blocks
+in ``math`` that render with KaTeX, and Mermaid diagrams in ``mermaid`` fences.
 
 In the tutorial Dag, the ``print_date`` task uses ``doc_md`` to explain the bash command it runs, describe the
 downstream ``sleep`` and ``templated`` tasks, and show the Markdown features available in the Task Instance Details

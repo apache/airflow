@@ -28,19 +28,16 @@ import {
   Table,
   Text,
 } from "@chakra-ui/react";
-import { Children, isValidElement, useEffect } from "react";
+import { Children, isValidElement } from "react";
 import type { ComponentProps, PropsWithChildren, ReactNode } from "react";
 import ReactMD from "react-markdown";
 import type { Components, Options } from "react-markdown";
-import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
 
 import { useColorMode } from "src/context/colorMode";
 import { oneDark, oneLight, type SyntaxTheme } from "src/utils/syntaxHighlighter";
 
-import { katexStyleLoader } from "./KatexStyleLoader";
-import { MarkdownCodeBlock, MarkdownMermaid } from "./ReactMarkdownBlocks";
+import { MarkdownCodeBlock } from "./ReactMarkdownBlocks";
 
 const fontSizeMapping = {
   h1: "1.5em",
@@ -139,9 +136,6 @@ type MarkdownCodeElementProps = {
   readonly className?: string;
 };
 
-const hasDisplayMath = (children: Options["children"]): boolean =>
-  typeof children === "string" && children.includes("$$");
-
 const InlineCodeComponent = ({ children }: PropsWithChildren) => <Code display="inline">{children}</Code>;
 
 // Factory function for the pre component that needs style
@@ -166,10 +160,6 @@ const createPreComponent =
         : "";
 
     const childString = codeText.replace(/\n$/u, "");
-
-    if (language === "mermaid") {
-      return <MarkdownMermaid chart={childString} fallbackStyle={style} />;
-    }
 
     return <MarkdownCodeBlock language={language} style={style} value={childString} />;
   };
@@ -208,23 +198,13 @@ const ReactMarkdown = ({ children, components: componentOverrides, ...restProps 
   const { colorMode } = useColorMode();
   const style = colorMode === "dark" ? oneDark : oneLight;
   const components = createMarkdownComponents(style);
-  const shouldEnableMath = hasDisplayMath(children);
-
-  useEffect(() => {
-    if (shouldEnableMath) {
-      void katexStyleLoader.load();
-    }
-  }, [shouldEnableMath]);
 
   return (
     <Box alignSelf="stretch" css={markdownContentStyles} maxWidth="100%" minWidth={0} width="100%">
       <ReactMD
         components={{ ...components, ...componentOverrides }}
         {...restProps}
-        rehypePlugins={shouldEnableMath ? [rehypeKatex] : []}
-        remarkPlugins={
-          shouldEnableMath ? [remarkGfm, [remarkMath, { singleDollarTextMath: false }]] : [remarkGfm]
-        }
+        remarkPlugins={[remarkGfm]}
         skipHtml
       >
         {children}

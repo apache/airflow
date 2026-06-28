@@ -39,11 +39,15 @@ vi.mock("src/utils/renderMermaid", () => ({
 }));
 
 describe("ReactMarkdown", () => {
-  it("loads KaTeX styles on demand and preserves plain dollar amounts", async () => {
+  it("loads KaTeX styles on demand for math fences and preserves plain dollar amounts", async () => {
     const loadKatexStyles = vi.spyOn(katexStyleLoader, "load").mockResolvedValue(undefined);
-    const markdown = ["Costs $5 and $10 today.", "", "$$", String.raw`S = \sum_{i=1}^{n} w_i x_i`, "$$"].join(
-      "\n",
-    );
+    const markdown = [
+      "Costs $5 and $10 today.",
+      "",
+      "```math",
+      String.raw`S = \sum_{i=1}^{n} w_i x_i`,
+      "```",
+    ].join("\n");
     const { container } = render(
       <BaseWrapper>
         <ReactMarkdown>{markdown}</ReactMarkdown>
@@ -59,7 +63,7 @@ describe("ReactMarkdown", () => {
     loadKatexStyles.mockRestore();
   });
 
-  it("does not load KaTeX styles for markdown without display math", () => {
+  it("does not load KaTeX styles for markdown without math fences", () => {
     const loadKatexStyles = vi.spyOn(katexStyleLoader, "load").mockResolvedValue(undefined);
 
     render(

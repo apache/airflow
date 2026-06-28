@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Flex, Spinner, Text } from "@chakra-ui/react";
+import { renderToString as renderKatexToString } from "katex";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -24,6 +25,8 @@ import { LazyClipboard } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode";
 import { renderMermaidDiagram } from "src/utils/renderMermaid";
 import { SyntaxHighlighter, type SyntaxTheme } from "src/utils/syntaxHighlighter";
+
+import { katexStyleLoader } from "./KatexStyleLoader";
 
 const MarkdownBlockFrame = ({
   action,
@@ -65,7 +68,7 @@ const MarkdownBlockFrame = ({
   </Box>
 );
 
-export const MarkdownCodeBlock = ({
+const MarkdownPlainCodeBlock = ({
   language,
   style,
   value,
@@ -75,6 +78,7 @@ export const MarkdownCodeBlock = ({
   readonly value: string;
 }) => {
   const { t: translate } = useTranslation("components");
+
   const codeBlockStyle = style['pre[class*="language-"]'];
 
   return (
@@ -129,6 +133,41 @@ export const MarkdownCodeBlock = ({
   );
 };
 
+const MarkdownMathBlock = ({ style, value }: { readonly style: SyntaxTheme; readonly value: string }) => {
+  const { t: translate } = useTranslation("components");
+
+  useEffect(() => {
+    void katexStyleLoader.load();
+  }, []);
+
+  try {
+    const markup = renderKatexToString(value, { displayMode: true, throwOnError: true });
+
+    return (
+      <MarkdownBlockFrame
+        action={
+          <LazyClipboard
+            aria-label={translate("clipboard.copy")}
+            data-testid="markdown-copy-button"
+            getValue={() => value}
+            title={translate("clipboard.copy")}
+          />
+        }
+        label="math"
+      >
+        <Box data-testid="markdown-math-content" maxWidth="100%" minWidth={0} overflowX="auto" p={3}>
+          <Box
+            /* Trusting KaTeX to escape user content in the generated HTML */
+            dangerouslySetInnerHTML={{ __html: markup }}
+          />
+        </Box>
+      </MarkdownBlockFrame>
+    );
+  } catch {
+    return <MarkdownPlainCodeBlock language="math" style={style} value={value} />;
+  }
+};
+
 export const MarkdownMermaid = ({
   chart,
   fallbackStyle,
@@ -174,7 +213,7 @@ export const MarkdownMermaid = ({
   }, [chart, diagramId, theme]);
 
   if (error) {
-    return <MarkdownCodeBlock language="mermaid" style={fallbackStyle} value={chart} />;
+    return <MarkdownPlainCodeBlock language="mermaid" style={fallbackStyle} value={chart} />;
   }
 
   return (
@@ -219,4 +258,24 @@ export const MarkdownMermaid = ({
       </Box>
     </MarkdownBlockFrame>
   );
+};
+
+export const MarkdownCodeBlock = ({
+  language,
+  style,
+  value,
+}: {
+  readonly language?: string;
+  readonly style: SyntaxTheme;
+  readonly value: string;
+}) => {
+  if (language === "math") {
+    return <MarkdownMathBlock style={style} value={value} />;
+  }
+
+  if (language === "mermaid") {
+    return <MarkdownMermaid chart={value} fallbackStyle={style} />;
+  }
+
+  return <MarkdownPlainCodeBlock language={language} style={style} value={value} />;
 };
