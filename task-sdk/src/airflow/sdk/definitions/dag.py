@@ -88,6 +88,7 @@ TAG_MAX_LEN = 100
 
 __all__ = [
     "DAG",
+    "SourceCodeLocation",
     "dag",
 ]
 
@@ -105,6 +106,35 @@ DagStateChangeCallback = Callable[[Context], None]
 ScheduleInterval = None | str | timedelta | relativedelta
 
 ScheduleArg = Union[ScheduleInterval, BaseTimetable, "CoreTimetable", BaseAsset, Collection[BaseAsset]]
+
+
+@attrs.define(frozen=True)
+class SourceCodeLocation:
+    """Location of the source code that defines a Dag."""
+
+    type: str = attrs.field(default="git", validator=attrs.validators.in_(("git", "svn")))
+    url: str | None = attrs.field(
+        default=None, validator=attrs.validators.optional(attrs.validators.instance_of(str))
+    )
+    repo_url: str | None = attrs.field(
+        default=None, validator=attrs.validators.optional(attrs.validators.instance_of(str))
+    )
+    path: str | None = attrs.field(
+        default=None, validator=attrs.validators.optional(attrs.validators.instance_of(str))
+    )
+    version: str | None = attrs.field(
+        default=None, validator=attrs.validators.optional(attrs.validators.instance_of(str))
+    )
+    tag: str | None = attrs.field(
+        default=None, validator=attrs.validators.optional(attrs.validators.instance_of(str))
+    )
+    branch: str | None = attrs.field(
+        default=None, validator=attrs.validators.optional(attrs.validators.instance_of(str))
+    )
+
+    def __attrs_post_init__(self) -> None:
+        if not self.url and not self.repo_url:
+            raise ValueError("At least one of url or repo_url must be provided")
 
 
 _DAG_HASH_ATTRS = frozenset(
@@ -232,6 +262,17 @@ def _convert_deadline(deadline: list[DeadlineAlert] | DeadlineAlert | None) -> l
     if isinstance(deadline, DeadlineAlert):
         return [deadline]
     return list(deadline)
+
+
+def _convert_source_code_location(
+    source_code_location: SourceCodeLocation | dict[str, str | None] | None,
+) -> SourceCodeLocation | None:
+    """Convert source code location metadata to a ``SourceCodeLocation`` instance."""
+    if source_code_location is None or isinstance(source_code_location, SourceCodeLocation):
+        return source_code_location
+    return SourceCodeLocation(
+        **{key: value for key, value in source_code_location.items() if value is not None}
+    )
 
 
 def _convert_doc_md(doc_md: str | None) -> str | None:
@@ -428,6 +469,7 @@ class DAG:
     :param rerun_with_latest_version: If True, cleared or rerun tasks will use the latest
         available bundle version. If False, they use the original bundle version. If None
         (default), inherits from the global config ``[core] rerun_with_latest_version``.
+    :param source_code_location: Optional information about where the Dag source code is located.
     """
 
     __serialized_fields: ClassVar[frozenset[str]]
@@ -540,6 +582,11 @@ class DAG:
     dag_display_name: str = attrs.field(
         default=attrs.Factory(_default_dag_display_name, takes_self=True),
         validator=attrs.validators.instance_of(str),
+    )
+    source_code_location: SourceCodeLocation | None = attrs.field(
+        default=None,
+        converter=_convert_source_code_location,
+        validator=attrs.validators.optional(attrs.validators.instance_of(SourceCodeLocation)),
     )
 
     task_dict: dict[str, Operator] = attrs.field(factory=dict, init=False)
@@ -1635,6 +1682,7 @@ if TYPE_CHECKING:
         dag_display_name: str | None = None,
         disable_bundle_versioning: bool = False,
         rerun_with_latest_version: bool | None = None,
+        source_code_location: SourceCodeLocation | None = None,
     ) -> Callable[[Callable], Callable[..., DAG]]:
         """
         Python dag decorator which wraps a function into an Airflow Dag.
