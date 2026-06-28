@@ -1,1 +1,1 @@
-Add a TypeScript task coordinator for running TypeScript task bundles through coordinator mode.
+Add a Node.js task coordinator for running TypeScript task bundles through coordinator mode.
