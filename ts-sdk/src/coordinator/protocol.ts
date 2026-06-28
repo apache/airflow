@@ -19,29 +19,41 @@
 
 // Coordinator message types over the generated supervisor wire schema.
 //
-// The generated schema is authoritative for field names and payload shapes,
-// but a few union discriminators are optional because they originate as
-// defaulted Pydantic literals. This wrapper makes those discriminators
-// required where TypeScript needs narrowing, and tightens the small number of
-// runtime messages this SDK sends.
+// The generated schema is authoritative for field names and payload shapes.
+// This module keeps the runtime decoder next to the generated type exports
+// used by the coordinator client.
 
 import type {
-  StartupDetails as RawStartupDetails,
-  DagFileParseRequest as RawDagFileParseRequest,
-  ErrorResponse as RawErrorResponse,
-  RetryTask as RawRetryTask,
-  SucceedTask as RawSucceedTask,
-  TaskState as RawTaskState,
-  DagFileParsingResult as RawDagFileParsingResult,
+  StartupDetails,
+  DagFileParseRequest,
+  ErrorResponse,
+  DagFileParsingResult,
+  RetryTask,
+  SucceedTask,
+  TaskState,
 } from "../generated/supervisor.js";
 
 export { SUPERVISOR_API_VERSION } from "../generated/supervisor.js";
 
-// -------- Re-exports — generated atoms used by client / runtime --------
-//
-// These are clean enough out of the box: small, no discriminator
-// narrowing issues for callers (we treat them as request/response
-// payloads, not as union members).
+// -------- Re-exports — supervisor frames --------
+
+export type {
+  StartupDetails,
+  DagFileParseRequest,
+  ErrorResponse,
+} from "../generated/supervisor.js";
+
+// -------- Re-exports — runtime responses --------
+
+export type {
+  DagFileParsingResult,
+  RetryTask,
+  SucceedTask,
+  TaskState,
+} from "../generated/supervisor.js";
+
+// -------- Re-exports — client RPC payloads --------
+
 export type {
   VariableResult,
   XComResult,
@@ -52,50 +64,26 @@ export type {
   GetConnection,
 } from "../generated/supervisor.js";
 
-// -------- Frames from supervisor (narrowed discriminators) --------
+// -------- Frames from supervisor --------
 
-export type StartupDetails = Omit<RawStartupDetails, "type"> & {
-  type: "StartupDetails";
+type WithRequiredType<T extends { type?: unknown }> = Omit<T, "type"> & {
+  type: NonNullable<T["type"]>;
 };
 
-export type DagFileParseRequest = Omit<RawDagFileParseRequest, "type"> & {
-  type: "DagFileParseRequest";
+export type MsgFromSupervisor =
+  | WithRequiredType<StartupDetails>
+  | WithRequiredType<DagFileParseRequest>
+  | WithRequiredType<ErrorResponse>;
+
+// -------- Frames to supervisor --------
+
+export type RuntimeTaskState = WithRequiredType<TaskState>;
+export type RuntimeRetryTask = WithRequiredType<RetryTask>;
+export type RuntimeSucceedTask = WithRequiredType<SucceedTask> & {
+  task_outlets: NonNullable<SucceedTask["task_outlets"]>;
+  outlet_events: NonNullable<SucceedTask["outlet_events"]>;
 };
-
-export type ErrorResponse = Omit<RawErrorResponse, "type"> & {
-  type: "ErrorResponse";
-};
-
-export type MsgFromSupervisor = StartupDetails | DagFileParseRequest | ErrorResponse;
-
-// -------- Frames from runtime (narrowed discriminators) --------
-
-/** SucceedTask — schema marks task_outlets / outlet_events as optional,
- *  but the supervisor's Execution API rejects null for these fields, so
- *  we narrow both to required (empty array when none). */
-export type SucceedTask = Omit<RawSucceedTask, "type" | "task_outlets" | "outlet_events"> & {
-  type: "SucceedTask";
-  task_outlets: unknown[];
-  outlet_events: unknown[];
-};
-
-/** TaskState — schema types `state` as a bare string; narrow to the
- *  values the SDK actually sends so callers get an autocomplete-friendly
- *  union and typos fail at compile time. */
-export type TaskStateMsg = Omit<RawTaskState, "type" | "state"> & {
-  type: "TaskState";
-  state: "failed" | "skipped" | "removed";
-};
-
-export type RetryTask = Omit<RawRetryTask, "type"> & {
-  type: "RetryTask";
-};
-
-export type DagFileParsingResult = Omit<RawDagFileParsingResult, "type"> & {
-  type: "DagFileParsingResult";
-};
-
-export type MsgFromRuntime = SucceedTask | TaskStateMsg | RetryTask | DagFileParsingResult;
+export type RuntimeDagFileParsingResult = WithRequiredType<DagFileParsingResult>;
 
 // -------- Decoder: raw map → typed message --------
 

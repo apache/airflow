@@ -37,7 +37,15 @@
 import { createCoordinatorClient } from "./client.js";
 import { CommChannel } from "./comm-channel.js";
 import { LogChannel } from "./log-channel.js";
-import { asMsgFromSupervisor, SUPERVISOR_API_VERSION, type StartupDetails } from "./protocol.js";
+import {
+  asMsgFromSupervisor,
+  SUPERVISOR_API_VERSION,
+  type RuntimeDagFileParsingResult,
+  type RuntimeRetryTask,
+  type RuntimeSucceedTask,
+  type RuntimeTaskState,
+  type StartupDetails,
+} from "./protocol.js";
 import { getRegisteredTask, listRegisteredTasks } from "../sdk/registry.js";
 import type { TaskContext, TaskHandlerArgs } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
@@ -145,13 +153,7 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
         run_id: body.ti.run_id,
         try_number: body.ti.try_number,
         map_index: body.ti.map_index ?? -1,
-        ti_id: body.ti.id,
-        hostname: body.ti.hostname ?? null,
-        queue: body.ti.queue ?? null,
         bundle: body.bundle_info.name,
-        bundle_version: body.bundle_info.version ?? null,
-        dag_rel_path: body.dag_rel_path,
-        start_date: body.start_date,
       });
       await handleTask(
         firstFrame.id,
@@ -243,11 +245,12 @@ async function handleParse(
   logs.info("Parse-mode response (TS Dag parsing not yet supported)", {
     registered_tasks: listRegisteredTasks(),
   });
-  await comm.sendResponse(id, {
+  const response: RuntimeDagFileParsingResult = {
     type: "DagFileParsingResult",
     fileloc: request.file,
     serialized_dags: [],
-  });
+  };
+  await comm.sendResponse(id, response);
 }
 
 async function handleTask(
@@ -268,11 +271,12 @@ async function handleTask(
       task_id: ti.task_id,
       available: listRegisteredTasks(),
     });
-    await comm.sendResponse(id, {
+    const response: RuntimeTaskState = {
       type: "TaskState",
       state: "failed",
       end_date: new Date().toISOString(),
-    });
+    };
+    await comm.sendResponse(id, response);
     return;
   }
 
@@ -299,12 +303,13 @@ async function handleTask(
     // SucceedTask MUST include task_outlets and outlet_events as
     // empty lists — the Execution API's TISuccessStatePayload
     // tagged-union validator rejects null for these fields.
-    await comm.sendResponse(id, {
+    const response: RuntimeSucceedTask = {
       type: "SucceedTask",
       end_date: new Date().toISOString(),
       task_outlets: [],
       outlet_events: [],
-    });
+    };
+    await comm.sendResponse(id, response);
     logs.info("Task succeeded", { task_id: ctx.taskId });
   } catch (err) {
     const message = (err as Error).message ?? String(err);
@@ -329,7 +334,10 @@ async function sendCancellationResponse(
   await comm.sendResponse(id, buildFailureResponse(details, message));
 }
 
-function buildFailureResponse(details: StartupDetails, message: string): Record<string, unknown> {
+function buildFailureResponse(
+  details: StartupDetails,
+  message: string,
+): RuntimeRetryTask | RuntimeTaskState {
   const endDate = new Date().toISOString();
   if (details.ti_context.should_retry) {
     return {
