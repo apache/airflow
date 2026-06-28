@@ -23,8 +23,8 @@
 # ///
 """Check that no new ``raise AirflowException`` usages are introduced.
 
-All *existing* usages are recorded in ``known_airflow_exceptions.txt`` next to
-this script as ``relative/path::N`` entries (one per file), where ``N`` is the
+All *existing* usages are recorded in ``generated/known_airflow_exceptions.txt``
+as ``relative/path::N`` entries (one per file), where ``N`` is the
 maximum number of ``raise AirflowException`` occurrences allowed in that file.
 A file whose current count exceeds the recorded limit is treated as a violation
 – use a dedicated exception class instead.
@@ -36,7 +36,7 @@ Default (files passed by prek/pre-commit):
     When a file's count has *decreased*, the allowlist entry is tightened
     automatically and the hook exits with a non-zero code so that pre-commit
     reports the modified allowlist — just stage
-    ``scripts/ci/prek/known_airflow_exceptions.txt`` and re-run.
+    ``generated/known_airflow_exceptions.txt`` and re-run.
 
 ``--all-files``:
     Walk the whole repository and check every ``.py`` file.
@@ -201,7 +201,7 @@ def _check_airflow_exception_usage(
                 "If this usage is intentional and pre-existing, run:\n\n"
                 "  [cyan]uv run ./scripts/ci/prek/check_new_airflow_exception_usage.py --generate[/cyan]\n\n"
                 "to regenerate the allowlist, then commit the updated\n"
-                "[cyan]scripts/ci/prek/known_airflow_exceptions.txt[/cyan].",
+                "[cyan]generated/known_airflow_exceptions.txt[/cyan].",
                 title="[red]❌ Check failed[/red]",
                 border_style="red",
             )
@@ -239,7 +239,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    manager = AllowlistManager(Path(__file__).parent / "known_airflow_exceptions.txt")
+    manager = AllowlistManager(REPO_ROOT / "generated" / "known_airflow_exceptions.txt")
 
     if args.generate:
         return manager.generate()

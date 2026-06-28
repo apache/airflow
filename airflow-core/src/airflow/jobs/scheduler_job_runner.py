@@ -684,6 +684,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ranked_query.c.map_index_for_ordering,
                 )
                 .options(selectinload(TI.dag_model))
+                # Eager-load dag_version: TIs become transient (via make_transient) before
+                # ExecuteTask.make() reads ti.dag_version.version_data. Lazy loads on
+                # transient objects silently return None instead of raising DetachedInstanceError.
+                # Scope the second SELECT to version_data (the PK is auto-included) so we read
+                # two columns rather than the full DagVersion row.
+                .options(selectinload(TI.dag_version).load_only(DagVersion.version_data))
             )
 
             query = query.limit(max_tis)
@@ -2078,13 +2084,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         asset_infos: Iterable[tuple[str, str]],
         partition_key: str,
         dag_id: str,
+        carried_partition_date: datetime | None,
     ) -> datetime | None:
         """
-        Return the temporal anchor (period-start datetime) for *partition_key*.
+        Return the ``partition_date`` the consumer Dag run should be created with.
 
-        Resolves the temporal anchor (period-start datetime) for *partition_key*
-        across *asset_infos* — the ``(name, uri)`` pairs of the upstream assets
-        that contributed to it. Each upstream mapper resolves the key via
+        The temporal anchor (period-start datetime) is resolved for
+        *partition_key* across *asset_infos* — the ``(name, uri)`` pairs of the
+        upstream assets that contributed to it. Each upstream mapper resolves the
+        key via
         :meth:`~airflow.partition_mappers.base.PartitionMapper.to_partition_date`:
         temporal mappers decode the key, composite mappers delegate to their
         child, and non-temporal mappers (e.g.
@@ -2093,16 +2101,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         A partitioned consumer has a single partition identity, so every temporal
         mapper feeding it must resolve the same key to the same instant. Anchors
         are compared by instant (timezone-aware), so equivalent moments collapse
-        to one. When the temporal mappers agree, that anchor is returned; when
-        they disagree — a misconfiguration, e.g. assets mapping the same key under
-        different timezones — ``partition_date`` is left unset and a warning is
-        logged rather than silently picking one by scan order. Returns ``None`` if
-        no mapper is temporal.
+        to one. When the temporal mappers agree, that anchor is returned.
 
-        A failure in any mapper aborts the whole resolution and returns ``None``
-        (logged) — anchors accumulated from earlier mappers are discarded rather
-        than used as a partial result, since a partial set could hide a conflict.
-        A broken mapper must not crash the scheduler tick.
+        When no temporal mapper contributes at all — an identity key carries no
+        temporal meaning and cannot be decoded back into a date — the producer's
+        source date carried on the APDR at queue time (*carried_partition_date*,
+        set only for ``IdentityMapper``) is returned instead.
+
+        When temporal mappers were present but produced no usable anchor — they
+        disagreed (a misconfiguration, e.g. assets mapping the same key under
+        different timezones) or one raised — the conflict/error is logged and
+        ``None`` is returned. The carried date is deliberately *not* substituted
+        here: stamping it would mask the logged suppression. A broken mapper must
+        not crash the scheduler tick.
         """
         anchors: set[datetime] = set()
         try:
@@ -2120,7 +2131,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return None
 
         if not anchors:
-            return None
+            # No temporal mapper contributed an anchor (e.g. an all-IdentityMapper feed),
+            # so fall back to the date carried on the APDR. A partitioned consumer's feeding
+            # assets are expected to agree on the partition's datetime; when a temporal mapper
+            # *does* resolve an anchor it takes precedence over the carried identity date,
+            # since the key is the authoritative source the scheduler can re-derive.
+            return carried_partition_date
         if len(anchors) > 1:
             self.log.warning(
                 "Upstream partition mappers resolved conflicting partition_date values for the same "
@@ -2322,6 +2338,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     asset_infos=asset_info_per_apdr[apdr.id].values(),
                     partition_key=apdr.partition_key,
                     dag_id=apdr.target_dag_id,
+                    carried_partition_date=apdr.partition_date,
                 )
             dag_run = dag.create_dagrun(
                 run_id=DagRun.generate_run_id(

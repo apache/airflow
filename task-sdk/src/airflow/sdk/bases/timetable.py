@@ -51,7 +51,7 @@ class BaseTimetable:
     """
     Whether this timetable defers partition selection to task runtime.
 
-    *True* for :class:`~airflow.sdk.PartitionAtRuntime`; downstream code can
+    *True* for :class:`~airflow.sdk.PartitionedAtRuntime`; downstream code can
     branch on this flag instead of using ``isinstance``.
     """
 

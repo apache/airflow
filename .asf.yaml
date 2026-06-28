@@ -115,6 +115,11 @@ github:
           - "providers-fab/v*"
           - "airflow-ctl/v*-stable"
           - "chart/v*-stable"
+        excludes:
+          # Temporarily exclude `v3-3-stable` from branch protection. It is matched by the
+          # `v*-stable` include above; exclusions take precedence, so this leaves the branch
+          # unprotected while the other `v*-stable` branches stay protected.
+          - "v3-3-stable"
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true

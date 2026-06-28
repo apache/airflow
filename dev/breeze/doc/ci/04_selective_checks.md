@@ -160,7 +160,7 @@ not matter because any single hit forces the full matrix:
 flowchart TD
     A([full_tests_needed]) --> M{_should_run_all_tests_and_versions?}
     M -->|yes| T[TRUE - full matrix]
-    M -->|no| E1{environment files?<br/>.github/workflows, dev/breeze/src,<br/>Dockerfile, scripts/ci, ...}
+    M -->|no| E1{environment files?<br/>test workflows, dev/breeze/src,<br/>Dockerfile, scripts/ci/docker-compose+kubernetes, ...<br/>excl. prek + non-test workflows}
     E1 -->|yes| T
     E1 -->|no| E2{API contract / codegen?<br/>generated OpenAPI spec or generator}
     E2 -->|yes| T
@@ -240,6 +240,8 @@ representative examples (file → effect):
 | `airflow-core/src/airflow/jobs/scheduler_job_runner.py` | unit tests with **all** core test types                            | a core/other file → escape hatch runs all core types |
 | `pyproject.toml`                                       | **full matrix, all versions**                                        | dependency surface changed → `_should_run_all_tests_and_versions` |
 | `.github/workflows/ci-amd.yml` or `dev/breeze/src/...` | **full matrix**                                                      | environment files → can change the whole CI environment |
+| `.github/workflows/codeql-analysis.yml` (non-test workflow) | **basic checks only**                                           | non-test workflow → cannot affect tests (env-files carve-out) |
+| `scripts/ci/prek/check_*.py` (static-check hook)       | CI image + static checks, **no full matrix**                         | prek hooks are static checks → `Prek files` carve-out |
 | the generated OpenAPI spec                             | **full matrix**                                                      | the API *contract* ripples to UI codegen + every client |
 | `chart/templates/...yaml` (on `main`)                  | `run_helm_tests` (+ PROD image)                                      | matches `HELM_FILES`; Helm tests only on `main` |
 | `airflow-core/src/airflow/ui/...tsx` only              | `run_ui_tests`, **no** unit tests                                    | "only new-UI files" short-circuit skips Python unit tests |
@@ -279,9 +281,11 @@ flowchart TD
 2. **Pull request, core change** (`scheduler_job_runner.py`). Still `full_tests_needed=False`, but the
    core/other escape hatch adds **all core test types**. Providers are not pulled in (no provider files
    changed). Default versions.
-3. **Pull request that changes `pyproject.toml`** (or `.github/workflows/...`, or the OpenAPI spec).
-   `full_tests_needed=True` (and for `pyproject.toml` also `all_versions=True`). The PR runs the **full
-   matrix** — same as a canary — because the change can affect everything.
+3. **Pull request that changes `pyproject.toml`** (or a *test* workflow like `.github/workflows/ci-amd.yml`,
+   or the OpenAPI spec). `full_tests_needed=True` (and for `pyproject.toml` also `all_versions=True`). The
+   PR runs the **full matrix** — same as a canary — because the change can affect everything. (A *non-test*
+   workflow such as `codeql-analysis.yml`, or a `scripts/ci/prek/...` static-check hook, does **not** force
+   the full matrix — see the `Environment files` carve-outs above.)
 4. **Push / merge to `main`.** `_should_run_all_tests_and_versions()` is true for PUSH on `main` →
    `full_tests_needed=True`, `all_versions=True`, `is_canary_run=True`. The full matrix plus all
    canary-only jobs run. This is the safety net that backstops aggressive PR-time optimisation.
@@ -333,7 +337,16 @@ The authoritative, exhaustive rule list (kept in sync with the code) is in
 We have the following Groups of files for CI that determine which tests are run:
 
 * `Environment files` - if any of those changes, that forces 'full tests needed' mode, because changes
-  there might simply change the whole environment of what is going on in CI (Container image, dependencies)
+  there might simply change the whole environment of what is going on in CI (Container image, dependencies).
+  Two deliberate carve-outs do **not** force full tests: **static-check hooks** (`scripts/ci/prek/...`)
+  drive prek static checks rather than the test matrix, so they only trigger the CI image build (via the
+  `Prek files` group) — `mypy-scripts` and the image-based static checks still run, but the full test
+  matrix does not; and **non-test workflows** (`.github/workflows/` for security scans, doc publishing,
+  notifications, backporting, calendar/stale bots, …) cannot change test outcomes. Workflows that run or
+  configure the test suite (`ci-amd`, `ci-arm`, `run-unit-tests`, `k8s-tests`, `helm-tests`, image builds,
+  …) still force the full matrix.
+* `Prek files` - `scripts/ci/prek/...` static-check hooks. They do not force full tests, but they trigger
+  the CI image build so `mypy-scripts` and the image-based static checks run for a prek-only change.
 * `Python production files` and `Javascript production files` - this area is useful in CodeQL Security scanning
   - if any of the python or javascript files for airflow "production" changed, this means that the security
     scans should run

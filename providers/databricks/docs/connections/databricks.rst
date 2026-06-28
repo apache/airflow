@@ -81,6 +81,36 @@ Extra (optional)
 
     * ``token``: Specify PAT to use. Consider to switch to specification of PAT in the Password field as it's more secure.
 
+    The following optional parameter can be used when Airflow workers need to access Databricks or Azure
+    token endpoints through an HTTP proxy:
+
+    * ``proxies``: JSON object with optional ``http`` and ``https`` keys, using the same shape as the
+      ``requests`` and Azure SDK ``proxies`` argument. Only these two keys are accepted. The configured proxy
+      is applied to Databricks REST API calls, Databricks OAuth token exchanges, and Azure Identity token
+      acquisition for AAD and default Azure credential authentication.
+
+      .. code-block:: json
+
+          {
+            "proxies": {
+              "http": "http://proxy.example.com:8080",
+              "https": "http://proxy.example.com:8443"
+            }
+          }
+
+      **Note:** The ``proxies`` extra is only needed for paths that do not already pick up the standard
+      ``HTTP_PROXY`` / ``HTTPS_PROXY`` / ``NO_PROXY`` environment variables. Synchronous REST API and token
+      requests use ``requests``, and Azure AAD / default-credential token acquisition uses the Azure Identity
+      SDK; both honor those environment variables by default. The asynchronous (deferrable operator and
+      triggerer) REST API and token paths use ``aiohttp`` with a session that does **not** trust the
+      environment, so proxy environment variables are ignored there and the ``proxies`` extra is required to
+      proxy them. Use the extra when you need a proxy on the asynchronous paths, when you want to force a
+      specific proxy regardless of the worker environment, or when proxy access should apply only to selected endpoints.
+      When both are configured, the ``proxies`` extra takes precedence over the environment variables. The
+      Azure managed-identity path (``use_azure_managed_identity``) intentionally does not use the configured proxy. It
+      authenticates against the link-local ``IMDS`` endpoint (``169.254.169.254``), which must be reached
+      directly; keep that address in ``NO_PROXY`` if your environment sets a global proxy.
+
     Following parameters are necessary if using authentication with OAuth token for Databricks-managed Service Principal:
 
     * ``service_principal_oauth``: required boolean flag. If specified as ``true``, use the Client ID and Client Secret as the Username and Password. See `Authentication using OAuth for service principals <https://docs.databricks.com/en/dev-tools/authentication-oauth.html>`_.

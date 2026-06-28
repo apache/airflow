@@ -72,6 +72,17 @@ CUSTOM_BACKEND = "custom"
 ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND, CUSTOM_BACKEND]
 ALLOWED_PROD_BACKENDS = [MYSQL_BACKEND, POSTGRES_BACKEND]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
+# Docker images that specific provider tests pull directly via testcontainers (bypassing docker
+# compose, so the "docker compose pull" pre-pull does not cover them). Keyed by the provider
+# distribution (dotted id) whose tests pull them, so an image is only pre-pulled when that provider's
+# tests are actually in the run. Pre-pulling (in CI only, before the timed run) keeps the pull -- slow
+# on cold caches, notably the GitHub-hosted ARM canary -- out of the per-test setup timeout. Keep the
+# tags in sync with the provider test conftests that use them (currently
+# providers/mongo/tests/conftest.py: MONGO_IMAGE + the testcontainers ryuk reaper).
+TESTCONTAINERS_IMAGES_BY_PROVIDER: dict[str, list[str]] = {
+    "mongo": ["mongo:8.0", "testcontainers/ryuk:0.8.1"],
+}
+
 TESTABLE_CORE_INTEGRATIONS = ["kerberos", "otel", "redis"]
 TESTABLE_PROVIDERS_INTEGRATIONS = [
     "celery",
@@ -311,6 +322,11 @@ class TarBallType(Enum):
 DESTINATION_LOCATIONS = [
     "s3://live-docs-airflow-apache-org/docs/",
     "s3://staging-docs-airflow-apache-org/docs/",
+]
+
+SCHEMA_DESTINATION_LOCATIONS = [
+    "s3://live-docs-airflow-apache-org/schemas/",
+    "s3://staging-docs-airflow-apache-org/schemas/",
 ]
 
 PACKAGES_METADATA_EXCLUDE_NAMES = ["docker-stack", "apache-airflow-providers"]
