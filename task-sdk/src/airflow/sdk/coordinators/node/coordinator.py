@@ -107,7 +107,10 @@ def _find_bundle(bundles_root: Sequence[pathlib.Path]) -> _NodeBundle:
             )
         except (TypeError, ValueError) as exc:
             log.debug(
-                "TypeScript bundle metadata rejected; skipping", path=candidate, root=root, error=str(exc)
+                "TypeScript bundle metadata rejected; skipping",
+                path=candidate,
+                root=root,
+                exc_info=True,
             )
             rejected.append((candidate.resolve(), str(exc)))
 
