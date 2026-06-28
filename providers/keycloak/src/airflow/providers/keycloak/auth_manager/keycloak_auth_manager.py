@@ -466,10 +466,13 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             )
 
             def check(dag_id: str) -> tuple[str, bool]:
+                details_kwargs: dict[str, Any] = {"id": dag_id}
+                if team_name is not None:
+                    details_kwargs["team_name"] = team_name
                 return dag_id, self.is_authorized_dag(
                     method=method,
                     user=user,
-                    details=DagDetails(id=dag_id, team_name=team_name),
+                    details=DagDetails(**details_kwargs),
                 )
 
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
