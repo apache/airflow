@@ -115,6 +115,42 @@ You need to configure the SSL certificate and key within the OpenTelemetry colle
              cert_file: "/path/to/cert/cert.crt"
              key_file: "/path/to/key/key.pem"
 
+Histogram Metrics and Backend Requirements
+------------------------------------------
+
+Airflow's timing metrics (``timing()`` / ``timer()``) are emitted as OpenTelemetry
+histograms aggregated with
+`exponential bucket histograms <https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exponentialhistogram>`_,
+so bucket boundaries adapt automatically to the observed range and you do not have to
+hand-tune explicit buckets for metrics that span very different scales (milliseconds to
+hours).
+
+To ingest these correctly end-to-end, the metrics backend you connect to must support
+OpenTelemetry exponential histograms and (for Prometheus) their conversion to native
+histograms:
+
+* **OpenTelemetry Collector** — use ``opentelemetry-collector-contrib`` version 0.115.0
+  or above. Older versions do not translate OTLP exponential histograms into Prometheus
+  native histograms.
+* **Prometheus** — native histograms must be enabled explicitly, and how you do that
+  depends on the Prometheus version:
+
+  * **2.40 to 3.8** — start Prometheus with the ``--enable-feature=native-histograms``
+    flag.
+  * **3.8 and above** — set ``scrape_native_histograms: true`` in the scrape
+    configuration (this option was added in 3.8, and from 3.9 the feature flag is a
+    no-op so the config setting is required):
+
+    .. code-block:: yaml
+
+        global:
+            scrape_native_histograms: true
+
+If the backend does not support native histograms, exponential-histogram data points may
+be dropped or rendered incorrectly. A reference stack (Collector, Prometheus, and Grafana)
+wired up for local development is available via ``breeze start-airflow --integration otel``;
+see the contributor docs for details.
+
 Allow/Block Lists
 -----------------
 

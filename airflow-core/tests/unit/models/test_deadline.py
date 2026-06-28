@@ -519,6 +519,71 @@ class TestCalculatedDeadlineDatabaseCalls:
         with pytest.raises(ValueError, match="min_runs must be at least 1"):
             DeadlineReference.AVERAGE_RUNTIME(max_runs=10, min_runs=-1)
 
+    def test_average_runtime_excludes_non_successful_runs(self, session, dag_maker):
+        """Only SUCCESSFUL runs contribute to the average; FAILED runs must be ignored.
+
+        A failed run's duration is not representative of a normal runtime, so including it
+        would skew the computed deadline. Seed an equal mix of fast-successful and
+        slow-failed runs and assert the average reflects only the successful ones.
+        """
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        base_time = DEFAULT_DATE
+        success_duration = 60  # the only durations that should count
+        failed_duration = 36000  # 10h — would massively skew the average if (wrongly) counted
+
+        # Interleave 3 successful (60s) and 3 failed (36000s) runs.
+        specs = [
+            (DagRunState.SUCCESS, success_duration),
+            (DagRunState.FAILED, failed_duration),
+            (DagRunState.SUCCESS, success_duration),
+            (DagRunState.FAILED, failed_duration),
+            (DagRunState.SUCCESS, success_duration),
+            (DagRunState.FAILED, failed_duration),
+        ]
+        for i, (state, duration) in enumerate(specs):
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            dagrun = dag_maker.create_dagrun(logical_date=logical_date, run_id=f"mix_run_{i}", state=state)
+            dagrun.start_date = start_time
+            dagrun.end_date = start_time + timedelta(seconds=duration)
+
+        session.commit()
+
+        # min_runs=3 so the 3 successful runs alone satisfy the minimum.
+        reference = SerializedReferenceModels.AverageRuntimeDeadline(max_runs=10, min_runs=3)
+        interval = timedelta(hours=1)
+
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+
+        # Average must be over the 3 successful 60s runs only (not the 36000s failures).
+        expected = DEFAULT_DATE + timedelta(seconds=success_duration) + interval
+        assert result.replace(second=0, microsecond=0) == expected.replace(second=0, microsecond=0)
+
+    def test_average_runtime_skips_when_too_few_successful_runs(self, session, dag_maker):
+        """If only FAILED runs exist (fewer than min_runs successful), no deadline is created."""
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        base_time = DEFAULT_DATE
+        for i in range(5):
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            dagrun = dag_maker.create_dagrun(
+                logical_date=logical_date, run_id=f"failed_run_{i}", state=DagRunState.FAILED
+            )
+            dagrun.start_date = start_time
+            dagrun.end_date = start_time + timedelta(seconds=3600)
+
+        session.commit()
+
+        reference = SerializedReferenceModels.AverageRuntimeDeadline(max_runs=10, min_runs=3)
+        result = reference.evaluate_with(session=session, interval=timedelta(hours=1), dag_id=DAG_ID)
+        assert result is None
+
 
 class TestDeadlineReference:
     """DeadlineReference lives in definitions/deadlines.py but properly testing them requires DB access."""

@@ -22,7 +22,8 @@ import json
 
 import pytest
 
-from airflow.sdk.configuration import conf
+from airflow.sdk._shared.module_loading import import_string
+from airflow.sdk.configuration import conf, retrieve_configuration_description
 from airflow.sdk.execution_time.coordinator import (
     BaseCoordinator,
     CoordinatorManager,
@@ -199,3 +200,32 @@ class TestCoordinatorManager:
             "pod_template_file": "/opt/airflow/pod_templates/boom.yaml"
         }
         assert manager._created_coordinators == {}
+
+
+class TestConfigYamlCoordinatorsExample:
+    """Guard the ``[sdk] coordinators`` example in ``config.yml`` against drift.
+
+    Nothing else exercises the example, so a broken one (e.g. dropping the
+    required ``jars_root`` kwarg) can ship unnoticed. Loading it through
+    CoordinatorManager and constructing every entry keeps the example honest.
+    """
+
+    def test_every_example_coordinator_constructs(self, sdk_config):
+        description = retrieve_configuration_description()
+        coordinators_example = description["sdk"]["options"]["coordinators"]["example"]
+        specs = json.loads(coordinators_example)
+        assert specs, "config.yml [sdk] coordinators example must not be empty"
+
+        # The example's own queue_to_coordinator illustrates different keys, so
+        # route every coordinator through a synthetic queue to construct each one.
+        queue_to_coordinator = {f"queue-{key}": key for key in specs}
+        sdk_config(
+            coordinators=coordinators_example,
+            queue_to_coordinator=json.dumps(queue_to_coordinator),
+        )
+        manager = CoordinatorManager.from_config()
+        assert set(manager._coordinator_specs) == set(specs)
+
+        for queue, key in queue_to_coordinator.items():
+            coordinator = manager.for_queue(queue)
+            assert isinstance(coordinator, import_string(specs[key]["classpath"]))

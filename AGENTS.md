@@ -160,6 +160,11 @@ reported as such are described in "What is NOT considered a security vulnerabili
 - Test location mirrors source: `airflow/cli/cli_parser.py` → `tests/cli/test_cli_parser.py`.
 - Do not use `caplog` in tests, prefer checking logic and not log output.
 
+## Output conventions
+
+- Put any files you generate (PR reviews, reports, scratch output) under `files/`.
+- Create `files/` if it doesn't exist.
+
 
 ## Commits and PRs
 
@@ -168,6 +173,15 @@ Write commit messages focused on user impact, not implementation details.
 - **Good:** `Fix airflow dags test command failure without serialized Dags`
 - **Good:** `UI: Fix Grid view not refreshing after task actions`
 - **Bad:** `Initialize Dag bundles in CLI get_dag function`
+- **Bad:** `fix(cli): dags test failure` — Airflow does not use Conventional Commits
+  (`feat:`, `fix:`, `chore:` …). Write the subject as plain prose. A `commit-msg`
+  prek hook (`check-no-conventional-commit-message`) rejects these, and CI checks
+  every commit of the PR.
+
+**Always run `prek install` before committing any code.** It installs the
+`commit-msg` hook (in addition to `pre-commit`) so the Conventional Commits guard
+runs locally; a clone that ran `prek install` before this hook existed must re-run
+it to pick up the new hook type.
 
 Use the **imperative mood** and a plain message — do **not** use Conventional Commits prefixes
 (`fix:`, `feat:`, `chore:`, `docs:`, `refactor:`, …). apache/airflow does not follow that
