@@ -23,10 +23,8 @@ Public TypeScript interfaces for writing Apache Airflow task handlers.
 
 **Status:** alpha · API will change · Node 22+ · ESM-only
 
-This package defines the user-facing task handler contract: task registration,
-runtime context types, and the `TaskClient` interface used for Airflow
-Variables, Connections, and XCom. Runtime transports implement this interface
-separately.
+This package defines the user-facing task handler contract and the coordinator
+runtime used to execute registered TypeScript handlers from Airflow.
 
 ## Install
 
@@ -50,7 +48,7 @@ registerTask({ dagId: "example_dag", taskId: "say_hello" }, sayHello);
 Non-`undefined` return values are pushed to XCom under the `"return_value"`
 key by the active runtime, matching Python `@task` behavior.
 
-## Intended Coordinator Usage
+## Coordinator Usage
 
 Airflow runs TypeScript task bundles through the Python-side
 `airflow.sdk.coordinators.node.NodeCoordinator`. Declaring Airflow Dags in
@@ -95,10 +93,10 @@ queue_to_coordinator = {"typescript": "ts"}
 Each configured bundle directory must contain `bundle.mjs` and
 `airflow-metadata.yaml`.
 
-TypeScript handlers:
+TypeScript entrypoint:
 
 ```ts
-import { registerTask, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+import { registerTask, startCoordinator, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
 
 export async function extract({ client }: TaskHandlerArgs) {
   const connection = await client.getConnection("sales_db");
@@ -123,15 +121,31 @@ export async function transform({ client }: TaskHandlerArgs) {
 
 registerTask({ dagId: "sales_pipeline", taskId: "extract" }, extract);
 registerTask({ dagId: "sales_pipeline", taskId: "transform" }, transform);
+
+await startCoordinator();
 ```
 
 The Python stub defines the Dag dependency graph. The TypeScript handler does
 the work and uses `TaskClient` for task-time Airflow data access. Register each
 handler with the Python Dag's `dag_id` and the stub task's `task_id`. The
 handler function is the reusable task implementation; `registerTask` binds that
-handler to a Python stub Dag/task identity for coordinator mode. A future
-TypeScript Dag authoring API can attach the same handlers without changing the
-handler code.
+handler to a Python stub Dag/task identity for coordinator mode.
+
+For larger projects, keep one Airflow entrypoint that imports every module that
+registers tasks, then starts the coordinator:
+
+```ts
+import "./sales/tasks";
+import "./billing/tasks";
+import { startCoordinator } from "@apache-airflow/ts-sdk";
+
+await startCoordinator();
+```
+
+Airflow launches the bundled entrypoint with `--comm=host:port` and
+`--logs=host:port`. `startCoordinator()` connects to those sockets, receives
+the task startup message, finds the registered handler for the Dag/task pair,
+and reports the terminal task state back to Airflow.
 
 ## TaskClient
 
