@@ -51,6 +51,7 @@ import type { TaskContext, TaskHandlerArgs } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
 export const COORDINATOR_SIGNAL_GRACE_PERIOD_MS = 30_000;
+export const COORDINATOR_RESPONSE_TIMEOUT_MS = 30_000;
 
 /** Options for `startCoordinator()`. */
 export interface StartCoordinatorOptions {
@@ -145,7 +146,8 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
         file: body.file,
         bundle_path: body.bundle_path,
       });
-      await handleParse(firstFrame.id, body, comm, runtimeLogs);
+      const response = handleParse(body, runtimeLogs);
+      await sendSupervisorResponse(firstFrame.id, response, comm, runtimeLogs);
     } else if (body.type === "StartupDetails") {
       runtimeLogs.info("Received task startup details", {
         dag_id: body.ti.dag_id,
@@ -155,8 +157,7 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
         map_index: body.ti.map_index ?? -1,
         bundle: body.bundle_info.name,
       });
-      await handleTask(
-        firstFrame.id,
+      const response = await handleTask(
         body,
         comm,
         runtimeLogs,
@@ -164,10 +165,14 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
         cancellation.signal,
         cancellation.isCancellationRequested,
       );
+      await sendSupervisorResponse(firstFrame.id, response, comm, runtimeLogs);
+      if (response.type === "SucceedTask") {
+        runtimeLogs.info("Task succeeded", { task_id: body.ti.task_id });
+      }
     } else {
       const errMsg = `First frame must be DagFileParseRequest or StartupDetails, got ${body.type}`;
       runtimeLogs.error("Unexpected first frame", { type: body.type });
-      await comm.sendResponse(firstFrame.id, null, {
+      await sendSupervisorResponse(firstFrame.id, null, comm, runtimeLogs, {
         error: "protocol_error",
         detail: errMsg,
       });
@@ -234,12 +239,10 @@ export function createCoordinatorCancellation(
   };
 }
 
-async function handleParse(
-  id: number,
+function handleParse(
   request: { file: string; bundle_path: string },
-  comm: CommChannel,
   logs: LogChannel,
-): Promise<void> {
+): RuntimeDagFileParsingResult {
   // TypeScript-native Dag parsing is not yet supported.
   // Respond with an empty result so the Python-stub-Dag workflow works.
   logs.info("Parse-mode response (TS Dag parsing not yet supported)", {
@@ -250,18 +253,17 @@ async function handleParse(
     fileloc: request.file,
     serialized_dags: [],
   };
-  await comm.sendResponse(id, response);
+  return response;
 }
 
 async function handleTask(
-  id: number,
   details: StartupDetails,
   comm: CommChannel,
   logs: LogChannel,
   clientLogs: LogChannel,
   signal: AbortSignal,
   isCancellationRequested: () => boolean,
-): Promise<void> {
+): Promise<RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState> {
   const ti = details.ti;
   const handler = getRegisteredTask(ti.dag_id, ti.task_id);
 
@@ -271,13 +273,14 @@ async function handleTask(
       task_id: ti.task_id,
       available: listRegisteredTasks(),
     });
+    // A missing handler means this bundle cannot run the task, so retrying the
+    // same bundle/configuration mismatch would not help.
     const response: RuntimeTaskState = {
       type: "TaskState",
-      state: "failed",
+      state: "removed",
       end_date: new Date().toISOString(),
     };
-    await comm.sendResponse(id, response);
-    return;
+    return response;
   }
 
   const ctx = buildContext(details, signal);
@@ -290,15 +293,13 @@ async function handleTask(
   try {
     const result = await handler(args);
     if (isCancellationRequested()) {
-      await sendCancellationResponse(id, details, comm, logs, ctx);
-      return;
+      return buildCancellationResponse(details, logs, ctx);
     }
     if (result !== undefined) {
       await client.setXCom({ key: "return_value", value: result as JsonValue });
     }
     if (isCancellationRequested()) {
-      await sendCancellationResponse(id, details, comm, logs, ctx);
-      return;
+      return buildCancellationResponse(details, logs, ctx);
     }
     // SucceedTask MUST include task_outlets and outlet_events as
     // empty lists — the Execution API's TISuccessStatePayload
@@ -309,8 +310,7 @@ async function handleTask(
       task_outlets: [],
       outlet_events: [],
     };
-    await comm.sendResponse(id, response);
-    logs.info("Task succeeded", { task_id: ctx.taskId });
+    return response;
   } catch (err) {
     const message = (err as Error).message ?? String(err);
     logs.error("Task failed", {
@@ -318,20 +318,36 @@ async function handleTask(
       error: message,
       stack: (err as Error).stack ?? null,
     });
-    await comm.sendResponse(id, buildFailureResponse(details, message));
+    return buildFailureResponse(details, message);
   }
 }
 
-async function sendCancellationResponse(
-  id: number,
+function buildCancellationResponse(
   details: StartupDetails,
-  comm: CommChannel,
   logs: LogChannel,
   ctx: TaskContext,
-): Promise<void> {
+): RuntimeRetryTask | RuntimeTaskState {
   const message = getCancellationMessage(ctx.signal);
   logs.warning("Task cancelled", { task_id: ctx.taskId, reason: message });
-  await comm.sendResponse(id, buildFailureResponse(details, message));
+  return buildFailureResponse(details, message);
+}
+
+async function sendSupervisorResponse(
+  id: number,
+  body: unknown,
+  comm: CommChannel,
+  logs: LogChannel,
+  error?: unknown,
+): Promise<void> {
+  try {
+    await comm.sendResponse(id, body, error, { timeoutMs: COORDINATOR_RESPONSE_TIMEOUT_MS });
+  } catch (err) {
+    logs.error("Failed to send response to supervisor", {
+      response_type: responseType(body),
+      error: (err as Error).message ?? String(err),
+    });
+    throw err;
+  }
 }
 
 function buildFailureResponse(
@@ -361,6 +377,14 @@ function getCancellationMessage(signal: AbortSignal): string {
     return signal.reason;
   }
   return "Task cancelled";
+}
+
+function responseType(body: unknown): string {
+  if (body && typeof body === "object" && "type" in body) {
+    const type = (body as { type?: unknown }).type;
+    if (typeof type === "string") return type;
+  }
+  return "unknown";
 }
 
 function buildContext(details: StartupDetails, signal: AbortSignal): TaskContext {

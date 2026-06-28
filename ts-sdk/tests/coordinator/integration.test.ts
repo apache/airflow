@@ -28,10 +28,13 @@
 // No Python, no Airflow install — but exercises the same wire format
 // the real coordinator speaks.
 
-import { describe, expect, it } from "vitest";
-import { createServer, type Server, type Socket } from "node:net";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createServer, Socket as NetSocket, type Server, type Socket } from "node:net";
 import { encode, decode } from "@msgpack/msgpack";
-import { startCoordinator } from "../../src/coordinator/runtime.js";
+import {
+  COORDINATOR_RESPONSE_TIMEOUT_MS,
+  startCoordinator,
+} from "../../src/coordinator/runtime.js";
 import { registerTask } from "../../src/sdk/registry.js";
 
 interface MockResult {
@@ -119,6 +122,18 @@ function xcomKey(body: Record<string, unknown>): string {
   return [body["dag_id"], body["run_id"], body["task_id"], body["key"]].join("|");
 }
 
+function isFrameWithBodyType(chunk: unknown, type: string): boolean {
+  if (!Buffer.isBuffer(chunk)) return false;
+  try {
+    return readFrames(chunk).frames.some((f) => {
+      const body = f.body as Record<string, unknown> | null;
+      return body?.["type"] === type;
+    });
+  } catch {
+    return false;
+  }
+}
+
 async function driveSupervisor(initialFrame: unknown, responder?: Responder): Promise<MockResult> {
   const comm = await listen();
   const logs = await listen();
@@ -186,6 +201,11 @@ async function driveSupervisor(initialFrame: unknown, responder?: Responder): Pr
 }
 
 describe("coordinator runtime integration", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
   it("closes the log socket when the comm connection fails during startup", async () => {
     const logs = await listen();
     const comm = await listen();
@@ -241,6 +261,56 @@ describe("coordinator runtime integration", () => {
     expect(loggers.has("ts-sdk.runtime")).toBe(true);
     for (const l of loggers) {
       expect(l).toMatch(/^ts-sdk(\.|$)/);
+    }
+  });
+
+  it("times out when the terminal task response cannot be written", async () => {
+    vi.useFakeTimers();
+    const originalWrite = NetSocket.prototype.write;
+    let stalledTerminalWrite: (() => void) | null = null;
+
+    vi.spyOn(NetSocket.prototype, "write").mockImplementation(function (
+      this: NetSocket,
+      ...args: Parameters<NetSocket["write"]>
+    ): boolean {
+      if (isFrameWithBodyType(args[0], "SucceedTask")) {
+        stalledTerminalWrite?.();
+        return true;
+      }
+      return Reflect.apply(originalWrite, this, args) as boolean;
+    });
+
+    const comm = await listen();
+    const logs = await listen();
+    const commAccept = acceptOne(comm.server);
+    const logsAccept = acceptOne(logs.server);
+
+    registerTask({ dagId: "test_dag", taskId: "terminal_timeout" }, async () => undefined);
+    const runtimeDone = startCoordinator({
+      commAddr: `127.0.0.1:${comm.port}`,
+      logsAddr: `127.0.0.1:${logs.port}`,
+      argv: [],
+    });
+    const assertion = expect(runtimeDone).rejects.toThrow(
+      `Timed out sending response after ${COORDINATOR_RESPONSE_TIMEOUT_MS} ms`,
+    );
+
+    const [commSock, logsSock] = await Promise.all([commAccept, logsAccept]);
+    logsSock.resume();
+    try {
+      const stalled = new Promise<void>((resolve) => {
+        stalledTerminalWrite = resolve;
+      });
+      commSock.write(frameBytes(0, makeStartupDetails("terminal_timeout"), true));
+      await stalled;
+      await vi.advanceTimersByTimeAsync(COORDINATOR_RESPONSE_TIMEOUT_MS);
+
+      await assertion;
+    } finally {
+      commSock.destroy();
+      logsSock.destroy();
+      comm.server.close();
+      logs.server.close();
     }
   });
 
@@ -316,12 +386,12 @@ describe("coordinator runtime integration", () => {
     expect(result.runtimeRequests.filter((r) => r.type === "SetXCom")).toHaveLength(0);
   });
 
-  it("returns TaskState=failed when no handler is registered", async () => {
+  it("returns TaskState=removed when no handler is registered", async () => {
     const result = await driveSupervisor(makeStartupDetails("missing_task"));
 
     expect(result.firstResponse!.body).toMatchObject({
       type: "TaskState",
-      state: "failed",
+      state: "removed",
     });
   });
 

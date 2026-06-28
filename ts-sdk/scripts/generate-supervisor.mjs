@@ -23,7 +23,7 @@
 // Reads the canonical supervisor schema from Airflow's Task SDK and emits
 // `src/generated/supervisor.ts`.
 //
-// The input file is the same JSON Schema consumed by the Java SDK codegen.
+// The input file is Airflow's canonical supervisor JSON Schema.
 // We wrap its top-level `$defs` into a synthetic schema so
 // json-schema-to-typescript treats each entry as an exported interface,
 // preserving cross-references between schema definitions.

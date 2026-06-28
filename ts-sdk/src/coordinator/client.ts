@@ -139,8 +139,8 @@ export function createCoordinatorClient(
 // -------- Error handling (two functions) --------
 //
 // parseFrameError: extract a structured error from the frame (once).
-// classify: decide if the error means "absent" (return null to caller)
-//           or "failed" (throw).
+// isNotFound: decide if the error means "absent" (return null to caller)
+//             or "failed" (throw).
 
 interface FrameError {
   code: string;
@@ -178,7 +178,7 @@ const NOT_FOUND_CODES = new Set(["VARIABLE_NOT_FOUND", "XCOM_NOT_FOUND", "CONNEC
 function isNotFound(err: FrameError): boolean {
   if (NOT_FOUND_CODES.has(err.code)) return true;
   // The supervisor wraps API server 404s as API_SERVER_ERROR with
-  // detail.status_code=404 (supervisor.py lines 743-764).
+  // detail.status_code=404 (supervisor.py: WatchedSubprocess.handle_requests).
   // Dag / Dag run lookups hit this path.
   return err.code === "API_SERVER_ERROR" && err.statusCode === 404;
 }

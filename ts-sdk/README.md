@@ -147,6 +147,9 @@ Airflow launches the bundled entrypoint with `--comm=host:port` and
 the task startup message, finds the registered handler for the Dag/task pair,
 and reports the terminal task state back to Airflow.
 
+See [`example/`](example/) for a coordinator-runtime example that builds a
+`bundle.mjs` with `esbuild` and uses a Python stub Dag.
+
 ## TaskClient
 
 Every task handler receives a `TaskClient` for task-time Airflow data access:

@@ -18,8 +18,7 @@
  */
 
 // Comm socket client — length-prefixed msgpack frames over TCP.
-// Mirrors the supervisor side of `task-sdk/.../comms.py` and the Kotlin
-// SDK's `CoordinatorComm` in `Comms.kt`.
+// Mirrors the Airflow supervisor's comm socket protocol.
 //
 // The channel is the sole reader on the socket. The task sends
 // requests and awaits id-correlated replies. The supervisor's only
@@ -42,6 +41,10 @@ import type { LogChannel } from "./log-channel.js";
 export interface CommConnection {
   channel: CommChannel;
   firstFrame: Frame;
+}
+
+export interface SendResponseOptions {
+  timeoutMs?: number;
 }
 
 export class CommChannel {
@@ -111,15 +114,53 @@ export class CommChannel {
   }
 
   /** Send a response for an incoming supervisor request. */
-  async sendResponse(id: number, body: unknown, error?: unknown): Promise<void> {
+  async sendResponse(
+    id: number,
+    body: unknown,
+    error?: unknown,
+    opts: SendResponseOptions = {},
+  ): Promise<void> {
     this.logs?.debug("Sending response", {
       id,
       type: describeFrameType(body),
       error: error ?? null,
     });
     const buf = encodeResponse(id, body, error);
-    return new Promise((resolve, reject) => {
-      this.sock.write(buf, (err) => (err ? reject(err) : resolve()));
+    return new Promise<void>((resolve, reject) => {
+      if (this.closed) {
+        reject(this.closeError ?? new Error("Comm channel closed"));
+        return;
+      }
+
+      let settled = false;
+      let timer: ReturnType<typeof setTimeout> | null = null;
+
+      const finish = (err?: Error): void => {
+        if (settled) return;
+        settled = true;
+        if (timer !== null) {
+          clearTimeout(timer);
+        }
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      };
+
+      if (opts.timeoutMs !== undefined) {
+        timer = setTimeout(() => {
+          const err = new Error(`Timed out sending response after ${opts.timeoutMs} ms`);
+          this.sock.destroy(err);
+          finish(err);
+        }, opts.timeoutMs);
+      }
+
+      try {
+        this.sock.write(buf, (err) => finish(err ?? undefined));
+      } catch (err) {
+        finish(err as Error);
+      }
     });
   }
 

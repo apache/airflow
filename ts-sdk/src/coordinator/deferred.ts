@@ -17,10 +17,8 @@
  * under the License.
  */
 
-// Coordinator-scoped on purpose (like `tcp-connect.ts`): the only
-// caller today is `comm-channel.ts`. It's a fully generic primitive —
-// if something outside coordinator mode ever needs it, hoist then;
-// don't pre-hoist for tidiness.
+// Coordinator-scoped (like `tcp-connect.ts`): its only caller is
+// `comm-channel.ts`, so it lives next to it rather than in a shared util.
 
 /**
  * A promise whose settlement is triggered from *outside* its executor

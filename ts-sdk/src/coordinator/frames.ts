@@ -19,8 +19,7 @@
 
 // Task SDK wire frame codec.
 //
-// Mirrors `task-sdk/src/airflow/sdk/execution_time/comms.py` (the Airflow
-// supervisor side) and the Java SDK's `TaskSdkFrames.kt`.
+// Mirrors the Airflow supervisor's length-prefixed msgpack IPC format.
 //
 // Frame format on the wire:
 //
@@ -42,8 +41,7 @@
 import { encode, decode } from "@msgpack/msgpack";
 
 /**
- * Maximum frame payload size in bytes (2^32 − 1, matching Python's
- * `comms.py` and the Go SDK's `frames.go`). The length prefix is a
+ * Maximum frame payload size in bytes (2^32 − 1). The length prefix is a
  * big-endian uint32, so anything larger would silently truncate.
  */
 export const MAX_FRAME_SIZE = 0xffff_ffff;
