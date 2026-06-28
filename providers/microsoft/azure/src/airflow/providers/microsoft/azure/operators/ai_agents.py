@@ -86,6 +86,11 @@ class CreateAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
     :param agent_name: Hosted agent name.
     :param definition: Hosted agent definition. Include ``container_configuration.image`` with
         the Azure Container Registry image URI.
+    :param metadata: Optional metadata attached to the Hosted agent.
+    :param description: Optional human-readable Hosted agent description.
+    :param blueprint_reference: Optional managed identity blueprint reference.
+    :param agent_endpoint: Optional Hosted agent endpoint configuration.
+    :param agent_card: Optional agent card for the Hosted agent.
     :param wait_for_completion: Whether to wait until the created version reaches ``active``.
     :param poll_interval: Time in seconds between status checks.
     :param timeout: Time in seconds to wait for the version to become active.
@@ -98,11 +103,22 @@ class CreateAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
     template_fields: Sequence[str] = (
         "agent_name",
         "definition",
+        "metadata",
+        "description",
+        "blueprint_reference",
+        "agent_endpoint",
+        "agent_card",
         "azure_ai_agents_conn_id",
         "endpoint",
         "api_version",
     )
-    template_fields_renderers = {"definition": "json"}
+    template_fields_renderers = {
+        "definition": "json",
+        "metadata": "json",
+        "blueprint_reference": "json",
+        "agent_endpoint": "json",
+        "agent_card": "json",
+    }
     ui_color = "#0678d4"
 
     def __init__(
@@ -110,6 +126,11 @@ class CreateAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         *,
         agent_name: str,
         definition: dict[str, Any],
+        metadata: dict[str, str] | None = None,
+        description: str | None = None,
+        blueprint_reference: dict[str, Any] | None = None,
+        agent_endpoint: dict[str, Any] | None = None,
+        agent_card: dict[str, Any] | None = None,
         wait_for_completion: bool = True,
         poll_interval: float = 30.0,
         timeout: float = 60 * 60,
@@ -122,6 +143,11 @@ class CreateAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         super().__init__(**kwargs)
         self.agent_name = agent_name
         self.definition = definition
+        self.metadata = metadata
+        self.description = description
+        self.blueprint_reference = blueprint_reference
+        self.agent_endpoint = agent_endpoint
+        self.agent_card = agent_card
         self.wait_for_completion = wait_for_completion
         self.poll_interval = poll_interval
         self.timeout = timeout
@@ -133,7 +159,15 @@ class CreateAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
     def execute(self, context: Context) -> Any:
         """Create an Azure AI Hosted agent and optionally wait for the version to become active."""
         self.log.info("Creating Azure AI Hosted agent %s.", self.agent_name)
-        version = self.hook.create_agent(agent_name=self.agent_name, definition=self.definition)
+        version = self.hook.create_agent(
+            agent_name=self.agent_name,
+            definition=self.definition,
+            metadata=self.metadata,
+            description=self.description,
+            blueprint_reference=self.blueprint_reference,
+            agent_endpoint=self.agent_endpoint,
+            agent_card=self.agent_card,
+        )
         agent_version = get_agent_version(version)
         if not self.wait_for_completion:
             return serialize_resource(version)
@@ -200,10 +234,65 @@ class UpdateAzureAIAgentOperator(CreateAzureAIAgentOperator):
     The Hosted agent API publishes updates as immutable versions.
     """
 
+    template_fields: Sequence[str] = (
+        "agent_name",
+        "definition",
+        "metadata",
+        "description",
+        "blueprint_reference",
+        "azure_ai_agents_conn_id",
+        "endpoint",
+        "api_version",
+    )
+    template_fields_renderers = {
+        "definition": "json",
+        "metadata": "json",
+        "blueprint_reference": "json",
+    }
+
+    def __init__(
+        self,
+        *,
+        agent_name: str,
+        definition: dict[str, Any],
+        metadata: dict[str, str] | None = None,
+        description: str | None = None,
+        blueprint_reference: dict[str, Any] | None = None,
+        wait_for_completion: bool = True,
+        poll_interval: float = 30.0,
+        timeout: float = 60 * 60,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        azure_ai_agents_conn_id: str = AzureAIAgentsHook.default_conn_name,
+        endpoint: str | None = None,
+        api_version: str = "v1",
+        **kwargs,
+    ) -> None:
+        super().__init__(
+            agent_name=agent_name,
+            definition=definition,
+            metadata=metadata,
+            description=description,
+            blueprint_reference=blueprint_reference,
+            wait_for_completion=wait_for_completion,
+            poll_interval=poll_interval,
+            timeout=timeout,
+            deferrable=deferrable,
+            azure_ai_agents_conn_id=azure_ai_agents_conn_id,
+            endpoint=endpoint,
+            api_version=api_version,
+            **kwargs,
+        )
+
     def execute(self, context: Context) -> Any:
         """Create a new Azure AI Hosted agent version and optionally wait for it to become active."""
         self.log.info("Creating a new Azure AI Hosted agent %s version.", self.agent_name)
-        version = self.hook.create_agent_version(agent_name=self.agent_name, definition=self.definition)
+        version = self.hook.update_agent(
+            agent_name=self.agent_name,
+            definition=self.definition,
+            metadata=self.metadata,
+            description=self.description,
+            blueprint_reference=self.blueprint_reference,
+        )
         agent_version = get_agent_version(version)
         if not self.wait_for_completion:
             return serialize_resource(version)
@@ -231,6 +320,9 @@ class RunAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
     :param agent_name: Hosted agent name.
     :param input_data: Request payload for the selected protocol.
     :param protocol: Hosted agent protocol to use. Supported values are ``responses`` and ``invocations``.
+    :param agent_version: Optional Hosted agent version used by the ``responses`` protocol.
+    :param agent_session_id: Optional session id used by the ``invocations`` protocol.
+    :param user_isolation_key: Optional per-user isolation key for endpoint-scoped resources.
     :param azure_ai_agents_conn_id: Azure AI Agents connection id.
     :param endpoint: Optional Azure AI Foundry project endpoint override.
     :param api_version: Foundry Agent Service API version.
@@ -240,6 +332,9 @@ class RunAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         "agent_name",
         "input_data",
         "protocol",
+        "agent_version",
+        "agent_session_id",
+        "user_isolation_key",
         "azure_ai_agents_conn_id",
         "endpoint",
         "api_version",
@@ -253,6 +348,9 @@ class RunAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         agent_name: str,
         input_data: dict[str, Any],
         protocol: str = "responses",
+        agent_version: str | None = None,
+        agent_session_id: str | None = None,
+        user_isolation_key: str | None = None,
         azure_ai_agents_conn_id: str = AzureAIAgentsHook.default_conn_name,
         endpoint: str | None = None,
         api_version: str = "v1",
@@ -262,6 +360,9 @@ class RunAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         self.agent_name = agent_name
         self.input_data = input_data
         self.protocol = protocol
+        self.agent_version = agent_version
+        self.agent_session_id = agent_session_id
+        self.user_isolation_key = user_isolation_key
         self.azure_ai_agents_conn_id = azure_ai_agents_conn_id
         self.endpoint = endpoint
         self.api_version = api_version
@@ -271,11 +372,21 @@ class RunAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         self.log.info("Invoking Azure AI Hosted agent %s with %s protocol.", self.agent_name, self.protocol)
         if self.protocol == "responses":
             return serialize_resource(
-                self.hook.invoke_agent_responses(agent_name=self.agent_name, input_data=self.input_data)
+                self.hook.invoke_agent_responses(
+                    agent_name=self.agent_name,
+                    input_data=self.input_data,
+                    agent_version=self.agent_version,
+                    user_isolation_key=self.user_isolation_key,
+                )
             )
         if self.protocol == "invocations":
             return serialize_resource(
-                self.hook.invoke_agent_invocations(agent_name=self.agent_name, input_data=self.input_data)
+                self.hook.invoke_agent_invocations(
+                    agent_name=self.agent_name,
+                    input_data=self.input_data,
+                    agent_session_id=self.agent_session_id,
+                    user_isolation_key=self.user_isolation_key,
+                )
             )
         raise ValueError("protocol must be either 'responses' or 'invocations'.")
 
@@ -332,11 +443,12 @@ class DeleteAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
         self.endpoint = endpoint
         self.api_version = api_version
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Context) -> Any:
         """Delete an Azure AI Hosted agent or version and optionally wait for deletion."""
+        delete_response = None
         if self.agent_version is None:
             self.log.info("Deleting Azure AI Hosted agent %s.", self.agent_name)
-            self.hook.delete_agent(agent_name=self.agent_name, force=self.force)
+            delete_response = self.hook.delete_agent(agent_name=self.agent_name, force=self.force)
         else:
             self.log.info(
                 "Deleting Azure AI Hosted agent %s version %s.", self.agent_name, self.agent_version
@@ -344,7 +456,7 @@ class DeleteAzureAIAgentOperator(AzureAIHostedAgentBaseOperator):
             self.hook.delete_agent_version(agent_name=self.agent_name, agent_version=self.agent_version)
 
         if not self.wait_for_completion:
-            return
+            return serialize_resource(delete_response)
         if self.deferrable:
             self.defer(
                 timeout=self.execution_timeout,

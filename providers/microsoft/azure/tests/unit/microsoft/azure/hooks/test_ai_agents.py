@@ -46,13 +46,19 @@ DEFINITION = {
     "memory": "2Gi",
     "protocol_versions": [{"protocol": "responses", "version": "1.0.0"}],
 }
+METADATA = {"team": "airflow"}
+DESCRIPTION = "Airflow hosted agent"
+BLUEPRINT_REFERENCE = {"type": "ManagedAgentIdentityBlueprint", "blueprint_id": "blueprint-1"}
+AGENT_ENDPOINT = {"protocols": ["responses", "invocations"]}
+AGENT_CARD = {"version": "1.0", "skills": [{"id": "s1", "name": "Summarize"}]}
 
 
-def build_response(status_code=200, payload=None):
+def build_response(status_code=200, payload=None, headers=None):
     response = mock.Mock()
     response.status_code = status_code
     response.content = b"" if payload is None else json.dumps(payload).encode()
     response.text = "" if payload is None else json.dumps(payload)
+    response.headers = headers or {"Content-Type": "application/json"}
     response.json.return_value = payload
     response.raise_for_status = mock.Mock()
     return response
@@ -190,27 +196,54 @@ class TestAzureAIAgentsHook:
         mock_request.return_value = {"name": AGENT_NAME, "version": "1"}
         hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
 
-        result = hook.create_agent(agent_name=AGENT_NAME, definition=DEFINITION)
+        result = hook.create_agent(
+            agent_name=AGENT_NAME,
+            definition=DEFINITION,
+            metadata=METADATA,
+            description=DESCRIPTION,
+            blueprint_reference=BLUEPRINT_REFERENCE,
+            agent_endpoint=AGENT_ENDPOINT,
+            agent_card=AGENT_CARD,
+        )
 
         assert result == {"name": AGENT_NAME, "version": "1"}
         mock_request.assert_called_once_with(
             hook,
             "POST",
             "agents",
-            json_payload={"name": AGENT_NAME, "definition": DEFINITION},
+            json_payload={
+                "name": AGENT_NAME,
+                "definition": DEFINITION,
+                "metadata": METADATA,
+                "description": DESCRIPTION,
+                "blueprint_reference": BLUEPRINT_REFERENCE,
+                "agent_endpoint": AGENT_ENDPOINT,
+                "agent_card": AGENT_CARD,
+            },
         )
 
     @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
-    def test_create_agent_version(self, mock_request):
+    def test_update_agent(self, mock_request):
         hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
 
-        hook.create_agent_version(agent_name=AGENT_NAME, definition=DEFINITION)
+        hook.update_agent(
+            agent_name=AGENT_NAME,
+            definition=DEFINITION,
+            metadata=METADATA,
+            description=DESCRIPTION,
+            blueprint_reference=BLUEPRINT_REFERENCE,
+        )
 
         mock_request.assert_called_once_with(
             hook,
             "POST",
-            f"agents/{AGENT_NAME}/versions",
-            json_payload={"definition": DEFINITION},
+            f"agents/{AGENT_NAME}",
+            json_payload={
+                "definition": DEFINITION,
+                "metadata": METADATA,
+                "description": DESCRIPTION,
+                "blueprint_reference": BLUEPRINT_REFERENCE,
+            },
         )
 
     @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
@@ -235,10 +268,12 @@ class TestAzureAIAgentsHook:
 
     @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
     def test_delete_agent(self, mock_request):
+        mock_request.return_value = {"object": "agent.deleted", "name": AGENT_NAME, "deleted": True}
         hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
 
-        hook.delete_agent(agent_name=AGENT_NAME)
+        result = hook.delete_agent(agent_name=AGENT_NAME)
 
+        assert result == {"object": "agent.deleted", "name": AGENT_NAME, "deleted": True}
         mock_request.assert_called_once_with(hook, "DELETE", f"agents/{AGENT_NAME}", query_params=None)
 
     @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
@@ -308,27 +343,53 @@ class TestAzureAIAgentsHook:
     def test_invoke_agent_responses(self, mock_request):
         hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
 
-        hook.invoke_agent_responses(agent_name=AGENT_NAME, input_data={"input": "hello"})
+        hook.invoke_agent_responses(
+            agent_name=AGENT_NAME,
+            input_data={"input": "hello"},
+            agent_version="2",
+            user_isolation_key="user-key",
+        )
 
         mock_request.assert_called_once_with(
             hook,
             "POST",
-            f"agents/{AGENT_NAME}/endpoint/protocols/openai/responses",
-            json_payload={"input": "hello"},
+            "openai/v1/responses",
+            json_payload={
+                "input": "hello",
+                "agent_reference": {"type": "agent_reference", "name": AGENT_NAME, "version": "2"},
+            },
+            extra_headers={"x-ms-user-isolation-key": "user-key"},
+            include_api_version=False,
         )
 
     @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
     def test_invoke_agent_invocations(self, mock_request):
         hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
 
-        hook.invoke_agent_invocations(agent_name=AGENT_NAME, input_data={"message": "hello"})
+        hook.invoke_agent_invocations(
+            agent_name=AGENT_NAME,
+            input_data={"message": "hello"},
+            agent_session_id="session-1",
+            user_isolation_key="user-key",
+        )
 
         mock_request.assert_called_once_with(
             hook,
             "POST",
             f"agents/{AGENT_NAME}/endpoint/protocols/invocations",
             json_payload={"message": "hello"},
+            extra_headers={"x-ms-user-isolation-key": "user-key"},
+            query_params={"agent_session_id": "session-1"},
         )
+
+    def test_process_response_returns_text_for_non_json_response(self):
+        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
+        response = build_response(payload=None, headers={"Content-Type": "text/plain"})
+        response.content = b"done"
+        response.text = "done"
+        response.json.side_effect = ValueError("not json")
+
+        assert hook._process_response(response) == "done"
 
     def test_get_version_status_raises_when_status_missing(self):
         with pytest.raises(ValueError, match="did not include a status"):
