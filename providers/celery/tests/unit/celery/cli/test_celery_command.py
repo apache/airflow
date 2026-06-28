@@ -36,7 +36,11 @@ from airflow.providers.celery.cli.celery_command import _bundle_cleanup_main, _r
 from airflow.providers.common.compat.sdk import conf
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+)
 
 PY313 = sys.version_info >= (3, 13)
 
@@ -194,6 +198,27 @@ class TestWorkerStart:
                 "prefork",
             ]
         )
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS, reason="set_component_mp_start_method only exists on Airflow 3.3+"
+    )
+    @mock.patch("airflow.utils.process_utils.set_component_mp_start_method")
+    @mock.patch("airflow.providers.celery.cli.celery_command.kombu.pools.reset")
+    @mock.patch("airflow.providers.celery.cli.celery_command.Celery")
+    @mock.patch("airflow.providers.celery.cli.celery_command.setup_locations")
+    @mock.patch("airflow.providers.celery.cli.celery_command.Process")
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
+    def test_worker_applies_celery_mp_start_method(
+        self, mock_celery_app, mock_popen, mock_locations, mock_celery_cls, mock_pools_reset, mock_set_mp
+    ):
+        # The worker pins its stdlib multiprocessing start method (serve_logs / bundle-cleanup /
+        # SecretCache Manager) from [celery] mp_start_method before spawning any helper process.
+        mock_locations.return_value = ("pid_file", None, None, None)
+        args = self.parser.parse_args(["celery", "worker", "--concurrency", "1", "--queues", "queue"])
+
+        celery_command.worker(args)
+
+        mock_set_mp.assert_called_once_with("celery")
 
 
 @pytest.mark.backend("mysql", "postgres")

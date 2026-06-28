@@ -149,6 +149,7 @@ class FileGroupForCi(Enum):
     DEVEL_TOML_FILES = auto()
     SCRIPTS_FILES = auto()
     UV_LOCK_FILE = auto()
+    PREK_FILES = auto()
     KERBEROS_FILES = auto()
     OTEL_FILES = auto()
     CELERY_FILES = auto()
@@ -171,7 +172,15 @@ class HashableDict(dict[T, list[str]]):
 CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
     {
         FileGroupForCi.ENVIRONMENT_FILES: [
-            r"^.github/workflows",
+            # Only workflows that actually run or configure the test suite force the full
+            # matrix. Non-test workflows (security scans, doc publishing, notifications,
+            # backporting, stale/calendar bots, …) cannot affect test outcomes, so they
+            # are excluded here to avoid accidental full-matrix runs.
+            r"^\.github/workflows/(?!("
+            r"asf-allowlist-check|automatic-backport|backport-cli|ci-duration-monitor|ci-notification|"
+            r"codeql-analysis|e2e-flaky-tests-report|milestone-tag-assistant|notify-uv-lock-conflicts|"
+            r"publish-docs-to-s3|recheck-old-bug-report|scheduled-verify-release-calendar|stale"
+            r")\.yml$)",
             r"^dev/breeze/src",
             r"^dev/breeze/pyproject\.toml",
             r"^dev/breeze/uv\.lock",
@@ -179,7 +188,10 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^Dockerfile",
             r"^scripts/ci/docker-compose",
             r"^scripts/ci/kubernetes",
-            r"^scripts/ci/prek",
+            # NOTE: scripts/ci/prek (static-check hooks) is intentionally NOT here. prek
+            # hooks drive static checks, not the test matrix, so they must not force the
+            # full matrix. They still build the CI image via FileGroupForCi.PREK_FILES
+            # below (so mypy-scripts and all static checks still run).
             r"^scripts/docker",
             r"^scripts/in_container",
         ],
@@ -437,6 +449,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^scripts/cov/.*\.py$",
             r"^scripts/tools/.*\.py$",
             r"^scripts/tests/.*\.py$",
+        ],
+        FileGroupForCi.PREK_FILES: [
+            r"^scripts/ci/prek",
         ],
         FileGroupForCi.UV_LOCK_FILE: [
             r"^uv\.lock$",
@@ -1100,6 +1115,10 @@ class SelectiveChecks:
             or self.pyproject_toml_changed
             or self.any_provider_yaml_or_pyproject_toml_changed
             or self.prod_image_build
+            # prek hooks no longer force the full test matrix (they are static checks, not
+            # tests), but they still need the CI image so mypy-scripts and the image-based
+            # static checks run for a prek-only change.
+            or bool(self._matching_files(FileGroupForCi.PREK_FILES, CI_FILE_GROUP_MATCHES))
         )
 
     @cached_property
