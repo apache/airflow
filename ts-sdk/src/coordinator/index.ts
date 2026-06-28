@@ -19,9 +19,8 @@
 
 // Coordinator-mode public API. Re-exported through the package root.
 //
-// TaskClient and related types are exported from the root `client.ts`
-// (shared across modes). This barrel only exports coordinator-specific
-// entry points.
+// TaskClient and related types are exported from the package root. This
+// barrel only exports coordinator-specific entry points.
 
 export { startCoordinator, type StartCoordinatorOptions } from "./runtime.js";
 /** Cadwyn schema version this SDK was generated against. Not sent on

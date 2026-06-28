@@ -19,7 +19,7 @@
 
 // Coordinator runtime entrypoint.
 //
-// Invoked by Airflow's `BaseCoordinator` (PR #65958) as a subprocess:
+// Invoked by Airflow's coordinator subprocess path:
 //
 //     node my-bundle.mjs --comm=host:port --logs=host:port
 //
@@ -31,7 +31,7 @@
 //   1. Parse --comm / --logs from argv
 //   2. Connect both TCP sockets
 //   3. Read the first frame from comm:
-//        - DagFileParseRequest → respond with DagParsingResult, exit
+//        - DagFileParseRequest → respond with DagFileParsingResult, exit
 //        - StartupDetails      → run task, respond Succeed or Fail, exit
 //
 import { createCoordinatorClient } from "./client.js";
@@ -104,29 +104,32 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
       ? { commAddr: opts.commAddr, logsAddr: opts.logsAddr }
       : parseArgs(argv);
 
-  // Connect log channel first so early failures are captured.
-  // Root logger is `ts-sdk`; subsystems use child names (`ts-sdk.runtime`,
-  // `ts-sdk.comm`, `ts-sdk.client`) so structlog's ConsoleRenderer prints
-  // them as a distinct `[name]` column on the supervisor side.
-  const logs = await LogChannel.connect(parsed.logsAddr);
-  const runtimeLogs = logs.child("runtime");
-  const tasks = listRegisteredTasks();
-  runtimeLogs.info("Coordinator runtime started", {
-    registered_tasks: tasks,
-    count: tasks.length,
-    // Cadwyn schema version this SDK was generated against. Logged
-    // for operator visibility; not sent on the wire.
-    supervisor_api_version: SUPERVISOR_API_VERSION,
-  });
-
-  const { channel: comm, firstFrame } = await CommChannel.connect(
-    parsed.commAddr,
-    logs.child("comm"),
-  );
-  runtimeLogs.debug("Connected comm socket", { commAddr: parsed.commAddr });
-  const cancellation = createCoordinatorCancellation(runtimeLogs);
+  let logs: LogChannel | null = null;
+  let comm: CommChannel | null = null;
+  let cancellation: CoordinatorCancellation | null = null;
 
   try {
+    // Connect log channel first so early failures are captured.
+    // Root logger is `ts-sdk`; subsystems use child names (`ts-sdk.runtime`,
+    // `ts-sdk.comm`, `ts-sdk.client`) so structlog's ConsoleRenderer prints
+    // them as a distinct `[name]` column on the supervisor side.
+    logs = await LogChannel.connect(parsed.logsAddr);
+    const runtimeLogs = logs.child("runtime");
+    const tasks = listRegisteredTasks();
+    runtimeLogs.info("Coordinator runtime started", {
+      registered_tasks: tasks,
+      count: tasks.length,
+      // Cadwyn schema version this SDK was generated against. Logged
+      // for operator visibility; not sent on the wire.
+      supervisor_api_version: SUPERVISOR_API_VERSION,
+    });
+
+    const connection = await CommChannel.connect(parsed.commAddr, logs.child("comm"));
+    comm = connection.channel;
+    const firstFrame = connection.firstFrame;
+    runtimeLogs.debug("Connected comm socket", { commAddr: parsed.commAddr });
+    cancellation = createCoordinatorCancellation(runtimeLogs);
+
     const body = asMsgFromSupervisor(firstFrame.body);
 
     if (body.type === "DagFileParseRequest") {
@@ -169,9 +172,9 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
       });
     }
   } finally {
-    cancellation.dispose();
-    await comm.close();
-    await logs.close();
+    cancellation?.dispose();
+    await comm?.close();
+    await logs?.close();
   }
 }
 
@@ -268,7 +271,7 @@ async function handleTask(
     });
     await comm.sendResponse(id, {
       type: "TaskState",
-      state: "removed",
+      state: "failed",
       end_date: new Date().toISOString(),
     });
     return;

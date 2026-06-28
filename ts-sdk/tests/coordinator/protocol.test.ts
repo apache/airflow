@@ -25,7 +25,17 @@ describe("protocol decode", () => {
   it("accepts StartupDetails", () => {
     const raw = {
       type: "StartupDetails",
-      ti: { id: "u", task_id: "t", dag_id: "d", run_id: "r", try_number: 1 },
+      ti: {
+        id: "u",
+        dag_version_id: "dag-version-1",
+        task_id: "t",
+        dag_id: "d",
+        run_id: "r",
+        try_number: 1,
+        pool_slots: 1,
+        queue: "default",
+        priority_weight: 1,
+      },
       dag_rel_path: "dags/my.mjs",
       bundle_info: { name: "my", version: "1" },
       start_date: "2026-04-23T00:00:00Z",

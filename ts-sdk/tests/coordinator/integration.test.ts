@@ -22,9 +22,8 @@
 // Stands up a minimal in-process "supervisor" (TCP server +
 // length-prefixed msgpack frame codec) that mirrors what Airflow's
 // real `BaseCoordinator._runtime_subprocess_entrypoint` does, then
-// drives the runtime through three lifecycles: StartupDetails →
-// SucceedTask, StartupDetails (handler throws) → TaskState{failed},
-// and StartupDetails for an unregistered task → TaskState{removed}.
+// drives the runtime through task success, task failure, retry, cancellation,
+// task-time RPCs, missing handlers, and parse-mode responses.
 //
 // No Python, no Airflow install — but exercises the same wire format
 // the real coordinator speaks.
@@ -85,12 +84,15 @@ function makeStartupDetails(
     type: "StartupDetails",
     ti: {
       id: "ti-1",
+      dag_version_id: "dag-version-1",
       task_id: taskId,
       dag_id: dagId,
       run_id: runId,
       try_number: 1,
       map_index: -1,
+      pool_slots: 1,
       queue: "default",
+      priority_weight: 1,
     },
     dag_rel_path: "test.py",
     bundle_info: { name: "test", version: null },
@@ -185,6 +187,29 @@ async function driveSupervisor(initialFrame: unknown, responder?: Responder): Pr
 }
 
 describe("coordinator runtime integration", () => {
+  it("closes the log socket when the comm connection fails during startup", async () => {
+    const logs = await listen();
+    const comm = await listen();
+
+    const logsSockPromise = acceptOne(logs.server);
+    const commSockPromise = acceptOne(comm.server);
+    const runtimeDone = startCoordinator({
+      commAddr: `127.0.0.1:${comm.port}`,
+      logsAddr: `127.0.0.1:${logs.port}`,
+      argv: [],
+    });
+    const [logsSock, commSock] = await Promise.all([logsSockPromise, commSockPromise]);
+    const logsSockEnded = new Promise<void>((resolve) => logsSock.on("end", () => resolve()));
+    logsSock.resume();
+
+    commSock.write(Buffer.from([0, 0, 0, 1, 0x2a]));
+    await expect(runtimeDone).rejects.toThrow(/array frame/);
+    await logsSockEnded;
+    commSock.destroy();
+    logs.server.close();
+    comm.server.close();
+  });
+
   it("dispatches StartupDetails to a registered handler and emits SucceedTask", async () => {
     let observedCtx: unknown = null;
     registerTask({ dagId: "test_dag", taskId: "say_hello" }, async ({ ctx }) => {
@@ -292,12 +317,12 @@ describe("coordinator runtime integration", () => {
     expect(result.runtimeRequests.filter((r) => r.type === "SetXCom")).toHaveLength(0);
   });
 
-  it("returns TaskState=removed when no handler is registered", async () => {
+  it("returns TaskState=failed when no handler is registered", async () => {
     const result = await driveSupervisor(makeStartupDetails("missing_task"));
 
     expect(result.firstResponse!.body).toMatchObject({
       type: "TaskState",
-      state: "removed",
+      state: "failed",
     });
   });
 

@@ -33,7 +33,7 @@ import type {
   SucceedTask as RawSucceedTask,
   TaskState as RawTaskState,
   DagFileParsingResult as RawDagFileParsingResult,
-  TaskInstance as RawTaskInstance,
+  TaskInstanceDTO as RawTaskInstanceDTO,
 } from "../generated/supervisor.js";
 
 export { SUPERVISOR_API_VERSION } from "../generated/supervisor.js";
@@ -55,12 +55,9 @@ export type {
 
 // -------- TaskInstance: extend generated with wire-only fields --------
 
-/** Supervisor's TaskInstance with the additional fields we observe on
- *  the wire (`queue`, `language`) but that the snapshot didn't capture,
- *  plus a forward-compat index signature so unknown fields pass through
- *  rather than getting stripped by structural typing. */
-export interface TaskInstance extends RawTaskInstance {
-  queue?: string | null;
+/** Supervisor's startup TaskInstance DTO plus fields newer supervisors may
+ *  include before this SDK regenerates its schema snapshot. */
+export interface TaskInstance extends RawTaskInstanceDTO {
   language?: string | null;
   [k: string]: unknown;
 }
@@ -98,7 +95,7 @@ export type SucceedTask = Omit<RawSucceedTask, "type" | "task_outlets" | "outlet
  *  union and typos fail at compile time. */
 export type TaskStateMsg = Omit<RawTaskState, "type" | "state"> & {
   type: "TaskState";
-  state: "failed" | "skipped" | "removed" | "up_for_retry";
+  state: "failed" | "skipped" | "removed";
 };
 
 export type RetryTask = Omit<RawRetryTask, "type"> & {

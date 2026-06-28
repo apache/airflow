@@ -72,8 +72,8 @@ if (!apiVersion || !schemas) {
 
 // Wrap into a single document with $defs so each named schema becomes
 // an exported interface, and intra-schema refs ($defs/AssetResponse etc.)
-// still resolve. We synthesize a discard-only root that references every
-// def so json-schema-to-typescript emits all of them.
+// still resolve. `unreachableDefinitions: true` below emits definitions
+// even when the synthetic root does not reference them directly.
 const root = {
   title: "SupervisorWireSchema",
   type: "object",
@@ -90,9 +90,6 @@ const root = {
       return entries;
     }),
   ),
-  // Force every $def to be emitted by referencing them in a discard
-  // anyOf — json-schema-to-typescript otherwise prunes unreferenced
-  // defs.
   additionalProperties: false,
 };
 
@@ -102,11 +99,8 @@ function stripDefs(sch) {
   return rest;
 }
 
-// Rewrite all "$ref": "#/$defs/X" refs (which inside each per-schema
-// document pointed at that schema's own $defs) so they resolve against
-// the hoisted root $defs instead. After flattening, every type lives at
-// the root, so the path is just "#/$defs/X" → still works. No rewrite
-// needed.
+// After flattening, every type lives under the root $defs, so "$ref":
+// "#/$defs/X" still points at the right schema. No rewrite is needed.
 
 const ts = await compile(root, "SupervisorWireSchema", {
   bannerComment: "",
