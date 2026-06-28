@@ -82,6 +82,7 @@ from airflow.models.asset import (
     AssetWatcherModel,
     TaskOutletAssetReference,
 )
+from airflow.models.dag_version import DagVersion
 from airflow.typing_compat import Unpack
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -454,7 +455,18 @@ def materialize_asset(
     resolved_body = body or MaterializeAssetBody()
 
     try:
-        params = resolved_body.validate_context(dag)
+        preloaded_dag_version = None
+        context_dag = dag
+        if resolved_body.bundle_version is not None and not dag.disable_bundle_versioning:
+            preloaded_dag_version = DagVersion.get_latest_version(
+                dag_id, bundle_version=resolved_body.bundle_version, load_serialized_dag=True, session=session
+            )
+            if not preloaded_dag_version:
+                raise DagVersionNotFound(
+                    f"DAG with dag_id: '{dag_id}' does not have a version for bundle_version '{resolved_body.bundle_version}'"
+                )
+            context_dag = preloaded_dag_version.serialized_dag.dag
+        params = resolved_body.validate_context(context_dag)
         return dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],
@@ -469,6 +481,7 @@ def materialize_asset(
             note=params["note"],
             session=session,
             bundle_version=resolved_body.bundle_version,
+            dag_version=preloaded_dag_version,
         )
     except (ParamValidationError, ValueError) as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e

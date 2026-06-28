@@ -163,7 +163,7 @@ class DagVersion(Base):
         :return: The select object.
         """
         query = select(cls).where(cls.dag_id == dag_id)
-        if bundle_version:
+        if bundle_version is not None:
             query = query.where(cls.bundle_version == bundle_version)
 
         if load_dag_model:

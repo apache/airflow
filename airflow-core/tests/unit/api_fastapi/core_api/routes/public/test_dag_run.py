@@ -3587,6 +3587,46 @@ class TestTriggerDagRun:
         )
         assert response.status_code == 200
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_trigger_dag_run_bundle_version_uses_v1_timetable(self, test_client, session, dag_maker):
+        """Triggering with bundle_version='v1' must derive data_interval from v1's timetable, not v2's."""
+        from tests_common.test_utils.dag import sync_dag_to_db
+
+        dag_id = "test_bundle_timetable_dag"
+        bundle_name = "timetable_bundle"
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            schedule=CronDataIntervalTimetable("0 0 * * *", timezone="UTC"),
+            session=session,
+        ) as dag1:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag1, bundle_name=bundle_name, bundle_version="v1")
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            schedule=None,
+            session=session,
+        ) as dag2:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag2, bundle_name=bundle_name, bundle_version="v2")
+
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-01-01T00:00:00Z", "bundle_version": "v1"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["dag_versions"][0]["bundle_version"] == "v1"
+        # data_interval must come from v1's daily cron timetable, not v2's null timetable.
+        # For a "0 0 * * *" cron, logical_date is the interval END, so interval is [prev_day, logical_date].
+        assert data["data_interval_start"] == "2023-12-31T00:00:00Z"
+        assert data["data_interval_end"] == "2024-01-01T00:00:00Z"
+
     def test_should_respond_400_when_partition_key_given_for_non_partitioned_dag(self, test_client):
         """Passing partition_key to a non-partitioned Dag via REST trigger must return 400, not 500.
 

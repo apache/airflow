@@ -699,7 +699,7 @@ class SerializedDAG:
             session=session,
         )
 
-        if self.deadline:
+        if params_dag.deadline:
             self._process_dagrun_deadline_alerts(orm_dagrun, session)
 
         return orm_dagrun

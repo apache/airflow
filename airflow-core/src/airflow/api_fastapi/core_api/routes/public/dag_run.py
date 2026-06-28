@@ -704,7 +704,18 @@ def trigger_dag_run(
 
     try:
         dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-        params = body.validate_context(dag)
+        preloaded_dag_version = None
+        context_dag = dag
+        if body.bundle_version is not None and not dag.disable_bundle_versioning:
+            preloaded_dag_version = DagVersion.get_latest_version(
+                dag_id, bundle_version=body.bundle_version, load_serialized_dag=True, session=session
+            )
+            if not preloaded_dag_version:
+                raise DagVersionNotFound(
+                    f"DAG with dag_id: '{dag_id}' does not have a version for bundle_version '{body.bundle_version}'"
+                )
+            context_dag = preloaded_dag_version.serialized_dag.dag
+        params = body.validate_context(context_dag)
 
         dag_run = dag.create_dagrun(
             run_id=params["run_id"],
@@ -718,6 +729,7 @@ def trigger_dag_run(
             state=DagRunState.QUEUED,
             partition_key=params["partition_key"],
             bundle_version=body.bundle_version,
+            dag_version=preloaded_dag_version,
             partition_date=params["partition_date"],
             session=session,
         )
