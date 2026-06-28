@@ -33,7 +33,6 @@ import type {
   SucceedTask as RawSucceedTask,
   TaskState as RawTaskState,
   DagFileParsingResult as RawDagFileParsingResult,
-  TaskInstanceDTO as RawTaskInstanceDTO,
 } from "../generated/supervisor.js";
 
 export { SUPERVISOR_API_VERSION } from "../generated/supervisor.js";
@@ -53,20 +52,10 @@ export type {
   GetConnection,
 } from "../generated/supervisor.js";
 
-// -------- TaskInstance: extend generated with wire-only fields --------
-
-/** Supervisor's startup TaskInstance DTO plus fields newer supervisors may
- *  include before this SDK regenerates its schema snapshot. */
-export interface TaskInstance extends RawTaskInstanceDTO {
-  language?: string | null;
-  [k: string]: unknown;
-}
-
 // -------- Frames from supervisor (narrowed discriminators) --------
 
-export type StartupDetails = Omit<RawStartupDetails, "ti" | "type"> & {
+export type StartupDetails = Omit<RawStartupDetails, "type"> & {
   type: "StartupDetails";
-  ti: TaskInstance;
 };
 
 export type DagFileParseRequest = Omit<RawDagFileParseRequest, "type"> & {

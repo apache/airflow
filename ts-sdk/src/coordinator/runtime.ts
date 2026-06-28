@@ -148,7 +148,6 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
         ti_id: body.ti.id,
         hostname: body.ti.hostname ?? null,
         queue: body.ti.queue ?? null,
-        language: body.ti.language ?? null,
         bundle: body.bundle_info.name,
         bundle_version: body.bundle_info.version ?? null,
         dag_rel_path: body.dag_rel_path,

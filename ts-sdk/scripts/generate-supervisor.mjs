@@ -105,7 +105,7 @@ function stripDefs(sch) {
 const ts = await compile(root, "SupervisorWireSchema", {
   bannerComment: "",
   additionalProperties: false,
-  style: { tabWidth: 4 },
+  style: { tabWidth: 2 },
   declareExternallyReferenced: true,
   unreachableDefinitions: true, // emit unreferenced $defs too
   enableConstEnums: false,
