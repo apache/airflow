@@ -243,8 +243,19 @@ class DeltaDataIntervalTimetable(DeltaMixin, _DataIntervalTimetable):
 
         This is slightly different from the cron version at terminal values.
         """
-        round_current_time = self._round(coerce_datetime(utcnow()))
-        new_start = self._get_prev(round_current_time)
+        now = coerce_datetime(utcnow())
+        if isinstance(self._delta, relativedelta) and (self._delta.months or self._delta.years):
+            # Months/years have no fixed second count, so the epoch-grid
+            # rounding used below would drift. Anchor on ``earliest`` and advance
+            # one period at a time so boundaries match the catchup=True grid
+            # (relativedelta day-clamping is path-dependent, e.g. Jan 31 -> Feb
+            # 28 -> Mar 28, so a multiplied jump would land elsewhere).
+            new_start = earliest if earliest is not None else now
+            while self._get_next(new_start) <= now:
+                new_start = self._get_next(new_start)
+            new_start = self._get_prev(new_start)
+        else:
+            new_start = self._get_prev(self._round(now))
         if earliest is None:
             return new_start
         return max(new_start, earliest)
