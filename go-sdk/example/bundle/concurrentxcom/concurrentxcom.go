@@ -85,10 +85,10 @@ func PullXComsConcurrently(ctx sdk.TIRunContext, client sdk.Client, log *slog.Lo
 	var wg sync.WaitGroup
 	for i, key := range keys {
 		wg.Add(1)
-		go func() {
+		go func(i int, key string) {
 			defer wg.Done()
 			concResults[i], errs[i] = pull(key)
-		}()
+		}(i, key)
 	}
 	wg.Wait()
 	concurrent := time.Since(concStart)
