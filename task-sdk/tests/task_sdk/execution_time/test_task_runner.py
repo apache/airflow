@@ -465,6 +465,82 @@ def test_main_sends_reschedule_task_when_startup_reschedules(
     ]
 
 
+@pytest.mark.parametrize(
+    ("state", "error", "expect_error_status"),
+    [
+        (TaskInstanceState.FAILED, RuntimeError("boom"), True),
+        (TaskInstanceState.SUCCESS, None, False),
+    ],
+)
+@mock.patch("airflow.sdk.execution_time.task_runner.finalize")
+@mock.patch("airflow.sdk.execution_time.task_runner.run")
+@mock.patch("airflow.sdk.execution_time.task_runner.BundleVersionLock")
+@mock.patch("airflow.sdk.execution_time.task_runner.startup")
+@mock.patch("airflow.sdk.execution_time.task_runner.get_startup_details")
+@mock.patch("airflow.sdk.execution_time.task_runner.CommsDecoder")
+def test_main_marks_worker_span_error_on_failure(
+    mock_comms_decoder_cls,
+    mock_get_startup_details,
+    mock_startup,
+    mock_bundle_lock,
+    mock_run,
+    mock_finalize,
+    make_ti_context,
+    state,
+    error,
+    expect_error_status,
+):
+    """main() marks the worker span ERROR when run() reports a failure, and leaves it unset otherwise.
+
+    run() funnels every failure into its returned ``error`` rather than re-raising, so the worker
+    span never sees the exception via propagation; main() must set the status from that return value.
+    """
+    mock_comms_instance = mock.Mock()
+    mock_comms_instance.socket = None
+    mock_comms_decoder_cls.__getitem__.return_value.return_value = mock_comms_instance
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="my_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+            context_carrier={},
+        ),
+        dag_rel_path="",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+    mock_get_startup_details.return_value = what
+
+    ti = mock.Mock()
+    ti.bundle_instance.name = "my-bundle"
+    ti.bundle_instance.version = None
+    ti._terminal_state_send_failed = False
+    mock_startup.return_value = (ti, {}, mock.Mock())
+    mock_run.return_value = (state, mock.Mock(), error)
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    t = provider.get_tracer("test")
+
+    with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
+        task_runner.main()
+
+    worker = {s.name: s for s in exporter.get_finished_spans()}["worker.my_task"]
+    if expect_error_status:
+        assert worker.status.status_code == trace.StatusCode.ERROR
+        assert any(e.name == "exception" for e in worker.events)
+    else:
+        assert worker.status.status_code != trace.StatusCode.ERROR
+
+
 def test_run_swallows_supervisor_terminal_send_failure(create_runtime_ti, mock_supervisor_comms):
     """
     When the supervisor rejects the terminal-state send (e.g. the server
