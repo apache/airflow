@@ -64,7 +64,7 @@ const LinkComponent = ({
   readonly href: string;
   readonly title?: string;
 }) => (
-  <Link color="fg.info" fontWeight="bold" href={href} title={title}>
+  <Link color="fg.info" fontWeight="bold" href={href} rel="noopener noreferrer" target="_blank" title={title}>
     {children}
   </Link>
 );
@@ -97,7 +97,7 @@ const PComponent = ({ children }: PropsWithChildren) => (
     {children}
   </Text>
 );
-const PreComponent = ({ children }: PropsWithChildren) => <Box my={3}>{children}</Box>;
+const PreComponent = ({ children }: PropsWithChildren) => <Box my={2}>{children}</Box>;
 const TableComponent = ({ children }: PropsWithChildren) => <Table.Root mb={3}>{children}</Table.Root>;
 const TextComponent = ({ children }: PropsWithChildren) => <Text as="span">{children}</Text>;
 const UlComponent = ({ children }: PropsWithChildren) => (
@@ -109,26 +109,21 @@ const UlComponent = ({ children }: PropsWithChildren) => (
 // Factory function for the code component that needs style
 const createCodeComponent =
   (style: typeof oneDark | typeof oneLight) =>
-  ({
-    children,
-    className,
-    inline,
-  }: {
-    readonly children: ReactNode;
-    readonly className?: string;
-    readonly inline?: boolean;
-  }) => {
-    if (inline) {
+  ({ children, className }: { readonly children: ReactNode; readonly className?: string }) => {
+    // react-markdown v9 no longer passes an `inline` prop. Only fenced code
+    // blocks carry a `language-*` class; everything else is inline code and
+    // must render as a <span> (a block <div> inside a <p> breaks hydration).
+    const match = /language-(?<lang>\w+)/u.exec(className ?? "");
+
+    if (!match) {
       return (
-        <Code display="inline" p={2}>
+        <Code borderRadius="sm" display="inline" fontSize="0.875em" px={1.5} py={0.5} verticalAlign="baseline">
           {children}
         </Code>
       );
     }
 
-    // Extract language from className (format: "language-python")
-    const match = /language-(?<lang>\w+)/u.exec(className ?? "");
-    const language = match?.groups?.lang;
+    const language = match.groups?.lang;
 
     // Safely extract string content from children
     let childString = "";

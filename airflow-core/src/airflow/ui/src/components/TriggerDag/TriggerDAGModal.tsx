@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, VStack, HStack, Spinner, Center, Text } from "@chakra-ui/react";
+import { Accordion, Box, Heading, VStack, HStack, Spinner, Center, Text } from "@chakra-ui/react";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useDagServiceGetDag } from "openapi/queries";
 import { Dialog, Tooltip } from "src/components/ui";
 import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
+import ReactMarkdown from "src/components/ReactMarkdown";
 import { useTrigger } from "src/queries/useTrigger";
 
 import RunBackfillForm from "../DagActions/RunBackfillForm";
@@ -81,7 +82,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} unmountOnExit>
-      <Dialog.Content backdrop>
+      <Dialog.Content backdrop maxW="3xl" width="90vw">
         <Dialog.Header paddingBottom={0}>
           <VStack align="start" gap={2} width="100%" wordBreak="break-all">
             <Heading size="xl">
@@ -138,18 +139,42 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
               ) : undefined}
 
               {runMode === RunMode.SINGLE ? (
-                <TriggerDAGForm
-                  dagDisplayName={dagDisplayName}
-                  dagId={dagId}
-                  error={error}
-                  hasSchedule={hasSchedule}
-                  isPartitioned={isPartitioned}
-                  isPaused={isPaused}
-                  isPending={isPending}
-                  onSubmitTrigger={triggerDagRun}
-                  open={open}
-                  prefillConfig={prefillConfig}
-                />
+                <>
+                  {dag?.doc_md ? (
+                    <Accordion.Root collapsible defaultValue={["dag-docs"]} mb={4}>
+                      <Accordion.Item value="dag-docs">
+                        <Accordion.ItemTrigger>
+                          <Text fontWeight="semibold">{translate("triggerDag.dagDocs")}</Text>
+                          <Accordion.ItemIndicator />
+                        </Accordion.ItemTrigger>
+                        <Accordion.ItemContent>
+                          <Box
+                            borderColor="border.emphasized"
+                            borderLeft="solid 3px"
+                            maxH="200px"
+                            overflow="auto"
+                            pl={3}
+                            py={2}
+                          >
+                            <ReactMarkdown>{dag.doc_md}</ReactMarkdown>
+                          </Box>
+                        </Accordion.ItemContent>
+                      </Accordion.Item>
+                    </Accordion.Root>
+                  ) : undefined}
+                  <TriggerDAGForm
+                    dagDisplayName={dagDisplayName}
+                    dagId={dagId}
+                    error={error}
+                    hasSchedule={hasSchedule}
+                    isPartitioned={isPartitioned}
+                    isPaused={isPaused}
+                    isPending={isPending}
+                    onSubmitTrigger={triggerDagRun}
+                    open={open}
+                    prefillConfig={prefillConfig}
+                  />
+                </>
               ) : (
                 isBackfillable && dag && <RunBackfillForm dag={dag} onClose={onClose} />
               )}
