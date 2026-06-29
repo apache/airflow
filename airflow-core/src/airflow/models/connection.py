@@ -91,7 +91,8 @@ def sanitize_conn_id(conn_id: str | None, max_length=CONN_ID_MAX_LEN) -> str | N
 
 
 def validate_port(port: int | None) -> int | None:
-    """Validate that port is within the valid TCP/UDP range (1-65535).
+    """
+    Validate that port is within the valid TCP/UDP range (1-65535).
 
     :param port: The port number to validate.
     :return: The port number if valid, None if port is None.
