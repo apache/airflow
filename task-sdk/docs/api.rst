@@ -72,6 +72,7 @@ Task Decorators:
 .. autoapifunction:: airflow.sdk.teardown
 
 .. autofunction:: airflow.sdk.task
+.. autofunction:: airflow.sdk.result
 .. autofunction:: airflow.sdk.setup
 .. autofunction:: airflow.sdk.teardown
 .. autofunction:: airflow.sdk.asset
@@ -213,7 +214,7 @@ Timetables
 
 .. autoapiclass:: airflow.sdk.MultipleCronTriggerTimetable
 
-.. autoapiclass:: airflow.sdk.PartitionAtRuntime
+.. autoapiclass:: airflow.sdk.PartitionedAtRuntime
 
 .. autoapiclass:: airflow.sdk.PartitionedAssetTimetable
 

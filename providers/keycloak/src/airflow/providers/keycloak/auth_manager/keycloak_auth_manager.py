@@ -34,7 +34,7 @@ from urllib3.util import Retry
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 
 try:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ExtendedResourceMethod
@@ -78,6 +78,8 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 RESOURCE_ID_ATTRIBUTE_NAME = "resource_id"
+
+
 TEAM_SCOPED_RESOURCES = frozenset(
     {
         KeycloakResource.CONNECTION,
@@ -140,34 +142,6 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             "access_token": user.access_token,
             "refresh_token": user.refresh_token,
         }
-
-    def get_cli_user(self) -> KeycloakAuthManagerUser:
-        """
-        Return a service-account user for the local CLI to mint a token for.
-
-        Keycloak tokens are issued by the external Keycloak server, so they cannot be
-        forged locally. The Keycloak client is already configured for Airflow to talk to
-        Keycloak, so we reuse it to obtain a service-account token through the
-        ``client_credentials`` flow. The service account's effective permissions are
-        governed by the Keycloak deployment. If the client credentials are not usable, the
-        operator must provide a token via the ``AIRFLOW_CLI_TOKEN`` environment variable.
-        """
-        try:
-            tokens = self.get_keycloak_client().token(grant_type="client_credentials")
-        except Exception as e:
-            raise AirflowConfigException(
-                "Could not obtain a Keycloak service-account token for the CLI via the "
-                "client_credentials flow. Set the AIRFLOW_CLI_TOKEN environment variable "
-                f"with a valid API token instead. Original error: {e}"
-            ) from e
-        return KeycloakAuthManagerUser(
-            user_id="airflow-cli",
-            name="airflow-cli",
-            access_token=tokens["access_token"],
-            # No refresh token is issued for the client_credentials flow (RFC 6749 §4.4.3),
-            # which marks this as a service account in refresh_user/refresh_tokens.
-            refresh_token=tokens.get("refresh_token"),
-        )
 
     def get_url_login(self, **kwargs) -> str:
         base_url = conf.get("api", "base_url", fallback="/")
@@ -428,16 +402,19 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
 
         context_attributes = prune_dict(attributes or {})
+
+        is_team_resource = bool(
+            team_name
+            and conf.getboolean("core", "multi_team", fallback=False)
+            and resource_type in TEAM_SCOPED_RESOURCES
+        )
+
         if resource_id:
             context_attributes[RESOURCE_ID_ATTRIBUTE_NAME] = resource_id
         elif method == "GET":
             method = "LIST"
 
-        if (
-            team_name
-            and conf.getboolean("core", "multi_team", fallback=False)
-            and resource_type in TEAM_SCOPED_RESOURCES
-        ):
+        if is_team_resource:
             resource_name = f"{resource_type.value}:{team_name}"
         else:
             resource_name = resource_type.value
@@ -459,6 +436,12 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             return False
         if resp.status_code == 400:
             error = json.loads(resp.text)
+            if is_team_resource and error.get("error") == "invalid_resource":
+                # filter_authorized_dag_ids will return this error if team resources have not been added to the Keycloak Client.
+                log.warning(
+                    "Keycloak authorization resource is missing; denying access. Response: %s", resp.text
+                )
+                return False
             raise AirflowException(
                 f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
             )
