@@ -566,12 +566,18 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
         if event.task_instance_state in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED):
             if task_instance.dag_model.relative_fileloc is None:
                 raise RuntimeError("relative_fileloc should not be None for a finished task")
+            from airflow.models.dag_version import resolve_pinned_version_data
+
+            version_data = resolve_pinned_version_data(
+                task_instance.dag_version, task_instance.dag_run.bundle_version
+            )
             request = TaskCallbackRequest(
                 filepath=task_instance.dag_model.relative_fileloc,
                 ti=task_instance,
                 task_callback_type=event.task_instance_state,
                 bundle_name=task_instance.dag_model.bundle_name,
                 bundle_version=task_instance.dag_run.bundle_version,
+                version_data=version_data,
             )
             log.info("Sending callback: %s", request)
             try:
