@@ -269,8 +269,8 @@ class AssetsOperations(BaseOperations):
         """List all assets from the API server."""
         return super().execute_list(path="assets", data_model=AssetCollectionResponse)
 
-    def list_by_alias(self) -> AssetAliasCollectionResponse | ServerResponseError:
-        """List all assets by alias from the API server."""
+    def list_aliases(self) -> AssetAliasCollectionResponse | ServerResponseError:
+        """List all assets aliases from the API server."""
         return super().execute_list(path="/assets/aliases", data_model=AssetAliasCollectionResponse)
 
     def create_event(
