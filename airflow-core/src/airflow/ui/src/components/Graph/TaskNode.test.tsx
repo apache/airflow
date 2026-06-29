@@ -18,7 +18,7 @@
  */
 import { render } from "@testing-library/react";
 import { ReactFlowProvider } from "@xyflow/react";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
@@ -44,7 +44,9 @@ const renderHtml = (data: Partial<CustomNodeProps>): string => {
   const { container } = render(
     // The xyflow NodeProps surface is large; the component only reads `data` and `id`.
     <TaskNode
-      {...({ data: { height: 80, id: "t1", label: "t1", type: "task", width: 200, ...data } } as never)}
+      {...({
+        data: { height: 80, id: "t1", label: "t1", type: "task", width: 200, ...data },
+      } as unknown as ComponentProps<typeof TaskNode>)}
     />,
     { wrapper: TestWrapper },
   );
@@ -65,7 +67,7 @@ describe("TaskNode operator colors", () => {
     );
   });
 
-  it("does not tint a group node (2.x parity: groups keep their own background)", () => {
-    expect(renderHtml({ isGroup: true, uiColor: "blue.500" })).toBe(renderHtml({ isGroup: true }));
+  it("tints a group node when ui_color is a token (2.x parity: ui_color is the group fill)", () => {
+    expect(renderHtml({ isGroup: true, uiColor: "blue.500" })).not.toBe(renderHtml({ isGroup: true }));
   });
 });

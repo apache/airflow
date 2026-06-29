@@ -354,6 +354,8 @@ export const generateElkGraph = ({
           "elk.padding": "[top=80,left=15,bottom=15,right=15]",
           ...(direction === "RIGHT" ? { "elk.portConstraints": "FIXED_SIDE" } : {}),
         },
+        uiColor: node.ui_color,
+        uiFgcolor: node.ui_fgcolor,
       };
     }
 
