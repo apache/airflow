@@ -44,7 +44,7 @@ def main() -> int:
         changed = ", ".join(guidance_files)
         print(
             f"\n\033[33m⚠  {changed} modified — "
-            f"consider running ./dev/skill-evals/eval.sh before pushing\033[0m\n",
+            f"consider running 'uv run dev/skill-evals/eval.py' before pushing\033[0m\n",
             file=sys.stderr,
         )
     return 0
