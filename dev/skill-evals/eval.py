@@ -208,14 +208,25 @@ def main() -> int:
                 shutil.copy2(skill_src, main_skill)
                 print(f"Warning: SKILL.md not found on {base_branch} — main arm uses working tree copy")
 
+        # Detect changes to decide which arms to build
+        agents_changed = run(["diff", "-q", str(main_agents), str(AGENTS_SRC)]).returncode != 0
+        skill_changed = False
+        if skill_name and main_skill and skill_src:
+            skill_changed = run(["diff", "-q", str(main_skill), str(skill_src)]).returncode != 0
+        need_working = agents_changed or skill_changed
+
         # Assemble arms
         print("Assembling arms (git worktrees) ...")
 
         arm_main = create_worktree(work_dir, "main", base_branch, main_agents, skill_name, main_skill)
         worktrees.append(arm_main)
 
-        arm_working = create_worktree(work_dir, "working", base_branch, AGENTS_SRC, skill_name, skill_src)
-        worktrees.append(arm_working)
+        arm_working = None
+        if need_working:
+            arm_working = create_worktree(work_dir, "working", base_branch, AGENTS_SRC, skill_name, skill_src)
+            worktrees.append(arm_working)
+        else:
+            print("  AGENTS.md unchanged — skipping working arm")
 
         arm_baseline = None
         if full_mode:
@@ -234,8 +245,10 @@ def main() -> int:
 
         add_provider(config_lines, "main", arm_main, model, skill_for_provider)
         arm_count += 1
-        add_provider(config_lines, "working", arm_working, model, skill_for_provider)
-        arm_count += 1
+
+        if arm_working:
+            add_provider(config_lines, "working", arm_working, model, skill_for_provider)
+            arm_count += 1
 
         if full_mode and arm_baseline:
             add_provider(config_lines, "baseline", arm_baseline, model)
@@ -259,24 +272,15 @@ def main() -> int:
 
         # Report
         if skill_name:
-            print(f"Mode: {arm_count} arms, skill '{skill_name}'")
+            print(f"Mode: {arm_count} arms, skill '{skill_name}', model: {model}")
         else:
-            print(f"Mode: {arm_count} arms, AGENTS.md only")
+            print(f"Mode: {arm_count} arms, AGENTS.md only, model: {model}")
 
         print()
         print(f"Changes detected (vs {base_branch}):")
-        agents_diff = run(["diff", "-q", str(main_agents), str(AGENTS_SRC)])
-        if agents_diff.returncode != 0:
-            print("  AGENTS.md — modified")
-        else:
-            print("  AGENTS.md — unchanged")
-
-        if skill_name and main_skill:
-            skill_diff = run(["diff", "-q", str(main_skill), str(skill_src)])
-            if skill_diff.returncode != 0:
-                print(f"  SKILL.md  — modified ({skill_name})")
-            else:
-                print(f"  SKILL.md  — unchanged ({skill_name})")
+        print(f"  AGENTS.md — {'modified' if agents_changed else 'unchanged'}")
+        if skill_name:
+            print(f"  SKILL.md  — {'modified' if skill_changed else 'unchanged'} ({skill_name})")
         print()
 
         # Run promptfoo
