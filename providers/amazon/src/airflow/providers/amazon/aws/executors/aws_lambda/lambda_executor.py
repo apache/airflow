@@ -95,7 +95,8 @@ class AwsLambdaExecutor(BaseExecutor):
             from airflow.providers.common.compat.sdk import conf
 
             self.conf = conf
-        # Backwards compatibility for Airflow versions that do not define team_name.
+        # TODO: Remove this fallback once the min Airflow version for providers is >= 3.1
+        # (BaseExecutor.team_name is always defined from Airflow 3.1 onward).
         if not hasattr(self, "team_name"):
             self.team_name = None
         self.lambda_function_name = self.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.FUNCTION_NAME)
