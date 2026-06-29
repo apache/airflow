@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote, urljoin, urlparse
 
 import httpx
-from azure.identity import CertificateCredential, ClientSecretCredential
+from azure.identity.aio import CertificateCredential, ClientSecretCredential
 from httpx import AsyncHTTPTransport, Response, Timeout
 from kiota_abstractions.api_error import APIError
 from kiota_abstractions.method import Method
@@ -50,17 +50,15 @@ from msgraph_core._enums import NationalClouds
 
 from airflow.exceptions import AirflowBadRequest, AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.connection import get_async_connection
-from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook, redact
 
 if TYPE_CHECKING:
-    from azure.identity._internal.client_credential_base import ClientCredentialBase
+    from azure.core.credentials_async import AsyncTokenCredential
     from kiota_abstractions.request_adapter import RequestAdapter
     from kiota_abstractions.response_handler import NativeResponseType
     from kiota_abstractions.serialization import ParsableFactory
 
     from airflow.providers.common.compat.sdk import Connection
-
-from airflow.providers.common.compat.sdk import redact
 
 PaginationCallable = Callable[..., tuple[str, dict[str, Any] | None]]
 
@@ -366,7 +364,6 @@ class KiotaRequestAdapterHook(BaseHook):
             http_client=http_client,
             base_url=base_url,
         )
-        self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
         return api_version, request_adapter
 
     def get_conn(self) -> RequestAdapter:
@@ -374,7 +371,7 @@ class KiotaRequestAdapterHook(BaseHook):
         Initiate a new RequestAdapter connection.
 
         .. warning::
-           This method is deprecated.
+           This method is deprecated. Use :meth:`get_async_conn` instead.
         """
         if not self.conn_id:
             raise AirflowException("Failed to create the KiotaRequestAdapterHook. No conn_id provided!")
@@ -390,8 +387,14 @@ class KiotaRequestAdapterHook(BaseHook):
         if not request_adapter:
             connection = self.get_connection(conn_id=self.conn_id)
             api_version, request_adapter = self._build_request_adapter(connection)
+            self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
         self.api_version = api_version
         return request_adapter
+
+    @staticmethod
+    def _is_http_client_closed(request_adapter: RequestAdapter) -> bool:
+        """Return True when the underlying httpx AsyncClient has been closed."""
+        return cast("HttpxRequestAdapter", request_adapter)._http_client.is_closed
 
     async def get_async_conn(self) -> RequestAdapter:
         """Initiate a new RequestAdapter connection asynchronously."""
@@ -400,9 +403,19 @@ class KiotaRequestAdapterHook(BaseHook):
 
         api_version, request_adapter = self.cached_request_adapters.get(self.conn_id, (None, None))
 
+        if request_adapter and self._is_http_client_closed(request_adapter):
+            self.log.warning(
+                "Cached request adapter for conn_id '%s' has a closed HTTP client. Rebuilding.",
+                self.conn_id,
+            )
+            self.cached_request_adapters.pop(self.conn_id, None)
+            request_adapter = None
+
         if not request_adapter:
             connection = await get_async_connection(conn_id=self.conn_id)
             api_version, request_adapter = self._build_request_adapter(connection)
+            self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
+
         self.api_version = api_version
         return request_adapter
 
@@ -433,7 +446,7 @@ class KiotaRequestAdapterHook(BaseHook):
         authority: str | None,
         verify: bool,
         proxies: dict | None,
-    ) -> ClientCredentialBase:
+    ) -> AsyncTokenCredential:
         tenant_id = config.get("tenant_id") or config.get("tenantId")
         certificate_path = config.get("certificate_path")
         certificate_data = config.get("certificate_data")
@@ -582,16 +595,25 @@ class KiotaRequestAdapterHook(BaseHook):
     async def send_request(self, request_info: RequestInformation, response_type: str | None = None):
         conn = await self.get_async_conn()
 
-        if response_type:
-            return await conn.send_primitive_async(
+        try:
+            if response_type:
+                return await conn.send_primitive_async(
+                    request_info=request_info,
+                    response_type=response_type,
+                    error_map=self.error_mapping(),
+                )
+            return await conn.send_no_response_content_async(
                 request_info=request_info,
-                response_type=response_type,
                 error_map=self.error_mapping(),
             )
-        return await conn.send_no_response_content_async(
-            request_info=request_info,
-            error_map=self.error_mapping(),
-        )
+        except Exception as e:
+            self.log.warning(
+                "Request failed for conn_id '%s': %s. Invalidating cached request adapter.",
+                self.conn_id,
+                e,
+            )
+            self.cached_request_adapters.pop(self.conn_id, None)
+            raise
 
     def request_information(
         self,

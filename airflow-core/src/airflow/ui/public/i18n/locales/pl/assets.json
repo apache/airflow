@@ -4,6 +4,19 @@
   "asset_many": "Zasobów",
   "asset_one": "Zasób",
   "asset_other": "Zasoby",
+  "assetStore": {
+    "add": "Dodaj magazyn zasobów",
+    "clearAll": {
+      "resource": "cały magazyn zasobów",
+      "title": "Wyczyść cały magazyn zasobów",
+      "warning": "Cały magazyn zasobów zostanie wyczyszczony. Zadania, które używają tego magazynu do koordynowania pracy, utracą swoje zapisane dane."
+    },
+    "delete": "Usuń magazyn zasobów",
+    "deleteWarning": "Zasób utraci ten zapisany wpis magazynu.",
+    "edit": "Edytuj magazyn zasobów",
+    "emptyState": "Magazyn zasobów przechowuje wartości powiązane z identyfikatorem zasobu, współdzielone między wszystkimi uruchomieniami Dagów. Procesy robocze mogą zapisywać do magazynu zasobów za pomocą Task SDK.",
+    "title": "Magazyn zasobów"
+  },
   "consumingDags": "Przetwarzanie Dagów",
   "consumingTasks": "Przetwarzanie zadań",
   "createEvent": {
@@ -27,6 +40,7 @@
     },
     "title": "Utwórz zdarzenie zasobu dla {{name}}"
   },
+  "events": "Zdarzenia",
   "extra": "Dodatkowe",
   "group": "Grupa",
   "lastAssetEvent": "Ostatnie zdarzenie zasobu",

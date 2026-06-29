@@ -38,6 +38,21 @@ depends_on = None
 airflow_version = "3.3.0"
 
 
+def _mysql_downgrade_interval_value_sql(table_name: str = "deadline_alert") -> str:
+    """Unwrap the serialized interval to a bare JSON number; the FLOAT cast happens at the column retype."""
+    return f"""
+        UPDATE {table_name}
+        SET `interval` =
+            CASE
+                WHEN JSON_EXTRACT(`interval`, '$.__data__') IS NOT NULL
+                THEN JSON_EXTRACT(`interval`, '$.__data__')
+                WHEN JSON_EXTRACT(`interval`, '$.__classname__') IS NULL
+                THEN `interval`
+                ELSE NULL
+            END
+    """
+
+
 def upgrade():
     """Apply change deadline interval to JSON."""
     conn = op.get_bind()
@@ -66,8 +81,9 @@ def upgrade():
 
             MySQL:
 
-            Step 1: Convert column type.
-            ALTER TABLE deadline_alert MODIFY COLUMN `interval` JSON;
+            Step 1: Convert column type. Keep NOT NULL — MODIFY COLUMN redefines the whole
+            column, so omitting it would drop the constraint.
+            ALTER TABLE deadline_alert MODIFY COLUMN `interval` JSON NOT NULL;
 
             Step 2: Convert values
             UPDATE deadline_alert
@@ -173,20 +189,24 @@ def downgrade():
 
             MySQL:
 
-            Step 1: Convert values
+            Step 1: Convert values. Leave them as JSON numbers; the column is still JSON
+            here, so casting to a numeric type fails with ER_INVALID_JSON_TEXT (3140). The
+            cast happens in Step 2 instead.
             UPDATE deadline_alert
             SET `interval` =
                 CASE
                     WHEN JSON_EXTRACT(`interval`, '$.__data__') IS NOT NULL
-                        THEN CAST(JSON_EXTRACT(`interval`, '$.__data__') AS DOUBLE)
+                        THEN JSON_EXTRACT(`interval`, '$.__data__')
                     WHEN JSON_EXTRACT(`interval`, '$.__classname__') IS NULL
-                        THEN CAST(`interval` AS DOUBLE)
+                        THEN `interval`
                     ELSE NULL
                 END;
 
-            Step 2: Convert column type
+            Step 2: Convert column type. This casts the JSON numbers to FLOAT (the original
+            pre-upgrade type, matching the online migration). Keep NOT NULL — MODIFY COLUMN
+            redefines the whole column, so omitting it would drop the constraint.
             ALTER TABLE deadline_alert
-            MODIFY COLUMN `interval` DOUBLE;
+            MODIFY COLUMN `interval` FLOAT NOT NULL;
 
             SQLite:
 
@@ -221,17 +241,7 @@ def downgrade():
         """)
 
     elif dialect == "mysql":
-        op.execute("""
-            UPDATE deadline_alert
-            SET `interval` =
-                CASE
-                    WHEN JSON_EXTRACT(`interval`, '$.__data__') IS NOT NULL
-                    THEN CAST(JSON_EXTRACT(`interval`, '$.__data__') AS DOUBLE)
-                    WHEN JSON_EXTRACT(`interval`, '$.__classname__') IS  NULL
-                    THEN CAST(`interval` AS DOUBLE)
-                    ELSE NULL
-                END
-        """)
+        op.execute(_mysql_downgrade_interval_value_sql())
 
     # Serialized VariableInterval objects do not contain a numeric "__data__" field
     # and therefore cannot be converted back to a float representation.

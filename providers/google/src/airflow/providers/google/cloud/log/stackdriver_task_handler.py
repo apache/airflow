@@ -171,6 +171,18 @@ class StackdriverRemoteLogIO(LoggingMixin):
                 labels.update(self.labels)
             if ti:
                 labels.update(_task_instance_to_labels(ti))
+            else:
+                if dag_id := event.get("dag_id"):
+                    labels[LABEL_DAG_ID] = str(dag_id)
+                if task_id := event.get("task_id"):
+                    labels[LABEL_TASK_ID] = str(task_id)
+                if run_id := event.get("run_id"):
+                    labels["run_id"] = str(run_id)
+                if try_number := event.get("try_number"):
+                    labels[LABEL_TRY_NUMBER] = str(try_number)
+                if map_index := event.get("map_index"):
+                    labels["map_index"] = str(map_index)
+
             _transport.send(record, str(msg.get("event", "")), resource=self.resource, labels=labels)
             return event
 

@@ -162,8 +162,15 @@ Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @ja
 # Python SDK
 /task-sdk/ @ashb @kaxil @amoghrajesh
 
+# AIP-108 - Coordinators
+/task-sdk/src/airflow/sdk/coordinators/ @jason810496 @uranusjr
+/task-sdk/src/airflow/sdk/execution_time/coordinator.py @jason810496 @uranusjr
+
 # Golang SDK
-/go-sdk/ @ashb @amoghrajesh
+/go-sdk/ @ashb @amoghrajesh @jason810496
+
+# Java SDK
+/java-sdk/ @uranusjr @jason810496
 
 # Shared Libraries
 /shared/ @ashb @amoghrajesh @potiuk

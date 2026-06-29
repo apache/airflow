@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
     from typing_extensions import Self
 
-    from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
+    from airflow.sdk.api.datamodels._generated import TaskInstance
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.executable")
 
@@ -370,12 +370,11 @@ class ExecutableCoordinator(SubprocessCoordinator):
     Configuration is taken from the ``[sdk] coordinators`` entry that constructs
     this instance::
 
-        {
-            "name": "go",
+        "go": {
             "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
             "kwargs": {
-                "executables_root": ["~/airflow/executable-bundles"],
-            },
+                "executables_root": ["~/airflow/executable-bundles"]
+            }
         }
 
     :param executables_root: A list of directories scanned for executable
@@ -390,6 +389,6 @@ class ExecutableCoordinator(SubprocessCoordinator):
         validator=attrs.validators.min_len(1),
     )
 
-    def _build_execute_task_command(self, *, what: TaskInstanceDTO) -> tuple[list[str], str | None]:
+    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         bundle = _Bundle.find(self.executables_root, what.dag_id)
         return [str(bundle.path)], bundle.schema_version

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import suppress
 from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, TextIO
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
     from airflow.sdk.types import Logger, RuntimeTaskInstanceProtocol as RuntimeTI
 
 
-from airflow.sdk._shared.secrets_masker import redact
+from airflow.sdk._shared.secrets_masker import _secrets_masker, redact
 
 
 class _ActiveLoggingConfig:
@@ -225,44 +226,20 @@ def relative_path_from_logger(logger) -> Path | None:
 
 def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI | None = None):
     raw_logger = getattr(logger, "_logger")
-    # Dedicated logger for remote-upload visibility — operators relying on
-    # remote log handlers need a way to see when those handlers fail to load
-    # or fail to upload.
-    upload_log = structlog.get_logger("airflow.logging.remote")
-
-    ti_id = str(ti.id) if ti else None
 
     handler = load_remote_log_handler()
     if not handler:
-        upload_log.warning(
-            "remote_log_handler_unavailable",
-            ti_id=ti_id,
-            note="Remote log handler could not be loaded; logs will be available locally only.",
-        )
         return
 
     try:
         relative_path = relative_path_from_logger(raw_logger)
-    except Exception as exc:
-        upload_log.warning(
-            "remote_log_path_resolution_failed",
-            ti_id=ti_id,
-            exc_info=exc,
-        )
+    except Exception:
         return
     if not relative_path:
         return
 
     log_relative_path = relative_path.as_posix()
-    try:
-        handler.upload(log_relative_path, ti)
-    except Exception as exc:
-        upload_log.warning(
-            "remote_log_upload_failed",
-            ti_id=ti_id,
-            log_relative_path=log_relative_path,
-            exc_info=exc,
-        )
+    handler.upload(log_relative_path, ti)
 
 
 def mask_secret(secret: JsonValue, name: str | None = None) -> None:
@@ -273,10 +250,6 @@ def mask_secret(secret: JsonValue, name: str | None = None) -> None:
     they're masked in both the task subprocess AND supervisor's log output.
     Works safely in both sync and async contexts.
     """
-    from contextlib import suppress
-
-    from airflow.sdk._shared.secrets_masker import _secrets_masker
-
     _secrets_masker().add_mask(secret, name)
 
     with suppress(Exception):
@@ -286,6 +259,24 @@ def mask_secret(secret: JsonValue, name: str | None = None) -> None:
 
         if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
             comms.send(MaskSecret(value=secret, name=name))
+
+
+async def amask_secret(secret: JsonValue, name: str | None = None) -> None:
+    """
+    Async version of mask_secret for use in async contexts.
+
+    Uses asend() instead of send() to avoid deadlock when called from within
+    an async task that already has an asend() in flight.
+    """
+    _secrets_masker().add_mask(secret, name)
+
+    with suppress(Exception):
+        # Try to tell supervisor (only if in task execution context)
+        from airflow.sdk.execution_time import task_runner
+        from airflow.sdk.execution_time.comms import MaskSecret
+
+        if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
+            await comms.asend(MaskSecret(value=secret, name=name))
 
 
 def reset_logging():

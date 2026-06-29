@@ -286,6 +286,10 @@ class TaskInstance(BaseModel):
     map_index: int = -1
     hostname: str | None = None
     context_carrier: dict | None = None
+    # The supervisor routes tasks to a coordinator by queue. The default keeps
+    # hand-built instances (tests, dry runs) valid; the executor workload
+    # always sends the real value.
+    queue: str = "default"
 
 
 class AssetReferenceAssetEventDagRun(StrictBaseModel):
@@ -313,6 +317,7 @@ class AssetEventDagRunReference(StrictBaseModel):
     source_map_index: int | None
     source_aliases: list[AssetAliasReferenceAssetEventDagRun]
     timestamp: UtcDateTime
+    partition_key: str | None = None
 
 
 class DagRun(StrictBaseModel):
@@ -337,6 +342,7 @@ class DagRun(StrictBaseModel):
     triggering_user_name: str | None = None
     consumed_asset_events: list[AssetEventDagRunReference]
     partition_key: str | None
+    partition_date: UtcDateTime | None = None
     note: str | None = None
     team_name: str | None = None
 

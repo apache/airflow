@@ -503,7 +503,16 @@ idempotent — re-add them if they're missing.
 /.apache-magpie/
 /.apache-magpie.local.lock
 /.claude/settings.local.json
+__pycache__/
+*.pyc
 ```
+
+The `__pycache__/` and `*.pyc` lines (non-anchored — they match at
+any depth) keep the byte-compiled artefacts that framework skill
+scripts emit when run from the adopter checkout (e.g.
+[`setup-status/scripts/collect_status.py`](../setup-status/scripts/collect_status.py))
+out of the tree. Most adopters already carry these from a stock
+Python `.gitignore`; the adopt flow adds them if missing.
 
 **Symlink entries — one uniform block per active target
 ([`agents.md`](agents.md)), no per-layout variation.** Every
@@ -1081,6 +1090,45 @@ Four passes, in this order:
    SUBSEQUENT adoption — it is the same pass `/magpie-setup
    upgrade` runs after a snapshot refresh.
 
+   **The agent-guard PreToolUse hook is one such adopter-side
+   file.** The framework ships
+   [`tools/agent-guard`](../../tools/agent-guard/README.md) — a
+   deterministic Claude Code `PreToolUse` guard that blocks
+   `gh`/`git` commands which would ping maintainers, carry a
+   `Co-Authored-By` trailer, mark a PR ready prematurely, leak
+   security language publicly, or empty a PR via force-push. Sync
+   it like the post-checkout hook:
+   - Copy the single self-contained script
+     `tools/agent-guard/src/agent_guard/__init__.py` (from the
+     snapshot) to `<repo-root>/.claude/hooks/agent-guard.py`, and
+     populate `<repo-root>/.claude/hooks/guards.d/` from **two**
+     snapshot sources: the engine's bundled
+     `tools/agent-guard/src/agent_guard/guards.d/*.py`, **and every
+     skill-owned guard** — `skills/*/guards/*.py` (e.g. the
+     `pr-management-triage` `mention` + `mark-ready` guards, the
+     `security-issue-fix` `security-language` guard). Collecting all
+     of them into the single `guards.d` is what lets each skill own
+     its own deterministic guard while the hook is wired only once.
+     The dispatcher auto-discovers every `*.py` in the `guards.d`
+     sibling of the script — adding a skill (or a skill adding a
+     guard) needs no re-wiring, only this re-sync (see the tool README).
+   - **Wire the hook once** in `.claude/settings.json` under
+     `hooks.PreToolUse` (matcher `Bash`). Because the committed
+     `.claude/settings.json` is agent-edit-denied, **surface the
+     exact snippet for the maintainer to apply** (or route it
+     through the `update-config` skill) rather than writing it:
+
+     ```json
+     { "matcher": "Bash", "hooks": [ { "type": "command",
+       "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/agent-guard.py\"",
+       "timeout": 30 } ] }
+     ```
+
+     Wiring happens **only once**; thereafter guards are
+     added/removed purely by syncing `guards.d` — no settings.json
+     change. If the `hooks.PreToolUse` entry is already present,
+     this pass only re-syncs the script + `guards.d`.
+
 2. **Propagate to every worktree (run `worktree-init`
    unconditionally).** The main is now adopted; any
    pre-existing linked worktree of this repo still lacks
@@ -1213,6 +1261,7 @@ Committed (you'll see in `git status`):
 Gitignored (do NOT commit):
   .apache-magpie/
   .apache-magpie.local.lock
+  __pycache__/ + *.pyc       # byte-compiled artefacts from skill scripts; added to .gitignore if missing
   .agents/skills/magpie-*   (except magpie-setup, committed above)  # canonical links into the snapshot: opt-in + always-on families
   .claude/skills/magpie-*   (except magpie-setup, committed above)  # relays → ../../.agents/skills/magpie-*
   .github/skills/magpie-*   (except magpie-setup, committed above)  # relays → ../../.agents/skills/magpie-*

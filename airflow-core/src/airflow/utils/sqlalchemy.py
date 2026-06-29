@@ -322,6 +322,27 @@ def sanitize_for_serialization(obj: V1Pod):
     return {key: sanitize_for_serialization(val) for key, val in obj_dict.items()}
 
 
+def deserialize_pod_dict(pod_dict: dict) -> V1Pod:
+    """
+    Deserialize a serialized pod dict back into a ``V1Pod``.
+
+    kubernetes-client exposes no public dict->model API; see
+    https://github.com/kubernetes-client/python/issues/977.
+
+    A fresh ``Configuration`` is passed so that neither the pod nor any nested model captures the
+    process-global in-cluster ``Configuration``. In-cluster, that global carries a
+    ``refresh_api_key_hook`` local closure which ``pickle`` cannot serialize, and which would
+    otherwise break pickling a ``pod_override`` onto the KubernetesExecutor multiprocessing queue.
+
+    :meta private:
+    """
+    from kubernetes.client import Configuration
+    from kubernetes.client.api_client import ApiClient
+    from kubernetes.client.models.v1_pod import V1Pod
+
+    return ApiClient(configuration=Configuration())._ApiClient__deserialize_model(pod_dict, V1Pod)
+
+
 def ensure_pod_is_valid_after_unpickling(pod: V1Pod) -> V1Pod | None:
     """
     Convert pod to json and back so that pod is safe.
@@ -350,12 +371,9 @@ def ensure_pod_is_valid_after_unpickling(pod: V1Pod) -> V1Pod | None:
     if not isinstance(pod, V1Pod):
         return None
     try:
-        from kubernetes.client.api_client import ApiClient
-
         # now we actually reserialize / deserialize the pod
         pod_dict = sanitize_for_serialization(pod)
-        # kubernetes-client does not expose a public dict->model API; see https://github.com/kubernetes-client/python/issues/977.
-        return ApiClient()._ApiClient__deserialize_model(pod_dict, V1Pod)
+        return deserialize_pod_dict(pod_dict)
     except Exception:
         return None
 

@@ -41,6 +41,7 @@ import attrs
 import psutil
 import structlog
 
+from airflow.sdk.configuration import conf
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaised, ProcessTracker
 
@@ -51,8 +52,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from airflow.sdk.api.client import Client
-    from airflow.sdk.api.datamodels._generated import BundleInfo
-    from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
+    from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
@@ -72,16 +72,26 @@ def _socket_address(value: tuple | str) -> tuple[str, int] | None:
         return None
     host, port = value[:2]
     host = str(host)
-    # Canonicalize IPv4-mapped IPv6 ("::ffff:127.0.0.1" -> "127.0.0.1") so a dual-stack
-    # client (e.g. the JVM, shown v4-mapped in /proc/net/tcp6) matches the AF_INET
-    # supervisor socket's plain-IPv4 address in the ownership check below.
+    # Canonicalize an IPv4 address that a dual-stack client embeds in IPv6 so it matches
+    # the AF_INET supervisor socket's plain-IPv4 address in the ownership check below. A
+    # dual-stack JVM's loopback connection is rendered in two different forms depending on
+    # the platform, and both must collapse to plain "127.0.0.1":
+    #   * IPv4-mapped     "::ffff:127.0.0.1" -> "127.0.0.1"  (Linux, via /proc/net/tcp6)
+    #   * IPv4-compatible "::127.0.0.1"      -> "127.0.0.1"  (macOS, via psutil)
+    # Otherwise the JVM's connection fails the check and every Java task is rejected with
+    # "process exited with 1 before connecting".
     try:
         parsed = ipaddress.ip_address(host)
     except ValueError:
         pass
     else:
-        if isinstance(parsed, ipaddress.IPv6Address) and parsed.ipv4_mapped is not None:
-            host = str(parsed.ipv4_mapped)
+        if isinstance(parsed, ipaddress.IPv6Address):
+            if parsed.ipv4_mapped is not None:
+                host = str(parsed.ipv4_mapped)
+            elif 1 < int(parsed) <= 0xFFFFFFFF:
+                # IPv4-compatible IPv6: ::/96 with the IPv4 in the low 32 bits. Exclude
+                # "::" (unspecified) and "::1" (IPv6 loopback), which are not IPv4.
+                host = str(ipaddress.IPv4Address(int(parsed)))
     return host, int(port)
 
 
@@ -279,7 +289,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
     def start(  # type: ignore[override]
         cls,
         *,
-        what: TaskInstanceDTO,
+        what: TaskInstance,
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
         logger: FilteringBoundLogger | None = None,
@@ -294,6 +304,15 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             stdout_r, stdout_w = tracker.track(*socket.socketpair())
             stderr_r, stderr_w = tracker.track(*socket.socketpair())
 
+            # A language SDK runtime cannot read Airflow's config, so propagate the
+            # resolved log levels via the environment at launch. StartupDetails
+            # arrives too late, the logs might already be produced by then.
+            env = {
+                **os.environ,
+                "AIRFLOW__LOGGING__LOGGING_LEVEL": conf.get("logging", "logging_level", fallback="INFO"),
+                "AIRFLOW__LOGGING__NAMESPACE_LEVELS": conf.get("logging", "namespace_levels", fallback=""),
+            }
+
             proc = subprocess.Popen(
                 [
                     *command,
@@ -302,6 +321,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 ],
                 stdout=stdout_w.fileno(),
                 stderr=stderr_w.fileno(),
+                env=env,
             )
             tracker.track(proc)
             for soc in tracker.untrack(stdout_w, stderr_w):
@@ -369,7 +389,7 @@ class SubprocessCoordinator(BaseCoordinator):
 
     task_startup_timeout: float = 10.0
 
-    def _build_execute_task_command(self, *, what: TaskInstanceDTO) -> tuple[list[str], str | None]:
+    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         """
         Build the subprocess command and resolve its supervisor wire-schema version for *what*.
 
@@ -385,7 +405,7 @@ class SubprocessCoordinator(BaseCoordinator):
     def execute_task(
         self,
         *,
-        what: TaskInstanceDTO,
+        what: TaskInstance,
         dag_rel_path: str | os.PathLike[str],
         bundle_info: BundleInfo,
         client: Client,
