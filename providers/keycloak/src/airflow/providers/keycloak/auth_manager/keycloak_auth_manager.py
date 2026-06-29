@@ -460,7 +460,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         def query_keycloak() -> set[str]:
             if not dag_ids:
                 return set()
-
+            # Cap workers at the HTTP connection pool size: each is_authorized_dag() call
+            # goes through the shared requests.Session, so extra threads would just block
+            # waiting for a free connection in urllib3's pool.
             max_workers = min(
                 len(dag_ids), conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
             )
