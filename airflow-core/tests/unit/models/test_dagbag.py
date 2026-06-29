@@ -83,40 +83,61 @@ class TestDBDagBag:
     @pytest.mark.parametrize(
         "exc",
         [
-            DeserializationError("malformed blob"),
             ValueError("Unsure how to deserialize version 99"),
             TimetableNotRegistered("custom.Timetable"),
             KeyError("dag"),
             zlib.error("incorrect header check"),
         ],
     )
-    def test__read_dag_returns_none_when_deserialization_fails(self, exc):
-        """A blob that exists but cannot be reconstructed is treated as absent, not propagated.
+    def test__read_dag_normalizes_deserialization_failures(self, exc):
+        """A blob that cannot be reconstructed is normalized to DeserializationError.
 
-        Keeps read-only API callers (e.g. the DAG detail page) returning 404 instead of 500 for a
-        Dag whose serialized definition is malformed, on an incompatible version, references an
-        unregistered timetable, or is stored as a corrupt compressed blob.
+        Routes every such failure (incompatible version, missing key, unregistered timetable,
+        corrupt compressed blob) through the app-wide DagErrorHandler instead of an unhandled 500,
+        and preserves the original error as the cause.
         """
 
         class _Undeserializable:
             load_op_links = True
             dag_version_id = "v1"
+            dag_id = "ghost"
 
             @property
             def dag(self):
                 raise exc
 
-        result = self.db_dag_bag._read_dag(_Undeserializable())
+        with pytest.raises(DeserializationError) as exc_info:
+            self.db_dag_bag._read_dag(_Undeserializable())
 
-        assert result is None
+        assert exc_info.value.__cause__ is exc
         assert "v1" not in self.db_dag_bag._dags
 
+    def test__read_dag_propagates_deserialization_error_unchanged(self):
+        """A DeserializationError already flows to the handler, so it must pass through as-is."""
+
+        original = DeserializationError("ghost")
+
+        class _Undeserializable:
+            load_op_links = True
+            dag_version_id = "v1"
+            dag_id = "ghost"
+
+            @property
+            def dag(self):
+                raise original
+
+        with pytest.raises(DeserializationError) as exc_info:
+            self.db_dag_bag._read_dag(_Undeserializable())
+
+        assert exc_info.value is original
+
     def test__read_dag_propagates_unrelated_errors(self):
-        """Errors that are not deserialization failures must surface (500), not be masked as 404."""
+        """Errors that are not deserialization failures must surface, not be masked or relabeled."""
 
         class _BuggyServingPath:
             load_op_links = True
             dag_version_id = "v1"
+            dag_id = "ghost"
 
             @property
             def dag(self):
