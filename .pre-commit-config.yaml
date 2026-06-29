@@ -660,6 +660,12 @@ repos:
         language: python
         files: ^airflow-core/docs/installation/supported-versions\.rst$|^scripts/ci/prek/supported_versions\.py$|^README\.md$
         pass_filenames: false
+      - id: update-tested-versions
+        name: Update tested Python/DB/Kubernetes versions in docs
+        entry: ./scripts/ci/prek/update_tested_versions.py
+        language: python
+        files: ^airflow-core/docs/installation/prerequisites\.rst$|^README\.md$|^dev/breeze/src/airflow_breeze/global_constants\.py$|^scripts/ci/prek/update_tested_versions\.py$|^scripts/ci/prek/common_prek_utils\.py$
+        pass_filenames: false
       - id: check-revision-heads-map
         name: Check that the REVISION_HEADS_MAP is up-to-date
         language: python
