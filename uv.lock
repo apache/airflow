@@ -644,7 +644,7 @@ name = "aiohttp-cors"
 version = "0.8.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "aiohttp", marker = "python_full_version < '3.15'" },
+    { name = "aiohttp" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/6f/6d/d89e846a5444b3d5eb8985a6ddb0daef3774928e1bfbce8e84ec97b0ffa7/aiohttp_cors-0.8.1.tar.gz", hash = "sha256:ccacf9cb84b64939ea15f859a146af1f662a6b1d68175754a07315e305fb1403", size = 38626, upload-time = "2025-03-31T14:16:20.048Z" }
 wheels = [
@@ -10882,7 +10882,7 @@ name = "colorful"
 version = "0.5.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "python_full_version < '3.15' and sys_platform == 'win32'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/82/31/109ef4bedeb32b4202e02ddb133162457adc4eb890a9ed9c05c9dd126ed0/colorful-0.5.8.tar.gz", hash = "sha256:bb16502b198be2f1c42ba3c52c703d5f651d826076817185f0294c1a549a7445", size = 209361, upload-time = "2025-10-29T11:53:21.663Z" }
 wheels = [
@@ -17460,9 +17460,9 @@ name = "opencensus"
 version = "0.11.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "google-api-core", marker = "python_full_version < '3.15'" },
-    { name = "opencensus-context", marker = "python_full_version < '3.15'" },
-    { name = "six", marker = "python_full_version < '3.15'" },
+    { name = "google-api-core" },
+    { name = "opencensus-context" },
+    { name = "six" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/15/a7/a46dcffa1b63084f9f17fe3c8cb20724c4c8f91009fd0b2cfdb27d5d2b35/opencensus-0.11.4.tar.gz", hash = "sha256:cbef87d8b8773064ab60e5c2a1ced58bbaa38a6d052c41aec224958ce544eff2", size = 64966, upload-time = "2024-01-03T18:04:07.085Z" }
 wheels = [
@@ -20804,14 +20804,14 @@ name = "ray"
 version = "2.55.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "click", marker = "python_full_version < '3.15'" },
-    { name = "filelock", marker = "python_full_version < '3.15'" },
-    { name = "jsonschema", marker = "python_full_version < '3.15'" },
-    { name = "msgpack", marker = "python_full_version < '3.15'" },
-    { name = "packaging", marker = "python_full_version < '3.15'" },
-    { name = "protobuf", marker = "python_full_version < '3.15'" },
-    { name = "pyyaml", marker = "python_full_version < '3.15'" },
-    { name = "requests", marker = "python_full_version < '3.15'" },
+    { name = "click" },
+    { name = "filelock" },
+    { name = "jsonschema" },
+    { name = "msgpack" },
+    { name = "packaging" },
+    { name = "protobuf" },
+    { name = "pyyaml" },
+    { name = "requests" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7e/d0/a85097dd53aaca1a44acc4dd0b3d2c0e9233179433e2ee326e4018ab3cf7/ray-2.55.1-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:2d5786661e192148719accc959def6cdcabd7a24cd9008005bf3d0e3c8cfd529", size = 65829601, upload-time = "2026-04-22T20:09:10.013Z" },
@@ -20836,20 +20836,20 @@ wheels = [
 
 [package.optional-dependencies]
 default = [
-    { name = "aiohttp", marker = "python_full_version < '3.15'" },
-    { name = "aiohttp-cors", marker = "python_full_version < '3.15'" },
-    { name = "colorful", marker = "python_full_version < '3.15'" },
-    { name = "grpcio", marker = "python_full_version < '3.15'" },
-    { name = "opencensus", marker = "python_full_version < '3.15'" },
-    { name = "opentelemetry-exporter-prometheus", marker = "python_full_version < '3.15'" },
-    { name = "opentelemetry-proto", marker = "python_full_version < '3.15'" },
-    { name = "opentelemetry-sdk", marker = "python_full_version < '3.15'" },
-    { name = "prometheus-client", marker = "python_full_version < '3.15'" },
-    { name = "py-spy", marker = "python_full_version < '3.15'" },
-    { name = "pydantic", marker = "python_full_version < '3.15'" },
-    { name = "requests", marker = "python_full_version < '3.15'" },
-    { name = "smart-open", marker = "python_full_version < '3.15'" },
-    { name = "virtualenv", marker = "python_full_version < '3.15'" },
+    { name = "aiohttp" },
+    { name = "aiohttp-cors" },
+    { name = "colorful" },
+    { name = "grpcio" },
+    { name = "opencensus" },
+    { name = "opentelemetry-exporter-prometheus" },
+    { name = "opentelemetry-proto" },
+    { name = "opentelemetry-sdk" },
+    { name = "prometheus-client" },
+    { name = "py-spy" },
+    { name = "pydantic" },
+    { name = "requests" },
+    { name = "smart-open" },
+    { name = "virtualenv" },
 ]
 
 [[package]]
@@ -21961,8 +21961,8 @@ name = "secretstorage"
 version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cryptography", marker = "(python_full_version >= '3.14' and sys_platform == 'darwin') or (python_full_version < '3.15' and sys_platform == 'emscripten') or (python_full_version < '3.15' and sys_platform == 'win32') or (platform_machine != 'arm64' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
-    { name = "jeepney", marker = "(python_full_version >= '3.14' and sys_platform == 'darwin') or (python_full_version < '3.15' and sys_platform == 'emscripten') or (python_full_version < '3.15' and sys_platform == 'win32') or (platform_machine != 'arm64' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "cryptography", marker = "python_full_version >= '3.14' or platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "jeepney", marker = "python_full_version >= '3.14' or platform_machine != 'arm64' or sys_platform != 'darwin'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/03/e834bcd866f2f8a49a85eaff47340affa3bfa391ee9912a952a1faa68c7b/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
 wheels = [
@@ -22161,7 +22161,7 @@ name = "smart-open"
 version = "8.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "wrapt", marker = "python_full_version < '3.15'" },
+    { name = "wrapt" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/29/3e/79fd5fd2375a8a500b9ec2f6a0762fc1ac33e35582d4a87483a78d19408f/smart_open-8.0.0.tar.gz", hash = "sha256:5a2008d60688bd3b33c52e2ef666d3c60cf956e73e215de8c7b242cf56fdd1b2", size = 61520, upload-time = "2026-06-27T16:28:11.894Z" }
 wheels = [
