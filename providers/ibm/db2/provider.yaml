@@ -21,11 +21,11 @@ name: IBM Db2
 description: |
   `IBM Db2 <https://www.ibm.com/products/db2>`__
 
-state: ready
-lifecycle: production
+state: not-ready
+lifecycle: incubation
 source-date-epoch: 1743033600
 versions:
-  - 1.0.0
+  - 0.1.0
 
 dependencies:
   - apache-airflow>=2.11.0
