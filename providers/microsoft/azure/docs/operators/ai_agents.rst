@@ -80,7 +80,8 @@ RunAzureAIAgentOperator
 To invoke an Azure AI Hosted agent through the ``invocations`` protocol, use the
 :class:`~airflow.providers.microsoft.azure.operators.ai_agents.RunAzureAIAgentOperator`.
 The operator sends the agent reference for the selected ``agent_name`` in the invocation payload.
-Pass ``agent_version`` to target a specific Hosted agent version.
+Pass ``agent_session_id`` to reuse an existing Hosted agent session and
+``user_isolation_key`` to scope endpoint resources to a specific end user.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
     :language: python
@@ -88,8 +89,7 @@ Pass ``agent_version`` to target a specific Hosted agent version.
     :start-after: [START howto_operator_azure_ai_agent_run]
     :end-before: [END howto_operator_azure_ai_agent_run]
 
-The same operator also supports reusing an existing Hosted agent session via ``agent_session_id``
-and scoping endpoint resources to a specific end user with ``user_isolation_key``.
+For the ``responses`` protocol, pass ``agent_version`` to target a specific Hosted agent version.
 
 .. _howto/operator:DeleteAzureAIAgentOperator:
 

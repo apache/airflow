@@ -125,11 +125,15 @@ RUN_AGENT_INPUT = {
 def create_connection(conn_id_name: str, conn_uri: str) -> None:
     if not conn_uri:
         raise RuntimeError("AIRFLOW_CONN_AZURE_AI_AGENTS_DEFAULT is required for this system test.")
-    conn = Connection(conn_id=conn_id_name, uri=conn_uri)
     if settings.Session is None:
         raise RuntimeError("Session not configured. Call configure_orm() first.")
     session = settings.Session()
-    session.add(conn)
+    conn = session.query(Connection).filter(Connection.conn_id == conn_id_name).one_or_none()
+    if conn is None:
+        conn = Connection(conn_id=conn_id_name, uri=conn_uri)
+        session.add(conn)
+    else:
+        conn.uri = conn_uri
     session.commit()
 
 
