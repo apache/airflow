@@ -86,11 +86,12 @@ export const TaskNode = ({
     .map(([_state, count]) => count)
     .reduce((sum, val) => sum + val, 0);
 
-  // Custom operator fill (ui_color). Like Airflow 2.x, only leaf tasks are tinted and the colour is
-  // blended toward the theme background so it stays subtle against the run-state border and works in
-  // both light and dark mode. The value is a Chakra token, resolved through its CSS variable.
+  // Custom operator and task group fill (ui_color), as in Airflow 2.x where ui_color is the node's
+  // fill. The colour is blended toward the theme background so it stays subtle against the run-state
+  // border and works in both light and dark mode. The value is a Chakra token, resolved through its
+  // CSS variable; a non-token (e.g. the legacy CornflowerBlue default) resolves to nothing and is ignored.
   const customBg =
-    uiColor !== undefined && uiColor !== null && !isGroup
+    uiColor !== undefined && uiColor !== null
       ? `color-mix(in srgb, var(--chakra-colors-${uiColor.replaceAll(".", "-")}, transparent) 25%, var(--chakra-colors-bg))`
       : undefined;
 
