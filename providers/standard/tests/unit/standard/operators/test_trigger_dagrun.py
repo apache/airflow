@@ -30,8 +30,12 @@ from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, conf
-from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, TaskDeferred, conf
+from airflow.providers.standard.operators.trigger_dagrun import (
+    XCOM_RUN_ID,
+    TriggerDagRunOperator,
+    TriggeredDagRunFailed,
+)
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -42,10 +46,9 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
 )
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.providers.common.compat.sdk import DagRunTriggerException
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import timezone
 else:
@@ -108,77 +111,84 @@ class TestDagRunOperator:
                 session.execute(delete(DagBundleModel).where(DagBundleModel.name == "test_bundle"))
             session.commit()
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
-    def test_trigger_dagrun_with_run_after(self):
-        """
-        Test TriggerDagRunOperator.
+    @staticmethod
+    def _ti(*, created: bool = True, states=None):
+        """Build a mocked task instance exposing the execution-API trigger/poll accessors."""
+        ti = mock.MagicMock()
+        ti.stats_tags = {}
+        ti.trigger_dag_run.return_value = created
+        if states is not None:
+            ti.get_dagrun_state.side_effect = states
+        return ti
 
-        We only verify that the operator runs and raises correct exception. The actual execution logic
-        after the exception is in Task SDK code.
-        """
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
+    def test_trigger_dagrun_with_run_after(self):
+        """The operator triggers via the execution-API accessor, deriving the run id from run_after."""
         with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
             task = TriggerDagRunOperator(
                 task_id="test_task",
                 trigger_dag_id=TRIGGERED_DAG_ID,
                 conf={"foo": "bar"},
                 run_after=timezone.datetime(2025, 2, 19, 12, 0, 0),
+                openlineage_inject_parent_info=False,
             )
+            ti = self._ti()
 
-            # Ensure correct exception is raised
-            with pytest.raises(DagRunTriggerException) as exc_info:
-                task.execute(context={})
+            task.execute(context={"ti": ti})
 
-            assert exc_info.value.trigger_dag_id == TRIGGERED_DAG_ID
-            assert exc_info.value.conf == {"foo": "bar"}
-            assert exc_info.value.logical_date is None
-            assert exc_info.value.reset_dag_run is False
-            assert exc_info.value.skip_when_already_exists is False
-            assert exc_info.value.wait_for_completion is False
-            assert exc_info.value.allowed_states == [DagRunState.SUCCESS]
-            assert exc_info.value.failed_states == [DagRunState.FAILED]
-            if getattr(exc_info, "note", None) is not None:
-                assert exc_info.value.note == "Test note"
+            ti.trigger_dag_run.assert_called_once_with(
+                TRIGGERED_DAG_ID,
+                mock.ANY,
+                conf={"foo": "bar"},
+                logical_date=None,
+                run_after=task.run_after,
+                reset_dag_run=False,
+                note=None,
+            )
+            assert task.allowed_states == [DagRunState.SUCCESS]
+            assert task.failed_states == [DagRunState.FAILED]
 
             expected_run_id = DagRun.generate_run_id(
                 run_type=DagRunType.MANUAL, run_after=task.run_after
             ).rsplit("_", 1)[0]
             # rsplit because last few characters are random.
-            assert exc_info.value.dag_run_id.rsplit("_", 1)[0] == expected_run_id
+            triggered_run_id = ti.trigger_dag_run.call_args.args[1]
+            assert triggered_run_id.rsplit("_", 1)[0] == expected_run_id
             assert task.trigger_run_id.rsplit("_", 1)[0] == expected_run_id  # run_id is saved as attribute
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
     def test_trigger_dagrun(self):
-        """
-        Test TriggerDagRunOperator.
-
-        We only verify that the operator runs and raises correct exception. The actual execution logic
-        after the exception is in Task SDK code.
-        """
+        """The operator triggers via the execution-API accessor with a generated run id and note."""
         with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
             task = TriggerDagRunOperator(
-                task_id="test_task", trigger_dag_id=TRIGGERED_DAG_ID, conf={"foo": "bar"}, note="Test note"
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                conf={"foo": "bar"},
+                note="Test note",
+                openlineage_inject_parent_info=False,
             )
+            ti = self._ti()
 
-            # Ensure correct exception is raised
-            with pytest.raises(DagRunTriggerException) as exc_info:
-                task.execute(context={})
+            task.execute(context={"ti": ti})
 
-            assert exc_info.value.trigger_dag_id == TRIGGERED_DAG_ID
-            assert exc_info.value.conf == {"foo": "bar"}
-            assert exc_info.value.logical_date is not None
-            assert exc_info.value.reset_dag_run is False
-            assert exc_info.value.skip_when_already_exists is False
-            assert exc_info.value.wait_for_completion is False
-            assert exc_info.value.allowed_states == [DagRunState.SUCCESS]
-            assert exc_info.value.failed_states == [DagRunState.FAILED]
-            if getattr(exc_info, "note", None) is not None:
-                assert exc_info.value.note == "Test note"
-
+            # With no logical_date/run_after, the operator derives both from utcnow(); under frozen
+            # time generate_run_id is deterministic (no random suffix when logical_date is set).
             expected_run_id = DagRun.generate_run_id(
-                run_type=DagRunType.MANUAL, run_after=timezone.utcnow()
-            ).rsplit("_", 1)[0]
-            # rsplit because last few characters are random.
-            assert exc_info.value.dag_run_id == expected_run_id
+                run_type=DagRunType.MANUAL,
+                logical_date=timezone.utcnow(),
+                run_after=timezone.utcnow(),
+            )
+            ti.trigger_dag_run.assert_called_once_with(
+                TRIGGERED_DAG_ID,
+                expected_run_id,
+                conf={"foo": "bar"},
+                logical_date=timezone.utcnow(),
+                run_after=None,
+                reset_dag_run=False,
+                note="Test note",
+            )
+            assert task.allowed_states == [DagRunState.SUCCESS]
+            assert task.failed_states == [DagRunState.FAILED]
             assert task.trigger_run_id == expected_run_id  # run_id is saved as attribute
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
@@ -203,7 +213,7 @@ class TestDagRunOperator:
         expected_url = f"{base_url}dags/{TRIGGERED_DAG_ID}/runs/test_run_id"
         assert link == expected_url, f"Expected {expected_url}, but got {link}"
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
     def test_trigger_dagrun_pushes_extra_link_xcom_before_exception(self):
         """
         Eagerly push the "Triggered DAG" extra-link URL so the UI button is available
@@ -220,44 +230,47 @@ class TestDagRunOperator:
             task_id="test_task",
             trigger_dag_id=TRIGGERED_DAG_ID,
             trigger_run_id="custom_run_id",
+            openlineage_inject_parent_info=False,
         )
 
-        ti_mock = mock.MagicMock()
-        with pytest.raises(DagRunTriggerException):
-            task.execute(context={"task_instance": ti_mock})
+        ti = self._ti()
+        task.execute(context={"ti": ti})
 
         expected_url = build_url_fn(dag_id=TRIGGERED_DAG_ID, run_id="custom_run_id")
-        ti_mock.xcom_push.assert_called_once_with(
+        ti.xcom_push.assert_any_call(
             key=TriggerDagRunLink().xcom_key,
             value=expected_url,
         )
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
     def test_trigger_dagrun_custom_run_id(self):
         task = TriggerDagRunOperator(
             task_id="test_task",
             trigger_dag_id=TRIGGERED_DAG_ID,
             trigger_run_id="custom_run_id",
+            openlineage_inject_parent_info=False,
         )
+        ti = self._ti()
 
-        with pytest.raises(DagRunTriggerException) as exc_info:
-            task.execute(context={})
+        task.execute(context={"ti": ti})
 
-        assert exc_info.value.dag_run_id == "custom_run_id"
+        assert ti.trigger_dag_run.call_args.args[1] == "custom_run_id"
+        assert task.trigger_run_id == "custom_run_id"
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
     def test_trigger_dagrun_with_logical_date(self):
         """Test TriggerDagRunOperator with custom logical_date."""
         task = TriggerDagRunOperator(
             task_id="test_trigger_dagrun_with_logical_date",
             trigger_dag_id=TRIGGERED_DAG_ID,
             logical_date=timezone.datetime(2021, 1, 2, 3, 4, 5),
+            openlineage_inject_parent_info=False,
         )
+        ti = self._ti()
 
-        with pytest.raises(DagRunTriggerException) as exc_info:
-            task.execute(context={})
+        task.execute(context={"ti": ti})
 
-        assert exc_info.value.logical_date == timezone.datetime(2021, 1, 2, 3, 4, 5)
+        assert ti.trigger_dag_run.call_args.kwargs["logical_date"] == timezone.datetime(2021, 1, 2, 3, 4, 5)
 
     def test_trigger_dagrun_operator_templated_invalid_conf(self, dag_maker):
         """Test passing a conf that is not JSON Serializable raise error."""
@@ -400,9 +413,7 @@ class TestDagRunOperator:
 
         mock_ti.get_dag.assert_called_once_with(TRIGGERED_DAG_ID)
 
-    @pytest.mark.skipif(
-        not AIRFLOW_V_3_2_PLUS, reason="Needs the task-SDK GetDag endpoint added in Airflow 3.2.0"
-    )
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
     def test_trigger_dagrun_proceeds_when_target_dag_is_not_paused(self):
         task = TriggerDagRunOperator(
             task_id="test_task",
@@ -410,16 +421,15 @@ class TestDagRunOperator:
             fail_when_dag_is_paused=True,
             openlineage_inject_parent_info=False,
         )
-        mock_ti = mock.MagicMock()
+        mock_ti = self._ti()
         mock_ti.get_dag.return_value.is_paused = False
 
-        with pytest.raises(DagRunTriggerException) as exc_info:
-            task.execute(context={"ti": mock_ti})
+        task.execute(context={"ti": mock_ti})
 
-        assert exc_info.value.trigger_dag_id == TRIGGERED_DAG_ID
+        assert mock_ti.trigger_dag_run.call_args.args[0] == TRIGGERED_DAG_ID
         mock_ti.get_dag.assert_called_once_with(TRIGGERED_DAG_ID)
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
     def test_trigger_dagrun_with_str_conf(self):
         """
         Test TriggerDagRunOperator conf is proper json string formatted
@@ -429,14 +439,14 @@ class TestDagRunOperator:
                 task_id="test_task",
                 trigger_dag_id=TRIGGERED_DAG_ID,
                 conf='{"foo": "bar"}',
+                openlineage_inject_parent_info=False,
             )
+            ti = self._ti()
 
-            # Ensure correct exception is raised
-            with pytest.raises(DagRunTriggerException) as exc_info:
-                task.execute(context={})
+            task.execute(context={"ti": ti})
 
-            assert exc_info.value.trigger_dag_id == TRIGGERED_DAG_ID
-            assert exc_info.value.conf == {"foo": "bar"}
+            assert ti.trigger_dag_run.call_args.args[0] == TRIGGERED_DAG_ID
+            assert ti.trigger_dag_run.call_args.kwargs["conf"] == {"foo": "bar"}
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
     def test_trigger_dagrun_with_str_conf_error(self):
@@ -454,7 +464,7 @@ class TestDagRunOperator:
                 task.execute(context={})
 
     @pytest.mark.parametrize("original_conf", (None, {}, {"foo": "bar"}))
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
     @mock.patch(f"{TRIGGER_OP_PATH}.safe_inject_openlineage_properties_into_dagrun_conf")
     def test_trigger_dagrun_conf_openlineage_injection_disabled_with_explicit_false_arg(
         self, mock_inject, original_conf
@@ -467,16 +477,16 @@ class TestDagRunOperator:
                 conf=original_conf,
                 openlineage_inject_parent_info=False,
             )
+            ti = self._ti()
 
-            with pytest.raises(DagRunTriggerException) as exc_info:
-                task.execute(context={"ti": mock.MagicMock()})
+            task.execute(context={"ti": ti})
 
             # Injection function should not be called
             mock_inject.assert_not_called()
             # Conf should remain unchanged
-            assert exc_info.value.conf == original_conf
+            assert ti.trigger_dag_run.call_args.kwargs["conf"] == original_conf
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
     @mock.patch(f"{OL_UTILS_PATH}._is_openlineage_provider_accessible")
     def test_trigger_dagrun_conf_openlineage_injection_disabled_when_ol_not_accessible(
         self, mock_is_accessible
@@ -493,15 +503,14 @@ class TestDagRunOperator:
                 trigger_dag_id=TRIGGERED_DAG_ID,
                 conf=original_conf,
             )
+            ti = self._ti()
 
-            ti = mock.MagicMock()
-            with pytest.raises(DagRunTriggerException) as exc_info:
-                task.execute(context={"ti": ti})
+            task.execute(context={"ti": ti})
 
             # Conf should remain unchanged when OL is unavailable
-            assert exc_info.value.conf == original_conf
+            assert ti.trigger_dag_run.call_args.kwargs["conf"] == original_conf
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
     @pytest.mark.parametrize(
         ("provider_version", "should_modify"),
         [
@@ -546,20 +555,18 @@ class TestDagRunOperator:
                 conf=original_conf,
             )
 
-            mock_ti = mock.MagicMock()
+            mock_ti = self._ti()
             if should_modify:
                 # When version is sufficient, mock _get_openlineage_parent_info to return data
                 with mock.patch(f"{OL_UTILS_PATH}._get_openlineage_parent_info", return_value=ol_parent_info):
-                    with pytest.raises(DagRunTriggerException) as exc_info:
-                        task.execute(context={"ti": mock_ti})
-                    # Conf should be modified
-                    assert exc_info.value.conf == injected_conf
+                    task.execute(context={"ti": mock_ti})
+                # Conf should be modified
+                assert mock_ti.trigger_dag_run.call_args.kwargs["conf"] == injected_conf
             else:
                 # When version is insufficient, _get_openlineage_parent_info will raise
-                with pytest.raises(DagRunTriggerException) as exc_info:
-                    task.execute(context={"ti": mock_ti})
+                task.execute(context={"ti": mock_ti})
                 # Conf should remain unchanged
-                assert exc_info.value.conf == original_conf
+                assert mock_ti.trigger_dag_run.call_args.kwargs["conf"] == original_conf
 
     @pytest.mark.parametrize(
         "exception",
@@ -569,7 +576,7 @@ class TestDagRunOperator:
             RuntimeError("Runtime issue"),
         ],
     )
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
     @mock.patch(f"{OL_UTILS_PATH}._is_openlineage_provider_accessible")
     def test_trigger_dagrun_conf_openlineage_injection_preserves_conf_on_exception(
         self, mock_is_accessible, exception
@@ -592,15 +599,14 @@ class TestDagRunOperator:
                 conf=original_conf,
             )
 
-            mock_ti = mock.MagicMock()
-            with pytest.raises(DagRunTriggerException) as exc_info:
-                task.execute(context={"ti": mock_ti})
+            mock_ti = self._ti()
+            task.execute(context={"ti": mock_ti})
 
             # Conf should remain unchanged when any exception occurs during injection
-            assert exc_info.value.conf == original_conf
+            assert mock_ti.trigger_dag_run.call_args.kwargs["conf"] == original_conf
 
     @pytest.mark.parametrize("original_conf", (None, {}, {"foo": "bar"}))
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
     @mock.patch(f"{OL_UTILS_PATH}._is_openlineage_provider_accessible")
     @mock.patch(f"{OL_UTILS_PATH}._get_openlineage_parent_info")
     def test_trigger_dagrun_conf_openlineage_injection_valid_data(
@@ -629,12 +635,11 @@ class TestDagRunOperator:
                 conf=original_conf,
             )
 
-            mock_ti = mock.MagicMock()
-            with pytest.raises(DagRunTriggerException) as exc_info:
-                task.execute(context={"ti": mock_ti})
+            mock_ti = self._ti()
+            task.execute(context={"ti": mock_ti})
 
             # Conf should contain injected OpenLineage metadata
-            assert exc_info.value.conf == injected_conf
+            assert mock_ti.trigger_dag_run.call_args.kwargs["conf"] == injected_conf
             # Verify _get_openlineage_parent_info was called with ti
             mock_get_parent_info.assert_called_once_with(ti=mock_ti)
 
@@ -1391,3 +1396,149 @@ class TestDagRunOperatorAF2:
             assert dagrun.conf == injected_conf
             # Verify _get_openlineage_parent_info was called
             mock_get_parent_info.assert_called_once()
+
+
+class _FakeTaskStateStore:
+    """Minimal in-memory task_state_store stub for durable TriggerDagRunOperator tests."""
+
+    def __init__(self, initial: dict | None = None):
+        self._store = dict(initial or {})
+
+    def get(self, key, default=None):
+        return self._store.get(key, default)
+
+    def set(self, key, value, *, retention=None):
+        self._store[key] = value
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Operator-owned execution path requires Airflow 3.3+")
+class TestTriggerDagRunOperatorOwnedExecution:
+    """Airflow 3.3+: the operator owns synchronous execution via the execution-API accessors."""
+
+    @staticmethod
+    def _ti(*, created: bool = True, states=None):
+        ti = mock.MagicMock()
+        ti.stats_tags = {}
+        ti.trigger_dag_run.return_value = created
+        if states is not None:
+            ti.get_dagrun_state.side_effect = states
+        return ti
+
+    @staticmethod
+    def _task(**kwargs):
+        kwargs.setdefault("openlineage_inject_parent_info", False)
+        kwargs.setdefault("poke_interval", 0)
+        return TriggerDagRunOperator(task_id="test_task", trigger_dag_id=TRIGGERED_DAG_ID, **kwargs)
+
+    def test_fire_and_forget_triggers_via_accessor(self):
+        task = self._task(trigger_run_id="run1", wait_for_completion=False, conf={"foo": "bar"})
+        ti = self._ti()
+
+        task.execute(context={"ti": ti})
+
+        ti.trigger_dag_run.assert_called_once_with(
+            TRIGGERED_DAG_ID,
+            "run1",
+            conf={"foo": "bar"},
+            logical_date=mock.ANY,
+            run_after=None,
+            reset_dag_run=False,
+            note=None,
+        )
+        ti.xcom_push.assert_any_call(key=XCOM_RUN_ID, value="run1")
+        assert task.trigger_run_id == "run1"
+
+    def test_sync_wait_polls_until_allowed_state(self):
+        task = self._task(trigger_run_id="run1", wait_for_completion=True)
+        ti = self._ti(states=[DagRunState.RUNNING, DagRunState.SUCCESS])
+
+        task.execute(context={"ti": ti})
+
+        ti.trigger_dag_run.assert_called_once()
+        assert ti.get_dagrun_state.call_count == 2
+        assert all(c.args == (TRIGGERED_DAG_ID, "run1") for c in ti.get_dagrun_state.call_args_list)
+
+    def test_sync_wait_raises_on_failed_state(self):
+        task = self._task(trigger_run_id="run1", wait_for_completion=True)
+        ti = self._ti(states=[DagRunState.FAILED])
+
+        with pytest.raises(TriggeredDagRunFailed):
+            task.execute(context={"ti": ti})
+
+    def test_skip_when_already_exists(self):
+        task = self._task(trigger_run_id="run1", wait_for_completion=False, skip_when_already_exists=True)
+        ti = self._ti(created=False)
+
+        with pytest.raises(AirflowSkipException):
+            task.execute(context={"ti": ti})
+
+    def test_already_exists_without_skip_raises(self):
+        task = self._task(trigger_run_id="run1", wait_for_completion=False)
+        ti = self._ti(created=False)
+
+        with pytest.raises(DagRunAlreadyExists):
+            task.execute(context={"ti": ti})
+
+    def test_reset_dag_run_is_passed_to_accessor(self):
+        task = self._task(trigger_run_id="run1", wait_for_completion=False, reset_dag_run=True)
+        ti = self._ti()
+
+        task.execute(context={"ti": ti})
+
+        assert ti.trigger_dag_run.call_args.kwargs["reset_dag_run"] is True
+
+    def test_durable_persists_run_id_before_polling(self):
+        task = self._task(trigger_run_id="run1", wait_for_completion=True, durable=True)
+        store = _FakeTaskStateStore()
+        seen = {}
+
+        def _state(_dag_id, _run_id):
+            seen.setdefault("at_first_poll", store.get(task.external_id_key))
+            return DagRunState.SUCCESS
+
+        ti = self._ti()
+        ti.get_dagrun_state.side_effect = _state
+
+        task.execute(context={"ti": ti, "task_state_store": store})
+
+        assert store.get(task.external_id_key) == "run1"
+        # The id must already be persisted by the first poll so a crash mid-wait reconnects on retry.
+        assert seen["at_first_poll"] == "run1"
+
+    def test_durable_reconnects_to_running_prior_run(self):
+        task = self._task(trigger_run_id="new_run", wait_for_completion=True, durable=True)
+        store = _FakeTaskStateStore({"triggered_dag_run_id": "prior_run"})
+        ti = self._ti(states=[DagRunState.RUNNING, DagRunState.SUCCESS])
+
+        task.execute(context={"ti": ti, "task_state_store": store})
+
+        ti.trigger_dag_run.assert_not_called()  # reconnected, never re-triggered
+        assert all(c.args[1] == "prior_run" for c in ti.get_dagrun_state.call_args_list)
+
+    def test_durable_short_circuits_on_succeeded_prior_run(self):
+        task = self._task(trigger_run_id="new_run", wait_for_completion=True, durable=True)
+        store = _FakeTaskStateStore({"triggered_dag_run_id": "prior_run"})
+        ti = self._ti(states=[DagRunState.SUCCESS])
+
+        task.execute(context={"ti": ti, "task_state_store": store})
+
+        ti.trigger_dag_run.assert_not_called()
+        assert ti.get_dagrun_state.call_count == 1  # only the resume check, no poll loop
+
+    def test_durable_resubmits_after_failed_prior_run(self):
+        task = self._task(trigger_run_id="fresh_run", wait_for_completion=True, durable=True)
+        store = _FakeTaskStateStore({"triggered_dag_run_id": "dead_run"})
+        ti = self._ti(states=[DagRunState.FAILED, DagRunState.SUCCESS])
+
+        task.execute(context={"ti": ti, "task_state_store": store})
+
+        ti.trigger_dag_run.assert_called_once()  # resubmitted fresh
+        assert store.get(task.external_id_key) == "fresh_run"
+
+    def test_durable_falls_back_to_fresh_trigger_without_task_state_store(self):
+        task = self._task(trigger_run_id="run1", wait_for_completion=True, durable=True)
+        ti = self._ti(states=[DagRunState.SUCCESS])
+
+        task.execute(context={"ti": ti})  # no task_state_store in context
+
+        ti.trigger_dag_run.assert_called_once()
