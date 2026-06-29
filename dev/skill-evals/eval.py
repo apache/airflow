@@ -42,7 +42,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-PROMPTFOO_VERSION = "0.121.17"
+PROMPTFOO_VERSION = "latest"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 SCRIPT_DIR = Path(__file__).resolve().parent

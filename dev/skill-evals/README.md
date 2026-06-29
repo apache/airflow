@@ -79,7 +79,7 @@ MODEL=claude-haiku-4-5-20251001 uv run dev/skill-evals/eval.py
 uv run dev/skill-evals/eval.py --no-cache
 
 # View results in browser:
-npx promptfoo@0.121.17 view
+npx promptfoo@latest view
 ```
 
 ## Adding cases
