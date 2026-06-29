@@ -24,28 +24,29 @@
 
 .. towncrier release notes start
 
-Airflow 3.3.0b2 (2026-07-06)
-----------------------------
+Airflow 3.3.0 (2026-07-06)
+--------------------------
 
 Significant Changes
 ^^^^^^^^^^^^^^^^^^^
 
-Asset Partitioning
-""""""""""""""""""
+Asset Partitioning (#64571, #65447, #66030, #66848, #67184, #67475, #67716, #68978)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Building on the asset partitioning introduced in 3.2.0, Airflow 3.3.0 substantially expands how a
 single upstream asset event fans out to partitioned downstream Dag runs. New partition mappers —
-``FanOutMapper`` (one-to-many), and ``FixedKeyMapper`` + ``SegmentWindow`` (categorical rollup) — join
-the existing ``RollupMapper``, and compose with time windows (day/week/month/quarter/year) and a
+``RollupMapper`` (many-to-one), ``FanOutMapper`` (one-to-many), and ``FixedKeyMapper`` +
+``SegmentWindow`` (categorical rollup) — compose with time windows (day/week/month/quarter/year) and a
 ``wait_policy`` (``WaitForAll`` or ``MinimumCount(n)``) to control when partitioned runs fire. Windows
 can fan out forward or backward in time, and total fan-out per upstream event is bounded by the new
-``[scheduler] partition_mapper_max_downstream_keys`` config (configurable per mapper).
-(#66030, #66848, #67184, #67475, #67716)
+``[scheduler] partition_mapper_max_downstream_keys`` config (configurable per mapper). Airflow 3.3.0
+also adds the ``PartitionedAtRuntime`` timetable, which lets a Dag declare that its partition key(s)
+are assigned when the run starts rather than mapped from an upstream event.
 
 For detailed usage instructions, see :doc:`/authoring-and-scheduling/assets`.
 
-Task and Asset State Store
-""""""""""""""""""""""""""
+Task and Asset State Store (#65759, #66073, #66160, #66463, #66586, #66859, #67041, #67292, #67319)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Airflow 3.3.0 introduces a first-class state store for tasks and assets (AIP-103). Tasks can persist
 arbitrary key-value state that survives across retries and runs via a new ``task_state_store`` accessor, and
@@ -53,60 +54,54 @@ assets can carry their own state via ``asset_state_store`` — both available fr
 in the metadata database by default, or in a custom worker-side backend (``[workers]
 state_store_backend``), supports per-key retention with periodic garbage collection and an optional
 ``clear_on_success``, and is fully manageable through the Core API and Execution API.
-(#65759, #66073, #66160, #66463, #66586, #66859, #67041, #67319)
 
-.. warning::
+For detailed usage instructions, see :doc:`/core-concepts/task-and-asset-state-store`.
 
-  Task and asset state storage is experimental in 3.3.0 and may change in future versions based on
-  user feedback.
-
-Pluggable Retry Policies
-""""""""""""""""""""""""
+Pluggable Retry Policies (#65474)
+"""""""""""""""""""""""""""""""""
 
 Task retry behaviour is now pluggable (AIP-105). In addition to a fixed ``retries`` count, you can
 attach a custom retry policy that decides whether and when a task is retried, enabling strategies such
-as retrying only on specific exceptions or backing off based on custom logic. (#65474)
+as retrying only on specific exceptions or backing off based on custom logic.
 
-Language Task SDK (Java and Go)
-"""""""""""""""""""""""""""""""
+For detailed usage instructions, see :ref:`concepts:retry-policies`.
+
+Language Task SDK (Java and Go) (#65958, #67161, #67635, #67699)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Airflow 3.3.0 adds a Coordinator layer (AIP-108) that lets individual task implementations be written
 in non-Python languages while the Dag and its scheduling stay in Python. A task is declared in the Dag
 with ``@task.stub(queue=...)``; the worker routes it to a configured coordinator
 (``JavaCoordinator`` for JVM languages, ``ExecutableCoordinator`` for self-contained native binaries
 such as Go) that runs the task in a language runtime and proxies Variables, Connections, and XComs back
-through the Execution API. (#65958, #67118, #67161, #67635, #67699)
+through the Execution API.
 
-.. warning::
+For detailed usage instructions, see :doc:`/authoring-and-scheduling/language-sdks/index`.
 
-  The Coordinator layer and the Java/Go SDKs are experimental in 3.3.0 and may change in future
-  versions based on user feedback.
-
-DAG bundle version on clear, rerun, and backfill
-""""""""""""""""""""""""""""""""""""""""""""""""
+Dag bundle version on clear, rerun, and backfill (#63884)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 The new ``rerun_with_latest_version`` setting controls whether a cleared, rerun, or backfilled Dag run
 uses the latest bundle version or the original version from the initial run. The default is resolved
-by precedence: an explicit request parameter/CLI flag, then the DAG-level ``rerun_with_latest_version``,
+by precedence: an explicit request parameter/CLI flag, then the Dag-level ``rerun_with_latest_version``,
 then ``[core] rerun_with_latest_version``, and finally ``False`` for clear/rerun and ``True`` for
 backfills (preserving historical behaviour). Airflow 2.x always reran with the latest code; 3.x
 introduced bundle versioning defaulting to the original version, and this setting gives users control.
-(#63884)
 
 See :doc:`/administration-and-deployment/dag-bundles` for full details.
 
-Provider example DAGs as dedicated bundles
-""""""""""""""""""""""""""""""""""""""""""
+Provider example Dags as dedicated bundles (#66161)
+"""""""""""""""""""""""""""""""""""""""""""""""""""
 
-Example DAGs shipped by provider distributions are now discovered via ``ProvidersManager`` and
+Example Dags shipped by provider distributions are now discovered via ``ProvidersManager`` and
 registered as their own Dag bundles — one per provider, named
 ``apache-airflow-providers-<distribution>-example-dags`` (or ``<distribution>-example-dags`` for
 third-party providers). The ``[core] load_examples`` option still gates whether they are registered.
-REST API clients that filtered ``bundle_name`` by ``"dags-folder"`` for provider-shipped example DAGs
-must update to the new per-provider bundle names; DAG identifiers are unchanged. (#66161)
+REST API clients that filtered ``bundle_name`` by ``"dags-folder"`` for provider-shipped example Dags
+must update to the new per-provider bundle names; Dag identifiers are unchanged.
 
-Remote logging resolution decoupled from ``airflow.logging_config``
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Remote logging resolution decoupled from ``airflow.logging_config`` (#67056)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Remote task log handler resolution is now owned by the shared ``airflow_shared.logging.factory``
 module and applies a single, well-defined precedence:
@@ -124,27 +119,27 @@ not implement ``from_config`` are skipped with a warning and fall through to the
 
 Migration: replace direct calls to ``airflow.logging_config.load_logging_config()`` with the new
 helpers, and have provider remote-log handler classes implement a no-argument ``from_config``
-classmethod that reads ``airflow.providers.common.compat.sdk.conf``. (#67056)
+classmethod that reads ``airflow.providers.common.compat.sdk.conf``.
 
-OpenTelemetry timer metrics now use Histogram
-"""""""""""""""""""""""""""""""""""""""""""""
+OpenTelemetry timer metrics now use Histogram (#64207)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 OpenTelemetry timer and timing metrics are now recorded as Histograms instead of Gauges, preserving
-count, sum, and bucket distribution across recordings. (#64207)
+count, sum, and bucket distribution across recordings.
 
-DAG-processing "seconds ago" metric is now tagged
-"""""""""""""""""""""""""""""""""""""""""""""""""
+Dag-processing "seconds ago" metric is now tagged (#62487)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ``dag_processing.last_run.seconds_ago.{dag_file}`` is now a legacy metric. The new
 ``dag_processing.last_run.seconds_ago`` is emitted with ``file_path``, ``bundle_name`` and
 ``file_name`` tags (``file_path`` + ``bundle_name`` uniquely identify the Dag file). The legacy metric
-is still emitted by default and can be disabled via ``[metrics] legacy_names_on``. (#62487)
+is still emitted by default and can be disabled via ``[metrics] legacy_names_on``.
 
-New Deadlines page under Browse
-"""""""""""""""""""""""""""""""
+New Deadlines page under Browse (#67586)
+""""""""""""""""""""""""""""""""""""""""
 
 A new **Deadlines** page is available under the Browse menu, accessible to any role that already has
-``can_read`` and ``menu_access`` on **DAG Runs**. (#67586)
+``can_read`` and ``menu_access`` on **Dag Runs**.
 
 
 New Features
@@ -179,7 +174,7 @@ New Features
 - Add ``awaiting_input`` task state for Human-in-the-Loop, running off the triggerer (#68028)
 - Add bulk API to mark Dag runs as success or failed (#67948)
 - Record writer info for every asset store write for better cross-linkage (#67902)
-- Register XCom ``output_type`` classes from a worker-side DAG walk (#67875)
+- Register XCom ``output_type`` classes from a worker-side Dag walk (#67875)
 - Add ``FixedKeyMapper`` and ``SegmentWindow`` for categorical asset-partition rollup (#67716)
 - Add a bulk ``POST /dags/{dag_id}/clearDagRuns`` API endpoint (#67709)
 - Return Pydantic model instances through XCom for structured output (#67644)
@@ -231,22 +226,21 @@ New Features
 - UI: Show expected duration based on historical average in Dag Run details (#65722)
 - Add team name to the task context (#65617)
 - Add an ``on_kill()`` hook to ``BaseTrigger`` to handle user actions on triggers (#65590)
-- Allow accessing a DAG's members via ``[]`` (#65586)
+- Allow accessing a Dag's members via ``[]`` (#65586)
 - Add pluggable retry policies for Airflow tasks (AIP-105) (#65474)
 - Add support for ``format="Duration"`` in params (#65469)
-- Add the ``PartitionAtRuntime`` authoring API to the Task SDK (AIP-76) (#65447)
 - UI: Add pagination to the grid view (#65388)
 - Add ``partition_key`` to the task context (#65359)
 - Make the blocked-thread warning threshold configurable (#65009)
 - Add name fields to SDK deadline alerts (#64926)
 - Add dynamic interval resolution support via Variables for deadline alerts (#64751)
-- Add an ``is_backfillable`` property to DAG API responses (#64644)
+- Add an ``is_backfillable`` property to Dag API responses (#64644)
 - Return dag-specified results in the dag run wait API (#64577)
 - Hold a Dag run until all upstream partitions arrive (AIP-76) (#64571)
 - Add a way to mark a return-value XCom as the dag result (#64522)
 - Allow accessing a TaskGroup's members via ``[]`` (#64430)
 - UI: Redo the Gantt chart (#64335)
-- UI: Add task-level filters to the DAG graph tab (#64271)
+- UI: Add task-level filters to the Dag graph tab (#64271)
 - UI: Add bulk Clear, Mark Success/Fail, and delete for multiple task instances (#64141)
 - Check that multi-team is enabled when a team name is provided to the API (#63994)
 - Add a ``DagRunType`` for operators (#63733)
@@ -259,6 +253,9 @@ New Features
 - Re-enable the ``start_from_trigger`` feature with template-field rendering (#55068)
 - Backfill partitioned Dags by partition-date range (#67537)
 - Add a producer-side acknowledgement channel to shared-stream triggers (#67523)
+- UI: Add ``partition_date`` to the Dag run detail page (#68977)
+- Expose the upstream ``partition_key`` on ``triggering_asset_events`` and ``dag_run.consumed_asset_events`` (AIP-76) (#69120)
+- Allow ``get``/``set``/``delete``/``clear`` of ``AssetStateStoreAccessor`` to run on the triggerer (#68966)
 
 Bug Fixes
 ^^^^^^^^^
@@ -320,7 +317,7 @@ Bug Fixes
 - Reject negative ``default_retention_days`` in the Task SDK and core API routes (#67890)
 - Fix ``none_failed_min_one_success`` trigger rule checks (#67873)
 - Remove trigger kwargs from the REST API response (#67868)
-- UI: Fix long parameter names overflowing the Trigger DAG modal (#67859)
+- UI: Fix long parameter names overflowing the Trigger Dag modal (#67859)
 - Fix misleading log message in the task runner clear-on-success block (#67836)
 - Fix scheduler crash when logging orphaned task resets (#67822)
 - UI: Fix dashboard pool summary showing incorrect deferred slot usage (#67818)
@@ -333,14 +330,14 @@ Bug Fixes
 - Apply per-file authorization to the dag-source endpoint (#67662)
 - Fix ``airflow dags next-execution --table`` crash when no next run exists (#67642)
 - UI: Fix the time picker omitting seconds (#67636)
-- Filter scheduling-dependencies graph edges by readable-DAG access (#67627)
+- Filter scheduling-dependencies graph edges by readable-Dag access (#67627)
 - Mask per-key secrets-backend-kwarg overrides on the Config API (#67622)
 - Fix ``GET /auth/login`` missing a 400 response in the OpenAPI spec (#67571)
 - Fix ``GET /pools`` incorrectly documenting a 404 response in the OpenAPI spec (#67570)
 - Add a compatibility layer for import errors caused by ``AirflowSecretsBackendAccessDenied`` (#67560)
 - UI: Fix rendering of None child state (#67552)
 - Fix sort order for mapped task instances (#67551)
-- Fix import errors total-entries count with multiple DAGs per file (#67550)
+- Fix import errors total-entries count with multiple Dags per file (#67550)
 - UI: Prefer active over queued state for collapsed groups (#67543)
 - Fix callback state not updating from executor events due to a UUID type mismatch (#67542)
 - Reject wildcard origin in CORS config instead of toggling credentials (#67502)
@@ -357,7 +354,7 @@ Bug Fixes
 - UI: Restore the Monaco find widget in the Dag Code view (#67391)
 - UI: Fix an HTTPException import that turned a 400 into a 500 in the dags endpoint (#67363)
 - Restore ``fail_fast`` handling when reschedule exceeds the MySQL ``TIMESTAMP`` limit (#67353)
-- Fix the Triggered DAG button not being visible during queued/running state (#67327)
+- Fix the Triggered Dag button not being visible during queued/running state (#67327)
 - Fix variables import with structured falsy values (#67060)
 - Avoid logging Execution API bearer credentials (#67059)
 - Sanitize Dag processor metric file names (#67029)
@@ -365,9 +362,9 @@ Bug Fixes
 - Prevent ``AlreadyRunningBackfill`` error caused by an invalid date range request (#66874)
 - Restrict owner-link and extra-link ``href`` values to safe schemes (http, https, mailto, relative) (#66741)
 - Add a session parameter to the ``BaseStateBackend`` interface to fix custom backends (#66708)
-- Allow deadline callbacks within the same DAG module (#66702)
+- Allow deadline callbacks within the same Dag module (#66702)
 - UI: Fix relative React plugin bundle URLs in dev mode (#66618)
-- Validate DAG trigger conf as a JSON object or null (#66617)
+- Validate Dag trigger conf as a JSON object or null (#66617)
 - Require a trust sentinel for ``state.user`` injection in ``get_user()`` (#66562)
 - Use ``hmac.compare_digest`` for ``SimpleAuthManager`` password comparison (CWE-208) (#66556)
 - Set ``SameSite=Lax`` on the ``SimpleAuthManager`` all-admins login cookie (#66502)
@@ -382,7 +379,7 @@ Bug Fixes
 - Fix ``resolve_xcom_backend`` to rely on the config schema default (#65938)
 - Fix a missing import cast error in the dag_run API route (#65748)
 - Mask Dag processor connection and variable responses (#65704)
-- UI: Show import error for deactivated DAGs (#65687)
+- UI: Show import error for deactivated Dags (#65687)
 - Forward MySQL SSL params from ``sql_alchemy_conn`` to ``airflow db shell`` (#65575)
 - Disable SQLite FK checks in the 0111 migration downgrade (#65545)
 - Handle Variable values that cannot be decrypted gracefully in the stable REST API (#65452)
@@ -393,7 +390,7 @@ Bug Fixes
 - Fix ``task_defer`` with non-JSON ``next_kwargs`` in ``TaskInstance`` (#64714)
 - Add the error as ``context["exception"]`` in ``InProcessTestSupervisor`` (#64568)
 - Fix NPM security alerts in the simple auth manager (#64309)
-- Fix DAG run trigger to surface errors instead of swallowing them (#64130)
+- Fix Dag run trigger to surface errors instead of swallowing them (#64130)
 - Fix Task SDK Connection extras built from a URI constructor (#64120)
 - Add insert/update-on-conflict for rendered task instance fields (#63874)
 - Fix ``timeout_with_traceback`` crashes on Windows and non-main threads (#63664)
@@ -425,6 +422,11 @@ Bug Fixes
 - Fix ``dag.test()`` not re-syncing sibling Dags across repeated calls (#66205)
 - UI: Invalidate per-attempt task instance caches after actions so logs and details are not stale (#67212)
 - Fix task runner failure on a duplicate task instance success-state update (#63355)
+- Fix a race condition on the ``order_by`` parameter when listing Dag runs via the REST API (#68948)
+- Exclude non-successful Dag runs from the ``DeadlineReference.AVERAGE_RUNTIME`` deadline calculation so failed runs no longer skew the computed deadline (#68949)
+- Allow ``InProcessExecutionAPI`` to start without ``api_auth.jwt_secret`` configured (#68982)
+- Make ``airflow dags test`` wait for Human-in-the-loop input instead of looping indefinitely on parked HITL tasks (#69104)
+- Fix the Java coordinator rejecting macOS dual-stack loopback connections (#68973)
 
 Miscellaneous
 ^^^^^^^^^^^^^
@@ -484,11 +486,11 @@ Miscellaneous
 - Pass user teams to the ``create_asset_event`` endpoint (#66367)
 - Load ``USFederalHolidayCalendar`` lazily to reduce memory usage when loading examples (#66303)
 - Propagate task OpenTelemetry trace context through IPC into Execution API requests (#66151)
-- Surface worker DAG parse duration in the task log (#66138)
-- Skip deserializing ``trigger_kwargs`` when loading serialized DAGs (#66002)
+- Surface worker Dag parse duration in the task log (#66138)
+- Skip deserializing ``trigger_kwargs`` when loading serialized Dags (#66002)
 - Honor ``AUTH_ROLE_PUBLIC`` in the FastAPI API server (#65685)
 - Add extended sysinfo for the Edge worker (#65472)
-- Clarify logs when a DAG is being processed in the Dag processor (#65196)
+- Clarify logs when a Dag is being processed in the Dag processor (#65196)
 - Add indexes on ``task_instance.dag_version_id`` and ``dag_run.created_dag_version_id`` (#64818)
 - Improve creation of ``RuntimeTaskInstance`` in ``TriggerRunner`` for ``start_for_trigger`` functionality (#64298)
 - Mark the Triggerer supervisor as a server context so it can read metastore connections (#64022)
@@ -504,6 +506,7 @@ Miscellaneous
 - Allow synchronous deadline callbacks (``SyncCallback``) to access Connections and Variables (#65269)
 - Add a ``team_name`` tag to deadline metrics for multi-team deployments (#68589)
 - Add a ``team_name`` tag to scheduler metrics for multi-team deployments (#68594)
+- Defer the Cadwyn import so FastAPI/Starlette stay off the Task SDK worker path, reducing per-worker memory (#69029)
 
 Doc Only Changes
 ^^^^^^^^^^^^^^^^
@@ -535,13 +538,17 @@ Doc Only Changes
 - Document ``on_kill()``/``cleanup()`` for triggers (#65671)
 - Explain ``xcom_pull`` behaviour without ``task_ids`` in the docs (#65406)
 - Improve standalone authentication documentation for Airflow 3.x (#65330)
-- Clarify manual DAG run data interval semantics in Airflow 3 (#64740)
-- Document and test ``xcom_pull`` ``run_id`` usage for triggered DAG runs (#63030)
+- Clarify manual Dag run data interval semantics in Airflow 3 (#64740)
+- Document and test ``xcom_pull`` ``run_id`` usage for triggered Dag runs (#63030)
 - Update params in the backfill documentation (#61821)
 - Document the ``apache-airflow-mypy`` package in the core docs (#68561)
 - Fix typos and formatting in the Fundamentals documentation (#68524)
 - Complete the Hindi (``hi``) UI translation (#68574)
 - Fill the Taiwanese Mandarin (``zh-TW``) UI translation gap (#68563)
+- Document that Dag bundle ``kwargs`` should reference a Connection rather than inline credentials (#69105)
+- Add example plugins and expand the asset-partitions documentation (#69017)
+- Java SDK docs: ``JUL`` setup, pinning ``java_executable``, and a config-reload note (#69020)
+- Correct the example config for the coordinators (#68940)
 
 Airflow 3.2.2 (2026-05-29)
 --------------------------
