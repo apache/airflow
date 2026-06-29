@@ -130,7 +130,7 @@ def get_provider_info():
                         "version_added": None,
                         "type": "string",
                         "sensitive": True,
-                        "example": "db+postgresql://postgres:airflow@postgres/airflow",
+                        "example": "db+postgresql+psycopg2://postgres:airflow@postgres/airflow",
                         "default": None,
                     },
                     "result_backend_sqlalchemy_engine_options": {
