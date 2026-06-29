@@ -356,12 +356,12 @@ class TestPlainXComArgResolveMappedGroup:
     """Resolving a task inside a mapped task group from a task outside that group.
 
     Regression tests for #69036 and #48005: the combined return value of a
-    mapped task group must always be an eager list (one element per expansion),
-    even when the group expanded only once or every expansion returned ``None``.
-    Previously this case was routed through ``xcom_pull`` pulling all map
-    indexes, which collapsed a single value to a bare scalar and an empty set
-    of values to ``None``. The list must be materialised eagerly so a task that
-    returns the value unchanged can still push it to XCom.
+    mapped task group must always serialize to a list (one element per
+    expansion), even when the group expanded only once or every expansion
+    returned ``None``. Previously this case was routed through ``xcom_pull``
+    pulling all map indexes, which collapsed a single value to a bare scalar
+    and an empty set of values to ``None``. ``resolve`` stays lazy and serde
+    materialises the sequence only when the value is actually returned.
     """
 
     @staticmethod
@@ -392,8 +392,10 @@ class TestPlainXComArgResolveMappedGroup:
             pytest.param(["a", "b"], ["a", "b"], id="multiple-expansions"),
         ],
     )
-    def test_resolve_aggregates_mapped_group_as_eager_list(self, root, expected, mock_supervisor_comms):
+    def test_resolve_stays_lazy_and_serializes_as_list(self, root, expected, mock_supervisor_comms):
         from airflow.sdk.execution_time.comms import XComSequenceSliceResult
+        from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
+        from airflow.sdk.serde import serialize
 
         mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=root)
 
@@ -402,9 +404,9 @@ class TestPlainXComArgResolveMappedGroup:
 
         resolved = arg.resolve({"ti": ti})
 
-        assert resolved == expected
-        assert isinstance(resolved, list)
+        assert isinstance(resolved, LazyXComSequence)
         ti.xcom_pull.assert_not_called()
+        assert serialize(resolved) == expected
 
     def test_resolve_uses_xcom_pull_for_specific_index(self):
         arg = self._make_arg()

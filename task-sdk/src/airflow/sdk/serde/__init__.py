@@ -254,6 +254,14 @@ def serialize(o: object, depth: int = 0) -> U | None:
 
         return o
 
+    # Materialise a lazily-resolved mapped XCom (e.g. mapped task group output) to a list here;
+    # otherwise the attrs branch below would serialize its internal fields. The single slice fetch
+    # happens only if the value is actually returned and serialized.
+    from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
+
+    if isinstance(o, LazyXComSequence):
+        return serialize(o[:], depth + 1)
+
     # custom serializers
     dct = {
         CLASSNAME: qn,

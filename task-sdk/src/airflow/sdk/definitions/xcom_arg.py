@@ -355,9 +355,10 @@ class PlainXComArg(XComArg):
                     session=None,  # Not used in SDK implementation
                 )
                 if computed is None:
-                    # Aggregate the mapped task group as a list, even for a single expansion (#69036) or all-None values (#48005)
-                    # Materialise eagerly (one slice request) so a task returning the value unchanged can still serialize it
-                    return LazyXComSequence(xcom_arg=self, ti=ti)[:]
+                    # Resolve the mapped task group as a list, even for a single expansion (#69036)
+                    # or all-None values (#48005). Stay lazy: serde materialises the sequence only if
+                    # the value is actually returned and pushed to XCom (see airflow.sdk.serde.serialize).
+                    return LazyXComSequence(xcom_arg=self, ti=ti)
                 map_indexes = computed
         result = ti.xcom_pull(
             task_ids=task_id,
