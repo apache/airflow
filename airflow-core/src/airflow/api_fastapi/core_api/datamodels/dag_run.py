@@ -112,7 +112,6 @@ class DAGRunResponse(BaseModel):
     last_scheduling_decision: datetime | None
     run_type: DagRunType
     state: DagRunState
-    tags: list[DagTagResponse] | None = Field(validation_alias=AliasPath("dag_model", "tags"))
     triggered_by: DagRunTriggeredByType | None
     triggering_user_name: str | None
     conf: dict | None

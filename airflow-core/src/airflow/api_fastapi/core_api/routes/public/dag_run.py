@@ -54,6 +54,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryDagRunVersionFilter,
     QueryLimit,
     QueryOffset,
+    QueryDagTagsFilter,
     Range,
     RangeFilter,
     SortParam,
@@ -437,10 +438,7 @@ def get_dag_runs(
     ],
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
-    tags: Annotated[
-        FilterParam[str | None],
-        Depends(filter_param_factory(DagTag.name, str | None, FilterOptionEnum.EQUAL, "tags")),
-    ],
+    tags: QueryDagTagsFilter,
     dag_version: QueryDagRunVersionFilter,
     bundle_version: Annotated[
         FilterParam[str | None], Depends(filter_param_factory(DagRun.bundle_version, str | None))
@@ -520,9 +518,6 @@ def get_dag_runs(
     if dag_id != "~":
         get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the Dag exists.
         query = query.filter(DagRun.dag_id == dag_id).options()
-
-    if tags.value :
-        query = query.join(DagTag, DagRun.dag_id == DagTag.dag_id)
 
     # Add join with DagVersion if dag_version filter is active
     if dag_version.value:

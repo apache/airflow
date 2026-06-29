@@ -851,6 +851,31 @@ class _TagsFilter(BaseParam[_TagFilterModel]):
     ) -> _TagsFilter:
         return cls().set_value(_TagFilterModel(tags=tags, tags_match_mode=tags_match_mode))
 
+class _DagTagFilterModel(BaseModel):
+    """Tag Filter Model with a match mode parameter."""
+
+    tags: list[str]
+
+class _DagTagsFilter(BaseParam[_DagTagFilterModel]):
+
+    def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
+        if not self.value or not self.value.tags:
+            return select
+
+        conditions = [DagModel.tags.any(DagTag.name == tag) for tag in self.value.tags]
+        return select.where(*conditions, DagRun.dag_id == DagModel.dag_id )
+
+    @classmethod
+    def depends(
+        cls,
+        tags: list[str] = Query(default_factory=list)
+    ) -> _DagTagsFilter:
+        return cls().set_value(_DagTagFilterModel(tags=tags))
+
+    
 
 class _OwnersFilter(BaseParam[list[str]]):
     """Filter on owners."""
@@ -1121,6 +1146,7 @@ QueryDagIdPrefixPatternSearchWithNone = Annotated[
 ]
 QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter.depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter.depends)]
+QueryDagTagsFilter = Annotated[_DagTagsFilter, Depends(_DagTagsFilter.depends)]
 
 
 class _HasAssetScheduleFilter(BaseParam[bool]):

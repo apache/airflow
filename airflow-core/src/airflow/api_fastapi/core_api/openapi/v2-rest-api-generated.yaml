@@ -13644,13 +13644,6 @@ components:
           $ref: '#/components/schemas/DagRunType'
         state:
           $ref: '#/components/schemas/DagRunState'
-        tags:
-          anyOf:
-          - items:
-              $ref: '#/components/schemas/DagTagResponse'
-            type: array
-          - type: 'null'
-          title: Tags
         triggered_by:
           anyOf:
           - $ref: '#/components/schemas/DagRunTriggeredByType'
