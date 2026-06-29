@@ -22,6 +22,8 @@ import os
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy import select
+
 from airflow import settings
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.operators.ai_agents import (
@@ -128,7 +130,7 @@ def create_connection(conn_id_name: str, conn_uri: str) -> None:
     if settings.Session is None:
         raise RuntimeError("Session not configured. Call configure_orm() first.")
     session = settings.Session()
-    conn = session.query(Connection).filter(Connection.conn_id == conn_id_name).one_or_none()
+    conn = session.scalar(select(Connection).where(Connection.conn_id == conn_id_name))
     if conn is None:
         conn = Connection(conn_id=conn_id_name, uri=conn_uri)
         session.add(conn)
