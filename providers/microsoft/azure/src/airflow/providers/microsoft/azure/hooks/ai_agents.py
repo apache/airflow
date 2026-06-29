@@ -360,6 +360,10 @@ class AzureAIAgentsHook(BaseHook):
             f"agents/{self._quote_resource_id(agent_name)}/versions/{self._quote_resource_id(agent_version)}",
         )
 
+    def get_agent(self, agent_name: str) -> dict[str, Any]:
+        """Get a Hosted agent."""
+        return self._request("GET", f"agents/{self._quote_resource_id(agent_name)}")
+
     def delete_agent(self, agent_name: str, *, force: bool = False) -> dict[str, Any] | None:
         """Delete a Hosted agent and all versions."""
         query_params = {"force": "true"} if force else None
@@ -383,8 +387,12 @@ class AzureAIAgentsHook(BaseHook):
         return get_version_status(version) == "deleted"
 
     def is_agent_deleted(self, agent_name: str) -> bool:
-        """Return True if version 1 is no longer retrievable for the Hosted agent."""
-        return self.is_agent_version_deleted(agent_name=agent_name, agent_version="1")
+        """Return True if the Hosted agent no longer exists."""
+        try:
+            agent = self.get_agent(agent_name=agent_name)
+        except ResourceNotFoundError:
+            return True
+        return str(get_resource_attr(agent, "status") or "").lower() == "deleted"
 
     def invoke_agent_responses(
         self,

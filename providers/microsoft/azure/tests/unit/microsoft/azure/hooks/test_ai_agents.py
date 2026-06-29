@@ -331,13 +331,26 @@ class TestAzureAIAgentsHook:
 
         assert hook.is_agent_version_deleted(agent_name=AGENT_NAME, agent_version="1") is False
 
-    @mock.patch.object(AzureAIAgentsHook, "is_agent_version_deleted", autospec=True)
-    def test_is_agent_deleted_checks_first_version(self, mock_is_version_deleted):
-        mock_is_version_deleted.return_value = True
+    @mock.patch.object(AzureAIAgentsHook, "get_agent", autospec=True)
+    def test_is_agent_deleted_when_resource_does_not_exist(self, mock_get_agent):
+        mock_get_agent.side_effect = ResourceNotFoundError("not found")
         hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
 
         assert hook.is_agent_deleted(agent_name=AGENT_NAME) is True
-        mock_is_version_deleted.assert_called_once_with(hook, agent_name=AGENT_NAME, agent_version="1")
+
+    @mock.patch.object(AzureAIAgentsHook, "get_agent", autospec=True)
+    def test_is_agent_deleted_when_status_is_deleted(self, mock_get_agent):
+        mock_get_agent.return_value = {"status": "deleted"}
+        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
+
+        assert hook.is_agent_deleted(agent_name=AGENT_NAME) is True
+
+    @mock.patch.object(AzureAIAgentsHook, "get_agent", autospec=True)
+    def test_is_agent_deleted_when_resource_exists(self, mock_get_agent):
+        mock_get_agent.return_value = {"status": "active"}
+        hook = AzureAIAgentsHook(azure_ai_agents_conn_id=CONN_ID)
+
+        assert hook.is_agent_deleted(agent_name=AGENT_NAME) is False
 
     @mock.patch.object(AzureAIAgentsHook, "_request", autospec=True)
     def test_invoke_agent_responses(self, mock_request):
