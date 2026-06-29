@@ -83,6 +83,9 @@ pools:
 providers:
   list: "List all installed Airflow providers"
 
+tasks:
+  state: "Retrieve the state of a task instance"
+
 variables:
   get: "Retrieve a variable by its key"
   list: "List all variables"
