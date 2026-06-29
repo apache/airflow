@@ -30,10 +30,16 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.cli.commands import asset_command, dag_command, pool_command
+from airflow.cli.commands import asset_command, connection_command, dag_command, pool_command
 
 # (command callable, expected airflowctl replacement recorded by the decorator)
 MIGRATED_CLI_COMMANDS = [
+    (connection_command.connections_list, "airflowctl connections list"),
+    (connection_command.connections_add, "airflowctl connections create"),
+    (connection_command.connections_delete, "airflowctl connections delete"),
+    (connection_command.connections_import, "airflowctl connections import"),
+    (connection_command.connections_test, "airflowctl connections test"),
+    (connection_command.create_default_connections, "airflowctl connections create-defaults"),
     (dag_command.dag_trigger, "airflowctl dags trigger"),
     (dag_command.dag_delete, "airflowctl dags delete"),
     (pool_command.pool_list, "airflowctl pools list"),
