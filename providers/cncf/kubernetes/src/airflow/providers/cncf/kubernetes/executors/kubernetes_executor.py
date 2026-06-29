@@ -227,21 +227,19 @@ class KubernetesExecutor(BaseExecutor):
             )
             return None
 
-    def _coordinator_pod_template_file(self, queue: str | None) -> str | None:
+    def _coordinator_pod_template_file(self, extra: dict[str, Any]) -> str | None:
         """
-        Return the pod template a coordinator declares for *queue*, if any.
+        Return the pod template declared in a coordinator's *extra* mapping, if any.
 
         Lets a queue routed to a non-Python coordinator (via ``[sdk]
         queue_to_coordinator``) launch its worker pod from a coordinator-specific
         template — for example an image carrying the JVM for a Java coordinator.
         """
-        if (extra := self._coordinator_extra(queue)) is not None:
-            return extra.get("pod_template_file", None)
-        return None
+        return extra.get("pod_template_file", None)
 
-    def _coordinator_kube_image(self, queue: str | None) -> str | None:
+    def _coordinator_kube_image(self, extra: dict[str, Any]) -> str | None:
         """
-        Return the worker base image a coordinator declares for *queue*, if any.
+        Return the worker base image declared in a coordinator's *extra* mapping, if any.
 
         The base container image is never taken from a pod template; it comes
         from ``kube_image`` (``worker_container_repository:worker_container_tag``)
@@ -250,8 +248,6 @@ class KubernetesExecutor(BaseExecutor):
         (e.g. a JRE-bearing image for a Java coordinator); both are required to
         compose an override, otherwise the executor default applies.
         """
-        if (extra := self._coordinator_extra(queue)) is None:
-            return None
         if (repo := extra.get("worker_container_repository")) and (tag := extra.get("worker_container_tag")):
             return f"{repo}:{tag}"
         return None
@@ -284,25 +280,29 @@ class KubernetesExecutor(BaseExecutor):
         else:
             pod_template_file = None
 
-        # A coordinator-level pod_template wins (e.g. a JVM image for JavaCoordinator)
-        if (coordinator_pod_template_file := self._coordinator_pod_template_file(queue)) is not None:
-            self.log.debug(
-                "Using coordinator-declared pod template %s for task %s in queue %s",
-                coordinator_pod_template_file,
-                key,
-                queue,
-            )
-            pod_template_file = coordinator_pod_template_file
+        coordinator_kube_image: str | None = None
+        if (coordinator_extra := self._coordinator_extra(queue)) is not None:
+            # A coordinator-level pod_template wins (e.g. a JVM image for JavaCoordinator)
+            if (
+                coordinator_pod_template_file := self._coordinator_pod_template_file(coordinator_extra)
+            ) is not None:
+                self.log.debug(
+                    "Using coordinator-declared pod template %s for task %s in queue %s",
+                    coordinator_pod_template_file,
+                    key,
+                    queue,
+                )
+                pod_template_file = coordinator_pod_template_file
 
-        # The base image is not carried by a pod template, so a coordinator routes
-        # its worker base image separately (e.g. a JRE image for a Java queue).
-        if (coordinator_kube_image := self._coordinator_kube_image(queue)) is not None:
-            self.log.debug(
-                "Using coordinator-declared base image %s for task %s in queue %s",
-                coordinator_kube_image,
-                key,
-                queue,
-            )
+            # The base image is not carried by a pod template, so a coordinator routes
+            # its worker base image separately (e.g. a JRE image for a Java queue).
+            if (coordinator_kube_image := self._coordinator_kube_image(coordinator_extra)) is not None:
+                self.log.debug(
+                    "Using coordinator-declared base image %s for task %s in queue %s",
+                    coordinator_kube_image,
+                    key,
+                    queue,
+                )
 
         self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
         self.task_queue.put(

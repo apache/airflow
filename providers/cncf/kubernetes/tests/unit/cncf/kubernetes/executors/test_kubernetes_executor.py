@@ -921,11 +921,16 @@ class TestKubernetesExecutor:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The coordinator interface only support since 3.3+")
     @pytest.mark.parametrize(
-        ("coordinator_template", "executor_config", "expected_template"),
+        ("coordinator_extra", "executor_config", "expected_template"),
         [
-            pytest.param("/coord/java.yaml", None, "/coord/java.yaml", id="coordinator-template-used"),
             pytest.param(
+                {"pod_template_file": "/coord/java.yaml"},
+                None,
                 "/coord/java.yaml",
+                id="coordinator-template-used",
+            ),
+            pytest.param(
+                {"pod_template_file": "/coord/java.yaml"},
                 {"pod_template_file": "/from/executor_config.yaml"},
                 "/coord/java.yaml",
                 id="coordinator-template-wins",
@@ -940,18 +945,18 @@ class TestKubernetesExecutor:
     )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
-    @mock.patch.object(KubernetesExecutor, "_coordinator_pod_template_file")
+    @mock.patch.object(KubernetesExecutor, "_coordinator_extra")
     def test_coordinator_pod_template_file_used_for_queue(
         self,
-        mock_coordinator_template,
+        mock_coordinator_extra,
         mock_get_kube_client,
         mock_kubernetes_job_watcher,
-        coordinator_template,
+        coordinator_extra,
         executor_config,
         expected_template,
     ):
-        """A queue's coordinator template overrides executor_config; without one, executor_config is used."""
-        mock_coordinator_template.return_value = coordinator_template
+        """A queue coordinator's template overrides executor_config; without a coordinator, executor_config is used."""
+        mock_coordinator_extra.return_value = coordinator_extra
         executor = self.kubernetes_executor
         executor.start()
         try:
@@ -969,41 +974,28 @@ class TestKubernetesExecutor:
             executor.end()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The coordinator interface only support since 3.3+")
-    def test_coordinator_pod_template_file_skips_lookup_without_queue(self):
-        """No queue means no coordinator lookup (and no Task SDK import)."""
-        with mock.patch("airflow.sdk.execution_time.coordinator.get_coordinator_manager") as mock_get_manager:
-            assert self.kubernetes_executor._coordinator_pod_template_file(None) is None
-            mock_get_manager.assert_not_called()
-
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The coordinator interface only support since 3.3+")
     @pytest.mark.parametrize(
         ("extra", "expected"),
         [
             pytest.param({"pod_template_file": "/coord/go.yaml"}, "/coord/go.yaml", id="template-in-extra"),
             pytest.param({"other": "value"}, None, id="extra-without-template"),
-            pytest.param(None, None, id="no-extra"),
         ],
     )
     def test_coordinator_pod_template_file_reads_extra(self, extra, expected):
-        """The template is read from the queue coordinator's ``extra`` mapping."""
-        with mock.patch("airflow.sdk.execution_time.coordinator.get_coordinator_manager") as mock_get_manager:
-            mock_get_manager.return_value.extra_for_queue.return_value = extra
-            assert self.kubernetes_executor._coordinator_pod_template_file("go") == expected
-            mock_get_manager.return_value.extra_for_queue.assert_called_once_with("go")
-
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The coordinator interface only support since 3.3+")
-    def test_coordinator_pod_template_file_returns_none_on_old_task_sdk(self):
-        """Pre-3.3 Task SDKs lack get_coordinator_manager; the import error falls back to None."""
-        with mock.patch.dict("sys.modules", {"airflow.sdk.execution_time.coordinator": None}):
-            assert self.kubernetes_executor._coordinator_pod_template_file("go") is None
+        """The template is read straight from the coordinator ``extra`` mapping passed in."""
+        assert self.kubernetes_executor._coordinator_pod_template_file(extra) == expected
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The coordinator interface only support since 3.3+")
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
-    @mock.patch.object(KubernetesExecutor, "_coordinator_kube_image", return_value="repo/java:1")
+    @mock.patch.object(
+        KubernetesExecutor,
+        "_coordinator_extra",
+        return_value={"worker_container_repository": "repo/java", "worker_container_tag": "1"},
+    )
     def test_coordinator_kube_image_carried_on_job(
         self,
-        mock_coordinator_kube_image,
+        mock_coordinator_extra,
         mock_get_kube_client,
         mock_kubernetes_job_watcher,
     ):
@@ -1023,13 +1015,6 @@ class TestKubernetesExecutor:
             executor.end()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The coordinator interface only support since 3.3+")
-    def test_coordinator_kube_image_skips_lookup_without_queue(self):
-        """No queue means no coordinator lookup (and no Task SDK import)."""
-        with mock.patch("airflow.sdk.execution_time.coordinator.get_coordinator_manager") as mock_get_manager:
-            assert self.kubernetes_executor._coordinator_kube_image(None) is None
-            mock_get_manager.assert_not_called()
-
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The coordinator interface only support since 3.3+")
     @pytest.mark.parametrize(
         ("extra", "expected"),
         [
@@ -1041,21 +1026,24 @@ class TestKubernetesExecutor:
             pytest.param({"worker_container_repository": "repo/java"}, None, id="repository-only"),
             pytest.param({"worker_container_tag": "17"}, None, id="tag-only"),
             pytest.param({"other": "value"}, None, id="extra-without-image"),
-            pytest.param(None, None, id="no-extra"),
         ],
     )
     def test_coordinator_kube_image_reads_extra(self, extra, expected):
-        """The base image is composed from the queue coordinator's ``extra`` mapping."""
-        with mock.patch("airflow.sdk.execution_time.coordinator.get_coordinator_manager") as mock_get_manager:
-            mock_get_manager.return_value.extra_for_queue.return_value = extra
-            assert self.kubernetes_executor._coordinator_kube_image("java") == expected
-            mock_get_manager.return_value.extra_for_queue.assert_called_once_with("java")
+        """The base image is composed straight from the coordinator ``extra`` mapping passed in."""
+        assert self.kubernetes_executor._coordinator_kube_image(extra) == expected
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The coordinator interface only support since 3.3+")
-    def test_coordinator_kube_image_returns_none_on_old_task_sdk(self):
+    def test_coordinator_extra_skips_lookup_without_queue(self):
+        """No queue means no coordinator lookup (and no Task SDK import)."""
+        with mock.patch("airflow.sdk.execution_time.coordinator.get_coordinator_manager") as mock_get_manager:
+            assert self.kubernetes_executor._coordinator_extra(None) is None
+            mock_get_manager.assert_not_called()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The coordinator interface only support since 3.3+")
+    def test_coordinator_extra_returns_none_on_old_task_sdk(self):
         """Pre-3.3 Task SDKs lack get_coordinator_manager; the import error falls back to None."""
         with mock.patch.dict("sys.modules", {"airflow.sdk.execution_time.coordinator": None}):
-            assert self.kubernetes_executor._coordinator_kube_image("java") is None
+            assert self.kubernetes_executor._coordinator_extra("java") is None
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The coordinator interface only support since 3.3+")
     @pytest.mark.parametrize("exc_type", ["airflow_config_exception", "value_error"])
@@ -1069,8 +1057,7 @@ class TestKubernetesExecutor:
             exc = ValueError("invalid coordinator key")
         with mock.patch("airflow.sdk.execution_time.coordinator.get_coordinator_manager") as mock_get_manager:
             mock_get_manager.return_value.extra_for_queue.side_effect = exc
-            assert self.kubernetes_executor._coordinator_pod_template_file("java") is None
-            assert self.kubernetes_executor._coordinator_kube_image("java") is None
+            assert self.kubernetes_executor._coordinator_extra("java") is None
 
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
