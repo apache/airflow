@@ -24,7 +24,7 @@ import signal
 from tabulate import tabulate
 
 from airflow import settings
-from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
+from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
 from airflow.cli.simple_table import AirflowConsole
 from airflow.exceptions import AirflowConfigException
 from airflow.models.backfill import ReprocessBehavior, _create_backfill, _do_dry_run

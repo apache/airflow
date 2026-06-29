@@ -72,6 +72,7 @@
     "expectedDuration": "Expected Duration",
     "lastSchedulingDecision": "Last Scheduling Decision",
     "mappedPartitionKey": "Mapped Partition key",
+    "partitionDate": "Partition Date",
     "partitionKey": "Partition key",
     "queuedAt": "Queued At",
     "runAfter": "Run After",
@@ -145,6 +146,9 @@
     "selectDateRange": "Select Date Range",
     "startTime": "Start Time"
   },
+  "fullscreen": {
+    "tooltip": "Press {{hotkey}} for fullscreen"
+  },
   "generateToken": "Generate Token",
   "key": "Key",
   "logicalDate": "Logical Date",
@@ -176,9 +180,12 @@
   "note": {
     "add": "Add a note",
     "dagRun": "Dag Run Note",
+    "edit": "Edit note",
     "label": "Note",
     "placeholder": "Add a note...",
-    "taskInstance": "Task Instance Note"
+    "preview": "Preview",
+    "taskInstance": "Task Instance Note",
+    "write": "Write"
   },
   "overallStatus": "Overall Status",
   "partitionedDagRun_one": "Partitioned Dag Run",
@@ -219,6 +226,47 @@
   },
   "selectLanguage": "Select Language",
   "selected": "Selected",
+  "shortcuts": {
+    "categories": {
+      "code": "Code",
+      "dagView": "Dag View",
+      "filters": "Filters",
+      "global": "Global",
+      "logs": "Logs",
+      "navigation": "Navigation",
+      "runActions": "Run & Task Actions",
+      "search": "Search"
+    },
+    "descriptions": {
+      "clearRun": "Clear $t(dagRun_one)",
+      "clearTaskInstance": "Clear $t(taskInstance_one)",
+      "downloadLogs": "Download logs",
+      "focusFilterSearch": "Focus filter search",
+      "focusLogSearch": "Search logs",
+      "focusSearch": "Focus search",
+      "markRunFailed": "Mark $t(dagRun_one) as failed",
+      "markRunSuccess": "Mark $t(dagRun_one) as success",
+      "markTaskFailed": "Mark $t(task_one) as failed",
+      "markTaskGroupFailed": "Mark $t(taskGroup_one) as failed",
+      "markTaskGroupSuccess": "Mark $t(taskGroup_one) as success",
+      "markTaskSuccess": "Mark $t(task_one) as success",
+      "navigateTasks": "Navigate $t(task_other)",
+      "openGraphFilters": "Open graph filters",
+      "scrollBottom": "Scroll to bottom",
+      "scrollTop": "Scroll to top",
+      "searchDags": "Search $t(dag_other)",
+      "showHelp": "Show $t(shortcuts.title)",
+      "toggleExpand": "Expand or collapse all groups",
+      "toggleFullscreen": "Toggle fullscreen",
+      "toggleGraphGrid": "Toggle graph / grid view",
+      "toggleSource": "Toggle source",
+      "toggleTaskGroup": "Expand or collapse $t(taskGroup_one)",
+      "toggleTimestamp": "Toggle timestamps",
+      "toggleWrap": "Toggle $t(wrap.wrap)"
+    },
+    "empty": "No keyboard shortcuts are available on this page.",
+    "title": "Keyboard Shortcuts"
+  },
   "showDetailsPanel": "Show Details Panel",
   "signedInAs": "Signed in as",
   "source": {
@@ -285,10 +333,12 @@
   "taskGroup_other": "Task Groups",
   "taskId": "Task ID",
   "taskInstance": {
+    "additionalAttributes": "Additional Task Instance Attributes",
     "dagVersion": "Dag Version",
     "executor": "Executor",
     "executorConfig": "Executor Config",
     "hostname": "Hostname",
+    "id": "ID",
     "maxTries": "Max Tries",
     "pid": "PID",
     "pool": "Pool",
@@ -298,11 +348,13 @@
     "queuedWhen": "Queued At",
     "renderedMapIndex": "Rendered Map Index",
     "scheduledWhen": "Scheduled At",
+    "trigger": "Trigger",
     "triggerer": {
       "assigned": "Assigned triggerer",
       "class": "Trigger class",
       "createdAt": "Trigger creation time",
       "id": "Trigger ID",
+      "job": "Triggerer Job",
       "latestHeartbeat": "Latest triggerer heartbeat",
       "title": "Triggerer Info"
     },

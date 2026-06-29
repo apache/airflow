@@ -42,14 +42,14 @@ from airflow.models import DagModel, DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
-from airflow.models.task_store import TaskStoreModel
+from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import uuid7
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.sdk import BaseOperator
-from airflow.state.metastore import MetastoreStoreBackend
+from airflow.state.metastore import MetastoreBackend
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -5128,6 +5128,20 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             session, response_data["task_instances"][0]["id"], {"content": new_note_value, "user_id": "test"}
         )
 
+    def test_set_empty_note_removes_existing_note(self, test_client, session):
+        self.create_task_instances(session)
+        url = "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+
+        set_response = test_client.patch(url, json={"note": "a note to remove"})
+        assert set_response.status_code == 200, set_response.text
+        ti_id = set_response.json()["task_instances"][0]["id"]
+        _check_task_instance_note(session, ti_id, {"content": "a note to remove", "user_id": "test"})
+
+        clear_response = test_client.patch(url, json={"note": ""})
+        assert clear_response.status_code == 200, clear_response.text
+        assert clear_response.json()["task_instances"][0]["note"] is None
+        _check_task_instance_note(session, ti_id, None)
+
     def test_set_note_should_respond_200_mapped_task_with_rtif(self, test_client, session):
         """Verify we don't duplicate rows through join to RTIF"""
         tis = self.create_task_instances(session)
@@ -5334,17 +5348,21 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             )
         ).one()
 
-        backend = MetastoreStoreBackend()
+        backend = MetastoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.commit()
 
-        assert session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == self.TASK_ID)).all()
+        assert session.scalars(
+            select(TaskStateStoreModel).where(TaskStateStoreModel.task_id == self.TASK_ID)
+        ).all()
 
         test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
 
         session.expire_all()
-        assert not session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == self.TASK_ID)).all()
+        assert not session.scalars(
+            select(TaskStateStoreModel).where(TaskStateStoreModel.task_id == self.TASK_ID)
+        ).all()
 
     @pytest.mark.db_test
     @conf_vars({("state_store", "clear_on_success"): "True"})
@@ -5359,7 +5377,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             )
         ).one()
 
-        backend = MetastoreStoreBackend()
+        backend = MetastoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.commit()
@@ -5367,7 +5385,9 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         test_client.patch(self.ENDPOINT_URL, json={"new_state": "failed"})
 
         session.expire_all()
-        assert session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == self.TASK_ID)).all()
+        assert session.scalars(
+            select(TaskStateStoreModel).where(TaskStateStoreModel.task_id == self.TASK_ID)
+        ).all()
 
     @pytest.mark.db_test
     @conf_vars({("state_store", "clear_on_success"): "False"})
@@ -5382,7 +5402,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             )
         ).one()
 
-        backend = MetastoreStoreBackend()
+        backend = MetastoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.commit()
@@ -5390,7 +5410,9 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
 
         session.expire_all()
-        assert session.scalars(select(TaskStoreModel).where(TaskStoreModel.task_id == self.TASK_ID)).all()
+        assert session.scalars(
+            select(TaskStateStoreModel).where(TaskStateStoreModel.task_id == self.TASK_ID)
+        ).all()
 
 
 class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):

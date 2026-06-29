@@ -18,10 +18,14 @@
   "asset_other": "에셋들",
   "assetEvent_one": "에셋 이벤트",
   "assetEvent_other": "에셋 이벤트들",
+  "assetInactive": {
+    "tooltip": "업스트림 에셋이 비활성화되어 있습니다. 다시 활성화될 때까지 스케줄러가 파티션 평가를 보류합니다."
+  },
   "backfill_one": "백필",
   "backfill_other": "백필들",
   "browse": {
     "auditLog": "감사 로그",
+    "deadlines": "데드라인",
     "jobs": "잡",
     "requiredActions": "필수 작업",
     "xcoms": "XComs"
@@ -141,7 +145,11 @@
     "selectDateRange": "날짜 범위 선택",
     "startTime": "시작 시간"
   },
+  "fullscreen": {
+    "tooltip": "{{hotkey}}를 눌러 전체 화면으로 전환"
+  },
   "generateToken": "토큰 생성",
+  "key": "키",
   "logicalDate": "논리적 날짜",
   "logout": "로그아웃",
   "logoutConfirmation": "애플리케이션에서 로그아웃하시겠습니까?",
@@ -175,6 +183,7 @@
     "placeholder": "메모 추가...",
     "taskInstance": "태스크 인스턴스 메모"
   },
+  "overallStatus": "전체 상태",
   "partitionedDagRun_one": "파티션된 Dag 실행",
   "partitionedDagRun_other": "파티션된 Dag 실행",
   "partitionedDagRunDetail": {
@@ -225,6 +234,7 @@
   "startDate": "시작일",
   "state": "상태",
   "states": {
+    "awaiting_input": "입력 대기 중",
     "deferred": "연기됨",
     "failed": "실패",
     "no_status": "상태 없음",
@@ -257,24 +267,33 @@
       "any": "하나 이상"
     },
     "tagPlaceholder": "태그로 필터링",
-    "to": "종료"
+    "to": "종료",
+    "updatedAt": "수정 시간"
   },
   "task": {
+    "dependsOnPast": "이전 실행에 의존",
     "documentation": "태스크 문서",
     "lastInstance": "마지막 인스턴스",
     "operator": "오퍼레이터",
-    "triggerRule": "트리거 규칙"
+    "retries": "재시도",
+    "triggerRule": "트리거 규칙",
+    "waitForDownstream": "다운스트림 대기"
   },
   "task_one": "태스크",
   "task_other": "태스크",
+  "taskGroup": {
+    "documentation": "태스크 그룹 문서"
+  },
   "taskGroup_one": "태스크 그룹",
   "taskGroup_other": "태스크 그룹",
   "taskId": "태스크 ID",
   "taskInstance": {
+    "additionalAttributes": "추가 태스크 인스턴스 속성",
     "dagVersion": "Dag 버전",
     "executor": "실행기",
     "executorConfig": "실행기 구성",
     "hostname": "호스트 이름",
+    "id": "ID",
     "maxTries": "최대 시도 횟수",
     "pid": "PID",
     "pool": "풀",
@@ -284,11 +303,13 @@
     "queuedWhen": "대기열에 추가된 시간",
     "renderedMapIndex": "렌더링된 맵 인덱스",
     "scheduledWhen": "예정된 시간",
+    "trigger": "트리거",
     "triggerer": {
       "assigned": "할당된 트리거",
       "class": "트리거 클래스",
       "createdAt": "트리거 생성 시간",
       "id": "트리거 ID",
+      "job": "트리거러 작업",
       "latestHeartbeat": "최신 트리거 상태",
       "title": "트리거 정보"
     },
@@ -385,6 +406,7 @@
     "mustBeAtLeast": "최소 {{min}} 이상이어야 합니다.",
     "mustBeValidNumber": "유효한 숫자여야 합니다."
   },
+  "value": "값",
   "wrap": {
     "hotkey": "w",
     "tooltip": "{{hotkey}}를 눌러 텍스트 줄바꿈 토글",

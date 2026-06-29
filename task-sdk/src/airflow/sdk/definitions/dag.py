@@ -74,6 +74,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.edges import EdgeInfoType
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
+    from airflow.sdk.definitions.xcom_arg import PlainXComArg
     from airflow.sdk.execution_time.supervisor import TaskRunResult
     from airflow.timetables.base import DataInterval, Timetable as CoreTimetable
 
@@ -301,6 +302,13 @@ def _default_task_group(instance: DAG) -> TaskGroup:
     from airflow.sdk.definitions.taskgroup import TaskGroup
 
     return TaskGroup.create_root(dag=instance)
+
+
+def _is_valid_dag_result(value: Any) -> TypeIs[PlainXComArg]:
+    from airflow.sdk.bases.xcom import BaseXCom
+    from airflow.sdk.definitions.xcom_arg import PlainXComArg
+
+    return isinstance(value, PlainXComArg) and value.key == BaseXCom.XCOM_RETURN_KEY
 
 
 # TODO: Task-SDK: look at re-enabling slots after we remove pickling
@@ -1116,12 +1124,8 @@ class DAG:
             tg._remove(task)
 
     def add_result(self, xcom_arg: X) -> X:
-        from airflow.sdk.bases.xcom import BaseXCom
-        from airflow.sdk.definitions.xcom_arg import PlainXComArg
-
-        if not isinstance(xcom_arg, PlainXComArg) or xcom_arg.key != BaseXCom.XCOM_RETURN_KEY:
+        if not _is_valid_dag_result(xcom_arg):
             raise ValueError("Only plain return value can be used as dag result")
-
         xcom_arg.operator.returns_dag_result = True
         return xcom_arg
 
@@ -1400,8 +1404,23 @@ class DAG:
                 # triggerer may mark tasks scheduled so we read from DB
                 all_tis = set(dr.get_task_instances(session=session))
                 scheduled_tis = {x for x in all_tis if x.state == TaskInstanceState.SCHEDULED}
-                ids_unrunnable = {x for x in all_tis if x.state not in FINISHED_STATES} - scheduled_tis
-                if not scheduled_tis and ids_unrunnable:
+                awaiting_input_tis = {x for x in all_tis if x.state == TaskInstanceState.AWAITING_INPUT}
+                ids_unrunnable = (
+                    {x for x in all_tis if x.state not in FINISHED_STATES}
+                    - scheduled_tis
+                    - awaiting_input_tis
+                )
+                if not scheduled_tis and awaiting_input_tis:
+                    # Human-in-the-loop tasks stay parked in AWAITING_INPUT: dag.test() never
+                    # resolves them itself. Keep the run alive until a response recorded from
+                    # outside -- the Required Actions UI or the HITL REST API of an api-server
+                    # sharing this metadata DB -- flips them back to SCHEDULED.
+                    log.info(
+                        "Waiting for Human-in-the-loop input for tasks: %s",
+                        sorted(x.task_id for x in awaiting_input_tis),
+                    )
+                    time.sleep(1)
+                elif not scheduled_tis and ids_unrunnable:
                     log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
                     time.sleep(1)
 
@@ -1674,7 +1693,15 @@ def dag(dag_id_or_func=None, __DAG_class=DAG, __warnings_stacklevel_delta=2, **d
                 dag_obj.fileloc = back.f_code.co_filename if back else ""
 
                 # Invoke function to create operators in the Dag scope.
-                f(**f_kwargs)
+                r = f(**f_kwargs)
+
+                if _is_valid_dag_result(r):
+                    log.debug(
+                        "Automatically adding function return value %r as result for dag %s",
+                        r,
+                        dag_obj.dag_id,
+                    )
+                    dag_obj.add_result(r)
 
             # Return dag object such that it's accessible in Globals.
             return dag_obj

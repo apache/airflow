@@ -37,6 +37,22 @@ use by Airflow only.
     [api]
     google_oauth2_audience = project-id-random-value.apps.googleusercontent.com
 
+.. warning:: User identity is matched by email address
+
+    This backend authenticates a request by matching the **verified** ``email``
+    claim of the Google ID token against an existing Airflow user's email. Email
+    addresses are mutable and can be reassigned between Google identities (for
+    example when an employee leaves and the address is recycled to a new hire, or
+    via domain recycling). The immutable ``sub`` (subject) claim is not consulted,
+    so a Google identity that comes to hold a previously-used address could
+    authenticate as the Airflow user still mapped to it.
+
+    Treat the email-to-user mapping as part of your identity lifecycle:
+    **deprovision (or re-map) the Airflow user whenever its email is reassigned**,
+    and do not recycle an address to a different identity while an Airflow account
+    is still mapped to it. Restricting ``google_oauth2_audience`` to your own
+    deployment (above) keeps tokens minted for unrelated audiences out of scope.
+
 You can also configure the CLI to send request to a remote API instead of making a query to a local database.
 
 .. code-block:: ini

@@ -18,7 +18,7 @@
  */
 import { testConfig } from "playwright.config";
 import { expect, test } from "tests/e2e/fixtures";
-import { apiDeleteDagRun, waitForDagRunStatus } from "tests/e2e/utils/test-helpers";
+import { apiDeleteDagRun, waitForDagRunStatus } from "tests/e2e/utils/api/dag-runs";
 
 test.describe("Dag Trigger Workflow", () => {
   const testDagId = testConfig.testDag.id;
@@ -98,6 +98,48 @@ test.describe("Dags List Display", () => {
     await dagsPage.navigate();
     await dagsPage.waitForDagList();
     await expect(dagsPage.getDagLink(testDagId)).toBeVisible();
+  });
+
+  test("verify HITL review modal opens from the needs review badge in table view", async ({
+    dagsPage,
+    pendingHITLRun,
+  }) => {
+    test.slow();
+
+    await dagsPage.navigate();
+    await dagsPage.waitForDagList();
+    await dagsPage.switchToTableView();
+
+    await expect(dagsPage.needsReviewFilter).toBeVisible({ timeout: 30_000 });
+    await dagsPage.needsReviewFilter.click();
+
+    const needsReviewBadge = await dagsPage.getDagNeedsReviewBadgeOnTable(pendingHITLRun.dagId);
+
+    await expect(needsReviewBadge).toBeVisible({ timeout: 30_000 });
+    await needsReviewBadge.click();
+
+    await dagsPage.hitlReviewModal.expectOpenWith(pendingHITLRun.dagId);
+  });
+
+  test("verify HITL review modal opens from the needs review badge in card view", async ({
+    dagsPage,
+    pendingHITLRun,
+  }) => {
+    test.slow();
+
+    await dagsPage.navigate();
+    await dagsPage.waitForDagList();
+    await dagsPage.switchToCardView();
+
+    await expect(dagsPage.needsReviewFilter).toBeVisible({ timeout: 30_000 });
+    await dagsPage.needsReviewFilter.click();
+
+    const needsReviewBadge = await dagsPage.getDagNeedsReviewBadgeOnCard(pendingHITLRun.dagId);
+
+    await expect(needsReviewBadge).toBeVisible({ timeout: 30_000 });
+    await needsReviewBadge.click();
+
+    await dagsPage.hitlReviewModal.expectOpenWith(pendingHITLRun.dagId);
   });
 });
 
