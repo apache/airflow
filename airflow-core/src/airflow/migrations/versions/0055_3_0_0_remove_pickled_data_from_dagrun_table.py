@@ -30,6 +30,7 @@ from __future__ import annotations
 import json
 import math
 import pickle
+from collections.abc import Mapping, Sequence
 from textwrap import dedent
 
 import sqlalchemy as sa
@@ -46,13 +47,19 @@ airflow_version = "3.0.0"
 
 
 def _json_safe(obj):
-    """Replace non-finite floats with their quoted string form before json.dumps.
+    """Make a pickled conf value safe for strict JSON/JSONB before json.dumps.
 
-    Pickled ``conf`` may contain ``float('nan')`` / ``inf`` / ``-inf``. ``json.dumps``
-    (with the default ``allow_nan=True``) emits the bare tokens ``NaN`` / ``Infinity`` /
-    ``-Infinity``, which PostgreSQL JSON/JSONB rejects. Quoting them to strings mirrors
-    the SQL sanitization in migration 0049 (xcom) so the value is preserved rather than
-    dropped by the per-row error handler below.
+    Pickled ``conf`` can hold values that round-trip through pickle but are illegal in
+    strict JSON/JSONB:
+
+    * non-finite floats (NaN / inf / -inf) -> quoted strings, mirroring the SQL
+      sanitization in migration 0049 (xcom);
+    * embedded U+0000 (NUL) characters in strings -> stripped, since PostgreSQL
+      JSON/JSONB cannot store them.
+
+    NUL is handled here, on the object before serialization, rather than on the dumped
+    text: a blind string replace on the JSON output would also corrupt a genuinely
+    escaped backslash sequence (an embedded literal backslash followed by ``u0000``).
     """
     if isinstance(obj, float):
         if math.isnan(obj):
@@ -60,9 +67,11 @@ def _json_safe(obj):
         if math.isinf(obj):
             return "Infinity" if obj > 0 else "-Infinity"
         return obj
-    if isinstance(obj, dict):
-        return {k: _json_safe(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
+    if isinstance(obj, str):
+        return obj.replace(chr(0), "")
+    if isinstance(obj, Mapping):
+        return {_json_safe(k): _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, Sequence) and not isinstance(obj, (bytes, bytearray)):
         return [_json_safe(v) for v in obj]
     return obj
 
@@ -118,12 +127,9 @@ def upgrade():
 
                 try:
                     original_data = pickle.loads(pickle_data)
-                    # Sanitize values legal in pickle but illegal in strict JSON/JSONB so the
-                    # row is preserved instead of dropped by the except below:
-                    #   * NaN / Infinity / -Infinity  -> quoted strings (see _json_safe).
-                    #   * the U+0000 (NUL) escape that json.dumps emits for null bytes -> stripped
-                    #     (PostgreSQL JSON/JSONB cannot store it and it cannot be quoted/kept).
-                    json_data = json.dumps(_json_safe(original_data)).replace('\\u0000', '')
+                    # _json_safe quotes non-finite floats and strips embedded NUL chars so the
+                    # row is preserved instead of dropped by the except below.
+                    json_data = json.dumps(_json_safe(original_data))
                     conn.execute(
                         text("""
                                                 UPDATE dag_run

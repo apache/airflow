@@ -42,16 +42,26 @@ airflow_version = "3.0.0"
 
 
 # --- Value-sanitization SQL, factored out so migration tests can run the real statements
-# against an isolated table. ``table`` defaults to "xcom" so the production calls below stay
-# byte-for-byte identical to the original inline SQL. Both classes of value that are legal in
-# the pickled blob but illegal in strict JSON/JSONB are handled: non-finite floats
-# (NaN/Infinity/-Infinity, quoted) and the U+0000 (NUL) escape (stripped).
+# against an isolated table via the helpers below; ``table`` defaults to "xcom" for the
+# production calls. Both classes of value that are legal in the pickled blob but illegal in
+# strict JSON/JSONB are handled: non-finite floats (NaN/Infinity/-Infinity) are quoted, and
+# the active U+0000 (NUL) escape is stripped (escaped backslashes are protected first so a
+# literal U+0000 escape embedded in the data survives).
 _XCOM_PG_SANITIZE_SQL = r"""
-                UPDATE xcom
+                UPDATE __TABLE__
                 SET value = convert_to(
                     regexp_replace(
-                        -- Strip the U+0000 (NUL) escape; illegal in JSON/JSONB and not quotable.
-                        replace(convert_from(value, 'UTF8'), '\u0000', ''),
+                        -- Strip the active U+0000 (NUL) escape (illegal in JSON/JSONB, not quotable).
+                        -- Protect escaped backslashes with chr(1) first so an embedded literal
+                        -- backslash + u0000 in the data is preserved; chr(1) is safe because
+                        -- json.dumps escapes control bytes, so it never appears in the JSON text.
+                        replace(
+                            replace(
+                                replace(convert_from(value, 'UTF8'), '\\', chr(1)),
+                                '\u0000', ''
+                            ),
+                            chr(1), '\\'
+                        ),
                         -- Group 1 captures the preceding delimiter (:, comma, or [)
                         -- or ^ for a bare scalar value (the entire XCom value is just NaN).
                         -- A lookahead is used for the closing delimiter instead of a
@@ -67,11 +77,19 @@ _XCOM_PG_SANITIZE_SQL = r"""
                 WHERE value IS NOT NULL AND get_byte(value, 0) != 128
             """
 _XCOM_MYSQL_SANITIZE_SQL = """
-                UPDATE xcom
+                UPDATE __TABLE__
                 SET value = CONVERT(
                     REGEXP_REPLACE(
-                        -- Strip the U+0000 (NUL) escape before the cast (illegal JSON; see PostgreSQL branch).
-                        REPLACE(CONVERT(value USING utf8mb4), '\\\\u0000', ''),
+                        -- Strip the active U+0000 (NUL) escape (illegal JSON; see PostgreSQL branch).
+                        -- Protect escaped backslashes with CHAR(1) first so an embedded literal
+                        -- backslash + u0000 in the data is preserved.
+                        REPLACE(
+                            REPLACE(
+                                REPLACE(CONVERT(value USING utf8mb4), '\\\\\\\\', CHAR(1)),
+                                '\\\\u0000', ''
+                            ),
+                            CHAR(1), '\\\\\\\\'
+                        ),
                         -- Same lookahead strategy as PostgreSQL (see above).
                         -- Python string escaping: \\\\[ → SQL \\[ → regex \\[ → literal [
                         -- and \\\\] inside the character class → SQL \\] → regex \\] → literal ]
@@ -87,12 +105,23 @@ _XCOM_MYSQL_SANITIZE_SQL = """
                 WHERE value IS NOT NULL AND HEX(SUBSTRING(value, 1, 1)) != '80'
             """
 _XCOM_SQLITE_SANITIZE_SQL = """
-                UPDATE xcom
+                UPDATE __TABLE__
                 SET value = CAST(
                     REPLACE(
                         REPLACE(
                             -- Step 1: replace NaN first so it doesn't interfere with Infinity.
-                            REPLACE(REPLACE(CAST(value AS TEXT), '\\u0000', ''), 'NaN', '"NaN"'),
+                            REPLACE(
+                                -- Protect escaped backslashes with char(1), strip the active
+                                -- U+0000 (NUL) escape, then restore (see PostgreSQL branch).
+                                REPLACE(
+                                    REPLACE(
+                                        REPLACE(CAST(value AS TEXT), '\\\\', char(1)),
+                                        '\\u0000', ''
+                                    ),
+                                    char(1), '\\\\'
+                                ),
+                                'NaN', '"NaN"'
+                            ),
                             -- Step 2: replace Infinity (also matches the Infinity in -Infinity,
                             -- turning -Infinity into -"Infinity").
                             'Infinity', '"Infinity"'
@@ -110,15 +139,15 @@ _XCOM_SQLITE_SANITIZE_SQL = """
 
 
 def _xcom_pg_sanitize_sql(table: str = "xcom") -> str:
-    return _XCOM_PG_SANITIZE_SQL.replace("UPDATE xcom", f"UPDATE {table}")
+    return _XCOM_PG_SANITIZE_SQL.replace("__TABLE__", table)
 
 
 def _xcom_mysql_sanitize_sql(table: str = "xcom") -> str:
-    return _XCOM_MYSQL_SANITIZE_SQL.replace("UPDATE xcom", f"UPDATE {table}")
+    return _XCOM_MYSQL_SANITIZE_SQL.replace("__TABLE__", table)
 
 
 def _xcom_sqlite_sanitize_sql(table: str = "xcom") -> str:
-    return _XCOM_SQLITE_SANITIZE_SQL.replace("UPDATE xcom", f"UPDATE {table}")
+    return _XCOM_SQLITE_SANITIZE_SQL.replace("__TABLE__", table)
 
 
 def upgrade():
@@ -127,7 +156,7 @@ def upgrade():
     # 1. Create an archived table (`_xcom_archive`) to store the current "pickled" data in the xcom table
     # 2. Extract and archive the pickled data using the condition
     # 3. Delete the pickled data from the xcom table so that we can update the column type
-    # 4. Sanitize values illegal in strict JSON/JSONB: quote NaN/Infinity/-Infinity, strip the U+0000 (NUL) escape
+    # 4. Sanitize values illegal in strict JSON/JSONB (quote NaN/Infinity, strip the U+0000 NUL escape)
     # 5. Update the XCom.value column type to JSON from LargeBinary/LongBlob
 
     conn = op.get_bind()
