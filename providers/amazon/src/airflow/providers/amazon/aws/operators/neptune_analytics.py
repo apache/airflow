@@ -337,7 +337,7 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
         return {"vpc_endpoint_id": endpoint_id, "graph_id": self.graph_identifier, "vpc_id": self.vpc_id}
 
     def execute_complete(
-        self, context: Context, event: dict[str, Any] | None = None, vpc_id: str | None = None
+        self, context: Context, event: dict[str, Any] | None = None, vpc_id: str = ""
     ) -> dict[str, Any]:
         validated_event = validate_execute_complete_event(event)
 
