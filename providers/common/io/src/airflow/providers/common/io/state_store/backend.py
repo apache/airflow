@@ -208,7 +208,7 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
     ) -> None:
         raise NotImplementedError
 
-    def serialize_task_store_to_ref(self, *, value: JsonValue, key: str, scope: TaskScope) -> str:
+    def serialize_task_state_store_to_ref(self, *, value: JsonValue, key: str, scope: TaskScope) -> str:
         serialized = json.dumps(value)
         if len(serialized.encode()) < _get_threshold():
             return serialized
@@ -216,7 +216,7 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
         _write(path, serialized)
         return str(path)
 
-    def deserialize_task_store_from_ref(self, stored: str) -> JsonValue:
+    def deserialize_task_state_store_from_ref(self, stored: str) -> JsonValue:
         if not stored:
             return None
         if _is_storage_ref(stored):
@@ -226,7 +226,7 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
             return None
         return json.loads(stored)
 
-    def serialize_asset_store_to_ref(self, *, value: JsonValue, key: str, scope: AssetScope) -> str:
+    def serialize_asset_state_store_to_ref(self, *, value: JsonValue, key: str, scope: AssetScope) -> str:
         serialized = json.dumps(value)
         if len(serialized.encode()) < _get_threshold():
             return serialized
@@ -234,7 +234,7 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
         _write(path, serialized)
         return str(path)
 
-    def deserialize_asset_store_from_ref(self, stored: str) -> JsonValue:
+    def deserialize_asset_state_store_from_ref(self, stored: str) -> JsonValue:
         if not stored:
             return None
         if _is_storage_ref(stored):

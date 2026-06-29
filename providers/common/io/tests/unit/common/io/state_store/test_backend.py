@@ -189,19 +189,19 @@ class TestStateStoreObjectStorageBackend:
         assert store.get(asset_scope, "k2") is None
 
     def test_serialize_and_deserialize_task(self, store, task_scope):
-        ref = store.serialize_task_store_to_ref(value={"x": 1}, key="job_id", scope=task_scope)
+        ref = store.serialize_task_state_store_to_ref(value={"x": 1}, key="job_id", scope=task_scope)
         assert ref.startswith("file://")
-        result = store.deserialize_task_store_from_ref(ref)
+        result = store.deserialize_task_state_store_from_ref(ref)
         assert result == {"x": 1}
 
     def test_serialize_and_deserialize_asset(self, store, asset_scope):
-        ref = store.serialize_asset_store_to_ref(value=[1, 2, 3], key="result", scope=asset_scope)
+        ref = store.serialize_asset_state_store_to_ref(value=[1, 2, 3], key="result", scope=asset_scope)
         assert ref.startswith("file://")
-        result = store.deserialize_asset_store_from_ref(ref)
+        result = store.deserialize_asset_state_store_from_ref(ref)
         assert result == [1, 2, 3]
 
     def test_deserialize_missing_ref_returns_none(self, store, conf_overrides):
-        result = store.deserialize_task_store_from_ref(f"{conf_overrides}/no/such/path")
+        result = store.deserialize_task_state_store_from_ref(f"{conf_overrides}/no/such/path")
         assert result is None
 
     def test_task_serialize_offloads_to_storage(self, task_scope, base_path):
@@ -213,7 +213,7 @@ class TestStateStoreObjectStorageBackend:
         ):
             backend._get_threshold.cache_clear()
             store = StateStoreObjectStorageBackend()
-            ref = store.serialize_task_store_to_ref(value={"x": 1}, key="k", scope=task_scope)
+            ref = store.serialize_task_state_store_to_ref(value={"x": 1}, key="k", scope=task_scope)
             assert ref.startswith("file://")
 
     def test_asset_serialize_offloads_to_storage(self, asset_scope, base_path):
@@ -225,7 +225,7 @@ class TestStateStoreObjectStorageBackend:
         ):
             backend._get_threshold.cache_clear()
             store = StateStoreObjectStorageBackend()
-            ref = store.serialize_asset_store_to_ref(value={"x": 1}, key="k", scope=asset_scope)
+            ref = store.serialize_asset_state_store_to_ref(value={"x": 1}, key="k", scope=asset_scope)
             assert ref.startswith("file://")
 
     def test_task_serialize_to_db_when_below_threshold(self, task_scope, base_path):
@@ -237,9 +237,9 @@ class TestStateStoreObjectStorageBackend:
         ):
             backend._get_threshold.cache_clear()
             store = StateStoreObjectStorageBackend()
-            ref = store.serialize_task_store_to_ref(value={"x": 1}, key="k", scope=task_scope)
+            ref = store.serialize_task_state_store_to_ref(value={"x": 1}, key="k", scope=task_scope)
             assert not ref.startswith("file://")
-            assert store.deserialize_task_store_from_ref(ref) == {"x": 1}
+            assert store.deserialize_task_state_store_from_ref(ref) == {"x": 1}
 
     def test_asset_serialize_to_db_when_below_threshold(self, asset_scope, base_path):
         with conf_vars(
@@ -250,6 +250,6 @@ class TestStateStoreObjectStorageBackend:
         ):
             backend._get_threshold.cache_clear()
             store = StateStoreObjectStorageBackend()
-            ref = store.serialize_asset_store_to_ref(value={"x": 1}, key="k", scope=asset_scope)
+            ref = store.serialize_asset_state_store_to_ref(value={"x": 1}, key="k", scope=asset_scope)
             assert not ref.startswith("file://")
-            assert store.deserialize_asset_store_from_ref(ref) == {"x": 1}
+            assert store.deserialize_asset_state_store_from_ref(ref) == {"x": 1}

@@ -99,10 +99,10 @@ def get_provider_info():
                         "default": "0",
                     },
                     "state_store_objectstorage_compression": {
-                        "description": "Compression algorithm to use when writing task/asset state store values to object storage.\nSupported algorithms are a.o.: snappy, zip, gzip, bz2, and lzma. If not specified,\nno compression will be used. The same algorithm must be available on all workers.\n",
+                        "description": "Compression algorithm to use when writing task/asset state store values to object storage.\nSupported algorithms are a.o.: gzip, bz2, lzma, and xz. If not specified,\nno compression will be used. The same algorithm must be available on all workers.\n",
                         "version_added": "1.8.0",
                         "type": "string",
-                        "example": "gz",
+                        "example": "gzip",
                         "default": "",
                     },
                 },
