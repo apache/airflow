@@ -378,6 +378,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                         right={direction === "rtl" ? "0" : undefined}
                         size="2xs"
                         top="50%"
+                        transform={direction === "ltr" ? "translateX(-100%)" : "translateX(100%)"}
                         zIndex={2}
                       >
                         {direction === "ltr" ? <FaChevronRight /> : <FaChevronLeft />}

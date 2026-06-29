@@ -61,7 +61,7 @@ const getColumns = ({
 }: ColumnsProps): Array<ColumnDef<XComResponse>> => [
   {
     accessorKey: "key",
-    cell: ({ row: { original } }) => <Box wordBreak="break-all">{original.key}</Box>,
+    cell: ({ row: { original } }) => <TruncatedText text={original.key} />,
     header: translate("xcom.columns.key"),
   },
   ...(isTaskInstancePage

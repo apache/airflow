@@ -31,6 +31,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StoreValueCell } from "src/components/StoreValueCell";
 import Time from "src/components/Time";
+import { TruncatedText } from "src/components/TruncatedText";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { AddTaskStateStoreButton } from "./AddTaskStateStoreButton";
@@ -55,7 +56,7 @@ const getColumns = ({
 }: ColumnsProps): Array<ColumnDef<TaskStateStoreResponse>> => [
   {
     accessorKey: "key",
-    cell: ({ row: { original } }) => <Text wordBreak="break-all">{original.key}</Text>,
+    cell: ({ row: { original } }) => <TruncatedText text={original.key} />,
     header: translate("common:key"),
   },
   {
