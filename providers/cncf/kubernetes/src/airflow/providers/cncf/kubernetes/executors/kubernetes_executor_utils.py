@@ -558,6 +558,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         command = next_job.command
         kube_executor_config = next_job.kube_executor_config
         pod_template_file = next_job.pod_template_file
+        kube_image = next_job.kube_image or self.kube_config.kube_image
 
         dag_id, task_id, run_id, try_number, map_index = key
         if len(command) == 1:
@@ -586,7 +587,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             pod_id=create_unique_id(dag_id, task_id),
             dag_id=dag_id,
             task_id=task_id,
-            kube_image=self.kube_config.kube_image,
+            kube_image=kube_image,
             try_number=try_number,
             map_index=map_index,
             date=None,
