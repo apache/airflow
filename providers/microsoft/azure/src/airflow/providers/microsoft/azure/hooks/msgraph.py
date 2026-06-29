@@ -54,9 +54,13 @@ from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoun
 
 if TYPE_CHECKING:
     from azure.core.credentials_async import AsyncTokenCredential
+    from kiota_abstractions.authentication import BaseBearerTokenAuthenticationProvider
     from kiota_abstractions.request_adapter import RequestAdapter
     from kiota_abstractions.response_handler import NativeResponseType
     from kiota_abstractions.serialization import ParsableFactory
+    from kiota_authentication_azure.azure_identity_access_token_provider import (
+        AzureIdentityAccessTokenProvider,
+    )
 
     from airflow.providers.common.compat.sdk import Connection
 
@@ -394,7 +398,21 @@ class KiotaRequestAdapterHook(BaseHook):
     @staticmethod
     def _is_http_client_closed(request_adapter: RequestAdapter) -> bool:
         """Return True when the underlying httpx AsyncClient has been closed."""
-        return cast("HttpxRequestAdapter", request_adapter)._http_client.is_closed
+        adapter = cast("HttpxRequestAdapter", request_adapter)
+
+        if adapter._http_client.is_closed:
+            return True
+
+        provider = cast("BaseBearerTokenAuthenticationProvider", adapter._authentication_provider)
+        access_token_provider = cast("AzureIdentityAccessTokenProvider", provider.access_token_provider)
+        credential = cast(
+            "ClientSecretCredential | CertificateCredential", access_token_provider._credentials
+        )
+        transport = credential._client._pipeline._transport
+
+        if transport.session is not None:
+            return transport.session.closed
+        return False
 
     async def get_async_conn(self) -> RequestAdapter:
         """Initiate a new RequestAdapter connection asynchronously."""
