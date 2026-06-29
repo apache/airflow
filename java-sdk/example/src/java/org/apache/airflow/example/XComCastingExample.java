@@ -24,8 +24,10 @@ import static java.lang.System.Logger.Level.INFO;
 import org.apache.airflow.sdk.*;
 
 // Exercises numeric XCom handling end to end: a value flows int -> long -> double
-// across tasks (wire integers arrive as Long, so each hop widens via Number), and a
-// boxed parameter stays null when the upstream XCom is absent.
+// across tasks (wire integers arrive as Long, so each hop widens via Number), a wire
+// double is read back as a float (wire floats arrive as Double), and a boxed parameter
+// stays null when the upstream XCom is absent. Each hop reads through Number so the
+// declared type can differ from the wire type.
 @Builder.Dag(id = "java_xcom_casting_example")
 public class XComCastingExample {
   private static final System.Logger log = System.getLogger(XComCastingExample.class.getName());
@@ -60,6 +62,20 @@ public class XComCastingExample {
     log.log(INFO, "Got nullable int {0}", value);
     if (value != null) {
       throw new RuntimeException("expected null but got " + value);
+    }
+  }
+
+  @Builder.Task(id = "produce_fraction")
+  public double produceFraction() {
+    log.log(INFO, "Producing double 1.5");
+    return 1.5;
+  }
+
+  @Builder.Task(id = "consume_float")
+  public void consumeFloat(@Builder.XCom(task = "produce_fraction") float value) {
+    log.log(INFO, "Got float {0}", value);
+    if (value != 1.5f) {
+      throw new RuntimeException("expected 1.5 but got " + value);
     }
   }
 }

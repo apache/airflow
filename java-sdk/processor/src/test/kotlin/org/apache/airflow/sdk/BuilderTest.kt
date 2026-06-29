@@ -132,6 +132,7 @@ class BuilderTest {
               @Builder.XCom(task = "a") int i,
               @Builder.XCom(task = "b") long l,
               @Builder.XCom(task = "c") double d,
+              @Builder.XCom(task = "f") float fl,
               @Builder.XCom(task = "e") Integer boxed) {}
         }
       """,
@@ -166,8 +167,9 @@ class BuilderTest {
                var i = ((Number) client.getXCom("a")).intValue();
                var l = ((Number) client.getXCom("b")).longValue();
                var d = ((Number) client.getXCom("c")).doubleValue();
+               var fl = ((Number) client.getXCom("f")).floatValue();
                var boxed = Optional.ofNullable((Number) client.getXCom("e")).map(Number::intValue).orElse(null);
-               new TestExample().t(i, l, d, boxed);
+               new TestExample().t(i, l, d, fl, boxed);
              }
            }
          }
