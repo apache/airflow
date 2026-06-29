@@ -104,7 +104,6 @@ class AgentEngineHook(GoogleBaseHook):
     def create_agent_engine(
         self,
         location: str,
-        agent_engine: Any | None = None,
         agent: Any | None = None,
         config: types.AgentEngineConfigOrDict | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
@@ -113,14 +112,13 @@ class AgentEngineHook(GoogleBaseHook):
         Create an Agent Engine.
 
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
-        :param agent_engine: Optional. Deprecated alias for ``agent``.
         :param agent: Optional. The agent object to deploy.
         :param config: Optional. Configuration for the Agent Engine.
         :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
             configured in the connection.
         """
         client = self.get_agent_engine_client(project_id=project_id, location=location)
-        return client.create(agent_engine=agent_engine, agent=agent, config=config)
+        return client.create(agent=agent, config=config)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_agent_engine(
@@ -236,7 +234,6 @@ class AgentEngineHook(GoogleBaseHook):
         agent_engine_id: str,
         config: types.AgentEngineConfigOrDict,
         agent: Any | None = None,
-        agent_engine: Any | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> types.AgentEngine:
         """
@@ -246,13 +243,12 @@ class AgentEngineHook(GoogleBaseHook):
         :param agent_engine_id: Required. The Agent Engine ID.
         :param config: Required. Configuration for the Agent Engine update.
         :param agent: Optional. The updated agent object to deploy.
-        :param agent_engine: Optional. Deprecated alias for ``agent``.
         :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
             configured in the connection.
         """
         client = self.get_agent_engine_client(project_id=project_id, location=location)
         name = self.build_agent_engine_name(project_id, location, agent_engine_id)
-        return client.update(name=name, agent=agent, agent_engine=agent_engine, config=config)
+        return client.update(name=name, agent=agent, config=config)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_agent_engine(
