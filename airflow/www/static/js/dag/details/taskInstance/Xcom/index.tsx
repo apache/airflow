@@ -31,7 +31,7 @@ import {
 
 import type { Dag, DagRun, TaskInstance } from "src/types";
 import { useTaskXcomCollection } from "src/api";
-import { useOffsetTop } from "src/utils";
+import { useContentHeight } from "src/utils";
 import ErrorAlert from "src/components/ErrorAlert";
 
 import XcomEntry from "./XcomEntry";
@@ -52,7 +52,7 @@ const XcomCollection = ({
   tryNumber,
 }: Props) => {
   const taskXcomRef = useRef<HTMLDivElement>(null);
-  const offsetTop = useOffsetTop(taskXcomRef);
+  const contentHeight = useContentHeight(taskXcomRef);
 
   const {
     data: xcomCollection,
@@ -70,7 +70,7 @@ const XcomCollection = ({
     <Box
       ref={taskXcomRef}
       height="100%"
-      maxHeight={`calc(100% - ${offsetTop}px)`}
+      maxHeight={`${contentHeight}px`}
       overflowY="auto"
     >
       {isLoading && <Spinner size="xl" thickness="4px" speed="0.65s" />}

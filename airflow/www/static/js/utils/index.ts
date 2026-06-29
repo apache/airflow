@@ -21,6 +21,7 @@ import Color from "color";
 import type { DagRun, RunOrdering, Task, TaskInstance } from "src/types";
 
 import { LogLevel } from "src/dag/details/taskInstance/Logs/utils";
+import useContentHeight from "./useContentHeight";
 import useOffsetTop from "./useOffsetTop";
 
 // Delay in ms for various hover actions
@@ -232,6 +233,7 @@ export {
   getTaskSummary,
   getDagRunLabel,
   getStatusBackgroundColor,
+  useContentHeight,
   useOffsetTop,
   toSentenceCase,
   highlightByKeywords,

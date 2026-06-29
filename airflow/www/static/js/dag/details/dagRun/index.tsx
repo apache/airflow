@@ -20,7 +20,7 @@ import React, { useRef } from "react";
 import { Box } from "@chakra-ui/react";
 
 import { useGridData } from "src/api";
-import { getMetaValue, useOffsetTop } from "src/utils";
+import { getMetaValue, useContentHeight } from "src/utils";
 import type { DagRun as DagRunType } from "src/types";
 import NotesAccordion from "src/dag/details/NotesAccordion";
 
@@ -38,7 +38,7 @@ const DagRun = ({ runId }: Props) => {
     data: { dagRuns },
   } = useGridData();
   const detailsRef = useRef<HTMLDivElement>(null);
-  const offsetTop = useOffsetTop(detailsRef);
+  const contentHeight = useContentHeight(detailsRef);
 
   const run = dagRuns.find((dr) => dr.runId === runId);
 
@@ -47,7 +47,7 @@ const DagRun = ({ runId }: Props) => {
 
   return (
     <Box
-      maxHeight={`calc(100% - ${offsetTop}px)`}
+      maxHeight={`${contentHeight}px`}
       ref={detailsRef}
       overflowY="auto"
       pb={4}

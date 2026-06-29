@@ -20,7 +20,7 @@
 import React, { useRef } from "react";
 import { Box, Heading, Spinner } from "@chakra-ui/react";
 
-import { useOffsetTop } from "src/utils";
+import { useContentHeight } from "src/utils";
 import Time from "src/components/Time";
 import { useDag, useDagCode } from "src/api";
 import ErrorAlert from "src/components/ErrorAlert";
@@ -29,7 +29,7 @@ import CodeBlock from "./CodeBlock";
 
 const DagCode = () => {
   const dagCodeRef = useRef<HTMLDivElement>(null);
-  const offsetTop = useOffsetTop(dagCodeRef);
+  const contentHeight = useContentHeight(dagCodeRef);
   const { data: dagData, isLoading: isLoadingDag, error: dagError } = useDag();
   const {
     data: codeSource = "",
@@ -41,7 +41,7 @@ const DagCode = () => {
   const error = codeError || dagError;
 
   return (
-    <Box ref={dagCodeRef} height={`calc(100% - ${offsetTop}px)`}>
+    <Box ref={dagCodeRef} height={`${contentHeight}px`}>
       {dagData?.lastParsedTime && (
         <Heading as="h4" size="md" paddingBottom="10px" fontSize="14px">
           Parsed at: <Time dateTime={dagData.lastParsedTime} />

@@ -45,6 +45,17 @@ if (typeof globalThis.window !== "undefined" && !globalThis.window.matchMedia) {
   };
 }
 
+// Mock ResizeObserver (not implemented in jsdom) — used by useContentHeight
+if (typeof globalThis.ResizeObserver === "undefined") {
+  globalThis.ResizeObserver = function ResizeObserver() {
+    return {
+      observe() {},
+      unobserve() {},
+      disconnect() {},
+    };
+  };
+}
+
 // Unwrap React 19 AggregateError for readable test failure messages
 const OrigAggregateError = globalThis.AggregateError;
 if (OrigAggregateError) {
