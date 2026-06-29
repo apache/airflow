@@ -112,9 +112,9 @@ class CoordinatorComm(
   }
 
   @Throws(ApiError::class)
-  suspend fun communicateImpl(body: Any): Any =
-    commMutex.withLock {
-      val requestId = nextId.fetchAndAdd(1)
+  suspend fun communicateImpl(body: Any): Any {
+    val requestId = nextId.fetchAndAdd(1)
+    return commMutex.withLock {
       var frame: IncomingFrame? = null
 
       suspend fun handle(f: IncomingFrame) {
@@ -128,6 +128,7 @@ class CoordinatorComm(
       }
       received.body ?: Unit
     }
+  }
 
   @Throws(ApiError::class)
   suspend inline fun <reified T> communicate(request: Any): T {
