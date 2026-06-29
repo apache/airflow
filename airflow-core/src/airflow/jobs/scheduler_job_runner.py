@@ -97,7 +97,7 @@ from airflow.models.connection_test import (
     ConnectionTestState,
 )
 from airflow.models.dag import DagModel
-from airflow.models.dag_version import DagVersion
+from airflow.models.dag_version import DagVersion, resolve_pinned_version_data
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
@@ -1514,6 +1514,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         if ti.dag_version and ti.dag_run.bundle_version is not None
                         else ti.dag_run.bundle_version
                     )
+                    _version_data = resolve_pinned_version_data(ti.dag_version, ti.dag_run.bundle_version)
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
                         continue
@@ -1521,6 +1522,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         filepath=ti.dag_model.relative_fileloc or "",
                         bundle_name=_bundle_name,
                         bundle_version=_bundle_version,
+                        version_data=_version_data,
                         ti=ti,
                         msg=msg,
                         task_callback_type=(
@@ -1563,6 +1565,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     _email_bundle_version = (
                         ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
                     )
+                    _email_version_data = resolve_pinned_version_data(
+                        ti.dag_version, ti.dag_run.bundle_version
+                    )
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
                         continue
@@ -1570,6 +1575,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         filepath=ti.dag_model.relative_fileloc or "",
                         bundle_name=_email_bundle_name,
                         bundle_version=_email_bundle_version,
+                        version_data=_email_version_data,
                         ti=ti,
                         msg=msg,
                         email_type="retry" if ti.is_eligible_to_retry() else "failure",
@@ -3082,6 +3088,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         if ti.dag_version and ti.dag_run.bundle_version is not None
                         else ti.dag_run.bundle_version
                     )
+                    _stuck_version_data = resolve_pinned_version_data(
+                        ti.dag_version, ti.dag_run.bundle_version
+                    )
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     # Note: we cannot use `continue` here because this method is not
                     # inside a loop.  If backfilling fails we simply skip the callback.
@@ -3090,6 +3099,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             filepath=ti.dag_model.relative_fileloc or "",
                             bundle_name=_stuck_bundle_name,
                             bundle_version=_stuck_bundle_version,
+                            version_data=_stuck_version_data,
                             ti=ti,
                             msg=msg,
                             context_from_server=TIRunContext(
@@ -3553,6 +3563,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if ti.dag_version and ti.dag_run.bundle_version is not None
                 else ti.dag_run.bundle_version
             )
+            _hb_version_data = resolve_pinned_version_data(ti.dag_version, ti.dag_run.bundle_version)
             # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
             if not _ensure_ti_has_dag_version_id(ti, session, self.log):
                 continue
@@ -3560,6 +3571,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 filepath=ti.dag_model.relative_fileloc or "",
                 bundle_name=_hb_bundle_name,
                 bundle_version=_hb_bundle_version,
+                version_data=_hb_version_data,
                 ti=ti,
                 msg=str(task_instance_heartbeat_timeout_message_details),
                 context_from_server=TIRunContext(
