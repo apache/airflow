@@ -94,7 +94,7 @@ class BeamDataflowMixin(metaclass=ABCMeta):
         self,
         pipeline_options: dict,
         job_name_variable_key: str | None = None,
-    ) -> tuple[str, dict, Callable[[str], None], Callable[[], bool]]:
+    ) -> tuple[str, dict, Callable[[str], None], Callable[..., bool]]:
         self.dataflow_hook = self.__set_dataflow_hook()
         self.dataflow_config.project_id = self.dataflow_config.project_id or self.dataflow_hook.project_id
         dataflow_job_name = self.__get_dataflow_job_name()
@@ -152,8 +152,14 @@ class BeamDataflowMixin(metaclass=ABCMeta):
             on_new_job_id_callback=set_current_dataflow_job_id
         )
 
-    def __is_dataflow_job_id_exist_callback(self) -> Callable[[], bool]:
-        def is_dataflow_job_id_exist() -> bool:
+    def __is_dataflow_job_id_exist_callback(self) -> Callable[..., bool]:
+        def is_dataflow_job_id_exist(checking_by_job_name: bool = False) -> bool:
+            if checking_by_job_name and self.dataflow_hook:
+                self.dataflow_job_id = self.dataflow_hook.get_job_id_of_running_job(
+                    job_name=self.dataflow_job_name,  # type: ignore
+                    project_id=self.dataflow_config.project_id,
+                    location=self.dataflow_config.location,
+                )
             return True if self.dataflow_job_id else False
 
         return is_dataflow_job_id_exist
@@ -240,11 +246,11 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
         self,
         format_pipeline_options: bool = False,
         job_name_variable_key: str | None = None,
-    ) -> tuple[bool, str | None, dict, Callable[[str], None] | None, Callable[[], bool] | None]:
+    ) -> tuple[bool, str | None, dict, Callable[[str], None] | None, Callable[..., bool] | None]:
         self.beam_hook = BeamHook(runner=self.runner)
         pipeline_options = self.default_pipeline_options.copy()
         process_line_callback: Callable[[str], None] | None = None
-        is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None
+        is_dataflow_job_id_exist_callback: Callable[..., bool] | None = None
         is_dataflow = self.runner.lower() == BeamRunnerType.DataflowRunner.lower()
         dataflow_job_name: str | None = None
         if is_dataflow:
@@ -318,6 +324,19 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BeamRunPythonPipelineOperator`
+
+    .. warning::
+        When running in deferrable mode (``deferrable=True``) with the ``DataflowRunner``,
+        the local Python subprocess submitting the pipeline is terminated as soon as the
+        Dataflow Job ID is detected.
+
+        This means any **additional code** in your ``py_file`` that is written to execute
+        *after* the pipeline block (e.g., local post-processing, file uploads, or local logging
+        on the Airflow worker) **will NOT be executed**.
+
+        If you require local post-processing in the same script, you must run the operator in
+        standard blocking mode (``deferrable=False``), or preferably, split the post-processing
+        into a separate Airflow task (e.g., using ``PythonOperator``).
 
     .. seealso::
         For more detail on Apache Beam have a look at the reference:
@@ -522,6 +541,18 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BeamRunJavaPipelineOperator`
+
+    .. warning::
+        When running in deferrable mode (``deferrable=True``) with the ``DataflowRunner``,
+        the local Java subprocess submitting the pipeline is terminated as soon as the
+        Dataflow Job ID is detected.
+
+        This means any **additional code** in your self-executing ``jar`` that is written to
+        execute locally *after* the pipeline finishes on the worker **will NOT be executed**.
+
+        If you require local post-processing in the same jar, you must run the operator in
+        standard blocking mode (``deferrable=False``), or preferably, split the post-processing
+        into a separate Airflow task.
 
     .. seealso::
         For more detail on Apache Beam have a look at the reference:
