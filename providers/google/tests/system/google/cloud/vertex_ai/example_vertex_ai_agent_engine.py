@@ -58,18 +58,11 @@ def _get_json_env(name: str, default: dict[str, str]) -> dict[str, str]:
     return json.loads(value) if value else default
 
 
-LOCATION = _get_env("GCP_REGION", "us-central1")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or _get_env("GCP_PROJECT_ID", "default")
-CONTAINER_URI = os.environ.get("SYSTEM_TESTS_VERTEX_AI_AGENT_ENGINE_CONTAINER_URI") or _get_env(
-    "GCP_AGENT_ENGINE_CONTAINER_URI",
-    "us-central1-docker.pkg.dev/example-project/example-repository/example-agent:latest",
-)
-CONTAINER_ENV_VARS: dict[str, str] = _get_json_env(
-    "SYSTEM_TESTS_VERTEX_AI_AGENT_ENGINE_CONTAINER_ENV_VARS",
-    {},
-)
-if not CONTAINER_ENV_VARS:
-    CONTAINER_ENV_VARS = {
+def _get_container_env_vars() -> dict[str, str]:
+    return _get_json_env(
+        "SYSTEM_TESTS_VERTEX_AI_AGENT_ENGINE_CONTAINER_ENV_VARS",
+        {},
+    ) or {
         "GCP_PROJECT": PROJECT_ID,
         "GCP_REGION": LOCATION,
         "GEMINI_MODEL_ID": _get_env("GEMINI_MODEL_ID", "gemini-2.5-pro"),
@@ -81,6 +74,15 @@ if not CONTAINER_ENV_VARS:
         "AGENT_USE_MODEL": _get_env("AGENT_USE_MODEL", "true"),
         "AGENT_USE_MOCKS": _get_env("AGENT_USE_MOCKS", "false"),
     }
+
+
+LOCATION = _get_env("GCP_REGION", "us-central1")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or _get_env("GCP_PROJECT_ID", "default")
+CONTAINER_URI = os.environ.get("SYSTEM_TESTS_VERTEX_AI_AGENT_ENGINE_CONTAINER_URI") or _get_env(
+    "GCP_AGENT_ENGINE_CONTAINER_URI",
+    "us-central1-docker.pkg.dev/example-project/example-repository/example-agent:latest",
+)
+CONTAINER_ENV_VARS = _get_container_env_vars()
 QUERY_STR = os.environ.get("SYSTEM_TESTS_VERTEX_AI_AGENT_ENGINE_QUERY") or json.dumps(
     {
         "dag_id": "gcp_agentengine_demo_failing_etl",
