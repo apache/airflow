@@ -2831,6 +2831,38 @@ class TestRuntimeTaskInstance:
         )
         assert state == "running"
 
+    def test_trigger_dag_run_returns_true_when_created(self, mock_supervisor_comms):
+        """trigger_dag_run sends a TriggerDagRun and returns True when a new run is created."""
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        created = RuntimeTaskInstance.trigger_dag_run(
+            dag_id="test_dag",
+            run_id="run1",
+            conf={"k": "v"},
+            reset_dag_run=True,
+        )
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=TriggerDagRun(
+                dag_id="test_dag",
+                run_id="run1",
+                conf={"k": "v"},
+                logical_date=None,
+                run_after=None,
+                reset_dag_run=True,
+                note=None,
+            ),
+        )
+        assert created is True
+
+    def test_trigger_dag_run_returns_false_when_already_exists(self, mock_supervisor_comms):
+        """trigger_dag_run returns False when the run id already exists and reset is not requested."""
+        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
+
+        created = RuntimeTaskInstance.trigger_dag_run(dag_id="test_dag", run_id="run1")
+
+        assert created is False
+
     def test_get_task_states(self, mock_supervisor_comms):
         """Test that get_task_states sends the correct request and returns the states."""
         mock_supervisor_comms.send.return_value = TaskStatesResult(task_states={"run1": {"task1": "running"}})

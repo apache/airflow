@@ -839,6 +839,39 @@ class RuntimeTaskInstance(TaskInstance):
         return response.state
 
     @staticmethod
+    def trigger_dag_run(
+        dag_id: str,
+        run_id: str,
+        *,
+        conf: dict[str, Any] | None = None,
+        logical_date: datetime | None = None,
+        run_after: datetime | None = None,
+        reset_dag_run: bool = False,
+        note: str | None = None,
+    ) -> bool:
+        """
+        Trigger a new run of ``dag_id`` through the execution API.
+
+        Counterpart to :meth:`get_dagrun_state`. Returns ``True`` when a run was created and
+        ``False`` when ``run_id`` already existed and ``reset_dag_run`` was not set (with
+        ``reset_dag_run=True`` the existing run is cleared and ``True`` is returned).
+        """
+        response = SUPERVISOR_COMMS.send(
+            msg=TriggerDagRun(
+                dag_id=dag_id,
+                run_id=run_id,
+                conf=conf,
+                logical_date=logical_date,
+                run_after=run_after,
+                reset_dag_run=reset_dag_run,
+                note=note,
+            )
+        )
+        if isinstance(response, ErrorResponse) and response.error == ErrorType.DAGRUN_ALREADY_EXISTS:
+            return False
+        return True
+
+    @staticmethod
     def get_dag(dag_id: str) -> DagResult:
         """Return the DAG with the given dag_id."""
         response = SUPERVISOR_COMMS.send(msg=GetDag(dag_id=dag_id))
