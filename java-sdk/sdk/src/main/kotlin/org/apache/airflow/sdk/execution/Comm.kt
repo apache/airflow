@@ -23,21 +23,57 @@ import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.readByteArray
 import io.ktor.utils.io.writeByteArray
+import kotlinx.coroutines.runBlocking
 import org.apache.airflow.sdk.ApiError
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.execution.comm.ErrorResponse
 import org.apache.airflow.sdk.execution.comm.StartupDetails
+import org.msgpack.core.buffer.MessageBuffer
+import org.msgpack.core.buffer.MessageBufferInput
+import java.io.IOException
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
+
+/**
+ * A [MessageBufferInput] that feeds a MessageUnpacker in chunks.
+ *
+ * Exactly [declaredLength] bytes is fed from [reader] in each chunk.
+ * Heap use is bounded by [CHUNK_SIZE], so a frame larger than
+ * [Int.MAX_VALUE] (which the protocol permits but a single ByteArray
+ * cannot hold) still decodes.
+ *
+ * The MessageBufferInput contract is synchronous while the underlying
+ * ktor read suspends, so each [next] bridges with [runBlocking]. This
+ * is fine since we only use this class with `Dispatchers.IO`, which is
+ * capable of blocking.
+ */
+private class ChannelFrameInput(
+  private val reader: ByteReadChannel,
+  declaredLength: UInt,
+) : MessageBufferInput {
+  private companion object {
+    const val CHUNK_SIZE = (64 * 1024).toLong()
+  }
+
+  private var remaining = declaredLength.toLong()
+
+  override fun next(): MessageBuffer? {
+    if (remaining == 0L) return null
+    val want = minOf(remaining, CHUNK_SIZE).toInt()
+    val bytes = runBlocking { reader.readByteArray(want) }
+    if (bytes.size != want) {
+      throw IOException("Truncated frame: expected $want more bytes, got ${bytes.size}")
+    }
+    remaining -= want
+    return MessageBuffer.wrap(bytes)
+  }
+
+  override fun close() {} // No cleanup here. The caller owns the channel's lifecycle.
+}
 
 data class IncomingFrame(
   val id: Int,
   val body: Any?,
-)
-
-data class OutgoingFrame(
-  val id: Int,
-  val body: Any,
 )
 
 @OptIn(ExperimentalAtomicApi::class)
@@ -48,10 +84,6 @@ class CoordinatorComm(
 ) {
   internal companion object {
     private val logger = Logger(CoordinatorComm::class)
-
-    fun encode(outgoing: OutgoingFrame) = Frame.encodeRequest(outgoing.id, outgoing.body)
-
-    fun decode(bytes: ByteArray) = Frame.decode(bytes)
   }
 
   private val nextId = AtomicInt(0)
@@ -72,17 +104,18 @@ class CoordinatorComm(
       return
     }
 
-    val payloadLength = Frame.parseLengthPrefix(prefix)
-    val payload = reader.readByteArray(payloadLength)
-    if (payload.size != payloadLength) { // Something is terribly wrong. Let's bail.
-      logger.error(
-        "Payload length not right",
-        mapOf("expect" to payloadLength, "receive" to payload.size),
-      )
-      shutDownRequested = true
-      return
-    }
-    val frame = decode(payload)
+    val declaredLength = Frame.parseLengthPrefix(prefix)
+    val frame =
+      try {
+        Frame.decode(ChannelFrameInput(reader, declaredLength))
+      } catch (e: Exception) {
+        logger.error(
+          "Failed to read or decode frame",
+          mapOf("length" to declaredLength, "exception" to e),
+        )
+        shutDownRequested = true
+        return
+      }
     logger.debug("Handling", mapOf("id" to frame.id))
     handle(frame)
   }
@@ -91,10 +124,12 @@ class CoordinatorComm(
     id: Int,
     body: Any,
   ) {
-    val data = encode(OutgoingFrame(id, body))
+    val buffers = Frame.encodeRequest(id, body)
     logger.debug("Sending", mapOf("id" to id, "body" to body))
-    writer.writeByteArray(Frame.lengthPrefix(data.size))
-    writer.writeByteArray(data)
+    writer.writeByteArray(Frame.lengthPrefix(Frame.payloadLength(buffers)))
+    for (buffer in buffers) {
+      writer.writeByteArray(buffer.toByteArray())
+    }
   }
 
   suspend fun handleIncoming(frame: IncomingFrame) {

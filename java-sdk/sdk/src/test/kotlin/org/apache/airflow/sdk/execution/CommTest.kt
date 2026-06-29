@@ -23,6 +23,7 @@ import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.msgpack.core.buffer.ArrayBufferInput
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 
@@ -62,7 +63,7 @@ class CommsTest {
       6f 82 a4 6e 61 6d 65 a8 61 6e 79 2d 6e 61 6d 65 a7 76 65 72 73 69 6f 6e ab 61 6e 79 2d 76 65 72
       73 69 6f 6e b2 73 65 6e 74 72 79 5f 69 6e 74 65 67 72 61 74 69 6f 6e a0 c0
       """.trimIndent()
-    val result = CoordinatorComm.decode(byteArrayFromHexString(data))
+    val result = Frame.decode(ArrayBufferInput(byteArrayFromHexString(data)))
     Assertions.assertInstanceOf(IncomingFrame::class.java, result)
     Assertions.assertInstanceOf(StartupDetails::class.java, result.body)
   }
@@ -71,7 +72,10 @@ class CommsTest {
   @DisplayName("Should serialize all fields")
   fun shouldEncodeSucceedTask() {
     val endDate = OffsetDateTime.of(2024, 12, 1, 1, 0, 0, 0, ZoneOffset.UTC)
-    val bytes = CoordinatorComm.encode(OutgoingFrame(3, TaskResult.success(endDate = endDate)))
+    val bytes =
+      Frame
+        .encodeRequest(3, TaskResult.success(endDate = endDate))
+        .fold(ByteArray(0)) { acc, buffer -> acc + buffer.toByteArray() }
     val actual = bytes.toHexString(HexFormat { bytes { byteSeparator = " " } })
 
     val expected =
