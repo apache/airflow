@@ -393,9 +393,10 @@ class TestBeamHook:
 
 
 class TestBeamRunner:
+    @mock.patch("os.set_blocking")
     @mock.patch("subprocess.Popen")
     @mock.patch("select.select")
-    def test_beam_wait_for_done_logging(self, mock_select, mock_popen, caplog):
+    def test_beam_wait_for_done_logging(self, mock_select, mock_popen, mock_set_blocking, caplog):
         logger_name = "fake-beam-wait-for-done-logger"
         fake_logger = logging.getLogger(logger_name)
 
@@ -428,6 +429,7 @@ class TestBeamRunner:
         with pytest.raises(AirflowException, match="Apache Beam process failed with return code 1"):
             run_beam_command(cmd, fake_logger)
 
+        mock_set_blocking.assert_not_called()
         mock_popen.assert_called_once_with(
             cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, cwd=None
         )
@@ -440,6 +442,42 @@ class TestBeamRunner:
         assert "apache-beam-stderr-2" in warn_messages
         assert "apache-beam-stderr-3" in warn_messages
         assert "apache-beam-other-stderr" in warn_messages
+
+    @mock.patch("os.set_blocking")
+    @mock.patch("subprocess.Popen")
+    @mock.patch("select.select")
+    def test_run_beam_command_checks_job_id_by_name_on_timeout(
+        self, mock_select, mock_popen, mock_set_blocking
+    ):
+        fake_logger = MagicMock()
+        cmd = ["fake", "cmd"]
+        mock_proc = MagicMock(name="FakeProc")
+        fake_stderr_fd = MagicMock(name="FakeStderr")
+        fake_stdout_fd = MagicMock(name="FakeStdout")
+        fake_stdout_fd.fileno.return_value = 10
+        fake_stderr_fd.fileno.return_value = 11
+        mock_proc.stderr = fake_stderr_fd
+        mock_proc.stdout = fake_stdout_fd
+        mock_popen.return_value = mock_proc
+
+        mock_select.side_effect = [
+            ([], [], []),
+            ([], [], []),
+        ]
+        is_job_id_exist_callback = MagicMock(side_effect=[False, True])
+
+        run_beam_command(
+            cmd,
+            fake_logger,
+            is_dataflow_job_id_exist_callback=is_job_id_exist_callback,
+        )
+
+        mock_set_blocking.assert_has_calls([mock.call(10, False), mock.call(11, False)])
+        assert is_job_id_exist_callback.call_args_list == [
+            mock.call(checking_by_job_name=True),
+            mock.call(checking_by_job_name=True),
+        ]
+        mock_proc.poll.assert_not_called()
 
 
 class TestBeamOptionsToArgs:

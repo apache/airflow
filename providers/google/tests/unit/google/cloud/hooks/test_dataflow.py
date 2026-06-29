@@ -672,6 +672,26 @@ class TestDataflowTemplateHook:
         with pytest.raises(AirflowException):
             self.dataflow_hook.extract_job_id({"not_id": True})
 
+    @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController"))
+    @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"))
+    def test_get_job_id_of_running_job(self, mock_get_conn, jobs_controller):
+        jobs_controller.return_value.fetch_job_id.return_value = TEST_JOB_ID
+
+        result = self.dataflow_hook.get_job_id_of_running_job(
+            job_name=UNIQUE_JOB_NAME,
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
+        )
+
+        jobs_controller.assert_called_once_with(
+            dataflow=mock_get_conn.return_value,
+            name=UNIQUE_JOB_NAME,
+            project_number=TEST_PROJECT,
+            location=TEST_LOCATION,
+        )
+        jobs_controller.return_value.fetch_job_id.assert_called_once_with()
+        assert result == TEST_JOB_ID
+
 
 class TestDataflowJob:
     def setup_method(self):
@@ -1367,6 +1387,165 @@ class TestDataflowJob:
         result = jobs_controller.fetch_job_autoscaling_events_by_id(TEST_JOB_ID)
         mock_fetch_responses.assert_called_once_with(job_id=TEST_JOB_ID)
         assert result == ["event_1", "event_2"]
+
+    @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController._fetch_jobs_by_prefix_name"))
+    def test_get_current_jobs_multiple_with_one_active(self, mock_fetch_prefix):
+        mock_fetch_prefix.return_value = [
+            {
+                "id": "job-finished-id",
+                "name": "test-job",
+                "currentState": DataflowJobStatus.JOB_STATE_DONE,
+                "createTime": "2026-06-25T15:00:00Z",
+            },
+            {
+                "id": "job-active-id",
+                "name": "test-job",
+                "currentState": DataflowJobStatus.JOB_STATE_RUNNING,
+                "createTime": "2026-06-25T15:10:00Z",
+            },
+        ]
+
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name="test-job",
+            location=TEST_LOCATION,
+            multiple_jobs=False,
+        )
+
+        result = jobs_controller._get_current_jobs()
+
+        assert jobs_controller._job_id == "job-active-id"
+        assert len(result) == 2
+
+    @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController._fetch_jobs_by_prefix_name"))
+    def test_get_current_jobs_multiple_all_finished_takes_most_recent(self, mock_fetch_prefix):
+        mock_fetch_prefix.return_value = [
+            {
+                "id": "job-old-id",
+                "name": "test-job",
+                "currentState": DataflowJobStatus.JOB_STATE_DONE,
+                "createTime": "2026-06-25T15:00:00Z",
+            },
+            {
+                "id": "job-new-id",
+                "name": "test-job",
+                "currentState": DataflowJobStatus.JOB_STATE_DONE,
+                "createTime": "2026-06-25T15:30:00Z",
+            },
+            {
+                "id": "job-mid-id",
+                "name": "test-job",
+                "currentState": DataflowJobStatus.JOB_STATE_DONE,
+                "createTime": "2026-06-25T15:15:00Z",
+            },
+        ]
+
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name="test-job",
+            location=TEST_LOCATION,
+            multiple_jobs=False,
+        )
+
+        result = jobs_controller._get_current_jobs()
+
+        assert jobs_controller._job_id == "job-new-id"
+        assert result[0]["id"] == "job-new-id"
+        assert result[1]["id"] == "job-mid-id"
+        assert result[2]["id"] == "job-old-id"
+
+    @pytest.mark.parametrize(
+        ("jobs", "expected_job_id"),
+        [
+            (
+                [
+                    {
+                        "id": "job-done-id",
+                        "name": "test-job",
+                        "currentState": DataflowJobStatus.JOB_STATE_DONE,
+                        "createTime": "2026-06-25T16:00:00Z",
+                    },
+                    {
+                        "id": "job-prefix-only-id",
+                        "name": "test-job-other",
+                        "currentState": DataflowJobStatus.JOB_STATE_RUNNING,
+                        "createTime": "2026-06-25T16:10:00Z",
+                    },
+                    {
+                        "id": "job-active-older-id",
+                        "name": "test-job",
+                        "currentState": DataflowJobStatus.JOB_STATE_PENDING,
+                        "createTime": "2026-06-25T15:00:00Z",
+                    },
+                    {
+                        "id": "job-active-newer-id",
+                        "name": "test-job",
+                        "currentState": DataflowJobStatus.JOB_STATE_RUNNING,
+                        "createTime": "2026-06-25T15:30:00Z",
+                    },
+                ],
+                "job-active-newer-id",
+            ),
+            (
+                [
+                    {
+                        "id": "job-done-id",
+                        "name": "test-job",
+                        "currentState": DataflowJobStatus.JOB_STATE_DONE,
+                        "createTime": "2026-06-25T15:00:00Z",
+                    }
+                ],
+                None,
+            ),
+            (
+                [
+                    {
+                        "id": "job-prefix-only-id",
+                        "name": "test-job-suffix",
+                        "currentState": DataflowJobStatus.JOB_STATE_RUNNING,
+                        "createTime": "2026-06-25T15:00:00Z",
+                    }
+                ],
+                None,
+            ),
+        ],
+    )
+    def test_fetch_job_id(self, jobs, expected_job_id):
+        mock_jobs = self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value
+        mock_jobs.list.return_value.execute.return_value = {"jobs": jobs}
+        mock_jobs.list_next.return_value = None
+
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name="Test-Job",
+            location=TEST_LOCATION,
+            multiple_jobs=False,
+        )
+
+        result = jobs_controller.fetch_job_id()
+
+        mock_jobs.list.assert_called_once_with(
+            projectId=TEST_PROJECT,
+            location=TEST_LOCATION,
+            filter="ACTIVE",
+        )
+        assert result == expected_job_id
+        assert jobs_controller._job_id == expected_job_id
+
+    def test_fetch_job_id_without_job_name_returns_existing_job_id(self):
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name=None,
+            location=TEST_LOCATION,
+            job_id=TEST_JOB_ID,
+        )
+
+        assert jobs_controller.fetch_job_id() == TEST_JOB_ID
+        self.mock_dataflow.projects.assert_not_called()
 
 
 @pytest.mark.db_test
