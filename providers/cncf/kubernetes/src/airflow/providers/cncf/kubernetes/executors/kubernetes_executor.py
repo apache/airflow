@@ -235,7 +235,7 @@ class KubernetesExecutor(BaseExecutor):
         queue_to_coordinator``) launch its worker pod from a coordinator-specific
         template — for example an image carrying the JVM for a Java coordinator.
         """
-        return extra.get("pod_template_file", None)
+        return extra.get("pod_template_file")
 
     def _coordinator_kube_image(self, extra: dict[str, Any]) -> str | None:
         """
@@ -283,9 +283,8 @@ class KubernetesExecutor(BaseExecutor):
         coordinator_kube_image: str | None = None
         if (coordinator_extra := self._coordinator_extra(queue)) is not None:
             # A coordinator-level pod_template wins (e.g. a JVM image for JavaCoordinator)
-            if (
-                coordinator_pod_template_file := self._coordinator_pod_template_file(coordinator_extra)
-            ) is not None:
+            coordinator_pod_template_file = self._coordinator_pod_template_file(coordinator_extra)
+            if coordinator_pod_template_file is not None:
                 self.log.debug(
                     "Using coordinator-declared pod template %s for task %s in queue %s",
                     coordinator_pod_template_file,
