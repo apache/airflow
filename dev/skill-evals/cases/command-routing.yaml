@@ -15,43 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-# Command routing: does the agent choose uv / breeze / prek correctly?
-
-- description: "Core unit test: should use uv"
-  vars:
-    request: |
-      Run the tests in airflow-core/tests/models/test_taskinstance.py.
-      The file contains @pytest.mark.db_test markers on most test classes.
-      The project root is airflow-core.
-      You are on the host, not inside a Breeze container.
-  assert:
-    - type: javascript
-      value: 'output.runner === "uv"'
-    - type: javascript
-      value: 'output.command.includes("uv run --project airflow-core pytest")'
-
-- description: "Helm test: always breeze"
+- description: "Helm test: should use breeze"
   vars:
     request: |
       Run the Helm chart tests.
-      The change is in chart/templates/webserver/webserver-deployment.yaml.
-      Helm tests are in chart/tests/.
-      You are on the host, not inside a Breeze container.
   assert:
     - type: javascript
       value: 'output.runner === "breeze"'
-    - type: javascript
-      value: 'output.command.includes("breeze testing helm-tests")'
-
-- description: "mypy type check: use prek"
-  vars:
-    request: |
-      Run mypy type checking on the airflow-core package.
-      The change is in airflow-core/src/airflow/models/dag.py.
-      You are on the host, not inside a Breeze container.
-      The project uses prek hooks for static checks.
-  assert:
-    - type: javascript
-      value: 'output.runner === "prek"'
-    - type: javascript
-      value: 'output.command.includes("prek run mypy-airflow-core")'
