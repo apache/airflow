@@ -30,7 +30,7 @@ type Props = {
 export const GraphControls = ({ isManualLayout, onToggleManualLayout, selectedNodeId }: Props) => {
   const { t: translate } = useTranslation("components");
   const { fitView } = useReactFlow();
-  const manualLayoutLabel = translate("graph.manualLayout");
+  const manualLayoutLabel = translate("graph.manualLayout", { defaultValue: "Rearrange" });
 
   return (
     <>

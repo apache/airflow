@@ -45,10 +45,16 @@ export type CustomNodeProps = {
 
 type NodeType = FlowNodeType<CustomNodeProps>;
 
+type Position = {
+  x: number;
+  y: number;
+};
+
 type FlattenNodesProps = {
   children?: Array<LayoutNode>;
   level?: number;
   parent?: NodeType;
+  parentAbsolutePosition?: Position;
 };
 
 // Generate a flattened list of nodes for react-flow to render.
@@ -58,6 +64,7 @@ export const flattenGraph = ({
   children,
   level = 0,
   parent,
+  parentAbsolutePosition,
 }: FlattenNodesProps): {
   edges: Array<ElkExtendedEdge>;
   nodes: Array<NodeType>;
@@ -68,16 +75,19 @@ export const flattenGraph = ({
   if (!children) {
     return { edges, nodes };
   }
-  const parentNode = parent ? { parentNode: parent.id } : undefined;
+  const parentNode = parent ? { parentId: parent.id } : undefined;
 
   children.forEach((node) => {
-    const x = (parent?.position.x ?? 0) + (node.x ?? 0);
-    const y = (parent?.position.y ?? 0) + (node.y ?? 0);
+    const position = { x: node.x ?? 0, y: node.y ?? 0 };
+    const absolutePosition = {
+      x: (parentAbsolutePosition?.x ?? 0) + position.x,
+      y: (parentAbsolutePosition?.y ?? 0) + position.y,
+    };
     const newNode = {
       data: { ...node, depth: level },
       height: node.height,
       id: node.id,
-      position: { x, y },
+      position,
       type: node.type,
       width: node.width,
       ...parentNode,
@@ -90,14 +100,23 @@ export const flattenGraph = ({
         ...edge,
         labels: edge.labels?.map((label) => ({
           ...label,
-          x: (label.x ?? 0) + x,
-          y: (label.y ?? 0) + y,
+          x: (label.x ?? 0) + absolutePosition.x,
+          y: (label.y ?? 0) + absolutePosition.y,
         })),
         sections: edge.sections?.map((section) => ({
           ...section,
-          bendPoints: section.bendPoints?.map((bp) => ({ x: bp.x + x, y: bp.y + y })),
-          endPoint: { x: section.endPoint.x + x, y: section.endPoint.y + y },
-          startPoint: { x: section.startPoint.x + x, y: section.startPoint.y + y },
+          bendPoints: section.bendPoints?.map((bp) => ({
+            x: bp.x + absolutePosition.x,
+            y: bp.y + absolutePosition.y,
+          })),
+          endPoint: {
+            x: section.endPoint.x + absolutePosition.x,
+            y: section.endPoint.y + absolutePosition.y,
+          },
+          startPoint: {
+            x: section.startPoint.x + absolutePosition.x,
+            y: section.startPoint.y + absolutePosition.y,
+          },
         })),
       });
     }
@@ -107,6 +126,7 @@ export const flattenGraph = ({
         children: node.children as Array<LayoutNode>,
         level: level + 1,
         parent: newNode,
+        parentAbsolutePosition: absolutePosition,
       });
 
       nodes.push(...childNodes);

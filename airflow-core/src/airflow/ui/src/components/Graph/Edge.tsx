@@ -19,11 +19,12 @@
 import { Text, useToken } from "@chakra-ui/react";
 import { Group } from "@visx/group";
 import { LinePath } from "@visx/shape";
-import { BaseEdge, getSmoothStepPath, useNodesData, useStore } from "@xyflow/react";
+import { BaseEdge, useNodesData, useStore } from "@xyflow/react";
 import type { Edge as EdgeType, EdgeProps } from "@xyflow/react";
 import type { ElkPoint } from "elkjs";
 
 import { opacityStyle } from "./graphTypes";
+import { getManualEdgePath, type ManualEdgeNode } from "./manualEdgePath";
 import type { EdgeData } from "./reactflowUtils";
 
 type Props = EdgeProps<EdgeType<EdgeData>>;
@@ -34,11 +35,9 @@ const CustomEdge = ({
   markerEnd,
   markerStart,
   source,
-  sourcePosition,
   sourceX,
   sourceY,
   target,
-  targetPosition,
   targetX,
   targetY,
 }: Props) => {
@@ -62,6 +61,33 @@ const CustomEdge = ({
 
     return sourceDragging || targetDragging;
   });
+  const manualEdgeData = useStore((state) => {
+    const nodes: Array<ManualEdgeNode> = [];
+    let sourceNode: ManualEdgeNode | undefined;
+    let targetNode: ManualEdgeNode | undefined;
+
+    for (const node of state.nodeLookup.values()) {
+      const { id: nodeId, internals, measured } = node;
+      const { positionAbsolute, userNode } = internals;
+      const nodeData = userNode.data as { height?: number; width?: number };
+      const edgeNode = {
+        height: measured.height ?? userNode.height ?? nodeData.height,
+        id: nodeId,
+        position: positionAbsolute,
+        width: measured.width ?? userNode.width ?? nodeData.width,
+      };
+
+      if (nodeId === source) {
+        sourceNode = edgeNode;
+      } else if (nodeId === target) {
+        targetNode = edgeNode;
+      } else {
+        nodes.push(edgeNode);
+      }
+    }
+
+    return { nodes, sourceNode, targetNode };
+  });
 
   if (data === undefined) {
     return undefined;
@@ -78,13 +104,12 @@ const CustomEdge = ({
   }
 
   if (isManualLayout) {
-    const [path] = getSmoothStepPath({
-      sourcePosition,
-      sourceX,
-      sourceY,
-      targetPosition,
-      targetX,
-      targetY,
+    const path = getManualEdgePath({
+      nodes: manualEdgeData.nodes,
+      source: { x: sourceX, y: sourceY },
+      sourceNode: manualEdgeData.sourceNode,
+      target: { x: targetX, y: targetY },
+      targetNode: manualEdgeData.targetNode,
     });
 
     return (

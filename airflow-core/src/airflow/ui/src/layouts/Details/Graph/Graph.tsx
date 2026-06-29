@@ -17,14 +17,7 @@
  * under the License.
  */
 import { Box, Spinner, useToken } from "@chakra-ui/react";
-import {
-  applyNodeChanges,
-  Background,
-  MiniMap,
-  ReactFlow,
-  type Node as ReactFlowNode,
-  type NodeChange,
-} from "@xyflow/react";
+import { Background, MiniMap, ReactFlow, type Node as ReactFlowNode, type NodeChange } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -50,6 +43,7 @@ import { GraphControls } from "./components/GraphControls";
 import { useFilteredNodesAndEdges } from "./hooks/useFilteredNodesAndEdges";
 import { useGraphSearchParams } from "./hooks/useGraphSearchParams";
 import { useGraphFilteredNodes } from "./useGraphFilteredNodes";
+import { applyManualNodeChanges, getManualEdgeNodeIds, type GraphNode } from "./utils/manualLayout";
 import { nodeColor } from "./utils/nodeColor";
 
 // Hoisted to module scope so ReactFlow receives a stable reference and skips
@@ -57,119 +51,6 @@ import { nodeColor } from "./utils/nodeColor";
 const defaultEdgeOptions = {
   interactionWidth: 0,
   zIndex: -1,
-};
-
-const collisionPadding = 12;
-const searchGridSize = 24;
-const maxSearchRadius = 24;
-const fallbackNodeWidth = 100;
-const fallbackNodeHeight = 64;
-const radialDirections = [
-  { x: 1, y: 0 },
-  { x: -1, y: 0 },
-  { x: 0, y: 1 },
-  { x: 0, y: -1 },
-  { x: 1, y: 1 },
-  { x: 1, y: -1 },
-  { x: -1, y: 1 },
-  { x: -1, y: -1 },
-];
-
-const getNodeDimensions = (node: ReactFlowNode<CustomNodeProps>) => ({
-  height: node.height ?? node.data.height ?? fallbackNodeHeight,
-  width: node.width ?? node.data.width ?? fallbackNodeWidth,
-});
-
-const nodesOverlap = (
-  firstNode: ReactFlowNode<CustomNodeProps>,
-  secondNode: ReactFlowNode<CustomNodeProps>,
-  firstPosition = firstNode.position,
-) => {
-  const firstDimensions = getNodeDimensions(firstNode);
-  const secondDimensions = getNodeDimensions(secondNode);
-
-  return (
-    firstPosition.x < secondNode.position.x + secondDimensions.width + collisionPadding &&
-    firstPosition.x + firstDimensions.width + collisionPadding > secondNode.position.x &&
-    firstPosition.y < secondNode.position.y + secondDimensions.height + collisionPadding &&
-    firstPosition.y + firstDimensions.height + collisionPadding > secondNode.position.y
-  );
-};
-
-const findNearestOpenPosition = ({
-  movedNode,
-  nodes,
-}: {
-  movedNode: ReactFlowNode<CustomNodeProps>;
-  nodes: Array<ReactFlowNode<CustomNodeProps>>;
-}) => {
-  const otherNodes = nodes.filter((node) => node.id !== movedNode.id);
-
-  const isPositionFree = (position: { x: number; y: number }) =>
-    otherNodes.every((node) => !nodesOverlap(movedNode, node, position));
-
-  if (isPositionFree(movedNode.position)) {
-    return movedNode.position;
-  }
-
-  for (let radius = 1; radius <= maxSearchRadius; radius += 1) {
-    for (const direction of radialDirections) {
-      const position = {
-        x: movedNode.position.x + direction.x * radius * searchGridSize,
-        y: movedNode.position.y + direction.y * radius * searchGridSize,
-      };
-
-      if (isPositionFree(position)) {
-        return position;
-      }
-    }
-  }
-
-  return movedNode.position;
-};
-
-const avoidNodeOverlap = ({
-  changes,
-  nodes,
-}: {
-  changes: Array<NodeChange<ReactFlowNode<CustomNodeProps>>>;
-  nodes: Array<ReactFlowNode<CustomNodeProps>>;
-}) => {
-  const movedNodeIds = new Set(
-    changes
-      .filter(
-        (
-          change,
-        ): change is {
-          dragging: false;
-          id: string;
-          type: "position";
-        } & NodeChange<ReactFlowNode<CustomNodeProps>> =>
-          change.type === "position" && change.dragging === false,
-      )
-      .map((change) => change.id),
-  );
-
-  if (movedNodeIds.size === 0) {
-    return nodes;
-  }
-
-  const resolvedNodes = [...nodes];
-
-  for (const movedNodeId of movedNodeIds) {
-    const movedNodeIndex = resolvedNodes.findIndex((node) => node.id === movedNodeId);
-    const movedNode = movedNodeIndex === -1 ? undefined : resolvedNodes[movedNodeIndex];
-
-    if (movedNode !== undefined) {
-      const position = findNearestOpenPosition({ movedNode, nodes: resolvedNodes });
-
-      if (position !== movedNode.position) {
-        resolvedNodes[movedNodeIndex] = { ...movedNode, position };
-      }
-    }
-  }
-
-  return resolvedNodes;
 };
 
 export const Graph = () => {
@@ -196,7 +77,8 @@ export const Graph = () => {
   const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(dependenciesKey(dagId), "tasks");
   const [direction] = useLocalStorage<Direction>(directionKey(dagId), "RIGHT");
   const [isManualLayout, setIsManualLayout] = useState(false);
-  const [manualNodes, setManualNodes] = useState<Array<ReactFlowNode<CustomNodeProps>>>([]);
+  const [manualEdgeNodeIds, setManualEdgeNodeIds] = useState<Set<string>>(() => new Set());
+  const [manualNodes, setManualNodes] = useState<Array<GraphNode>>([]);
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
   const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData(
@@ -315,11 +197,21 @@ export const Graph = () => {
       return;
     }
 
-    setManualNodes((currentNodes) => {
-      const changedNodes = applyNodeChanges(changes, currentNodes);
+    const changedManualEdgeNodeIds = getManualEdgeNodeIds({ changes, nodes: manualNodes });
 
-      return avoidNodeOverlap({ changes, nodes: changedNodes });
-    });
+    if (changedManualEdgeNodeIds.size > 0) {
+      setManualEdgeNodeIds((currentNodeIds) => {
+        const nextNodeIds = new Set(currentNodeIds);
+
+        for (const nodeId of changedManualEdgeNodeIds) {
+          nextNodeIds.add(nodeId);
+        }
+
+        return nextNodeIds.size === currentNodeIds.size ? currentNodeIds : nextNodeIds;
+      });
+    }
+
+    setManualNodes((currentNodes) => applyManualNodeChanges({ changes, currentNodes }));
   };
 
   const toggleManualLayout = () => {
@@ -327,6 +219,7 @@ export const Graph = () => {
       const nextValue = !currentValue;
 
       setManualNodes(nextValue ? (nodes ?? []) : []);
+      setManualEdgeNodeIds(new Set());
 
       return nextValue;
     });
@@ -339,10 +232,11 @@ export const Graph = () => {
         ...edge,
         data: {
           ...edge.data,
-          isManualLayout,
+          isManualLayout:
+            isManualLayout && (manualEdgeNodeIds.has(edge.source) || manualEdgeNodeIds.has(edge.target)),
         },
       })),
-    [edges, isManualLayout],
+    [edges, isManualLayout, manualEdgeNodeIds],
   );
   const selectedNodeId = taskId ?? groupId;
 

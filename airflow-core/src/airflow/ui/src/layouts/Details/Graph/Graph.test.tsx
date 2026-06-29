@@ -27,6 +27,7 @@ import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { Graph } from "./Graph";
+import * as testUtils from "./Graph.testUtils";
 import { GraphControls } from "./components/GraphControls";
 
 // testsSetup.ts globally mocks Graph to null so full-page tests don't need to
@@ -116,6 +117,52 @@ const mockGraphNodeTwo = {
   type: "task",
   width: 100,
 };
+const mockGraphNodeThree = {
+  data: { id: "task_3", label: "Task 3", type: "task" },
+  height: 80,
+  id: "task_3",
+  position: { x: 10, y: 180 },
+  type: "task",
+  width: 100,
+};
+const mockGraphNodeFour = {
+  data: { id: "task_4", label: "Task 4", type: "task" },
+  height: 80,
+  id: "task_4",
+  position: { x: 130, y: 180 },
+  type: "task",
+  width: 100,
+};
+const mockGraphGroupNode = {
+  data: { id: "section_1", isGroup: true, isOpen: true, label: "Section 1", type: "task" },
+  height: 200,
+  id: "section_1",
+  position: { x: 100, y: 100 },
+  type: "task",
+  width: 300,
+};
+const mockGraphGroupChildNode = {
+  data: { id: "section_1.task_1", label: "Task 1", type: "task" },
+  height: 80,
+  id: "section_1.task_1",
+  parentId: "section_1",
+  position: { x: 130, y: 160 },
+  type: "task",
+  width: 100,
+};
+const mockAssetConditionNode = {
+  data: {
+    assetCondition: "and-gate",
+    id: "asset_condition_1",
+    label: "Asset Expression",
+    type: "asset-condition",
+  },
+  height: 30,
+  id: "asset_condition_1",
+  position: { x: 250, y: 120 },
+  type: "asset-condition",
+  width: 30,
+};
 const mockGraphEdge = {
   data: {
     rest: {
@@ -129,34 +176,51 @@ const mockGraphEdge = {
   target: "task_2",
   type: "custom",
 };
+const mockUnrelatedGraphEdge = {
+  data: {
+    rest: {
+      id: "edge-task-3-task-4",
+      sources: ["task_3"],
+      targets: ["task_4"],
+    },
+  },
+  id: "edge-task-3-task-4",
+  source: "task_3",
+  target: "task_4",
+  type: "custom",
+};
+const mockGraphGroupChildEdge = {
+  data: {
+    rest: {
+      id: "edge-section-1-task-1-task-2",
+      sources: ["section_1.task_1"],
+      targets: ["task_2"],
+    },
+  },
+  id: "edge-section-1-task-1-task-2",
+  source: "section_1.task_1",
+  target: "task_2",
+  type: "custom",
+};
+const mockAssetConditionEdge = {
+  data: {
+    rest: {
+      id: "edge-asset-condition-1-task-1",
+      sources: ["asset_condition_1"],
+      targets: ["task_1"],
+    },
+  },
+  id: "edge-asset-condition-1-task-1",
+  source: "asset_condition_1",
+  target: "task_1",
+  type: "custom",
+};
 const changedNodePosition = { x: 520, y: 260 };
+const changedGroupPosition = { x: 160, y: 140 };
+const changedAssetConditionPosition = { x: 300, y: 180 };
 const freeNodePosition = { x: 420, y: 420 };
 const overlappingNodePosition = { x: 130, y: 20 };
 const simultaneousDropPosition = { x: 130, y: 20 };
-const testSearchGridSize = 24;
-const testMaxSearchRadius = 24;
-const testRadialDirections = [
-  { x: 1, y: 0 },
-  { x: -1, y: 0 },
-  { x: 0, y: 1 },
-  { x: 0, y: -1 },
-  { x: 1, y: 1 },
-  { x: 1, y: -1 },
-  { x: -1, y: 1 },
-  { x: -1, y: -1 },
-];
-
-const nodesOverlap = ({
-  first,
-  second,
-}: {
-  first: { height?: number; position: { x: number; y: number }; width?: number };
-  second: { height?: number; position: { x: number; y: number }; width?: number };
-}) =>
-  first.position.x < second.position.x + (second.width ?? 0) &&
-  first.position.x + (first.width ?? 0) > second.position.x &&
-  first.position.y < second.position.y + (second.height ?? 0) &&
-  first.position.y + (first.height ?? 0) > second.position.y;
 
 const getGraphControlsProps = () => {
   const children = vi.mocked(ReactFlow).mock.lastCall?.[0]?.children;
@@ -174,6 +238,10 @@ const getGraphControlsProps = () => {
 const getRenderedNodes = () => vi.mocked(ReactFlow).mock.lastCall?.[0]?.nodes ?? [];
 
 const getRenderedNodeById = (nodeId: string) => getRenderedNodes().find((node) => node.id === nodeId);
+
+const getRenderedEdges = () => vi.mocked(ReactFlow).mock.lastCall?.[0]?.edges ?? [];
+
+const getRenderedEdgeById = (edgeId: string) => getRenderedEdges().find((edge) => edge.id === edgeId);
 
 describe("Graph", () => {
   beforeEach(() => {
@@ -237,22 +305,119 @@ describe("Graph", () => {
     );
   });
 
-  it("sets manual layout edge mode only while manual mode is active", () => {
+  it("keeps ELK edge layout until a node moves in manual mode", () => {
+    vi.mocked(useGraphLayout).mockReturnValue({
+      data: {
+        edges: [mockGraphEdge, mockUnrelatedGraphEdge],
+        nodes: [mockGraphNode, mockGraphNodeTwo, mockGraphNodeThree, mockGraphNodeFour],
+      },
+      isPending: false,
+    } as ReturnType<typeof useGraphLayout>);
+
     render(<Graph />, { wrapper: Wrapper });
 
-    expect(vi.mocked(ReactFlow).mock.lastCall?.[0]?.edges?.[0]?.data?.isManualLayout).toBe(false);
+    expect(getRenderedEdgeById("edge-task-1-task-2")?.data?.isManualLayout).toBe(false);
+    expect(getRenderedEdgeById("edge-task-3-task-4")?.data?.isManualLayout).toBe(false);
 
     act(() => {
       getGraphControlsProps()?.onToggleManualLayout();
     });
 
-    expect(vi.mocked(ReactFlow).mock.lastCall?.[0]?.edges?.[0]?.data?.isManualLayout).toBe(true);
+    expect(getRenderedEdgeById("edge-task-1-task-2")?.data?.isManualLayout).toBe(false);
+    expect(getRenderedEdgeById("edge-task-3-task-4")?.data?.isManualLayout).toBe(false);
+
+    const onNodesChange = vi.mocked(ReactFlow).mock.lastCall?.[0]?.onNodesChange;
+
+    act(() => {
+      onNodesChange?.([{ dragging: true, id: "task_1", position: changedNodePosition, type: "position" }]);
+    });
+
+    expect(getRenderedEdgeById("edge-task-1-task-2")?.data?.isManualLayout).toBe(true);
+    expect(getRenderedEdgeById("edge-task-3-task-4")?.data?.isManualLayout).toBe(false);
 
     act(() => {
       getGraphControlsProps()?.onToggleManualLayout();
     });
 
-    expect(vi.mocked(ReactFlow).mock.lastCall?.[0]?.edges?.[0]?.data?.isManualLayout).toBe(false);
+    expect(getRenderedEdgeById("edge-task-1-task-2")?.data?.isManualLayout).toBe(false);
+    expect(getRenderedEdgeById("edge-task-3-task-4")?.data?.isManualLayout).toBe(false);
+
+    act(() => {
+      getGraphControlsProps()?.onToggleManualLayout();
+    });
+
+    expect(getRenderedEdgeById("edge-task-1-task-2")?.data?.isManualLayout).toBe(false);
+    expect(getRenderedEdgeById("edge-task-3-task-4")?.data?.isManualLayout).toBe(false);
+  });
+
+  it("keeps open task group children in parent coordinates while moving the group", () => {
+    vi.mocked(useGraphLayout).mockReturnValue({
+      data: {
+        edges: [mockGraphGroupChildEdge],
+        nodes: [mockGraphGroupNode, mockGraphGroupChildNode, mockGraphNodeTwo],
+      },
+      isPending: false,
+    } as unknown as ReturnType<typeof useGraphLayout>);
+
+    render(<Graph />, { wrapper: Wrapper });
+
+    act(() => {
+      getGraphControlsProps()?.onToggleManualLayout();
+    });
+
+    expect(getRenderedEdgeById("edge-section-1-task-1-task-2")?.data?.isManualLayout).toBe(false);
+
+    const onNodesChange = vi.mocked(ReactFlow).mock.lastCall?.[0]?.onNodesChange;
+
+    act(() => {
+      onNodesChange?.([
+        { dragging: true, id: "section_1", position: changedGroupPosition, type: "position" },
+      ]);
+    });
+
+    expect(getRenderedNodeById("section_1")?.position).toEqual(changedGroupPosition);
+    expect(getRenderedNodeById("section_1.task_1")?.position).toEqual(mockGraphGroupChildNode.position);
+    expect(getRenderedEdgeById("edge-section-1-task-1-task-2")?.data?.isManualLayout).toBe(true);
+
+    act(() => {
+      onNodesChange?.([
+        { dragging: false, id: "section_1", position: changedGroupPosition, type: "position" },
+      ]);
+    });
+
+    expect(getRenderedNodeById("section_1")?.position).toEqual(changedGroupPosition);
+    expect(getRenderedNodeById("section_1.task_1")?.position).toEqual(mockGraphGroupChildNode.position);
+  });
+
+  it("keeps asset expression edges in ELK mode until an asset expression node moves", () => {
+    vi.mocked(useGraphLayout).mockReturnValue({
+      data: { edges: [mockAssetConditionEdge], nodes: [mockAssetConditionNode, mockGraphNode] },
+      isPending: false,
+    } as unknown as ReturnType<typeof useGraphLayout>);
+
+    render(<Graph />, { wrapper: Wrapper });
+
+    act(() => {
+      getGraphControlsProps()?.onToggleManualLayout();
+    });
+
+    expect(getRenderedEdges()[0]?.data?.isManualLayout).toBe(false);
+
+    const onNodesChange = vi.mocked(ReactFlow).mock.lastCall?.[0]?.onNodesChange;
+
+    act(() => {
+      onNodesChange?.([
+        {
+          dragging: true,
+          id: "asset_condition_1",
+          position: changedAssetConditionPosition,
+          type: "position",
+        },
+      ]);
+    });
+
+    expect(getRenderedNodeById("asset_condition_1")?.position).toEqual(changedAssetConditionPosition);
+    expect(getRenderedEdges()[0]?.data?.isManualLayout).toBe(true);
   });
 
   it("restores ELK positions when switching manual layout off", () => {
@@ -324,7 +489,7 @@ describe("Graph", () => {
     let secondNode = getRenderedNodeById("task_2");
     const firstPassHasOverlap =
       firstNode !== undefined && secondNode !== undefined
-        ? nodesOverlap({ first: firstNode, second: secondNode })
+        ? testUtils.nodesOverlap({ first: firstNode, second: secondNode })
         : true;
 
     expect(firstPassHasOverlap).toBe(false);
@@ -362,11 +527,11 @@ describe("Graph", () => {
     const blockedDropPosition = { x: 100, y: 100 };
     const blockedPositions = [blockedDropPosition];
 
-    for (let radius = 1; radius <= testMaxSearchRadius; radius += 1) {
-      for (const direction of testRadialDirections) {
+    for (let radius = 1; radius <= testUtils.testMaxSearchRadius; radius += 1) {
+      for (const direction of testUtils.testRadialDirections) {
         blockedPositions.push({
-          x: blockedDropPosition.x + direction.x * radius * testSearchGridSize,
-          y: blockedDropPosition.y + direction.y * radius * testSearchGridSize,
+          x: blockedDropPosition.x + direction.x * radius * testUtils.testSearchGridSize,
+          y: blockedDropPosition.y + direction.y * radius * testUtils.testSearchGridSize,
         });
       }
     }
@@ -420,7 +585,7 @@ describe("Graph", () => {
     let secondNode = renderedNodes.find((node) => node.id === "task_2");
     let hasOverlap =
       firstNode !== undefined && secondNode !== undefined
-        ? nodesOverlap({ first: firstNode, second: secondNode })
+        ? testUtils.nodesOverlap({ first: firstNode, second: secondNode })
         : true;
 
     expect(firstNode?.position).toEqual(overlappingNodePosition);
@@ -437,7 +602,7 @@ describe("Graph", () => {
     secondNode = renderedNodes.find((node) => node.id === "task_2");
     hasOverlap =
       firstNode !== undefined && secondNode !== undefined
-        ? nodesOverlap({ first: firstNode, second: secondNode })
+        ? testUtils.nodesOverlap({ first: firstNode, second: secondNode })
         : true;
 
     expect(firstNode?.position).not.toEqual(overlappingNodePosition);
