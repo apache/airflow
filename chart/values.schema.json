@@ -5662,8 +5662,9 @@
                         },
                         "parentRefs": {
                             "description": "List of parent Gateway references this HTTPRoute attaches to. Required when enabled.",
-                            "type": "array",
-                            "default": [],
+                            "type": ["array", "null"],
+                            "default": null,
+                            "minItems": 1,
                             "items": {
                                 "type": "object",
                                 "properties": {

@@ -245,10 +245,22 @@ class TestHTTPRouteAPIServer:
         assert "Gateway API HTTPRoute CRD" in exc_info.value.stderr.decode()
 
     def test_should_fail_when_parent_refs_empty(self):
-        # Gateway API CRD present, but no parentRefs -> fail fast on the empty config.
+        # Gateway API CRD present, but parentRefs left at its `~` default -> the template
+        # guard catches the still-null value while enabled.
         with pytest.raises(HelmFailedError) as exc_info:
             render_chart(
                 values={"apiServer": {"httpRoute": {"enabled": True}}},
+                show_only=SHOW_ONLY,
+                api_versions=GATEWAY_API_VERSIONS,
+            )
+        assert "parentRefs" in exc_info.value.stderr.decode()
+
+    def test_should_fail_schema_when_parent_refs_explicitly_empty(self):
+        # An explicitly empty `parentRefs: []` violates the schema's `minItems: 1` and
+        # fails fast during values validation, before any template guard runs.
+        with pytest.raises(HelmFailedError) as exc_info:
+            render_chart(
+                values={"apiServer": {"httpRoute": {"enabled": True, "parentRefs": []}}},
                 show_only=SHOW_ONLY,
                 api_versions=GATEWAY_API_VERSIONS,
             )
