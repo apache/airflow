@@ -76,6 +76,15 @@ def clear_assets():
 
 
 @pytest.fixture
+def clear_teams():
+    from tests_common.test_utils.db import clear_db_teams
+
+    clear_db_teams()
+    yield
+    clear_db_teams()
+
+
+@pytest.fixture
 def mock_task_instance():
     # TODO: Fixme - some mock_task_instance is needed here
     return None
@@ -485,10 +494,10 @@ class TestAssetManager:
         # partition-at-runtime Dag so its run can carry a ``partition_key`` that
         # the emitted ``AssetEvent`` inherits.
         from airflow.models.taskinstance import TaskInstance
-        from airflow.sdk import PartitionAtRuntime
+        from airflow.sdk import PartitionedAtRuntime
 
         with dag_maker(
-            dag_id="stamp-producer", schedule=PartitionAtRuntime(), session=session
+            dag_id="stamp-producer", schedule=PartitionedAtRuntime(), session=session
         ) as producer_dag:
             from airflow.providers.standard.operators.empty import EmptyOperator
 
@@ -839,6 +848,7 @@ def _make_asset_model(
 
 
 class TestAssetMetricsTeamName:
+    @pytest.mark.usefixtures("clear_teams")
     @pytest.mark.parametrize(
         ("multi_team", "expect_team_tag"),
         [

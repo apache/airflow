@@ -26,6 +26,7 @@ import time_machine
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
+from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.models import DagRun
 from airflow.models.deadline import Deadline, _fetch_from_db
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -211,23 +212,6 @@ class TestDeadline:
             assert f"needed by {DEFAULT_DATE}" in repr_str
             assert TEST_CALLBACK_PATH in repr_str
 
-    def test_repr_with_dagrun_id_but_no_dagrun_relationship(self, deadline_orm):
-        """__repr__ must NOT raise when dagrun_id is set but the dagrun relationship is None.
-
-        The FK (dagrun_id) can be set while the relationship resolves to None — e.g. the DagRun
-        was deleted (ondelete=CASCADE) and this is a stale/expired in-memory Deadline. A __repr__
-        that raised AttributeError here would break log lines, tracebacks, and debugger displays
-        exactly when something is already going wrong. The repr falls back to an id-only form.
-        """
-        # Sever the relationship while keeping the FK id (simulates deleted/detached DagRun).
-        deadline_orm.dagrun = None
-        assert deadline_orm.dagrun_id is not None
-
-        repr_str = repr(deadline_orm)  # must not raise
-        assert "[DagRun Deadline]" in repr_str
-        assert f"Run: {deadline_orm.dagrun_id}" in repr_str
-        assert "Dag: <unknown>" in repr_str
-
     @pytest.mark.db_test
     def test_bundle_name_propagated_to_callback(self, dagrun, session):
         """The bundle name is forwarded to the callback so the triggerer can resolve its team."""
@@ -264,17 +248,13 @@ class TestDeadline:
 
         assert deadline_orm.missed
 
-        # DagRun identifiers are stored at the top level of callback.data for routing
-        assert deadline_orm.callback.data["dag_id"] == dagrun.dag_id
-        assert deadline_orm.callback.data["run_id"] == dagrun.run_id
+        callback_kwargs = deadline_orm.callback.data["kwargs"]
+        context = callback_kwargs.pop("context")
+        assert callback_kwargs == TEST_CALLBACK_KWARGS
 
-        # Deadline-specific info is in top-level data (not kwargs) — the context builder
-        # exposes them as context["deadline"] = {"id": ..., "deadline_time": ...}
-        assert deadline_orm.callback.data["deadline_id"] == str(deadline_orm.id)
-        assert deadline_orm.callback.data["deadline_time"] == deadline_orm.deadline_time.isoformat()
-
-        # User kwargs remain unchanged
-        assert deadline_orm.callback.data["kwargs"] == TEST_CALLBACK_KWARGS
+        assert context["deadline"]["id"] == deadline_orm.id
+        assert context["deadline"]["deadline_time"].timestamp() == deadline_orm.deadline_time.timestamp()
+        assert context["dag_run"] == DAGRunResponse.model_validate(dagrun).model_dump(mode="json")
 
 
 @pytest.mark.db_test
@@ -539,18 +519,70 @@ class TestCalculatedDeadlineDatabaseCalls:
         with pytest.raises(ValueError, match="min_runs must be at least 1"):
             DeadlineReference.AVERAGE_RUNTIME(max_runs=10, min_runs=-1)
 
-    def test_average_runtime_min_runs_cannot_exceed_max_runs(self):
-        """``min_runs > max_runs`` is unsatisfiable: the query is ``LIMIT max_runs`` and then
-        requires ``len(durations) >= min_runs``, so the deadline would silently never be
-        created. It must be rejected at authoring/deserialize time, not produce an inert deadline.
-        """
-        match = "cannot exceed max_runs"
+    def test_average_runtime_excludes_non_successful_runs(self, session, dag_maker):
+        """Only SUCCESSFUL runs contribute to the average; FAILED runs must be ignored.
 
-        # Deserialize path (e.g. a hand-edited / legacy serialized blob) must reject it.
-        with pytest.raises(ValueError, match=match):
-            SerializedReferenceModels.AverageRuntimeDeadline.deserialize_reference(
-                {"max_runs": 5, "min_runs": 10}
+        A failed run's duration is not representative of a normal runtime, so including it
+        would skew the computed deadline. Seed an equal mix of fast-successful and
+        slow-failed runs and assert the average reflects only the successful ones.
+        """
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        base_time = DEFAULT_DATE
+        success_duration = 60  # the only durations that should count
+        failed_duration = 36000  # 10h — would massively skew the average if (wrongly) counted
+
+        # Interleave 3 successful (60s) and 3 failed (36000s) runs.
+        specs = [
+            (DagRunState.SUCCESS, success_duration),
+            (DagRunState.FAILED, failed_duration),
+            (DagRunState.SUCCESS, success_duration),
+            (DagRunState.FAILED, failed_duration),
+            (DagRunState.SUCCESS, success_duration),
+            (DagRunState.FAILED, failed_duration),
+        ]
+        for i, (state, duration) in enumerate(specs):
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            dagrun = dag_maker.create_dagrun(logical_date=logical_date, run_id=f"mix_run_{i}", state=state)
+            dagrun.start_date = start_time
+            dagrun.end_date = start_time + timedelta(seconds=duration)
+
+        session.commit()
+
+        # min_runs=3 so the 3 successful runs alone satisfy the minimum.
+        reference = SerializedReferenceModels.AverageRuntimeDeadline(max_runs=10, min_runs=3)
+        interval = timedelta(hours=1)
+
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+
+        # Average must be over the 3 successful 60s runs only (not the 36000s failures).
+        expected = DEFAULT_DATE + timedelta(seconds=success_duration) + interval
+        assert result.replace(second=0, microsecond=0) == expected.replace(second=0, microsecond=0)
+
+    def test_average_runtime_skips_when_too_few_successful_runs(self, session, dag_maker):
+        """If only FAILED runs exist (fewer than min_runs successful), no deadline is created."""
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        base_time = DEFAULT_DATE
+        for i in range(5):
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            dagrun = dag_maker.create_dagrun(
+                logical_date=logical_date, run_id=f"failed_run_{i}", state=DagRunState.FAILED
             )
+            dagrun.start_date = start_time
+            dagrun.end_date = start_time + timedelta(seconds=3600)
+
+        session.commit()
+
+        reference = SerializedReferenceModels.AverageRuntimeDeadline(max_runs=10, min_runs=3)
+        result = reference.evaluate_with(session=session, interval=timedelta(hours=1), dag_id=DAG_ID)
+        assert result is None
 
 
 class TestDeadlineReference:

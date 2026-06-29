@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.datamodels.common import MaybeAssetExpression
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.api_fastapi.core_api.datamodels.hitl import HITLDetail
 from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightResponse
@@ -26,7 +27,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightRespo
 class DAGWithLatestDagRunsResponse(DAGResponse):
     """DAG with latest dag runs response serializer."""
 
-    asset_expression: dict | None
+    asset_expression: MaybeAssetExpression
     latest_dag_runs: list[DAGRunLightResponse]
     pending_actions: list[HITLDetail]
     is_favorite: bool

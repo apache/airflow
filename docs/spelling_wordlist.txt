@@ -473,6 +473,7 @@ devel
 DevOps
 devtools
 df
+dictConfig
 dicts
 Dingding
 dingding

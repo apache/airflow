@@ -58,22 +58,6 @@ export const DeadlineStatusModal = ({
   const [page, setPage] = useState(1);
   const offset = (page - 1) * PAGE_LIMIT;
 
-  // A dynamic interval (e.g. VariableInterval) comes back as null — render a "dynamic interval"
-  // phrasing rather than a misleading "a few seconds" from dayjs.duration(null, ...).
-  const completionRule = (alert: DeadlineAlertResponse) =>
-    alert.interval === null || alert.interval === undefined
-      ? translate("deadlineAlerts.completionRuleDynamic", {
-          reference: translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
-            defaultValue: alert.reference_type,
-          }),
-        })
-      : translate("deadlineAlerts.completionRule", {
-          interval: dayjs.duration(alert.interval, "seconds").humanize(),
-          reference: translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
-            defaultValue: alert.reference_type,
-          }),
-        });
-
   const { data, error, isLoading } = useDeadlinesServiceGetDeadlines(
     {
       dagId,
@@ -146,7 +130,12 @@ export const DeadlineStatusModal = ({
                     </HStack>
                     {alert === undefined ? undefined : (
                       <Text color="fg.muted" fontSize="xs">
-                        {completionRule(alert)}
+                        {translate("deadlineAlerts.completionRule", {
+                          interval: dayjs.duration(alert.interval, "seconds").humanize(),
+                          reference: translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
+                            defaultValue: alert.reference_type,
+                          }),
+                        })}
                       </Text>
                     )}
                     <HStack gap={1}>

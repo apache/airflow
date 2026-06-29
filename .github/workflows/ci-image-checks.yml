@@ -160,6 +160,18 @@ jobs:
       - name: "Show prek log on failure"
         run: cat ~/.cache/prek/prek.log || true
         if: failure()
+      - name: "Check PR title is not Conventional Commits"
+        # With "squash and merge" the PR title becomes the commit subject that lands on the
+        # target branch (individual commit subjects are often "fixup"/"apply review" and do
+        # not survive the squash), so the title is what we must validate. Read it from an env
+        # var rather than interpolating it into the script to avoid shell injection from a
+        # crafted PR title.
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          printf '%s\n' "$PR_TITLE" \
+            | ./scripts/ci/prek/check_no_conventional_commit_message.py --from-stdin
 
   build-docs:
     timeout-minutes: 150
