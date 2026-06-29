@@ -858,7 +858,7 @@ ARG_CONN_PASSWORD = Arg(
 ARG_CONN_SCHEMA = Arg(
     ("--conn-schema",), help="Connection schema, optional when adding a connection", type=str
 )
-ARG_CONN_PORT = Arg(("--conn-port",), help="Connection port, optional when adding a connection", type=str)
+ARG_CONN_PORT = Arg(("--conn-port",), help="Connection port (1-65535), optional when adding a connection", type=int)
 ARG_CONN_EXTRA = Arg(
     ("--conn-extra",), help="Connection `Extra` field, optional when adding a connection", type=str
 )

@@ -421,3 +421,24 @@ class TestConnectionFromUri:
             original_extra = json.loads(conn_from_original.extra)
             roundtrip_extra = json.loads(conn_from_roundtrip.extra)
             assert original_extra == roundtrip_extra
+
+
+class TestConnectionPortValidation:
+    """Tests for port range validation in Task SDK Connection (issue #68382)."""
+
+    @pytest.mark.parametrize("port", [1, 80, 443, 8080, 5432, 65535])
+    def test_accepts_valid_ports(self, port):
+        """Valid TCP/UDP ports (1-65535) should be accepted."""
+        conn = Connection(conn_id="test", conn_type="http", port=port)
+        assert conn.port == port
+
+    def test_accepts_none_port(self):
+        """None (no port) should be accepted."""
+        conn = Connection(conn_id="test", conn_type="http", port=None)
+        assert conn.port is None
+
+    @pytest.mark.parametrize("port", [0, -1, -100, 65536, 99999999])
+    def test_rejects_invalid_ports(self, port):
+        """Ports outside range 1-65535 should be rejected."""
+        with pytest.raises(ValueError, match="Port must be between 1 and 65535"):
+            Connection(conn_id="test", conn_type="http", port=port)

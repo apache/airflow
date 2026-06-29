@@ -161,6 +161,12 @@ class ConnectionTestRequest(Base, FernetFieldsMixin):
         self.token = secrets.token_urlsafe(32)
         self.state = ConnectionTestState.PENDING
 
+    @validates("port")
+    def _validate_port(self, _key: str, value: int | None) -> int | None:
+        from airflow.models.connection import validate_port
+
+        return validate_port(value)
+
     @validates("state")
     def _sync_active_connection_id(
         self, _key: str, value: str | ConnectionTestState
