@@ -933,6 +933,47 @@ class TestBigQueryCheckOperators:
         mock_get_db_hook.assert_called_once()
 
 
+@pytest.mark.parametrize(
+    ("operator_class", "kwargs"),
+    [
+        pytest.param(
+            BigQueryValueCheckOperator,
+            {"sql": "SELECT COUNT(*) FROM Any", "pass_value": 1},
+            id="value-check",
+        ),
+        pytest.param(
+            BigQueryIntervalCheckOperator,
+            {"table": TEST_TABLE_ID, "metrics_thresholds": {"COUNT(*)": 1.5}},
+            id="interval-check",
+        ),
+        pytest.param(
+            BigQueryGetDataOperator,
+            {"dataset_id": TEST_DATASET, "table_id": TEST_TABLE_ID},
+            id="get-data",
+        ),
+        pytest.param(
+            BigQueryColumnCheckOperator,
+            {"table": TEST_TABLE_ID, "column_mapping": {"col1": {"min": {"greater_than": 0}}}},
+            id="column-check",
+        ),
+        pytest.param(
+            BigQueryTableCheckOperator,
+            {
+                "table": TEST_TABLE_ID,
+                "checks": {"row_count_check": {"check_statement": "COUNT(*) > 0"}},
+            },
+            id="table-check",
+        ),
+    ],
+)
+def test_other_implicit_legacy_sql_default_warns(operator_class, kwargs):
+    with pytest.warns(
+        AirflowProviderDeprecationWarning,
+        match="The default value of `use_legacy_sql` is deprecated",
+    ):
+        operator_class(task_id=TASK_ID, **kwargs)
+
+
 class TestBigQueryUpsertTableOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute(self, mock_hook):
@@ -2397,6 +2438,16 @@ class TestBigQueryIntervalCheckOperator:
 
 
 class TestBigQueryCheckOperator:
+    def test_implicit_legacy_sql_default_warns(self):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The default value of `use_legacy_sql` is deprecated",
+        ):
+            BigQueryCheckOperator(
+                task_id="check_query",
+                sql="SELECT COUNT(*) FROM Any",
+            )
+
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator._validate_records")
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator.defer")

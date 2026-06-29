@@ -35,18 +35,17 @@ class MCPToolset(AbstractToolset[Any]):
 
     Reads MCP server transport type, URL, command, and credentials from the
     connection via :class:`~airflow.providers.common.ai.hooks.mcp.MCPHook` and
-    creates the appropriate PydanticAI MCP server instance.
-    All ``AbstractToolset`` methods delegate to the underlying MCP server.
+    builds the matching PydanticAI :class:`~pydantic_ai.mcp.MCPToolset`.
+    All ``AbstractToolset`` methods delegate to the underlying MCP toolset.
 
     This is the recommended way to use MCP servers in Airflow — it stores
     server configuration in Airflow connections (and secret backends) rather
     than hard-coding URLs and credentials in DAG code.
 
-    If you prefer full PydanticAI control, you can pass MCP server instances
-    directly to ``AgentOperator(toolsets=[...])``, since
-    :class:`~pydantic_ai.mcp.MCPServerStreamableHTTP`,
-    :class:`~pydantic_ai.mcp.MCPServerSSE`, and
-    :class:`~pydantic_ai.mcp.MCPServerStdio` all implement ``AbstractToolset``.
+    If you prefer full PydanticAI control, you can pass a
+    :class:`~pydantic_ai.mcp.MCPToolset` (built over a FastMCP transport)
+    directly to ``AgentOperator(toolsets=[...])``, since it implements
+    ``AbstractToolset``.
 
     For MCP endpoints that need a freshly minted or short-lived token (e.g. a
     Snowflake managed MCP server authenticated with a key-pair JWT, or OAuth /

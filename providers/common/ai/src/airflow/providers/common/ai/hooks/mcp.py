@@ -47,7 +47,7 @@ class MCPHook(BaseHook):
         - **Extra.transport**: Transport type — ``http`` (default), ``sse``, or ``stdio``
         - **Extra.command**: Command to run for stdio transport (e.g. ``uvx``)
         - **Extra.args**: Command arguments for stdio transport (e.g. ``["mcp-run-python"]``)
-        - **Extra.timeout**: Connection timeout in seconds for stdio (default: 10)
+        - **Extra.timeout**: Connection init timeout in seconds for stdio (default: 10)
 
     For HTTP/SSE transports the ``Authorization`` header is, by default, a static
     ``Bearer`` token taken from the connection ``password``. Endpoints that require
@@ -121,14 +121,18 @@ class MCPHook(BaseHook):
 
     def get_conn(self) -> Any:
         """
-        Return a configured PydanticAI MCP server instance.
+        Return a configured PydanticAI MCP toolset instance.
 
-        Creates the appropriate MCP server based on the transport type
-        in the connection's extra field:
+        Builds a :class:`~pydantic_ai.mcp.MCPToolset` over the FastMCP transport
+        matching the transport type in the connection's extra field:
 
-        - ``http`` (default): :class:`~pydantic_ai.mcp.MCPServerStreamableHTTP`
-        - ``sse``: :class:`~pydantic_ai.mcp.MCPServerSSE`
-        - ``stdio``: :class:`~pydantic_ai.mcp.MCPServerStdio`
+        - ``http`` (default): ``fastmcp.client.transports.StreamableHttpTransport``
+        - ``sse``: ``fastmcp.client.transports.SSETransport``
+        - ``stdio``: ``fastmcp.client.transports.StdioTransport``
+
+        When ``tool_prefix`` is set the toolset is wrapped via
+        :meth:`~pydantic_ai.toolsets.abstract.AbstractToolset.prefixed`, so a
+        prefix of ``"weather"`` yields tool names like ``weather_get_forecast``.
 
         The result is cached for the lifetime of this hook instance.
         """
@@ -136,7 +140,8 @@ class MCPHook(BaseHook):
             return self._server
 
         try:
-            from pydantic_ai.mcp import MCPServerSSE, MCPServerStdio, MCPServerStreamableHTTP
+            from fastmcp.client.transports import SSETransport, StdioTransport, StreamableHttpTransport
+            from pydantic_ai.mcp import MCPToolset
         except ImportError:
             raise ImportError(
                 'MCP support requires the `mcp` package. Install it with: pip install "pydantic-ai-slim[mcp]"'
@@ -149,15 +154,11 @@ class MCPHook(BaseHook):
         if transport == "http":
             if not conn.host:
                 raise ValueError(f"Connection {self.mcp_conn_id!r} requires a host URL for HTTP transport.")
-            self._server = MCPServerStreamableHTTP(
-                conn.host, headers=self._auth_headers(conn), tool_prefix=self.tool_prefix
-            )
+            toolset = MCPToolset(StreamableHttpTransport(conn.host, headers=self._auth_headers(conn)))
         elif transport == "sse":
             if not conn.host:
                 raise ValueError(f"Connection {self.mcp_conn_id!r} requires a host URL for SSE transport.")
-            self._server = MCPServerSSE(
-                conn.host, headers=self._auth_headers(conn), tool_prefix=self.tool_prefix
-            )
+            toolset = MCPToolset(SSETransport(conn.host, headers=self._auth_headers(conn)))
         elif transport == "stdio":
             command = extra.get("command")
             if not command:
@@ -168,13 +169,14 @@ class MCPHook(BaseHook):
             if isinstance(args, str):
                 args = [args]
             timeout = extra.get("timeout", 10)
-            self._server = MCPServerStdio(command, args=args, timeout=timeout, tool_prefix=self.tool_prefix)
+            toolset = MCPToolset(StdioTransport(command=command, args=args), init_timeout=timeout)
         else:
             raise ValueError(
                 f"Unknown transport {transport!r} in connection {self.mcp_conn_id!r}. "
                 "Supported: 'http', 'sse', 'stdio'."
             )
 
+        self._server = toolset.prefixed(self.tool_prefix) if self.tool_prefix else toolset
         return self._server
 
     def test_connection(self) -> tuple[bool, str]:

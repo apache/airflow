@@ -1442,6 +1442,13 @@ class TestPatchDagRun:
             ),
             (
                 DAG1_ID,
+                DAG1_RUN1_ID,
+                {"note": ""},
+                {"state": DagRunState.SUCCESS, "note": None},
+                None,
+            ),
+            (
+                DAG1_ID,
                 DAG1_RUN2_ID,
                 {"note": "new note", "state": DagRunState.FAILED},
                 {"state": DagRunState.FAILED, "note": "new note"},
@@ -1758,11 +1765,16 @@ class TestClearDagRun:
         ("body", "expected_note"),
         [
             ({"dry_run": False, "note": "cleared by test"}, "cleared by test"),
-            ({"dry_run": False, "note": ""}, ""),
+            ({"dry_run": False, "note": ""}, None),
             ({"dry_run": False, "note": None}, "test_note"),
             ({"dry_run": False}, "test_note"),
         ],
-        ids=["set-new-note", "set-empty-note", "explicit-null-leaves-existing", "omit-leaves-existing"],
+        ids=[
+            "set-new-note",
+            "empty-note-removes-existing",
+            "explicit-null-leaves-existing",
+            "omit-leaves-existing",
+        ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_clear_dag_run_applies_note(self, test_client, session, body, expected_note):

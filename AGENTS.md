@@ -160,6 +160,11 @@ reported as such are described in "What is NOT considered a security vulnerabili
 - Test location mirrors source: `airflow/cli/cli_parser.py` → `tests/cli/test_cli_parser.py`.
 - Do not use `caplog` in tests, prefer checking logic and not log output.
 
+## Output conventions
+
+- Put any files you generate (PR reviews, reports, scratch output) under `files/`.
+- Create `files/` if it doesn't exist.
+
 
 ## Commits and PRs
 
