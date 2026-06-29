@@ -83,9 +83,7 @@ def test_sqlite_sanitize_quotes_nonfinite_strips_nul_and_keeps_literal():
         )
         conn.execute(sa.text(_migration._xcom_sqlite_sanitize_sql(_TABLE)))
         # json(...) mirrors the migration's own conversion and raises if still invalid JSON.
-        rows = dict(
-            conn.execute(sa.text(f"SELECT id, json(CAST(value AS TEXT)) FROM {_TABLE}")).all()
-        )
+        rows = dict(conn.execute(sa.text(f"SELECT id, json(CAST(value AS TEXT)) FROM {_TABLE}")).all())
     assert json.loads(rows[1]) == _EXPECTED
     assert json.loads(rows[2]) == _LITERAL_EXPECTED
 
@@ -99,9 +97,7 @@ class TestPostgresSanitize:
         with settings.engine.begin() as conn:
             conn.execute(sa.text(drop))
             conn.execute(sa.text(f"CREATE TABLE {_TABLE} (id int PRIMARY KEY, value bytea)"))
-            conn.execute(
-                sa.text(f"INSERT INTO {_TABLE} VALUES (1, convert_to(:v, 'UTF8'))"), {"v": _RAW}
-            )
+            conn.execute(sa.text(f"INSERT INTO {_TABLE} VALUES (1, convert_to(:v, 'UTF8'))"), {"v": _RAW})
             conn.execute(
                 sa.text(f"INSERT INTO {_TABLE} VALUES (2, convert_to(:v, 'UTF8'))"),
                 {"v": _LITERAL_RAW},
@@ -117,9 +113,7 @@ class TestPostgresSanitize:
                 conn.execute(sa.text(_migration._xcom_pg_sanitize_sql(_TABLE)))
                 conn.execute(sa.text(cast)).all()
                 rows = dict(
-                    conn.execute(
-                        sa.text(f"SELECT id, CONVERT_FROM(value, 'UTF8') FROM {_TABLE}")
-                    ).all()
+                    conn.execute(sa.text(f"SELECT id, CONVERT_FROM(value, 'UTF8') FROM {_TABLE}")).all()
                 )
             assert json.loads(rows[1]) == _EXPECTED
             assert json.loads(rows[2]) == _LITERAL_EXPECTED
@@ -137,9 +131,7 @@ class TestMysqlSanitize:
         with settings.engine.begin() as conn:
             conn.execute(sa.text(drop))
             conn.execute(sa.text(f"CREATE TABLE {_TABLE} (id int PRIMARY KEY, value LONGBLOB)"))
-            conn.execute(
-                sa.text(f"INSERT INTO {_TABLE} VALUES (1, CONVERT(:v USING utf8mb4))"), {"v": _RAW}
-            )
+            conn.execute(sa.text(f"INSERT INTO {_TABLE} VALUES (1, CONVERT(:v USING utf8mb4))"), {"v": _RAW})
             conn.execute(
                 sa.text(f"INSERT INTO {_TABLE} VALUES (2, CONVERT(:v USING utf8mb4))"),
                 {"v": _LITERAL_RAW},
@@ -149,9 +141,7 @@ class TestMysqlSanitize:
                 conn.execute(sa.text(_migration._xcom_mysql_sanitize_sql(_TABLE)))
                 conn.execute(sa.text(cast)).all()  # must not raise (bare NaN would be rejected)
                 rows = dict(
-                    conn.execute(
-                        sa.text(f"SELECT id, CONVERT(value USING utf8mb4) FROM {_TABLE}")
-                    ).all()
+                    conn.execute(sa.text(f"SELECT id, CONVERT(value USING utf8mb4) FROM {_TABLE}")).all()
                 )
             assert json.loads(rows[1]) == _EXPECTED
             assert json.loads(rows[2]) == _LITERAL_EXPECTED

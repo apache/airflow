@@ -55,7 +55,7 @@ _json_safe = _migration._json_safe
 
 
 @pytest.mark.parametrize(
-    "value, expected",
+    ("value", "expected"),
     [
         (float("nan"), "NaN"),
         (float("inf"), "Infinity"),

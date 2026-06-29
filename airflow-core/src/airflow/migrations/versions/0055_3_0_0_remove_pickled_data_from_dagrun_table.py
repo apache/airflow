@@ -47,7 +47,8 @@ airflow_version = "3.0.0"
 
 
 def _json_safe(obj):
-    """Make a pickled conf value safe for strict JSON/JSONB before json.dumps.
+    """
+    Make a pickled conf value safe for strict JSON/JSONB before json.dumps.
 
     Pickled ``conf`` can hold values that round-trip through pickle but are illegal in
     strict JSON/JSONB:
