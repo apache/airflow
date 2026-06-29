@@ -54,13 +54,20 @@ can include ``query`` and ``output_gcs_uri``. The SDK writes query input and out
 through Google Cloud Storage. By default, the operator waits for the query job to
 complete and returns the serialized query job result. Set ``retrieve_result`` to
 ``True`` in ``check_config`` to return the query job result from Google Cloud Storage.
-The same operation can be performed in the deferrable mode.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_agent_engine.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_run_query_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_run_query_job_operator]
+
+The same operation can be performed in the deferrable mode.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_agent_engine.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_run_query_job_operator_deferrable]
+    :end-before: [END how_to_cloud_vertex_ai_run_query_job_operator_deferrable]
 
 To update an Agent Engine you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.UpdateAgentEngineOperator`.

@@ -46,17 +46,54 @@ except ImportError:
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 DAG_ID = "vertex_ai_agent_engine_operations"
-LOCATION = "us-central1"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-CONTAINER_URI = os.environ.get(
-    "SYSTEM_TESTS_VERTEX_AI_AGENT_ENGINE_CONTAINER_URI",
+
+
+def _get_env(name: str, default: str = "") -> str:
+    return os.environ.get(name) or os.environ.get(f"AIRFLOW_VAR_{name}", default)
+
+
+def _get_json_env(name: str, default: dict[str, str]) -> dict[str, str]:
+    value = os.environ.get(name)
+    return json.loads(value) if value else default
+
+
+LOCATION = _get_env("GCP_REGION", "us-central1")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or _get_env("GCP_PROJECT_ID", "default")
+CONTAINER_URI = os.environ.get("SYSTEM_TESTS_VERTEX_AI_AGENT_ENGINE_CONTAINER_URI") or _get_env(
+    "GCP_AGENT_ENGINE_CONTAINER_URI",
     "us-central1-docker.pkg.dev/example-project/example-repository/example-agent:latest",
 )
-CONTAINER_ENV_VARS: dict[str, str] = json.loads(
-    os.environ.get("SYSTEM_TESTS_VERTEX_AI_AGENT_ENGINE_CONTAINER_ENV_VARS", "{}")
+CONTAINER_ENV_VARS: dict[str, str] = _get_json_env(
+    "SYSTEM_TESTS_VERTEX_AI_AGENT_ENGINE_CONTAINER_ENV_VARS",
+    {},
 )
-QUERY_STR = os.environ.get("SYSTEM_TESTS_VERTEX_AI_AGENT_ENGINE_QUERY", "test query")
+if not CONTAINER_ENV_VARS:
+    CONTAINER_ENV_VARS = {
+        "GCP_PROJECT": PROJECT_ID,
+        "GCP_REGION": LOCATION,
+        "GEMINI_MODEL_ID": _get_env("GEMINI_MODEL_ID", "gemini-2.5-pro"),
+        "GITHUB_REPO": _get_env("GITHUB_REPO"),
+        "GITHUB_REF": _get_env("GITHUB_REF", "main"),
+        "GITHUB_DAG_PATH": _get_env("GITHUB_DAG_PATH", "airflow/dags"),
+        "GITHUB_TOKEN": _get_env("GITHUB_TOKEN"),
+        "SLACK_WEBHOOK_URL": _get_env("SLACK_WEBHOOK_URL"),
+        "AGENT_USE_MODEL": _get_env("AGENT_USE_MODEL", "true"),
+        "AGENT_USE_MOCKS": _get_env("AGENT_USE_MOCKS", "false"),
+    }
+QUERY_STR = os.environ.get("SYSTEM_TESTS_VERTEX_AI_AGENT_ENGINE_QUERY") or json.dumps(
+    {
+        "dag_id": "gcp_agentengine_demo_failing_etl",
+        "run_id": "manual__agentengine_smoke",
+        "dag_file": "gcp_gemini_agent_platform/demo_failing_etl.py",
+        "failed_task": {
+            "task_id": "transform",
+            "state": "failed",
+            "try_number": 1,
+        },
+        "log_excerpt": "KeyError: 'rowz'",
+    }
+)
 QUERY_OUTPUT_GCS_URI = os.environ.get(
     "SYSTEM_TESTS_VERTEX_AI_AGENT_ENGINE_QUERY_OUTPUT_GCS_URI",
     f"gs://{PROJECT_ID}-agent-engine-query-output/query-output/",
@@ -121,9 +158,22 @@ with DAG(
         check_config={"retrieve_result": True},
         poll_interval=10,
         timeout=900,
-        deferrable=True,
     )
     # [END how_to_cloud_vertex_ai_run_query_job_operator]
+
+    # [START how_to_cloud_vertex_ai_run_query_job_operator_deferrable]
+    run_query_job_deferrable = RunQueryJobOperator(
+        task_id="run_query_job_deferrable",
+        project_id=PROJECT_ID,
+        location=LOCATION,
+        agent_engine_id=AGENT_ENGINE_ID,
+        config=QUERY_CONFIG,
+        check_config={"retrieve_result": True},
+        poll_interval=10,
+        timeout=900,
+        deferrable=True,
+    )
+    # [END how_to_cloud_vertex_ai_run_query_job_operator_deferrable]
 
     # [START how_to_cloud_vertex_ai_update_agent_engine_operator]
     update_agent_engine = UpdateAgentEngineOperator(
@@ -149,7 +199,14 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_delete_agent_engine_operator]
 
-    (create_agent_engine >> get_agent_engine >> run_query_job >> update_agent_engine >> delete_agent_engine)
+    (
+        create_agent_engine
+        >> get_agent_engine
+        >> run_query_job
+        >> run_query_job_deferrable
+        >> update_agent_engine
+        >> delete_agent_engine
+    )
 
     # ### Everything below this line is not part of example ###
     # ### Just for system tests purpose ###

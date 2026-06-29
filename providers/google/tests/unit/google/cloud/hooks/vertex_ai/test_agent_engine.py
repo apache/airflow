@@ -72,7 +72,6 @@ class TestAgentEngineHookWithDefaultProjectId:
 
         mock_get_client.assert_called_once_with(self.hook, project_id=GCP_PROJECT, location=GCP_LOCATION)
         mock_get_client.return_value.create.assert_called_once_with(
-            agent_engine=None,
             agent=None,
             config=CONFIG,
         )
@@ -235,25 +234,6 @@ class TestAgentEngineHookWithDefaultProjectId:
         mock_get_client.return_value.update.assert_called_once_with(
             name=AGENT_ENGINE_NAME,
             agent=None,
-            agent_engine=None,
-            config=CONFIG,
-        )
-        assert result == mock_get_client.return_value.update.return_value
-
-    @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
-    def test_update_agent_engine_with_agent_engine_alias(self, mock_get_client):
-        result = self.hook.update_agent_engine(
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            agent_engine_id=AGENT_ENGINE_ID,
-            agent_engine=mock.sentinel.agent_engine,
-            config=CONFIG,
-        )
-
-        mock_get_client.return_value.update.assert_called_once_with(
-            name=AGENT_ENGINE_NAME,
-            agent=None,
-            agent_engine=mock.sentinel.agent_engine,
             config=CONFIG,
         )
         assert result == mock_get_client.return_value.update.return_value

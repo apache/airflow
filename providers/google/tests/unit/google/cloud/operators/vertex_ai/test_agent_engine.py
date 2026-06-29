@@ -97,35 +97,9 @@ class TestCreateAgentEngineOperator:
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
             agent=None,
-            agent_engine=None,
             config=CONFIG,
         )
         assert result == {"name": AGENT_ENGINE_NAME, "display_name": "test-agent-engine"}
-
-    @mock.patch(AGENT_ENGINE_PATH.format("AgentEngineHook"), autospec=True)
-    def test_execute_with_agent_engine_alias(self, mock_hook, context):
-        mock_hook.return_value.create_agent_engine.return_value = FakeAgentEngine(
-            {"name": AGENT_ENGINE_NAME, "display_name": "test-agent-engine"}
-        )
-        op = CreateAgentEngineOperator(
-            task_id=TASK_ID,
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            agent_engine=mock.sentinel.agent_engine,
-            config=CONFIG,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
-
-        op.execute(context=context)
-
-        mock_hook.return_value.create_agent_engine.assert_called_once_with(
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            agent=None,
-            agent_engine=mock.sentinel.agent_engine,
-            config=CONFIG,
-        )
 
 
 class TestGetAgentEngineOperator:
@@ -366,37 +340,9 @@ class TestUpdateAgentEngineOperator:
             location=GCP_LOCATION,
             agent_engine_id=AGENT_ENGINE_ID,
             agent=None,
-            agent_engine=None,
             config=CONFIG,
         )
         assert result == {"name": AGENT_ENGINE_NAME, "display_name": "updated-agent-engine"}
-
-    @mock.patch(AGENT_ENGINE_PATH.format("AgentEngineHook"), autospec=True)
-    def test_execute_with_agent_engine_alias(self, mock_hook, context):
-        mock_hook.return_value.update_agent_engine.return_value = FakeAgentEngine(
-            {"name": AGENT_ENGINE_NAME, "display_name": "updated-agent-engine"}
-        )
-        op = UpdateAgentEngineOperator(
-            task_id=TASK_ID,
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            agent_engine_id=AGENT_ENGINE_ID,
-            agent_engine=mock.sentinel.agent_engine,
-            config=CONFIG,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
-
-        op.execute(context=context)
-
-        mock_hook.return_value.update_agent_engine.assert_called_once_with(
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            agent_engine_id=AGENT_ENGINE_ID,
-            agent=None,
-            agent_engine=mock.sentinel.agent_engine,
-            config=CONFIG,
-        )
 
 
 class TestDeleteAgentEngineOperator:
