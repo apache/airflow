@@ -5967,7 +5967,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-ibm-db2"
-version = "1.0.0"
+version = "0.1.0"
 source = { editable = "providers/ibm/db2" }
 dependencies = [
     { name = "apache-airflow" },
