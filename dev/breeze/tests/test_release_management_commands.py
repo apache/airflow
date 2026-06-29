@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -24,6 +25,7 @@ from airflow_breeze.commands.release_management_commands import (
     _ensure_default_python_for_reproducible_client,
     _is_initial_provider_release,
     _should_include_provider_in_issue,
+    get_prs_from_git_log_for_new_provider,
     get_suffix_from_package_in_dist,
     is_package_in_dist,
 )
@@ -66,6 +68,69 @@ def test_should_include_provider_in_issue(
         )
         is expected
     )
+
+
+def test_get_prs_from_git_log_for_new_provider(monkeypatch):
+    git_output = (
+        # Release-management commits must be skipped (release-process noise).
+        "Prepare provider documentation 2026-06-16 (#68642)\n"
+        "Bump `clickhouse-connect>=1.3.0` (#68400)\n"
+        "docs: clarify when to use custom `handler` (#68345)\n"
+        "Prepare providers release 2026-06-08 (#68203)\n"
+        # A real provider PR whose title merely starts with "Prepare" must NOT be filtered.
+        "Prepare bteq command with subprocess arg list (#67999)\n"
+        "Add ClickHouse Provider (#67080)\n"
+        # A duplicate PR reference must be collected only once.
+        "Add ClickHouse Provider (#67080)\n"
+        # A commit without a PR reference must be ignored.
+        "Initial scaffolding commit"
+    )
+    monkeypatch.setattr(
+        "airflow_breeze.commands.release_management_commands.get_provider_details",
+        lambda provider_id: SimpleNamespace(root_provider_path=Path("/repo/providers/clickhousedb")),
+    )
+    monkeypatch.setattr(
+        "airflow_breeze.commands.release_management_commands.run_command",
+        lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout=git_output, stderr=""),
+    )
+
+    prs = get_prs_from_git_log_for_new_provider("clickhousedb")
+
+    assert prs == [68400, 68345, 67999, 67080]
+
+
+@pytest.mark.parametrize(
+    ("subject", "is_release_commit"),
+    [
+        ("Prepare provider documentation 2026-06-16 (#68642)", True),
+        ("Prepare providers release 2026-06-08 (#68203)", True),
+        ("Prepare Providers Release 2026-06-08 (#1)", True),
+        ("Prepare provider's documentation (#2)", True),
+        ("Prepare ad-hoc RC2 providers release (#3)", True),
+        ("Prepare documentation for next release of providers (#4)", True),
+        # Real provider PRs that must not be mistaken for release-management commits.
+        ("Prepare bteq command with subprocess arg list (#67999)", False),
+        ("Add ClickHouse Provider (#67080)", False),
+        ("Bump `clickhouse-connect>=1.3.0` (#68400)", False),
+    ],
+)
+def test_release_management_commit_pattern(subject: str, is_release_commit: bool):
+    from airflow_breeze.commands.release_management_commands import RELEASE_MANAGEMENT_COMMIT_PATTERN
+
+    assert bool(RELEASE_MANAGEMENT_COMMIT_PATTERN.match(subject)) is is_release_commit
+
+
+def test_get_prs_from_git_log_for_new_provider_returns_empty_on_git_failure(monkeypatch):
+    monkeypatch.setattr(
+        "airflow_breeze.commands.release_management_commands.get_provider_details",
+        lambda provider_id: SimpleNamespace(root_provider_path=Path("/repo/providers/clickhousedb")),
+    )
+    monkeypatch.setattr(
+        "airflow_breeze.commands.release_management_commands.run_command",
+        lambda *args, **kwargs: SimpleNamespace(returncode=128, stdout="", stderr="fatal: bad revision"),
+    )
+
+    assert get_prs_from_git_log_for_new_provider("clickhousedb") == []
 
 
 def _fake_version_info(version: str) -> SimpleNamespace:

@@ -21,6 +21,7 @@ from datetime import datetime
 from pydantic import Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.datamodels.common import MaybeAssetExpression
 
 
 class NextRunAssetEventResponse(BaseModel):
@@ -49,6 +50,6 @@ class NextRunAssetEventResponse(BaseModel):
 class NextRunAssetsResponse(BaseModel):
     """Response for the ``next_run_assets`` endpoint."""
 
-    asset_expression: dict | None = None
+    asset_expression: MaybeAssetExpression = None
     events: list[NextRunAssetEventResponse]
     pending_partition_count: int | None = None

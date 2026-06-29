@@ -34,7 +34,7 @@ from urllib3.util import Retry
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 
 try:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ExtendedResourceMethod
@@ -78,6 +78,13 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 RESOURCE_ID_ATTRIBUTE_NAME = "resource_id"
+KEYCLOAK_RESOURCE_NOT_FOUND_ERROR = "resource not found:"
+
+
+def _is_missing_keycloak_resource_response(status_code: int, text: Any) -> bool:
+    return status_code == 500 and isinstance(text, str) and KEYCLOAK_RESOURCE_NOT_FOUND_ERROR in text.lower()
+
+
 TEAM_SCOPED_RESOURCES = frozenset(
     {
         KeycloakResource.CONNECTION,
@@ -140,34 +147,6 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             "access_token": user.access_token,
             "refresh_token": user.refresh_token,
         }
-
-    def get_cli_user(self) -> KeycloakAuthManagerUser:
-        """
-        Return a service-account user for the local CLI to mint a token for.
-
-        Keycloak tokens are issued by the external Keycloak server, so they cannot be
-        forged locally. The Keycloak client is already configured for Airflow to talk to
-        Keycloak, so we reuse it to obtain a service-account token through the
-        ``client_credentials`` flow. The service account's effective permissions are
-        governed by the Keycloak deployment. If the client credentials are not usable, the
-        operator must provide a token via the ``AIRFLOW_CLI_TOKEN`` environment variable.
-        """
-        try:
-            tokens = self.get_keycloak_client().token(grant_type="client_credentials")
-        except Exception as e:
-            raise AirflowConfigException(
-                "Could not obtain a Keycloak service-account token for the CLI via the "
-                "client_credentials flow. Set the AIRFLOW_CLI_TOKEN environment variable "
-                f"with a valid API token instead. Original error: {e}"
-            ) from e
-        return KeycloakAuthManagerUser(
-            user_id="airflow-cli",
-            name="airflow-cli",
-            access_token=tokens["access_token"],
-            # No refresh token is issued for the client_credentials flow (RFC 6749 §4.4.3),
-            # which marks this as a service account in refresh_user/refresh_tokens.
-            refresh_token=tokens.get("refresh_token"),
-        )
 
     def get_url_login(self, **kwargs) -> str:
         base_url = conf.get("api", "base_url", fallback="/")
@@ -462,6 +441,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             raise AirflowException(
                 f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
             )
+        if _is_missing_keycloak_resource_response(resp.status_code, resp.text):
+            log.warning("Keycloak authorization resource is missing; denying access. Response: %s", resp.text)
+            return False
         raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
 
     def filter_authorized_dag_ids(

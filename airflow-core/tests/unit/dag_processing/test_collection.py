@@ -64,7 +64,7 @@ from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.encoders import encode_trigger, ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.timetables.simple import PartitionAtRuntime
+from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.types import DagRunType
 
@@ -136,7 +136,7 @@ def test_statement_latest_runs_loads_timetable_fields(dag_maker, session):
 
 @pytest.mark.db_test
 def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, session):
-    with dag_maker("fake-dag", schedule=PartitionAtRuntime()):
+    with dag_maker("fake-dag", schedule=PartitionedAtRuntime()):
         pass
     dag_maker.sync_dagbag_to_db()
     for i, (run_id, partition_key, partition_date) in enumerate(

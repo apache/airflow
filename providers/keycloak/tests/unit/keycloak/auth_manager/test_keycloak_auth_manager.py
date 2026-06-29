@@ -45,7 +45,7 @@ if AIRFLOW_V_3_2_PLUS:
 else:
     TeamDetails = None  # type: ignore[assignment,misc]
 from airflow.api_fastapi.common.types import MenuItem
-from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 
 try:
     from airflow.providers.common.compat.sdk import AirflowException
@@ -121,25 +121,6 @@ def _clear_filter_cache():
 
 
 class TestKeycloakAuthManager:
-    @patch.object(KeycloakAuthManager, "get_keycloak_client")
-    def test_get_cli_user(self, mock_get_keycloak_client, auth_manager):
-        # client_credentials (service account) flow returns an access token and no refresh token.
-        mock_get_keycloak_client.return_value.token.return_value = {"access_token": "svc-token"}
-
-        user = auth_manager.get_cli_user()
-
-        assert user.get_id() == "airflow-cli"
-        assert user.access_token == "svc-token"
-        assert user.refresh_token is None
-        mock_get_keycloak_client.return_value.token.assert_called_once_with(grant_type="client_credentials")
-
-    @patch.object(KeycloakAuthManager, "get_keycloak_client")
-    def test_get_cli_user_raises_when_credentials_unusable(self, mock_get_keycloak_client, auth_manager):
-        mock_get_keycloak_client.return_value.token.side_effect = Exception("boom")
-
-        with pytest.raises(AirflowConfigException, match="AIRFLOW_CLI_TOKEN"):
-            auth_manager.get_cli_user()
-
     def test_deserialize_user(self, auth_manager):
         result = auth_manager.deserialize_user(
             {
@@ -404,6 +385,19 @@ class TestKeycloakAuthManager:
                 getattr(auth_manager, function)(method="GET", user=user)
 
             assert "Unexpected error" in str(e.value)
+
+    def test_is_authorized_missing_keycloak_resource(self, auth_manager, user, caplog):
+        resp = Mock()
+        resp.status_code = 500
+        resp.text = "resource not found: Dag:team-a"
+        auth_manager.http_session.post = Mock(return_value=resp)
+        caplog.set_level("WARNING", logger="airflow.providers.keycloak.auth_manager.keycloak_auth_manager")
+
+        result = auth_manager.is_authorized_dag(method="GET", details=DagDetails(id="dag_0"), user=user)
+
+        assert result is False
+        assert "Keycloak authorization resource is missing; denying access" in caplog.text
+        assert "resource not found: Dag:team-a" in caplog.text
 
     @pytest.mark.parametrize(
         "function",
@@ -670,6 +664,30 @@ class TestKeycloakAuthManager:
 
         mock_is_authorized.assert_called_once()
         assert result == {"dag-a"}
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
+    def test_filter_authorized_dag_ids_missing_keycloak_resource(self, auth_manager_multi_team, user, caplog):
+        def post_response(*_, data, **__):
+            claims = json.loads(base64.b64decode(data["claim_token"]).decode())
+            dag_id = claims[RESOURCE_ID_ATTRIBUTE_NAME][0]
+            response = Mock()
+            if dag_id == "dag-missing":
+                response.status_code = 500
+                response.text = "resource not found: Dag:team-a"
+            else:
+                response.status_code = 200
+            return response
+
+        auth_manager_multi_team.http_session.post = Mock(side_effect=post_response)
+        caplog.set_level("WARNING", logger="airflow.providers.keycloak.auth_manager.keycloak_auth_manager")
+
+        result = auth_manager_multi_team.filter_authorized_dag_ids(
+            dag_ids={"dag-allowed", "dag-missing"}, user=user, team_name="team-a"
+        )
+
+        assert result == {"dag-allowed"}
+        assert auth_manager_multi_team.http_session.post.call_count == 2
+        assert "Keycloak authorization resource is missing; denying access" in caplog.text
 
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
     @patch.object(KeycloakAuthManager, "is_authorized_pool", return_value=False)

@@ -152,9 +152,21 @@ class DagErrorHandler(BaseErrorHandler[DeserializationError]):
 
     def exception_handler(self, request: Request, exc: DeserializationError):
         """Handle Dag deserialization exceptions."""
+        if conf.get("api", "expose_stacktrace") == "True":
+            log.error("Error while trying to deserialize Dag: %s", exc, exc_info=exc)
+            detail = f"An error occurred while trying to deserialize Dag: {exc}"
+        else:
+            # Only mint a correlation id when the detail is redacted, so the
+            # generic client message can be tied back to the server-side log.
+            exception_id = get_random_string()
+            log.error("Error with id %s while trying to deserialize Dag: %s", exception_id, exc, exc_info=exc)
+            detail = (
+                "An error occurred while trying to deserialize the Dag. Check the api server "
+                f"logs for more details - look for ID {exception_id}."
+            )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while trying to deserialize Dag: {exc}",
+            detail=detail,
         )
 
 

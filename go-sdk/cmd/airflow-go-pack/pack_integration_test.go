@@ -145,6 +145,9 @@ sdk:
   supervisor_schema_version: "2026-06-16"
 source: "main.go"
 dags:
+  concurrent_xcom_dag:
+    tasks:
+      - "pull_xcoms_concurrently"
   simple_dag:
     tasks:
       - "extract"
