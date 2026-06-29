@@ -20,6 +20,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import time
+import zlib
 from collections.abc import MutableMapping
 from contextlib import nullcontext
 from threading import RLock
@@ -32,6 +33,7 @@ from sqlalchemy.orm import Mapped, joinedload, mapped_column
 
 from airflow._shared.observability.metrics import stats
 from airflow.configuration import conf
+from airflow.exceptions import DeserializationError
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
 
@@ -109,10 +111,15 @@ class DBDagBag:
         serdag.load_op_links = self.load_op_links
         try:
             dag = serdag.dag
-        except Exception:
-            # A serialized blob that exists but cannot be reconstructed (unimportable operator class,
-            # incompatible serialization version, blob written under a synthetic bundle by
-            # dag.test()) is treated as "no live definition" so read-only callers return 404, not 500.
+        # Only failures that mean "this stored blob cannot be turned back into a DAG" are caught, so
+        # read-only callers return 404 instead of 500. Anything else (DB errors, bugs in the serving
+        # path) propagates unchanged. The set is exhaustive for SerializedDagModel.dag:
+        #   - DeserializationError: deserialize_dag's wrapper for a malformed/incompatible blob
+        #   - ValueError: unknown __version, bad JSON (JSONDecodeError), non-dict/str data, and
+        #     TimetableNotRegistered (a ValueError subclass) for an unregistered custom timetable
+        #   - KeyError: blob missing the top-level "dag" key
+        #   - zlib.error: a corrupt compressed data_compressed column
+        except (DeserializationError, ValueError, KeyError, zlib.error):
             log.warning("Failed to deserialize DAG from %r; treating as not found", serdag, exc_info=True)
             return None
         if not dag:

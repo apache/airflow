@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import time
+import zlib
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock, patch
 
@@ -24,6 +25,7 @@ import pytest
 import time_machine
 from cachetools import LRUCache, TTLCache
 
+from airflow.exceptions import DeserializationError
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag, _CacheEntry
@@ -31,6 +33,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG
+from airflow.serialization.helpers import TimetableNotRegistered
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.utils.session import create_session
 
@@ -77,11 +80,22 @@ class TestDBDagBag:
         assert result is None
         assert "v1" not in self.db_dag_bag._dags
 
-    def test__read_dag_returns_none_when_deserialization_fails(self):
-        """A blob that exists but cannot be deserialized is treated as absent, not propagated.
+    @pytest.mark.parametrize(
+        "exc",
+        [
+            DeserializationError("malformed blob"),
+            ValueError("Unsure how to deserialize version 99"),
+            TimetableNotRegistered("custom.Timetable"),
+            KeyError("dag"),
+            zlib.error("incorrect header check"),
+        ],
+    )
+    def test__read_dag_returns_none_when_deserialization_fails(self, exc):
+        """A blob that exists but cannot be reconstructed is treated as absent, not propagated.
 
         Keeps read-only API callers (e.g. the DAG detail page) returning 404 instead of 500 for a
-        Dag whose serialized definition references an unimportable class or an incompatible version.
+        Dag whose serialized definition is malformed, on an incompatible version, references an
+        unregistered timetable, or is stored as a corrupt compressed blob.
         """
 
         class _Undeserializable:
@@ -90,12 +104,26 @@ class TestDBDagBag:
 
             @property
             def dag(self):
-                raise ValueError("cannot deserialize")
+                raise exc
 
         result = self.db_dag_bag._read_dag(_Undeserializable())
 
         assert result is None
         assert "v1" not in self.db_dag_bag._dags
+
+    def test__read_dag_propagates_unrelated_errors(self):
+        """Errors that are not deserialization failures must surface (500), not be masked as 404."""
+
+        class _BuggyServingPath:
+            load_op_links = True
+            dag_version_id = "v1"
+
+            @property
+            def dag(self):
+                raise RuntimeError("unrelated serving-path bug")
+
+        with pytest.raises(RuntimeError, match="unrelated serving-path bug"):
+            self.db_dag_bag._read_dag(_BuggyServingPath())
 
     def test_get_dag_fetches_from_db_on_miss(self):
         """It should query the DB and cache the result (with its hash) when not in cache."""
