@@ -32,6 +32,9 @@ import {
   type GridRunWithVersionFlags,
 } from "./useGridRunsWithVersionFlags";
 
+const NOTE_GRADIENT =
+  "linear-gradient(45deg, var(--chakra-colors-color-palette-solid) 92%, var(--chakra-colors-color-palette-emphasized) 92%)";
+
 type Props = {
   readonly max: number;
   readonly onClick?: () => void;
@@ -83,6 +86,7 @@ export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
         <GridButton
           alignItems="center"
           color="fg"
+          colorPalette={run.state ?? "none"}
           dagId={dagId}
           duration={run.duration}
           flexDir="column"
@@ -93,6 +97,7 @@ export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
           runId={run.run_id}
           searchParams={search}
           state={run.state}
+          style={run.has_note ? { background: NOTE_GRADIENT } : undefined}
           zIndex={1}
         >
           {run.run_type !== "scheduled" && <RunTypeIcon color="white" runType={run.run_type} size="10px" />}
