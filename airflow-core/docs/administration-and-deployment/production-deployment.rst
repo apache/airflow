@@ -63,7 +63,7 @@ the :doc:`Kubernetes executor <apache-airflow-providers-cncf-kubernetes:kubernet
 Amazon provider executors such as :doc:`Batch <apache-airflow-providers-amazon:executors/batch-executor>`
 or :doc:`ECS <apache-airflow-providers-amazon:executors/ecs-executor>`, and the
 :doc:`Edge executor <apache-airflow-providers-edge3:edge_executor>`. See the
-:ref:`executor comparison <executor-types-comparison>` for the current list and tradeoffs.
+:ref:`executor comparison <executor-types-comparison>` for the current list and trade-offs.
 
 
 Once you have configured the executor, it is necessary to make sure that every node in the cluster contains
