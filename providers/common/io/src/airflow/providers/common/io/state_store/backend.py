@@ -60,7 +60,7 @@ def _get_threshold() -> int:
     return value
 
 
-def _compression_suffix() -> str:
+def _get_compression_suffix() -> str:
     compression = _get_compression()
     if not compression:
         return ""
@@ -70,7 +70,7 @@ def _compression_suffix() -> str:
     raise ValueError(f"Compression {compression!r} is not supported.")
 
 
-def _safe_segment(value: str) -> str:
+def _sanitise_segment(value: str) -> str:
     """
     Sanitise a string for use as a single path segment.
 
@@ -79,32 +79,32 @@ def _safe_segment(value: str) -> str:
     return value.replace("/", "_").replace("\\", "_")
 
 
-def _task_path(scope: TaskScope, key: str) -> ObjectStoragePath:
-    suffix = _compression_suffix()
+def _build_task_path(scope: TaskScope, key: str) -> ObjectStoragePath:
+    suffix = _get_compression_suffix()
     return (
         _get_base_path()
-        / _safe_segment(scope.dag_id)
-        / _safe_segment(scope.run_id)
-        / _safe_segment(scope.task_id)
+        / _sanitise_segment(scope.dag_id)
+        / _sanitise_segment(scope.run_id)
+        / _sanitise_segment(scope.task_id)
         / str(scope.map_index)
-        / f"{_safe_segment(key)}{suffix}"
+        / f"{_sanitise_segment(key)}{suffix}"
     )
 
 
-def _asset_path(scope: AssetScope, key: str) -> ObjectStoragePath:
-    suffix = _compression_suffix()
-    asset_ref = _safe_segment(scope.name or scope.uri or str(scope.asset_id))
-    return _get_base_path() / "assets" / asset_ref / f"{_safe_segment(key)}{suffix}"
+def _build_asset_path(scope: AssetScope, key: str) -> ObjectStoragePath:
+    suffix = _get_compression_suffix()
+    asset_identifier = _sanitise_segment(scope.name or scope.uri or str(scope.asset_id))
+    return _get_base_path() / "assets" / asset_identifier / f"{_sanitise_segment(key)}{suffix}"
 
 
-def _write(path: ObjectStoragePath, value: str) -> None:
+def _write_to_object_storage(path: ObjectStoragePath, value: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     compression = _get_compression()
     with path.open(mode="wb", compression=compression) as f:
         f.write(value.encode("utf-8"))
 
 
-def _read(path: ObjectStoragePath) -> str | None:
+def _read_from_object_storage(path: ObjectStoragePath) -> str | None:
     try:
         with path.open(mode="rb", compression="infer") as f:
             return f.read().decode("utf-8")
@@ -124,9 +124,9 @@ def _is_storage_ref(value: str) -> bool:
 def _scope_path(scope: StoreScope, key: str) -> ObjectStoragePath:
     match scope:
         case TaskScope():
-            return _task_path(scope, key)
+            return _build_task_path(scope, key)
         case AssetScope():
-            return _asset_path(scope, key)
+            return _build_asset_path(scope, key)
         case _:
             raise TypeError(f"Unknown scope type: {type(scope)}")
 
@@ -142,7 +142,7 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
     """
 
     def get(self, scope: StoreScope, key: str, *, session: Session | None = None) -> str | None:
-        return _read(_scope_path(scope, key))
+        return _read_from_object_storage(_scope_path(scope, key))
 
     def set(
         self,
@@ -153,7 +153,7 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
         expires_at: datetime | None = None,
         session: Session | None = None,
     ) -> None:
-        _write(_scope_path(scope, key), value)
+        _write_to_object_storage(_scope_path(scope, key), value)
 
     def delete(self, scope: StoreScope, key: str, *, session: Session | None = None) -> None:
         _scope_path(scope, key).unlink(missing_ok=True)
@@ -166,27 +166,29 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
                 if all_map_indices:
                     prefix = (
                         _get_base_path()
-                        / _safe_segment(scope.dag_id)
-                        / _safe_segment(scope.run_id)
-                        / _safe_segment(scope.task_id)
+                        / _sanitise_segment(scope.dag_id)
+                        / _sanitise_segment(scope.run_id)
+                        / _sanitise_segment(scope.task_id)
                     )
                     for p in prefix.glob("*/*"):
                         p.unlink(missing_ok=True)
                 else:
                     prefix = (
                         _get_base_path()
-                        / _safe_segment(scope.dag_id)
-                        / _safe_segment(scope.run_id)
-                        / _safe_segment(scope.task_id)
+                        / _sanitise_segment(scope.dag_id)
+                        / _sanitise_segment(scope.run_id)
+                        / _sanitise_segment(scope.task_id)
                         / str(scope.map_index)
                     )
                     for p in prefix.glob("*"):
                         p.unlink(missing_ok=True)
             case AssetScope():
-                asset_ref = _safe_segment(scope.name or scope.uri or str(scope.asset_id))
-                prefix = _get_base_path() / "assets" / asset_ref
+                asset_identifier = _sanitise_segment(scope.name or scope.uri or str(scope.asset_id))
+                prefix = _get_base_path() / "assets" / asset_identifier
                 for p in prefix.glob("*"):
                     p.unlink(missing_ok=True)
+            case _:
+                raise TypeError(f"Unknown scope type: {type(scope)}")
 
     async def aget(self, scope: StoreScope, key: str, *, session: AsyncSession | None = None) -> str | None:
         raise NotImplementedError
@@ -214,15 +216,15 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
         serialized = json.dumps(value)
         if len(serialized.encode()) < _get_threshold():
             return serialized
-        path = _task_path(scope, key)
-        _write(path, serialized)
+        path = _build_task_path(scope, key)
+        _write_to_object_storage(path, serialized)
         return str(path)
 
     def deserialize_task_state_store_from_ref(self, stored: str) -> JsonValue:
         if not stored:
             return None
         if _is_storage_ref(stored):
-            data = _read(ObjectStoragePath(stored))
+            data = _read_from_object_storage(ObjectStoragePath(stored))
             if data is not None:
                 return json.loads(data)
             return None
@@ -232,15 +234,15 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
         serialized = json.dumps(value)
         if len(serialized.encode()) < _get_threshold():
             return serialized
-        path = _asset_path(scope, key)
-        _write(path, serialized)
+        path = _build_asset_path(scope, key)
+        _write_to_object_storage(path, serialized)
         return str(path)
 
     def deserialize_asset_state_store_from_ref(self, stored: str) -> JsonValue:
         if not stored:
             return None
         if _is_storage_ref(stored):
-            data = _read(ObjectStoragePath(stored))
+            data = _read_from_object_storage(ObjectStoragePath(stored))
             if data is not None:
                 return json.loads(data)
             return None

@@ -26,17 +26,15 @@ if not AIRFLOW_V_3_3_PLUS:
 from airflow.providers.common.io.state_store import backend
 from airflow.providers.common.io.state_store.backend import (
     StateStoreObjectStorageBackend,
-    _asset_path,
-    _read,
-    _task_path,
-    _write,
+    _build_asset_path,
+    _build_task_path,
+    _read_from_object_storage,
+    _write_to_object_storage,
 )
 from airflow.sdk import ObjectStoragePath
+from airflow.sdk.state import AssetScope, TaskScope
 
 from tests_common.test_utils.config import conf_vars
-
-if AIRFLOW_V_3_3_PLUS:
-    from airflow.sdk.state import AssetScope, TaskScope
 
 
 @pytest.fixture(autouse=True)
@@ -72,32 +70,27 @@ def conf_overrides(base_path):
 
 @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task state store requires Airflow >= 3.3")
 class TestPathBuilders:
-    def test_task_path_segments(self, conf_overrides):
+    def test_build_task_path_segments(self, conf_overrides):
         scope = TaskScope(dag_id="my_dag", run_id="run_1", task_id="my_task", map_index=-1)
-        path = _task_path(scope, "job_id")
+        path = _build_task_path(scope, "job_id")
         assert str(path).endswith("my_dag/run_1/my_task/-1/job_id")
 
-    def test_task_path_sanitises_slashes(self, conf_overrides):
+    def test_build_task_path_sanitises_slashes(self, conf_overrides):
         scope = TaskScope(dag_id="a/b", run_id="r/1", task_id="t/x", map_index=0)
-        path = _task_path(scope, "key/name")
-        # a/b is sanitised to a_b
+        path = _build_task_path(scope, "key/name")
+        assert str(path).endswith("a_b/r_1/t_x/0/key_name")
         assert "a/b" not in str(path)
-        assert "a_b" in str(path)
-        assert "key_name" in str(path)
         assert "key/name" not in str(path)
 
-    def test_asset_path_segments(self, conf_overrides):
+    def test_build_asset_path_segments(self, conf_overrides):
         scope = AssetScope(name="my_asset")
-        path = _asset_path(scope, "status")
-        assert "assets/my_asset/status" in str(path)
+        path = _build_asset_path(scope, "status")
+        assert str(path).endswith("assets/my_asset/status")
 
-    def test_asset_path_uses_uri_when_no_name(self, conf_overrides):
+    def test_build_asset_path_uses_uri_when_no_name(self, conf_overrides):
         scope = AssetScope(uri="s3://bucket/path")
-        path = _asset_path(scope, "key")
-        assert "assets/" in str(path)
-        # slashes in the uri are replaced with underscores to produce a single path segment
-        segment = str(path).split("assets/")[1].split("/")[0]
-        assert "/" not in segment
+        path = _build_asset_path(scope, "key")
+        assert str(path).endswith("assets/s3:__bucket_path/key")
 
     def test_compression_suffix_appended(self, tmp_path):
         store_path = tmp_path / "store"
@@ -112,24 +105,24 @@ class TestPathBuilders:
             backend._get_base_path.cache_clear()
             backend._get_compression.cache_clear()
             scope = TaskScope(dag_id="d", run_id="r", task_id="t", map_index=-1)
-            path = _task_path(scope, "k")
+            path = _build_task_path(scope, "k")
             assert str(path).endswith(".gz")
 
 
 class TestIOPrimitives:
     def test_write_and_read_roundtrip(self, conf_overrides):
         path = ObjectStoragePath(f"{conf_overrides}/test_key")
-        _write(path, '{"value": 42}')
-        result = _read(path)
+        _write_to_object_storage(path, '{"value": 42}')
+        result = _read_from_object_storage(path)
         assert result == '{"value": 42}'
 
     def test_read_missing_returns_none(self, conf_overrides):
         path = ObjectStoragePath(f"{conf_overrides}/nonexistent")
-        assert _read(path) is None
+        assert _read_from_object_storage(path) is None
 
     def test_write_creates_parent_dirs(self, conf_overrides):
         path = ObjectStoragePath(f"{conf_overrides}/a/b/c/key")
-        _write(path, "hello")
+        _write_to_object_storage(path, "hello")
         assert path.exists()
 
 
