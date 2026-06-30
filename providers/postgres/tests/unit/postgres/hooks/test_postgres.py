@@ -611,6 +611,143 @@ class TestPostgresHookConnPPG3:
             port=None,
         )
 
+    @pytest.mark.asyncio
+    async def test_async_get_conn_raises_not_implemented_without_psycopg3(self, mocker):
+        mocker.patch("airflow.providers.postgres.hooks.postgres.USE_PSYCOPG3", False)
+        with pytest.raises(NotImplementedError, match="Async connections for PostgresHook require psycopg3"):
+            await self.db_hook.async_get_conn()
+
+    @pytest.mark.asyncio
+    async def test_async_get_conn(self, mocker):
+        mock_async_connect = mocker.patch("psycopg.AsyncConnection.connect", new_callable=mock.AsyncMock)
+        mock_register = mocker.patch("airflow.providers.postgres.hooks.postgres.register_default_adapters")
+        mock_connection = mocker.MagicMock()
+        mock_async_connect.return_value = mock_connection
+
+        result = await self.db_hook.async_get_conn()
+
+        mock_async_connect.assert_awaited_once_with(
+            user="login",
+            password="password",
+            host="host",
+            dbname="database",
+            port=None,
+        )
+        mock_register.assert_called_once_with(mock_connection)
+        assert result is mock_connection
+
+    @pytest.mark.asyncio
+    async def test_async_get_conn_with_cursor(self, mocker):
+        self.connection.extra = '{"cursor": "dictcursor"}'
+        mock_async_connect = mocker.patch("psycopg.AsyncConnection.connect", new_callable=mock.AsyncMock)
+        mocker.patch("airflow.providers.postgres.hooks.postgres.register_default_adapters")
+
+        await self.db_hook.async_get_conn()
+
+        mock_async_connect.assert_awaited_once_with(
+            row_factory=psycopg.rows.dict_row,
+            user="login",
+            password="password",
+            host="host",
+            dbname="database",
+            port=None,
+        )
+
+    @pytest.mark.asyncio
+    async def test_async_get_conn_with_invalid_cursor(self, mocker):
+        self.connection.extra = '{"cursor": "mycursor"}'
+
+        with pytest.raises(ValueError, match="Invalid cursor passed mycursor"):
+            await self.db_hook.async_get_conn()
+
+    @pytest.mark.asyncio
+    async def test_async_get_conn_adds_notice_handler_when_enabled(self, mocker):
+        mock_async_connect = mocker.patch("psycopg.AsyncConnection.connect", new_callable=mock.AsyncMock)
+        mocker.patch("airflow.providers.postgres.hooks.postgres.register_default_adapters")
+        mock_connection = mocker.MagicMock()
+        mock_async_connect.return_value = mock_connection
+
+        hook = PostgresHook(enable_log_db_messages=True)
+        hook.get_connection = mock.Mock(return_value=self.connection)
+
+        await hook.async_get_conn()
+
+        mock_connection.add_notice_handler.assert_called_once_with(hook._notice_handler)
+
+    @pytest.mark.asyncio
+    async def test_async_get_conn_no_notice_handler_when_disabled(self, mocker):
+        mock_async_connect = mocker.patch("psycopg.AsyncConnection.connect", new_callable=mock.AsyncMock)
+        mocker.patch("airflow.providers.postgres.hooks.postgres.register_default_adapters")
+        mock_connection = mocker.MagicMock()
+        mock_async_connect.return_value = mock_connection
+
+        await self.db_hook.async_get_conn()
+
+        mock_connection.add_notice_handler.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_async_get_conn_with_namedtuple_cursor(self, mocker):
+        self.connection.extra = '{"cursor": "namedtuplecursor"}'
+        mock_async_connect = mocker.patch("psycopg.AsyncConnection.connect", new_callable=mock.AsyncMock)
+        mocker.patch("airflow.providers.postgres.hooks.postgres.register_default_adapters")
+
+        await self.db_hook.async_get_conn()
+
+        mock_async_connect.assert_awaited_once_with(
+            row_factory=psycopg.rows.namedtuple_row,
+            user="login",
+            password="password",
+            host="host",
+            dbname="database",
+            port=None,
+        )
+
+    @pytest.mark.asyncio
+    async def test_async_get_conn_with_realdictcursor_raises(self, mocker):
+        self.connection.extra = '{"cursor": "realdictcursor"}'
+        mocker.patch("psycopg.AsyncConnection.connect", new_callable=mock.AsyncMock)
+
+        from airflow.providers.common.compat.sdk import AirflowException
+
+        with pytest.raises(AirflowException, match="realdictcursor is not supported with psycopg3"):
+            await self.db_hook.async_get_conn()
+
+    @pytest.mark.asyncio
+    async def test_async_get_conn_with_extra(self, mocker):
+        self.connection.extra = '{"connect_timeout": 3}'
+        mock_async_connect = mocker.patch("psycopg.AsyncConnection.connect", new_callable=mock.AsyncMock)
+        mocker.patch("airflow.providers.postgres.hooks.postgres.register_default_adapters")
+
+        await self.db_hook.async_get_conn()
+
+        mock_async_connect.assert_awaited_once_with(
+            user="login",
+            password="password",
+            host="host",
+            dbname="database",
+            port=None,
+            connect_timeout=3,
+        )
+
+    @pytest.mark.asyncio
+    async def test_async_get_conn_with_options(self, mocker):
+        mock_async_connect = mocker.patch("psycopg.AsyncConnection.connect", new_callable=mock.AsyncMock)
+        mocker.patch("airflow.providers.postgres.hooks.postgres.register_default_adapters")
+
+        hook = PostgresHook(options="-c statement_timeout=3000ms")
+        hook.get_connection = mock.Mock(return_value=self.connection)
+
+        await hook.async_get_conn()
+
+        mock_async_connect.assert_awaited_once_with(
+            user="login",
+            password="password",
+            host="host",
+            dbname="database",
+            port=None,
+            options="-c statement_timeout=3000ms",
+        )
+
 
 @pytest.mark.backend("postgres")
 class TestPostgresHook:
@@ -913,7 +1050,6 @@ class _BasePostgresHookRuntimeTests:
 
     @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.insert_rows")
     def test_upsert_rows(self, mock_insert_rows):
-
         rows = [(1, "hello")]
         table = "table"
 
