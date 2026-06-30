@@ -114,15 +114,14 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-samba[common.compat]
+    pip install apache-airflow-providers-samba[google]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                ``google``
-==================================================================================================================  =================
+====================================================================================================  ==========
+Dependent package                                                                                     Extra
+====================================================================================================  ==========
+`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_  ``google``
+====================================================================================================  ==========
 
 Downloading official packages
 -----------------------------
