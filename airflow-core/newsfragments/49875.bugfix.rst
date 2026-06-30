@@ -1,0 +1,1 @@
+Clarify ``@task`` decorated callable errors when extra positional arguments are passed.
