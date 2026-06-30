@@ -20,11 +20,13 @@ import { Spinner } from "@chakra-ui/react";
 import { type FC, lazy, Suspense } from "react";
 import { useParams } from "react-router-dom";
 
-import type { ReactAppResponse } from "openapi/requests/types.gen";
+import { useDagServiceGetDag } from "openapi/queries";
+import type { DAGResponse, ReactAppResponse } from "openapi/requests/types.gen";
 
 import { ErrorPage } from "./Error";
 
 export type PluginProps = {
+  dag?: DAGResponse;
   dagId?: string;
   mapIndex?: string;
   runId?: string;
@@ -64,6 +66,7 @@ const loadPlugin = (reactApp: ReactAppResponse): Promise<{ default: PluginCompon
 
 export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse }) => {
   const { dagId, mapIndex, runId, taskId } = useParams();
+  const { data: dag } = useDagServiceGetDag({ dagId: dagId ?? "" }, undefined, { enabled: Boolean(dagId) });
 
   // If the plugin component was already registered on the global object by a previous load,
   // render it directly without going through Suspense/lazy (avoids flashing the spinner).
@@ -72,7 +75,7 @@ export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse 
   if (typeof existing === "function") {
     const Plugin = existing as PluginComponentType;
 
-    return <Plugin dagId={dagId} mapIndex={mapIndex} runId={runId} taskId={taskId} />;
+    return <Plugin dag={dag} dagId={dagId} mapIndex={mapIndex} runId={runId} taskId={taskId} />;
   }
 
   // Otherwise, lazy-load the bundle once. When it resolves, it must set a function component
@@ -81,7 +84,7 @@ export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse 
 
   return (
     <Suspense fallback={<Spinner />}>
-      <LazyPlugin dagId={dagId} mapIndex={mapIndex} runId={runId} taskId={taskId} />
+      <LazyPlugin dag={dag} dagId={dagId} mapIndex={mapIndex} runId={runId} taskId={taskId} />
     </Suspense>
   );
 };

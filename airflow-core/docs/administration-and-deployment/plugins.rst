@@ -257,6 +257,16 @@ definitions in Airflow.
         # are still grouped into the submenu; a single remaining non-promoted item is also shown on the toolbar.
         # Defaults to False.
         "nav_top_level": True,
+        # Optional Dag-scoped visibility filters, only relevant for destinations "dag", "dag_run", "task" and
+        # "task_instance". When any of "dag_tags", "dag_ids" or "dag_id_pattern" is set, the tab is shown only on Dags
+        # that match at least one of them (OR). Omitting all three shows the tab on every Dag (the default). These are a
+        # display convenience, not an authorization boundary. "dag_tags" matches Dags carrying any of the listed tags.
+        "dag_tags": ["production", "ml"],
+        # "dag_ids" matches the listed dag_ids exactly.
+        "dag_ids": ["my_dag", "my_other_dag"],
+        # "dag_id_pattern" is a client-side shell glob ("*" and "?") matched against the dag_id -- note this is not
+        # the SQL-LIKE ("%"/"_") syntax used by the platform's "dag_id_pattern" query params.
+        "dag_id_pattern": "etl_*",
     }
 
     # Note: The React app integration is experimental and interfaces might change in future versions.
@@ -287,6 +297,16 @@ definitions in Airflow.
         # are still grouped into the submenu; a single remaining non-promoted item is also shown on the toolbar.
         # Defaults to False.
         "nav_top_level": True,
+        # Optional Dag-scoped visibility filters, only relevant for destinations "dag", "dag_run", "task" and
+        # "task_instance". When any of "dag_tags", "dag_ids" or "dag_id_pattern" is set, the tab is shown only on Dags
+        # that match at least one of them (OR). Omitting all three shows the tab on every Dag (the default). These are a
+        # display convenience, not an authorization boundary. "dag_tags" matches Dags carrying any of the listed tags,
+        # "dag_ids" matches the listed dag_ids exactly, and "dag_id_pattern" is a client-side shell glob ("*" and "?")
+        # matched against the dag_id (not the SQL-LIKE "%"/"_" syntax used by the platform's "dag_id_pattern" query
+        # params). The current Dag (a ``DAGResponse``) is also passed to the React app component as a ``dag`` prop.
+        "dag_tags": ["production", "ml"],
+        "dag_ids": ["my_dag", "my_other_dag"],
+        "dag_id_pattern": "etl_*",
     }
 
 

@@ -1279,6 +1279,9 @@ export type ExternalViewResponse = {
     url_route?: string | null;
     category?: string | null;
     nav_top_level?: boolean | null;
+    dag_tags?: Array<(string)> | null;
+    dag_ids?: Array<(string)> | null;
+    dag_id_pattern?: string | null;
     href: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base';
     [key: string]: unknown | string;
@@ -1653,6 +1656,9 @@ export type ReactAppResponse = {
     url_route?: string | null;
     category?: string | null;
     nav_top_level?: boolean | null;
+    dag_tags?: Array<(string)> | null;
+    dag_ids?: Array<(string)> | null;
+    dag_id_pattern?: string | null;
     bundle_url: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base' | 'dashboard';
     [key: string]: unknown | string;

@@ -707,6 +707,9 @@ class ExternalViewResponse(BaseModel):
     url_route: Annotated[str | None, Field(title="Url Route")] = None
     category: Annotated[str | None, Field(title="Category")] = None
     nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
+    dag_tags: Annotated[list[str] | None, Field(title="Dag Tags")] = None
+    dag_ids: Annotated[list[str] | None, Field(title="Dag Ids")] = None
+    dag_id_pattern: Annotated[str | None, Field(title="Dag Id Pattern")] = None
     href: Annotated[str, Field(title="Href")]
     destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
 
@@ -943,6 +946,9 @@ class ReactAppResponse(BaseModel):
     url_route: Annotated[str | None, Field(title="Url Route")] = None
     category: Annotated[str | None, Field(title="Category")] = None
     nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
+    dag_tags: Annotated[list[str] | None, Field(title="Dag Tags")] = None
+    dag_ids: Annotated[list[str] | None, Field(title="Dag Ids")] = None
+    dag_id_pattern: Annotated[str | None, Field(title="Dag Id Pattern")] = None
     bundle_url: Annotated[str, Field(title="Bundle Url")]
     destination: Annotated[Destination1 | None, Field(title="Destination")] = "nav"
 
