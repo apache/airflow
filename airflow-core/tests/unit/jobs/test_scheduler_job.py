@@ -5601,13 +5601,19 @@ class TestSchedulerJob:
         assert created_run.creating_job_id == scheduler_job.id
 
     @pytest.mark.need_serialized_dag
-    def test_new_asset_triggered_dag_ignores_events_before_creation(self, session, dag_maker):
-        """A newly added asset-triggered Dag must not consume events that predate it.
-
-        Reproduces issue #39456: a new consumer Dag scheduled on an asset that already has
-        historical events should only receive events that occurred after it started
-        consuming the asset, not the entire backlog since the first event.
-        """
+    @pytest.mark.parametrize(
+        ("catchup", "expects_old_event"),
+        [
+            pytest.param(False, False, id="catchup-off-ignores-backlog"),
+            pytest.param(True, True, id="catchup-on-consumes-backlog"),
+        ],
+    )
+    def test_new_asset_triggered_dag_backlog_gated_by_catchup(
+        self, catchup, expects_old_event, session, dag_maker
+    ):
+        """Reproduces #39456: catchup gates whether a new asset-triggered Dag replays the
+        pre-creation backlog. With catchup off (the default) it only consumes events after it
+        started scheduling on the asset; with catchup on it replays the full history."""
         asset = Asset(uri="test://asset-historical", name="hist_asset", group="test_group")
 
         # Producer Dag + run that the asset events are sourced from.
@@ -5618,7 +5624,7 @@ class TestSchedulerJob:
         asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
 
         # Consumer Dag created now; its schedule reference's created_at is the cut-off.
-        with dag_maker(dag_id="historical-consumer", schedule=[asset]):
+        with dag_maker(dag_id="historical-consumer", schedule=[asset], catchup=catchup):
             pass
         consumer_dag = dag_maker.dag
         reference_created_at = session.scalar(
@@ -5657,7 +5663,8 @@ class TestSchedulerJob:
 
         created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag.dag_id)).one()
         assert created_run.state == State.QUEUED
-        assert {e.id for e in created_run.consumed_asset_events} == {new_event.id}
+        expected = {new_event.id} | ({old_event.id} if expects_old_event else set())
+        assert {e.id for e in created_run.consumed_asset_events} == expected
 
     @pytest.mark.need_serialized_dag
     def test_create_dag_runs_asset_alias_with_asset_event_attached(self, session, dag_maker):
