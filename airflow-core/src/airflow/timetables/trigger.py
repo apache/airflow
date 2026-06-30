@@ -21,13 +21,17 @@ import functools
 import math
 import operator
 import time
-from datetime import timedelta
 from types import NoneType
 from typing import TYPE_CHECKING, Any
 
 import structlog
 
-from airflow._shared.timezones.timezone import coerce_datetime, make_aware, parse_timezone, utcnow
+from airflow._shared.timezones.timezone import (
+    coerce_datetime,
+    make_aware,
+    parse_timezone,
+    utcnow,
+)
 from airflow.exceptions import InvalidPartitionKeyError
 from airflow.timetables._cron import CronMixin
 from airflow.timetables._delta import DeltaMixin
@@ -466,14 +470,16 @@ class CronPartitionTimetable(CronTriggerTimetable):
     def iter_partition_dagrun_infos(
         self,
         *,
-        earliest_date: datetime.date,
-        latest_date: datetime.date,
+        earliest: datetime.datetime,
+        latest: datetime.datetime,
     ) -> Iterable[DagRunInfo]:
         """
-        Yield one DagRunInfo per cron tick for calendar days in ``[earliest_date, latest_date]`` (both inclusive).
+        Yield one DagRunInfo per cron tick whose partition_date lies in ``[earliest, latest]`` (both inclusive).
 
         Iteration walks directly along the partition_date axis — one cron tick per
-        partition — without any reverse mapping from run_after.  Each tick yields:
+        partition — honoring the actual datetime window rather than rounding it to
+        whole calendar days, so a sub-day window (e.g. an hourly cron backfilled for
+        a single hour) yields only the ticks inside the window.  Each tick yields:
 
         - ``partition_date = current`` (the cron tick itself, as a UTC instant)
         - ``partition_key`` formatted by :meth:`_format_key` (local-tz label)
@@ -489,16 +495,20 @@ class CronPartitionTimetable(CronTriggerTimetable):
         final tiebreaker).  Setting ``run_after = partition_date`` is the simplest
         correct choice and avoids the need for a reverse mapping.
 
-        :param earliest_date: inclusive lower bound calendar date; the UTC window start is
-            ``resolve_day_bound(earliest_date)``, i.e. local midnight of that day.
-        :param latest_date: inclusive upper bound calendar date; the UTC window end is
-            ``resolve_day_bound(latest_date + 1 day)`` (exclusive), so all ticks within
-            ``latest_date``'s local day are included.
+        :param earliest: inclusive lower bound on ``partition_date``; the wall-clock
+            reading of *earliest* is re-interpreted in the timetable's timezone before
+            alignment, so a UTC-midnight bound from the production backfill path is
+            treated as the timetable-local midnight rather than the UTC midnight.
+            Iteration starts at the first cron tick at or after that localized instant.
+        :param latest: inclusive upper bound on ``partition_date``; the same wall-clock
+            localization applies; the tick equal to the localized *latest* is included.
+
+        Both bounds must be timezone-aware; a naive datetime is coerced to UTC before
+        the wall-clock localization step.
         """
-        earliest_partition_date = self.resolve_day_bound(earliest_date)
-        latest_partition_date = self.resolve_day_bound(latest_date + timedelta(days=1))
-        current = self._align_to_next(earliest_partition_date)
-        while current < latest_partition_date:
+        current = self._align_to_next(self.localize_partition_datetime(earliest))
+        latest_dt = self.localize_partition_datetime(latest)
+        while current <= latest_dt:
             partition_key = self._format_key(current)
             yield DagRunInfo(
                 run_after=current,

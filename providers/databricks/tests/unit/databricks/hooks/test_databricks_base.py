@@ -37,9 +37,11 @@ from airflow.providers.databricks.hooks.databricks_base import (
     K8S_CA_CERT_PATH,
     TOKEN_REFRESH_LEAD_TIME,
     BaseDatabricksHook,
+    DatabricksProxyConfigurationError,
 )
 
 DEFAULT_CONN_ID = "databricks_default"
+PROXIES = {"http": "http://proxy.example.com:8080", "https": "http://proxy.example.com:8443"}
 
 
 class TestBaseDatabricksHook:
@@ -109,6 +111,59 @@ class TestBaseDatabricksHook:
     )
     def test_parse_host(self, input_url, expected_host):
         assert BaseDatabricksHook._parse_host(input_url) == expected_host
+
+    @mock.patch(
+        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.databricks_conn",
+        new_callable=mock.PropertyMock,
+    )
+    def test_proxies_from_extra(self, mock_conn):
+        mock_conn.return_value = Connection(extra={"proxies": PROXIES})
+        hook = BaseDatabricksHook()
+
+        assert hook.proxies == PROXIES
+        assert hook._get_requests_kwargs() == {"proxies": PROXIES}
+        assert hook._get_azure_credential_kwargs() == {"proxies": PROXIES}
+
+    @mock.patch(
+        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.databricks_conn",
+        new_callable=mock.PropertyMock,
+    )
+    def test_aiohttp_proxy_uses_request_scheme(self, mock_conn):
+        mock_conn.return_value = Connection(extra={"proxies": PROXIES})
+        hook = BaseDatabricksHook()
+
+        assert hook._get_aiohttp_kwargs("https://example.databricks.com/api") == {"proxy": PROXIES["https"]}
+        assert hook._get_aiohttp_kwargs("http://example.databricks.com/api") == {"proxy": PROXIES["http"]}
+
+    @mock.patch(
+        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.databricks_conn",
+        new_callable=mock.PropertyMock,
+    )
+    def test_aiohttp_proxy_returns_empty_kwargs_without_matching_scheme(self, mock_conn):
+        mock_conn.return_value = Connection(extra={"proxies": {"http": PROXIES["http"]}})
+        hook = BaseDatabricksHook()
+
+        assert hook._get_aiohttp_kwargs("https://example.databricks.com/api") == {}
+
+    @mock.patch(
+        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.databricks_conn",
+        new_callable=mock.PropertyMock,
+    )
+    @pytest.mark.parametrize(
+        ("proxies", "message"),
+        [
+            ("http://proxy.example.com:8080", "must be a JSON object"),
+            ({"ftp": "http://proxy.example.com:8080"}, "only supports 'http' and 'https' keys"),
+            ({"https": ""}, "values must be non-empty strings"),
+            ({"https": 8080}, "values must be non-empty strings"),
+        ],
+    )
+    def test_proxies_invalid_extra_raises(self, mock_conn, proxies, message):
+        mock_conn.return_value = Connection(extra={"proxies": proxies})
+        hook = BaseDatabricksHook()
+
+        with pytest.raises(DatabricksProxyConfigurationError, match=message):
+            hook.proxies
 
     @mock.patch("requests.post")
     @time_machine.travel("2025-07-12 12:00:00", tick=False)

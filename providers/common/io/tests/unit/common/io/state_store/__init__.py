@@ -14,25 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-import subprocess
-import sys
-
-
-def test_airflowctl_is_importable():
-    # checks if airflowctl imports correctly
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-c",
-            "import airflowctl; print('airflowctl imported successfully')",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert result.returncode == 0, (
-        f"airflowctl import failed!\nstdout: {result.stdout}\nstderr: {result.stderr}"
-    )

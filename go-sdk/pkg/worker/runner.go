@@ -327,7 +327,7 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 	var finalState api.TerminalTIState
 	body := &api.TIUpdateStatePayload{}
 
-	if taskContext.Err() == ErrTaskCancelledAfterFailedHeartbeat {
+	if errors.Is(context.Cause(taskContext), ErrTaskCancelledAfterFailedHeartbeat) {
 		// We've already logged when we failed to heartbeat, don't do it again
 		finalState = api.TerminalTIStateFailed
 		body.FromTITerminalStatePayload(api.TITerminalStatePayload{

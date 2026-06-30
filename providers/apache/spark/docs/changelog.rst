@@ -35,6 +35,7 @@ Changelog
 Features
 ~~~~~~~~
 
+* ``Add a standard toggle for resumability to ResumableJobMixin (#68623)``
 * ``Add crash recovery ability to SparkSubmitOperator against Kubernetes (#68067)``
 * ``Crash recovery for YARN cluster mode in SparkSubmitOperator built on AIP-103 (#67473)``
 

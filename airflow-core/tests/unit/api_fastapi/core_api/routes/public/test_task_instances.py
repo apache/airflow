@@ -5128,6 +5128,20 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             session, response_data["task_instances"][0]["id"], {"content": new_note_value, "user_id": "test"}
         )
 
+    def test_set_empty_note_removes_existing_note(self, test_client, session):
+        self.create_task_instances(session)
+        url = "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+
+        set_response = test_client.patch(url, json={"note": "a note to remove"})
+        assert set_response.status_code == 200, set_response.text
+        ti_id = set_response.json()["task_instances"][0]["id"]
+        _check_task_instance_note(session, ti_id, {"content": "a note to remove", "user_id": "test"})
+
+        clear_response = test_client.patch(url, json={"note": ""})
+        assert clear_response.status_code == 200, clear_response.text
+        assert clear_response.json()["task_instances"][0]["note"] is None
+        _check_task_instance_note(session, ti_id, None)
+
     def test_set_note_should_respond_200_mapped_task_with_rtif(self, test_client, session):
         """Verify we don't duplicate rows through join to RTIF"""
         tis = self.create_task_instances(session)

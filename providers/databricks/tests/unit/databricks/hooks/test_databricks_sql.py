@@ -854,6 +854,30 @@ def test_get_conn_no_query_tags(mock_connect, mock_get_requests):
     assert session_cfg is None or "QUERY_TAGS" not in session_cfg
 
 
+@mock.patch("airflow.providers.databricks.hooks.databricks_sql.sql.connect")
+def test_get_conn_does_not_leak_proxies_into_connector(mock_connect, mock_get_requests):
+    """A ``proxies`` connection extra must not be forwarded to ``sql.connect()``.
+
+    ``proxies`` configures the REST/token HTTP paths only; the
+    databricks-sql-connector does not accept it and raises ``TypeError`` on
+    unexpected keyword arguments (>=4.0.0). It is listed in
+    ``extra_parameters`` so ``_get_extra_config`` strips it from connect kwargs.
+    """
+    hook = DatabricksSqlHook(databricks_conn_id=DEFAULT_CONN_ID, http_path=HTTP_PATH)
+    hook.databricks_conn = Connection(
+        conn_id=DEFAULT_CONN_ID,
+        conn_type="databricks",
+        host=HOST,
+        password=TOKEN,
+        extra={"proxies": {"https": "http://proxy.example.com:8443"}},
+    )
+
+    hook.get_conn()
+
+    mock_connect.assert_called_once()
+    assert "proxies" not in mock_connect.call_args.kwargs
+
+
 class TestFormatQueryTags:
     def test_simple_values(self):
         result = _format_query_tags({"dag_id": "my_dag", "task_id": "my_task"})
