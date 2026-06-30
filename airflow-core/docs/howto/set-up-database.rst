@@ -184,7 +184,7 @@ in the Postgres documentation to learn more.
 
 .. warning::
 
-   When you use SQLAlchemy 1.4.0+, you need to use ``postgresql://`` as the database in the ``sql_alchemy_conn``.
+   When you use SQLAlchemy 1.4.0+, you need to use ``postgresql+psycopg2://`` as the database in the ``sql_alchemy_conn``.
    In the previous versions of SQLAlchemy it was possible to use ``postgres://``, but using it in
    SQLAlchemy 1.4.0+ results in:
 
@@ -353,7 +353,7 @@ For instance, you can specify a database schema where Airflow will create its re
 
 .. code-block:: bash
 
-    export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN="postgresql://postgres@localhost:5432/my_database?options=-csearch_path%3Dairflow"
+    export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN="postgresql+psycopg2://postgres@localhost:5432/my_database?options=-csearch_path%3Dairflow"
     export AIRFLOW__DATABASE__SQL_ALCHEMY_SCHEMA="airflow"
 
 Note the ``search_path`` at the end of the ``SQL_ALCHEMY_CONN`` database URL.
