@@ -1351,17 +1351,22 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
 
     This method should be called once per Task execution, before calling operator.execute.
     """
-    _CURRENT_CONTEXT.append(context)
+    current = _CURRENT_CONTEXT.get(None)
+    # Build a new list so that asyncio tasks / thread-pool workers that were
+    # created before this push still see the old stack (copy-on-set isolation).
+    new_stack = [*(current or []), context]
+    token = _CURRENT_CONTEXT.set(new_stack)
     try:
         yield context
     finally:
-        expected_state = _CURRENT_CONTEXT.pop()
-        if expected_state != context:
+        restored = _CURRENT_CONTEXT.get(None)
+        if not restored or restored[-1] != context:
             log.warning(
                 "Current context is not equal to the state at context stack.",
                 expected=context,
-                got=expected_state,
+                got=restored[-1] if restored else None,
             )
+        _CURRENT_CONTEXT.reset(token)
 
 
 def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:

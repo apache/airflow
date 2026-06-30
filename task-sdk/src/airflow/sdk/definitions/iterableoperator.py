@@ -411,7 +411,7 @@ class IterableOperator(BaseOperator):
             )
 
     async def _run_async_operator(self, context: Context, task_instance: IndexedTaskInstance):
-        async with TaskExecutor(task_instance=task_instance) as executor:
+        with TaskExecutor(task_instance=task_instance) as executor:
             return await executor.arun(
                 context={
                     **clone_context(context),

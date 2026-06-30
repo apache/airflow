@@ -22,6 +22,7 @@ from types import SimpleNamespace
 import pytest
 
 from airflow.sdk import Asset
+from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
 from airflow.sdk.definitions.context import Context, clone_context, get_current_context
 from airflow.sdk.execution_time.context import InletEventsAccessors
 
@@ -31,18 +32,22 @@ class TestCurrentContext:
         with pytest.raises(RuntimeError):
             get_current_context()
 
-    def test_get_current_context_with_context(self, monkeypatch):
+    def test_get_current_context_with_context(self):
         mock_context = {"ti": "task_instance", "key": "value"}
-        monkeypatch.setattr(
-            "airflow.sdk.definitions._internal.contextmanager._CURRENT_CONTEXT", [mock_context]
-        )
-        result = get_current_context()
-        assert result == mock_context
+        token = _CURRENT_CONTEXT.set([mock_context])
+        try:
+            result = get_current_context()
+            assert result == mock_context
+        finally:
+            _CURRENT_CONTEXT.reset(token)
 
-    def test_get_current_context_without_context(self, monkeypatch):
-        monkeypatch.setattr("airflow.sdk.definitions._internal.contextmanager._CURRENT_CONTEXT", [])
-        with pytest.raises(RuntimeError, match="Current context was requested but no context was found!"):
-            get_current_context()
+    def test_get_current_context_without_context(self):
+        token = _CURRENT_CONTEXT.set([])
+        try:
+            with pytest.raises(RuntimeError, match="Current context was requested but no context was found!"):
+                get_current_context()
+        finally:
+            _CURRENT_CONTEXT.reset(token)
 
     def test_clone_context_deep_and_shallow_copy_semantics(self):
         outlet_events = [Asset(name="dummy")]

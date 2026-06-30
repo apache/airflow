@@ -29,7 +29,7 @@ except NameError:
 
 import pytest
 
-from airflow.sdk import DAG, BaseOperator, BaseXCom
+from airflow.sdk import DAG, BaseOperator, BaseXCom, get_current_context
 from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRIES
 from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
 from airflow.sdk.definitions.iterableoperator import IterableOperator
@@ -583,3 +583,42 @@ class TestIterableOperator:
 
             with pytest.raises(AirflowFailException):
                 iterable_op.execute(context=context)
+
+
+class TestIterableOperatorContextIsolation:
+    """
+    Verify that each sub-task run by IterableOperator sees its own indexed
+    context via get_current_context(), not the parent's.
+    """
+
+    @pytest.mark.db_test
+    def test_subtask_sees_its_own_context(self, dag_maker, session, mock_xcom_get_one):
+        """Each sub-task's get_current_context() must return its own indexed ti, not the parent's."""
+        captured: dict[int, object] = {}
+
+        class ContextCapturingOperator(BaseOperator):
+            def __init__(self, index: int, **kwargs):
+                super().__init__(**kwargs)
+                self.index = index
+
+            def execute(self, context):
+                ctx = get_current_context()
+                captured[self.index] = ctx["ti"]
+                return self.index
+
+        with dag_maker(session=session) as dag:
+            expand_input = ListOfDictsExpandInput([{"index": 0}, {"index": 1}, {"index": 2}])
+            mapped_op = ContextCapturingOperator.partial(task_id="ctx_task", dag=dag)._expand(
+                expand_input, strict=True, register_with_dag=False
+            )
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+        parent_context = mock_context(task=iterable_op)
+        mock_xcom_get_one(parent_context)
+        iterable_op.execute(context=parent_context)
+
+        parent_ti = parent_context["ti"]
+        for idx, sub_ti in captured.items():
+            # Each sub-task must have seen its own IndexedTaskInstance, not the parent TI.
+            assert sub_ti is not parent_ti, f"Sub-task {idx} observed the parent context"
+            assert sub_ti.index == idx, f"Sub-task {idx} observed wrong index {sub_ti.index}"

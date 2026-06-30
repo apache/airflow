@@ -45,7 +45,7 @@ from airflow.sdk.bases.operator import ExecutorSafeguard
 from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
 from airflow.sdk.exceptions import AirflowRescheduleTaskInstanceException, TaskDeferred
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
-from airflow.sdk.execution_time.context import context_get_outlet_events
+from airflow.sdk.execution_time.context import context_get_outlet_events, set_current_context
 from airflow.sdk.execution_time.task_runner import (
     RuntimeTaskInstance,
     _execute_task,
@@ -260,10 +260,12 @@ class TaskExecutor(LoggingMixin):
         return self.task_instance.is_async
 
     def run(self, context: Context):
-        return _execute_task(context, self.task_instance, self.log)
+        with set_current_context(context):
+            return _execute_task(context, self.task_instance, self.log)
 
     async def arun(self, context: Context):
-        return await _execute_async_task(context, self.task_instance, self.log)
+        with set_current_context(context):
+            return await _execute_async_task(context, self.task_instance, self.log)
 
     def __enter__(self):
         self._start_time = time.monotonic()
@@ -278,9 +280,6 @@ class TaskExecutor(LoggingMixin):
                 "async" if self.is_async else "sync",
             )
         return self
-
-    async def __aenter__(self):
-        return self.__enter__()
 
     def __exit__(self, exc_type, exc_value, traceback):
         elapsed = time.monotonic() - self._start_time if self._start_time else 0.0
@@ -320,9 +319,6 @@ class TaskExecutor(LoggingMixin):
                 self.task_instance.next_try_number,
                 elapsed,
             )
-
-    async def __aexit__(self, exc_type, exc_value, traceback):
-        self.__exit__(exc_type, exc_value, traceback)
 
 
 async def _execute_async_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
