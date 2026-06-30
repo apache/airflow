@@ -9481,6 +9481,43 @@ export const $DAGsRunStateCountsCollectionResponse = {
     description: 'Collection of per-Dag DagRun-state counts for the Dag list page.'
 } as const;
 
+export const $DagFolderCollectionResponse = {
+    properties: {
+        folders: {
+            items: {
+                '$ref': '#/components/schemas/DagFolderResponse'
+            },
+            type: 'array',
+            title: 'Folders'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['folders', 'total_entries'],
+    title: 'DagFolderCollectionResponse',
+    description: 'Collection of distinct Dag folders, each scoped to the bundle it belongs to.'
+} as const;
+
+export const $DagFolderResponse = {
+    properties: {
+        bundle_name: {
+            type: 'string',
+            title: 'Bundle Name'
+        },
+        folder: {
+            type: 'string',
+            title: 'Folder'
+        }
+    },
+    type: 'object',
+    required: ['bundle_name', 'folder'],
+    title: 'DagFolderResponse',
+    description: 'A distinct Dag folder (directory of ``relative_fileloc``) within a bundle.'
+} as const;
+
 export const $DagRunStatsResponse = {
     properties: {
         duration: {

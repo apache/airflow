@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from pathlib import PurePosixPath
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
@@ -50,6 +51,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryOwnersFilter,
     QueryPausedFilter,
     QueryPendingActionsFilter,
+    QueryRelativeFilelocPrefixFilter,
     QueryTagsFilter,
     QueryTeamsFilter,
     SortParam,
@@ -59,6 +61,8 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dags import DAG_ALIAS_MAPPING, DAGResponse
 from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightResponse
 from airflow.api_fastapi.core_api.datamodels.ui.dags import (
+    DagFolderCollectionResponse,
+    DagFolderResponse,
     DAGRunStateCountsResponse,
     DAGsRunStateCountsCollectionResponse,
     DAGWithLatestDagRunsCollectionResponse,
@@ -113,6 +117,7 @@ def get_dags(
     dag_run_state: QueryAnyDagRunStateFilter,
     bundle_name: QueryBundleNameFilter,
     bundle_version: QueryBundleVersionFilter,
+    relative_fileloc_prefix: QueryRelativeFilelocPrefixFilter,
     order_by: Annotated[
         SortParam,
         Depends(
@@ -169,6 +174,7 @@ def get_dags(
             readable_dags_filter,
             bundle_name,
             bundle_version,
+            relative_fileloc_prefix,
         ],
         order_by=order_by,
         offset=offset,
@@ -272,6 +278,47 @@ def get_dags(
     return DAGWithLatestDagRunsCollectionResponse(
         total_entries=total_entries,
         dags=list(dag_runs_by_dag_id.values()),
+    )
+
+
+@dags_router.get(
+    "/folders",
+    dependencies=[Depends(requires_access_dag(method="GET"))],
+    operation_id="get_dag_folders",
+)
+def get_dag_folders(
+    readable_dags_filter: ReadableDagsFilterDep,
+    session: SessionDep,
+) -> DagFolderCollectionResponse:
+    """
+    Get the distinct folders the readable Dags live in, scoped to their bundle.
+
+    A folder is the directory part of a Dag's ``relative_fileloc`` (relative to its
+    bundle root). Because ``relative_fileloc`` is relative to each bundle, the same
+    path can exist in several bundles, so every folder is paired with its bundle
+    name to keep them apart. Dags located directly at the bundle root have no folder
+    and are not represented here. The result powers the folder navigation tree in
+    the UI, which reconstructs the hierarchy by splitting each path on ``/`` and
+    groups it under its bundle when more than one bundle is present.
+    """
+    query = readable_dags_filter.to_orm(
+        select(DagModel.bundle_name, DagModel.relative_fileloc)
+        .where(DagModel.relative_fileloc.is_not(None))
+        .distinct()
+    )
+    folders: set[tuple[str, str]] = set()
+    for bundle_name, relative_fileloc in session.execute(query):
+        parent = PurePosixPath(relative_fileloc).parent
+        if str(parent) != ".":
+            folders.add((bundle_name, str(parent)))
+
+    sorted_folders = sorted(folders)
+    return DagFolderCollectionResponse(
+        folders=[
+            DagFolderResponse(bundle_name=bundle_name, folder=folder)
+            for bundle_name, folder in sorted_folders
+        ],
+        total_entries=len(sorted_folders),
     )
 
 

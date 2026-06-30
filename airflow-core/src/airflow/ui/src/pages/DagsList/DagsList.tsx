@@ -16,7 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, HStack, Skeleton, VStack, type SelectValueChangeDetails, Box } from "@chakra-ui/react";
+import {
+  Heading,
+  HStack,
+  Skeleton,
+  VStack,
+  type SelectValueChangeDetails,
+  Box,
+  Flex,
+} from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
@@ -40,12 +48,14 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
+import { useDagFolders } from "src/queries/useDagFolders";
 import { useDagRunStateCounts } from "src/queries/useDagRunStateCounts";
 import { useDags } from "src/queries/useDags";
 import { useDocumentTitle } from "src/utils";
 
 import { DagImportErrors } from "../Dashboard/Stats/DagImportErrors";
 import { DagCard } from "./DagCard";
+import { DagFolderTree, type FolderSelection } from "./DagFolderTree";
 import { DagRunStateCounts } from "./DagRunStateCounts";
 import { DagTags } from "./DagTags";
 import { DagsFilters } from "./DagsFilters";
@@ -212,6 +222,8 @@ const createColumns = (
 ];
 
 const {
+  DAG_BUNDLE,
+  DAG_FOLDER,
   DAG_RUN_STATE,
   FAVORITE,
   LAST_DAG_RUN_STATE,
@@ -259,6 +271,14 @@ export const DagsList = () => {
   const pendingReviews = searchParams.get(NEEDS_REVIEW);
   const owners = searchParams.getAll(OWNERS);
   const teams = searchParams.getAll(TEAMS);
+  const selectedFolder = searchParams.get(DAG_FOLDER) ?? undefined;
+  const selectedBundle = searchParams.get(DAG_BUNDLE) ?? undefined;
+
+  const { folders, isLoading: foldersLoading } = useDagFolders();
+  // Keep the panel out of the way for flat deployments (all Dags at the bundle root). Still show it
+  // while loading, or when a folder/bundle is selected so the user can always navigate back to "All Dags".
+  const showFolderTree =
+    foldersLoading || folders.length > 0 || Boolean(selectedFolder) || Boolean(selectedBundle);
 
   const { setTableURLState, tableURLState } = useTableURLState();
 
@@ -278,6 +298,25 @@ export const DagsList = () => {
       searchParams.set(NAME_PATTERN, value);
     } else {
       searchParams.delete(NAME_PATTERN);
+    }
+    searchParams.delete(OFFSET);
+    setSearchParams(searchParams);
+  };
+
+  const handleFolderChange = ({ bundleName, folder }: FolderSelection) => {
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    if (folder === undefined || folder === "") {
+      searchParams.delete(DAG_FOLDER);
+    } else {
+      searchParams.set(DAG_FOLDER, folder);
+    }
+    if (bundleName === undefined || bundleName === "") {
+      searchParams.delete(DAG_BUNDLE);
+    } else {
+      searchParams.set(DAG_BUNDLE, bundleName);
     }
     searchParams.delete(OFFSET);
     setSearchParams(searchParams);
@@ -309,6 +348,7 @@ export const DagsList = () => {
 
   const { data, error, isLoading } = useDags({
     advancedSearch: advancedSearch.enabled,
+    bundleName: selectedBundle,
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? dagDisplayNamePattern : undefined,
     dagRunsLimit,
     dagRunState,
@@ -320,6 +360,7 @@ export const DagsList = () => {
     owners,
     paused,
     pendingHitl,
+    relativeFilelocPrefix: selectedFolder,
     tags: selectedTags,
     tagsMatchMode: selectedMatchMode,
     teams: teams.length > 0 ? teams : undefined,
@@ -376,24 +417,39 @@ export const DagsList = () => {
           </HStack>
         </HStack>
       </VStack>
-      <Box pb={8}>
-        <DataTable
-          cardDef={cardDef}
-          columns={columns}
-          data={data?.dags ?? []}
-          displayMode={display}
-          errorMessage={<ErrorAlert error={error} />}
-          initialState={tableURLState}
-          isLoading={isLoading}
-          modelName="common:dag"
-          onDisplayToggleChange={setDisplay}
-          onStateChange={setTableURLState}
-          showDisplayToggle
-          showRowCountHeading={false}
-          skeletonCount={display === "card" ? 5 : undefined}
-          total={totalEntries}
-        />
-      </Box>
+      <Flex align="flex-start" gap={4} pb={8}>
+        {/* Only show the folder sidebar when there is something to navigate; deployments with all
+            Dags at the bundle root would otherwise get an empty panel. */}
+        {showFolderTree ? (
+          <Box flexShrink={0} maxWidth="280px" overflowY="auto" position="sticky" top={0}>
+            <DagFolderTree
+              folders={folders}
+              isLoading={foldersLoading}
+              onSelectFolder={handleFolderChange}
+              selectedBundle={selectedBundle}
+              selectedFolder={selectedFolder}
+            />
+          </Box>
+        ) : undefined}
+        <Box flex={1} minWidth={0}>
+          <DataTable
+            cardDef={cardDef}
+            columns={columns}
+            data={data?.dags ?? []}
+            displayMode={display}
+            errorMessage={<ErrorAlert error={error} />}
+            initialState={tableURLState}
+            isLoading={isLoading}
+            modelName="common:dag"
+            onDisplayToggleChange={setDisplay}
+            onStateChange={setTableURLState}
+            showDisplayToggle
+            showRowCountHeading={false}
+            skeletonCount={display === "card" ? 5 : undefined}
+            total={totalEntries}
+          />
+        </Box>
+      </Flex>
     </DagsLayout>
   );
 };
