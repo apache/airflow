@@ -840,8 +840,19 @@ class OpenLineageListener:
         runtime, so Operators whose extractors resolve Connections, Variables or XComs keep
         working.
         """
+
+        def _run():
+            try:
+                callable()
+            except Exception:
+                self.log.warning(
+                    "OpenLineage %s thread failed. This has no impact on actual task execution status.",
+                    callable_name,
+                    exc_info=True,
+                )
+
         thread = threading.Thread(
-            target=callable,
+            target=_run,
             name=f"openlineage-{callable_name}",
             daemon=True,
         )

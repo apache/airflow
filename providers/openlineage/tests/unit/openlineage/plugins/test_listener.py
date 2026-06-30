@@ -2404,3 +2404,16 @@ class TestExecuteRouting:
             assert elapsed < 10
         finally:
             release.set()
+
+    @conf_vars({("openlineage", "execute_in_thread"): "True", ("openlineage", "execution_timeout"): "5"})
+    def test_thread_execute_swallows_callable_exception(self):
+        listener = OpenLineageListener()
+        listener.log = MagicMock()
+
+        def _failing_emit():
+            raise RuntimeError("boom")
+
+        listener._thread_execute(_failing_emit, "on_running")
+
+        listener.log.warning.assert_called_once()
+        assert "on_running" in listener.log.warning.call_args.args
