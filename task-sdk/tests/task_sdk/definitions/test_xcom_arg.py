@@ -395,7 +395,7 @@ class TestPlainXComArgResolveMappedGroup:
     def test_resolve_stays_lazy_and_serializes_as_list(self, root, expected, mock_supervisor_comms):
         from airflow.sdk.execution_time.comms import XComSequenceSliceResult
         from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
-        from airflow.sdk.serde import serialize
+        from airflow.sdk.serde import deserialize, serialize
 
         mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=root)
 
@@ -406,7 +406,8 @@ class TestPlainXComArgResolveMappedGroup:
 
         assert isinstance(resolved, LazyXComSequence)
         ti.xcom_pull.assert_not_called()
-        assert serialize(resolved) == expected
+        # The lazy sequence materializes to a plain list only when actually serialized.
+        assert deserialize(serialize(resolved)) == expected
 
     def test_resolve_uses_xcom_pull_for_specific_index(self):
         arg = self._make_arg()
