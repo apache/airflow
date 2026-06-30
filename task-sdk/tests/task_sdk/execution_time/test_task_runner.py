@@ -5001,6 +5001,11 @@ class TestTriggerDagRunOperator:
         ]
         mock_supervisor_comms.assert_has_calls(expected_calls)
 
+    # Force the < 3.3 task-runner path: the original-error guard below is specific to
+    # ``_handle_trigger_dag_run`` raising inside ``run()``'s ``except`` block. On Airflow
+    # 3.3+ the operator owns execution and the send error is handled normally (covered by
+    # test_trigger_dagrun.py), so there is no unbound-``state`` hazard to guard there.
+    @mock.patch("airflow.providers.standard.operators.trigger_dagrun.AIRFLOW_V_3_3_PLUS", False)
     @time_machine.travel("2025-01-01 00:00:00", tick=False)
     def test_handle_trigger_dag_run_reraises_original_error(self, create_runtime_ti, mock_supervisor_comms):
         """
@@ -5058,10 +5063,11 @@ class TestTriggerDagRunOperator:
         create_runtime_ti,
         mock_supervisor_comms,
     ):
-        """
-        Test that TriggerDagRunOperator (with wait_for_completion) sends the correct message to the Supervisor
+        """A wait_for_completion trigger resolves the task to the state implied by the triggered run.
 
-        It also polls the Supervisor for the DagRun state until it completes execution.
+        Keyed by message type rather than call order so it holds for both the operator-owned
+        (Airflow 3.3+) and task-runner (< 3.3) paths; the exact call sequence is asserted in
+        test_trigger_dagrun.py.
         """
         from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 
@@ -5078,71 +5084,22 @@ class TestTriggerDagRunOperator:
             dag_id="test_handle_trigger_dag_run_wait_for_completion", run_id="test_run", task=task
         )
 
+        def _send_side_effect(*args, **kwargs):
+            sent = kwargs.get("msg", args[0] if args else None)
+            if isinstance(sent, TriggerDagRun):
+                return OKResponse(ok=True)
+            if isinstance(sent, GetDagRunState):
+                return DagRunStateResult(state=target_dr_state)
+            return None
+
+        mock_supervisor_comms.send.side_effect = _send_side_effect
+
         log = mock.MagicMock()
-        mock_supervisor_comms.send.side_effect = [
-            # Set RTIF
-            None,
-            # Account for the extra link XCom message sent by TriggerDagRunLink
-            None,
-            # Successful Dag Run trigger
-            OKResponse(ok=True),
-            # Set XCOM,
-            None,
-            # Dag Run is still running
-            DagRunStateResult(state=DagRunState.RUNNING),
-            # Dag Run completes execution on the next poll
-            DagRunStateResult(state=target_dr_state),
-            # Succeed/Fail task
-            None,
-        ]
         with mock.patch("time.sleep", return_value=None):
             state, msg, _ = run(ti, ti.get_template_context(), log)
 
         assert state == expected_task_state
         assert msg.state == expected_task_state
-
-        expected_calls = [
-            mock.call.send(
-                msg=SetXCom(
-                    key="_link_TriggerDagRunLink",
-                    value="/dags/test_dag/runs/test_run_id",
-                    dag_id="test_handle_trigger_dag_run_wait_for_completion",
-                    task_id="test_task",
-                    run_id="test_run",
-                    map_index=-1,
-                ),
-            ),
-            mock.call.send(
-                msg=TriggerDagRun(
-                    dag_id="test_dag",
-                    run_id="test_run_id",
-                    logical_date=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
-                ),
-            ),
-            mock.call.send(
-                msg=SetXCom(
-                    key="trigger_run_id",
-                    value="test_run_id",
-                    dag_id="test_handle_trigger_dag_run_wait_for_completion",
-                    task_id="test_task",
-                    run_id="test_run",
-                    map_index=-1,
-                ),
-            ),
-            mock.call.send(
-                msg=GetDagRunState(
-                    dag_id="test_dag",
-                    run_id="test_run_id",
-                ),
-            ),
-            mock.call.send(
-                msg=GetDagRunState(
-                    dag_id="test_dag",
-                    run_id="test_run_id",
-                ),
-            ),
-        ]
-        mock_supervisor_comms.assert_has_calls(expected_calls)
 
     def test_handle_trigger_dag_run_wait_for_completion_failed_state_retries(
         self, create_runtime_ti, mock_supervisor_comms
