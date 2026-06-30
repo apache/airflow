@@ -34,7 +34,9 @@ from airflow.models.asset import (
     AssetEvent,
     AssetModel,
     AssetWatcherModel,
+    DagScheduleAssetNameReference,
     DagScheduleAssetReference,
+    DagScheduleAssetUriReference,
     TaskOutletAssetReference,
 )
 from airflow.models.dagrun import DagRun
@@ -297,6 +299,26 @@ class TestAssets:
     @provide_session
     def create_asset_dag_run(self, num: int = 2, *, session):
         _create_asset_dag_run(num=num, session=session)
+
+    def _make_mock_event(self, asset):
+        m = mock.MagicMock(
+            spec=AssetEvent,
+            id=1,
+            asset_id=asset.id,
+            uri=asset.uri,
+            group=asset.group,
+            extra={"from_rest_api": True},
+            source_map_index=-1,
+            timestamp=DEFAULT_DATE,
+            source_task_id=None,
+            source_dag_id=None,
+            source_run_id=None,
+            partition_key=None,
+            created_dagruns=[],
+        )
+        # MagicMock uses 'name' internally for repr, so it must be set separately.
+        m.name = asset.name
+        return m
 
 
 class TestGetAssets(TestAssets):
@@ -1329,6 +1351,153 @@ class TestPostAssetEvents(TestAssets):
         response = unauthorized_test_client.post("/assets/events", json={"asset_uri": "s3://bucket/key/1"})
         assert response.status_code == 403
 
+    @pytest.mark.usefixtures("time_freezer", "testing_dag_bundle")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.assets.get_auth_manager", autospec=True)
+    def test_should_respond_403_when_user_cannot_trigger_producer_or_consumer_dags(
+        self, mock_get_auth_manager, test_client, session
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = False
+        (asset,) = self.create_assets(num=1, session=session)
+        session.add_all(
+            [
+                DagModel(dag_id="producer_dag", bundle_name="testing"),
+                DagModel(dag_id="consumer_dag", bundle_name="testing", is_paused=False),
+                TaskOutletAssetReference(dag_id="producer_dag", task_id="task1", asset=asset),
+                DagScheduleAssetReference(dag_id="consumer_dag", asset=asset),
+            ]
+        )
+        session.commit()
+
+        response = test_client.post("/assets/events", json={"asset_id": asset.id, "extra": {"foo": "bar"}})
+
+        assert response.status_code == 403
+
+    @pytest.mark.usefixtures("time_freezer", "testing_dag_bundle")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.assets.get_auth_manager", autospec=True)
+    def test_should_respond_200_when_user_can_trigger_a_producing_dag(
+        self, mock_get_auth_manager, test_client, session
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.side_effect = lambda **kwargs: (
+            kwargs["details"].id == "producer_dag"
+        )
+        (asset,) = self.create_assets(num=1, session=session)
+        session.add_all(
+            [
+                DagModel(dag_id="producer_dag", bundle_name="testing"),
+                DagModel(dag_id="consumer_dag", bundle_name="testing", is_paused=True),
+                TaskOutletAssetReference(dag_id="producer_dag", task_id="task1", asset=asset),
+                DagScheduleAssetReference(dag_id="consumer_dag", asset=asset),
+            ]
+        )
+        session.commit()
+
+        response = test_client.post("/assets/events", json={"asset_id": asset.id, "extra": {"foo": "bar"}})
+
+        assert response.status_code == 200
+
+    @pytest.mark.usefixtures("time_freezer", "testing_dag_bundle")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.assets.asset_manager.register_asset_change")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.assets.get_auth_manager", autospec=True)
+    def test_should_respond_200_when_user_can_trigger_all_consuming_dags(
+        self, mock_get_auth_manager, mock_register, test_client, session
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+        (asset,) = self.create_assets(num=1, session=session)
+        mock_register.return_value = self._make_mock_event(asset)
+        session.add_all(
+            [
+                DagModel(dag_id="consumer_dag_1", bundle_name="testing", is_paused=False),
+                DagModel(dag_id="consumer_dag_2", bundle_name="testing", is_paused=False),
+                DagScheduleAssetReference(dag_id="consumer_dag_1", asset=asset),
+                DagScheduleAssetReference(dag_id="consumer_dag_2", asset=asset),
+            ]
+        )
+        session.commit()
+
+        response = test_client.post("/assets/events", json={"asset_id": asset.id, "extra": {"foo": "bar"}})
+
+        assert response.status_code == 200
+
+    @pytest.mark.usefixtures("time_freezer", "testing_dag_bundle")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.assets.get_auth_manager", autospec=True)
+    def test_should_respond_403_when_user_can_trigger_only_some_consuming_dags(
+        self, mock_get_auth_manager, test_client, session
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.side_effect = lambda **kwargs: (
+            kwargs["details"].id == "consumer_dag_1"
+        )
+        (asset,) = self.create_assets(num=1, session=session)
+        session.add_all(
+            [
+                DagModel(dag_id="producer_dag", bundle_name="testing"),
+                DagModel(dag_id="consumer_dag_1", bundle_name="testing", is_paused=False),
+                DagModel(dag_id="consumer_dag_2", bundle_name="testing", is_paused=False),
+                TaskOutletAssetReference(dag_id="producer_dag", task_id="task1", asset=asset),
+                DagScheduleAssetReference(dag_id="consumer_dag_1", asset=asset),
+                DagScheduleAssetReference(dag_id="consumer_dag_2", asset=asset),
+            ]
+        )
+        session.commit()
+
+        response = test_client.post("/assets/events", json={"asset_id": asset.id, "extra": {"foo": "bar"}})
+
+        assert response.status_code == 403
+
+    @pytest.mark.usefixtures("time_freezer", "testing_dag_bundle")
+    @pytest.mark.parametrize(
+        "make_reference",
+        [
+            pytest.param(
+                lambda asset: DagScheduleAssetNameReference(name=asset.name, dag_id="consumer_dag"),
+                id="name",
+            ),
+            pytest.param(
+                lambda asset: DagScheduleAssetUriReference(uri=asset.uri, dag_id="consumer_dag"),
+                id="uri",
+            ),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.assets.get_auth_manager", autospec=True)
+    def test_should_respond_403_when_user_cannot_trigger_name_or_uri_consuming_dag(
+        self, mock_get_auth_manager, test_client, session, make_reference
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = False
+        (asset,) = self.create_assets(num=1, session=session)
+        session.add_all(
+            [
+                DagModel(dag_id="consumer_dag", bundle_name="testing", is_paused=False),
+                make_reference(asset),
+            ]
+        )
+        session.commit()
+
+        response = test_client.post("/assets/events", json={"asset_id": asset.id, "extra": {"foo": "bar"}})
+
+        assert response.status_code == 403
+
+    @pytest.mark.usefixtures("time_freezer", "testing_dag_bundle")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.assets.asset_manager.register_asset_change")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.assets.get_auth_manager", autospec=True)
+    def test_should_respond_200_when_user_can_trigger_name_and_uri_consuming_dags(
+        self, mock_get_auth_manager, mock_register, test_client, session
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+        (asset,) = self.create_assets(num=1, session=session)
+        mock_register.return_value = self._make_mock_event(asset)
+        session.add_all(
+            [
+                DagModel(dag_id="name_consumer_dag", bundle_name="testing", is_paused=False),
+                DagModel(dag_id="uri_consumer_dag", bundle_name="testing", is_paused=False),
+                DagScheduleAssetNameReference(name=asset.name, dag_id="name_consumer_dag"),
+                DagScheduleAssetUriReference(uri=asset.uri, dag_id="uri_consumer_dag"),
+            ]
+        )
+        session.commit()
+
+        response = test_client.post("/assets/events", json={"asset_id": asset.id, "extra": {"foo": "bar"}})
+
+        assert response.status_code == 200
+
     def test_invalid_attr_not_allowed(self, test_client, session):
         self.create_assets(session=session)
         event_invalid_payload = {"asset_uri": "s3://bucket/key/1", "extra": {"foo": "bar"}, "fake": {}}
@@ -1395,26 +1564,6 @@ class TestPostAssetEvents(TestAssets):
 
 class TestPostAssetEventsTeamResolution(TestAssets):
     """Tests for team-based filtering in create_asset_event."""
-
-    def _make_mock_event(self, asset):
-        m = mock.MagicMock(
-            spec=AssetEvent,
-            id=1,
-            asset_id=asset.id,
-            uri=asset.uri,
-            group=asset.group,
-            extra={"from_rest_api": True},
-            source_map_index=-1,
-            timestamp=DEFAULT_DATE,
-            source_task_id=None,
-            source_dag_id=None,
-            source_run_id=None,
-            partition_key=None,
-            created_dagruns=[],
-        )
-        # MagicMock uses 'name' internally for repr, so it must be set separately.
-        m.name = asset.name
-        return m
 
     @pytest.mark.usefixtures("time_freezer")
     @pytest.mark.parametrize(

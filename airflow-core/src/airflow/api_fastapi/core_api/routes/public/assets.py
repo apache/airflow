@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, cast
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import and_, delete, func, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import joinedload, subqueryload
 
@@ -80,8 +80,11 @@ from airflow.models.asset import (
     AssetEvent,
     AssetModel,
     AssetWatcherModel,
+    DagScheduleAssetNameReference,
+    DagScheduleAssetUriReference,
     TaskOutletAssetReference,
 )
+from airflow.models.dag import DagModel
 from airflow.typing_compat import Unpack
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -372,6 +375,47 @@ def create_asset_event(
     asset_model = session.scalar(select(AssetModel).where(AssetModel.id == body.asset_id).limit(1))
     if not asset_model:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with ID: `{body.asset_id}` was not found")
+
+    # Posting an asset event queues runs of its consuming Dags, so it must honor Dag-level
+    # access_control: allow only if the user can run a producing Dag or all consuming Dags.
+    # Producers are not pause-filtered because the user could re-run a producing Dag to re-emit
+    # the event; consumers mirror register_asset_change, which only queues unpaused Dags.
+    producer_dag_ids = {ref.dag_id for ref in asset_model.producing_tasks}
+    consumer_dag_ids = {ref.dag_id for ref in asset_model.scheduled_dags if not ref.dag.is_paused}
+    consumer_dag_ids.update(
+        session.scalars(
+            select(DagModel.dag_id)
+            .join(DagModel.schedule_asset_name_references, isouter=True)
+            .join(DagModel.schedule_asset_uri_references, isouter=True)
+            .where(
+                or_(
+                    DagScheduleAssetNameReference.name == asset_model.name,
+                    DagScheduleAssetUriReference.uri == asset_model.uri,
+                ),
+                DagModel.is_paused.is_(False),
+            )
+        )
+    )
+    if producer_dag_ids or consumer_dag_ids:
+        auth_manager = get_auth_manager()
+
+        def _is_authorized_for_dag(dag_id: str) -> bool:
+            return auth_manager.is_authorized_dag(
+                method="POST",
+                access_entity=DagAccessEntity.RUN,
+                details=DagDetails(id=dag_id),
+                user=user,
+            )
+
+        authorized = any(_is_authorized_for_dag(dag_id) for dag_id in producer_dag_ids) or (
+            bool(consumer_dag_ids) and all(_is_authorized_for_dag(dag_id) for dag_id in consumer_dag_ids)
+        )
+        if not authorized:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "User is not authorized to create an event for this asset.",
+            )
+
     timestamp = timezone.utcnow()
 
     api_user_teams: set[str] = set()
