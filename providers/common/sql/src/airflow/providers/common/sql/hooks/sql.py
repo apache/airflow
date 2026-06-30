@@ -79,7 +79,6 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 HANDLER = Callable[[Any], Any | Awaitable[Any]]
-ROW = tuple[Any, ...]
 SQL_PLACEHOLDERS = frozenset({"%s", "?"})
 
 
@@ -1320,7 +1319,7 @@ class DbApiHook(BaseHook):
                         sql_to_run = await self._call(self._translate_sql, sql_statement)
                         await self._async_run_command(cur, sql_to_run, parameters)
                         if handler is not None:
-                            handled = await self._call(handler, cur)
+                            handled = handler(cur)
                             if inspect.isawaitable(handled):
                                 handled = await handled
                             result = self._make_common_data_structure(handled)

@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import importlib
-import sys
 from typing import TYPE_CHECKING
 
 from asgiref.sync import sync_to_async
