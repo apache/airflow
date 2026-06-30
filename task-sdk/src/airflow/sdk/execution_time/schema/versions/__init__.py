@@ -43,7 +43,6 @@ def get_bundle() -> VersionBundle:
         HeadVersion(),
         Version("2026-06-23", AddDagSkippedIntervalsCallbackRequest),
         Version("2026-06-16"),
-        Version("2026-05-23"),
     )
 
 
