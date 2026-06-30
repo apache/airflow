@@ -21,6 +21,8 @@ import json
 from datetime import datetime
 from unittest import mock
 
+import pytest
+
 from airflow.models import Connection
 from airflow.providers.teradata.hooks.teradata import TeradataHook, _handle_user_query_band_text
 
@@ -178,6 +180,53 @@ class TestTeradataHook:
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
         assert kwargs["sslcipher"] == "cipher"
+
+    @mock.patch("teradatasql.connect")
+    def test_get_ldap_conn(self, mock_connect):
+        self.connection.extra = json.dumps({"logmech": "LDAP"})
+        self.db_hook.get_conn()
+        args, kwargs = mock_connect.call_args
+        assert kwargs["logmech"] == "LDAP"
+        assert kwargs["user"] == "login"
+        assert kwargs["password"] == "password"
+
+    @mock.patch("teradatasql.connect")
+    def test_get_ldap_conn_logmech_case_insensitive(self, mock_connect):
+        self.connection.extra = json.dumps({"logmech": "ldap"})
+        self.db_hook.get_conn()
+        _, kwargs = mock_connect.call_args
+        assert kwargs["logmech"] == "LDAP"
+
+    def test_get_unregistered_logmech_raises(self):
+        self.connection.extra = json.dumps({"logmech": "KRB5"})
+        with pytest.raises(ValueError, match="KRB5"):
+            self.db_hook._get_conn_config_teradatasql()
+
+    def test_ldap_missing_credentials_raises(self):
+        self.connection.login = None
+        self.connection.password = None
+        self.connection.extra = json.dumps({"logmech": "LDAP"})
+        with pytest.raises(ValueError, match="username"):
+            self.db_hook._get_conn_config_teradatasql()
+
+    def test_ldap_logdata_allows_missing_credentials(self):
+        self.connection.login = None
+        self.connection.password = None
+        self.connection.extra = json.dumps({"logmech": "LDAP", "logdata": "authcid=john password=xxx"})
+        config = self.db_hook._get_conn_config_teradatasql()
+        assert config["logmech"] == "LDAP"
+        assert config["logdata"] == "authcid=john password=xxx"
+        assert not any(v is None for v in config.values())
+
+    def test_get_uri_includes_logmech(self):
+        self.connection.extra = json.dumps({"logmech": "LDAP"})
+        uri = self.db_hook.get_uri()
+        assert "logmech=LDAP" in uri
+
+    def test_get_uri_raises_for_logdata(self):
+        self.connection.extra = json.dumps({"logmech": "LDAP", "logdata": "authcid=john password=xxx"})
+        with pytest.raises(ValueError, match="logdata"):
+            self.db_hook.get_uri()
 
     def test_get_uri_without_schema(self):
         self.connection.schema = ""  # simulate missing schema

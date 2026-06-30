@@ -1012,6 +1012,7 @@ lodash
 logfile
 logformat
 loglevel
+logmech
 Logstash
 logstash
 longblob
