@@ -166,8 +166,9 @@ export type SourceRunId1 = string | null;
 export type SourceMapIndex1 = number | null;
 export type SourceAliases = AssetAliasReferenceAssetEventDagRun[];
 export type Timestamp1 = string;
-export type ConsumedAssetEvents = AssetEventDagRunReference[];
 export type PartitionKey2 = string | null;
+export type ConsumedAssetEvents = AssetEventDagRunReference[];
+export type PartitionKey3 = string | null;
 export type PartitionDate = string | null;
 export type Note = string | null;
 export type TeamName = string | null;
@@ -278,7 +279,7 @@ export type Conf1 = {
 } | null;
 export type TriggeringUserName1 = string | null;
 export type ConsumedAssetEvents1 = AssetEventDagRunReference[];
-export type PartitionKey3 = string | null;
+export type PartitionKey4 = string | null;
 export type PartitionDate1 = string | null;
 export type Note1 = string | null;
 export type TeamName1 = string | null;
@@ -573,7 +574,7 @@ export type Conf2 = {
   [k: string]: unknown;
 } | null;
 export type ResetDagRun = boolean | null;
-export type PartitionKey4 = string | null;
+export type PartitionKey5 = string | null;
 export type Note2 = string | null;
 export type DagId22 = string;
 export type DagRunId = string;
@@ -886,7 +887,7 @@ export interface DagRun {
   conf?: Conf;
   triggering_user_name?: TriggeringUserName;
   consumed_asset_events: ConsumedAssetEvents;
-  partition_key: PartitionKey2;
+  partition_key: PartitionKey3;
   partition_date?: PartitionDate;
   note?: Note;
   team_name?: TeamName;
@@ -906,6 +907,7 @@ export interface AssetEventDagRunReference {
   source_map_index: SourceMapIndex1;
   source_aliases: SourceAliases;
   timestamp: Timestamp1;
+  partition_key?: PartitionKey2;
 }
 export interface Extra5 {
   [k: string]: JsonValue;
@@ -1089,7 +1091,7 @@ export interface DagRunResult {
   conf?: Conf1;
   triggering_user_name?: TriggeringUserName1;
   consumed_asset_events: ConsumedAssetEvents1;
-  partition_key?: PartitionKey3;
+  partition_key?: PartitionKey4;
   partition_date?: PartitionDate1;
   note?: Note1;
   team_name?: TeamName1;
@@ -1781,7 +1783,7 @@ export interface TriggerDagRun {
   run_after?: RunAfter2;
   conf?: Conf2;
   reset_dag_run?: ResetDagRun;
-  partition_key?: PartitionKey4;
+  partition_key?: PartitionKey5;
   note?: Note2;
   dag_id: DagId22;
   run_id: DagRunId;
