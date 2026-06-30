@@ -222,6 +222,14 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
 
 .. note::
 
+   PostgreSQL connection strings can include multiple fallback hosts when you use the ``psycopg2`` driver.
+   Use SQLAlchemy's documented PostgreSQL URL format for this setup, because each fallback host must be
+   passed in a form that the SQLAlchemy dialect forwards correctly to libpq. See
+   `Specifying multiple fallback hosts <https://docs.sqlalchemy.org/en/20/dialects/postgresql.html#specifying-multiple-fallback-hosts>`__
+   in the SQLAlchemy documentation.
+
+.. note::
+
    Airflow is known - especially in high-performance setup - to open many connections to metadata database. This might cause problems for
    Postgres resource usage, because in Postgres, each connection creates a new process and it makes Postgres resource-hungry when a lot
    of connections are opened. Therefore we recommend to use `PGBouncer <https://www.pgbouncer.org/>`_ as database proxy for all Postgres
