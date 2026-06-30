@@ -41,6 +41,7 @@ from airflow.providers.common.compat.sdk import (
     conf,
     timezone,
 )
+from airflow.providers.common.compat.standard.operators import ResumableJobMixin
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.providers.standard.utils.openlineage import safe_inject_openlineage_properties_into_dagrun_conf
 from airflow.providers.standard.version_compat import (
@@ -57,25 +58,6 @@ try:
     from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 except ImportError:
     from airflow.utils.types import NOTSET, ArgNotSet  # type: ignore[attr-defined,no-redef]
-
-try:
-    from airflow.sdk import ResumableJobMixin
-except ImportError:
-    # ResumableJobMixin was added in Airflow 3.3. On older Airflow the durable path is gated off
-    # (see execute()), so this stub only lets the operator subclass it without behavior change.
-    class ResumableJobMixin:  # type: ignore[no-redef]
-        """Stub used on Airflow < 3.3, where the durable path is disabled."""
-
-        external_id_key: str = "remote_job_id"
-
-        def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
-            super().__init__(**kwargs)
-            self.durable = durable
-
-        def execute_resumable(self, context):
-            external_id = self.submit_job(context)
-            self.poll_until_complete(external_id, context)
-            return self.get_job_result(external_id, context)
 
 
 XCOM_LOGICAL_DATE_ISO = "trigger_logical_date_iso"
