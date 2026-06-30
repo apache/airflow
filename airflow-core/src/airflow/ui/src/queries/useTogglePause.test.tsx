@@ -23,7 +23,7 @@ import { setupServer } from "msw/node";
 import React from "react";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { UseDagServiceGetDagsUiKeyFn, useDagServiceGetDagsUiKey } from "openapi/queries";
+import { UseDagServiceGetDagsUiKeyFn } from "openapi/queries";
 import type { DAGWithLatestDagRunsCollectionResponse } from "openapi/requests/types.gen";
 import { useTogglePause } from "src/queries/useTogglePause";
 
@@ -83,13 +83,20 @@ const seedClient = (initialIsPaused: boolean) => {
     },
   });
   const dagsListKey = UseDagServiceGetDagsUiKeyFn({ dagRunsLimit: 1 });
+  // A sibling list query with a different filter (paused=false), so tests can verify the
+  // prefix-keyed optimistic write and invalidation reach every dags-list cache, not just one.
+  const filteredListKey = UseDagServiceGetDagsUiKeyFn({ dagRunsLimit: 1, paused: false });
 
   queryClient.setQueryData<DAGWithLatestDagRunsCollectionResponse>(
     dagsListKey,
     buildDagsList(initialIsPaused),
   );
+  queryClient.setQueryData<DAGWithLatestDagRunsCollectionResponse>(
+    filteredListKey,
+    buildDagsList(initialIsPaused),
+  );
 
-  return { dagsListKey, queryClient };
+  return { dagsListKey, filteredListKey, queryClient };
 };
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
@@ -110,19 +117,23 @@ describe("useTogglePause", () => {
       }),
     );
 
-    const { dagsListKey, queryClient } = seedClient(false);
+    const { dagsListKey, filteredListKey, queryClient } = seedClient(false);
     const { result } = renderHook(() => useTogglePause({ dagId: DAG_ID }), {
       wrapper: createWrapper(queryClient),
     });
 
     result.current.mutate({ dagId: DAG_ID, requestBody: { is_paused: true } });
 
-    // The Switch is bound to is_paused — the optimistic update must apply
-    // before the network response settles so the user sees the flip on click.
+    // The Switch is bound to is_paused — the optimistic update must apply before the network
+    // response settles so the user sees the flip on click. It is keyed by the list prefix, so
+    // every dags-list cache flips, including a sibling query with a different filter.
     await waitFor(() => {
-      const optimistic = queryClient.getQueryData<DAGWithLatestDagRunsCollectionResponse>(dagsListKey);
-
-      expect(optimistic?.dags[0]?.is_paused).toBe(true);
+      expect(
+        queryClient.getQueryData<DAGWithLatestDagRunsCollectionResponse>(dagsListKey)?.dags[0]?.is_paused,
+      ).toBe(true);
+      expect(
+        queryClient.getQueryData<DAGWithLatestDagRunsCollectionResponse>(filteredListKey)?.dags[0]?.is_paused,
+      ).toBe(true);
     });
 
     await waitFor(() => expect(result.current.isPending).toBe(false));
@@ -154,7 +165,7 @@ describe("useTogglePause", () => {
       http.patch("*/api/v2/dags/:dagId", () => HttpResponse.json({ dag_id: DAG_ID, is_paused: true })),
     );
 
-    const { dagsListKey, queryClient } = seedClient(false);
+    const { dagsListKey, filteredListKey, queryClient } = seedClient(false);
     const { result } = renderHook(() => useTogglePause({ dagId: DAG_ID }), {
       wrapper: createWrapper(queryClient),
     });
@@ -163,11 +174,10 @@ describe("useTogglePause", () => {
 
     await waitFor(() => expect(result.current.isPending).toBe(false));
 
-    // The list query is marked stale so any consumer with a non-matching
-    // filter (e.g. paused=false) refetches and may drop the dag from view.
+    // Both the seeded list and a sibling list with a different filter (paused=false) are marked
+    // stale, because invalidation is keyed by the shared prefix — so a filtered consumer refetches
+    // and may drop the dag from the visible page.
     expect(queryClient.getQueryState(dagsListKey)?.isInvalidated).toBe(true);
-    // Sibling list queries (e.g. with different filters) are also invalidated
-    // because invalidation is keyed by the prefix.
-    expect(queryClient.isFetching({ queryKey: [useDagServiceGetDagsUiKey] })).toBeGreaterThanOrEqual(0);
+    expect(queryClient.getQueryState(filteredListKey)?.isInvalidated).toBe(true);
   });
 });
