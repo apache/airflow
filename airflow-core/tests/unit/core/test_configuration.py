@@ -800,7 +800,9 @@ class TestConf:
             assert conf_maintain_cmds["database"]["sql_alchemy_conn"] == conf_conn
 
     @mock.patch.dict(
-        "os.environ", {"AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD": "echo -n 'postgresql://'"}, clear=True
+        "os.environ",
+        {"AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD": "echo -n 'postgresql+psycopg2://'"},
+        clear=True,
     )
     def test_as_dict_respects_sensitive_cmds_from_env(self):
         test_conf = copy.deepcopy(conf)
@@ -811,7 +813,7 @@ class TestConf:
         assert "sql_alchemy_conn" in conf_materialize_cmds["database"]
         assert "sql_alchemy_conn_cmd" not in conf_materialize_cmds["database"]
 
-        assert conf_materialize_cmds["database"]["sql_alchemy_conn"] == "postgresql://"
+        assert conf_materialize_cmds["database"]["sql_alchemy_conn"] == "postgresql+psycopg2://"
 
     @skip_if_force_lowest_dependencies_marker
     @conf_vars(
@@ -1117,6 +1119,39 @@ class TestConf:
         expected_raw_output = "my_string_config = This is the first line.\nThis is the second line.\n"
 
         assert expected_raw_output in content
+
+    @pytest.mark.parametrize(
+        ("input_scheme", "expected_scheme"),
+        [
+            pytest.param(
+                "postgres://user:pass@host/db", "postgresql+psycopg2://user:pass@host/db", id="postgres"
+            ),
+            pytest.param(
+                "postgres+psycopg2://user:pass@host/db",
+                "postgresql+psycopg2://user:pass@host/db",
+                id="postgres+psycopg2",
+            ),
+            pytest.param(
+                "postgresql://user:pass@host/db",
+                "postgresql+psycopg2://user:pass@host/db",
+                id="postgresql-bare",
+            ),
+            pytest.param(
+                "postgresql+psycopg2://user:pass@host/db",
+                "postgresql+psycopg2://user:pass@host/db",
+                id="postgresql+psycopg2-noop",
+            ),
+            pytest.param("mysql://user:pass@host/db", "mysql://user:pass@host/db", id="mysql-untouched"),
+        ],
+    )
+    @mock.patch.dict("os.environ", {}, clear=False)
+    def test_upgrade_postgres_metastore_conn(self, input_scheme, expected_scheme):
+        os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = input_scheme
+        test_conf = AirflowConfigParser()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            test_conf._upgrade_postgres_metastore_conn()
+        assert test_conf.get("database", "sql_alchemy_conn") == expected_scheme
 
 
 @mock.patch.dict(

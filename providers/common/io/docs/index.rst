@@ -38,6 +38,7 @@
     Transferring a file <transfer>
     Operators <operators>
     Object Storage XCom Backend <xcom_backend>
+    Object Storage State Store Backend <state_store_backend>
 
 .. toctree::
     :hidden:
