@@ -26,6 +26,11 @@
     "runIdPatternFilter": "Search Dag Runs",
     "timetableType": "Timetable type"
   },
+  "folders": {
+    "all": "All Dags",
+    "empty": "No folders",
+    "title": "Folders"
+  },
   "ownerLink": "Owner link for {{owner}}",
   "runAndTaskActions": {
     "affectedTasks": {
