@@ -344,8 +344,12 @@ class ExecutorConfigType(PickleType):
         super_process = super().bind_processor(dialect)
 
         def process(value):
+            if value is None:
+                return super_process(None)
+            if not isinstance(val_copy, dict):# and "pod_override" in val_copy:
+                raise TypeError(f"ExecutorConfigType bind expected a dict, got {type(value).__name__!r}")
             val_copy = copy.copy(value)
-            if isinstance(val_copy, dict) and "pod_override" in val_copy:
+            if "pod_override" in val_copy:
                 val_copy["pod_override"] = BaseSerialization.serialize(val_copy["pod_override"])
             return super_process(val_copy)
 
@@ -359,7 +363,13 @@ class ExecutorConfigType(PickleType):
         def process(value):
             value = super_process(value)  # unpickle
 
-            if isinstance(value, dict) and "pod_override" in value:
+            if value is None:
+                return(None)
+
+            if not isinstance(value, dict):
+                raise TypeError(f"ExecutorConfigType result expected a dict, got {type(value).__name__!r}")
+
+            if "pod_override" in value:
                 pod_override = value["pod_override"]
 
                 if isinstance(pod_override, dict) and pod_override.get(Encoding.TYPE):

@@ -21,6 +21,7 @@ import datetime
 import pickle
 from copy import deepcopy
 from unittest import mock
+import dill
 
 import pytest
 from kubernetes.client import Configuration, models as k8s
@@ -380,3 +381,40 @@ class TestExecutorConfigType:
         pickle.dumps(fixed_pod)
         assert fixed_pod.local_vars_configuration.refresh_api_key_hook is None
         assert fixed_pod.spec.containers[0].local_vars_configuration.refresh_api_key_hook is None
+
+class TestExecutorConfigTypeValidation:
+    def setup_method(self):
+        self.session = Session()
+
+    def teardown_method(self):
+        self.session.close()
+
+    def test_bind_processor_rejects_non_dict(self):
+        col_type = ExecutorConfigType(pickler=dill)
+        process = col_type.bind_processor(self.session.bind.dialect)
+        with pytest.raises(TypeError, match="ExecutorConfigType bind expected a dict"):
+            process("not a dict")
+
+    def test_bind_processor_allows_none(self):
+        col_type = ExecutorConfigType(pickler=dill)
+        process = col_type.bind_processor(self.session.bind.dialect)
+        result = process(None)
+        assert result is None
+
+    def test_bind_processor_allows_valid_dict(self):
+        col_type = ExecutorConfigType(pickler=dill)
+        process = col_type.bind_processor(self.session.bind.dialect)
+        process({"key": "value"})  # should not raise
+
+    def test_result_processor_allows_none(self):
+        col_type = ExecutorConfigType(pickler=dill)
+        bind = col_type.bind_processor(self.session.bind.dialect)
+        result_proc = col_type.result_processor(self.session.bind.dialect, None)
+        assert result_proc(bind(None)) is None
+
+    def test_result_processor_rejects_non_dict(self):
+        col_type = ExecutorConfigType(pickler=dill)
+        result_proc = col_type.result_processor(self.session.bind.dialect, None)
+        raw = dill.dumps("corrupted string")
+        with pytest.raises(TypeError, match="ExecutorConfigType result expected a dict"):
+            result_proc(raw)
