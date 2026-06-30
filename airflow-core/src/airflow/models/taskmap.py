@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any
 from opentelemetry import trace
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm.attributes import set_committed_value
 
 from airflow._shared.observability.traces import new_task_run_carrier
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
@@ -275,6 +276,12 @@ class TaskMap(TaskInstanceDependencies):
             session.add(ti)
             ti.context_carrier = new_task_run_carrier(dr.context_carrier)
             ti.refresh_from_task(task, dag_run=dr)
+            # Prime the dag_run relationship so the downstream per-TI ti.get_dagrun()
+            # during dependency evaluation (e.g. NotPreviouslySkippedDep) is a cache hit
+            # instead of an N+1 SELECT. dr is the correct DagRun for these TIs (same
+            # run_id, single DagRun per run); set_committed_value marks the relationship
+            # loaded without dirtying the instance, so it does not affect the flush.
+            set_committed_value(ti, "dag_run", dr)
             new_tis.append(ti)
         if new_tis:
             # Persist all newly-created mapped TIs in a single batched INSERT instead of

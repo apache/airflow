@@ -3418,6 +3418,70 @@ class TestMappedTaskInstanceReceiveValue:
         ).all()
         assert [ti.map_index for ti in persisted] == [0, 1, 2, 3, 4]
 
+    def test_expand_primes_dag_run_relationship(self, dag_maker, session):
+        """Expanded mapped TIs have ``dag_run`` primed, so ``get_dagrun()`` is a cache hit.
+
+        ``TaskMap.expand_mapped_task`` primes the ``dag_run`` relationship on each
+        newly-created mapped TI via ``set_committed_value``. This asserts the
+        relationship is marked loaded (not ``NO_VALUE``) and that the downstream
+        ``ti.get_dagrun()`` call -- which dependency evaluation (e.g.
+        ``NotPreviouslySkippedDep``) makes per index -- issues zero ``SELECT`` against
+        ``dag_run``, removing the per-index N+1.
+        """
+        from sqlalchemy import event
+        from sqlalchemy.orm.base import NO_VALUE
+
+        width = 10
+        with dag_maker(dag_id="xcom_prime_dagrun", session=session, serialized=True) as dag:
+
+            @dag.task
+            def emit():
+                return list(range(width))
+
+            @dag.task
+            def show(value):
+                return value
+
+            show.expand(value=emit())
+
+        dag_run = dag_maker.create_dagrun()
+        emit_ti = dag_run.get_task_instance("emit", session=session)
+        emit_ti.refresh_from_task(dag_maker.serialized_dag.get_task("emit"))
+        dag_maker.run_ti(emit_ti.task_id, dag_run=dag_run, session=session)
+
+        show_task = dag_maker.serialized_dag.get_task("show")
+        mapped_tis, _ = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+        assert len(mapped_tis) == width
+
+        # Every batched TI (index >= 1) has the dag_run relationship marked loaded.
+        batched_tis = [ti for ti in mapped_tis if ti.map_index >= 1]
+        assert len(batched_tis) == width - 1
+        for ti in batched_tis:
+            assert sa_inspect(ti).attrs.dag_run.loaded_value is not NO_VALUE
+
+        # Count SELECTs that touch the dag_run table while resolving get_dagrun().
+        dag_run_selects = []
+
+        def _on_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+            normalized = " ".join(statement.lower().split())
+            if "select" in normalized and "from dag_run" in normalized:
+                dag_run_selects.append(statement)
+
+        event.listen(session.bind, "after_cursor_execute", _on_cursor_execute)
+        try:
+            for ti in batched_tis:
+                # Primed -> cache hit -> returns the run's DagRun without a SELECT.
+                returned = ti.get_dagrun(session=session)
+                assert returned.run_id == dag_run.run_id
+                assert returned.dag_id == dag_run.dag_id
+        finally:
+            event.remove(session.bind, "after_cursor_execute", _on_cursor_execute)
+
+        assert dag_run_selects == [], (
+            f"get_dagrun() on primed mapped TIs issued {len(dag_run_selects)} dag_run SELECT(s); "
+            "the relationship priming should make these cache hits"
+        )
+
     def test_map_literal_cross_product(self, dag_maker, session):
         """Test a mapped task with literal cross product args expand properly."""
         outputs = []
