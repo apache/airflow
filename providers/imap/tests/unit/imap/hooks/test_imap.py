@@ -509,3 +509,30 @@ class TestImapHook:
 
         assert result is True
         assert 1 <= mock_conn.fetch.call_count <= 2
+
+    @patch("airflow.providers.imap.hooks.imap.os.path.exists", return_value=True)
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_overwrite_true_does_not_rename(
+        self, mock_imaplib, mock_open_method, mock_exists
+    ):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("test1.csv", "test_directory", overwrite=True)
+
+        mock_open_method.assert_called_once_with("test_directory/test1.csv", "wb")
+        mock_exists.assert_not_called()
+
+    @patch("airflow.providers.imap.hooks.imap.os.path.exists", side_effect=[True, False])
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_no_overwrite_renames_file(
+        self, mock_imaplib, mock_open_method, mock_exists
+    ):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("test1.csv", "test_directory", overwrite=False)
+
+        mock_open_method.assert_called_once_with("test_directory/test1_1.csv", "wb")
