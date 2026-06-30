@@ -162,6 +162,7 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
         / "kubernetes_commands.py",
         False,
     ),
+    (AIRFLOW_ROOT_PATH / "docs-theme" / "sphinx_airflow_theme" / "__init__.py", False),
 ]
 for file in DOCKER_IMAGES_EXAMPLE_DIR_PATH.rglob("*.sh"):
     FILES_TO_UPDATE.append((file, False))
@@ -891,10 +892,7 @@ SIMPLE_VERSION_PATTERNS: dict[str, list[tuple[str, str]]] = {
         (r"(busybox:)([0-9]+\.[0-9]+(?:\.[0-9]+)?)", "busybox:{version}"),
     ],
     "sphinx_airflow_theme": [
-        (
-            r"(sphinx-airflow-theme@https://airflow\.apache\.org/sphinx-airflow-theme/sphinx_airflow_theme-)([0-9.]+)(-py3-none-any\.whl)",
-            "sphinx-airflow-theme@https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-{version}-py3-none-any.whl",
-        ),
+        (r"(__version__ = \")([\d.]+)(\")", '__version__ = "{version}"'),
     ],
 }
 

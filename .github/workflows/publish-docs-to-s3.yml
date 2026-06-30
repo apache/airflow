@@ -315,6 +315,11 @@ jobs:
           --build-arg VERSION_SUFFIX_FOR_PYPI=dev0
           -t "ghcr.io/apache/airflow/main/ci/python${PYTHON_MAJOR_MINOR_VERSION}:latest" --target main .
           -f Dockerfile.ci --platform linux/amd64
+      # `_gen/` is gitignored and bind-mounted from host into the container, so
+      # baking it into the image is masked at runtime. Fetch on host instead.
+      - name: "Fetch sphinx-airflow-theme static assets"
+        shell: bash
+        run: python scripts/ci/fetch_theme_assets.py
       - name: "Restore docs inventory cache"
         uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
         with:
