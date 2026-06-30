@@ -75,12 +75,25 @@ class TestPathBuilders:
         path = _build_task_path(scope, "job_id")
         assert str(path).endswith("my_dag/run_1/my_task/-1/job_id")
 
-    def test_build_task_path_sanitises_slashes(self, conf_overrides):
+    def test_build_task_path_encodes_special_chars(self, conf_overrides):
         scope = TaskScope(dag_id="a/b", run_id="r/1", task_id="t/x", map_index=0)
         path = _build_task_path(scope, "key/name")
-        assert str(path).endswith("a_b/r_1/t_x/0/key_name")
+        assert str(path).endswith("a%2Fb/r%2F1/t%2Fx/0/key%2Fname")
         assert "a/b" not in str(path)
         assert "key/name" not in str(path)
+
+    def test_build_task_path_distinct_keys_dont_collide(self, conf_overrides):
+        scope = TaskScope(dag_id="d", run_id="r", task_id="t", map_index=0)
+        path_slash = _build_task_path(scope, "connector/offset")
+        path_under = _build_task_path(scope, "connector_offset")
+        assert str(path_slash) != str(path_under)
+
+    def test_build_task_path_rejects_empty_and_dots(self, conf_overrides):
+        scope = TaskScope(dag_id="d", run_id="r", task_id="t", map_index=0)
+        with pytest.raises(ValueError, match="Invalid path segment"):
+            _build_task_path(scope, "")
+        with pytest.raises(ValueError, match="Invalid path segment"):
+            _build_task_path(scope, "..")
 
     def test_build_asset_path_segments(self, conf_overrides):
         scope = AssetScope(name="my_asset")
@@ -89,8 +102,10 @@ class TestPathBuilders:
 
     def test_build_asset_path_uses_uri_when_no_name(self, conf_overrides):
         scope = AssetScope(uri="s3://bucket/path")
-        path = _build_asset_path(scope, "key")
-        assert str(path).endswith("assets/s3:__bucket_path/key")
+        path_slash = _build_asset_path(scope, "key")
+        scope2 = AssetScope(uri="s3://bucket_path")
+        path_under = _build_asset_path(scope2, "key")
+        assert str(path_slash) != str(path_under)
 
     def test_compression_suffix_appended(self, tmp_path):
         store_path = tmp_path / "store"

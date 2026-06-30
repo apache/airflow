@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 from functools import cache
 from typing import TYPE_CHECKING
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 import fsspec.utils
 
@@ -71,12 +71,9 @@ def _get_compression_suffix() -> str:
 
 
 def _sanitise_segment(value: str) -> str:
-    """
-    Sanitise a string for use as a single path segment.
-
-    This is a simple implementation that replaces slashes with underscores.
-    """
-    return value.replace("/", "_").replace("\\", "_")
+    if not value or value in (".", ".."):
+        raise ValueError(f"Invalid path segment: {value!r}")
+    return quote(value, safe="")
 
 
 def _build_task_path(scope: TaskScope, key: str) -> ObjectStoragePath:
