@@ -1616,18 +1616,18 @@ class ActivitySubprocess(WatchedSubprocess):
             self.failed_heartbeats = 0
         except ServerResponseError as e:
             if e.response.status_code in {HTTPStatus.NOT_FOUND, HTTPStatus.GONE, HTTPStatus.CONFLICT}:
-                log.error(
+                log.info(
                     "Server indicated the task shouldn't be running anymore",
                     detail=e.detail,
                     status_code=e.response.status_code,
                     ti_id=self.id,
                 )
-                self.process_log.error(
+                self.process_log.info(
                     "Server indicated the task shouldn't be running anymore. Terminating process",
                     detail=e.detail,
                 )
                 self.kill(signal.SIGTERM, force=True)
-                self.process_log.error("Task killed!")
+                self.process_log.info("Task killed!")
                 self._terminal_state = SERVER_TERMINATED
             else:
                 # If we get any other error, we'll just log it and try again next time
@@ -1687,9 +1687,9 @@ class ActivitySubprocess(WatchedSubprocess):
         dump_opts: dict[str, bool] = {}
         if isinstance(msg, TaskState):
             # No direct API call here — the recovery path in
-            # `update_task_state_if_needed` will call `finish()` for
             # non-direct states (FAILED, etc.) once the subprocess exits.
-            self._terminal_state = msg.state
+            if self._terminal_state != SERVER_TERMINATED:
+                self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
             self._rendered_map_index = msg.rendered_map_index
         elif isinstance(msg, SucceedTask):

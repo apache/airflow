@@ -1542,6 +1542,7 @@ def run(
             return
 
         ti.task.on_kill()
+        raise AirflowTaskTerminated("Task received SIGTERM signal")
 
     signal.signal(signal.SIGTERM, _on_term)
 
