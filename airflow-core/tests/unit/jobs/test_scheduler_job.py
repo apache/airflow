@@ -7697,7 +7697,7 @@ class TestSchedulerJob:
                 run_id=f"test_batch_{index}",
                 logical_date=DEFAULT_DATE + datetime.timedelta(seconds=index),
             )
-            task_instance = dag_run.get_task_instance("dummy1", session)
+            task_instance = dag_run.get_task_instance("dummy1", session=session)
             task_instance.state = State.DEFERRED
             task_instance.trigger_timeout = past
             task_instances.append(task_instance)

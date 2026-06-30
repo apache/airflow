@@ -277,7 +277,9 @@ class TriggerRuleDep(BaseTIDep):
                 }
 
             cached_states = _relevant_states(dep_context.finished_tis)
-            fresh_states = _relevant_states(dep_context.refresh_finished_tis(ti.get_dagrun(session), session))
+            fresh_states = _relevant_states(
+                dep_context.refresh_finished_tis(ti.get_dagrun(session=session), session)
+            )
             return cached_states != fresh_states
 
         def _evaluate_setup_constraint(
