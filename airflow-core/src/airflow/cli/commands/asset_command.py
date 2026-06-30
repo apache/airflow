@@ -153,7 +153,7 @@ def asset_materialize(args, *, session: Session = NEW_SESSION) -> None:
     if (dag_id := next(dag_id_it, None)) is None:
         raise SystemExit(f"Asset with {select_message} does not exist.")
     if next(dag_id_it, None) is not None:
-        raise SystemExit(f"More than one DAG materializes asset with {select_message}.")
+        raise SystemExit(f"More than one Dag materializes asset with {select_message}.")
 
     try:
         user = getuser()
