@@ -10074,8 +10074,10 @@ class TestSchedulerJob:
         mock_exec = MockExecutor(do_update=False)
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[mock_exec])
 
-        skip_requests = self.job_runner._create_dag_runs([dag_model], session)
+        notifications = self.job_runner._create_dag_runs([dag_model], session)
         session.commit()
+
+        skip_requests = notifications.skip_callback_requests
 
         assert len(skip_requests) == 1
         request = skip_requests[0]
@@ -10084,6 +10086,56 @@ class TestSchedulerJob:
         assert request.filepath == dag_model.relative_fileloc
         assert request.bundle_name == dag_model.bundle_name
         assert request.skipped_range == (prev_end, new_start)
+
+    def test_create_dag_runs_defers_skipped_intervals_listener_notification(
+        self, session, dag_maker, listener_manager
+    ):
+        from unit.listeners import skipped_intervals_listener
+
+        listener_manager(skipped_intervals_listener)
+
+        with dag_maker(
+            dag_id="test_create_dag_runs_deferred_listener",
+            schedule=timedelta(days=1),
+            start_date=DEFAULT_DATE,
+            catchup=False,
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        prev_start = DEFAULT_DATE
+        prev_end = DEFAULT_DATE + timedelta(days=1)
+        dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            logical_date=prev_start,
+            data_interval=(prev_start, prev_end),
+            state=State.SUCCESS,
+        )
+
+        new_start = DEFAULT_DATE + timedelta(days=4)
+        new_end = DEFAULT_DATE + timedelta(days=5)
+        dag_model = dag_maker.dag_model
+        dag_model.next_dagrun = new_start
+        dag_model.next_dagrun_data_interval = DataInterval(start=new_start, end=new_end)
+        dag_model.next_dagrun_create_after = new_end
+        session.merge(dag_model)
+        session.commit()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[MockExecutor(do_update=False)])
+
+        with mock.patch.object(
+            self.job_runner,
+            "_notify_skipped_intervals_listeners",
+            wraps=self.job_runner._notify_skipped_intervals_listeners,
+        ) as mock_notify:
+            notifications = self.job_runner._create_dag_runs([dag_model], session)
+            session.commit()
+            mock_notify.assert_not_called()
+
+        assert len(notifications.skipped_intervals_listener_events) == 1
+        self.job_runner._notify_skipped_intervals_listeners(notifications.skipped_intervals_listener_events)
+        assert len(skipped_intervals_listener.events) == 1
 
     def test_do_scheduling_dispatches_skipped_intervals_callback(self, session, dag_maker):
         with dag_maker(
