@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from typing import TYPE_CHECKING, Any
 
@@ -27,6 +28,7 @@ from teradatasql import TeradataConnection
 
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.teradata.auth import TeradataAuthRegistry
 
 if TYPE_CHECKING:
     try:
@@ -104,8 +106,12 @@ class TeradataHook(DbApiHook):
     Teradata DB Server URL, username, password and database name are fetched from the predefined connection
     config connection_id. It raises an airflow error if the given connection id doesn't exist.
 
+    Supports multiple authentication mechanisms:
+    - Native Teradata (default, when logmech not specified)
+    - LDAP (when logmech: "LDAP" is specified)
+
     You can also specify ssl parameters in the extra field of your connection
-    as ``{"sslmode": "require", "sslcert": "/path/to/cert.pem", etc}``.
+    as ``{"sslmode": "require", "sslca": "/path/to/ca.pem", "logmech": "LDAP", etc}``.
 
     .. seealso::
         - :ref:`Teradata API connection <howto/connection:teradata>`
@@ -175,20 +181,73 @@ class TeradataHook(DbApiHook):
             self.log.error("Error occurred while setting session query band: %s ", str(ex))
 
     def _get_conn_config_teradatasql(self) -> dict[str, Any]:
-        """Return set of config params required for connecting to Teradata DB using teradatasql client."""
+        """
+        Return connection config with mechanism-specific parameters.
+
+        Flow:
+        1. Build base_config with common parameters (host, port, db, user, pwd)
+        2. Get auth mechanism from registry (default: TD2)
+        3. Get mechanism-specific config
+        4. Validate mechanism-specific config
+        5. Add shared parameters (SSL, tmode, query_band)
+        6. Return complete config ready for teradatasql.connect()
+
+        Returns:
+            Connection configuration dict
+
+        Raises:
+            ValueError: If the mechanism-specific config is invalid
+        """
         conn: Connection = self.get_connection(self.get_conn_id())
-        conn_config = {
+
+        base_config = {
             "host": conn.host or "localhost",
             "dbs_port": conn.port or DEFAULT_DB_PORT,
             "database": conn.schema or "",
-            "user": conn.login or "dbc",
-            "password": conn.password or "dbc",
+            "user": conn.login,
+            "password": conn.password,
         }
 
+        # logdata carries mechanism-specific auth payloads (e.g. LDAP/JWT single-string
+        # credentials). It must be present before validate_config so a mechanism can accept
+        # logdata-only auth without a separate user/password.
+        if conn.extra_dejson.get("logdata"):
+            base_config["logdata"] = conn.extra_dejson["logdata"]
+
+        # teradatasql treats logmech case-insensitively; normalise so registry lookup matches.
+        logmech = str(conn.extra_dejson.get("logmech", "TD2")).upper()
+        auth_mechanism = TeradataAuthRegistry.get(logmech)
+
+        conn_config = auth_mechanism.get_connection_config(conn, base_config)
+
+        auth_mechanism.validate_config(conn_config)
+
+        self._add_shared_connection_params(conn, conn_config)
+
+        return {k: v for k, v in conn_config.items() if v is not None}
+
+    def _add_shared_connection_params(
+        self,
+        conn: Connection,
+        conn_config: dict[str, Any],
+    ) -> None:
+        """
+        Add shared connection parameters (work with any auth mechanism).
+
+        Adds parameters that are independent of authentication mechanism:
+        - SSL/TLS configuration (sslmode, sslca, sslcapath, etc.)
+        - Transaction mode (tmode)
+        - Session query band
+
+        These parameters are applied after mechanism-specific config,
+        so they work correctly with any authentication mechanism.
+
+        Args:
+            conn: Airflow Connection object with extra_dejson
+            conn_config: Config dict to be updated in-place
+        """
         if conn.extra_dejson.get("tmode", False):
             conn_config["tmode"] = conn.extra_dejson["tmode"]
-
-        # Handling SSL connection parameters
 
         if conn.extra_dejson.get("sslmode", False):
             conn_config["sslmode"] = conn.extra_dejson["sslmode"]
@@ -197,16 +256,18 @@ class TeradataHook(DbApiHook):
                     conn_config["sslca"] = conn.extra_dejson["sslca"]
                 if conn.extra_dejson.get("sslcapath", False):
                     conn_config["sslcapath"] = conn.extra_dejson["sslcapath"]
+
         if conn.extra_dejson.get("sslcipher", False):
             conn_config["sslcipher"] = conn.extra_dejson["sslcipher"]
+
         if conn.extra_dejson.get("sslcrc", False):
             conn_config["sslcrc"] = conn.extra_dejson["sslcrc"]
+
         if conn.extra_dejson.get("sslprotocol", False):
             conn_config["sslprotocol"] = conn.extra_dejson["sslprotocol"]
+
         if conn.extra_dejson.get("query_band", False):
             conn_config["query_band"] = conn.extra_dejson["query_band"]
-
-        return conn_config
 
     @property
     def sqlalchemy_url(self):
@@ -217,6 +278,20 @@ class TeradataHook(DbApiHook):
         """
         URL = _get_sqlalchemy_url()
         connection = self.get_connection(self.get_conn_id())
+        # Carry the authentication mechanism onto the SQLAlchemy path so engines created via
+        # get_sqlalchemy_engine()/get_uri() use the same auth as get_conn(); otherwise a
+        # non-TD2 connection (e.g. LDAP) would silently fall back to native authentication.
+        if connection.extra_dejson.get("logdata"):
+            raise ValueError(
+                "logdata-based authentication is not supported on the SQLAlchemy path "
+                "(get_uri()/get_sqlalchemy_engine()). Use get_conn() for logdata auth."
+            )
+        query: dict[str, str] = {}
+        if connection.extra_dejson.get("logmech"):
+            query["logmech"] = str(connection.extra_dejson["logmech"]).upper()
+        # logdata is intentionally excluded from the SQLAlchemy URL: it commonly embeds
+        # credentials (e.g. "password=...") that would appear in get_uri() output and
+        # engine debug logs. The DB-API path (get_conn) handles logdata safely.
         # Adding only teradatasqlalchemy supported connection parameters.
         # https://pypi.org/project/teradatasqlalchemy/#ConnectionParameters
         return URL.create(
@@ -226,6 +301,7 @@ class TeradataHook(DbApiHook):
             host=connection.host,
             port=connection.port,
             database=connection.schema if connection.schema else None,
+            query=query,
         )
 
     def get_uri(self) -> str:
@@ -234,9 +310,7 @@ class TeradataHook(DbApiHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict:
-        """Return custom field behaviour."""
-        import json
-
+        """Return custom field behaviour for connection UI."""
         return {
             "hidden_fields": ["port"],
             "relabeling": {
@@ -246,7 +320,12 @@ class TeradataHook(DbApiHook):
             },
             "placeholders": {
                 "extra": json.dumps(
-                    {"tmode": "TERA", "sslmode": "verify-ca", "sslca": "/tmp/server-ca.pem"}, indent=4
+                    {
+                        "tmode": "TERA",
+                        "sslmode": "verify-ca",
+                        "sslca": "/tmp/server-ca.pem",
+                    },
+                    indent=4,
                 ),
                 "login": "dbc",
                 "password": "dbc",
