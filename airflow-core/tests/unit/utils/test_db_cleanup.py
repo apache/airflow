@@ -443,10 +443,20 @@ class TestDBCleanup:
                 f"Expected {expected_remaining_dag_ids} to remain, but got {remaining_dag_ids}"
             )
 
-    def test_cleanup_with_dag_id_filtering_for_joined_tables(self):
+    @pytest.mark.parametrize(
+        "table_names",
+        [
+            pytest.param(["asset_event", "task_reschedule", "deadline"], id="isolated"),
+            pytest.param(
+                ["asset_event", "task_reschedule", "deadline", "task_instance", "dag_run"], id="with-cascade"
+            ),
+        ],
+    )
+    def test_cleanup_with_dag_id_filtering_for_joined_tables(self, table_names):
         """
         Verify that dag_ids and exclude_dag_ids parameters correctly filter and cleanup
         asset_event, task_reschedule, and deadline tables.
+        Also test the cascade-deletion interaction by including base tables (task_instance, dag_run).
         """
         from airflow.models.asset import AssetEvent
         from airflow.models.deadline import Deadline
@@ -527,7 +537,7 @@ class TestDBCleanup:
             clean_before_date = base_date.add(days=10)
             run_cleanup(
                 clean_before_timestamp=clean_before_date,
-                table_names=["asset_event", "task_reschedule", "deadline"],
+                table_names=table_names,
                 dag_ids=["dag1"],
                 dry_run=False,
                 confirm=False,
