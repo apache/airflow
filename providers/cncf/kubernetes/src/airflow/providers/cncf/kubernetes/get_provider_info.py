@@ -310,7 +310,7 @@ def get_provider_info():
                         "default": "0",
                     },
                     "pod_launch_failure_retries": {
-                        "description": "The number of times the executor will transparently requeue a task whose worker pod\nfailed before the task process started running (for example a node drain, autoscaler\nscale-down, node boot race, or transient image pull failure). The task instance is\nstill in ``queued`` state in these cases, meaning no task code ran, so requeuing does\nnot consume a task-level retry. Set to 0 to disable and fail such tasks immediately.\n-1 for unlimited times.\n",
+                        "description": "The number of times the executor will transparently requeue a task whose worker pod\nfailed before the task process started running (for example a node drain, autoscaler\nscale-down, node boot race, or transient image pull failure). The task instance is\nstill in ``queued`` state in these cases, meaning no task code ran, so requeuing does\nnot consume a task-level retry.\n\nThis changes the previous default behavior: such tasks are now requeued once before\nfailing instead of failing on the first pod failure. Set this to 0 to restore the\nprevious behavior (fail immediately, no requeue).\n\nUse -1 for unlimited requeues, but with caution: a pod that fails on every launch\n(for example a misconfigured image that can never be pulled) will be requeued forever,\nand with the default ``delete_worker_pods_on_failure = False`` the failed pods are not\ncleaned up, so they accumulate.\n",
                         "version_added": "10.19.0",
                         "type": "integer",
                         "example": None,
