@@ -3291,6 +3291,133 @@ class TestMappedTaskInstanceReceiveValue:
             dag_maker.run_ti(ti.task_id, dag_run=dag_run, map_index=ti.map_index, session=session)
         assert outputs == expected_outputs
 
+    def test_map_xcom_wide_batched_expand(self, dag_maker, session):
+        """Wide XCom-driven expand goes through the batched add_all()/flush() path.
+
+        Exercises ``TaskMap.expand_mapped_task`` over a 20-element upstream XCom and
+        asserts the batched expansion creates exactly N mapped TIs with contiguous
+        ``map_index`` 0..N-1, the expected ``None`` (schedulable) state, and that the
+        returned instances are usable: they keep their ``.task`` (no merge() that drops
+        it) and are attached to the session.
+        """
+        width = 20
+        upstream_return = list(range(width))
+
+        with dag_maker(dag_id="xcom_wide", session=session, serialized=True) as dag:
+
+            @dag.task
+            def emit():
+                return upstream_return
+
+            @dag.task
+            def show(value):
+                return value
+
+            show.expand(value=emit())
+
+        dag_run = dag_maker.create_dagrun()
+        emit_ti = dag_run.get_task_instance("emit", session=session)
+        emit_ti.refresh_from_task(dag_maker.serialized_dag.get_task("emit"))
+        dag_maker.run_ti(emit_ti.task_id, dag_run=dag_run, session=session)
+
+        show_task = dag_maker.serialized_dag.get_task("show")
+        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+
+        # Correct count + contiguous indexes 0..N-1.
+        assert len(mapped_tis) == width
+        assert max_map_index + 1 == width
+        assert sorted(ti.map_index for ti in mapped_tis) == list(range(width))
+
+        # Freshly-expanded mapped TIs are schedulable (state None) and are attached to
+        # the session. The batched path (indexes >= 1) additionally keeps its ``.task``
+        # because we never merge(); index 0 is the repurposed unmapped TI (loaded from
+        # the DB, so ``.task`` is None) which is stock behaviour untouched by this change.
+        for ti in mapped_tis:
+            assert ti.state is None
+            assert ti in session
+        batched_tis = [ti for ti in mapped_tis if ti.map_index >= 1]
+        assert len(batched_tis) == width - 1
+        for ti in batched_tis:
+            assert ti.task is not None
+
+        # And they are actually persisted as rows.
+        persisted = session.scalars(
+            select(TI)
+            .where(TI.task_id == "show", TI.dag_id == dag_run.dag_id, TI.run_id == dag_run.run_id)
+            .order_by(TI.map_index)
+        ).all()
+        assert [ti.map_index for ti in persisted] == list(range(width))
+
+    def test_revise_map_indexes_grow_batched(self, dag_maker, session):
+        """``DagRun._revise_map_indexes_if_mapped`` adds the new TIs via the batched path.
+
+        Simulates a mid-run length grow: expand once at a narrow width, then re-run the
+        revise path after the upstream XCom has grown, and assert the additional indexes
+        are created contiguously without losing any existing ones.
+        """
+        from airflow.models.xcom import XComModel
+
+        with dag_maker(dag_id="xcom_revise", session=session, serialized=True) as dag:
+
+            @dag.task
+            def emit():
+                return [1, 2, 3]
+
+            @dag.task
+            def show(value):
+                return value
+
+            show.expand(value=emit())
+
+        dag_run = dag_maker.create_dagrun()
+        emit_ti = dag_run.get_task_instance("emit", session=session)
+        emit_ti.refresh_from_task(dag_maker.serialized_dag.get_task("emit"))
+        dag_maker.run_ti(emit_ti.task_id, dag_run=dag_run, session=session)
+
+        show_task = dag_maker.serialized_dag.get_task("show")
+        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+        assert len(mapped_tis) == 3
+        assert max_map_index == 2
+
+        # Grow the upstream's pushed length 3 -> 5 by rewriting the return-value XCom and
+        # the TaskMap row that records the mapped length.
+        XComModel.set(
+            key="return_value",
+            value=[1, 2, 3, 4, 5],
+            dag_id=dag_run.dag_id,
+            task_id="emit",
+            run_id=dag_run.run_id,
+            session=session,
+        )
+        task_map = session.scalars(
+            select(TaskMap).where(
+                TaskMap.dag_id == dag_run.dag_id,
+                TaskMap.task_id == "emit",
+                TaskMap.run_id == dag_run.run_id,
+            )
+        ).one()
+        task_map.length = 5
+        task_map.keys = None
+        session.flush()
+
+        new_tis = list(
+            dag_run._revise_map_indexes_if_mapped(
+                show_task, dag_version_id=mapped_tis[0].dag_version_id, session=session
+            )
+        )
+        # Only the two brand-new indexes (3, 4) are created, contiguous and usable.
+        assert sorted(ti.map_index for ti in new_tis) == [3, 4]
+        for ti in new_tis:
+            assert ti.task is not None
+            assert ti in session
+
+        persisted = session.scalars(
+            select(TI)
+            .where(TI.task_id == "show", TI.dag_id == dag_run.dag_id, TI.run_id == dag_run.run_id)
+            .order_by(TI.map_index)
+        ).all()
+        assert [ti.map_index for ti in persisted] == [0, 1, 2, 3, 4]
+
     def test_map_literal_cross_product(self, dag_maker, session):
         """Test a mapped task with literal cross product args expand properly."""
         outputs = []

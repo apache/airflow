@@ -1,0 +1,1 @@
+Speed up dynamic task mapping expansion by persisting newly-created mapped task instances in a single batched ``INSERT`` (``session.add_all()`` + one ``flush()``) instead of a per-index ``session.merge()``. The previous per-index ``merge`` issued an N+1 ``SELECT`` per mapped index, making a wide fan-out a one-time scheduler stall that scaled linearly with map width.

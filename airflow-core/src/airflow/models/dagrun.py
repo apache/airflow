@@ -2048,16 +2048,26 @@ class DagRun(Base, LoggingMixin):
             )
             session.flush()
 
+        new_tis: list[TI] = []
         for index in range(total_length):
             if index in existing_indexes:
                 continue
             ti = TI(task, run_id=self.run_id, map_index=index, state=None, dag_version_id=dag_version_id)
             self.log.debug("Expanding TIs upserted %s", ti)
             task_instance_mutation_hook(ti, dag_run=self)
-            ti = session.merge(ti)
+            # Attach the TI to the session (cheap -- no SELECT, unlike merge()) before
+            # refresh_from_task re-invokes the mutation hook, so a cluster policy that
+            # routes off the attached session sees an attached instance, as it did when
+            # the hook ran on the post-merge instance. Because we never merge(), .task is
+            # preserved and the returned TIs stay identity-mapped.
+            session.add(ti)
             ti.refresh_from_task(task, dag_run=self)
+            new_tis.append(ti)
+        if new_tis:
+            # Persist all newly-created mapped TIs in a single batched INSERT instead of
+            # a per-index session.merge() + per-index flush (which fired an N+1 SELECT per index).
             session.flush()
-            yield ti
+        yield from new_tis
 
     @classmethod
     @provide_session

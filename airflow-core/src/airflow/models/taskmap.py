@@ -256,8 +256,8 @@ class TaskMap(TaskInstanceDependencies):
                 )
             )
 
+        new_tis: list[TaskInstance] = []
         for index in indexes_to_map:
-            # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
             ti = TaskInstance(
                 task,
                 run_id=run_id,
@@ -267,10 +267,20 @@ class TaskMap(TaskInstanceDependencies):
             )
             task.log.debug("Expanding TIs upserted %s", ti)
             task_instance_mutation_hook(ti, dag_run=dr)
-            ti = session.merge(ti)
+            # Attach the TI to the session (cheap -- no SELECT, unlike merge()) before
+            # refresh_from_task re-invokes the mutation hook, so a cluster policy that
+            # routes off the attached session sees an attached instance, as it did when
+            # the hook ran on the post-merge instance. Because we never merge(), .task is
+            # preserved and the returned TIs stay identity-mapped.
+            session.add(ti)
             ti.context_carrier = new_task_run_carrier(dr.context_carrier)
-            ti.refresh_from_task(task, dag_run=dr)  # session.merge() loses task information.
-            all_expanded_tis.append(ti)
+            ti.refresh_from_task(task, dag_run=dr)
+            new_tis.append(ti)
+        if new_tis:
+            # Persist all newly-created mapped TIs in a single batched INSERT instead of
+            # a per-index session.merge() (which fired an N+1 SELECT per index).
+            session.flush()
+        all_expanded_tis.extend(new_tis)
 
         # Coerce the None case to 0 -- these two are almost treated identically,
         # except the unmapped ti (if exists) is marked to different states.
