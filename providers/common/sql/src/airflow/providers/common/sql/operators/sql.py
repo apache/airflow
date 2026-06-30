@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import ast
-import inspect
 import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -35,7 +34,6 @@ from airflow.providers.common.compat.sdk import (
     BaseOperator,
     SkipMixin,
     XComArg,
-    conf,
 )
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -615,17 +613,6 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
     def _should_run_output_processing(self) -> bool:
         return self.do_xcom_push
-
-    def _get_handler_import_path(self) -> str:
-        if not inspect.isfunction(self.handler):
-            raise ValueError("The handler must be a function object.")
-        module = getattr(self.handler, "__module__", None)
-        qualname = getattr(self.handler, "__qualname__", None)
-        if not module or not qualname:
-            raise ValueError("handler must have __module__ and __qualname__")
-        if "<locals>" in qualname or "<lambda>" in qualname:
-            raise ValueError("The handler must not be a nested/local or lambda function.")
-        return f"{module}:{qualname}"
 
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)
