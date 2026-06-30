@@ -189,6 +189,25 @@ class TestDefaultFillingLogic:
         with pytest.raises(TypeError):
             make_op(dummy_task)
 
+    def test_bind_validation_hints_for_accidental_task_decorator_call(self):
+        def sleep():
+            return None
+
+        with pytest.raises(
+            TypeError,
+            match="too many positional arguments.*@task-decorated function shadows another callable",
+        ):
+            make_op(sleep, op_args=[3600])
+
+    def test_bind_validation_missing_required_args_has_no_accidental_call_hint(self):
+        def dummy_task(required_arg):
+            return required_arg
+
+        with pytest.raises(TypeError) as ctx:
+            make_op(dummy_task)
+
+        assert "@task-decorated function shadows another callable" not in str(ctx.value)
+
     def test_variadic_and_keyword_only_params_are_not_assigned_defaults(self):
         """Construction succeeds when variadic and keyword-only params are present."""
 
