@@ -52,9 +52,10 @@ export const RunStateSelect = ({ dataTestId, label, onChange, states, value }: P
     <Select.Root
       collection={collection}
       data-testid={dataTestId}
+      minWidth="232px"
       onValueChange={({ value: selected }) => onChange(selected[0] === ALL_VALUE ? undefined : selected[0])}
       value={[value ?? ALL_VALUE]}
-      width="232px"
+      width="fit-content"
     >
       <Select.Trigger>
         <HStack gap={2} justifyContent="space-between" pe={5} width="full">
