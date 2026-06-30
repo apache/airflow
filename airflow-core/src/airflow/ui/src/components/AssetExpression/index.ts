@@ -18,4 +18,4 @@
  */
 
 export { AssetExpression } from "./AssetExpression";
-export type { ExpressionType, AssetSummary } from "./types";
+export type { ExpressionType } from "./types";

@@ -931,6 +931,31 @@ class TestAwsBatchExecutor:
             assert submit_kwargs["jobDefinition"] == "some-job-def"
             assert submit_kwargs["jobName"] == "some-job-name"
 
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param(None, {}, id="without_team"),
+            pytest.param(
+                "team_a",
+                {"team_name": "team_a"},
+                id="with_team",
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_1_PLUS, reason="Multi-team support requires Airflow 3.1+"
+                ),
+            ),
+        ],
+    )
+    @mock.patch.object(batch_executor.Stats, "timer")
+    def test_try_adopt_task_instances_emits_team_name_tag(
+        self, mock_timer, mock_executor, team_name, expected_tags
+    ):
+        """Test that the adopt task instances duration metric is tagged with the team name."""
+        mock_executor.team_name = team_name
+
+        mock_executor.try_adopt_task_instances([])
+
+        mock_timer.assert_called_once_with("batch_executor.adopt_task_instances.duration", tags=expected_tags)
+
 
 class TestBatchExecutorConfig:
     @staticmethod

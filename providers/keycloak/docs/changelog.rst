@@ -25,6 +25,29 @@
 Changelog
 ---------
 
+0.8.1
+.....
+
+.. note::
+    The ``get_cli_user`` method added to the Keycloak auth manager in 0.8.0 has been
+    removed together with the revert of the airflowctl CLI client integration in Airflow
+    core. If you relied on ``airflowctl`` CLI authentication via the Keycloak service
+    account, provide an API token via the ``AIRFLOW_CLI_TOKEN`` environment variable
+    instead.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle missing Keycloak resources as access denied (#68951)``
+
+Misc
+~~~~
+
+* ``Revert airflowctl dependency from airflow-core (#68856)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.8.0
 .....
 

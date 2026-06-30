@@ -61,6 +61,39 @@ class AssetEventAccessControl(BaseModel):
     allow_global: Annotated[bool | None, Field(title="Allow Global")] = True
 
 
+class AssetExpressionAliasInfo(BaseModel):
+    """
+    Body of an ``alias`` leaf node.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    group: Annotated[str, Field(title="Group")]
+
+
+class AssetExpressionAssetInfo(BaseModel):
+    """
+    Body of an ``asset`` leaf node.
+
+    ``id`` is injected by ``DagModelOperation.update_dag_asset_expression`` when the expression is
+    persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``. It is left
+    optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
+    degrades gracefully instead of failing response validation.
+    """
+
+    uri: Annotated[str, Field(title="Uri")]
+    name: Annotated[str, Field(title="Name")]
+    group: Annotated[str, Field(title="Group")]
+    id: Annotated[int | None, Field(title="Id")] = None
+
+
+class AssetExpressionRef(BaseModel):
+    """
+    An unresolved asset reference leaf: ``{"asset_ref": {"name": ...}}`` or ``{"asset_ref": {"uri": ...}}``.
+    """
+
+    asset_ref: Annotated[dict[str, str], Field(title="Asset Ref")]
+
+
 class AssetStateStoreWriterKind(str, Enum):
     """
     Identifies what kind of writer last updated an asset state store entry.
@@ -1305,6 +1338,22 @@ class AssetEventResponse(BaseModel):
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
+class AssetExpressionAlias(BaseModel):
+    """
+    An asset alias leaf: ``{"alias": {"name": ..., "group": ...}}``.
+    """
+
+    alias: AssetExpressionAliasInfo
+
+
+class AssetExpressionAsset(BaseModel):
+    """
+    An asset leaf: ``{"asset": {"uri": ..., "name": ..., "group": ...}}``.
+    """
+
+    asset: AssetExpressionAssetInfo
+
+
 class AssetResponse(BaseModel):
     """
     Asset serializer for responses.
@@ -1698,76 +1747,6 @@ class ConnectionCollectionResponse(BaseModel):
 
     connections: Annotated[list[ConnectionResponse], Field(title="Connections")]
     total_entries: Annotated[int, Field(title="Total Entries")]
-
-
-class DAGDetailsResponse(BaseModel):
-    """
-    Specific serializer for Dag Details responses.
-    """
-
-    dag_id: Annotated[str, Field(title="Dag Id")]
-    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
-    is_paused: Annotated[bool, Field(title="Is Paused")]
-    is_stale: Annotated[bool, Field(title="Is Stale")]
-    last_parsed_time: Annotated[datetime | None, Field(title="Last Parsed Time")] = None
-    last_parse_duration: Annotated[float | None, Field(title="Last Parse Duration")] = None
-    last_expired: Annotated[datetime | None, Field(title="Last Expired")] = None
-    bundle_name: Annotated[str | None, Field(title="Bundle Name")] = None
-    bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
-    relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
-    fileloc: Annotated[str, Field(title="Fileloc")]
-    description: Annotated[str | None, Field(title="Description")] = None
-    timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
-    timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
-    timetable_partitioned: Annotated[bool, Field(title="Timetable Partitioned")]
-    timetable_periodic: Annotated[bool, Field(title="Timetable Periodic")]
-    tags: Annotated[list[DagTagResponse], Field(title="Tags")]
-    max_active_tasks: Annotated[int, Field(title="Max Active Tasks")]
-    max_active_runs: Annotated[int | None, Field(title="Max Active Runs")] = None
-    max_consecutive_failed_dag_runs: Annotated[int, Field(title="Max Consecutive Failed Dag Runs")]
-    has_task_concurrency_limits: Annotated[bool, Field(title="Has Task Concurrency Limits")]
-    has_import_errors: Annotated[bool, Field(title="Has Import Errors")]
-    next_dagrun_logical_date: Annotated[datetime | None, Field(title="Next Dagrun Logical Date")] = None
-    next_dagrun_data_interval_start: Annotated[
-        datetime | None, Field(title="Next Dagrun Data Interval Start")
-    ] = None
-    next_dagrun_data_interval_end: Annotated[
-        datetime | None, Field(title="Next Dagrun Data Interval End")
-    ] = None
-    next_dagrun_run_after: Annotated[datetime | None, Field(title="Next Dagrun Run After")] = None
-    allowed_run_types: Annotated[list[DagRunType] | None, Field(title="Allowed Run Types")] = None
-    owners: Annotated[list[str], Field(title="Owners")]
-    catchup: Annotated[bool, Field(title="Catchup")]
-    dag_run_timeout: Annotated[timedelta | None, Field(title="Dag Run Timeout")] = None
-    asset_expression: Annotated[dict[str, Any] | None, Field(title="Asset Expression")] = None
-    doc_md: Annotated[str | None, Field(title="Doc Md")] = None
-    start_date: Annotated[datetime | None, Field(title="Start Date")] = None
-    end_date: Annotated[datetime | None, Field(title="End Date")] = None
-    is_paused_upon_creation: Annotated[bool | None, Field(title="Is Paused Upon Creation")] = None
-    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
-    render_template_as_native_obj: Annotated[bool, Field(title="Render Template As Native Obj")]
-    template_search_path: Annotated[list[str] | None, Field(title="Template Search Path")] = None
-    timezone: Annotated[str | None, Field(title="Timezone")] = None
-    last_parsed: Annotated[datetime | None, Field(title="Last Parsed")] = None
-    default_args: Annotated[dict[str, Any] | None, Field(title="Default Args")] = None
-    rerun_with_latest_version: Annotated[bool | None, Field(title="Rerun With Latest Version")] = None
-    owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
-    is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
-    active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
-    is_backfillable: Annotated[
-        bool, Field(description="Whether this Dag's schedule supports backfilling.", title="Is Backfillable")
-    ]
-    file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
-    concurrency: Annotated[
-        int,
-        Field(
-            description="Return max_active_tasks as concurrency.\n\nDeprecated: Use max_active_tasks instead.",
-            title="Concurrency",
-        ),
-    ]
-    latest_dag_version: Annotated[
-        DagVersionResponse | None, Field(description="Return the latest DagVersion.")
-    ] = None
 
 
 class DAGResponse(BaseModel):
@@ -2527,3 +2506,118 @@ class BulkBodyBulkTaskInstanceBody(BaseModel):
         ],
         Field(title="Actions"),
     ]
+
+
+class AssetExpressionAll(BaseModel):
+    """
+    An "and" node: ``{"all": [...]}`` -- satisfied when all children are satisfied.
+    """
+
+    all: Annotated[
+        list[
+            AssetExpressionAsset
+            | AssetExpressionAlias
+            | AssetExpressionRef
+            | AssetExpressionAny
+            | AssetExpressionAll
+        ],
+        Field(title="All"),
+    ]
+
+
+class AssetExpressionAny(BaseModel):
+    """
+    An "or" node: ``{"any": [...]}`` -- satisfied when any child is satisfied.
+    """
+
+    any: Annotated[
+        list[
+            AssetExpressionAsset
+            | AssetExpressionAlias
+            | AssetExpressionRef
+            | AssetExpressionAny
+            | AssetExpressionAll
+        ],
+        Field(title="Any"),
+    ]
+
+
+class DAGDetailsResponse(BaseModel):
+    """
+    Specific serializer for Dag Details responses.
+    """
+
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+    is_paused: Annotated[bool, Field(title="Is Paused")]
+    is_stale: Annotated[bool, Field(title="Is Stale")]
+    last_parsed_time: Annotated[datetime | None, Field(title="Last Parsed Time")] = None
+    last_parse_duration: Annotated[float | None, Field(title="Last Parse Duration")] = None
+    last_expired: Annotated[datetime | None, Field(title="Last Expired")] = None
+    bundle_name: Annotated[str | None, Field(title="Bundle Name")] = None
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
+    relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
+    fileloc: Annotated[str, Field(title="Fileloc")]
+    description: Annotated[str | None, Field(title="Description")] = None
+    timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
+    timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
+    timetable_partitioned: Annotated[bool, Field(title="Timetable Partitioned")]
+    timetable_periodic: Annotated[bool, Field(title="Timetable Periodic")]
+    tags: Annotated[list[DagTagResponse], Field(title="Tags")]
+    max_active_tasks: Annotated[int, Field(title="Max Active Tasks")]
+    max_active_runs: Annotated[int | None, Field(title="Max Active Runs")] = None
+    max_consecutive_failed_dag_runs: Annotated[int, Field(title="Max Consecutive Failed Dag Runs")]
+    has_task_concurrency_limits: Annotated[bool, Field(title="Has Task Concurrency Limits")]
+    has_import_errors: Annotated[bool, Field(title="Has Import Errors")]
+    next_dagrun_logical_date: Annotated[datetime | None, Field(title="Next Dagrun Logical Date")] = None
+    next_dagrun_data_interval_start: Annotated[
+        datetime | None, Field(title="Next Dagrun Data Interval Start")
+    ] = None
+    next_dagrun_data_interval_end: Annotated[
+        datetime | None, Field(title="Next Dagrun Data Interval End")
+    ] = None
+    next_dagrun_run_after: Annotated[datetime | None, Field(title="Next Dagrun Run After")] = None
+    allowed_run_types: Annotated[list[DagRunType] | None, Field(title="Allowed Run Types")] = None
+    owners: Annotated[list[str], Field(title="Owners")]
+    catchup: Annotated[bool, Field(title="Catchup")]
+    dag_run_timeout: Annotated[timedelta | None, Field(title="Dag Run Timeout")] = None
+    asset_expression: Annotated[
+        AssetExpressionAsset
+        | AssetExpressionAlias
+        | AssetExpressionRef
+        | AssetExpressionAny
+        | AssetExpressionAll
+        | None,
+        Field(title="Asset Expression"),
+    ] = None
+    doc_md: Annotated[str | None, Field(title="Doc Md")] = None
+    start_date: Annotated[datetime | None, Field(title="Start Date")] = None
+    end_date: Annotated[datetime | None, Field(title="End Date")] = None
+    is_paused_upon_creation: Annotated[bool | None, Field(title="Is Paused Upon Creation")] = None
+    params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
+    render_template_as_native_obj: Annotated[bool, Field(title="Render Template As Native Obj")]
+    template_search_path: Annotated[list[str] | None, Field(title="Template Search Path")] = None
+    timezone: Annotated[str | None, Field(title="Timezone")] = None
+    last_parsed: Annotated[datetime | None, Field(title="Last Parsed")] = None
+    default_args: Annotated[dict[str, Any] | None, Field(title="Default Args")] = None
+    rerun_with_latest_version: Annotated[bool | None, Field(title="Rerun With Latest Version")] = None
+    owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
+    is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
+    active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
+    is_backfillable: Annotated[
+        bool, Field(description="Whether this Dag's schedule supports backfilling.", title="Is Backfillable")
+    ]
+    file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
+    concurrency: Annotated[
+        int,
+        Field(
+            description="Return max_active_tasks as concurrency.\n\nDeprecated: Use max_active_tasks instead.",
+            title="Concurrency",
+        ),
+    ]
+    latest_dag_version: Annotated[
+        DagVersionResponse | None, Field(description="Return the latest DagVersion.")
+    ] = None
+
+
+AssetExpressionAll.model_rebuild()
