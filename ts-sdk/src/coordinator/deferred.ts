@@ -34,6 +34,7 @@ export class Deferred<T> {
   private done = false;
   private res!: (v: T) => void;
   private rej!: (e: Error) => void;
+  private readonly onSettleFns: Array<() => void> = [];
 
   constructor() {
     this.promise = new Promise<T>((res, rej) => {
@@ -49,17 +50,43 @@ export class Deferred<T> {
     return this.done;
   }
 
-  resolve(v: T): void {
-    if (!this.done) {
-      this.done = true;
-      this.res(v);
+  /** Run `fn` once, when this settles either way — the deferred's
+   *  `finally`. Runs immediately if already settled. Returns `this` so a
+   *  timeout / cleanup can be attached fluently at construction. */
+  onSettle(fn: () => void): this {
+    if (this.done) {
+      fn();
+    } else {
+      this.onSettleFns.push(fn);
     }
+    return this;
+  }
+
+  /** Reject with `makeError()` after `ms`, unless already settled. The
+   *  timer auto-clears on settle, so a fulfilled deferred never fires it. */
+  rejectAfter(ms: number, makeError: () => Error): this {
+    const timer = setTimeout(() => this.reject(makeError()), ms);
+    return this.onSettle(() => clearTimeout(timer));
+  }
+
+  resolve(v: T): void {
+    this.settle(() => this.res(v));
   }
 
   reject(e: Error): void {
-    if (!this.done) {
-      this.done = true;
-      this.rej(e);
+    this.settle(() => this.rej(e));
+  }
+
+  private settle(apply: () => void): void {
+    if (this.done) return;
+    this.done = true;
+    try {
+      apply();
+    } finally {
+      for (const fn of this.onSettleFns) {
+        fn();
+      }
+      this.onSettleFns.length = 0;
     }
   }
 }

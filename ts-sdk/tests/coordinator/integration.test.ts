@@ -22,7 +22,7 @@
 // Stands up a minimal in-process "supervisor" (TCP server +
 // length-prefixed msgpack frame codec) that mirrors what Airflow's
 // real `BaseCoordinator._runtime_subprocess_entrypoint` does, then
-// drives the runtime through task success, task failure, retry, cancellation,
+// drives the runtime through task success, task failure, retry, abort signaling,
 // task-time RPCs, missing handlers, and parse-mode responses.
 //
 // No Python, no Airflow install — but exercises the same wire format
@@ -345,15 +345,15 @@ describe("coordinator runtime integration", () => {
     });
   });
 
-  it("aborts ctx.signal on SIGTERM and does not mark a cancelled task successful", async () => {
+  it("aborts ctx.signal on SIGTERM and reports a thrown task error", async () => {
     let sawAbort = false;
-    registerTask({ dagId: "test_dag", taskId: "cancelled" }, async ({ ctx }) => {
+    registerTask({ dagId: "test_dag", taskId: "aborted_then_failed" }, async ({ ctx }) => {
       process.emit("SIGTERM");
       sawAbort = ctx.signal.aborted;
-      return "must-not-succeed";
+      throw new Error("interrupted");
     });
 
-    const result = await driveSupervisor(makeStartupDetails("cancelled"));
+    const result = await driveSupervisor(makeStartupDetails("aborted_then_failed"));
 
     expect(sawAbort).toBe(true);
     expect(result.firstResponse!.body).toMatchObject({
@@ -363,16 +363,16 @@ describe("coordinator runtime integration", () => {
     expect(result.runtimeRequests.filter((r) => r.type === "SetXCom")).toHaveLength(0);
   });
 
-  it("returns RetryTask when a cancelled task is retryable", async () => {
+  it("returns RetryTask with the thrown error when a task fails after SIGTERM", async () => {
     let sawAbort = false;
-    registerTask({ dagId: "test_dag", taskId: "cancelled_retry" }, async ({ ctx }) => {
+    registerTask({ dagId: "test_dag", taskId: "aborted_then_failed_retry" }, async ({ ctx }) => {
       process.emit("SIGTERM");
       sawAbort = ctx.signal.aborted;
-      return "must-not-succeed";
+      throw new Error("interrupted");
     });
 
     const result = await driveSupervisor(
-      makeStartupDetails("cancelled_retry", "test_dag", "r1", {
+      makeStartupDetails("aborted_then_failed_retry", "test_dag", "r1", {
         should_retry: true,
         max_tries: 3,
       }),
@@ -381,9 +381,34 @@ describe("coordinator runtime integration", () => {
     expect(sawAbort).toBe(true);
     expect(result.firstResponse!.body).toMatchObject({
       type: "RetryTask",
-      retry_reason: "Task cancelled by SIGTERM",
+      retry_reason: "interrupted",
     });
     expect(result.runtimeRequests.filter((r) => r.type === "SetXCom")).toHaveLength(0);
+  });
+
+  it("does not discard a completed task result after SIGTERM", async () => {
+    let sawAbort = false;
+    registerTask({ dagId: "test_dag", taskId: "completed_after_sigterm" }, async ({ ctx }) => {
+      process.emit("SIGTERM");
+      sawAbort = ctx.signal.aborted;
+      return "completed";
+    });
+
+    const result = await driveSupervisor(makeStartupDetails("completed_after_sigterm"));
+
+    expect(sawAbort).toBe(true);
+    expect(result.firstResponse!.body).toMatchObject({
+      type: "SucceedTask",
+      task_outlets: [],
+      outlet_events: [],
+    });
+
+    const setXComReqs = result.runtimeRequests.filter((r) => r.type === "SetXCom");
+    expect(setXComReqs).toHaveLength(1);
+    expect(setXComReqs[0]!.body).toMatchObject({
+      key: "return_value",
+      value: "completed",
+    });
   });
 
   it("returns TaskState=removed when no handler is registered", async () => {

@@ -19,10 +19,7 @@
 
 import { EventEmitter } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  COORDINATOR_SIGNAL_GRACE_PERIOD_MS,
-  createCoordinatorCancellation,
-} from "../../src/coordinator/runtime.js";
+import { ABORT_GRACE_PERIOD_MS, createRuntimeAbort } from "../../src/coordinator/runtime.js";
 
 describe("coordinator runtime signal handling", () => {
   afterEach(() => {
@@ -33,57 +30,57 @@ describe("coordinator runtime signal handling", () => {
   it("aborts on SIGTERM and force-exits when the grace period expires", () => {
     vi.useFakeTimers();
     const events = new EventEmitter();
-    const forceExit = vi.fn((code: number): never => {
+    const exitProcess = vi.fn((code: number): never => {
       throw new Error(`exit ${code}`);
     });
-    const cancellation = createCoordinatorCancellation(null, {
-      processEvents: events,
-      forceExit,
+    const runtimeAbort = createRuntimeAbort(null, {
+      signalSource: events,
+      exitProcess,
     });
 
     events.emit("SIGTERM", "SIGTERM");
 
-    expect(cancellation.signal.aborted).toBe(true);
-    expect(forceExit).not.toHaveBeenCalled();
-    expect(() => vi.advanceTimersByTime(COORDINATOR_SIGNAL_GRACE_PERIOD_MS)).toThrow("exit 1");
-    expect(forceExit).toHaveBeenCalledWith(1);
-    cancellation.dispose();
+    expect(runtimeAbort.signal.aborted).toBe(true);
+    expect(exitProcess).not.toHaveBeenCalled();
+    expect(() => vi.advanceTimersByTime(ABORT_GRACE_PERIOD_MS)).toThrow("exit 1");
+    expect(exitProcess).toHaveBeenCalledWith(1);
+    runtimeAbort.dispose();
   });
 
   it("uses the registered signal name when the event does not pass a payload", () => {
     vi.useFakeTimers();
     const events = new EventEmitter();
-    const forceExit = vi.fn((code: number): never => {
+    const exitProcess = vi.fn((code: number): never => {
       throw new Error(`exit ${code}`);
     });
-    const cancellation = createCoordinatorCancellation(null, {
-      processEvents: events,
-      forceExit,
+    const runtimeAbort = createRuntimeAbort(null, {
+      signalSource: events,
+      exitProcess,
     });
 
     events.emit("SIGTERM");
 
-    expect(cancellation.signal.aborted).toBe(true);
-    expect((cancellation.signal.reason as Error).message).toBe("Task cancelled by SIGTERM");
-    cancellation.dispose();
+    expect(runtimeAbort.signal.aborted).toBe(true);
+    expect((runtimeAbort.signal.reason as Error).message).toBe("Task aborted by SIGTERM");
+    runtimeAbort.dispose();
   });
 
   it("removes signal listeners and clears the force-exit timer on dispose", () => {
     vi.useFakeTimers();
     const events = new EventEmitter();
-    const forceExit = vi.fn((code: number): never => {
+    const exitProcess = vi.fn((code: number): never => {
       throw new Error(`exit ${code}`);
     });
-    const cancellation = createCoordinatorCancellation(null, {
-      processEvents: events,
-      forceExit,
+    const runtimeAbort = createRuntimeAbort(null, {
+      signalSource: events,
+      exitProcess,
     });
 
     events.emit("SIGINT", "SIGINT");
-    cancellation.dispose();
-    vi.advanceTimersByTime(COORDINATOR_SIGNAL_GRACE_PERIOD_MS);
+    runtimeAbort.dispose();
+    vi.advanceTimersByTime(ABORT_GRACE_PERIOD_MS);
 
-    expect(forceExit).not.toHaveBeenCalled();
+    expect(exitProcess).not.toHaveBeenCalled();
     expect(events.listenerCount("SIGINT")).toBe(0);
     expect(events.listenerCount("SIGTERM")).toBe(0);
   });

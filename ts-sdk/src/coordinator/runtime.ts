@@ -50,7 +50,7 @@ import { getRegisteredTask, listRegisteredTasks } from "../sdk/registry.js";
 import type { TaskContext, TaskHandlerArgs } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
-export const COORDINATOR_SIGNAL_GRACE_PERIOD_MS = 30_000;
+export const ABORT_GRACE_PERIOD_MS = 30_000;
 export const COORDINATOR_RESPONSE_TIMEOUT_MS = 30_000;
 
 /** Options for `startCoordinator()`. */
@@ -70,24 +70,23 @@ interface ParsedArgs {
 
 type SignalListener = NodeJS.SignalsListener;
 
-interface SignalEventSource {
-  on(signal: NodeJS.Signals, listener: SignalListener): SignalEventSource;
-  off(signal: NodeJS.Signals, listener: SignalListener): SignalEventSource;
+interface ProcessSignalSource {
+  on(signal: NodeJS.Signals, listener: SignalListener): ProcessSignalSource;
+  off(signal: NodeJS.Signals, listener: SignalListener): ProcessSignalSource;
 }
 
-interface CoordinatorCancellationOptions {
-  processEvents?: SignalEventSource;
-  forceExit?: (code: number) => never;
+interface RuntimeAbortOptions {
+  signalSource?: ProcessSignalSource;
+  exitProcess?: (code: number) => never;
 }
 
-export interface CoordinatorCancellation {
+export interface RuntimeAbort {
   readonly signal: AbortSignal;
-  isCancellationRequested(): boolean;
   dispose(): void;
 }
 
-const COORDINATOR_TERMINATION_SIGNALS: readonly NodeJS.Signals[] = ["SIGTERM", "SIGINT"];
-const COORDINATOR_FORCE_EXIT_CODE = 1;
+const ABORT_SIGNALS: readonly NodeJS.Signals[] = ["SIGTERM", "SIGINT"];
+const ABORT_FORCE_EXIT_CODE = 1;
 
 export function parseArgs(argv: readonly string[]): ParsedArgs {
   let commAddr: string | null = null;
@@ -115,7 +114,7 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
 
   let logs: LogChannel | null = null;
   let comm: CommChannel | null = null;
-  let cancellation: CoordinatorCancellation | null = null;
+  let runtimeAbort: RuntimeAbort | null = null;
 
   try {
     // Connect log channel first so early failures are captured.
@@ -137,7 +136,7 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
     comm = connection.channel;
     const firstFrame = connection.firstFrame;
     runtimeLogs.debug("Connected comm socket", { commAddr: parsed.commAddr });
-    cancellation = createCoordinatorCancellation(runtimeLogs);
+    runtimeAbort = createRuntimeAbort(runtimeLogs);
 
     const body = asMsgFromSupervisor(firstFrame.body);
 
@@ -162,8 +161,7 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
         comm,
         runtimeLogs,
         logs.child("client"),
-        cancellation.signal,
-        cancellation.isCancellationRequested,
+        runtimeAbort.signal,
       );
       await sendSupervisorResponse(firstFrame.id, response, comm, runtimeLogs);
       if (response.type === "SucceedTask") {
@@ -178,19 +176,19 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
       });
     }
   } finally {
-    cancellation?.dispose();
+    runtimeAbort?.dispose();
     await comm?.close();
     await logs?.close();
   }
 }
 
-export function createCoordinatorCancellation(
+export function createRuntimeAbort(
   logs: LogChannel | null,
-  opts: CoordinatorCancellationOptions = {},
-): CoordinatorCancellation {
+  opts: RuntimeAbortOptions = {},
+): RuntimeAbort {
   const controller = new AbortController();
-  const processEvents = opts.processEvents ?? process;
-  const forceExit = opts.forceExit ?? ((code: number): never => process.exit(code));
+  const signalSource = opts.signalSource ?? process;
+  const exitProcess = opts.exitProcess ?? ((code: number): never => process.exit(code));
   let disposed = false;
   let forceExitTimer: ReturnType<typeof setTimeout> | null = null;
   const signalListeners = new Map<NodeJS.Signals, SignalListener>();
@@ -198,37 +196,36 @@ export function createCoordinatorCancellation(
   const handleSignal = (signal: NodeJS.Signals): void => {
     if (disposed) return;
     if (controller.signal.aborted) {
-      logs?.warning("Additional cancellation signal received", { signal });
+      logs?.warning("Additional abort signal received", { signal });
       return;
     }
 
-    logs?.warning("Cancellation signal received", {
+    logs?.warning("Abort signal received", {
       signal,
-      grace_period_ms: COORDINATOR_SIGNAL_GRACE_PERIOD_MS,
+      grace_period_ms: ABORT_GRACE_PERIOD_MS,
     });
-    controller.abort(new Error(`Task cancelled by ${signal}`));
+    controller.abort(new Error(`Task aborted by ${signal}`));
     forceExitTimer = setTimeout(() => {
-      logs?.error("Cancellation grace period expired; forcing process exit", {
+      logs?.error("Abort grace period expired; forcing process exit", {
         signal,
-        grace_period_ms: COORDINATOR_SIGNAL_GRACE_PERIOD_MS,
+        grace_period_ms: ABORT_GRACE_PERIOD_MS,
       });
-      forceExit(COORDINATOR_FORCE_EXIT_CODE);
-    }, COORDINATOR_SIGNAL_GRACE_PERIOD_MS);
+      exitProcess(ABORT_FORCE_EXIT_CODE);
+    }, ABORT_GRACE_PERIOD_MS);
   };
 
-  for (const signal of COORDINATOR_TERMINATION_SIGNALS) {
+  for (const signal of ABORT_SIGNALS) {
     const listener: SignalListener = () => handleSignal(signal);
     signalListeners.set(signal, listener);
-    processEvents.on(signal, listener);
+    signalSource.on(signal, listener);
   }
 
   return {
     signal: controller.signal,
-    isCancellationRequested: () => controller.signal.aborted,
     dispose: () => {
       disposed = true;
       for (const [signal, listener] of signalListeners) {
-        processEvents.off(signal, listener);
+        signalSource.off(signal, listener);
       }
       signalListeners.clear();
       if (forceExitTimer !== null) {
@@ -262,7 +259,6 @@ async function handleTask(
   logs: LogChannel,
   clientLogs: LogChannel,
   signal: AbortSignal,
-  isCancellationRequested: () => boolean,
 ): Promise<RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState> {
   const ti = details.ti;
   const handler = getRegisteredTask(ti.dag_id, ti.task_id);
@@ -292,14 +288,8 @@ async function handleTask(
 
   try {
     const result = await handler(args);
-    if (isCancellationRequested()) {
-      return buildCancellationResponse(details, logs, ctx);
-    }
     if (result !== undefined) {
       await client.setXCom({ key: "return_value", value: result as JsonValue });
-    }
-    if (isCancellationRequested()) {
-      return buildCancellationResponse(details, logs, ctx);
     }
     // SucceedTask MUST include task_outlets and outlet_events as
     // empty lists — the Execution API's TISuccessStatePayload
@@ -320,16 +310,6 @@ async function handleTask(
     });
     return buildFailureResponse(details, message);
   }
-}
-
-function buildCancellationResponse(
-  details: StartupDetails,
-  logs: LogChannel,
-  ctx: TaskContext,
-): RuntimeRetryTask | RuntimeTaskState {
-  const message = getCancellationMessage(ctx.signal);
-  logs.warning("Task cancelled", { task_id: ctx.taskId, reason: message });
-  return buildFailureResponse(details, message);
 }
 
 async function sendSupervisorResponse(
@@ -367,16 +347,6 @@ function buildFailureResponse(
     state: "failed",
     end_date: endDate,
   };
-}
-
-function getCancellationMessage(signal: AbortSignal): string {
-  if (signal.reason instanceof Error && signal.reason.message) {
-    return signal.reason.message;
-  }
-  if (typeof signal.reason === "string" && signal.reason) {
-    return signal.reason;
-  }
-  return "Task cancelled";
 }
 
 function responseType(body: unknown): string {

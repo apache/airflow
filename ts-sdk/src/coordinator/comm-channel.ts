@@ -47,6 +47,12 @@ export interface SendResponseOptions {
   timeoutMs?: number;
 }
 
+export interface RequestOptions {
+  timeoutMs?: number;
+}
+
+export const COORDINATOR_REQUEST_TIMEOUT_MS = 30_000;
+
 export class CommChannel {
   private readonly sock: Socket;
   private readonly reader = new FrameReader();
@@ -85,32 +91,44 @@ export class CommChannel {
   }
 
   /** Send a request to the supervisor and await its matching response. */
-  async request(body: unknown): Promise<Frame> {
+  async request(body: unknown, opts: RequestOptions = {}): Promise<Frame> {
+    if (this.closed) {
+      throw this.closeError ?? new Error("Comm channel closed");
+    }
+
     const id = this.nextId++;
     const type = describeFrameType(body);
-    this.logs?.debug("Sending request", { id, type });
-    return new Promise<Frame>((resolve, reject) => {
-      if (this.closed) {
-        reject(this.closeError ?? new Error("Comm channel closed"));
-        return;
-      }
-      this.pendingReplies.set(id, (frame) => {
-        this.logs?.debug("Response received", {
-          id,
-          request_type: type,
-          response_type: describeFrameType(frame.body),
-          error: frame.error ?? null,
-        });
-        resolve(frame);
+    const timeoutMs = opts.timeoutMs ?? COORDINATOR_REQUEST_TIMEOUT_MS;
+
+    // A reply that times out on its own and removes its pending entry once done.
+    const reply = new Deferred<Frame>()
+      .rejectAfter(
+        timeoutMs,
+        () => new Error(`Timed out waiting for ${type} response after ${timeoutMs} ms`),
+      )
+      .onSettle(() => this.pendingReplies.delete(id));
+
+    // How the reply gets fulfilled: the reader matches this id and calls us.
+    this.pendingReplies.set(id, (frame) => {
+      this.logs?.debug("Response received", {
+        id,
+        request_type: type,
+        response_type: describeFrameType(frame.body),
+        error: frame.error ?? null,
       });
-      const buf = encodeRequest(id, body);
-      this.sock.write(buf, (err) => {
-        if (err) {
-          this.pendingReplies.delete(id);
-          reject(err);
-        }
-      });
+      reply.resolve(frame);
     });
+
+    this.logs?.debug("Sending request", { id, type });
+    try {
+      this.sock.write(encodeRequest(id, body), (err) => {
+        if (err) reply.reject(err);
+      });
+    } catch (err) {
+      reply.reject(err as Error);
+    }
+
+    return reply.promise;
   }
 
   /** Send a response for an incoming supervisor request. */
@@ -125,43 +143,30 @@ export class CommChannel {
       type: describeFrameType(body),
       error: error ?? null,
     });
-    const buf = encodeResponse(id, body, error);
-    return new Promise<void>((resolve, reject) => {
-      if (this.closed) {
-        reject(this.closeError ?? new Error("Comm channel closed"));
-        return;
-      }
+    if (this.closed) {
+      throw this.closeError ?? new Error("Comm channel closed");
+    }
 
-      let settled = false;
-      let timer: ReturnType<typeof setTimeout> | null = null;
+    const done = new Deferred<void>();
+    if (opts.timeoutMs !== undefined) {
+      // A wedged terminal write must not hang the process: destroy the socket
+      // and fail so the runtime exits non-zero instead of waiting forever.
+      done.rejectAfter(opts.timeoutMs, () => {
+        const err = new Error(`Timed out sending response after ${opts.timeoutMs} ms`);
+        this.sock.destroy(err);
+        return err;
+      });
+    }
 
-      const finish = (err?: Error): void => {
-        if (settled) return;
-        settled = true;
-        if (timer !== null) {
-          clearTimeout(timer);
-        }
-        if (err) {
-          reject(err);
-        } else {
-          resolve();
-        }
-      };
+    try {
+      this.sock.write(encodeResponse(id, body, error), (err) =>
+        err ? done.reject(err) : done.resolve(),
+      );
+    } catch (err) {
+      done.reject(err as Error);
+    }
 
-      if (opts.timeoutMs !== undefined) {
-        timer = setTimeout(() => {
-          const err = new Error(`Timed out sending response after ${opts.timeoutMs} ms`);
-          this.sock.destroy(err);
-          finish(err);
-        }, opts.timeoutMs);
-      }
-
-      try {
-        this.sock.write(buf, (err) => finish(err ?? undefined));
-      } catch (err) {
-        finish(err as Error);
-      }
-    });
+    return done.promise;
   }
 
   async close(): Promise<void> {

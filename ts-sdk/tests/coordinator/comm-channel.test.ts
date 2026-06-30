@@ -19,7 +19,8 @@
 
 import { EventEmitter } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CommChannel } from "../../src/coordinator/comm-channel.js";
+import { CommChannel, COORDINATOR_REQUEST_TIMEOUT_MS } from "../../src/coordinator/comm-channel.js";
+import { encodeResponse } from "../../src/coordinator/frames.js";
 
 class FakeSocket extends EventEmitter {
   writeCallback: ((err?: Error) => void) | undefined;
@@ -87,5 +88,65 @@ describe("CommChannel", () => {
     await expect(send).rejects.toThrow("write failed");
     await vi.advanceTimersByTimeAsync(10);
     expect(sock.destroy).not.toHaveBeenCalled();
+  });
+
+  it("rejects a request when its response times out", async () => {
+    vi.useFakeTimers();
+    const sock = new FakeSocket();
+    const channel = createChannel(sock);
+
+    const request = channel.request({ type: "GetVariable", key: "greeting" }, { timeoutMs: 10 });
+    const assertion = expect(request).rejects.toThrow(
+      "Timed out waiting for GetVariable response after 10 ms",
+    );
+    await vi.advanceTimersByTimeAsync(10);
+
+    await assertion;
+  });
+
+  it("uses the default request timeout when no override is provided", async () => {
+    vi.useFakeTimers();
+    const sock = new FakeSocket();
+    const channel = createChannel(sock);
+
+    const request = channel.request({ type: "GetVariable", key: "greeting" });
+    const rejection = vi.fn();
+    request.catch(rejection);
+    const assertion = expect(request).rejects.toThrow(
+      `Timed out waiting for GetVariable response after ${COORDINATOR_REQUEST_TIMEOUT_MS} ms`,
+    );
+
+    await vi.advanceTimersByTimeAsync(COORDINATOR_REQUEST_TIMEOUT_MS - 1);
+    expect(rejection).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+
+    await assertion;
+    expect(rejection).toHaveBeenCalledOnce();
+  });
+
+  it("clears the request timeout when the response arrives", async () => {
+    vi.useFakeTimers();
+    const sock = new FakeSocket();
+    const channel = createChannel(sock);
+
+    const request = channel.request({ type: "GetVariable", key: "greeting" }, { timeoutMs: 10 });
+    sock.emit("data", encodeResponse(0, { type: "VariableResult", value: "hello" }));
+
+    await expect(request).resolves.toMatchObject({
+      body: { type: "VariableResult", value: "hello" },
+    });
+    await vi.advanceTimersByTimeAsync(10);
+  });
+
+  it("clears the request timeout when the write fails", async () => {
+    vi.useFakeTimers();
+    const sock = new FakeSocket();
+    const channel = createChannel(sock);
+
+    const request = channel.request({ type: "GetVariable", key: "greeting" }, { timeoutMs: 10 });
+    sock.writeCallback?.(new Error("write failed"));
+
+    await expect(request).rejects.toThrow("write failed");
+    await vi.advanceTimersByTimeAsync(10);
   });
 });
