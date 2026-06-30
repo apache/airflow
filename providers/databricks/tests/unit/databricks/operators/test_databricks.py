@@ -2918,6 +2918,103 @@ class TestDatabricksNotebookOperator:
             "Trigger is not a DatabricksExecutionTrigger"
         )
         assert exec_info.value.method_name == "execute_complete"
+        # Without native retries configured, the trigger keeps its original parent-unaware behavior.
+        assert exec_info.value.trigger.workflow_run_id is None
+        assert exec_info.value.trigger.databricks_task_key is None
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_execute_standalone_with_retries_defers_on_submit_run(self, mock_databricks_hook):
+        # A standalone operator with native retries follows its own submit run to a terminal state,
+        # so the defer targets that run directly (no per-task workflow context).
+        mock_databricks_hook.return_value.get_run.return_value = {
+            "state": {"life_cycle_state": "PENDING"},
+            "run_page_url": "test_url",
+        }
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+            wait_for_termination=True,
+            deferrable=True,
+            max_retries=2,
+        )
+        operator.databricks_run_id = 12345
+
+        with pytest.raises(TaskDeferred) as exec_info:
+            operator.monitor_databricks_job()
+        assert exec_info.value.trigger.run_id == 12345
+        assert exec_info.value.trigger.workflow_run_id is None
+        assert exec_info.value.trigger.databricks_task_key is None
+
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksNotebookOperator._databricks_workflow_task_group",
+        new_callable=mock.PropertyMock,
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksNotebookOperator._get_current_databricks_task"
+    )
+    def test_execute_with_deferrable_passes_workflow_context_when_retries_configured(
+        self, mock_get_current_task, mock_databricks_hook, mock_workflow_tg
+    ):
+        # Inside a workflow task group the run is shared, so the defer carries the workflow context
+        # and the trigger tracks this task's own attempt within that run.
+        mock_workflow_tg.return_value = MagicMock()
+        mock_get_current_task.return_value = {"run_id": "attempt-1"}
+        mock_databricks_hook.return_value.get_run.return_value = {
+            "state": {"life_cycle_state": "PENDING"},
+            "run_page_url": "test_url",
+        }
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+            wait_for_termination=True,
+            deferrable=True,
+            max_retries=2,
+        )
+        operator.databricks_run_id = 12345
+
+        with pytest.raises(TaskDeferred) as exec_info:
+            operator.monitor_databricks_job()
+        assert exec_info.value.trigger.workflow_run_id == 12345
+        assert exec_info.value.trigger.databricks_task_key == operator.databricks_task_key
+
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksNotebookOperator._databricks_workflow_task_group",
+        new_callable=mock.PropertyMock,
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksNotebookOperator._get_current_databricks_task"
+    )
+    def test_execute_with_deferrable_and_max_retries_zero_keeps_single_attempt_monitoring(
+        self, mock_get_current_task, mock_databricks_hook, mock_workflow_tg
+    ):
+        mock_workflow_tg.return_value = MagicMock()
+        mock_get_current_task.return_value = {"run_id": "attempt-1"}
+        mock_databricks_hook.return_value.get_run.return_value = {
+            "state": {"life_cycle_state": "PENDING"},
+            "run_page_url": "test_url",
+        }
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+            wait_for_termination=True,
+            deferrable=True,
+            max_retries=0,
+        )
+        operator.databricks_run_id = 12345
+
+        with pytest.raises(TaskDeferred) as exec_info:
+            operator.monitor_databricks_job()
+        assert exec_info.value.trigger.run_id == "attempt-1"
+        assert exec_info.value.trigger.workflow_run_id is None
+        assert exec_info.value.trigger.databricks_task_key is None
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     @mock.patch(
@@ -2992,6 +3089,118 @@ class TestDatabricksNotebookOperator:
             operator.monitor_databricks_job()
         exception_message = "Task failed. Final state FAILED. Reason: FAILURE. Errors: []"
         assert exception_message == str(exc_info.value)
+
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksNotebookOperator._databricks_workflow_task_group",
+        new_callable=mock.PropertyMock,
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksNotebookOperator._get_current_databricks_task"
+    )
+    def test_monitor_databricks_job_retry_in_flight_succeeds(
+        self, mock_get_current_task, mock_databricks_hook, mock_sleep, mock_workflow_tg
+    ):
+        # Inside a workflow task group the run is shared, so the task tracks its own attempt: the
+        # first attempt fails while the workflow run is still active; a retried attempt then
+        # succeeds and the Airflow task must not fail.
+        mock_workflow_tg.return_value = MagicMock()
+        mock_get_current_task.side_effect = [{"run_id": "attempt-1"}, {"run_id": "attempt-2"}]
+        runs = {
+            "attempt-1": {
+                "state": {
+                    "life_cycle_state": "TERMINATED",
+                    "result_state": "FAILED",
+                    "state_message": "first attempt failed",
+                },
+                "run_page_url": "url-1",
+            },
+            12345: {"state": {"life_cycle_state": "RUNNING"}, "run_page_url": "parent"},
+            "attempt-2": {
+                "state": {"life_cycle_state": "TERMINATED", "result_state": "SUCCESS"},
+                "run_page_url": "url-2",
+            },
+        }
+        mock_databricks_hook.return_value.get_run.side_effect = lambda run_id: runs[run_id]
+
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+            max_retries=1,
+        )
+        operator.databricks_run_id = 12345
+
+        operator.monitor_databricks_job()
+        mock_sleep.assert_called_once()
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_monitor_standalone_submit_run_follows_run_to_terminal_state(
+        self, mock_databricks_hook, mock_sleep
+    ):
+        # A standalone submit run stays active while Databricks retries the task; the operator
+        # follows the run (not an attempt) and reports only once the run itself terminates.
+        run_states = iter(
+            [
+                {"life_cycle_state": "RUNNING"},
+                {"life_cycle_state": "TERMINATED", "result_state": "SUCCESS"},
+            ]
+        )
+        mock_databricks_hook.return_value.get_run.side_effect = lambda run_id: {
+            "state": next(run_states),
+            "run_page_url": "url",
+        }
+
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+            max_retries=1,
+        )
+        operator.databricks_run_id = 12345
+
+        operator.monitor_databricks_job()
+        # Only the submit run is polled; the per-attempt resolver is never used.
+        mock_databricks_hook.return_value.get_run.assert_called_with(12345)
+        mock_databricks_hook.return_value.get_run_tasks.assert_not_called()
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksNotebookOperator._get_current_databricks_task"
+    )
+    def test_monitor_databricks_job_without_retries_fails_immediately(
+        self, mock_get_current_task, mock_databricks_hook, mock_sleep
+    ):
+        # Without native retries configured the task fails as soon as its own attempt terminates,
+        # even if the parent run is still active. The parent run state must not be polled.
+        mock_get_current_task.return_value = {"run_id": "attempt-1"}
+        mock_databricks_hook.return_value.get_run.return_value = {
+            "state": {
+                "life_cycle_state": "TERMINATED",
+                "result_state": "FAILED",
+                "state_message": "attempt failed",
+            },
+            "run_page_url": "url",
+        }
+
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+        )
+        operator.databricks_run_id = 12345
+
+        with pytest.raises(AirflowException):
+            operator.monitor_databricks_job()
+        mock_sleep.assert_not_called()
+        # Only the attempt run is polled (once, before the loop); the parent run is never fetched.
+        mock_databricks_hook.return_value.get_run.assert_called_once_with("attempt-1")
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_launch_notebook_job(self, mock_databricks_hook):
@@ -3146,6 +3355,88 @@ class TestDatabricksNotebookOperator:
         assert task_json == expected_json
 
     @pytest.mark.parametrize(
+        ("retry_kwargs", "expected"),
+        [
+            (
+                {"max_retries": -1, "min_retry_interval_millis": 2000, "retry_on_timeout": True},
+                {"max_retries": -1, "min_retry_interval_millis": 2000, "retry_on_timeout": True},
+            ),
+            ({"max_retries": 0}, {"max_retries": 0}),
+            ({"retry_on_timeout": False}, {"retry_on_timeout": False}),
+        ],
+    )
+    def test_get_run_json_retry_settings(self, retry_kwargs, expected):
+        """Retry settings are added to the submitted task only when explicitly provided.
+
+        They must live inside ``tasks[0]`` (a Databricks ``SubmitTask``); at the top level of a
+        runs/submit payload Databricks silently ignores them.
+        """
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+            existing_cluster_id="existing_cluster_id",
+            **retry_kwargs,
+        )
+        run_json = operator._get_run_json()
+        assert "tasks" in run_json
+        task = run_json["tasks"][0]
+        assert task["task_key"] == operator.databricks_task_key
+        assert task["existing_cluster_id"] == "existing_cluster_id"
+        assert task["notebook_task"]["notebook_path"] == "test_path"
+        assert "existing_cluster_id" not in run_json
+        for key in ("max_retries", "min_retry_interval_millis", "retry_on_timeout"):
+            assert key not in run_json
+            if key in expected:
+                assert task[key] == expected[key]
+            else:
+                assert key not in task
+
+    def test_get_run_json_without_retries_uses_legacy_top_level_shape(self):
+        """Without native retries the payload is the legacy single-task runs/submit shape (unchanged)."""
+        operator = DatabricksNotebookOperator(
+            task_id="test_task",
+            notebook_path="test_path",
+            source="test_source",
+            databricks_conn_id="test_conn_id",
+            existing_cluster_id="existing_cluster_id",
+        )
+        run_json = operator._get_run_json()
+        assert run_json["run_name"] == operator.databricks_task_key
+        assert run_json["existing_cluster_id"] == "existing_cluster_id"
+        assert run_json["notebook_task"]["notebook_path"] == "test_path"
+        # No reshape into the multi-task form when retries are not configured.
+        assert "tasks" not in run_json
+
+    def test_convert_to_databricks_workflow_task_includes_retry_settings(self):
+        """Retry settings provided to the operator are included in the workflow task JSON."""
+        dag = DAG(dag_id="example_dag", schedule=None, start_date=DEFAULT_DATE)
+        operator = DatabricksNotebookOperator(
+            notebook_path="/path/to/notebook",
+            source="WORKSPACE",
+            task_id="test_task",
+            max_retries=2,
+            min_retry_interval_millis=1000,
+            retry_on_timeout=True,
+            dag=dag,
+        )
+
+        databricks_workflow_task_group = MagicMock()
+        databricks_workflow_task_group.notebook_packages = []
+        databricks_workflow_task_group.notebook_params = {}
+
+        operator.task_group = databricks_workflow_task_group
+        relevant_upstreams = []
+        task_dict = {}
+
+        task_json = operator._convert_to_databricks_workflow_task(relevant_upstreams, task_dict)
+
+        assert task_json["max_retries"] == 2
+        assert task_json["min_retry_interval_millis"] == 1000
+        assert task_json["retry_on_timeout"] is True
+
+    @pytest.mark.parametrize(
         ("trigger_rule", "expected_run_if"),
         [
             ("all_failed", "ALL_FAILED"),
@@ -3285,6 +3576,22 @@ class TestDatabricksTaskOperator:
         assert operator.task_config == task_config
         assert task_base_json == task_config
 
+    def test_get_run_json_operator_task_key_wins_over_task_config(self):
+        """A task_key in task_config must not shadow the operator-managed key used for monitoring.
+
+        The operator only injects its own task_key in the reshaped (native-retry) payload, where
+        monitoring re-resolves the task by that key, so the guarantee is exercised with retries set.
+        """
+        operator = DatabricksTaskOperator(
+            task_id="test_task",
+            databricks_conn_id="test_conn_id",
+            existing_cluster_id="existing_cluster_id",
+            max_retries=2,
+            task_config={"task_key": "user_supplied_key", "notebook_task": {"notebook_path": "/p"}},
+        )
+        task = operator._get_run_json()["tasks"][0]
+        assert task["task_key"] == operator.databricks_task_key
+
     def test_generate_databricks_task_key(self):
         task_config = {}
         operator = DatabricksTaskOperator(
@@ -3321,3 +3628,134 @@ class TestDatabricksTaskOperator:
         expected_task_key = "test_task_key"
 
         assert expected_task_key == operator.databricks_task_key
+
+    @pytest.mark.parametrize(
+        ("field", "task_config_retries", "retry_kwargs", "expected"),
+        [
+            ("max_retries", {"max_retries": 1}, {}, 1),
+            ("max_retries", {"max_retries": 1}, {"max_retries": 0}, 0),
+            (
+                "min_retry_interval_millis",
+                {"min_retry_interval_millis": 1000},
+                {"min_retry_interval_millis": 5000},
+                5000,
+            ),
+            ("retry_on_timeout", {"retry_on_timeout": True}, {"retry_on_timeout": False}, False),
+        ],
+    )
+    def test_get_run_json_retry_settings(self, field, task_config_retries, retry_kwargs, expected):
+        """Operator-level retry settings are applied and take precedence over task_config values."""
+        task_config = {
+            "notebook_task": {"notebook_path": "/path", "source": "WORKSPACE", "base_parameters": {}},
+            **task_config_retries,
+        }
+        operator = DatabricksTaskOperator(
+            task_id="test_task",
+            databricks_conn_id="test_conn_id",
+            existing_cluster_id="existing_cluster_id",
+            task_config=task_config,
+            **retry_kwargs,
+        )
+        run_json = operator._get_run_json()
+        assert run_json["tasks"][0][field] == expected
+        assert field not in run_json
+
+    @pytest.mark.parametrize("max_retries", [2, "2"])
+    @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_monitor_uses_retry_strategy_when_retries_set_in_task_config(
+        self, mock_databricks_hook, mock_sleep, max_retries
+    ):
+        # max_retries supplied only through task_config must still select retry-aware monitoring
+        # (follow the submit run), not the single-attempt path.
+        run_states = iter(
+            [
+                {"life_cycle_state": "RUNNING"},
+                {"life_cycle_state": "TERMINATED", "result_state": "SUCCESS"},
+            ]
+        )
+        mock_databricks_hook.return_value.get_run.side_effect = lambda run_id: {
+            "state": next(run_states),
+            "run_page_url": "url",
+        }
+
+        operator = DatabricksTaskOperator(
+            task_id="test_task",
+            databricks_conn_id="test_conn_id",
+            existing_cluster_id="existing_cluster_id",
+            task_config={
+                "notebook_task": {"notebook_path": "/path", "source": "WORKSPACE", "base_parameters": {}},
+                "max_retries": max_retries,
+            },
+        )
+        operator.databricks_run_id = 12345
+
+        operator.monitor_databricks_job()
+        mock_databricks_hook.return_value.get_run.assert_called_with(12345)
+        mock_databricks_hook.return_value.get_run_tasks.assert_not_called()
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksTaskOperator._get_current_databricks_task"
+    )
+    def test_monitor_max_retries_zero_operator_arg_overrides_task_config_retries(
+        self, mock_get_current_task, mock_databricks_hook, mock_sleep
+    ):
+        mock_get_current_task.return_value = {"run_id": "attempt-1"}
+        mock_databricks_hook.return_value.get_run.return_value = {
+            "state": {
+                "life_cycle_state": "TERMINATED",
+                "result_state": "FAILED",
+                "state_message": "attempt failed",
+            },
+            "run_page_url": "url",
+        }
+
+        operator = DatabricksTaskOperator(
+            task_id="test_task",
+            databricks_conn_id="test_conn_id",
+            existing_cluster_id="existing_cluster_id",
+            task_config={
+                "notebook_task": {"notebook_path": "/path", "source": "WORKSPACE", "base_parameters": {}},
+                "max_retries": 2,
+            },
+            max_retries=0,
+        )
+        operator.databricks_run_id = 12345
+
+        with pytest.raises(AirflowException):
+            operator.monitor_databricks_job()
+        mock_sleep.assert_not_called()
+        mock_databricks_hook.return_value.get_run.assert_called_once_with("attempt-1")
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_monitor_waits_out_waiting_for_retry_state(self, mock_databricks_hook, mock_sleep):
+        # A native retry surfaces WAITING_FOR_RETRY between attempts; the poll must keep waiting
+        # rather than crash on an unexpected life cycle state.
+        run_states = iter(
+            [
+                {"life_cycle_state": "RUNNING"},
+                {"life_cycle_state": "WAITING_FOR_RETRY"},
+                {"life_cycle_state": "TERMINATED", "result_state": "SUCCESS"},
+            ]
+        )
+        mock_databricks_hook.return_value.get_run.side_effect = lambda run_id: {
+            "state": next(run_states),
+            "run_page_url": "url",
+        }
+
+        operator = DatabricksTaskOperator(
+            task_id="test_task",
+            databricks_conn_id="test_conn_id",
+            existing_cluster_id="existing_cluster_id",
+            task_config={
+                "notebook_task": {"notebook_path": "/path", "source": "WORKSPACE", "base_parameters": {}},
+                "max_retries": 2,
+            },
+        )
+        operator.databricks_run_id = 12345
+
+        operator.monitor_databricks_job()
+        assert mock_databricks_hook.return_value.get_run.call_count == 3

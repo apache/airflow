@@ -100,6 +100,8 @@ class RunState:
         "SKIPPED",
         "INTERNAL_ERROR",
         "QUEUED",
+        "BLOCKED",
+        "WAITING_FOR_RETRY",
     ]
 
     def __init__(
