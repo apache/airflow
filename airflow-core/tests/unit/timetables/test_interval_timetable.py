@@ -205,8 +205,12 @@ def test_no_catchup_calendar_delta_without_start_date_ends_now() -> None:
 
 @time_machine.travel(pendulum.DateTime(2026, 6, 29, tzinfo=utc))
 def test_no_catchup_calendar_delta_uses_one_period_at_a_time_clamping() -> None:
-    """Boundaries must follow relativedelta day-clamping period by period
-    (Jan 31 -> Feb 28 -> Mar 28 ...), not a multiplied jump off ``start_date``."""
+    """Boundaries advance one relativedelta period at a time, so day-clamping is
+    path-dependent: Jan 31 + 1 month clamps to Feb 28, and because each step starts
+    from the previous boundary (not from Jan 31), the 28 then sticks --
+    Feb 28 -> Mar 28 -> ... -> May 28 -> Jun 28. A single multiplied jump off
+    ``start_date`` would instead re-clamp from the 31st and land elsewhere
+    (Jan 31 + 5 months -> Jun 30)."""
     next_info = MONTHLY_RELATIVEDELTA_TIMETABLE.next_dagrun_info(
         last_automated_data_interval=None,
         restriction=TimeRestriction(
