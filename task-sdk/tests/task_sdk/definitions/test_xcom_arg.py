@@ -26,8 +26,11 @@ import structlog
 from airflow.sdk import TaskInstanceState
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.dag import DAG
+from airflow.sdk.definitions.xcom_arg import PlainXComArg
 from airflow.sdk.exceptions import AirflowSkipException
-from airflow.sdk.execution_time.comms import GetXCom, XComResult
+from airflow.sdk.execution_time.comms import GetXCom, XComResult, XComSequenceSliceResult
+from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
+from airflow.sdk.serde import deserialize, serialize
 
 log = structlog.get_logger(__name__)
 
@@ -375,8 +378,6 @@ class TestPlainXComArgResolveMappedGroup:
 
     @staticmethod
     def _make_arg():
-        from airflow.sdk.definitions.xcom_arg import PlainXComArg
-
         operator = mock.MagicMock()
         operator.is_mapped = False
         operator.task_id = "do_something"
@@ -393,10 +394,6 @@ class TestPlainXComArgResolveMappedGroup:
         ],
     )
     def test_resolve_stays_lazy_and_serializes_as_list(self, root, expected, mock_supervisor_comms):
-        from airflow.sdk.execution_time.comms import XComSequenceSliceResult
-        from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
-        from airflow.sdk.serde import deserialize, serialize
-
         mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=root)
 
         arg = self._make_arg()
