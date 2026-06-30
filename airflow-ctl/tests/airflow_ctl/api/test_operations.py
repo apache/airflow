@@ -368,7 +368,7 @@ class TestAssetsOperations:
         response = client.assets.list()
         assert response == assets_collection_response
 
-    def test_list_by_alias(self):
+    def test_list_aliases(self):
         assets_collection_response = AssetAliasCollectionResponse(
             asset_aliases=[self.asset_alias_response],
             total_entries=1,
@@ -379,7 +379,7 @@ class TestAssetsOperations:
             return httpx.Response(200, json=json.loads(assets_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.assets.list_by_alias()
+        response = client.assets.list_aliases()
         assert response == assets_collection_response
 
     def test_create_event(self):
