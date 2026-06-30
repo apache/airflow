@@ -31,7 +31,7 @@ from contextlib import ExitStack
 from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 from uuid import UUID
 
 from sqlalchemy import (
@@ -157,6 +157,14 @@ if TYPE_CHECKING:
 TI = TaskInstance
 DR = DagRun
 DM = DagModel
+
+
+class CreateDagRunsNotifications(NamedTuple):
+    """Skipped-interval notifications collected during Dag run creation."""
+
+    skip_callback_requests: list[DagSkippedIntervalsCallbackRequest]
+    skipped_intervals_listener_events: list[tuple[str, SkippedIntervalsSummary]]
+
 
 TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
@@ -1898,10 +1906,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :return: Number of TIs enqueued in this iteration
         """
         # Put a check in place to make sure we don't commit unexpectedly
-        skip_callback_requests: list[DagSkippedIntervalsCallbackRequest] = []
+        dag_runs_notifications = CreateDagRunsNotifications([], [])
         with prohibit_commit(session) as guard:
             if self._scheduler_use_job_schedule:
-                skip_callback_requests = self._create_dagruns_for_dags(guard, session)
+                dag_runs_notifications = self._create_dagruns_for_dags(guard, session)
 
             self._start_queued_dagruns(session)
             guard.commit()
@@ -1934,8 +1942,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             else:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
 
-        # Dispatch skipped-intervals callbacks after commit so DatabaseCallbackSink can write to DB.
-        for skip_req in skip_callback_requests:
+        # Dispatch skipped-intervals listener hooks and Dag callbacks after commit.
+        self._notify_skipped_intervals_listeners(dag_runs_notifications.skipped_intervals_listener_events)
+        for skip_req in dag_runs_notifications.skip_callback_requests:
             self.executor.send_callback(skip_req)
 
         with prohibit_commit(session) as guard:
@@ -2349,7 +2358,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @retry_db_transaction
     def _create_dagruns_for_dags(
         self, guard: CommitProhibitorGuard, session: Session
-    ) -> list[DagSkippedIntervalsCallbackRequest]:
+    ) -> CreateDagRunsNotifications:
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
         partition_dag_ids: set[str] = self._create_dagruns_for_partitioned_asset_dags(session)
 
@@ -2363,7 +2372,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # filter asset partition triggered Dags
             if d.dag_id not in partition_dag_ids
         }
-        skip_callback_requests = self._create_dag_runs(non_asset_dags, session)
+        dag_runs_notifications = self._create_dag_runs(non_asset_dags, session)
         if asset_triggered_dags:
             self._create_dag_runs_asset_triggered(
                 dag_models=[d for d in asset_triggered_dags if d.dag_id not in partition_dag_ids],
@@ -2374,7 +2383,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         guard.commit()
         # END: create dagruns
 
-        return skip_callback_requests
+        return dag_runs_notifications
 
     @provide_session
     def _mark_backfills_complete(self, *, session: Session = NEW_SESSION) -> None:
@@ -2450,13 +2459,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _create_dag_runs(
         self, dag_models: Collection[DagModel], session: Session
-    ) -> list[DagSkippedIntervalsCallbackRequest]:
+    ) -> CreateDagRunsNotifications:
         """
         Create a Dag run and update the dag_model to control if/when the next DagRun should be created.
 
-        Returns a list of skipped-intervals callback requests to dispatch after commit.
+        Returns skipped-interval notifications to dispatch after commit.
         """
         skip_callback_requests: list[DagSkippedIntervalsCallbackRequest] = []
+        skipped_intervals_listener_events: list[tuple[str, SkippedIntervalsSummary]] = []
         # Bulk Fetch DagRuns with dag_id and logical_date same
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
@@ -2588,16 +2598,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         session=session,
                     )
                     if skipped_summary is not None:
-                        try:
-                            get_listener_manager().hook.on_intervals_skipped(  # type: ignore[attr-defined]
-                                dag_id=serdag.dag_id,
-                                summary=skipped_summary,
-                            )
-                        except Exception:
-                            self.log.exception(
-                                "Error notifying listener of skipped intervals",
-                                dag_id=serdag.dag_id,
-                            )
+                        if bool(
+                            get_listener_manager().hook.on_intervals_skipped.get_hookimpls()  # type: ignore[attr-defined]
+                        ):
+                            skipped_intervals_listener_events.append((serdag.dag_id, skipped_summary))
                         if serdag.has_on_skipped_intervals_callback:
                             skip_callback_requests.append(
                                 DagSkippedIntervalsCallbackRequest.from_summary(
@@ -2623,7 +2627,26 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
             #  memory for larger dags? or expunge_all()
 
-        return skip_callback_requests
+        return CreateDagRunsNotifications(
+            skip_callback_requests=skip_callback_requests,
+            skipped_intervals_listener_events=skipped_intervals_listener_events,
+        )
+
+    def _notify_skipped_intervals_listeners(
+        self,
+        events: list[tuple[str, SkippedIntervalsSummary]],
+    ) -> None:
+        for dag_id, summary in events:
+            try:
+                get_listener_manager().hook.on_intervals_skipped(  # type: ignore[attr-defined]
+                    dag_id=dag_id,
+                    summary=summary,
+                )
+            except Exception:
+                self.log.exception(
+                    "Error notifying listener of skipped intervals",
+                    dag_id=dag_id,
+                )
 
     def _create_dag_runs_asset_triggered(
         self,
