@@ -23,6 +23,10 @@ import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.readByteArray
 import io.ktor.utils.io.writeByteArray
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.runBlocking
 import org.apache.airflow.sdk.ApiError
 import org.apache.airflow.sdk.Bundle
@@ -33,6 +37,8 @@ import org.msgpack.core.buffer.MessageBufferInput
 import java.io.IOException
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * A [MessageBufferInput] that feeds a MessageUnpacker in chunks.
@@ -50,6 +56,7 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 private class ChannelFrameInput(
   private val reader: ByteReadChannel,
   declaredLength: UInt,
+  private val coroutineContext: CoroutineContext,
 ) : MessageBufferInput {
   private companion object {
     const val CHUNK_SIZE = (64 * 1024).toLong()
@@ -58,14 +65,18 @@ private class ChannelFrameInput(
   private var remaining = declaredLength.toLong()
 
   override fun next(): MessageBuffer? {
-    if (remaining == 0L) return null
-    val want = minOf(remaining, CHUNK_SIZE).toInt()
-    val bytes = runBlocking { reader.readByteArray(want) }
-    if (bytes.size != want) {
-      throw IOException("Truncated frame: expected $want more bytes, got ${bytes.size}")
-    }
-    remaining -= want
-    return MessageBuffer.wrap(bytes)
+    if (remaining <= 0L) return null
+    coroutineContext.ensureActive()
+    val array =
+      minOf(remaining, CHUNK_SIZE).toInt().let { want ->
+        runBlocking(coroutineContext[Job] ?: EmptyCoroutineContext) {
+          reader.readByteArray(want)
+        }.apply {
+          if (size != want) throw IOException("Truncated frame: expected $want more bytes, got $size")
+          remaining -= want
+        }
+      }
+    return MessageBuffer.wrap(array)
   }
 
   override fun close() {} // No cleanup here. The caller owns the channel's lifecycle.
@@ -107,7 +118,9 @@ class CoordinatorComm(
     val declaredLength = Frame.parseLengthPrefix(prefix)
     val frame =
       try {
-        Frame.decode(ChannelFrameInput(reader, declaredLength))
+        Frame.decode(ChannelFrameInput(reader, declaredLength, currentCoroutineContext()))
+      } catch (e: CancellationException) {
+        throw e // Let coroutine cancellation propagate so the task coroutine unwinds.
       } catch (e: Exception) {
         logger.error(
           "Failed to read or decode frame",
