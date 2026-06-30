@@ -2154,6 +2154,107 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert ids1.isdisjoint(ids2), "Pages must not overlap"
         assert len(ids1) + len(ids2) == total_tis
 
+    def test_cursor_pagination_nullable_sort_column_returns_all_rows(self, test_client, session):
+        """Cursor pagination sorted by a nullable column must not silently drop rows.
+
+        With NULLs present, the keyset predicate and the ORDER BY can disagree on NULL
+        placement, so every row on one side of the NULL/non-NULL boundary is dropped
+        without error.
+        """
+        dag_id = "example_python_operator"
+        # Three TIs with NULL start_date and three with distinct values, so both the NULL and
+        # the non-NULL block span more than one page and the boundary is crossed mid-walk.
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": None},
+                {"start_date": None},
+                {"start_date": None},
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=1)},
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=2)},
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=3)},
+            ],
+            dag_id=dag_id,
+        )
+
+        # Full set via offset pagination (returns everything).
+        full = test_client.get("/dags/~/dagRuns/~/taskInstances", params={"limit": 100})
+        assert full.status_code == 200, full.json()
+        full_ids = {ti["id"] for ti in full.json()["task_instances"]}
+        assert len(full_ids) == 6
+
+        # Walk every page forward via cursor, sorted by the nullable column.
+        collected: list[str] = []
+        cursor_token: str | None = ""
+        for _ in range(20):
+            resp = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances",
+                params={"limit": 2, "order_by": ["start_date"], "cursor": cursor_token},
+            )
+            assert resp.status_code == 200, resp.json()
+            body = resp.json()
+            collected.extend(ti["id"] for ti in body["task_instances"])
+            cursor_token = body.get("next_cursor")
+            if cursor_token is None:
+                break
+
+        assert len(collected) == len(set(collected)), "cursor pages overlapped"
+        assert set(collected) == full_ids, "cursor pagination dropped rows across the NULL boundary"
+
+    def test_cursor_pagination_forward_backward_consistency_nullable(self, test_client, session):
+        """Forward then backward walk over a nullable column must agree, NULLs included.
+
+        Backward pagination flips the sort direction, re-deriving the keyset bounds; this
+        guards that NULL placement stays consistent in both directions.
+        """
+        dag_id = "example_python_operator"
+        page_size = 3
+        # 3 NULL start_dates + 5 distinct values -> NULL block and non-NULL block both span pages.
+        self.create_task_instances(
+            session,
+            task_instances=[{"start_date": None} for _ in range(3)]
+            + [{"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(5)],
+            dag_id=dag_id,
+        )
+
+        forward_ids: list[str] = []
+        forward_pages: list[dict] = []
+        cursor_token: str | None = ""
+        for _ in range(20):
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances",
+                params={"limit": page_size, "order_by": ["start_date"], "cursor": cursor_token},
+            )
+            assert response.status_code == 200, response.json()
+            body = response.json()
+            forward_pages.append(body)
+            forward_ids.extend(ti["id"] for ti in body["task_instances"])
+            cursor_token = body.get("next_cursor")
+            if cursor_token is None:
+                break
+
+        assert len(forward_ids) == 8
+        assert len(forward_ids) == len(set(forward_ids)), "Forward pages should not overlap"
+        assert forward_pages[0]["previous_cursor"] is None
+
+        backward_ids: list[str] = []
+        cursor_token = forward_pages[-1]["previous_cursor"]
+        assert cursor_token is not None
+        for _ in range(20):
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances",
+                params={"limit": page_size, "order_by": ["start_date"], "cursor": cursor_token},
+            )
+            assert response.status_code == 200, response.json()
+            body = response.json()
+            backward_ids = [ti["id"] for ti in body["task_instances"]] + backward_ids
+            cursor_token = body.get("previous_cursor")
+            if cursor_token is None:
+                break
+
+        all_backward = backward_ids + [ti["id"] for ti in forward_pages[-1]["task_instances"]]
+        assert all_backward == forward_ids, "Backward walk + last page must match the forward walk exactly"
+
 
 class TestGetTaskDependencies(TestTaskInstanceEndpoint):
     def setup_method(self):
