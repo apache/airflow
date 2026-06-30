@@ -42,6 +42,41 @@ class DagProcessorInfoResponse(BaseInfoResponse):
 
     latest_dag_processor_heartbeat: str | None
 
+class SchedulerInstanceInfoResponse(BaseInfoResponse):
+    """Scheduler instance info serializer for responses."""
+
+    hostname: str | None
+    latest_scheduler_heartbeat: str | None
+
+
+class TriggererInstanceInfoResponse(BaseInfoResponse):
+    """Triggerer instance info serializer for responses."""
+
+    hostname: str | None
+    latest_triggerer_heartbeat: str | None
+    team_name: str | None
+
+
+class DagProcessorInstanceInfoResponse(BaseInfoResponse):
+    """Dag processor instance info serializer for responses."""
+
+    hostname: str | None
+    latest_dag_processor_heartbeat: str | None
+
+class SchedulersInfoResponse(BaseModel):
+    """Schedulers info serializer for responses."""
+    status: str | None
+    instances: list[SchedulerInstanceInfoResponse] | None = None
+
+class TriggerersInfoResponse(BaseModel):
+    """Triggerers info serializer for responses."""
+    status: str | None
+    instances: list[TriggererInstanceInfoResponse] | None = None
+
+class DagProcessorsInfoResponse(BaseModel):
+    """Dag processors info serializer for responses."""
+    status: str | None
+    instances: list[DagProcessorInstanceInfoResponse] | None = None
 
 class HealthInfoResponse(BaseModel):
     """Health serializer for responses."""
@@ -50,3 +85,6 @@ class HealthInfoResponse(BaseModel):
     scheduler: SchedulerInfoResponse
     triggerer: TriggererInfoResponse
     dag_processor: DagProcessorInfoResponse | None = None
+    schedulers: SchedulersInfoResponse | None = None
+    triggerers: TriggerersInfoResponse | None = None
+    dag_processors: DagProcessorsInfoResponse | None = None
