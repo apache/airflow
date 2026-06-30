@@ -41,8 +41,6 @@ export default defineConfig(({ command }) => {
               "react",
               "react-dom",
               "react/jsx-runtime",
-              "@chakra-ui/react",
-              "@emotion/react",
             ],
             output: {
               entryFileNames: "[name].umd.cjs",
@@ -50,8 +48,6 @@ export default defineConfig(({ command }) => {
                 react: "React",
                 "react-dom": "ReactDOM",
                 "react/jsx-runtime": "ReactJSXRuntime",
-                "@chakra-ui/react": "ChakraUI",
-                "@emotion/react": "EmotionReact",
               },
             },
           },
