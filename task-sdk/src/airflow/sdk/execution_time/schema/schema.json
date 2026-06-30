@@ -434,6 +434,19 @@
           ],
           "default": null,
           "title": "Version"
+        },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
         }
       },
       "required": [
@@ -4502,6 +4515,18 @@
           "format": "date-time",
           "title": "Timestamp",
           "type": "string"
+        },
+        "partition_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key"
         }
       },
       "required": [
