@@ -40,7 +40,7 @@ const generateSemanticTokens = (color: string, darkContrast: string = "white") =
   focusRing: { value: { _light: `{colors.${color}.800}`, _dark: `{colors.${color}.200}` } },
 });
 
-const defaultAirflowTheme: ThemingConfig = {
+export const defaultAirflowTheme: ThemingConfig = {
   // See https://chakra-ui.com/docs/theming/colors for more information on the colors used here.
   tokens: {
     colors: {
@@ -382,6 +382,15 @@ const defaultAirflowTheme: ThemingConfig = {
     },
     switch: {
       slots: [],
+      base: {
+        control: {
+          borderColor: { _dark: "border.emphasized", _light: "transparent" },
+          borderWidth: "1px",
+          _checked: {
+            borderColor: "colorPalette.solid",
+          },
+        },
+      },
       defaultVariants: { size: "sm" } as Record<string, string>,
     },
     // size="sm" gives px/py:2 on cell and columnHeader vs px/py:3 for "md".
