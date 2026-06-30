@@ -518,36 +518,6 @@ class TestGetDagRunStateCounts(TestPublicDagEndpoint):
         assert dag_ids == [DAG1_ID]
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_run_after_gte_filters_older_runs(self, test_client):
-        # All runs in seed_dag_runs are created at base = utcnow() - 10 days.
-        # Querying with run_after_gte = yesterday should exclude them all.
-        yesterday = (utcnow() - pendulum.duration(days=1)).isoformat()
-        response = test_client.get(
-            "/dags/run_state_counts",
-            params={"dag_ids": [DAG1_ID], "run_after_gte": yesterday},
-        )
-        assert response.status_code == 200
-        counts = {entry["dag_id"]: entry["state_counts"] for entry in response.json()["dags"]}
-        assert counts[DAG1_ID] == {"success": 0, "failed": 0, "running": 0, "queued": 0}
-
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_run_after_gte_includes_matching_runs(self, test_client):
-        # Using a cutoff 15 days ago should include all seeded runs (created 10 days ago).
-        # The parent fixture's FAILED run has run_after=DAG1_START_DATE (2018), so it is
-        # correctly excluded by this filter.
-        fifteen_days_ago = (utcnow() - pendulum.duration(days=15)).isoformat()
-        response = test_client.get(
-            "/dags/run_state_counts",
-            params={"dag_ids": [DAG1_ID], "run_after_gte": fifteen_days_ago},
-        )
-        assert response.status_code == 200
-        counts = {entry["dag_id"]: entry["state_counts"] for entry in response.json()["dags"]}
-        assert counts[DAG1_ID]["success"] == 2
-        assert counts[DAG1_ID]["failed"] == 2
-        assert counts[DAG1_ID]["running"] == 1
-        assert counts[DAG1_ID]["queued"] == 1
-
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     @mock.patch("airflow.api_fastapi.core_api.routes.ui.dags.STATE_COUNT_CAP", 3)
     def test_caps_counts_at_state_count_cap(self, test_client, session):
         # Push SUCCESS over the (patched) cap while FAILED stays under it: states cap independently.

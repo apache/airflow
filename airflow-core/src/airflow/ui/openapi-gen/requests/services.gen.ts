@@ -1992,7 +1992,6 @@ export class DagService {
      * Return per-Dag DagRun state counts (zero-filled) for the Dag list page.
      * @param data The data for the request.
      * @param data.dagIds
-     * @param data.runAfterGte
      * @returns DAGsRunStateCountsCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2001,8 +2000,7 @@ export class DagService {
             method: 'GET',
             url: '/ui/dags/run_state_counts',
             query: {
-                dag_ids: data.dagIds,
-                run_after_gte: data.runAfterGte
+                dag_ids: data.dagIds
             },
             errors: {
                 422: 'Validation Error'

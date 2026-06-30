@@ -614,15 +614,6 @@ paths:
             type: string
           minItems: 1
           title: Dag Ids
-      - name: run_after_gte
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Run After Gte
       responses:
         '200':
           description: Successful Response

@@ -359,10 +359,9 @@ export const UseDagServiceGetLatestRunInfoKeyFn = ({ dagId }: {
 export type DagServiceGetDagRunStateCountsUiDefaultResponse = Awaited<ReturnType<typeof DagService.getDagRunStateCountsUi>>;
 export type DagServiceGetDagRunStateCountsUiQueryResult<TData = DagServiceGetDagRunStateCountsUiDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagServiceGetDagRunStateCountsUiKey = "DagServiceGetDagRunStateCountsUi";
-export const UseDagServiceGetDagRunStateCountsUiKeyFn = ({ dagIds, runAfterGte }: {
+export const UseDagServiceGetDagRunStateCountsUiKeyFn = ({ dagIds }: {
   dagIds: string[];
-  runAfterGte?: string;
-}, queryKey?: Array<unknown>) => [useDagServiceGetDagRunStateCountsUiKey, ...(queryKey ?? [{ dagIds, runAfterGte }])];
+}, queryKey?: Array<unknown>) => [useDagServiceGetDagRunStateCountsUiKey, ...(queryKey ?? [{ dagIds }])];
 export type EventLogServiceGetEventLogDefaultResponse = Awaited<ReturnType<typeof EventLogService.getEventLog>>;
 export type EventLogServiceGetEventLogQueryResult<TData = EventLogServiceGetEventLogDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useEventLogServiceGetEventLogKey = "EventLogServiceGetEventLog";

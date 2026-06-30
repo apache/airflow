@@ -3503,7 +3503,6 @@ export type GetLatestRunInfoResponse = DAGRunLightResponse | null;
 
 export type GetDagRunStateCountsUiData = {
     dagIds: Array<(string)>;
-    runAfterGte?: string | null;
 };
 
 export type GetDagRunStateCountsUiResponse = DAGsRunStateCountsCollectionResponse;

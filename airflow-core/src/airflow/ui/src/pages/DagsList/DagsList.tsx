@@ -18,8 +18,6 @@
  */
 import { Heading, HStack, Skeleton, VStack, type SelectValueChangeDetails, Box } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import dayjs from "dayjs";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -34,7 +32,6 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { SearchBar } from "src/components/SearchBar";
-import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { RouterLink } from "src/components/ui";
@@ -219,17 +216,11 @@ const createCardDef = (runStateContext: RunStateCountsContext): CardDef<DAGWithL
   },
 });
 
-const DEFAULT_HOURS = "24";
-
 export const DagsList = () => {
   const { t: translate } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY_KEY, "card");
   const dagRunsLimit = display === "card" ? 14 : 1;
-
-  const now = dayjs();
-  const [startDate, setStartDate] = useState(now.subtract(Number(DEFAULT_HOURS), "hour").toISOString());
-  const [endDate, setEndDate] = useState(now.toISOString());
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
   const defaultShowPaused = hidePausedDagsByDefault ? false : undefined;
@@ -308,7 +299,6 @@ export const DagsList = () => {
   const { data: runStateCountsData, isLoading: runStateCountsLoading } = useDagRunStateCounts({
     dagIds: data?.dags.map((dag) => dag.dag_id) ?? [],
     dags: data?.dags,
-    startDate,
   });
   const runStateContext: RunStateCountsContext = {
     countsByDag: Object.fromEntries(
@@ -351,14 +341,6 @@ export const DagsList = () => {
             <DagImportErrors iconOnly />
           </HStack>
           <HStack>
-            <TimeRangeSelector
-              defaultValue={DEFAULT_HOURS}
-              endDate={endDate}
-              setEndDate={setEndDate}
-              setStartDate={setStartDate}
-              showDateRange={false}
-              startDate={startDate}
-            />
             {display === "card" ? (
               <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
             ) : undefined}

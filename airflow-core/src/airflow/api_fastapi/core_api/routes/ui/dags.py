@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
@@ -302,7 +301,6 @@ def get_dag_run_state_counts(
     session: SessionDep,
     readable_dags_filter: ReadableDagsFilterDep,
     dag_ids: Annotated[list[str], Query(min_length=1)],
-    run_after_gte: datetime | None = None,
 ) -> DAGsRunStateCountsCollectionResponse:
     """Return per-Dag DagRun state counts (zero-filled) for the Dag list page."""
     permitted_dag_ids = readable_dags_filter.value or set()
@@ -320,13 +318,10 @@ def get_dag_run_state_counts(
         for state in DagRunState:
             branches = []
             for dag_id in requested_dag_ids:
-                filters = [DagRun.dag_id == dag_id, DagRun.state == state]
-                if run_after_gte is not None:
-                    filters.append(DagRun.run_after >= run_after_gte)
                 capped = (
                     select(literal(dag_id).label("dag_id"))
                     .select_from(DagRun)
-                    .where(*filters)
+                    .where(DagRun.dag_id == dag_id, DagRun.state == state)
                     .limit(STATE_COUNT_CAP)
                     .subquery()
                 )
