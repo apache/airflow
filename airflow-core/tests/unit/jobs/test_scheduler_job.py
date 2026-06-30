@@ -5702,6 +5702,7 @@ class TestSchedulerJob:
         asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
         futures = []
         consumed_asset_events = []
+        asset_event_metadata: list[tuple[int, datetime.datetime]] = []
 
         def create_asset_events(sleep):
             import time
@@ -5730,7 +5731,7 @@ class TestSchedulerJob:
                         asset_id=asset_id, dags_to_queue=[dag], event=asset_event, session=session
                     )
 
-            return asset_event
+            return asset_event.id, now.isoformat()
 
         with (
             ThreadPoolExecutor() as executor,
@@ -5742,14 +5743,13 @@ class TestSchedulerJob:
             for i in range(ASSET_EVENT_COUNT):
                 # Deterministically alternate between fast (0s) and slow (1s) workers so the
                 # test reliably exercises both code paths without relying on RNG.
-                future = executor.submit(create_asset_events, i % 2)
+                future = executor.submit(create_asset_events, i % 3)
                 futures.append(future)
             scheduler_job = Job()
             self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[MockExecutor(do_update=False)])
             seen_dr_ids: set[int] = set()
             for future in as_completed(futures, timeout=120):
-                future.result()
-
+                asset_event_metadata.append(future.result())
                 self.job_runner._create_dag_runs_asset_triggered(
                     dag_models=[dag_model],
                     session=session,
@@ -5761,6 +5761,34 @@ class TestSchedulerJob:
                         seen_dr_ids.add(dr.id)
                         consumed_asset_events += dr.consumed_asset_events
         total_consumed_asset_events = len(consumed_asset_events)
+        total_consume_asset_event_metadata = []
+        sorted_asset_event_metadata = sorted(asset_event_metadata, key=lambda e: e[1])
+        if total_consumed_asset_events != ASSET_EVENT_COUNT:
+            # found missing events, print them for debugging
+            consumed_asset_event_metadata = {
+                (event.id, event.timestamp.isoformat()) for event in consumed_asset_events
+            }
+            missing_asset_event_metadata = set(sorted_asset_event_metadata) - consumed_asset_event_metadata
+            print(f"Missing AssetEvent Metadata: {missing_asset_event_metadata}")
+            missing_asset_event_metadata_dict: list[dict[str, tuple]] = [
+                {"event_": (event[0], event[1]), "dagrun": ()} for event in missing_asset_event_metadata
+            ]
+            total_consume_asset_event_metadata += missing_asset_event_metadata_dict
+            # print all dagrun run_after
+            all_dagruns = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).all()
+            for dr in all_dagruns:
+                total_consume_asset_event_metadata += [
+                    {
+                        "event_": (event.id, event.timestamp.isoformat()),
+                        "dagrun": (dr.id, dr.run_after.isoformat()),
+                    }
+                    for event in dr.consumed_asset_events
+                ]
+            total_consume_asset_event_metadata = sorted(
+                total_consume_asset_event_metadata, key=lambda e: e["event_"][1]
+            )
+            for metadata in total_consume_asset_event_metadata:
+                print(metadata)
         assert total_consumed_asset_events == ASSET_EVENT_COUNT
         assert len({event.id for event in consumed_asset_events}) == total_consumed_asset_events, (
             "Expected no duplicated Asset event consumed"
