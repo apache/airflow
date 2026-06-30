@@ -58,14 +58,22 @@ from airflow.models.dagbag import DBDagBag
 from airflow.models.trigger import Trigger
 from airflow.observability.metrics import stats_utils
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
+from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.execution_time.comms import (
+    AssetStateStoreResult,
+    ClearAssetStateStoreByName,
+    ClearAssetStateStoreByUri,
     CommsDecoder,
     ConnectionResult,
     DagRunStateResult,
+    DeleteAssetStateStoreByName,
+    DeleteAssetStateStoreByUri,
     DeleteVariable,
     DeleteXCom,
     DRCount,
     ErrorResponse,
+    GetAssetStateStoreByName,
+    GetAssetStateStoreByUri,
     GetConnection,
     GetDagRunState,
     GetDRCount,
@@ -79,6 +87,8 @@ from airflow.sdk.execution_time.comms import (
     MaskSecret,
     OKResponse,
     PutVariable,
+    SetAssetStateStoreByName,
+    SetAssetStateStoreByUri,
     SetXCom,
     TaskStatesResult,
     TICount,
@@ -89,9 +99,16 @@ from airflow.sdk.execution_time.comms import (
     _new_encoder,
     _RequestFrame,
 )
+from airflow.sdk.execution_time.context import AssetStateStoreAccessors
 from airflow.sdk.execution_time.request_handlers import (
+    handle_clear_asset_state_store_by_name,
+    handle_clear_asset_state_store_by_uri,
+    handle_delete_asset_state_store_by_name,
+    handle_delete_asset_state_store_by_uri,
     handle_delete_variable,
     handle_delete_xcom,
+    handle_get_asset_state_store_by_name,
+    handle_get_asset_state_store_by_uri,
     handle_get_connection,
     handle_get_dag_run_state,
     handle_get_dr_count,
@@ -103,6 +120,8 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_xcom,
     handle_mask_secret,
     handle_put_variable,
+    handle_set_asset_state_store_by_name,
+    handle_set_asset_state_store_by_uri,
     handle_set_xcom,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
@@ -351,6 +370,7 @@ ToTriggerRunner = Annotated[
     | DRCount
     | TICount
     | TaskStatesResult
+    | AssetStateStoreResult
     | HITLDetailResponseResult
     | ErrorResponse
     | OKResponse,
@@ -374,6 +394,14 @@ ToTriggerSupervisor = Annotated[
     | SetXCom
     | GetTICount
     | GetTaskStates
+    | ClearAssetStateStoreByName
+    | ClearAssetStateStoreByUri
+    | DeleteAssetStateStoreByName
+    | DeleteAssetStateStoreByUri
+    | GetAssetStateStoreByName
+    | GetAssetStateStoreByUri
+    | SetAssetStateStoreByName
+    | SetAssetStateStoreByUri
     | GetDagRunState
     | GetDRCount
     | GetPreviousTI
@@ -620,6 +648,28 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             resp = HITLDetailResponseResult.from_api_response(response=api_resp)
         elif isinstance(msg, MaskSecret):
             handle_mask_secret(msg)
+        elif isinstance(msg, ClearAssetStateStoreByName):
+            handle_clear_asset_state_store_by_name(self.client, msg)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, ClearAssetStateStoreByUri):
+            handle_clear_asset_state_store_by_uri(self.client, msg)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, DeleteAssetStateStoreByName):
+            handle_delete_asset_state_store_by_name(self.client, msg)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, DeleteAssetStateStoreByUri):
+            handle_delete_asset_state_store_by_uri(self.client, msg)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, GetAssetStateStoreByName):
+            resp, dump_opts = handle_get_asset_state_store_by_name(self.client, msg)
+        elif isinstance(msg, GetAssetStateStoreByUri):
+            resp, dump_opts = handle_get_asset_state_store_by_uri(self.client, msg)
+        elif isinstance(msg, SetAssetStateStoreByName):
+            handle_set_asset_state_store_by_name(self.client, msg)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, SetAssetStateStoreByUri):
+            handle_set_asset_state_store_by_uri(self.client, msg)
+            resp = OKResponse(ok=True)
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 
@@ -778,10 +828,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         session: Session,
     ) -> workloads.RunTrigger | None:
         if trigger.task_instance is None:
+            watched_assets: dict[str, str] | None = None
+
+            if trigger.assets:
+                watched_assets = {a.name: a.uri for a in trigger.assets}
+
             return workloads.RunTrigger(
                 id=trigger.id,
                 classpath=trigger.classpath,
                 encrypted_kwargs=trigger.encrypted_kwargs,
+                watched_assets=watched_assets,
             )
 
         if not trigger.task_instance.dag_version_id:
@@ -1127,6 +1183,7 @@ class TriggerRunner:
             log=self.log,
             max_subscriber_queue=conf.getint("triggerer", "shared_stream_subscriber_queue_size"),
             ack_timeout=conf.getfloat("triggerer", "shared_stream_ack_timeout"),
+            cohort_grace_period=conf.getfloat("triggerer", "shared_stream_cohort_grace_period"),
         )
         self.blocked_main_thread_warning_threshold = conf.getfloat(
             "triggerer", "blocked_main_thread_warning_threshold"
@@ -1312,6 +1369,11 @@ class TriggerRunner:
             trigger_instance.trigger_id = trigger_id
             trigger_instance.triggerer_job_id = self.job_id
             trigger_instance.timeout_after = workload.timeout_after
+
+            if isinstance(trigger_instance, BaseEventTrigger) and workload.watched_assets:
+                trigger_instance.asset_state_store = AssetStateStoreAccessors(
+                    inlets=[Asset(name=name, uri=uri) for name, uri in workload.watched_assets.items()]
+                )
 
             self.triggers[trigger_id] = {
                 "task": asyncio.create_task(

@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+22.2.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix GKE provider 401 on kubernetes client 36.x (#69032)``
+
+Misc
+~~~~
+
+* ``Deprecate implicit legacy SQL default in BigQuery operators (#67113)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky CloudSQL custom-universe trigger test on loaded runners (#68981)``
+
 22.2.0
 ......
 

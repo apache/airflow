@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any
 from opentelemetry import trace
 
 from airflow.sdk._shared.observability.metrics import stats
+from airflow.sdk.bases.operator import BaseOperatorMeta
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
@@ -90,6 +91,14 @@ class ResumableJobMixin:
     # Renaming this on a deployed operator breaks in-flight retries — the old key is already stored.
     external_id_key: str = "remote_job_id"
 
+    # The mixin is not a BaseOperator subclass, but _apply_defaults is only ever called on concrete
+    # operators that are BaseOperator subclasses. That is a runtime MRO guarantee not visible in the static
+    # type signature here and hence we need the type ignore.
+    @BaseOperatorMeta._apply_defaults  # type: ignore[type-var]
+    def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.durable = durable
+
     def execute_resumable(self, context: Context) -> Any:
         """
         Core of the resumable execution logic. Call this from execute() when reconnection is supported.
@@ -107,6 +116,11 @@ class ResumableJobMixin:
         Closing this window would require atomic "submit + persist", which is not possible across
         an external system boundary.
         """
+        if not self.durable:
+            external_id = self.submit_job(context)
+            self.poll_until_complete(external_id, context)
+            return self.get_job_result(external_id, context)
+
         stats_tags = {"operator": type(self).__name__}
         # The task is team-scoped in multi-team deployments; surface team_name on the
         # resumable_job metrics via the running task instance's stats tags (omitted when
@@ -114,6 +128,7 @@ class ResumableJobMixin:
         ti = context.get("ti")
         if ti is not None and (team_name := ti.stats_tags.get("team_name")):
             stats_tags["team_name"] = team_name
+
         reconnect_to: Any = None
         already_succeeded_id: Any = None
 

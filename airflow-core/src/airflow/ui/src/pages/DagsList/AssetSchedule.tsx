@@ -259,7 +259,7 @@ export const AssetSchedule = ({ assetExpression, dagId, timetablePartitioned, ti
         <Popover.Body>
           <AssetExpression
             events={popoverEvents}
-            expression={(nextRun?.asset_expression ?? assetExpression) as ExpressionType | undefined}
+            expression={nextRun?.asset_expression ?? assetExpression ?? undefined}
           />
         </Popover.Body>
       </Popover.Content>

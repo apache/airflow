@@ -26,7 +26,7 @@ import re
 import sys
 import weakref
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from functools import cache, cached_property, partial
+from functools import cache, cached_property
 from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar, cast
@@ -182,6 +182,56 @@ PER_LOGGER_LEVELS.update(
         "": NAME_TO_LEVEL["info"],
     }
 )
+
+
+_NAMESPACE_LEVEL_SEPARATORS = re.compile(r"[\s,]+")
+
+
+def parse_namespace_log_levels(value: str | Mapping[str, str] | None) -> dict[str, int]:
+    """
+    Parse the namespace logging levels configuration into per-logger levels.
+
+    Real callers always pass a string with a series of ``<logger>=<level>``
+    pairs separated by whitespaces and/or commas, or *None* if the configuration
+    is not set. See documentation on configuration for details.
+
+    Parsing is best-effort. Invalid entries are skipped with an ERROR level log
+    message.
+
+    An already-split ``Mapping`` of logger name to level name is also accepted
+    as a convenience for programmatic (test) callers; it is trusted and merely
+    resolved to numeric levels without validation.
+
+    :meta private:
+    """
+    if value is None:
+        return {}
+    if not isinstance(value, str):
+        return {name: NAME_TO_LEVEL[level.lower()] for name, level in value.items()}
+
+    levels: dict[str, int] = {}
+    errors: list[str] = []
+    for entry in _NAMESPACE_LEVEL_SEPARATORS.split(value.strip()):
+        if not entry:
+            continue
+        logger_name, sep, level_name = entry.partition("=")
+        if not sep:
+            errors.append(f"malformed entry {entry!r}, expected '<logger>=<level>'")
+            continue
+        if not (logger_name := logger_name.strip()):
+            errors.append(f"malformed entry {entry!r}, logger name is empty")
+            continue
+        try:
+            levels[logger_name] = NAME_TO_LEVEL[(level_name := level_name.strip()).lower()]
+        except KeyError:
+            errors.append(
+                f"invalid level {level_name!r} for logger {logger_name!r}, "
+                f"expected one of: {', '.join(sorted(NAME_TO_LEVEL))}"
+            )
+
+    for error in errors:
+        log.error("Ignoring invalid namespace_levels entry: %s", error)
+    return levels
 
 
 def make_filtering_logger() -> Callable[..., BindableLogger]:
@@ -555,21 +605,7 @@ def configure_logging(
     extra_processors = extra_processors or ()
 
     PER_LOGGER_LEVELS[""] = NAME_TO_LEVEL[log_level.lower()]
-
-    # Extract per-logger-tree levels and set them
-    if isinstance(namespace_log_levels, str):
-        log_from_level = partial(re.compile(r"\s*=\s*").split, maxsplit=2)
-        namespace_log_levels = {
-            log: level for log, level in map(log_from_level, re.split(r"[\s,]+", namespace_log_levels))
-        }
-    if namespace_log_levels:
-        for log, level in namespace_log_levels.items():
-            try:
-                loglevel = NAME_TO_LEVEL[level.lower()]
-            except KeyError:
-                raise ValueError(f"Invalid log level for logger {log!r}: {level!r}") from None
-            else:
-                PER_LOGGER_LEVELS[log] = loglevel
+    PER_LOGGER_LEVELS.update(parse_namespace_log_levels(namespace_log_levels))
 
     shared_pre_chain, for_stdlib, for_structlog = structlog_processors(
         json_output,
