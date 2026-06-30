@@ -45,7 +45,7 @@ from airflow._shared.module_loading import qualname
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
-from airflow.assets.manager import AssetManager
+from airflow.assets.manager import AssetManager, _create_asset_event
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext, TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
@@ -5714,9 +5714,7 @@ class TestSchedulerJob:
                 dag = session.get(DagModel, consumer_dag_id)
                 now = timezone.utcnow()
                 asset_manager = AssetManager()
-                asset_event = asset_manager.create_asset_event(
-                    session=session, asset_id=asset_id, timestamp=now
-                )
+                asset_event = _create_asset_event(session=session, asset_id=asset_id, timestamp=now)
                 time.sleep(sleep)  # widen the race window between event creation and queueing
                 dialect_name = inspect(session.get_bind()).dialect.name
                 if dialect_name in ("postgresql", "sqlite"):
