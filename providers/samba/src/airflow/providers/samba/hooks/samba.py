@@ -67,11 +67,11 @@ class SambaHook(BaseHook):
 
         legacy_auth = extra.get("auth")
         legacy_auth_protocol = (
-            legacy_auth if isinstance(legacy_auth, str) and legacy_auth in self.VALID_AUTH_PROTOCOLS else None
+            legacy_auth
+            if isinstance(legacy_auth, str) and legacy_auth in self.VALID_AUTH_PROTOCOLS
+            else "negotiate"
         )
-        self._auth_protocol: str = (
-            auth_protocol or extra.get("auth_protocol") or legacy_auth_protocol or "negotiate"
-        )
+        self._auth_protocol: str = auth_protocol or extra.get("auth_protocol", legacy_auth_protocol)
         if self._auth_protocol not in self.VALID_AUTH_PROTOCOLS:
             raise ValueError(
                 f"Invalid auth_protocol '{self._auth_protocol}'. "
