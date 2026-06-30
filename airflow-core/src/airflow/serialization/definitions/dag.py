@@ -116,6 +116,7 @@ class SerializedDAG:
     rerun_with_latest_version: bool | None = None
     doc_md: str | None = None
     edge_info: dict[str, dict[str, EdgeInfoType]] = attrs.field(factory=dict)
+    bundle_name: str | None = None
     end_date: datetime.datetime | None = None
     fail_fast: bool = False
     has_on_failure_callback: bool = False
@@ -181,6 +182,7 @@ class SerializedDAG:
                 "task_group",
                 "timetable",
                 "timezone",
+                "bundle_name",
             }
         )
 

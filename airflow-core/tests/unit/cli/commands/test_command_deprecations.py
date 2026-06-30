@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.cli.commands import asset_command, dag_command, pool_command
+from airflow.cli.commands import asset_command, dag_command, pool_command, variable_command
 
 # (command callable, expected airflowctl replacement recorded by the decorator)
 MIGRATED_CLI_COMMANDS = [
@@ -42,6 +42,11 @@ MIGRATED_CLI_COMMANDS = [
     (pool_command.pool_delete, "airflowctl pools delete"),
     (pool_command.pool_import, "airflowctl pools import"),
     (pool_command.pool_export, "airflowctl pools export"),
+    (variable_command.variables_list, "airflowctl variables list"),
+    (variable_command.variables_get, "airflowctl variables get"),
+    (variable_command.variables_set, "airflowctl variables create"),
+    (variable_command.variables_delete, "airflowctl variables delete"),
+    (variable_command.variables_import, "airflowctl variables import"),
     (asset_command.asset_materialize, "airflowctl assets materialize"),
     (asset_command.asset_list, "airflowctl assets list / airflowctl assets list-aliases"),
     (asset_command.asset_details, "airflowctl assets get / airflowctl assets get-by-alias"),

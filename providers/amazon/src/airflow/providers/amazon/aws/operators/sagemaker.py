@@ -944,6 +944,9 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
         validated_event = validate_execute_complete_event(event)
 
+        if validated_event["status"] != "success":
+            raise RuntimeError(f"Error while running transform job: {validated_event}")
+
         self.log.info("SageMaker job %s completed.", validated_event["job_name"])
         return self.serialize_result(validated_event["job_name"])
 
