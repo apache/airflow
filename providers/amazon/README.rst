@@ -59,6 +59,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-http``
 ``boto3``                                   ``>=1.41.0``
 ``botocore``                                ``>=1.41.0``
+``aws-msk-iam-sasl-signer-python``          ``>=1.0.2``
 ``inflection``                              ``>=0.5.1``
 ``watchtower``                              ``>=3.3.1,<4``
 ``jsonpath_ng``                             ``>=1.5.3``

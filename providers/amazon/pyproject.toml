@@ -68,6 +68,7 @@ dependencies = [
     # in the `devel-dependencies` section to be the same minimum version.
     "boto3>=1.41.0",
     "botocore>=1.41.0",
+    "aws-msk-iam-sasl-signer-python>=1.0.2",
     "inflection>=0.5.1",
     # Allow a wider range of watchtower versions for flexibility among users
     "watchtower>=3.3.1,<4",
