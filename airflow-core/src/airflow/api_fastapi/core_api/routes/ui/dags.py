@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from pathlib import PurePosixPath
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -49,6 +50,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryOwnersFilter,
     QueryPausedFilter,
     QueryPendingActionsFilter,
+    QueryRelativeFilelocPrefixFilter,
     QueryTagsFilter,
     SortParam,
     filter_param_factory,
@@ -57,6 +59,7 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dags import DAG_ALIAS_MAPPING, DAGResponse
 from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightResponse
 from airflow.api_fastapi.core_api.datamodels.ui.dags import (
+    DagFolderCollectionResponse,
     DAGWithLatestDagRunsCollectionResponse,
     DAGWithLatestDagRunsResponse,
 )
@@ -105,6 +108,7 @@ def get_dags(
     last_dag_run_state: QueryLastDagRunStateFilter,
     bundle_name: QueryBundleNameFilter,
     bundle_version: QueryBundleVersionFilter,
+    relative_fileloc_prefix: QueryRelativeFilelocPrefixFilter,
     order_by: Annotated[
         SortParam,
         Depends(
@@ -155,6 +159,7 @@ def get_dags(
             readable_dags_filter,
             bundle_name,
             bundle_version,
+            relative_fileloc_prefix,
         ],
         order_by=order_by,
         offset=offset,
@@ -251,6 +256,36 @@ def get_dags(
         total_entries=total_entries,
         dags=list(dag_runs_by_dag_id.values()),
     )
+
+
+@dags_router.get(
+    "/folders",
+    dependencies=[Depends(requires_access_dag(method="GET"))],
+    operation_id="get_dag_folders",
+)
+def get_dag_folders(
+    readable_dags_filter: ReadableDagsFilterDep,
+    session: SessionDep,
+) -> DagFolderCollectionResponse:
+    """
+    Get the distinct folders the readable Dags live in.
+
+    A folder is the directory part of a Dag's ``relative_fileloc`` (relative to its
+    bundle root). Dags located directly at the bundle root have no folder and are
+    not represented here. The result powers the folder navigation tree in the UI,
+    which reconstructs the hierarchy by splitting each path on ``/``.
+    """
+    query = readable_dags_filter.to_orm(
+        select(DagModel.relative_fileloc).where(DagModel.relative_fileloc.is_not(None)).distinct()
+    )
+    folders: set[str] = set()
+    for relative_fileloc in session.scalars(query):
+        parent = PurePosixPath(relative_fileloc).parent
+        if str(parent) != ".":
+            folders.add(str(parent))
+
+    sorted_folders = sorted(folders)
+    return DagFolderCollectionResponse(folders=sorted_folders, total_entries=len(sorted_folders))
 
 
 @dags_router.get(

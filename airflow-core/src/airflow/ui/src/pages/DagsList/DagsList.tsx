@@ -16,7 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, HStack, Skeleton, VStack, type SelectValueChangeDetails, Box } from "@chakra-ui/react";
+import {
+  Heading,
+  HStack,
+  Skeleton,
+  VStack,
+  type SelectValueChangeDetails,
+  Box,
+  Flex,
+} from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
@@ -40,10 +48,12 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
+import { useDagFolders } from "src/queries/useDagFolders";
 import { useDags } from "src/queries/useDags";
 
 import { DagImportErrors } from "../Dashboard/Stats/DagImportErrors";
 import { DagCard } from "./DagCard";
+import { DagFolderTree } from "./DagFolderTree";
 import { DagTags } from "./DagTags";
 import { DagsFilters } from "./DagsFilters";
 import { Schedule } from "./Schedule";
@@ -170,6 +180,7 @@ const createColumns = (
 ];
 
 const {
+  DAG_FOLDER,
   FAVORITE,
   LAST_DAG_RUN_STATE,
   NAME_PATTERN,
@@ -202,6 +213,12 @@ export const DagsList = () => {
   const { selectedTags, tagFilterMode: selectedMatchMode } = useTagFilter();
   const pendingReviews = searchParams.get(NEEDS_REVIEW);
   const owners = searchParams.getAll(OWNERS);
+  const selectedFolder = searchParams.get(DAG_FOLDER) ?? undefined;
+
+  const { folders, isLoading: foldersLoading } = useDagFolders();
+  // Keep the panel out of the way for flat deployments (all Dags at the bundle root). Still show it
+  // while loading, or when a folder is selected so the user can always navigate back to "All Dags".
+  const showFolderTree = foldersLoading || folders.length > 0 || Boolean(selectedFolder);
 
   const { setTableURLState, tableURLState } = useTableURLState();
 
@@ -223,6 +240,20 @@ export const DagsList = () => {
       searchParams.set(NAME_PATTERN, value);
     } else {
       searchParams.delete(NAME_PATTERN);
+    }
+    searchParams.delete(OFFSET);
+    setSearchParams(searchParams);
+  };
+
+  const handleFolderChange = (folder: string | undefined) => {
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    if (folder === undefined || folder === "") {
+      searchParams.delete(DAG_FOLDER);
+    } else {
+      searchParams.set(DAG_FOLDER, folder);
     }
     searchParams.delete(OFFSET);
     setSearchParams(searchParams);
@@ -264,6 +295,7 @@ export const DagsList = () => {
     owners,
     paused,
     pendingHitl,
+    relativeFilelocPrefix: selectedFolder,
     tags: selectedTags,
     tagsMatchMode: selectedMatchMode,
   });
@@ -302,24 +334,38 @@ export const DagsList = () => {
           ) : undefined}
         </HStack>
       </VStack>
-      <Box pb={8}>
-        <DataTable
-          cardDef={cardDef}
-          columns={columns}
-          data={data?.dags ?? []}
-          displayMode={display}
-          errorMessage={<ErrorAlert error={error} />}
-          initialState={tableURLState}
-          isLoading={isLoading}
-          modelName="common:dag"
-          onDisplayToggleChange={setDisplay}
-          onStateChange={setTableURLState}
-          showDisplayToggle
-          showRowCountHeading={false}
-          skeletonCount={display === "card" ? 5 : undefined}
-          total={totalEntries}
-        />
-      </Box>
+      <Flex align="flex-start" gap={4} pb={8}>
+        {/* Only show the folder sidebar when there is something to navigate; deployments with all
+            Dags at the bundle root would otherwise get an empty panel. */}
+        {showFolderTree ? (
+          <Box flexShrink={0} maxWidth="280px" overflowY="auto" position="sticky" top={0}>
+            <DagFolderTree
+              folders={folders}
+              isLoading={foldersLoading}
+              onSelectFolder={handleFolderChange}
+              selectedFolder={selectedFolder}
+            />
+          </Box>
+        ) : undefined}
+        <Box flex={1} minWidth={0}>
+          <DataTable
+            cardDef={cardDef}
+            columns={columns}
+            data={data?.dags ?? []}
+            displayMode={display}
+            errorMessage={<ErrorAlert error={error} />}
+            initialState={tableURLState}
+            isLoading={isLoading}
+            modelName="common:dag"
+            onDisplayToggleChange={setDisplay}
+            onStateChange={setTableURLState}
+            showDisplayToggle
+            showRowCountHeading={false}
+            skeletonCount={display === "card" ? 5 : undefined}
+            total={totalEntries}
+          />
+        </Box>
+      </Flex>
     </DagsLayout>
   );
 };

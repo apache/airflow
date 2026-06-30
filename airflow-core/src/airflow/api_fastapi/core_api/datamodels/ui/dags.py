@@ -38,3 +38,10 @@ class DAGWithLatestDagRunsCollectionResponse(BaseModel):
 
     total_entries: int
     dags: list[DAGWithLatestDagRunsResponse]
+
+
+class DagFolderCollectionResponse(BaseModel):
+    """Collection of distinct Dag folders (directories of ``relative_fileloc``)."""
+
+    folders: list[str]
+    total_entries: int
