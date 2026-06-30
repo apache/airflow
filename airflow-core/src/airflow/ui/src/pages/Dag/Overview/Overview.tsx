@@ -37,9 +37,11 @@ import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { dagRunsLimitKey } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { usePluginAppliesToContext } from "src/hooks/usePluginAppliesToContext";
 import { ReactPlugin } from "src/pages/ReactPlugin";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
+import { isAppliesToPending, matchesAppliesTo } from "src/utils/pluginAppliesTo";
 
 import { DagDeadlines } from "./DagDeadlines";
 
@@ -103,10 +105,16 @@ export const Overview = () => {
     timestampLte: endDate,
   });
   const { data: pluginData } = usePluginServiceGetPlugins();
+  const appliesToContext = usePluginAppliesToContext();
   const dagOverviewReactPlugins =
     pluginData?.plugins
       .flatMap((plugin) => plugin.react_apps)
-      .filter((plugin: ReactAppResponse) => plugin.destination === "dag_overview") ?? [];
+      .filter(
+        (plugin: ReactAppResponse) =>
+          plugin.destination === "dag_overview" &&
+          !isAppliesToPending(plugin, appliesToContext) &&
+          matchesAppliesTo(plugin, appliesToContext),
+      ) ?? [];
 
   return (
     <VStack alignItems="stretch" gap={4} m={4}>

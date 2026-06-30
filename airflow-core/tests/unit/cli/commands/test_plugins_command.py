@@ -107,6 +107,10 @@ class TestPluginsCommand:
                         "href": "https://airflow.apache.org/",
                         "url_route": "test_iframe_plugin",
                         "category": "browse",
+                        "applies_to": {
+                            "dag_tags": ["ml", "production"],
+                            "dag_ids": ["example_dag"],
+                        },
                     },
                 ],
                 "react_apps": [

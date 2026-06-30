@@ -35,6 +35,12 @@ vi.mock("openapi/queries", () => ({
           react_apps: [
             { bundle_url: "/dag.js", destination: "dag_overview", name: "Dag overview plugin" },
             { bundle_url: "/task.js", destination: "task_overview", name: "Task overview plugin" },
+            {
+              applies_to: { dag_tags: ["finance"] },
+              bundle_url: "/scoped.js",
+              destination: "dag_overview",
+              name: "Scoped overview plugin",
+            },
           ],
         },
       ],
@@ -50,6 +56,12 @@ vi.mock("src/components/Assets/AssetEvents", () => ({ AssetEvents: () => null })
 vi.mock("src/components/DurationChart", () => ({ DurationChart: () => null }));
 vi.mock("src/components/TimeRangeSelector", () => ({ default: () => null }));
 vi.mock("src/components/TrendCountButton", () => ({ TrendCountButton: () => null }));
+vi.mock("src/hooks/usePluginAppliesToContext", () => ({
+  usePluginAppliesToContext: () => ({
+    dag: { dag_id: "etl_sales", tags: [{ dag_id: "etl_sales", name: "ml" }] },
+    isLoading: false,
+  }),
+}));
 vi.mock("src/pages/ReactPlugin", () => ({
   ReactPlugin: ({ reactApp }: { readonly reactApp: ReactAppResponse }) => <div>{reactApp.name}</div>,
 }));
@@ -64,5 +76,11 @@ describe("Dag overview plugins", () => {
 
     expect(screen.getByText("Dag overview plugin")).toBeInTheDocument();
     expect(screen.queryByText("Task overview plugin")).not.toBeInTheDocument();
+  });
+
+  it("omits a plugin whose applies_to does not match the Dag in scope", () => {
+    render(<Overview />, { wrapper: Wrapper });
+
+    expect(screen.queryByText("Scoped overview plugin")).not.toBeInTheDocument();
   });
 });
