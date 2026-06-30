@@ -60,6 +60,7 @@ from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.taskinstance import create_task_instance, get_template_context
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
@@ -1423,6 +1424,60 @@ class TestKubernetesPodOperator:
         }
 
         assert pod.spec.affinity.to_dict() == affinity
+
+    def test_pod_template_file_default(self, pod_template_file):
+        with conf_vars({("kubernetes_executor", "pod_template_file"): pod_template_file}):
+            k = KubernetesPodOperator(
+                task_id="task",
+            )
+            pod = k.build_pod_request_obj(create_context(k))
+        assert pod.metadata.namespace == "templatenamespace"
+        assert pod.spec.containers[0].image == "ubuntu:16.04"
+        assert pod.spec.containers[0].image_pull_policy == "Always"
+        assert pod.spec.containers[0].command == ["something"]
+        assert pod.spec.service_account_name == "foo"
+        assert not pod.spec.automount_service_account_token
+
+    def test_pod_template_file_default_with_override(self, pod_template_file):
+        templated_pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                namespace="templatenamespace2",
+                name="hello2",
+                labels={"release": "stable"},
+            ),
+            spec=k8s.V1PodSpec(
+                containers=[],
+                init_containers=[
+                    k8s.V1Container(
+                        name="git-clone",
+                        image="registry.k8s.io/git-sync:v3.1.1",
+                        args=[
+                            "--repo=git@github.com:airflow/some_repo.git",
+                            "--branch={{ params.get('repo_branch', 'master') }}",
+                        ],
+                    ),
+                ],
+            ),
+        )
+
+        with conf_vars({("kubernetes_executor", "pod_template_file"): pod_template_file}):
+            k = KubernetesPodOperator(
+                task_id="task",
+                pod_template_dict=pod_generator.PodGenerator.serialize_pod(templated_pod),
+            )
+            pod = k.build_pod_request_obj(create_context(k))
+        assert pod.metadata.namespace == "templatenamespace2"
+        assert pod.metadata.labels["release"] == "stable"
+        assert pod.metadata.name == "hello2"
+        assert len(pod.spec.containers) == 0
+
+
+        assert pod.spec.init_containers[0].name == "git-clone"
+        assert pod.spec.init_containers[0].image == "registry.k8s.io/git-sync:v3.1.1"
+        assert pod.spec.init_containers[0].args == [
+            "--repo=git@github.com:airflow/some_repo.git",
+            "--branch=test_branch",
+        ]
 
     @pytest.mark.parametrize("randomize_name", (True, False))
     def test_pod_template_file_kwargs_override(self, randomize_name, pod_template_file):
