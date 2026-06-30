@@ -87,8 +87,9 @@ def test_listener_notified_when_intervals_skipped(session, dag_maker, listener_m
     dag_model, prev_end, new_start = _configure_gap_dag_model(dag_maker, session)
 
     job_runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
-    job_runner._create_dag_runs([dag_model], session)
+    notifications = job_runner._create_dag_runs([dag_model], session)
     session.commit()
+    job_runner._notify_skipped_intervals_listeners(notifications.skipped_intervals_listener_events)
 
     assert len(skipped_intervals_listener.events) == 1
     dag_id, summary = skipped_intervals_listener.events[0]
