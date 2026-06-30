@@ -154,23 +154,21 @@ class BatchedExpandInput(DecoratedExpandInput):
         self.size = size
 
     def iter_values(self, context: Mapping[str, Any]) -> Iterable[dict]:
+        self._resolve_size(context)
+
+        if self.size <= 1:
+            return count(self, self.delegate.iter_values(context))
+
         map_index = context["ti"].map_index
 
-        for index, item in enumerate(self.delegate.iter_values(context)):
-            if index % self.size == map_index:
-                yield item
-
-    def __len__(self) -> int:
-        total = len(self.delegate)
-
-        base = total // self.size
-        remainder = total % self.size
-
-        # each map_index corresponds to a specific bucket size
-        # but we don't know which instance this is without context
-
-        # so we return worst-case or max-case:
-        return base + (1 if remainder > 0 else 0)
+        return count(
+            self,
+            (
+                item
+                for index, item in enumerate(self.delegate.iter_values(context))
+                if index % self.size == map_index
+            ),
+        )
 
 
 @attrs.define(kw_only=True)
