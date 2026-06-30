@@ -613,6 +613,7 @@ paths:
           items:
             type: string
           minItems: 1
+          maxItems: 100
           title: Dag Ids
       responses:
         '200':

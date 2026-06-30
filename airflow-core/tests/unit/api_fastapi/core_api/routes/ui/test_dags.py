@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
+from airflow.configuration import conf
 from airflow.models import DagRun
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
@@ -498,6 +499,13 @@ class TestGetDagRunStateCounts(TestPublicDagEndpoint):
         assert response.status_code == 200
         dag_ids = [entry["dag_id"] for entry in response.json()["dags"]]
         assert dag_ids == [DAG1_ID]
+
+    def test_rejects_too_many_dag_ids(self, test_client):
+        # The page never sends more than maximum_page_limit dag_ids; a direct call with a
+        # larger list is rejected so the per-Dag UNION ALL width stays bounded.
+        too_many = [f"dag_{idx}" for idx in range(conf.getint("api", "maximum_page_limit") + 1)]
+        response = test_client.get("/dags/run_state_counts", params={"dag_ids": too_many})
+        assert response.status_code == 422
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_permission_filter_hides_disallowed_dags(self, test_client, session):

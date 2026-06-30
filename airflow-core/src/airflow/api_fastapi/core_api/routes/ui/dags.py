@@ -69,6 +69,7 @@ from airflow.api_fastapi.core_api.security import (
     ReadableDagsFilterDep,
     requires_access_dag,
 )
+from airflow.configuration import conf
 from airflow.models import DagModel, DagRun
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.hitl import HITLDetail
@@ -300,7 +301,7 @@ def get_latest_run_info(dag_id: str, session: SessionDep) -> DAGRunLightResponse
 def get_dag_run_state_counts(
     session: SessionDep,
     readable_dags_filter: ReadableDagsFilterDep,
-    dag_ids: Annotated[list[str], Query(min_length=1)],
+    dag_ids: Annotated[list[str], Query(min_length=1, max_length=conf.getint("api", "maximum_page_limit"))],
 ) -> DAGsRunStateCountsCollectionResponse:
     """Return per-Dag DagRun state counts (zero-filled) for the Dag list page."""
     permitted_dag_ids = readable_dags_filter.value or set()
