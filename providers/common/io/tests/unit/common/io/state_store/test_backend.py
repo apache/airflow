@@ -253,3 +253,14 @@ class TestStateStoreObjectStorageBackend:
             ref = store.serialize_asset_state_store_to_ref(value={"x": 1}, key="k", scope=asset_scope)
             assert not ref.startswith("file://")
             assert store.deserialize_asset_state_store_from_ref(ref) == {"x": 1}
+
+    def test_negative_threshold_raises(self, base_path):
+        with conf_vars(
+            {
+                ("common.io", "state_store_objectstorage_path"): base_path,
+                ("common.io", "state_store_objectstorage_threshold"): "-1",
+            }
+        ):
+            backend._get_threshold.cache_clear()
+            with pytest.raises(ValueError, match="must be non-negative"):
+                backend._get_threshold()

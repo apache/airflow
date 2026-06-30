@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
 import json
 from functools import cache
 from typing import TYPE_CHECKING
@@ -53,7 +52,12 @@ def _get_compression() -> str | None:
 
 @cache
 def _get_threshold() -> int:
-    return conf.getint(SECTION, "state_store_objectstorage_threshold", fallback=0)
+    value = conf.getint(SECTION, "state_store_objectstorage_threshold", fallback=0)
+    if value < 0:
+        raise ValueError(
+            f"[{SECTION}] state_store_objectstorage_threshold must be non-negative, got {value}."
+        )
+    return value
 
 
 def _compression_suffix() -> str:
@@ -152,9 +156,7 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
         _write(_scope_path(scope, key), value)
 
     def delete(self, scope: StoreScope, key: str, *, session: Session | None = None) -> None:
-        path = _scope_path(scope, key)
-        with contextlib.suppress(FileNotFoundError):
-            path.unlink(missing_ok=True)
+        _scope_path(scope, key).unlink(missing_ok=True)
 
     def clear(
         self, scope: StoreScope, *, all_map_indices: bool = False, session: Session | None = None
