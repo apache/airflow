@@ -92,7 +92,7 @@ class Trigger(Base):
     """
 
     __tablename__ = "trigger"
-    __table_args__ = (Index("dt_flow_idx_trigger_triggerer_queue_id", "triggerer_id", "queue", "id"),)
+    __table_args__ = (Index("idx_trigger_triggerer_queue_id", "triggerer_id", "queue", "id"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     classpath: Mapped[str] = mapped_column(String(1000), nullable=False)
