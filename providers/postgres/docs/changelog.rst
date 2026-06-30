@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+6.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add configurable UPSERT update fields to PostgresHook (#67045)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use execute_values instead of execute_batch for better bulk insert performance with PostgresHook (#68207)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.7.1
 .....
 

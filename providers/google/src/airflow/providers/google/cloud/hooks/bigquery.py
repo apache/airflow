@@ -95,6 +95,12 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+BIGQUERY_LEGACY_SQL_DEFAULT_WARNING = (
+    "The default value of `use_legacy_sql` is deprecated and will change from `True` to `False` "
+    "in a future provider release. Set `use_legacy_sql=True` explicitly if you need legacy SQL, "
+    "or set `use_legacy_sql=False` to use GoogleSQL."
+)
+
 BigQueryJob = CopyJob | QueryJob | LoadJob | ExtractJob
 
 _ROUTINE_WRITABLE_PROPERTIES: tuple[str, ...] = (
@@ -190,7 +196,15 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         # Use sentinel pattern to distinguish "not provided" from "explicitly provided"
         if use_legacy_sql is _UNSET:
             value = self._get_field("use_legacy_sql", _UNSET)
-            self.use_legacy_sql: bool = value if value is not None else True
+            if value is None:
+                warnings.warn(
+                    BIGQUERY_LEGACY_SQL_DEFAULT_WARNING,
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
+                self.use_legacy_sql = True
+            else:
+                self.use_legacy_sql = value
         else:
             self.use_legacy_sql = use_legacy_sql  # type: ignore[assignment]
 

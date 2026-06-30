@@ -411,11 +411,12 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
-  - name: "dag_processing.last_run.seconds_ago.{dag_file}"
-    description: "Seconds since ``{dag_file}`` was last processed"
+  - name: "dag_processing.last_run.seconds_ago"
+    description: "Seconds since a DAG file was last processed.
+    Metric with file_path, bundle_name and file_name tagging."
     type: "gauge"
-    legacy_name: "-"
-    name_variables: ["dag_file"]
+    legacy_name: "dag_processing.last_run.seconds_ago.{file_name}"
+    name_variables: ["file_name"]
 
   - name: "dag_processing.last_num_of_db_queries.{dag_file}"
     description: "Number of queries to Airflow database during parsing per ``{dag_file}``"
@@ -715,12 +716,6 @@ metrics:
 
   - name: "collect_db_dags"
     description: "Milliseconds taken for fetching all Serialized Dags from DB"
-    type: "timer"
-    legacy_name: "-"
-    name_variables: []
-
-  - name: "kubernetes_executor.clear_not_launched_queued_tasks.duration"
-    description: "Milliseconds taken for clearing not launched queued tasks in Kubernetes Executor"
     type: "timer"
     legacy_name: "-"
     name_variables: []

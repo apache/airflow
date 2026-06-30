@@ -81,8 +81,22 @@ class FakeTaskState:
 def make_context(task_store: FakeTaskState | None = None) -> dict:
     ctx: dict = {}
     if task_store is not None:
-        ctx["task_store"] = task_store
+        ctx["task_state_store"] = task_store
     return ctx
+
+
+class FakeTI:
+    """Minimal stand-in for RuntimeTaskInstance exposing stats_tags with an optional team_name."""
+
+    def __init__(self, team_name: str | None = None):
+        self._team_name = team_name
+
+    @property
+    def stats_tags(self) -> dict[str, str]:
+        tags = {"dag_id": "d", "task_id": "t"}
+        if self._team_name:
+            tags["team_name"] = self._team_name
+        return tags
 
 
 class TestFirstSubmission:
@@ -192,6 +206,35 @@ class TestNoneExternalId:
         assert task_state._store == {}
 
 
+class TestResumeOnRetryDisabled:
+    def test_submits_and_polls_without_task_store_interaction(self):
+        op = ConcreteResumableOperator(task_id="test_task", durable=False)
+        task_store = FakeTaskState()
+        op.execute_resumable(make_context(task_store))
+
+        assert op.submitted_ids == ["job-001"]
+        assert op.polled_ids == ["job-001"]
+        assert task_store._store == {}, "task_store must not be written when durable=False"
+
+    def test_does_not_reconnect_when_prior_id_exists(self):
+        op = ConcreteResumableOperator(task_id="test_task", durable=False)
+        op._status_map["job-001"] = "RUNNING"
+        task_store = FakeTaskState({"test_job_id": "job-001"})
+
+        op.execute_resumable(make_context(task_store))
+
+        assert op.submitted_ids == ["job-001"], "should submit fresh even with a prior ID stored"
+
+    def test_returns_result(self):
+        op = ConcreteResumableOperator(task_id="test_task", durable=False)
+        result = op.execute_resumable(make_context(FakeTaskState()))
+        assert result == "result-of-job-001"
+
+    def test_default_is_true(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        assert op.durable is True
+
+
 class TestExternalIdKey:
     def test_custom_key_used_for_storage_and_retrieval(self):
         class CustomKeyOp(ConcreteResumableOperator):
@@ -252,6 +295,26 @@ class TestMetrics:
         assert "resumable_job.terminal_resubmit" in called_names
         assert "resumable_job.reconnect_success" not in called_names
         assert "resumable_job.fresh_submit" not in called_names
+
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tag"),
+        [
+            pytest.param(
+                "team_alpha",
+                {"operator": "ConcreteResumableOperator", "team_name": "team_alpha"},
+                id="with_team",
+            ),
+            pytest.param(None, {"operator": "ConcreteResumableOperator"}, id="without_team"),
+        ],
+    )
+    def test_team_name_added_to_metric_tags(self, team_name, expected_tag):
+        op = ConcreteResumableOperator(task_id="test_task")
+        ctx = make_context(FakeTaskState())
+        ctx["ti"] = FakeTI(team_name)
+        mock_incr = MagicMock()
+        with patch(self._PATCH, mock_incr):
+            op.execute_resumable(ctx)
+        mock_incr.assert_called_once_with("resumable_job.fresh_submit", tags=expected_tag)
 
 
 class TestTracing:

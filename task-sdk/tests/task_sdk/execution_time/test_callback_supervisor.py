@@ -494,6 +494,7 @@ class TestCallbackSubprocessStart:
         mock_bundle_setup["manager"].get_bundle.assert_called_once_with(
             name=bundle_info.name,
             version=bundle_info.version,
+            version_data=bundle_info.version_data,
         )
         mock_bundle_setup["bundle"].initialize.assert_called_once()
 
