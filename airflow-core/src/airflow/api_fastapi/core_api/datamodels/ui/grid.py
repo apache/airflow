@@ -34,6 +34,7 @@ class LightGridTaskInstanceSummary(BaseModel):
     min_start_date: datetime | None
     max_end_date: datetime | None
     dag_version_number: int | None = None
+    has_note: bool = False
 
 
 class GridTISummaries(BaseModel):

@@ -42,8 +42,8 @@ with DAG(
     default_args={"retries": 0},
 ) as dag:
     # Timedelta is compared to the DAGRun start timestamp, which can occur long before a worker picks up the
-    # task. We need to ensure the sensor gets deferred at least once, so setting 120s.
-    wait = TimeDeltaSensor(task_id="wait", delta=timedelta(seconds=120), poke_interval=10, deferrable=True)
+    # task. We need to ensure the sensor gets deferred at least once, so setting 180s.
+    wait = TimeDeltaSensor(task_id="wait", delta=timedelta(seconds=180), poke_interval=10, deferrable=True)
 
     check_events = OpenLineageTestOperator(
         task_id="check_events",

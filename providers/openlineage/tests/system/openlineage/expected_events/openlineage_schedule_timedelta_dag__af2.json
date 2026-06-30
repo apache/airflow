@@ -1,0 +1,56 @@
+[
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflowDagRun": {
+                    "dag": {
+                        "timetable": {
+                            "delta": 85276800.0
+                        },
+                        "timetable_summary": "987 days, 0:00:00"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_timedelta_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "dag": {
+                        "timetable": {
+                            "delta": 85276800.0
+                        },
+                        "timetable_summary": "987 days, 0:00:00"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_timedelta_dag.do_nothing_task"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "dag": {
+                        "timetable": {
+                            "delta": 85276800.0
+                        },
+                        "timetable_summary": "987 days, 0:00:00"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_timedelta_dag.do_nothing_task"
+        }
+    }
+]
