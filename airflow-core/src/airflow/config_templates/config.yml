@@ -2326,6 +2326,21 @@ lineage:
       type: integer
       example: ~
       default: "200"
+aiohttp:
+  description: |
+    Options for aiohttp client sessions used by asynchronous Airflow components and providers.
+  options:
+    trust_env:
+      description: |
+        Trust environment variables for proxy configuration when creating aiohttp client sessions.
+
+        When enabled, aiohttp can use environment variables such as ``HTTP_PROXY``, ``HTTPS_PROXY``,
+        and ``NO_PROXY``. This is useful in environments where outbound traffic must go through
+        a corporate proxy.
+      version_added: 3.2.0
+      type: boolean
+      example: "true"
+      default: "false"
 operators:
   description: ~
   options:

@@ -1694,6 +1694,32 @@ class TestSnowflakeSqlApiHook:
             assert timeout_obj.total == 7.0
 
     @pytest.mark.asyncio
+    @mock.patch(f"{MODULE_PATH}.conf.getboolean", return_value=True)
+    async def test_make_api_call_with_retries_async_uses_trust_env_config(self, mock_getboolean):
+        """
+        Test that aiohttp trust_env config is forwarded to aiohttp.ClientSession.
+        """
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+
+        with mock.patch(f"{MODULE_PATH}.aiohttp.ClientSession") as client_session_cls:
+            session_cm = mock.MagicMock()
+            client_session_cls.return_value.__aenter__ = AsyncMock(return_value=session_cm)
+
+            req_cm = mock.MagicMock()
+            session_cm.request.return_value = req_cm
+
+            resp = mock.MagicMock()
+            resp.status = 200
+            resp.raise_for_status.return_value = None
+            resp.json = AsyncMock(return_value=GET_RESPONSE)
+            req_cm.__aenter__ = AsyncMock(return_value=resp)
+
+            await hook._make_api_call_with_retries_async("GET", API_URL, HEADERS)
+
+            _, kwargs = client_session_cls.call_args
+            assert kwargs["trust_env"] is True
+
+    @pytest.mark.asyncio
     async def test_make_api_call_with_retries_async_retries_on_timeout_error(self, mock_async_request):
         """
         Test that the async API call is retried when a timeout error occurs.
