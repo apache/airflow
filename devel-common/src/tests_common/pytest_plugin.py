@@ -946,6 +946,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 self.dagbag = DagBag(os.devnull)
             else:
                 self.dagbag = DagBag(os.devnull, include_examples=False)  # type: ignore[call-arg]
+            self.created_bundle_names = set()
 
         def __enter__(self):
             self.serialized_model = None
@@ -1379,6 +1380,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     == 0
                 ):
                     self.session.add(DagBundleModel(name=self.bundle_name))
+                    self.created_bundle_names.add(self.bundle_name)
                     self.session.commit()
 
             return self
@@ -1399,7 +1401,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             for attempt in run_with_db_retries(logger=self.log):
                 with attempt:
                     dag_ids = list(self.dagbag.dag_ids)
-                    if not dag_ids:
+                    bundle_names = set(self.created_bundle_names)
+                    if not dag_ids and not bundle_names:
                         return
                     # To isolate problems here with problems from elsewhere on the session object
                     self.session.rollback()
@@ -1408,10 +1411,12 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                         from sqlalchemy import delete
 
                         from airflow.models.dag_version import DagVersion
+                        from airflow.models.dagbundle import DagBundleModel
 
-                        self.session.execute(delete(DagRun).where(DagRun.dag_id.in_(dag_ids)))
-                        self.session.execute(delete(TaskInstance).where(TaskInstance.dag_id.in_(dag_ids)))
-                        self.session.execute(delete(DagVersion).where(DagVersion.dag_id.in_(dag_ids)))
+                        if dag_ids:
+                            self.session.execute(delete(DagRun).where(DagRun.dag_id.in_(dag_ids)))
+                            self.session.execute(delete(TaskInstance).where(TaskInstance.dag_id.in_(dag_ids)))
+                            self.session.execute(delete(DagVersion).where(DagVersion.dag_id.in_(dag_ids)))
                     else:
                         from sqlalchemy import delete
 
@@ -1420,11 +1425,17 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                         )
                         self.session.execute(delete(DagRun).where(DagRun.dag_id.in_(dag_ids)))
                         self.session.execute(delete(TaskInstance).where(TaskInstance.dag_id.in_(dag_ids)))
-                    self.session.execute(delete(XCom).where(XCom.dag_id.in_(dag_ids)))
-                    self.session.execute(delete(DagModel).where(DagModel.dag_id.in_(dag_ids)))
-                    self.session.execute(delete(TaskMap).where(TaskMap.dag_id.in_(dag_ids)))
-                    self.session.execute(delete(AssetEvent).where(AssetEvent.source_dag_id.in_(dag_ids)))
+                    if dag_ids:
+                        self.session.execute(delete(XCom).where(XCom.dag_id.in_(dag_ids)))
+                        self.session.execute(delete(DagModel).where(DagModel.dag_id.in_(dag_ids)))
+                        self.session.execute(delete(TaskMap).where(TaskMap.dag_id.in_(dag_ids)))
+                        self.session.execute(delete(AssetEvent).where(AssetEvent.source_dag_id.in_(dag_ids)))
+                    if AIRFLOW_V_3_0_PLUS and bundle_names:
+                        self.session.execute(
+                            delete(DagBundleModel).where(DagBundleModel.name.in_(bundle_names))
+                        )
                     self.session.commit()
+                    self.created_bundle_names.difference_update(bundle_names)
                     if self._own_session:
                         self.session.expunge_all()
 
@@ -2918,40 +2929,60 @@ def mock_xcom_backend():
 def testing_dag_bundle():
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-    if AIRFLOW_V_3_0_PLUS:
-        from sqlalchemy import func, select
+    if not AIRFLOW_V_3_0_PLUS:
+        yield
+        return
 
-        from airflow.models.dagbundle import DagBundleModel
-        from airflow.utils.session import create_session
+    from sqlalchemy import delete, func, select
 
-        with create_session() as session:
-            if (
-                session.scalar(
-                    select(func.count()).select_from(DagBundleModel).where(DagBundleModel.name == "testing")
-                )
-                == 0
-            ):
-                testing = DagBundleModel(name="testing")
-                session.add(testing)
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.utils.session import create_session
+
+    created = False
+    with create_session() as session:
+        if (
+            session.scalar(
+                select(func.count()).select_from(DagBundleModel).where(DagBundleModel.name == "testing")
+            )
+            == 0
+        ):
+            testing = DagBundleModel(name="testing")
+            session.add(testing)
+            created = True
+
+    try:
+        yield
+    finally:
+        if created:
+            with create_session() as session:
+                session.execute(delete(DagBundleModel).where(DagBundleModel.name == "testing"))
 
 
 @pytest.fixture
 def testing_team():
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-    if AIRFLOW_V_3_0_PLUS:
-        from sqlalchemy import select
+    if not AIRFLOW_V_3_0_PLUS:
+        yield None
+        return
 
-        from airflow.models.team import Team
-        from airflow.utils.session import create_session
+    from sqlalchemy import delete, select
 
-        with create_session() as session:
-            team = session.scalar(select(Team).where(Team.name == "testing"))
-            if not team:
-                team = Team(name="testing")
-                session.add(team)
-                session.flush()
-            yield team
+    from airflow.models.team import Team
+    from airflow.utils.session import create_session
+
+    created = False
+    with create_session() as session:
+        team = session.scalar(select(Team).where(Team.name == "testing"))
+        if not team:
+            team = Team(name="testing")
+            session.add(team)
+            session.flush()
+            created = True
+        yield team
+        if created:
+            session.rollback()
+            session.execute(delete(Team).where(Team.name == "testing"))
 
 
 @pytest.fixture
