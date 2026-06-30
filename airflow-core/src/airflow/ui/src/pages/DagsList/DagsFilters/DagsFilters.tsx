@@ -165,7 +165,7 @@ export const DagsFilters = () => {
         value={state ?? undefined}
       />
       <RunStateSelect
-        dataTestId="dags-active-run-state-filter"
+        dataTestId="dags-any-run-state-filter"
         label={translate("filters.anyRunState")}
         onChange={handleActiveRunChange}
         states={anyRunStates}
