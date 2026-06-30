@@ -235,6 +235,9 @@ class DeltaDataIntervalTimetable(DeltaMixin, _DataIntervalTimetable):
         (e.g. Jan 31 -> Feb 28 -> Mar 28), so a multiplied jump would land
         elsewhere. Fixed deltas keep the historical epoch rounding and ignore
         ``anchor``.
+
+        ``anchor`` must be at or before ``dt``; otherwise the forward stepping
+        cannot reach ``dt`` and the result is meaningless.
         """
         if isinstance(self._delta, relativedelta) and (self._delta.months or self._delta.years):
             boundary = anchor
@@ -259,7 +262,7 @@ class DeltaDataIntervalTimetable(DeltaMixin, _DataIntervalTimetable):
         This is slightly different from the cron version at terminal values.
         """
         now = coerce_datetime(utcnow())
-        new_start = self._get_prev(self._round(now, earliest if earliest is not None else now))
+        new_start = self._get_prev(self._round(now, earliest or now))
         if earliest is None:
             return new_start
         return max(new_start, earliest)
