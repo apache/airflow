@@ -111,5 +111,5 @@ Reference
 
 For further information, look at:
 
-* `Deploy a hosted agent <https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/deploy-hosted-agent>`__
+* `Deploy an Azure AI Hosted agent <https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/deploy-hosted-agent>`__
 * `Azure AI Foundry Agents documentation <https://learn.microsoft.com/en-us/azure/foundry/agents/>`__
