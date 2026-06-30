@@ -19,12 +19,13 @@ Object Storage State Store Backend
 ===================================
 
 The default state store backend is :class:`~airflow.state.metastore.MetastoreStateBackend`, which persists
-task and asset state in the Airflow metadata database via the API Server's Execution API. For larger values, you may want to store state on object storage directly from the task instead.
+task and asset state in the Airflow metadata database via the API Server's Execution API. For larger values,
+you may want to store state on object storage directly from the task instead.
 
 To enable object storage for task and asset state store, set ``state_store_backend`` in the ``[workers]``
 section to ``airflow.providers.common.io.state_store.backend.StateStoreObjectStorageBackend``, and set
-``state_store_objectstorage_path`` to the desired base location. The connection id is obtained from the user
-part of the URL, e.g. ``state_store_objectstorage_path = s3://conn_id@mybucket/task-state/``.
+``state_store_objectstorage_path`` to the desired base location. The connection id is obtained from the
+user part of the URL, e.g. ``state_store_objectstorage_path = s3://conn_id@mybucket/task-state/``.
 
 Task state is stored under ``<dag_id>/<run_id>/<task_id>/<map_index>/<key>`` and asset state under
 ``assets/<asset_identifier>/<key>`` beneath the configured base path.
