@@ -164,12 +164,44 @@ class TestTIRunState:
         clear_db_runs()
         clear_db_serialized_dags()
         clear_db_dags()
+        clear_db_assets()
 
     def teardown_method(self):
         clear_db_logs()
         clear_db_runs()
         clear_db_serialized_dags()
         clear_db_dags()
+        clear_db_assets()
+
+    def test_ti_run_context_exposes_consumed_event_partition_key(self, client, session, create_task_instance):
+        """The partition key of each consumed asset event is returned in the run context."""
+        ti = create_task_instance(
+            task_id="test_consumed_event_partition_key",
+            state=State.QUEUED,
+            session=session,
+        )
+        asset = AssetModel(name="upstream", uri="s3://bucket/upstream", group="asset", extra={})
+        session.add_all([asset, AssetActive.for_asset(asset)])
+        session.flush()
+        ti.dag_run.consumed_asset_events.append(
+            AssetEvent(asset_id=asset.id, source_dag_id="src", source_run_id="r1", partition_key="2024-01-15")
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "h",
+                "unixname": "u",
+                "pid": 1,
+                "start_date": "2024-09-30T12:00:00Z",
+            },
+        )
+
+        assert response.status_code == 200
+        events = response.json()["dag_run"]["consumed_asset_events"]
+        assert [e["partition_key"] for e in events] == ["2024-01-15"]
 
     @pytest.mark.parametrize(
         ("max_tries", "should_retry"),
@@ -4050,16 +4082,16 @@ class TestTokenTypeValidation:
         assert resp.status_code == 403
         assert "Token type 'workload' not allowed" in resp.json()["detail"]
 
-    def test_workload_scope_accepted_on_connections_endpoint(self, client, session, create_task_instance):
-        """Workload scoped tokens are accepted on GET /connections for deadline callback subprocesses."""
+    def test_workload_scope_rejected_on_connections_endpoint(self, client, session, create_task_instance):
+        """Workload scoped tokens should be rejected on GET /connections (different router)."""
         ti = create_task_instance(task_id="test_workload_conn", state=State.RUNNING)
         session.commit()
 
         self._register_scoped_validator(ti.id, "workload")
 
         resp = client.get("/execution/connections/test_conn")
-        # Workload tokens are now accepted; 404 because the connection doesn't exist in the test DB.
-        assert resp.status_code == 404
+        assert resp.status_code == 403
+        assert "Token type 'workload' not allowed" in resp.json()["detail"]
 
     def test_execution_scope_accepted_on_all_endpoints(self, client, session, create_task_instance):
         """Execution scoped tokens should be accepted on all endpoints."""

@@ -891,10 +891,12 @@ export const UseAuthLinksServiceGetCurrentUserInfoKeyFn = (queryKey?: Array<unkn
 export type PartitionedDagRunServiceGetPartitionedDagRunsDefaultResponse = Awaited<ReturnType<typeof PartitionedDagRunService.getPartitionedDagRuns>>;
 export type PartitionedDagRunServiceGetPartitionedDagRunsQueryResult<TData = PartitionedDagRunServiceGetPartitionedDagRunsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const usePartitionedDagRunServiceGetPartitionedDagRunsKey = "PartitionedDagRunServiceGetPartitionedDagRuns";
-export const UsePartitionedDagRunServiceGetPartitionedDagRunsKeyFn = ({ dagId, hasCreatedDagRunId }: {
+export const UsePartitionedDagRunServiceGetPartitionedDagRunsKeyFn = ({ dagId, hasCreatedDagRunId, limit, offset }: {
   dagId?: string;
   hasCreatedDagRunId?: boolean;
-} = {}, queryKey?: Array<unknown>) => [usePartitionedDagRunServiceGetPartitionedDagRunsKey, ...(queryKey ?? [{ dagId, hasCreatedDagRunId }])];
+  limit?: number;
+  offset?: number;
+} = {}, queryKey?: Array<unknown>) => [usePartitionedDagRunServiceGetPartitionedDagRunsKey, ...(queryKey ?? [{ dagId, hasCreatedDagRunId, limit, offset }])];
 export type PartitionedDagRunServiceGetPendingPartitionedDagRunDefaultResponse = Awaited<ReturnType<typeof PartitionedDagRunService.getPendingPartitionedDagRun>>;
 export type PartitionedDagRunServiceGetPendingPartitionedDagRunQueryResult<TData = PartitionedDagRunServiceGetPendingPartitionedDagRunDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const usePartitionedDagRunServiceGetPendingPartitionedDagRunKey = "PartitionedDagRunServiceGetPendingPartitionedDagRun";
@@ -1047,6 +1049,7 @@ export type DagRunServiceTriggerDagRunMutationResult = Awaited<ReturnType<typeof
 export type DagRunServiceClearDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.clearDagRun>>;
 export type DagRunServiceGetListDagRunsBatchMutationResult = Awaited<ReturnType<typeof DagRunService.getListDagRunsBatch>>;
 export type DagRunServiceClearDagRunsMutationResult = Awaited<ReturnType<typeof DagRunService.clearDagRuns>>;
+export type DagRunServiceClearDagRunPartitionsMutationResult = Awaited<ReturnType<typeof DagRunService.clearDagRunPartitions>>;
 export type DagServiceFavoriteDagMutationResult = Awaited<ReturnType<typeof DagService.favoriteDag>>;
 export type DagServiceUnfavoriteDagMutationResult = Awaited<ReturnType<typeof DagService.unfavoriteDag>>;
 export type TaskInstanceServiceGetTaskInstancesBatchMutationResult = Awaited<ReturnType<typeof TaskInstanceService.getTaskInstancesBatch>>;

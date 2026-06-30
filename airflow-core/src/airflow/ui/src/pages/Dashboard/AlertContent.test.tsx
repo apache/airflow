@@ -87,6 +87,18 @@ describe("AlertContent", () => {
     expect(screen.queryByRole("button", { name: "See more" })).not.toBeInTheDocument();
   });
 
+  it("shows no See more when content exceeds clientHeight but still fits the clamp", () => {
+    // Regression: a single line of inline content (bold, inline code) leaves scrollHeight
+    // a few px above clientHeight. Overflow must be decided by the clamp height, not by
+    // scrollHeight > clientHeight, which would surface a See more toggle with nothing to reveal.
+    stubScrollHeight(CLAMPED_HEIGHT + 10);
+    stubClientHeight(CLAMPED_HEIGHT);
+
+    renderAlert({ category: "info", text: "Short alert text" });
+
+    expect(screen.queryByRole("button", { name: "See more" })).not.toBeInTheDocument();
+  });
+
   it("clamps a tall alert and toggles between See more and See less", () => {
     stubScrollHeight(OVERFLOW_HEIGHT);
     stubClientHeight(CLAMPED_HEIGHT);

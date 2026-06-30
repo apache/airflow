@@ -1794,15 +1794,19 @@ export const prefetchUseAuthLinksServiceGetCurrentUserInfo = (queryClient: Query
 * Get Partitioned Dag Runs
 * Return PartitionedDagRuns. Filter by dag_id and/or has_created_dag_run_id.
 * @param data The data for the request.
+* @param data.limit
+* @param data.offset
 * @param data.dagId
 * @param data.hasCreatedDagRunId
 * @returns PartitionedDagRunCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUsePartitionedDagRunServiceGetPartitionedDagRuns = (queryClient: QueryClient, { dagId, hasCreatedDagRunId }: {
+export const prefetchUsePartitionedDagRunServiceGetPartitionedDagRuns = (queryClient: QueryClient, { dagId, hasCreatedDagRunId, limit, offset }: {
   dagId?: string;
   hasCreatedDagRunId?: boolean;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UsePartitionedDagRunServiceGetPartitionedDagRunsKeyFn({ dagId, hasCreatedDagRunId }), queryFn: () => PartitionedDagRunService.getPartitionedDagRuns({ dagId, hasCreatedDagRunId }) });
+  limit?: number;
+  offset?: number;
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UsePartitionedDagRunServiceGetPartitionedDagRunsKeyFn({ dagId, hasCreatedDagRunId, limit, offset }), queryFn: () => PartitionedDagRunService.getPartitionedDagRuns({ dagId, hasCreatedDagRunId, limit, offset }) });
 /**
 * Get Pending Partitioned Dag Run
 * Return full details for pending PartitionedDagRun.
@@ -1896,7 +1900,7 @@ export const prefetchUseDeadlinesServiceGetDeadlines = (queryClient: QueryClient
 * @param data.dagId
 * @param data.limit
 * @param data.offset
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name, interval`
 * @returns DeadlineAlertCollectionResponse Successful Response
 * @throws ApiError
 */

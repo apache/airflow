@@ -315,6 +315,164 @@ export const $AssetEventResponse = {
     description: 'Asset event serializer for responses.'
 } as const;
 
+export const $AssetExpressionAlias = {
+    properties: {
+        alias: {
+            '$ref': '#/components/schemas/AssetExpressionAliasInfo'
+        }
+    },
+    type: 'object',
+    required: ['alias'],
+    title: 'AssetExpressionAlias',
+    description: 'An asset alias leaf: ``{"alias": {"name": ..., "group": ...}}``.'
+} as const;
+
+export const $AssetExpressionAliasInfo = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        group: {
+            type: 'string',
+            title: 'Group'
+        }
+    },
+    type: 'object',
+    required: ['name', 'group'],
+    title: 'AssetExpressionAliasInfo',
+    description: 'Body of an ``alias`` leaf node.'
+} as const;
+
+export const $AssetExpressionAll = {
+    properties: {
+        all: {
+            items: {
+                oneOf: [
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAsset'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAlias'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionRef'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAny'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAll'
+                    }
+                ]
+            },
+            type: 'array',
+            title: 'All'
+        }
+    },
+    type: 'object',
+    required: ['all'],
+    title: 'AssetExpressionAll',
+    description: 'An "and" node: ``{"all": [...]}`` -- satisfied when all children are satisfied.'
+} as const;
+
+export const $AssetExpressionAny = {
+    properties: {
+        any: {
+            items: {
+                oneOf: [
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAsset'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAlias'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionRef'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAny'
+                    },
+                    {
+                        '$ref': '#/components/schemas/AssetExpressionAll'
+                    }
+                ]
+            },
+            type: 'array',
+            title: 'Any'
+        }
+    },
+    type: 'object',
+    required: ['any'],
+    title: 'AssetExpressionAny',
+    description: 'An "or" node: ``{"any": [...]}`` -- satisfied when any child is satisfied.'
+} as const;
+
+export const $AssetExpressionAsset = {
+    properties: {
+        asset: {
+            '$ref': '#/components/schemas/AssetExpressionAssetInfo'
+        }
+    },
+    type: 'object',
+    required: ['asset'],
+    title: 'AssetExpressionAsset',
+    description: 'An asset leaf: ``{"asset": {"uri": ..., "name": ..., "group": ...}}``.'
+} as const;
+
+export const $AssetExpressionAssetInfo = {
+    properties: {
+        uri: {
+            type: 'string',
+            title: 'Uri'
+        },
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        group: {
+            type: 'string',
+            title: 'Group'
+        },
+        id: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Id'
+        }
+    },
+    type: 'object',
+    required: ['uri', 'name', 'group'],
+    title: 'AssetExpressionAssetInfo',
+    description: `Body of an \`\`asset\`\` leaf node.
+
+\`\`id\`\` is injected by \`\`DagModelOperation.update_dag_asset_expression\`\` when the expression is
+persisted; \`\`BaseAsset.as_expression()\`\` itself only emits \`\`uri\`\`/\`\`name\`\`/\`\`group\`\`. It is left
+optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
+degrades gracefully instead of failing response validation.`
+} as const;
+
+export const $AssetExpressionRef = {
+    properties: {
+        asset_ref: {
+            additionalProperties: {
+                type: 'string'
+            },
+            type: 'object',
+            title: 'Asset Ref'
+        }
+    },
+    type: 'object',
+    required: ['asset_ref'],
+    title: 'AssetExpressionRef',
+    description: 'An unresolved asset reference leaf: ``{"asset_ref": {"name": ...}}`` or ``{"asset_ref": {"uri": ...}}``.'
+} as const;
+
 export const $AssetResponse = {
     properties: {
         id: {
@@ -1137,6 +1295,44 @@ export const $BulkDAGRunBody = {
 
 export const $BulkDAGRunClearBody = {
     properties: {
+        partition_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Key',
+            description: 'Select runs by exact partition key match. Mutually exclusive with the other partition selectors.'
+        },
+        partition_date_start: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Date Start',
+            description: "Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors."
+        },
+        partition_date_end: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Date End',
+            description: "Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors."
+        },
         dry_run: {
             type: 'boolean',
             title: 'Dry Run',
@@ -1182,13 +1378,11 @@ export const $BulkDAGRunClearBody = {
                 '$ref': '#/components/schemas/BulkDAGRunBody'
             },
             type: 'array',
-            minItems: 1,
             title: 'Dag Runs'
         }
     },
     additionalProperties: false,
     type: 'object',
-    required: ['dag_runs'],
     title: 'BulkDAGRunClearBody',
     description: 'Request body for the bulk clear Dag Runs endpoint.'
 } as const;
@@ -1705,6 +1899,98 @@ export const $BulkUpdateAction_VariableBody_ = {
     type: 'object',
     required: ['action', 'entities'],
     title: 'BulkUpdateAction[VariableBody]'
+} as const;
+
+export const $ClearPartitionsBody = {
+    properties: {
+        partition_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Key',
+            description: 'Select runs by exact partition key match. Mutually exclusive with the other partition selectors.'
+        },
+        partition_date_start: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Date Start',
+            description: "Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors."
+        },
+        partition_date_end: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Date End',
+            description: "Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors."
+        },
+        run_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run Id',
+            description: 'Select runs by exact run_id. Mutually exclusive with ``partition_key`` and partition date window.'
+        },
+        clear_task_instances: {
+            type: 'boolean',
+            title: 'Clear Task Instances',
+            description: 'Also clear task instances on the matched runs.',
+            default: false
+        },
+        dry_run: {
+            type: 'boolean',
+            title: 'Dry Run',
+            description: 'If True, compute counts without writing any changes.',
+            default: true
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    title: 'ClearPartitionsBody',
+    description: 'Request body for the clearPartitions endpoint (column-reset: set partition fields to None).'
+} as const;
+
+export const $ClearPartitionsResponse = {
+    properties: {
+        dag_runs_cleared: {
+            type: 'integer',
+            title: 'Dag Runs Cleared'
+        },
+        task_instances_cleared: {
+            type: 'integer',
+            title: 'Task Instances Cleared'
+        },
+        dry_run: {
+            type: 'boolean',
+            title: 'Dry Run'
+        }
+    },
+    type: 'object',
+    required: ['dag_runs_cleared', 'task_instances_cleared', 'dry_run'],
+    title: 'ClearPartitionsResponse',
+    description: 'Response for the clearPartitions endpoint.'
 } as const;
 
 export const $ClearTaskInstanceCollectionResponse = {
@@ -2520,7 +2806,14 @@ export const $DAGDetailsResponse = {
             title: 'Relative Fileloc'
         },
         fileloc: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Fileloc'
         },
         description: {
@@ -2686,8 +2979,23 @@ export const $DAGDetailsResponse = {
         asset_expression: {
             anyOf: [
                 {
-                    additionalProperties: true,
-                    type: 'object'
+                    oneOf: [
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAsset'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAlias'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionRef'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAny'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAll'
+                        }
+                    ]
                 },
                 {
                     type: 'null'
@@ -2982,7 +3290,14 @@ export const $DAGResponse = {
             title: 'Relative Fileloc'
         },
         fileloc: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Fileloc'
         },
         description: {
@@ -8721,7 +9036,14 @@ export const $DAGWithLatestDagRunsResponse = {
             title: 'Relative Fileloc'
         },
         fileloc: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Fileloc'
         },
         description: {
@@ -8871,8 +9193,23 @@ export const $DAGWithLatestDagRunsResponse = {
         asset_expression: {
             anyOf: [
                 {
-                    additionalProperties: true,
-                    type: 'object'
+                    oneOf: [
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAsset'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAlias'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionRef'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAny'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAll'
+                        }
+                    ]
                 },
                 {
                     type: 'null'
@@ -9004,16 +9341,9 @@ export const $DeadlineAlertResponse = {
             title: 'Reference Type'
         },
         interval: {
-            anyOf: [
-                {
-                    type: 'number'
-                },
-                {
-                    type: 'null'
-                }
-            ],
+            type: 'number',
             title: 'Interval',
-            description: 'Interval in seconds between the reference time and the deadline. Null for a dynamic interval (e.g. a VariableInterval) whose value is only resolved at scheduler evaluation time.'
+            description: 'Interval in seconds between deadline evaluations.'
         },
         created_at: {
             type: 'string',
@@ -9022,7 +9352,7 @@ export const $DeadlineAlertResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'reference_type', 'created_at'],
+    required: ['id', 'reference_type', 'interval', 'created_at'],
     title: 'DeadlineAlertResponse',
     description: 'DeadlineAlert serializer for responses.'
 } as const;
@@ -9622,6 +9952,11 @@ export const $LightGridTaskInstanceSummary = {
                 }
             ],
             title: 'Dag Version Number'
+        },
+        has_note: {
+            type: 'boolean',
+            title: 'Has Note',
+            default: false
         }
     },
     type: 'object',
@@ -9744,8 +10079,23 @@ export const $NextRunAssetsResponse = {
         asset_expression: {
             anyOf: [
                 {
-                    additionalProperties: true,
-                    type: 'object'
+                    oneOf: [
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAsset'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAlias'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionRef'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAny'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAll'
+                        }
+                    ]
                 },
                 {
                     type: 'null'
@@ -9967,8 +10317,23 @@ export const $PartitionedDagRunCollectionResponse = {
                     additionalProperties: {
                         anyOf: [
                             {
-                                additionalProperties: true,
-                                type: 'object'
+                                oneOf: [
+                                    {
+                                        '$ref': '#/components/schemas/AssetExpressionAsset'
+                                    },
+                                    {
+                                        '$ref': '#/components/schemas/AssetExpressionAlias'
+                                    },
+                                    {
+                                        '$ref': '#/components/schemas/AssetExpressionRef'
+                                    },
+                                    {
+                                        '$ref': '#/components/schemas/AssetExpressionAny'
+                                    },
+                                    {
+                                        '$ref': '#/components/schemas/AssetExpressionAll'
+                                    }
+                                ]
                             },
                             {
                                 type: 'null'
@@ -10055,8 +10420,23 @@ export const $PartitionedDagRunDetailResponse = {
         asset_expression: {
             anyOf: [
                 {
-                    additionalProperties: true,
-                    type: 'object'
+                    oneOf: [
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAsset'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAlias'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionRef'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAny'
+                        },
+                        {
+                            '$ref': '#/components/schemas/AssetExpressionAll'
+                        }
+                    ]
                 },
                 {
                     type: 'null'

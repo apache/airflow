@@ -2091,6 +2091,7 @@ sdk:
           "jdk-17": {
             "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
             "kwargs": {
+              "jars_root": ["/opt/airflow/java-bundles"],
               "java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java",
               "jvm_args": ["-Xmx1024m"]
             },
@@ -2098,6 +2099,12 @@ sdk:
               "pod_template_file": "/opt/airflow/pod_templates/java.yaml",
               "worker_container_repository": "apache/airflow",
               "worker_container_tag": "3.3.0"
+            }
+          },
+          "go-sdk": {
+            "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
+            "kwargs": {
+              "executables_root": ["/opt/airflow/executable-bundles"]
             }
           }
         }
@@ -2978,6 +2985,19 @@ triggerer:
       type: float
       example: ~
       default: "300.0"
+    shared_stream_cohort_grace_period:
+      description: |
+        Seconds to delay the start of polling after a shared-stream group is created, giving triggers
+        that share the same key a window to subscribe before any event is broadcast. The default of 0
+        starts polling immediately (no delay). Set to a small positive value (e.g. 2.0–5.0) to reduce
+        the chance of triggers missing events on triggerer restart, when multiple triggers sharing a key
+        re-subscribe concurrently and the first to arrive would otherwise start the poll before the
+        others have joined. This is a best-effort window: triggers that take longer than the grace period
+        to re-subscribe can still miss events committed after polling starts.
+      version_added: 3.3.0
+      type: float
+      example: ~
+      default: "0.0"
 kerberos:
   description: ~
   options:
@@ -3261,11 +3281,11 @@ state_store:
     backend:
       description: |
         Full dotted path to the class that implements state storage for tasks and assets.
-        The class must be a subclass of ``BaseStateBackend``.
+        The class must be a subclass of ``BaseStoreBackend``.
         The default implementation persists state in the Airflow metadata database.
       version_added: 3.3.0
       type: string
-      example: "mypackage.state.CustomStateBackend"
+      example: "mypackage.state.CustomStoreBackend"
       default: "airflow.state.metastore.MetastoreBackend"
     clear_on_success:
       description: |

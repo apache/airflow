@@ -240,7 +240,7 @@ class Timetable(Protocol):
     partitioned_at_runtime: bool = False
     """Whether this timetable defers partition selection to task runtime.
 
-    *True* for :class:`~airflow.timetables.simple.PartitionAtRuntime`;
+    *True* for :class:`~airflow.timetables.simple.PartitionedAtRuntime`;
     downstream code can branch on this flag instead of using ``isinstance``.
     """
 
@@ -282,20 +282,22 @@ class Timetable(Protocol):
             msg = f"{type(self).__name__} is not partitioned"
         raise NotImplementedError(msg)
 
-    def resolve_day_bound(self, day: datetime.date) -> DateTime:
+    def localize_partition_datetime(self, dt: datetime.datetime) -> DateTime:
         """
-        Return the UTC instant of *day*'s start (midnight).
+        Re-interpret *dt*'s wall-clock reading as a moment in this timetable's timezone.
 
-        By default a calendar day starts at midnight UTC. Timetables with a local
-        timezone (e.g. :class:`~airflow.timetables._cron.CronMixin` subclasses)
-        override this to anchor at local midnight in their timezone, converted to
-        UTC. Callers pass *day* for an inclusive lower bound and
-        ``day + timedelta(days=1)`` for a half-open upper bound (e.g. ``dag_clear``
-        uses it to bound ``partition_date`` queries).
+        The base implementation treats the timetable as UTC: the wall-clock is kept
+        as-is and the result is simply a timezone-aware UTC instant (a no-op for
+        already-UTC inputs). Timetables with a local timezone (e.g.
+        :class:`~airflow.timetables._cron.CronMixin` subclasses) override this to
+        re-localize the wall-clock to their own timezone before converting to UTC,
+        preserving sub-day precision for narrow windows on sub-daily schedules.
+
+        Used by :meth:`~airflow.models.dagrun.DagRun.apply_partition_date_window` to
+        convert user-supplied ``partition_date`` filter bounds without truncating the
+        time component.
         """
-        return timezone.coerce_datetime(
-            datetime.datetime(day.year, day.month, day.day, tzinfo=datetime.timezone.utc)
-        )
+        return timezone.coerce_datetime(dt)
 
     def resolve_partition_date(self, partition_key: str | None) -> datetime.datetime | None:
         """

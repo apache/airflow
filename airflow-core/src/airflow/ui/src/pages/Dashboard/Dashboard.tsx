@@ -16,17 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Flex, Heading, VStack } from "@chakra-ui/react";
-import type { AccordionValueChangeDetails } from "@chakra-ui/react";
+import { Box, Button, Flex, Heading, Separator, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { LuChevronDown } from "react-icons/lu";
 import { useLocalStorage } from "usehooks-ts";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
 import type { ReactAppResponse, UIAlert } from "openapi/requests/types.gen";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
-import { Accordion } from "src/components/ui";
+import { IconButton } from "src/components/ui";
 import { COLLAPSED_UI_ALERTS_KEY } from "src/constants/localStorage";
 import { useConfig } from "src/queries/useConfig";
 
@@ -51,12 +51,8 @@ export const Dashboard = () => {
   const [endDate, setEndDate] = useState(now.toISOString());
   const [isCollapsed, setIsCollapsed] = useLocalStorage(COLLAPSED_UI_ALERTS_KEY, false);
 
-  const accordionValue = isCollapsed ? [] : ["ui_alerts"];
-  const hasMultipleAlerts = alerts.length > 1;
-
-  const handleAccordionChange = (details: AccordionValueChangeDetails) => {
-    setIsCollapsed(!details.value.includes("ui_alerts"));
-  };
+  const [firstAlert, ...restAlerts] = alerts;
+  const hasMultipleAlerts = restAlerts.length > 0;
 
   const { data: pluginData } = usePluginServiceGetPlugins();
 
@@ -70,49 +66,57 @@ export const Dashboard = () => {
       <VStack alignItems="stretch" gap={6}>
         {/* All flex items within this VStack should specify an increasing order. This
         will be used by third parties plugins to position themselves within the page via CSS */}
-        {alerts.length > 0 ? (
-          <Accordion.Root
-            collapsible
-            data-testid="dashboard-alerts"
-            onValueChange={handleAccordionChange}
-            order={1}
-            value={accordionValue}
-          >
-            <Accordion.Item key="ui_alerts" value="ui_alerts">
-              {alerts.map((alert: UIAlert, index) =>
-                index === 0 ? (
-                  <Fragment key={alert.text}>
-                    {hasMultipleAlerts ? (
-                      <Accordion.ItemTrigger mb={2}>
-                        <AlertContent alert={alert} />
-                      </Accordion.ItemTrigger>
-                    ) : (
-                      <Box mb={2}>
-                        <AlertContent alert={alert} />
-                      </Box>
-                    )}
-                    {isCollapsed && hasMultipleAlerts ? (
-                      <Flex justifyContent="center" mb={2}>
-                        <Button
-                          _hover={{ textDecoration: "underline" }}
-                          color="fg.muted"
-                          onClick={() => setIsCollapsed(false)}
-                          size="sm"
-                          variant="plain"
-                        >
-                          {translate("alerts.showMoreAlerts", { count: alerts.length - 1 })}
-                        </Button>
-                      </Flex>
-                    ) : undefined}
-                  </Fragment>
-                ) : (
-                  <Accordion.ItemContent key={alert.text} pr={8}>
+        {firstAlert ? (
+          <Box data-testid="dashboard-alerts" order={1}>
+            <Box mb={2}>
+              <AlertContent alert={firstAlert} />
+            </Box>
+            {isCollapsed
+              ? undefined
+              : restAlerts.map((alert: UIAlert) => (
+                  <Box key={alert.text} mb={2}>
                     <AlertContent alert={alert} />
-                  </Accordion.ItemContent>
-                ),
-              )}
-            </Accordion.Item>
-          </Accordion.Root>
+                  </Box>
+                ))}
+            {hasMultipleAlerts ? (
+              <>
+                {isCollapsed ? (
+                  <Flex justifyContent="center" mb={2}>
+                    <Button
+                      _hover={{ textDecoration: "underline" }}
+                      color="fg.muted"
+                      onClick={() => setIsCollapsed(false)}
+                      size="sm"
+                      variant="plain"
+                    >
+                      {translate("alerts.showMoreAlerts", { count: restAlerts.length })}
+                    </Button>
+                  </Flex>
+                ) : undefined}
+                <Flex alignItems="center" gap={2}>
+                  <Separator flex="1" />
+                  <IconButton
+                    aria-label={
+                      isCollapsed
+                        ? `Show ${restAlerts.length} more alert${restAlerts.length === 1 ? "" : "s"}`
+                        : "Show fewer alerts"
+                    }
+                    onClick={() => setIsCollapsed((previous) => !previous)}
+                    size="xs"
+                    variant="ghost"
+                  >
+                    <LuChevronDown
+                      style={{
+                        transform: isCollapsed ? undefined : "rotate(180deg)",
+                        transition: "transform 0.2s",
+                      }}
+                    />
+                  </IconButton>
+                  <Separator flex="1" />
+                </Flex>
+              </>
+            ) : undefined}
+          </Box>
         ) : undefined}
         <Heading order={2} size="2xl">
           {typeof instanceName === "string" && instanceName !== "" && instanceName !== "Airflow"
