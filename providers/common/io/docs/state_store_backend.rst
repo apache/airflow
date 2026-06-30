@@ -38,8 +38,8 @@ Optionally set ``state_store_objectstorage_compression`` to an fsspec-supported 
 
 The following example stores all task and asset state in S3, compressed with gzip::
 
-      [state_store]
-      backend = airflow.providers.common.io.state_store.backend.StateStoreObjectStorageBackend
+      [workers]
+      state_store_backend = airflow.providers.common.io.state_store.backend.StateStoreObjectStorageBackend
 
       [common.io]
       state_store_objectstorage_path = s3://conn_id@mybucket/task-state/
@@ -47,8 +47,8 @@ The following example stores all task and asset state in S3, compressed with gzi
 
 To only offload values larger than 1 MB::
 
-      [state_store]
-      backend = airflow.providers.common.io.state_store.backend.StateStoreObjectStorageBackend
+      [workers]
+      state_store_backend = airflow.providers.common.io.state_store.backend.StateStoreObjectStorageBackend
 
       [common.io]
       state_store_objectstorage_path = s3://conn_id@mybucket/task-state/
@@ -56,8 +56,8 @@ To only offload values larger than 1 MB::
 
 Using the local filesystem (useful for development)::
 
-      [state_store]
-      backend = airflow.providers.common.io.state_store.backend.StateStoreObjectStorageBackend
+      [workers]
+      state_store_backend = airflow.providers.common.io.state_store.backend.StateStoreObjectStorageBackend
 
       [common.io]
       state_store_objectstorage_path = file:///var/airflow/task-state/
