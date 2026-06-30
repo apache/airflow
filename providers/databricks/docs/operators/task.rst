@@ -44,3 +44,30 @@ Running a SQL query in Databricks using DatabricksTaskOperator
     :language: python
     :start-after: [START howto_operator_databricks_task_sql]
     :end-before: [END howto_operator_databricks_task_sql]
+
+Configuring Databricks-native task retries
+-------------------------------------------
+
+Use ``max_retries``, ``min_retry_interval_millis`` and ``retry_on_timeout`` to configure
+`Databricks-native task retries <https://docs.databricks.com/api/workspace/jobs/create#tasks-max_retries>`_.
+Databricks reruns failed task attempts within the same job run, so Airflow sees only the final result.
+Set ``max_retries`` to ``-1`` to retry indefinitely, or ``0`` to disable retries.
+
+These settings are independent of the Airflow task-level ``retries`` parameter, which retries the
+whole Airflow task. You can set the same fields directly in ``task_config``. When both are set, the
+operator parameter takes precedence. If a field is unset, Databricks uses its default.
+
+Airflow ``retries`` behaves differently depending on where the operator runs. For a standalone
+operator, each retry submits a new Databricks run. Inside a
+:class:`~airflow.providers.databricks.operators.databricks_workflow.DatabricksWorkflowTaskGroup`,
+the Airflow task monitors a sub-run that was already submitted by the workflow launch task, so a
+retry only re-polls the terminal sub-run. Use ``max_retries`` to retry Databricks work inside a
+workflow task group.
+
+Inside a
+:class:`~airflow.providers.databricks.operators.databricks_workflow.DatabricksWorkflowTaskGroup`,
+a task that exhausts its Databricks-native retries is reported as failed only once the parent
+workflow run reaches a terminal state. Until then the Airflow task keeps waiting (or deferring),
+because Databricks may still launch a retry attempt under the same ``task_key`` and there is no
+per-task "retries exhausted" signal before the run terminates. Sibling tasks in the run continue
+independently.
