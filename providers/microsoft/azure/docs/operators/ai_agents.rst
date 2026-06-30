@@ -61,7 +61,7 @@ Optional agent fields such as ``metadata``, ``description``, ``blueprint_referen
 UpdateAzureAIAgentOperator
 --------------------------
 
-Hosted agent updates are published as new immutable versions. To create a new version, use the
+Azure AI Hosted agent updates are published as new immutable versions. To create a new version, use the
 :class:`~airflow.providers.microsoft.azure.operators.ai_agents.UpdateAzureAIAgentOperator`.
 The operator accepts the same ``metadata``, ``description``, and ``blueprint_reference`` fields
 documented by the update endpoint.
