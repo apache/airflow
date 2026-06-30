@@ -17,10 +17,16 @@
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, schema
+import logging
 
-from airflow.callbacks.callback_requests import DagSkippedIntervalsCallbackRequest  # noqa: SDK002
+from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, schema
+
+from airflow.dag_processing.processor import DagFileParseRequest  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import TIRunContext
+
+logger = logging.getLogger(__name__)
+
+_SKIPPED_INTERVALS_CALLBACK_TYPE = "DagSkippedIntervalsCallbackRequest"
 
 
 class AddArgBindingsToSupervisorTIRunContext(VersionChange):
@@ -42,7 +48,24 @@ class AddDagSkippedIntervalsCallbackRequest(VersionChange):
 
     description = __doc__
 
-    instructions_to_migrate_to_previous_version = (
-        schema(DagSkippedIntervalsCallbackRequest).field("dag_id").didnt_exist,
-        schema(DagSkippedIntervalsCallbackRequest).field("skipped_range").didnt_exist,
-    )
+    instructions_to_migrate_to_previous_version = ()
+
+    @convert_response_to_previous_version_for(DagFileParseRequest)  # type: ignore[arg-type]
+    def _drop_dag_skipped_intervals_callbacks(response: ResponseInfo) -> None:  # type: ignore[misc]
+        callbacks = response.body.get("callback_requests")
+        if not callbacks:
+            return
+
+        filtered: list[object] = []
+        for callback in callbacks:
+            if isinstance(callback, dict) and callback.get("type") == _SKIPPED_INTERVALS_CALLBACK_TYPE:
+                logger.info(
+                    "Dropping unsupported callback request for supervisor schema downgrade",
+                    extra={
+                        "callback_type": _SKIPPED_INTERVALS_CALLBACK_TYPE,
+                        "dag_id": callback.get("dag_id"),
+                    },
+                )
+                continue
+            filtered.append(callback)
+        response.body["callback_requests"] = filtered
