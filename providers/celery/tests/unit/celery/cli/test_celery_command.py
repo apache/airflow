@@ -45,6 +45,17 @@ from tests_common.test_utils.version_compat import (
 PY313 = sys.version_info >= (3, 13)
 
 
+@pytest.fixture(autouse=True)
+def _stub_worker_configure_logging():
+    # On Airflow 3.0+, worker() calls the real configure_logging(output=sys.stdout.buffer), leaking a
+    # handler onto pytest's captured stdout that raises "I/O operation on closed file" in later tests.
+    if not AIRFLOW_V_3_0_PLUS:
+        yield
+        return
+    with mock.patch("airflow.sdk.log.configure_logging"):
+        yield
+
+
 @pytest.fixture(autouse=False)
 def conf_stale_bundle_cleanup_disabled():
     with conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): "0"}):

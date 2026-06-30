@@ -120,6 +120,30 @@ class TestEdgeExecutor:
             assert jobs[0].task_id == "started_running_orphaned"
             assert jobs[0].state == TaskInstanceState.REMOVED
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name is only available in Airflow 3.2+")
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            ("team_a", {"team_name": "team_a"}),
+            (None, {}),
+        ],
+    )
+    @patch(f"{Stats.__module__}.Stats.timer")
+    def test_sync_duration_metric_tags_team_name(self, mock_stats_timer, team_name, expected_tags):
+        executor = EdgeExecutor(team_name=team_name)
+
+        with (
+            mock.patch.object(executor, "_update_orphaned_jobs", return_value=False),
+            mock.patch.object(executor, "_purge_jobs", return_value=False),
+            mock.patch.object(executor, "_check_worker_liveness", return_value=False),
+        ):
+            executor.sync(session=MagicMock())
+
+        mock_stats_timer.assert_called_once_with(
+            "edge_executor.sync.duration",
+            tags=expected_tags,
+        )
+
     @patch("airflow.providers.edge3.executors.edge_executor.EdgeExecutor.running_state")
     @patch("airflow.providers.edge3.executors.edge_executor.EdgeExecutor.success")
     @patch("airflow.providers.edge3.executors.edge_executor.EdgeExecutor.fail")
