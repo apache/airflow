@@ -22,6 +22,8 @@ import { LuPlug } from "react-icons/lu";
 import { usePluginServiceGetPlugins } from "openapi/queries";
 import type { ExternalViewResponse, ReactAppResponse } from "openapi/requests/types.gen";
 import { useColorMode } from "src/context/colorMode";
+import { usePluginAppliesToContext } from "src/hooks/usePluginAppliesToContext";
+import { isAppliesToPending, matchesAppliesTo } from "src/utils/pluginAppliesTo";
 
 type TabPlugin = {
   icon: ReactNode;
@@ -32,6 +34,7 @@ type TabPlugin = {
 export const usePluginTabs = (destination: string): Array<TabPlugin> => {
   const { colorMode } = useColorMode();
   const { data: pluginData } = usePluginServiceGetPlugins();
+  const appliesToContext = usePluginAppliesToContext();
 
   // Get external views with the specified destination and ensure they have url_route
   const externalViews =
@@ -39,7 +42,10 @@ export const usePluginTabs = (destination: string): Array<TabPlugin> => {
       .flatMap((plugin) => [...plugin.external_views, ...plugin.react_apps])
       .filter(
         (view: ExternalViewResponse | ReactAppResponse) =>
-          view.destination === destination && Boolean(view.url_route),
+          view.destination === destination &&
+          Boolean(view.url_route) &&
+          !isAppliesToPending(view, appliesToContext) &&
+          matchesAppliesTo(view, appliesToContext),
       ) ?? [];
 
   return externalViews.map((view) => {

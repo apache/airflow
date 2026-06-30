@@ -258,6 +258,12 @@ definitions in Airflow.
         # are still grouped into the submenu; a single remaining non-promoted item is also shown on the toolbar.
         # Defaults to False.
         "nav_top_level": True,
+        # Optional scoping, limiting where this view is shown. Omit it entirely to show the view
+        # everywhere (the default). See "Scoping a view to specific Dags and tasks" below.
+        "applies_to": {
+            "dag_tags": ["production", "ml"],
+            "dag_ids": ["my_dag", "my_other_dag"],
+        },
     }
 
     # Note: The React app integration is experimental and interfaces might change in future versions.
@@ -288,6 +294,12 @@ definitions in Airflow.
         # are still grouped into the submenu; a single remaining non-promoted item is also shown on the toolbar.
         # Defaults to False.
         "nav_top_level": True,
+        # Optional scoping, limiting where this app is shown. Omit it entirely to show the app
+        # everywhere (the default). See "Scoping a view to specific Dags and tasks" below.
+        "applies_to": {
+            "dag_tags": ["production", "ml"],
+            "operators": ["KubernetesPodOperator"],
+        },
     }
 
 
@@ -301,6 +313,59 @@ definitions in Airflow.
         react_apps = [react_app_with_metadata]
 
 .. seealso:: :doc:`/howto/define-extra-link`
+
+Scoping a view to specific Dags and tasks
+-----------------------------------------
+
+By default an external view or React app is shown on every page matching its ``destination``.
+The optional ``applies_to`` block narrows that down, so a tab is only offered where it is
+relevant instead of appearing on every Dag:
+
+.. code-block:: python
+
+    "applies_to": {
+        "dag_tags": ["ml"],  # Dag carries any of these tags
+        "dag_ids": ["train_pipeline"],  # exact dag_id
+        "task_ids": ["train_model"],  # exact task_id
+        "operators": ["KubernetesPodOperator"],  # the task's operator
+    }
+
+All four keys are optional. ``operators`` matches either the operator class name or its
+display name (``custom_operator_name``).
+
+Criteria combine like Kubernetes label selectors — **OR within a key, AND across keys**. A
+Dag matching any listed tag satisfies ``dag_tags``, and a view configured with both
+``dag_tags`` and ``operators`` requires both to match.
+
+Crucially, the AND applies **only across criteria the current page can evaluate**. A
+``task_ids`` criterion cannot be judged on a Dag-level page, so it is skipped there rather
+than failing the match. This lets one ``applies_to`` block be shared by a plugin's Dag- and
+task-level destinations. Which criteria each destination can evaluate:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Destination
+     - ``dag_tags`` / ``dag_ids``
+     - ``task_ids`` / ``operators``
+   * - ``dag``, ``dag_run``, ``dag_overview``
+     - evaluated
+     - skipped
+   * - ``task``, ``task_overview``, ``task_instance``
+     - evaluated
+     - evaluated
+   * - ``nav``, ``base``, ``dashboard``, ``asset``
+     - skipped
+     - skipped
+
+If none of the configured criteria can be evaluated on a given page, the view is shown. On
+task group pages ``task_ids`` and ``operators`` are skipped, since a group is not a task.
+
+.. note::
+    ``applies_to`` is a display convenience, not an authorization boundary. It controls
+    whether the UI offers the tab, not whether the underlying view can be reached — a user
+    who knows the ``url_route`` can still navigate to it directly. Use access control to
+    restrict who may view a plugin's data.
 
 React app context props
 -----------------------
