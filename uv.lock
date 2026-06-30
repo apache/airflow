@@ -968,7 +968,7 @@ wheels = [
 
 [[package]]
 name = "apache-airflow"
-version = "3.3.0"
+version = "3.4.0"
 source = { editable = "." }
 dependencies = [
     { name = "apache-airflow-core" },
@@ -1911,7 +1911,7 @@ requires-dist = [
 
 [[package]]
 name = "apache-airflow-core"
-version = "3.3.0"
+version = "3.4.0"
 source = { editable = "airflow-core" }
 dependencies = [
     { name = "a2wsgi" },
