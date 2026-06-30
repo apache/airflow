@@ -27,6 +27,7 @@ from airflow.sdk.configuration import conf, retrieve_configuration_description
 from airflow.sdk.execution_time.coordinator import (
     BaseCoordinator,
     CoordinatorManager,
+    InvalidCoordinatorError,
     _PythonCoordinator,
     get_coordinator_manager,
     reset_coordinator_manager,
@@ -115,6 +116,57 @@ class TestCoordinatorManager:
         manager = CoordinatorManager.from_config()
         assert manager._coordinator_specs == {}
         assert manager._queue_to_coordinator == {}
+
+    def test_from_config_rejects_invalid_queue_mapping(self, sdk_config):
+        sdk_config(
+            coordinators=json.dumps(
+                {"alpha": {"classpath": f"{_CoordinatorA.__module__}._CoordinatorA", "kwargs": {}}}
+            ),
+            queue_to_coordinator=json.dumps({"queue-x": "nonexistent"}),
+        )
+        with pytest.raises(
+            ValueError,
+            match=r"queue_to_coordinator references invalid coordinator key: 'nonexistent'",
+        ):
+            CoordinatorManager.from_config()
+
+    @pytest.mark.parametrize(
+        ("coordinator_spec", "expected_match"),
+        [
+            pytest.param(
+                {"classpath": "nonexistent.module.MissingCoordinator", "kwargs": {}},
+                r"Cannot import coordinator 'bad-coord'",
+                id="classpath-cannot-be-imported",
+            ),
+            pytest.param(
+                {
+                    "classpath": f"{_CoordinatorA.__module__}._CoordinatorA",
+                    "kwargs": {"unknown_param": "x"},
+                },
+                r"Cannot instantiate coordinator 'bad-coord'",
+                id="kwargs-dont-match-constructor",
+            ),
+        ],
+    )
+    def test_for_queue_raises_invalid_coordinator_error(self, sdk_config, coordinator_spec, expected_match):
+        sdk_config(
+            coordinators=json.dumps({"bad-coord": coordinator_spec}),
+            queue_to_coordinator=json.dumps({"queue-bad": "bad-coord"}),
+        )
+        manager = CoordinatorManager.from_config()
+        with pytest.raises(InvalidCoordinatorError, match=expected_match):
+            manager.for_queue("queue-bad")
+
+    def test_for_queue_raises_when_spec_missing(self):
+        manager = CoordinatorManager(
+            coordinator_specs={},
+            queue_to_coordinator={"queue-bad": "missing"},
+        )
+        with pytest.raises(
+            InvalidCoordinatorError,
+            match=r"Queue 'queue-bad' configured to nonexistent coordinator",
+        ):
+            manager.for_queue("queue-bad")
 
     def test_get_coordinator_manager_is_cached(self, monkeypatch):
         monkeypatch.delenv("AIRFLOW__SDK__COORDINATORS", raising=False)
