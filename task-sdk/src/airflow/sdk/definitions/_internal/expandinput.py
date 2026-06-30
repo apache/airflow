@@ -93,10 +93,7 @@ def count(expand_input: ExpandInput, iterable: Iterable[Any]) -> Iterable[Any]:
 @attrs.define()
 class ExpandInput(ABC, ResolveMixin):
     EXPAND_INPUT_TYPE: ClassVar[str]
-    _length: int | None
-
-    def __attrs_post_init__(self):
-        self._length = None
+    _length: int | None = attrs.field(init=False, default=None)
 
     @property
     @abstractmethod
