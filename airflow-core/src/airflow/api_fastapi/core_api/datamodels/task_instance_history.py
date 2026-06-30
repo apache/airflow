@@ -27,6 +27,7 @@ from pydantic import (
 
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
+from airflow.api_fastapi.core_api.datamodels.task_instances import stringify_executor_config
 from airflow.utils.state import TaskInstanceState
 
 
@@ -60,7 +61,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     scheduled_dttm: datetime | None = Field(alias="scheduled_when")
     pid: int | None
     executor: str | None
-    executor_config: Annotated[str, BeforeValidator(str)]
+    executor_config: Annotated[str, BeforeValidator(stringify_executor_config)]
     dag_version: DagVersionResponse | None
 
 

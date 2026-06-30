@@ -2790,6 +2790,22 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 },
             }
 
+    def test_should_respond_200_when_mapped_try_executor_config_is_null(self, test_client, session):
+        ti = self.create_task_instances(
+            session,
+            task_instances=[{"map_index": 0, "state": State.SUCCESS}],
+            update_extras=True,
+        )[0]
+        ti.executor_config = None
+        session.commit()
+
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/0/tries/0",
+        )
+
+        assert response.status_code == 200
+        assert response.json()["executor_config"] == "{}"
+
     def test_should_respond_200_with_task_state_in_deferred(self, test_client, session):
         now = pendulum.now("UTC")
         ti = self.create_task_instances(
