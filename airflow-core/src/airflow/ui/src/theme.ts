@@ -40,7 +40,7 @@ const generateSemanticTokens = (color: string, darkContrast: string = "white") =
   focusRing: { value: { _light: `{colors.${color}.800}`, _dark: `{colors.${color}.200}` } },
 });
 
-export const defaultAirflowTheme: ThemingConfig = {
+const defaultAirflowTheme: ThemingConfig = {
   // See https://chakra-ui.com/docs/theming/colors for more information on the colors used here.
   tokens: {
     colors: {
@@ -384,7 +384,7 @@ export const defaultAirflowTheme: ThemingConfig = {
       slots: [],
       base: {
         control: {
-          borderColor: { _dark: "border.emphasized", _light: "transparent" },
+          borderColor: "border.emphasized",
           borderWidth: "1px",
           _checked: {
             borderColor: "colorPalette.solid",

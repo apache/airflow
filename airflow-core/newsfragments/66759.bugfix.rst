@@ -1,1 +1,0 @@
-Improve dark-mode switch contrast for Dag toggles.
