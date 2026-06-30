@@ -148,6 +148,11 @@ class KubernetesExecutor(BaseExecutor):
         # Per-key state for requeuing pods that fail before the task process starts (job spec,
         # requeue count, and the pod a requeue was last issued for), so the failure is never
         # observed by the scheduler and no task-level retry is consumed.
+        # Intentionally in-memory and not persisted (like task_publish_retries): if this scheduler
+        # dies the state is lost, and adoption by another scheduler is a safe no-op for it -- an
+        # adopted pod has no entry here, so a pre-execution failure falls through to a normal fail
+        # instead of requeuing. The orphaned task instance itself is still recovered by the
+        # scheduler's adopt_or_reset_orphaned_tasks(), which re-queues it with a fresh attempt.
         self.pod_launch_attempts: dict[TaskInstanceKey, _PodLaunchAttempt] = {}
         self.completed: dict[tuple[str, str], KubernetesResults] = {}
         self.create_pods_after: datetime | None = None
