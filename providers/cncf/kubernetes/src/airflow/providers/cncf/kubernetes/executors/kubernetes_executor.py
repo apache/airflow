@@ -31,6 +31,7 @@ import multiprocessing
 import time
 from collections import Counter, defaultdict
 from contextlib import suppress
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any
@@ -74,6 +75,20 @@ if TYPE_CHECKING:
     )
 
 
+@dataclass
+class _PodLaunchAttempt:
+    """
+    Executor-side requeue state for a task whose worker pod may fail before the task process starts.
+
+    ``requeued_for_pod`` records the pod a requeue was last issued for, so the duplicate
+    ``Failed`` events Kubernetes can emit for a single pod don't each trigger another requeue.
+    """
+
+    job: KubernetesJob
+    attempts: int = 0
+    requeued_for_pod: str | None = None
+
+
 class KubernetesExecutor(BaseExecutor):
     """Executor for Kubernetes."""
 
@@ -114,7 +129,6 @@ class KubernetesExecutor(BaseExecutor):
         self.task_publish_max_retries = self.conf.getint(
             "kubernetes_executor", "task_publish_max_retries", fallback=0
         )
-        self.pod_launch_failure_attempts: Counter[TaskInstanceKey] = Counter()
         self.pod_launch_failure_max_retries = self.conf.getint(
             "kubernetes_executor", "pod_launch_failure_retries", fallback=1
         )
@@ -124,9 +138,10 @@ class KubernetesExecutor(BaseExecutor):
         self.pod_launch_failure_excluded_container_reasons = frozenset(
             reason.strip() for reason in excluded_reasons.split(",") if reason.strip()
         )
-        # Job specs are retained by key so a pod that fails before the task process starts can be
-        # requeued without the scheduler observing the failure or consuming a task-level retry.
-        self.last_known_jobs: dict[TaskInstanceKey, KubernetesJob] = {}
+        # Per-key state for requeuing pods that fail before the task process starts (job spec,
+        # requeue count, and the pod a requeue was last issued for), so the failure is never
+        # observed by the scheduler and no task-level retry is consumed.
+        self.pod_launch_attempts: dict[TaskInstanceKey, _PodLaunchAttempt] = {}
         self.completed: dict[tuple[str, str], KubernetesResults] = {}
         self.create_pods_after: datetime | None = None
 
@@ -319,7 +334,7 @@ class KubernetesExecutor(BaseExecutor):
 
         self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
         job = KubernetesJob(key, command, kube_executor_config, pod_template_file, coordinator_kube_image)
-        self.last_known_jobs[key] = job
+        self.pod_launch_attempts[key] = _PodLaunchAttempt(job=job)
         self.task_queue.put(job)
 
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
@@ -559,7 +574,7 @@ class KubernetesExecutor(BaseExecutor):
         if state == ADOPTED:
             # When the task pod is adopted by another executor,
             # then remove the task from the current executor running queue.
-            self.last_known_jobs.pop(key, None)
+            self.pod_launch_attempts.pop(key, None)
             try:
                 self.running.remove(key)
             except KeyError:
@@ -567,9 +582,6 @@ class KubernetesExecutor(BaseExecutor):
             return
 
         if state == TaskInstanceState.RUNNING:
-            # The task process started, so any later failure is an execution failure that should
-            # not be requeued by the pre-execution path below.
-            self.last_known_jobs.pop(key, None)
             self.event_buffer[key] = state, None
             return
 
@@ -586,36 +598,49 @@ class KubernetesExecutor(BaseExecutor):
             self.kube_scheduler.patch_pod_executor_done(pod_name=pod_name, namespace=namespace)
             self.log.info("Patched pod %s in namespace %s to mark it as done", key, namespace)
 
-        if state == TaskInstanceState.FAILED and self._is_pre_execution_failure(
-            state,
-            self._get_task_instance_state(key, session=session),
-            failure_details,
-            self.pod_launch_failure_excluded_container_reasons,
-        ):
-            attempts = self.pod_launch_failure_attempts[key]
-            job = self.last_known_jobs.get(key)
-            can_requeue = (
-                self.pod_launch_failure_max_retries == -1 or attempts < self.pod_launch_failure_max_retries
+        if (
+            state == TaskInstanceState.FAILED
+            and self.pod_launch_failure_max_retries != 0
+            and self._is_pre_execution_failure(
+                state,
+                self._get_task_instance_state(key, session=session),
+                failure_details,
+                self.pod_launch_failure_excluded_container_reasons,
             )
-            if can_requeue and job is not None:
-                self.pod_launch_failure_attempts[key] = attempts + 1
-                self.log.warning(
-                    "[Try %s of %s] Pod %s/%s for task %s failed before the task process started "
-                    "(container_reason: %s). Requeuing without consuming a task retry.",
-                    attempts + 1,
-                    self.pod_launch_failure_max_retries,
-                    namespace,
-                    pod_name,
-                    key,
-                    failure_details.get("container_reason") if failure_details else None,
-                )
-                # Leave the key in self.running and do not write to event_buffer: the scheduler
-                # never observes this failure, so no task-level retry is consumed.
-                self.task_queue.put(job)
-                return
+        ):
+            attempt = self.pod_launch_attempts.get(key)
+            if attempt is not None:
+                if attempt.requeued_for_pod == pod_name:
+                    # Kubernetes can emit several Failed events for one pod; we already requeued
+                    # for this one, so ignore the duplicates instead of requeuing again.
+                    self.log.debug(
+                        "Ignoring duplicate pre-execution failure for already-requeued pod %s/%s",
+                        namespace,
+                        pod_name,
+                    )
+                    return
+                if (
+                    self.pod_launch_failure_max_retries == -1
+                    or attempt.attempts < self.pod_launch_failure_max_retries
+                ):
+                    attempt.attempts += 1
+                    attempt.requeued_for_pod = pod_name
+                    self.log.warning(
+                        "[Try %s of %s] Pod %s/%s for task %s failed before the task process started "
+                        "(container_reason: %s). Requeuing without consuming a task retry.",
+                        attempt.attempts,
+                        self.pod_launch_failure_max_retries,
+                        namespace,
+                        pod_name,
+                        key,
+                        failure_details.get("container_reason") if failure_details else None,
+                    )
+                    # Leave the key in self.running and do not write to event_buffer: the scheduler
+                    # never observes this failure, so no task-level retry is consumed.
+                    self.task_queue.put(attempt.job)
+                    return
 
-        self.last_known_jobs.pop(key, None)
-        self.pod_launch_failure_attempts.pop(key, None)
+        self.pod_launch_attempts.pop(key, None)
 
         try:
             self.running.remove(key)

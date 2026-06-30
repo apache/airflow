@@ -474,8 +474,16 @@ config:
           failed before the task process started running (for example a node drain, autoscaler
           scale-down, node boot race, or transient image pull failure). The task instance is
           still in ``queued`` state in these cases, meaning no task code ran, so requeuing does
-          not consume a task-level retry. Set to 0 to disable and fail such tasks immediately.
-          -1 for unlimited times.
+          not consume a task-level retry.
+
+          This changes the previous default behavior: such tasks are now requeued once before
+          failing instead of failing on the first pod failure. Set this to 0 to restore the
+          previous behavior (fail immediately, no requeue).
+
+          Use -1 for unlimited requeues, but with caution: a pod that fails on every launch
+          (for example a misconfigured image that can never be pulled) will be requeued forever,
+          and with the default ``delete_worker_pods_on_failure = False`` the failed pods are not
+          cleaned up, so they accumulate.
         version_added: 10.19.0
         type: integer
         example: ~

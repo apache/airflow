@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+.. note::
+   The ``KubernetesExecutor`` now transparently requeues a worker pod that fails *before* the
+   task process starts (node drain, autoscaler scale-down, node boot race, transient image pull
+   failure, etc.) instead of failing the task on the first pod failure. This is a change in
+   default behavior, controlled by the new ``[kubernetes_executor] pod_launch_failure_retries``
+   option (default ``1``); requeues do not consume a task-level retry. Set it to ``0`` to restore
+   the previous behavior of failing immediately. Avoid ``-1`` (unlimited) with a pod that fails on
+   every launch, as the failed pods are not cleaned up under the default
+   ``delete_worker_pods_on_failure = False`` and will accumulate. The companion
+   ``pod_launch_failure_excluded_container_reasons`` option (default ``Error``) lists container
+   reasons that are excluded from the requeue path.
+
 10.18.1
 .......
 

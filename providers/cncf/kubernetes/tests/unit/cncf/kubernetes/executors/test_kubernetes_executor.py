@@ -36,6 +36,7 @@ from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
     KubernetesExecutor,
     PodReconciliationError,
+    _PodLaunchAttempt,
 )
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
@@ -1299,7 +1300,7 @@ class TestKubernetesExecutor:
             key = ti.key
             job = KubernetesJob(key, ["airflow", "tasks", "run"], None, None)
             executor.running = {key}
-            executor.last_known_jobs = {key: job}
+            executor.pod_launch_attempts = {key: _PodLaunchAttempt(job=job)}
             results = KubernetesResults(
                 key,
                 State.FAILED,
@@ -1311,12 +1312,12 @@ class TestKubernetesExecutor:
             executor._change_state(results)
 
             # Requeued (job re-put on the queue): the key stays in running, no
-            # failure is reported, and the attempt counter is incremented. These
-            # together are reached only via the requeue branch.
-            assert executor.pod_launch_failure_attempts[key] == 1
+            # failure is reported, and the attempt is recorded. These together
+            # are reached only via the requeue branch.
+            assert executor.pod_launch_attempts[key].attempts == 1
+            assert executor.pod_launch_attempts[key].requeued_for_pod == "pod_name"
             assert key in executor.running
             assert key not in executor.event_buffer
-            assert key in executor.last_known_jobs
         finally:
             executor.end()
 
@@ -1335,8 +1336,10 @@ class TestKubernetesExecutor:
             key = ti.key
             job = KubernetesJob(key, ["airflow", "tasks", "run"], None, None)
             executor.running = {key}
-            executor.last_known_jobs = {key: job}
-            executor.pod_launch_failure_attempts[key] = 1
+            # Already requeued once (for a different pod); budget is now spent.
+            executor.pod_launch_attempts = {
+                key: _PodLaunchAttempt(job=job, attempts=1, requeued_for_pod="earlier_pod")
+            }
             results = KubernetesResults(
                 key,
                 State.FAILED,
@@ -1349,8 +1352,7 @@ class TestKubernetesExecutor:
 
             assert executor.event_buffer[key][0] == State.FAILED
             assert key not in executor.running
-            assert key not in executor.last_known_jobs
-            assert key not in executor.pod_launch_failure_attempts
+            assert key not in executor.pod_launch_attempts
         finally:
             executor.end()
 
@@ -1367,7 +1369,9 @@ class TestKubernetesExecutor:
             ti = create_task_instance(state=TaskInstanceState.QUEUED)
             key = ti.key
             executor.running = {key}
-            executor.last_known_jobs = {key: KubernetesJob(key, ["airflow"], None, None)}
+            executor.pod_launch_attempts = {
+                key: _PodLaunchAttempt(job=KubernetesJob(key, ["airflow"], None, None))
+            }
             results = KubernetesResults(
                 key,
                 State.FAILED,
@@ -1396,7 +1400,7 @@ class TestKubernetesExecutor:
             ti = create_task_instance(state=TaskInstanceState.QUEUED)
             key = ti.key
             executor.running = {key}
-            executor.last_known_jobs = {}
+            executor.pod_launch_attempts = {}
             results = KubernetesResults(
                 key,
                 State.FAILED,
@@ -1409,6 +1413,83 @@ class TestKubernetesExecutor:
 
             assert executor.event_buffer[key][0] == State.FAILED
             assert key not in executor.running
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_change_state_pre_execution_failure_disabled_skips_lookup(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, create_task_instance
+    ):
+        """With pod_launch_failure_retries=0 the task fails immediately and the TI-state lookup is skipped."""
+        executor = self.kubernetes_executor
+        executor.pod_launch_failure_max_retries = 0
+        executor.start()
+        try:
+            ti = create_task_instance(state=TaskInstanceState.QUEUED)
+            key = ti.key
+            executor.running = {key}
+            executor.pod_launch_attempts = {
+                key: _PodLaunchAttempt(job=KubernetesJob(key, ["airflow"], None, None))
+            }
+            results = KubernetesResults(
+                key,
+                State.FAILED,
+                "pod_name",
+                "default",
+                "resource_version",
+                {"container_reason": "ContainerStatusUnknown"},
+            )
+            with mock.patch.object(executor, "_get_task_instance_state") as mock_lookup:
+                executor._change_state(results)
+
+            mock_lookup.assert_not_called()
+            assert executor.event_buffer[key][0] == State.FAILED
+            assert key not in executor.running
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_change_state_pre_execution_failure_dedupes_repeated_events(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, create_task_instance
+    ):
+        """Repeated Failed events for one pod requeue once; a new pod requeues again."""
+        executor = self.kubernetes_executor
+        executor.pod_launch_failure_max_retries = 5
+        executor.start()
+        try:
+            ti = create_task_instance(state=TaskInstanceState.QUEUED)
+            key = ti.key
+            job = KubernetesJob(key, ["airflow", "tasks", "run"], None, None)
+            executor.running = {key}
+            executor.pod_launch_attempts = {key: _PodLaunchAttempt(job=job)}
+
+            def _failed(pod_name):
+                return KubernetesResults(
+                    key,
+                    State.FAILED,
+                    pod_name,
+                    "default",
+                    "rv",
+                    {"container_reason": "ContainerStatusUnknown"},
+                )
+
+            # Three Failed events for the same pod -> a single requeue.
+            executor._change_state(_failed("pod_a"))
+            executor._change_state(_failed("pod_a"))
+            executor._change_state(_failed("pod_a"))
+            assert executor.pod_launch_attempts[key].attempts == 1
+            assert executor.pod_launch_attempts[key].requeued_for_pod == "pod_a"
+
+            # A failure of the requeued (distinct) pod requeues again.
+            executor._change_state(_failed("pod_b"))
+            assert executor.pod_launch_attempts[key].attempts == 2
+            assert executor.pod_launch_attempts[key].requeued_for_pod == "pod_b"
+            assert key in executor.running
+            assert key not in executor.event_buffer
         finally:
             executor.end()
 
@@ -1426,8 +1507,8 @@ class TestKubernetesExecutor:
                 command=["airflow", "tasks", "run", "true", "some_parameter"],
                 executor_config=None,
             )
-            assert key in executor.last_known_jobs
-            assert executor.last_known_jobs[key].key == key
+            assert key in executor.pod_launch_attempts
+            assert executor.pod_launch_attempts[key].job.key == key
         finally:
             executor.end()
 
