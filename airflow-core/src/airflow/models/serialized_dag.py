@@ -58,6 +58,7 @@ from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.orm.attributes import InstrumentedAttribute
+    from sqlalchemy.sql import Select
     from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.serialization.definitions.dag import SerializedDAG
@@ -375,6 +376,7 @@ class SerializedDagModel(Base):
         # bundle_path and relative fileloc more correctly determines the
         # dag file location.
         data_["dag"].pop("fileloc", None)
+        data_["dag"].pop("bundle_name", None)
         data_json = json.dumps(data_, sort_keys=True).encode("utf-8")
         return md5(data_json).hexdigest()
 
@@ -544,15 +546,18 @@ class SerializedDagModel(Base):
         if not dag_id_list:
             return {}
 
-        # Fetch latest serialized_dag (last_updated, dag_hash) per dag_id
-        # using a window function to pick the most recent row.
+        # Fetch the serialized_dag (last_updated, dag_hash) of the latest DagVersion per dag_id,
+        # ordering by version_number so it stays consistent with the DagVersion picked by dv_subq.
         sd_subq = (
             select(
                 cls.dag_id.label("dag_id"),
                 cls.last_updated.label("last_updated"),
                 cls.dag_hash.label("dag_hash"),
-                func.row_number().over(partition_by=cls.dag_id, order_by=cls.created_at.desc()).label("rn"),
+                func.row_number()
+                .over(partition_by=cls.dag_id, order_by=DagVersion.version_number.desc())
+                .label("rn"),
             )
+            .join(DagVersion, cls.dag_version_id == DagVersion.id)
             .where(cls.dag_id.in_(dag_id_list))
             .subquery()
         )
@@ -563,14 +568,13 @@ class SerializedDagModel(Base):
             row.dag_id: (row.last_updated, row.dag_hash) for row in sd_rows
         }
 
-        # Fetch latest DagVersion per dag_id using a window function,
-        # matching the original write_dag ordering (ORDER BY created_at DESC).
+        # Fetch latest DagVersion per dag_id, ordering by version_number to match write_dag.
         dv_subq = (
             select(
                 DagVersion.id.label("id"),
                 DagVersion.dag_id.label("dag_id"),
                 func.row_number()
-                .over(partition_by=DagVersion.dag_id, order_by=DagVersion.created_at.desc())
+                .over(partition_by=DagVersion.dag_id, order_by=DagVersion.version_number.desc())
                 .label("rn"),
             )
             .where(DagVersion.dag_id.in_(dag_id_list))
@@ -687,9 +691,21 @@ class SerializedDagModel(Base):
             and dag_version
             and dag_version.bundle_name == bundle_name
         ):
-            if name_updated:
-                # The serialized DAG itself is unchanged, but deadline alert name(s) were
-                # updated in the DB, so report True so callers know a write did occur.
+            # Serialized content is unchanged, so we don't create a new DagVersion.
+            # But if the bundle advanced, refresh the latest version's pointer in place — tasks resolve
+            # their code from ``ti.dag_version.bundle_version`` at run time, so a stale
+            # pointer makes runs execute an outdated commit.
+            bundle_metadata_changed = (
+                dag_version.bundle_version != bundle_version or dag_version.version_data != version_data
+            )
+            if bundle_metadata_changed:
+                dag_version.bundle_version = bundle_version
+                dag_version.version_data = version_data
+                session.merge(dag_version)
+                DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
+            if name_updated or bundle_metadata_changed:
+                # A write occurred — a deadline alert name update and/or a bundle
+                # metadata refresh — so report True so callers know the DB changed.
                 return True
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return False
@@ -768,14 +784,55 @@ class SerializedDagModel(Base):
     def latest_item_select_object(cls, dag_id):
         from airflow.settings import engine
 
+        # Order by the version's version_number (monotonic, unique per dag_id), not created_at,
+        # so the latest serialized DAG is picked deterministically even when two versions share a
+        # created_at timestamp.
         if engine.dialect.name == "mysql":
             # Prevent "Out of sort memory" caused by large values in cls.data column for MySQL.
             # Details in https://github.com/apache/airflow/pull/55589
             latest_item_id = (
-                select(cls.id).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
+                select(cls.id)
+                .join(DagVersion, cls.dag_version_id == DagVersion.id)
+                .where(cls.dag_id == dag_id)
+                .order_by(DagVersion.version_number.desc())
+                .limit(1)
             )
             return select(cls).where(cls.id == latest_item_id)
-        return select(cls).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
+        return (
+            select(cls)
+            .join(DagVersion, cls.dag_version_id == DagVersion.id)
+            .where(cls.dag_id == dag_id)
+            .order_by(DagVersion.version_number.desc())
+            .limit(1)
+        )
+
+    @classmethod
+    def _latest_by_version_select(cls, dag_ids: list[str] | None = None) -> Select:
+        """
+        Select the serialized DAG with the highest ``version_number`` per dag_id.
+
+        Ordering by ``version_number`` (monotonic and unique per dag_id) is deterministic and,
+        unlike ``max(created_at)``, never returns two rows for a dag_id when versions share a
+        ``created_at`` timestamp.
+
+        :param dag_ids: If given, restrict to these dag_ids; otherwise cover all dags.
+        """
+        max_version_query = select(
+            DagVersion.dag_id, func.max(DagVersion.version_number).label("max_version")
+        ).join(cls, cls.dag_version_id == DagVersion.id)
+        if dag_ids is not None:
+            max_version_query = max_version_query.where(DagVersion.dag_id.in_(dag_ids))
+        max_version_subquery = max_version_query.group_by(DagVersion.dag_id).subquery()
+
+        return (
+            select(cls)
+            .join(DagVersion, cls.dag_version_id == DagVersion.id)
+            .join(
+                max_version_subquery,
+                (DagVersion.dag_id == max_version_subquery.c.dag_id)
+                & (DagVersion.version_number == max_version_subquery.c.max_version),
+            )
+        )
 
     @classmethod
     @provide_session
@@ -789,21 +846,7 @@ class SerializedDagModel(Base):
         :param session: The database session.
         :return: The latest serialized dag of the DAGs.
         """
-        # Subquery to get the latest serdag per dag_id
-        latest_serdag_subquery = (
-            select(cls.dag_id, func.max(cls.created_at).label("created_at"))
-            .where(cls.dag_id.in_(dag_ids))
-            .group_by(cls.dag_id)
-            .subquery()
-        )
-        latest_serdags = session.scalars(
-            select(cls)
-            .join(
-                latest_serdag_subquery,
-                cls.created_at == latest_serdag_subquery.c.created_at,
-            )
-            .where(cls.dag_id.in_(dag_ids))
-        ).all()
+        latest_serdags = session.scalars(cls._latest_by_version_select(dag_ids)).all()
         return latest_serdags or []
 
     @classmethod
@@ -815,16 +858,7 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         :returns: a dict of DAGs read from database
         """
-        latest_serialized_dag_subquery = (
-            select(cls.dag_id, func.max(cls.created_at).label("max_created")).group_by(cls.dag_id).subquery()
-        )
-        serialized_dags = session.scalars(
-            select(cls).join(
-                latest_serialized_dag_subquery,
-                (cls.dag_id == latest_serialized_dag_subquery.c.dag_id)
-                and (cls.created_at == latest_serialized_dag_subquery.c.max_created),
-            )
-        )
+        serialized_dags = session.scalars(cls._latest_by_version_select())
 
         dags = {}
         for row in serialized_dags:

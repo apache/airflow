@@ -644,9 +644,9 @@ class DagModelOperation(NamedTuple):
             dm.bundle_name = self.bundle_name
             dm.bundle_version = self.bundle_version
 
-            last_automated_run: DagRun | None = run_info.latest_run
+            reference_run: DagRun | None = run_info.latest_run
             dm.exceeds_max_non_backfill = run_info.num_active_runs >= dm.max_active_runs
-            dm.calculate_dagrun_date_fields(dag, last_automated_run=last_automated_run)
+            dm.calculate_dagrun_date_fields(dag, reference_run=reference_run)
             if not dag.timetable.asset_condition:
                 dm.schedule_asset_references = []
                 dm.schedule_asset_alias_references = []

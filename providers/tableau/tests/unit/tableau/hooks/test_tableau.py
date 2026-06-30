@@ -122,8 +122,8 @@ class TestTableauHook:
             )
         )
 
-    @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
-    @patch("airflow.providers.tableau.hooks.tableau.Server")
+    @patch("tableauserverclient.TableauAuth")
+    @patch("tableauserverclient.Server")
     def test_get_conn_auth_via_password_and_site_in_connection(self, mock_server, mock_tableau_auth):
         """
         Test get conn auth via password
@@ -138,8 +138,8 @@ class TestTableauHook:
             mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_auth.return_value)
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
-    @patch("airflow.providers.tableau.hooks.tableau.JWTAuth")
-    @patch("airflow.providers.tableau.hooks.tableau.Server")
+    @patch("tableauserverclient.JWTAuth")
+    @patch("tableauserverclient.Server")
     def test_jwt_auth(self, mock_server, mock_tableau_jwt_auth):
         """
         Test get conn using JWT authentication via a token string
@@ -153,8 +153,8 @@ class TestTableauHook:
             mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_jwt_auth.return_value)
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
-    @patch("airflow.providers.tableau.hooks.tableau.JWTAuth")
-    @patch("airflow.providers.tableau.hooks.tableau.Server")
+    @patch("tableauserverclient.JWTAuth")
+    @patch("tableauserverclient.Server")
     def test_jwt_auth_with_ssl(self, mock_server, mock_tableau_jwt_auth):
         """
         Test get conn using JWT authentication via a token string and ssl
@@ -186,7 +186,7 @@ class TestTableauHook:
         ):
             TableauHook(tableau_conn_id="tableau_test_jwt_auth_no_token").get_conn()
 
-    @patch("airflow.providers.tableau.hooks.tableau.JWTAuth")
+    @patch("tableauserverclient.JWTAuth")
     def test_jwt_auth_with_two_tokens_provided(self, mock_tableau_jwt_auth, create_connection_without_db):
         """
         Test get conn using JWT authentication while providing both a string token and a path
@@ -215,8 +215,8 @@ class TestTableauHook:
             TableauHook(tableau_conn_id="tableau_test_jwt_file_auth_two_tokens").get_conn()
         mock_tableau_jwt_auth.assert_not_called()
 
-    @patch("airflow.providers.tableau.hooks.tableau.JWTAuth")
-    @patch("airflow.providers.tableau.hooks.tableau.Server")
+    @patch("tableauserverclient.JWTAuth")
+    @patch("tableauserverclient.Server")
     def test_jwt_auth_from_file(self, mock_server, mock_tableau_jwt_auth, create_connection_without_db):
         """
         Test get conn using JWT token read from file
@@ -246,7 +246,7 @@ class TestTableauHook:
             mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_jwt_auth.return_value)
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
-    @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
+    @patch("tableauserverclient.TableauAuth")
     def test_both_auth(self, mock_tableau_auth):
         """
         Test whether an error is thrown if both auth types are set
@@ -258,8 +258,8 @@ class TestTableauHook:
             TableauHook(tableau_conn_id="tableau_test_both_auth").get_conn()
         mock_tableau_auth.assert_not_called()
 
-    @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
-    @patch("airflow.providers.tableau.hooks.tableau.Server")
+    @patch("tableauserverclient.TableauAuth")
+    @patch("tableauserverclient.Server")
     def test_get_conn_ssl_cert_path(self, mock_server, mock_tableau_auth):
         """
         Test get conn with SSL parameters, verify as path
@@ -280,8 +280,8 @@ class TestTableauHook:
             mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_auth.return_value)
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
-    @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
-    @patch("airflow.providers.tableau.hooks.tableau.Server")
+    @patch("tableauserverclient.TableauAuth")
+    @patch("tableauserverclient.Server")
     def test_get_conn_ssl_default(self, mock_server, mock_tableau_auth):
         """
         Test get conn with default SSL parameters
@@ -300,8 +300,8 @@ class TestTableauHook:
             )
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
-    @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
-    @patch("airflow.providers.tableau.hooks.tableau.Server")
+    @patch("tableauserverclient.TableauAuth")
+    @patch("tableauserverclient.Server")
     def test_get_conn_ssl_disabled(self, mock_server, mock_tableau_auth):
         """
         Test get conn with default SSL disabled parameters
@@ -319,8 +319,8 @@ class TestTableauHook:
             mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_auth.return_value)
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
-    @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
-    @patch("airflow.providers.tableau.hooks.tableau.Server")
+    @patch("tableauserverclient.TableauAuth")
+    @patch("tableauserverclient.Server")
     def test_get_conn_ssl_bool_param(self, mock_server, mock_tableau_auth):
         """
         Test get conn with SSL Verify parameter as bool
@@ -338,8 +338,8 @@ class TestTableauHook:
             mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_auth.return_value)
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
-    @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
-    @patch("airflow.providers.tableau.hooks.tableau.Server")
+    @patch("tableauserverclient.TableauAuth")
+    @patch("tableauserverclient.Server")
     def test_get_conn_uses_schema_when_configured(self, mock_server, mock_tableau_auth):
         """
         Test that Server is constructed with the schema prepended to the host when schema is configured.
@@ -348,8 +348,8 @@ class TestTableauHook:
             mock_server.assert_called_once_with(f"{tableau_hook.conn.schema}://{tableau_hook.conn.host}")
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
-    @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
-    @patch("airflow.providers.tableau.hooks.tableau.Server")
+    @patch("tableauserverclient.TableauAuth")
+    @patch("tableauserverclient.Server")
     def test_get_conn_uses_host_only_without_schema(self, mock_server, mock_tableau_auth):
         """
         Test that Server is constructed with the host only when no schema is configured (backward compatibility).
@@ -358,9 +358,9 @@ class TestTableauHook:
             mock_server.assert_called_once_with(tableau_hook.conn.host)
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
-    @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
-    @patch("airflow.providers.tableau.hooks.tableau.Server")
-    @patch("airflow.providers.tableau.hooks.tableau.Pager", return_value=[1, 2, 3])
+    @patch("tableauserverclient.TableauAuth")
+    @patch("tableauserverclient.Server")
+    @patch("tableauserverclient.Pager", return_value=[1, 2, 3])
     def test_get_all(self, mock_pager, mock_server, mock_tableau_auth):
         """
         Test get all
@@ -379,7 +379,7 @@ class TestTableauHook:
             pytest.param(2, TableauJobFinishCode.CANCELED, id="CANCELED"),
         ],
     )
-    @patch("airflow.providers.tableau.hooks.tableau.Server")
+    @patch("tableauserverclient.Server")
     def test_get_job_status(self, mock_tableau_server, finish_code, expected_status):
         """
         Test get job status
@@ -391,7 +391,7 @@ class TestTableauHook:
             assert jobs_status == expected_status
 
     @patch("time.sleep", return_value=None)
-    @patch("airflow.providers.tableau.hooks.tableau.Server")
+    @patch("tableauserverclient.Server")
     def test_wait_for_state(self, mock_tableau_server, sleep_mock):
         """
         Test wait_for_state
