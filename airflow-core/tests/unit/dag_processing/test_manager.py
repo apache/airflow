@@ -1375,6 +1375,7 @@ class TestDagFileProcessorManager:
                             "filepath": "dag_callback_dag.py",
                             "bundle_name": "testing",
                             "bundle_version": None,
+                            "version_data": None,
                             "msg": None,
                             "dag_id": "dag_id",
                             "run_id": "run_id",
