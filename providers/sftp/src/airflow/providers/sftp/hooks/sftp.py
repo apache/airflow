@@ -597,6 +597,26 @@ class SFTPHook(SSHHook):
             return False
         return True
 
+    @staticmethod
+    def _validate_within_directory(base: str, target: str) -> str:
+        """
+        Validate that target path is within the base directory.
+        Prevents directory traversal attacks.
+
+        :param base: The base/destination directory path
+        :param target: The target path to validate
+        :return: The target path if valid
+        :raises ValueError: If target path escapes the base directory
+        """
+        base_real = os.path.realpath(os.path.expanduser(base))
+        target_real = os.path.realpath(os.path.expanduser(target))
+
+        # Ensure target is within base directory
+        if not (target_real == base_real or target_real.startswith(base_real + os.sep)):
+            raise ValueError(f"Path {target} is outside the destination directory {base}")
+
+        return target
+
     def walktree(
         self,
         path: str,

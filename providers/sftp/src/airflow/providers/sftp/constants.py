@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Constants for the SFTP provider."""
+"""SFTP constants."""
 
 from __future__ import annotations
 
 
 class SFTPOperation:
-    """Operation that can be used with SFTP."""
+    """SFTP operation constants."""
 
-    PUT = "put"
     GET = "get"
+    PUT = "put"
     DELETE = "delete"
