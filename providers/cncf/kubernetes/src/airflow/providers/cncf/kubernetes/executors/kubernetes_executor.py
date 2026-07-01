@@ -433,6 +433,7 @@ class KubernetesExecutor(BaseExecutor):
 
         if TYPE_CHECKING:
             assert self.kube_scheduler
+            assert self.task_queue
         created: int = 0
         start: float = time.monotonic()
         with contextlib.suppress(Empty):
@@ -467,6 +468,7 @@ class KubernetesExecutor(BaseExecutor):
         """
         if TYPE_CHECKING:
             assert self.kube_scheduler
+            assert self.task_queue
         jobs: list[KubernetesJob] = []
         with contextlib.suppress(Empty):
             for _ in range(self.kube_config.worker_pods_creation_batch_size):
@@ -507,6 +509,9 @@ class KubernetesExecutor(BaseExecutor):
         """
         from kubernetes.client.rest import ApiException
         from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
+
+        if TYPE_CHECKING:
+            assert self.task_queue
 
         key: TaskInstanceKey = task.key
         if isinstance(e, PodReconciliationError):
