@@ -489,6 +489,7 @@ class TestGetDagDeadlineAlerts:
         assert alert["name"] == ALERT_NAME
         assert alert["interval"] == 3600.0
         assert alert["reference_type"] == "DagRunQueuedAtDeadline"
+        assert alert["fire_on_failure"] is False
         assert "id" in alert
         assert "created_at" in alert
 

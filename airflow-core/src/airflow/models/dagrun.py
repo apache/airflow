@@ -53,7 +53,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
@@ -1170,25 +1170,40 @@ class DagRun(Base, LoggingMixin):
             span.end()
 
     def _handle_missed_deadlines(self, *, session: Session) -> None:
+        """Handle pending deadlines that opt in to firing when their DagRun fails."""
         deadline_query = (
             select(Deadline)
+            .join(DeadlineAlertModel, Deadline.deadline_alert_id == DeadlineAlertModel.id)
             .where(Deadline.dagrun_id == self.id)
             .where(~Deadline.missed)
-            .options(selectinload(Deadline.callback), selectinload(Deadline.dagrun))
+            .where(DeadlineAlertModel.fire_on_failure.is_(True))
+            .options(
+                selectinload(Deadline.callback),
+                selectinload(Deadline.dagrun),
+                selectinload(Deadline.deadline_alert),
+            )
         )
-        try:
-            for deadline in session.scalars(
-                with_row_locks(
-                    deadline_query,
-                    of=Deadline,
-                    session=session,
-                    skip_locked=True,
-                    key_share=False,
-                )
-            ):
+        for deadline in session.scalars(
+            with_row_locks(
+                deadline_query,
+                of=Deadline,
+                session=session,
+                skip_locked=True,
+                key_share=False,
+            )
+        ):
+            deadline_id = deadline.id
+            try:
                 deadline.handle_miss(session)
-        except Exception:
-            self.log.warning("Failed to handle missed deadlines for %s", self, exc_info=True)
+            except DBAPIError:
+                raise
+            except Exception:
+                self.log.warning(
+                    "Failed to handle missed deadline %s for %s",
+                    deadline_id,
+                    self,
+                    exc_info=True,
+                )
 
     @provide_session
     def update_state(

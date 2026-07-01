@@ -2851,6 +2851,9 @@ components:
           type: number
           title: Interval
           description: Interval in seconds between deadline evaluations.
+        fire_on_failure:
+          type: boolean
+          title: Fire On Failure
         created_at:
           type: string
           format: date-time
@@ -2860,6 +2863,7 @@ components:
       - id
       - reference_type
       - interval
+      - fire_on_failure
       - created_at
       title: DeadlineAlertResponse
       description: DeadlineAlert serializer for responses.
