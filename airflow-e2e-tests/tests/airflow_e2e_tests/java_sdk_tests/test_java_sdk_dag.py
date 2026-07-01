@@ -140,6 +140,31 @@ class TestJavaSDKAnnotationExample:
             f"Expected 'transform' XCom to be a positive integer (millisecond timestamp), got {value!r}"
         )
 
+    def test_concurrent_client_calls_succeed(self):
+        """A Java task calling the client from many threads must succeed."""
+        resp = self.airflow_client.trigger_dag(
+            "java_annotation_example",
+            json={"logical_date": datetime.now(timezone.utc).isoformat()},
+        )
+        run_id = resp["dag_run_id"]
+
+        dag_state = self.airflow_client.wait_for_dag_run(
+            dag_id="java_annotation_example",
+            run_id=run_id,
+            timeout=_JAVA_TASK_TIMEOUT,
+        )
+
+        ti_resp = self.airflow_client.get_task_instances(dag_id="java_annotation_example", run_id=run_id)
+        ti_map = {ti["task_id"]: ti for ti in ti_resp.get("task_instances", [])}
+        concurrent_ti = ti_map.get("concurrent", {})
+
+        assert concurrent_ti.get("state") == "success", (
+            f"Java 'concurrent' task did not succeed.\n"
+            f"  task state : {concurrent_ti.get('state')!r}\n"
+            f"  dag state  : {dag_state!r}\n"
+            f"  all tasks  : { {k: v.get('state') for k, v in ti_map.items()} }"
+        )
+
     def test_load_retried_then_succeeded(self):
         """``load`` fails once (UP_FOR_RETRY) then succeeds on the second attempt.
 
