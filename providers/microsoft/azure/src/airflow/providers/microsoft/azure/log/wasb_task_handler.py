@@ -85,13 +85,14 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
             )
             return None
 
-    def _build_log_source_url(self, blob_name: str) -> str:
-        legacy_url = f"https://{self.wasb_container}.blob.core.windows.net/{blob_name}"
-        hook = self.hook
-        if hook is None:
-            return legacy_url
+    def _build_legacy_url(self, blob_name: str) -> str:
+        return f"https://{self.wasb_container}.blob.core.windows.net/{blob_name}"
 
-        blob_service_client = hook.blob_service_client
+    def _build_log_source_url(self, blob_name: str) -> str:
+        if not self.hook:
+            return self._build_legacy_url(blob_name)
+
+        blob_service_client = self.hook.blob_service_client
         account_name = getattr(blob_service_client, "account_name", None)
         endpoint = getattr(blob_service_client, "primary_endpoint", None)
         if isinstance(endpoint, str) and endpoint:
@@ -110,7 +111,7 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
         if isinstance(account_name, str) and account_name:
             return f"https://{account_name}.blob.core.windows.net/{self.wasb_container}/{blob_name}"
 
-        return legacy_url
+        return self._build_legacy_url(blob_name)
 
     def read(self, relative_path, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages | None]:
         messages = []
@@ -128,9 +129,9 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
             self.log.exception("can't list blobs")
 
         if blob_names:
-            uris = [self._build_log_source_url(b) for b in blob_names]
+            uris = (self._build_log_source_url(b) for b in blob_names)
             if AIRFLOW_V_3_0_PLUS:
-                messages = uris
+                messages = list(uris)
             else:
                 messages.extend(["Found remote logs:", *[f"  * {x}" for x in sorted(uris)]])
         else:
