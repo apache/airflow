@@ -695,16 +695,27 @@ class AirflowKubernetesScheduler(LoggingMixin):
             sanitized_pod = self.kube_client.api_client.sanitize_for_serialization(pod)
             async with semaphore:
                 try:
-                    with Stats.timer("kubernetes_executor.pod_creation"):
+                    with Stats.timer(
+                        "kubernetes_executor.pod_creation", tags=prune_dict({"team_name": self.team_name})
+                    ):
                         await api.create_namespaced_pod(
                             body=sanitized_pod, namespace=pod.metadata.namespace, **request_kwargs
                         )
-                    Stats.incr("kubernetes_executor.pod_creation_status", tags={"status": "200"})
+                    Stats.incr(
+                        "kubernetes_executor.pod_creation_status",
+                        tags=prune_dict({"status": "200", "team_name": self.team_name}),
+                    )
                 except async_client.exceptions.ApiException as e:
-                    Stats.incr("kubernetes_executor.pod_creation_status", tags={"status": str(e.status)})
+                    Stats.incr(
+                        "kubernetes_executor.pod_creation_status",
+                        tags=prune_dict({"status": str(e.status), "team_name": self.team_name}),
+                    )
                     raise
                 except Exception:
-                    Stats.incr("kubernetes_executor.pod_creation_status", tags={"status": "error"})
+                    Stats.incr(
+                        "kubernetes_executor.pod_creation_status",
+                        tags=prune_dict({"status": "error", "team_name": self.team_name}),
+                    )
                     raise
 
         outcomes: list[BaseException | None] = await asyncio.gather(
