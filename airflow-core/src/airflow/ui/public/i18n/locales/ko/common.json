@@ -72,6 +72,7 @@
     "expectedDuration": "예상 소요 시간",
     "lastSchedulingDecision": "마지막 스케줄링 결정",
     "mappedPartitionKey": "매핑된 파티션 키",
+    "partitionDate": "파티션 날짜",
     "partitionKey": "파티션 키",
     "queuedAt": "대기열에 추가된 시간",
     "runAfter": "다음 실행",
@@ -179,9 +180,12 @@
   "note": {
     "add": "메모 추가",
     "dagRun": "Dag 실행 메모",
+    "edit": "메모 수정",
     "label": "메모",
     "placeholder": "메모 추가...",
-    "taskInstance": "태스크 인스턴스 메모"
+    "preview": "미리보기",
+    "taskInstance": "태스크 인스턴스 메모",
+    "write": "작성"
   },
   "overallStatus": "전체 상태",
   "partitionedDagRun_one": "파티션된 Dag 실행",
