@@ -1400,6 +1400,7 @@ req
 reqs
 requeue
 requeued
+requeues
 reserialize
 resetdb
 resizable
