@@ -28,7 +28,7 @@ from unittest.mock import patch
 
 import pytest
 from sqlalchemy import delete, func, inspect as sa_inspect, select
-from sqlalchemy.exc import OperationalError, SAWarning
+from sqlalchemy.exc import IntegrityError, OperationalError, SAWarning
 
 import airflow.dag_processing.collection
 from airflow._shared.timezones import timezone as tz
@@ -751,6 +751,31 @@ class TestUpdateDagParsingResults:
 
         serialized_dags_count = session.scalar(select(func.count(SerializedDagModel.dag_id)))
         assert serialized_dags_count == 0
+
+    @patch.object(SerializedDagModel, "write_dag")
+    @patch("airflow.serialization.definitions.dag.SerializedDAG.bulk_write_to_db")
+    def test_sync_to_db_rolls_back_before_retrying_integrity_error(
+        self, mock_bulk_write_to_db, mock_s10n_write_dag, testing_dag_bundle
+    ):
+        """Test that retried DBAPIError subclasses roll back the failed session first."""
+        mock_dag = mock.MagicMock()
+        integrity_error = IntegrityError(statement=mock.ANY, params=mock.ANY, orig=mock.ANY)
+        mock_bulk_write_to_db.side_effect = [integrity_error, integrity_error, mock.ANY]
+
+        mock_session = mock.MagicMock()
+        update_dag_parsing_results_in_db(
+            "testing",
+            None,
+            dags=[mock_dag],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=mock_session,
+        )
+
+        assert mock_bulk_write_to_db.call_count == 3
+        mock_session.rollback.assert_has_calls([mock.call(), mock.call()])
+        mock_s10n_write_dag.assert_called_once()
 
     def test_serialized_dags_are_written_to_db_on_sync(self, testing_dag_bundle, session):
         """Test DAGs are Serialized and written to DB when parsing result is updated"""
