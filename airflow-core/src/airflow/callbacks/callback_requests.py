@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 
 import structlog
@@ -26,7 +27,9 @@ from sqlalchemy.exc import NoInspectionAvailable
 from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.orm.exc import DetachedInstanceError
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels import taskinstance as ti_datamodel  # noqa: TC001
+from airflow.timetables.base import DataInterval, SkippedIntervalsSummary
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -172,8 +175,43 @@ class DagCallbackRequest(BaseCallbackRequest):
     type: Literal["DagCallbackRequest"] = "DagCallbackRequest"
 
 
+class DagSkippedIntervalsCallbackRequest(BaseCallbackRequest):
+    """Store skipped intervals callback data for execution by the Dag processor."""
+
+    dag_id: str
+    skipped_range: tuple[datetime, datetime]
+    """Envelope from the previous automated run's data_interval_end to the new run's start."""
+    type: Literal["DagSkippedIntervalsCallbackRequest"] = "DagSkippedIntervalsCallbackRequest"
+
+    @classmethod
+    def from_summary(
+        cls,
+        *,
+        filepath: str,
+        bundle_name: str,
+        bundle_version: str | None,
+        dag_id: str,
+        summary: SkippedIntervalsSummary,
+    ) -> Self:
+        return cls(
+            filepath=filepath,
+            bundle_name=bundle_name,
+            bundle_version=bundle_version,
+            dag_id=dag_id,
+            skipped_range=(summary.skipped_range.start, summary.skipped_range.end),
+        )
+
+    def to_summary(self) -> SkippedIntervalsSummary:
+        return SkippedIntervalsSummary(
+            skipped_range=DataInterval(
+                start=timezone.coerce_datetime(self.skipped_range[0]),
+                end=timezone.coerce_datetime(self.skipped_range[1]),
+            ),
+        )
+
+
 CallbackRequest = Annotated[
-    DagCallbackRequest | TaskCallbackRequest | EmailRequest,
+    DagCallbackRequest | DagSkippedIntervalsCallbackRequest | TaskCallbackRequest | EmailRequest,
     Field(discriminator="type"),
 ]
 
