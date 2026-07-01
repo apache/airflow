@@ -241,3 +241,72 @@ class TestJavaSDKAnnotationExample:
         assert str(record.get("level", "")).lower() == "info", (
             f"application INFO log should keep its level, got {record.get('level')!r}; record: {record}"
         )
+
+
+# Each Scala task spins up its own local SparkSession; allow generous time for
+# three sequential JVM + Spark startups in a constrained CI container.
+_SPARK_TASK_TIMEOUT = 1200
+
+# Mirror the fixed dataset that is the single source of truth in
+# ScalaSparkExample.scala (``SalesData.rows``): 5 sales rows whose amounts
+# (100+200+300+150+250) sum to 1000. Keep these in sync if that dataset changes.
+_SPARK_EXPECTED_ROW_COUNT = 5
+_SPARK_EXPECTED_TOTAL_REVENUE = 1000
+
+
+class TestJavaSDKScalaSparkExample:
+    """Verify the Scala + Apache Spark ETL example bundle executes correctly."""
+
+    airflow_client = AirflowClient()
+
+    def test_spark_etl_pipeline(self):
+        """The three Scala Spark stubs run in order and pass scalar results via XCom.
+
+        Each runs in its own JVM through ``JavaCoordinator`` with real Spark.
+        """
+        resp = self.airflow_client.trigger_dag(
+            "scala_spark_example",
+            json={"logical_date": datetime.now(timezone.utc).isoformat()},
+        )
+        run_id = resp["dag_run_id"]
+
+        dag_state = self.airflow_client.wait_for_dag_run(
+            dag_id="scala_spark_example",
+            run_id=run_id,
+            timeout=_SPARK_TASK_TIMEOUT,
+        )
+
+        ti_resp = self.airflow_client.get_task_instances(dag_id="scala_spark_example", run_id=run_id)
+        ti_map = {ti["task_id"]: ti for ti in ti_resp.get("task_instances", [])}
+
+        for task_id in ("spark_extract", "spark_transform", "spark_load"):
+            assert ti_map.get(task_id, {}).get("state") == "success", (
+                f"Scala Spark {task_id!r} task did not succeed.\n"
+                f"  task state : {ti_map.get(task_id, {}).get('state')!r}\n"
+                f"  dag state  : {dag_state!r}\n"
+                f"  all tasks  : { {k: v.get('state') for k, v in ti_map.items()} }"
+            )
+
+        extract_xcom = self.airflow_client.get_xcom_value(
+            dag_id="scala_spark_example", task_id="spark_extract", run_id=run_id, key="return_value"
+        )
+        assert extract_xcom.get("value") == _SPARK_EXPECTED_ROW_COUNT, (
+            f"Expected spark_extract to push row count {_SPARK_EXPECTED_ROW_COUNT}, "
+            f"got {extract_xcom.get('value')!r}"
+        )
+
+        transform_xcom = self.airflow_client.get_xcom_value(
+            dag_id="scala_spark_example", task_id="spark_transform", run_id=run_id, key="return_value"
+        )
+        assert transform_xcom.get("value") == _SPARK_EXPECTED_TOTAL_REVENUE, (
+            f"Expected spark_transform to aggregate total revenue {_SPARK_EXPECTED_TOTAL_REVENUE}, "
+            f"got {transform_xcom.get('value')!r}"
+        )
+
+        load_xcom = self.airflow_client.get_xcom_value(
+            dag_id="scala_spark_example", task_id="spark_load", run_id=run_id, key="return_value"
+        )
+        assert load_xcom.get("value") == _SPARK_EXPECTED_TOTAL_REVENUE, (
+            f"Expected spark_load to return total revenue {_SPARK_EXPECTED_TOTAL_REVENUE}, "
+            f"got {load_xcom.get('value')!r}"
+        )
