@@ -1187,6 +1187,20 @@ class TestDagRunOperations:
         response = client.dag_runs.get(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
         assert response == self.dag_run_response
 
+    @pytest.mark.parametrize("suppress_error_log", [False, True])
+    def test_get_passes_error_log_suppression_extension(self, suppress_error_log):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.extensions["airflowctl_suppress_error_log"] is suppress_error_log
+            return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.get(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            suppress_error_log=suppress_error_log,
+        )
+        assert response == self.dag_run_response
+
     def test_list(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
@@ -1198,6 +1212,28 @@ class TestDagRunOperations:
             start_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
             end_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
             state=DagRunState.RUNNING,
+            limit=1,
+        )
+        assert response == self.dag_run_collection_response
+
+    def test_list_with_logical_date_filters_and_order(self):
+        logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert dict(request.url.params) == {
+                "limit": "1",
+                "logical_date_gte": logical_date.isoformat(),
+                "logical_date_lte": logical_date.isoformat(),
+                "order_by": "-id",
+            }
+            return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.list(
+            dag_id=self.dag_id,
+            logical_date_gte=logical_date,
+            logical_date_lte=logical_date,
+            order_by="-id",
             limit=1,
         )
         assert response == self.dag_run_collection_response

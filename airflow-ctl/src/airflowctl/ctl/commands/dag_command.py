@@ -17,13 +17,16 @@
 
 from __future__ import annotations
 
+import datetime
+import json
 import sys
 from typing import Literal
 
 import rich
+from rich.text import Text
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, ServerResponseError, provide_api_client
-from airflowctl.api.datamodels.generated import DAGPatchBody
+from airflowctl.api.datamodels.generated import DAGPatchBody, DAGRunResponse
 from airflowctl.ctl.console_formatting import AirflowConsole
 
 
@@ -103,3 +106,55 @@ def next_execution(args, api_client=NEW_API_CLIENT) -> dict | None:
         output=args.output,
     )
     return result
+
+
+def _parse_logical_date(value: str) -> datetime.datetime | None:
+    """Parse an ISO-formatted logical date."""
+    try:
+        logical_date = datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if logical_date.tzinfo is None:
+        raise SystemExit("Logical date must include a timezone offset")
+    return logical_date
+
+
+def _get_dag_run_by_run_id_or_logical_date(api_client, dag_id: str, value: str) -> DAGRunResponse | None:
+    """Get a Dag run by run ID, falling back to an exact logical date match."""
+    try:
+        return api_client.dag_runs.get(dag_id=dag_id, dag_run_id=value, suppress_error_log=True)
+    except ServerResponseError as e:
+        if e.response.status_code != 404:
+            raise
+
+    if logical_date := _parse_logical_date(value):
+        response = api_client.dag_runs.list(
+            dag_id=dag_id,
+            logical_date_gte=logical_date,
+            logical_date_lte=logical_date,
+            order_by="-id",
+            limit=1,
+        )
+        if response.dag_runs:
+            return response.dag_runs[0]
+    else:
+        api_client.dag_runs.list(dag_id=dag_id, limit=1)
+    return None
+
+
+@provide_api_client(kind=ClientKind.CLI)
+def state(args, api_client=NEW_API_CLIENT) -> None:
+    """Show the state and configuration of a Dag run."""
+    dag_run = _get_dag_run_by_run_id_or_logical_date(
+        api_client=api_client,
+        dag_id=args.dag_id,
+        value=args.logical_date_or_run_id,
+    )
+    if not dag_run:
+        rich.print("[yellow]No matching Dag run found.[/yellow]")
+    else:
+        state_value = getattr(dag_run.state, "value", dag_run.state)
+        if dag_run.conf:
+            rich.print(Text(f"{state_value}, {json.dumps(dag_run.conf)}"))
+        else:
+            rich.print(Text(state_value))
