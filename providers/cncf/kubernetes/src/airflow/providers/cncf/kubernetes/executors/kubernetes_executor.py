@@ -644,6 +644,8 @@ class KubernetesExecutor(BaseExecutor):
                 )
                 # Leave the key in self.running and do not write to event_buffer: the scheduler
                 # never observes this failure, so no task-level retry is consumed.
+                if TYPE_CHECKING:
+                    assert self.task_queue
                 self.task_queue.put(attempt.job)
                 return
 
