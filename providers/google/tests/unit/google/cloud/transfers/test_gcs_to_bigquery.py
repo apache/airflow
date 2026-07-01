@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import functools
 import json
+from datetime import datetime
 from unittest import mock
 from unittest.mock import MagicMock, call
 
@@ -27,6 +28,7 @@ from google.cloud.bigquery import DEFAULT_RETRY, Table
 from google.cloud.exceptions import Conflict
 from sqlalchemy import select
 
+from airflow import DAG
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.trigger import Trigger
 from airflow.providers.common.compat.openlineage.facet import (
@@ -2092,6 +2094,42 @@ class TestGCSToBigQueryOperator:
         # extra_config wins for overlapping key
         assert config["load"]["skipLeadingRows"] == 5
         assert config["load"]["columnNameCharacterMap"] == "STRICT"
+
+    def test_schema_fields_is_templated(self):
+        """Regression test for #31481.
+
+        ``schema_fields`` must be a template field. The issue passed a
+        ``MappedArgument`` (from ``.expand()``); such values resolve at render time
+        via the Resolvable ``resolve()`` protocol rather than Jinja, so an ordinary
+        DAG (no ``render_template_as_native_obj``) suffices. Before the fix the field
+        was skipped and the unresolved argument reached BigQuery verbatim.
+        """
+        assert "schema_fields" in GCSToBigQueryOperator.template_fields
+        assert GCSToBigQueryOperator.template_fields_renderers["schema_fields"] == "json"
+
+        class _SchemaArg:
+            """Stand-in for a MappedArgument/XComArg resolving to a schema."""
+
+            def resolve(self, context):
+                return SCHEMA_FIELDS
+
+        with DAG(
+            dag_id="test_gcs_to_bq_schema_fields_templating",
+            schedule=None,
+            start_date=datetime(2024, 1, 1),
+        ) as dag:
+            operator = GCSToBigQueryOperator(
+                task_id=TASK_ID,
+                bucket=TEST_BUCKET,
+                source_objects=TEST_SOURCE_OBJECTS,
+                destination_project_dataset_table=TEST_EXPLICIT_DEST,
+                schema_fields=_SchemaArg(),
+                dag=dag,
+            )
+
+        operator.render_template_fields({})
+
+        assert operator.schema_fields == SCHEMA_FIELDS
 
 
 @pytest.fixture
