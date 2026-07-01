@@ -466,6 +466,7 @@ class TestBackfillOperations:
         expected_body = self.backfill_body.model_dump(mode="json", exclude_none=True)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
             assert request.url.path == "/api/v2/backfills"
             assert request.headers.get("content-type", "").startswith("application/json")
             assert json.loads(request.content.decode()) == expected_body
@@ -479,6 +480,7 @@ class TestBackfillOperations:
         expected_body = self.backfill_body.model_dump(mode="json", exclude_none=True)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
             assert request.url.path == "/api/v2/backfills/dry_run"
             assert request.headers.get("content-type", "").startswith("application/json")
             assert json.loads(request.content.decode()) == expected_body
@@ -490,6 +492,7 @@ class TestBackfillOperations:
 
     def test_get(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "GET"
             assert request.url.path == f"/api/v2/backfills/{self.backfill_id}"
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
@@ -499,6 +502,7 @@ class TestBackfillOperations:
 
     def test_list(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "GET"
             assert request.url.path == "/api/v2/backfills"
             return httpx.Response(200, json=json.loads(self.backfills_collection_response.model_dump_json()))
 
@@ -508,6 +512,7 @@ class TestBackfillOperations:
 
     def test_pause(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
             assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/pause"
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
@@ -517,6 +522,7 @@ class TestBackfillOperations:
 
     def test_unpause(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
             assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/unpause"
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
@@ -526,6 +532,7 @@ class TestBackfillOperations:
 
     def test_cancel(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
             assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/cancel"
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 

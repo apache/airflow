@@ -386,7 +386,7 @@ class BackfillOperations(BaseOperations):
     def pause(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Pause a backfill."""
         try:
-            self.response = self.client.post(f"backfills/{backfill_id}/pause")
+            self.response = self.client.put(f"backfills/{backfill_id}/pause")
             return BackfillResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -394,7 +394,7 @@ class BackfillOperations(BaseOperations):
     def unpause(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Unpause a backfill."""
         try:
-            self.response = self.client.post(f"backfills/{backfill_id}/unpause")
+            self.response = self.client.put(f"backfills/{backfill_id}/unpause")
             return BackfillResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -402,7 +402,7 @@ class BackfillOperations(BaseOperations):
     def cancel(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Cancel a backfill."""
         try:
-            self.response = self.client.post(f"backfills/{backfill_id}/cancel")
+            self.response = self.client.put(f"backfills/{backfill_id}/cancel")
             return BackfillResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
