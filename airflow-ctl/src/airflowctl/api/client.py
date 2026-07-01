@@ -111,7 +111,8 @@ def get_json_error(response: httpx.Response):
     if err:
         # This part is used in integration tests to verify the error message
         # If you are updating here don't forget to update the airflow-ctl-tests
-        log.warning("Server error ", extra=dict(err.response.json()))
+        if not response.request.extensions.get("airflowctl_suppress_error_log"):
+            log.warning("Server error ", extra=dict(err.response.json()))
         raise err
 
 
