@@ -202,9 +202,9 @@ class TestS3RemoteLogIO:
     def test_upload_repeated_appends_no_duplication(self):
         """Simulate reschedule-mode sensor: each cycle appends to the local log, then uploads.
 
-        Without truncation after upload, the S3 object accumulates duplicate
-        lines and grows O(N^2).  The correct behavior is that each line appears
-        in S3 exactly once.
+        Without the startswith guard, the S3 object accumulates duplicate lines
+        and grows O(N^2).  The correct behavior is that each line appears in S3
+        exactly once.
         """
         local_log = self.subject.base_log_folder / "1.log"
         local_log.parent.mkdir(parents=True, exist_ok=True)
@@ -216,6 +216,34 @@ class TestS3RemoteLogIO:
 
         body = boto3.resource("s3").Object("bucket", self.remote_log_key).get()["Body"].read()
         assert body == b"cycle 1\ncycle 2\ncycle 3\n"
+        assert local_log.read_text() == "cycle 1\ncycle 2\ncycle 3\n"
+
+    def test_upload_append_from_different_worker(self):
+        """When a different worker uploads new content, it appends to the existing S3 object."""
+        self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"cycle 1\ncycle 2\n")
+
+        local_log = self.subject.base_log_folder / "1.log"
+        local_log.parent.mkdir(parents=True, exist_ok=True)
+        local_log.write_text("cycle 3\n")
+
+        self.subject.upload(local_log, self.ti)
+
+        body = boto3.resource("s3").Object("bucket", self.remote_log_key).get()["Body"].read()
+        assert body == b"cycle 1\ncycle 2\ncycle 3\n"
+
+    @conf_vars({("aws", "s3_log_write_mode"): "replace"})
+    def test_upload_replace_mode(self):
+        """When s3_log_write_mode is 'replace', S3 is overwritten without downloading."""
+        self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"old content\n")
+
+        local_log = self.subject.base_log_folder / "1.log"
+        local_log.parent.mkdir(parents=True, exist_ok=True)
+        local_log.write_text("new content\n")
+
+        self.subject.upload(local_log, self.ti)
+
+        body = boto3.resource("s3").Object("bucket", self.remote_log_key).get()["Body"].read()
+        assert body == b"new content\n"
 
     def test_write_raises(self, caplog):
         url = "s3://nonexistentbucket/foo"
