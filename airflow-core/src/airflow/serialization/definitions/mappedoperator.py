@@ -334,6 +334,10 @@ class SerializedMappedOperator(DAGNode):
     def on_failure_fail_dagrun(self, v) -> None:
         self.partial_kwargs["on_failure_fail_dagrun"] = bool(v)
 
+    @property
+    def batch_size(self) -> int:
+        return self.partial_kwargs.get("batch_size", 0)
+
     @classmethod
     def get_serialized_fields(cls):
         """Fields to extract from JSON-Serialized DAG."""
@@ -459,15 +463,20 @@ class SerializedMappedOperator(DAGNode):
         current_count = self._get_specified_expand_input().get_parse_time_mapped_ti_count()
 
         def _get_parent_count() -> int:
-            if (group := self.get_closest_mapped_task_group()) is None:
-                raise NotMapped()
-            return group.get_parse_time_mapped_ti_count()
+            try:
+                if (group := self.get_closest_mapped_task_group()) is None:
+                    raise NotMapped()
+                return group.get_parse_time_mapped_ti_count()
+            except NotMapped:
+                return 1
 
-        try:
-            parent_count = _get_parent_count()
-        except NotMapped:
-            return current_count
-        return parent_count * current_count
+        parent_count = _get_parent_count()
+        mapped_ti_count = parent_count * current_count
+
+        if self.batch_size > 0:
+            if self.batch_size < mapped_ti_count:
+                return self.batch_size
+        return mapped_ti_count
 
     def iter_mapped_dependencies(self) -> Iterator[Operator]:
         """Upstream dependencies that provide XComs used by this task for task mapping."""
@@ -514,6 +523,9 @@ def _(task: SerializedBaseOperator | TaskSDKBaseOperator, run_id: str, *, sessio
 @get_mapped_ti_count.register(TaskSDKMappedOperator)
 def _(task: SerializedMappedOperator | TaskSDKMappedOperator, run_id: str, *, session: Session) -> int:
     from airflow.serialization.serialized_objects import BaseSerialization, _ExpandInputRef
+
+    if task.batch_size > 0:
+        return task.batch_size
 
     exp_input = task._get_specified_expand_input()
     # TODO (GH-52141): 'task' here should be scheduler-bound and returns scheduler expand input.

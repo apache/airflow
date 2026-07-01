@@ -161,6 +161,9 @@ Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @ja
 # AIP-72 - Task SDK
 # Python SDK
 /task-sdk/ @ashb @kaxil @amoghrajesh
+/task-sdk/**/batchedoperator.py @dabla
+/task-sdk/**/executor.py @dabla
+/task-sdk/**/iterableoperator.py @dabla
 
 # AIP-108 - Coordinators
 /task-sdk/src/airflow/sdk/coordinators/ @jason810496 @uranusjr

@@ -1247,6 +1247,7 @@ PodManager
 PodSpec
 podSpec
 podspec
+Pokémon
 polars
 poller
 polyfill
