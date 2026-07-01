@@ -34,6 +34,8 @@ from itertools import groupby
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
+from opentelemetry import trace
+from opentelemetry.context import context
 from sqlalchemy import (
     CTE,
     Text,
@@ -56,6 +58,7 @@ from sqlalchemy.sql import expression
 
 from airflow import settings
 from airflow._shared.observability.metrics import stats
+from airflow._shared.observability.traces import start_debug_span
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel, TIRunContext
 from airflow.assets.evaluation import AssetEvaluator
@@ -410,6 +413,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return resetter
 
+    @start_debug_span("scheduler._get_team_names_for_dag_ids")
     def _get_team_names_for_dag_ids(
         self, dag_ids: Collection[str], session: Session
     ) -> dict[str, str | None]:
@@ -424,6 +428,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param session: Database session for queries
         :return: Dictionary mapping dag_id -> team_name (None if no team found)
         """
+        trace.get_current_span().set_attribute("airflow.scheduler.num_dag_ids", len(dag_ids))
         if not dag_ids:
             return {}
 
@@ -543,6 +548,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info("\n\t".join(map(repr, callstack)))
             self.log.info("-" * 80)
 
+    @start_debug_span("scheduler._executable_task_instances_to_queued")
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
         """
         Find TIs that are ready for execution based on conditions.
@@ -567,11 +573,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Optimization: to avoid littering the DB errors of "ERROR: canceling statement due to lock
             # timeout", try to take out a transactional advisory lock (unlocks automatically on
             # COMMIT/ROLLBACK)
-            lock_acquired = session.execute(
-                text("SELECT pg_try_advisory_xact_lock(:id)").bindparams(
-                    id=DBLocks.SCHEDULER_CRITICAL_SECTION.value
-                )
-            ).scalar()
+            with start_debug_span("scheduler.critical_section.advisory_lock") as advisory_lock_span:
+                lock_acquired = session.execute(
+                    text("SELECT pg_try_advisory_xact_lock(:id)").bindparams(
+                        id=DBLocks.SCHEDULER_CRITICAL_SECTION.value
+                    )
+                ).scalar()
+                advisory_lock_span.set_attribute("airflow.scheduler.lock_acquired", bool(lock_acquired))
             if lock_acquired is None:
                 lock_acquired = False
             if not lock_acquired:
@@ -724,8 +732,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             timer.start()
 
             try:
-                locked_query = with_row_locks(query, of=TI, session=session, skip_locked=True)
-                task_instances_to_examine = session.scalars(locked_query).all()
+                with start_debug_span("scheduler.critical_section.task_instances_to_examine") as select_span:
+                    locked_query = with_row_locks(query, of=TI, session=session, skip_locked=True)
+                    task_instances_to_examine = session.scalars(locked_query).all()
+                    select_span.set_attribute(
+                        "airflow.scheduler.tis_examined", len(task_instances_to_examine)
+                    )
 
                 if self.log.isEnabledFor(logging.DEBUG):
                     self.log.debug("Length of the tis to examine is %d", len(task_instances_to_examine))
@@ -1057,33 +1069,37 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .execution_options(synchronize_session=False)
             )
 
-            if pre_assign_executors:
-                # Read the DB-generated UUIDs back onto the in-memory objects so the
-                # workload DTO carries them through to send_workload_to_executor (the
-                # objects are about to be detached by make_transient). Use RETURNING
-                # where supported (PostgreSQL); fall back to a SELECT for MySQL and
-                # SQLite (RETURNING requires SQLite 3.35+ which isn't guaranteed).
-                if get_dialect_name(session) == "postgresql":
-                    result = session.execute(queued_update.returning(TI.id, TI.external_executor_id))
-                    id_map = {row[0]: row[1] for row in result}
+            with start_debug_span("scheduler.critical_section.update_tis_to_queued") as update_span:
+                update_span.set_attribute("airflow.scheduler.tis_to_update", len(executable_tis))
+                if pre_assign_executors:
+                    # Read the DB-generated UUIDs back onto the in-memory objects so the
+                    # workload DTO carries them through to send_workload_to_executor (the
+                    # objects are about to be detached by make_transient). Use RETURNING
+                    # where supported (PostgreSQL); fall back to a SELECT for MySQL and
+                    # SQLite (RETURNING requires SQLite 3.35+ which isn't guaranteed).
+                    if get_dialect_name(session) == "postgresql":
+                        result = session.execute(queued_update.returning(TI.id, TI.external_executor_id))
+                        id_map = {row[0]: row[1] for row in result}
+                    else:
+                        session.execute(queued_update)
+                        id_rows = session.execute(
+                            select(TI.id, TI.external_executor_id).where(filter_for_tis)
+                        ).all()
+                        id_map = {row[0]: row[1] for row in id_rows}
+                    for ti in executable_tis:
+                        ti.external_executor_id = id_map.get(ti.id)
                 else:
                     session.execute(queued_update)
-                    id_rows = session.execute(
-                        select(TI.id, TI.external_executor_id).where(filter_for_tis)
-                    ).all()
-                    id_map = {row[0]: row[1] for row in id_rows}
-                for ti in executable_tis:
-                    ti.external_executor_id = id_map.get(ti.id)
-            else:
-                session.execute(queued_update)
 
             for ti in executable_tis:
                 ti.emit_state_change_metric(TaskInstanceState.QUEUED)
 
         for ti in executable_tis:
             make_transient(ti)
+        trace.get_current_span().set_attribute("airflow.scheduler.num_executable_tis", len(executable_tis))
         return executable_tis
 
+    @start_debug_span("scheduler._enqueue_task_instances_with_queued_state")
     def _enqueue_task_instances_with_queued_state(
         self, task_instances: list[TI], executor: BaseExecutor, session: Session
     ) -> None:
@@ -1094,6 +1110,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param executor: The executor to enqueue tasks for
         :param session: The session object
         """
+        enqueue_span = trace.get_current_span()
+        enqueue_span.set_attribute("airflow.executor.class", type(executor).__name__)
+        enqueue_span.set_attribute("airflow.scheduler.num_tis_to_enqueue", len(task_instances))
 
         def _get_sentry_integration(executor: BaseExecutor) -> str:
             try:
@@ -1114,32 +1133,39 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # actually enqueue them
         for ti in task_instances:
-            if ti.dag_run.state in State.finished_dr_states:
-                ti.set_state(None, session=session)
-                continue
-            if not ti.dag_version_id:
-                self.log.warning(
-                    "TaskInstance %s does not have a dag_version_id set, cannot be enqueued. "
-                    "This would get unstuck and dag_version_id updated.",
+            with start_debug_span("scheduler.enqueue_ti") as enqueue_ti_span:
+                enqueue_ti_span.set_attribute("airflow.ti.dag_id", ti.dag_id)
+                enqueue_ti_span.set_attribute("airflow.ti.run_id", ti.run_id)
+                enqueue_ti_span.set_attribute("airflow.ti.task_id", ti.task_id)
+                enqueue_ti_span.set_attribute("airflow.ti.map_index", ti.map_index)
+                enqueue_ti_span.set_attribute("airflow.ti.try_number", ti.try_number)
+                if ti.dag_run.state in State.finished_dr_states:
+                    ti.set_state(None, session=session)
+                    continue
+                if not ti.dag_version_id:
+                    self.log.warning(
+                        "TaskInstance %s does not have a dag_version_id set, cannot be enqueued. "
+                        "This would get unstuck and dag_version_id updated.",
+                        ti,
+                    )
+                    continue
+
+                self.log.debug(
+                    "Queueing workload for TI: %s try_number=%d state=%s scheduler_job_id=%s executor=%s",
                     ti,
+                    ti.try_number,
+                    ti.state,
+                    self.job.id,
+                    executor,
                 )
-                continue
+                workload = workloads.ExecuteTask.make(
+                    ti,
+                    generator=executor.jwt_generator,
+                    sentry_integration=_get_sentry_integration(executor),
+                )
+                executor.queue_workload(workload, session=session)
 
-            self.log.debug(
-                "Queueing workload for TI: %s try_number=%d state=%s scheduler_job_id=%s executor=%s",
-                ti,
-                ti.try_number,
-                ti.state,
-                self.job.id,
-                executor,
-            )
-            workload = workloads.ExecuteTask.make(
-                ti,
-                generator=executor.jwt_generator,
-                sentry_integration=_get_sentry_integration(executor),
-            )
-            executor.queue_workload(workload, session=session)
-
+    @start_debug_span("scheduler._critical_section_enqueue_task_instances")
     def _critical_section_enqueue_task_instances(self, session: Session) -> int:
         """
         Enqueues TaskInstances for execution.
@@ -1189,8 +1215,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             self._enqueue_task_instances_with_queued_state(queued_tis_per_executor, executor, session=session)
 
+        trace.get_current_span().set_attribute("airflow.scheduler.num_queued_tis", len(queued_tis))
         return len(queued_tis)
 
+    @start_debug_span("scheduler._enqueue_executor_callbacks")
     def _enqueue_executor_callbacks(self, session: Session) -> None:
         """
         Enqueue ExecutorCallback workloads to executors.
@@ -1214,6 +1242,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .order_by(ExecutorCallback.priority_weight.desc())
             .limit(max_callbacks)
         ).all()
+        trace.get_current_span().set_attribute("airflow.scheduler.pending_callbacks", len(pending_callbacks))
 
         if not pending_callbacks:
             return
@@ -1261,7 +1290,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 session.add(callback)
 
     @staticmethod
+    @start_debug_span("scheduler._process_task_event_logs")
     def _process_task_event_logs(log_records: deque[Log], session: Session):
+        trace.get_current_span().set_attribute("airflow.scheduler.num_task_event_logs", len(log_records))
         objects = (log_records.popleft() for _ in range(len(log_records)))
         session.bulk_save_objects(objects=objects, preserve_order=False)
 
@@ -1279,15 +1310,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _is_tracing_enabled():
         return conf.getboolean("traces", "otel_on")
 
+    @start_debug_span("scheduler._process_executor_events")
     def _process_executor_events(self, executor: BaseExecutor, session: Session) -> int:
         try:
-            return SchedulerJobRunner.process_executor_events(
+            events_processed = SchedulerJobRunner.process_executor_events(
                 executor=executor,
                 job_id=self.job.id,
                 scheduler_dag_bag=self.scheduler_dag_bag,
                 session=session,
                 eagerly_load_dag_tags=self._dag_tags_in_metrics,
             )
+            trace.get_current_span().set_attribute("airflow.scheduler.events_processed", events_processed)
+            return events_processed
         except Exception as exc:
             stats.incr("scheduler.executor_events.failed", tags={"exception_class": type(exc).__name__})
             raise
@@ -1831,7 +1865,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Reset per-loop team name cache so changes to bundle-team assignments
             # are picked up each iteration without requiring a scheduler restart.
             self._dag_id_to_team_name = {}
-            with stats.timer("scheduler.scheduler_loop_duration") as timer:
+            with (
+                start_debug_span(
+                    "scheduler.scheduler_loop",
+                    context=context.Context(),
+                    attributes={"airflow.scheduler.loop_count": loop_count},
+                ) as loop_iteration_span,
+                stats.timer("scheduler.scheduler_loop_duration") as timer,
+            ):
                 with create_session() as session:
                     # This will schedule for as many executors as possible.
                     num_queued_tis = self._do_scheduling(session)
@@ -1842,9 +1883,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # either a no-op, or they will check-in on currently running tasks and send out new
                 # events to be processed below.
                 for executor in self.executors:
-                    with stats.timer(
-                        "scheduler.executor_heartbeat_duration",
-                        tags={"executor": type(executor).__name__},
+                    with (
+                        start_debug_span(
+                            "scheduler.executor.heartbeat",
+                            attributes={"airflow.executor.class": type(executor).__name__},
+                        ),
+                        stats.timer(
+                            "scheduler.executor_heartbeat_duration",
+                            tags={"executor": type(executor).__name__},
+                        ),
                     ):
                         executor.heartbeat()
 
@@ -1872,16 +1919,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         .where(~Deadline.missed)
                         .options(selectinload(Deadline.callback), selectinload(Deadline.dagrun))
                     )
-                    for deadline in session.scalars(
-                        with_row_locks(
-                            deadline_query,
-                            of=Deadline,
-                            session=session,
-                            skip_locked=True,
-                            key_share=False,
-                        )
-                    ):
-                        deadline.handle_miss(session)
+                    with start_debug_span("scheduler.handle_missed_deadlines"):
+                        for deadline in session.scalars(
+                            with_row_locks(
+                                deadline_query,
+                                of=Deadline,
+                                session=session,
+                                skip_locked=True,
+                                key_share=False,
+                            )
+                        ):
+                            with start_debug_span("scheduler.handle_deadline_miss"):
+                                deadline.handle_miss(session)
 
                     # Route ExecutorCallback workloads to executors (similar to task routing)
                     self._enqueue_executor_callbacks(session)
@@ -1894,12 +1943,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
 
                 # Run any pending timed events
-                next_event = timers.run(blocking=False)
-                self.log.debug("Next timed event is in %f", next_event)
+                with start_debug_span("scheduler.timers.run"):
+                    next_event = timers.run(blocking=False)
+                    self.log.debug("Next timed event is in %f", next_event)
+
+                loop_iteration_span.set_attribute("airflow.scheduler.num_queued_tis", num_queued_tis)
+                loop_iteration_span.set_attribute(
+                    "airflow.scheduler.num_finished_events", num_finished_events
+                )
+                idle_in_this_run = not num_queued_tis and not num_finished_events
+                loop_iteration_span.set_attribute("airflow.scheduler.loop_iteration.idle", idle_in_this_run)
 
             self.log.debug("Ran scheduling loop in %.2f ms", timer.duration)
 
-            idle_in_this_run = not num_queued_tis and not num_finished_events
             if not is_unit_test and idle_in_this_run:
                 # If the scheduler is doing things, don't sleep. This means when there is work to do, the
                 # scheduler will run "as quick as possible", but when it's stopped, it can sleep, dropping CPU
@@ -1921,6 +1977,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 break
 
+    @start_debug_span("scheduler._do_scheduling")
     def _do_scheduling(self, session: Session) -> int:
         """
         Make the main scheduling decisions.
@@ -1963,11 +2020,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # examining, rather than making one query per DagRun.
             # Materialize into a list because the multi-team block below iterates
             # the result and ScalarResult is a one-pass iterator.
-            dag_runs = list(
-                DagRun.get_running_dag_runs_to_examine(
-                    session=session, eagerly_load_dag_tags=self._dag_tags_in_metrics
+            with start_debug_span("dagrun.get_running_dag_runs_to_examine") as dag_runs_span:
+                dag_runs = list(
+                    DagRun.get_running_dag_runs_to_examine(
+                        session=session, eagerly_load_dag_tags=self._dag_tags_in_metrics
+                    )
                 )
-            )
+                # This span isn't added as a method decorator so that
+                # the below attribute can also be added as a tag.
+                dag_runs_span.set_attribute("airflow.scheduler.dagrun.dag_run_count", len(dag_runs))
 
             if self._multi_team and dag_runs:
                 unique_dag_ids = {dr.dag_id for dr in dag_runs}
@@ -1991,13 +2052,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             else:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
 
-        with prohibit_commit(session) as guard:
+        with (
+            prohibit_commit(session) as guard,
+            start_debug_span("scheduler.critical_section") as critical_section_span,
+        ):
             # Without this, the session has an invalid view of the DB
             session.expunge_all()
             # END: schedule TIs
 
             # Attempt to schedule even if some executors are full but not all.
             total_free_executor_slots = sum([executor.slots_available for executor in self.executors])
+            critical_section_span.set_attribute(
+                "airflow.scheduler.free_executor_slots", total_free_executor_slots
+            )
             if total_free_executor_slots <= 0:
                 # We know we can't do anything here, so don't even try!
                 self.log.debug("All executors are full, skipping critical section")
@@ -2013,12 +2080,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
                     # metric, way down
                     timer.stop(send=True)
+                    critical_section_span.set_attribute("airflow.scheduler.lock_acquired", True)
+                    critical_section_span.set_attribute("airflow.scheduler.num_queued_tis", num_queued_tis)
                 except OperationalError as e:
                     timer.stop(send=False)
 
                     if is_lock_not_available_error(error=e):
                         self.log.debug("Critical section lock held by another Scheduler")
                         stats.incr("scheduler.critical_section_busy")
+                        critical_section_span.set_attribute("airflow.scheduler.lock_acquired", False)
                         session.rollback()
                         return 0
                     raise
@@ -2400,12 +2470,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return partition_dag_ids
 
     @retry_db_transaction
+    @start_debug_span("scheduler._create_dagruns_for_dags")
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
         partition_dag_ids: set[str] = self._create_dagruns_for_partitioned_asset_dags(session)
 
         query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
         all_dags_needing_dag_runs = set(query.all())
+        trace.get_current_span().set_attribute(
+            "airflow.scheduler.dags_needing_runs", len(all_dags_needing_dag_runs)
+        )
         asset_triggered_dags = [d for d in all_dags_needing_dag_runs if d.dag_id in triggered_date_by_dag]
         non_asset_dags = {
             d
@@ -2456,8 +2530,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for b in backfills:
             b.completed_at = now
 
+    @start_debug_span("scheduler._create_dag_runs")
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
+        trace.get_current_span().set_attribute("airflow.scheduler.num_dag_models", len(dag_models))
         # Bulk Fetch DagRuns with dag_id and logical_date same
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
@@ -2592,6 +2668,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
             #  memory for larger dags? or expunge_all()
 
+    @start_debug_span("scheduler._create_dag_runs_asset_triggered")
     def _create_dag_runs_asset_triggered(
         self,
         *,
@@ -2599,6 +2676,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session: Session,
     ) -> None:
         """For Dags that are triggered by assets, create Dag runs."""
+        trace.get_current_span().set_attribute("airflow.scheduler.num_asset_triggered_dags", len(dag_models))
         for dag_model in dag_models:
             dag = self._get_current_dag(dag_id=dag_model.dag_id, session=session)
             if not dag:
@@ -2753,9 +2831,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return locked_backfills
 
+    @start_debug_span("scheduler._start_queued_dagruns")
     def _start_queued_dagruns(self, session: Session) -> None:
         """Find DagRuns in queued state and decide moving them to running state."""
         dag_runs: Collection[DagRun] = list(DagRun.get_queued_dag_runs_to_set_running(session))
+        trace.get_current_span().set_attribute("airflow.scheduler.queued_dag_runs", len(dag_runs))
 
         # Lock backfills to prevent race conditions with concurrent schedulers
         locked_backfills = self._lock_backfills(dag_runs, session)
@@ -2806,46 +2886,54 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_id = dag_run.dag_id
             run_id = dag_run.run_id
             backfill_id = dag_run.backfill_id
-            dag = dag_run.dag = cached_get_dag(dag_run)
-            if not dag:
-                self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
-                continue
-            active_runs = active_runs_of_dags[(dag_id, backfill_id)]
-            if backfill_id is not None:
-                if backfill_id not in locked_backfills:
-                    # Another scheduler has this backfill locked, skip this run
+            with start_debug_span("scheduler.update_dag_run_state_to_running") as update_state_span:
+                update_state_span.set_attribute("airflow.dag_run.dag_id", dag_id)
+                update_state_span.set_attribute("airflow.dag_run.run_id", run_id)
+                if backfill_id is not None:
+                    update_state_span.set_attribute("airflow.dag_run.backfill_id", backfill_id)
+                with start_debug_span("scheduler.cached_get_dag") as cached_get_dag_span:
+                    cached_get_dag_span.set_attribute("airflow.dag.dag_id", dag_id)
+                    dag = dag_run.dag = cached_get_dag(dag_run)
+                if not dag:
+                    self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
                     continue
-                backfill = dag_run.backfill
-                if active_runs >= backfill.max_active_runs:
-                    # todo: delete all "candidate dag runs" from list for this dag right now
-                    self.log.info(
-                        "dag cannot be started due to backfill max_active_runs constraint; "
-                        "active_runs=%s max_active_runs=%s dag_id=%s run_id=%s",
-                        active_runs,
-                        backfill.max_active_runs,
-                        dag_id,
-                        run_id,
-                    )
-                    continue
-            elif dag_run.max_active_runs:
-                # Using dag_run.max_active_runs which links to DagModel to ensure we are checking
-                # against the most recent changes on the dag and not using stale serialized dag
-                if active_runs >= dag_run.max_active_runs:
-                    # todo: delete all candidate dag runs for this dag from list right now
-                    self.log.info(
-                        "dag cannot be started due to dag max_active_runs constraint; "
-                        "active_runs=%s max_active_runs=%s dag_id=%s run_id=%s",
-                        active_runs,
-                        dag_run.max_active_runs,
-                        dag_run.dag_id,
-                        dag_run.run_id,
-                    )
-                    continue
-            active_runs_of_dags[(dag_run.dag_id, backfill_id)] += 1
-            _update_state(dag, dag_run)
-            dag_run.notify_dagrun_state_changed(msg="started")
+                active_runs = active_runs_of_dags[(dag_id, backfill_id)]
+                if backfill_id is not None:
+                    if backfill_id not in locked_backfills:
+                        # Another scheduler has this backfill locked, skip this run
+                        continue
+                    backfill = dag_run.backfill
+                    if active_runs >= backfill.max_active_runs:
+                        # todo: delete all "candidate dag runs" from list for this dag right now
+                        self.log.info(
+                            "dag cannot be started due to backfill max_active_runs constraint; "
+                            "active_runs=%s max_active_runs=%s dag_id=%s run_id=%s",
+                            active_runs,
+                            backfill.max_active_runs,
+                            dag_id,
+                            run_id,
+                        )
+                        continue
+                elif dag_run.max_active_runs:
+                    # Using dag_run.max_active_runs which links to DagModel to ensure we are checking
+                    # against the most recent changes on the dag and not using stale serialized dag
+                    if active_runs >= dag_run.max_active_runs:
+                        # todo: delete all candidate dag runs for this dag from list right now
+                        self.log.info(
+                            "dag cannot be started due to dag max_active_runs constraint; "
+                            "active_runs=%s max_active_runs=%s dag_id=%s run_id=%s",
+                            active_runs,
+                            dag_run.max_active_runs,
+                            dag_run.dag_id,
+                            dag_run.run_id,
+                        )
+                        continue
+                active_runs_of_dags[(dag_run.dag_id, backfill_id)] += 1
+                _update_state(dag, dag_run)
+                dag_run.notify_dagrun_state_changed(msg="started")
 
     @retry_db_transaction
+    @start_debug_span("scheduler._schedule_all_dag_runs")
     def _schedule_all_dag_runs(
         self,
         guard: CommitProhibitorGuard,
@@ -2863,8 +2951,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             except Exception:
                 self.log.exception("Error scheduling DAG run %s of %s", run.run_id, run.dag_id)
         guard.commit()
+        trace.get_current_span().set_attribute("airflow.scheduler.dag_runs_scheduled", len(callback_tuples))
         return callback_tuples
 
+    @start_debug_span("scheduler._schedule_dag_run")
     def _schedule_dag_run(
         self,
         dag_run: DagRun,
@@ -2876,6 +2966,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param dag_run: The DagRun to schedule
         :return: Callback that needs to be executed
         """
+        current_span = trace.get_current_span()
+        current_span.set_attribute("airflow.dag_run.dag_id", dag_run.dag_id)
+        current_span.set_attribute("airflow.dag_run.run_id", dag_run.run_id)
+
         callback: DagCallbackRequest | None = None
 
         dag = dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
@@ -2972,6 +3066,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
         schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
+        current_span.set_attribute("airflow.scheduler.num_schedulable_tis", len(schedulable_tis))
+        current_span.set_attribute("airflow.dag_run.state", str(dag_run.state))
 
         if dag_run.state in State.finished_dr_states and dag_run.run_type in (
             DagRunType.SCHEDULED,
@@ -3929,6 +4025,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             delete(AssetStateStoreModel).where(AssetStateStoreModel.asset_id.not_in(active_asset_ids))
         )
 
+    @start_debug_span("scheduler._enqueue_connection_tests")
     def _enqueue_connection_tests(self, *, session: Session) -> None:
         """
         Enqueue pending connection tests to executors that support them.
@@ -3960,6 +4057,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
         stats.gauge("connection_test.active", active_count)
         stats.gauge("connection_test.pending", pending_count)
+        connection_test_span = trace.get_current_span()
+        connection_test_span.set_attribute("airflow.scheduler.connection_tests_active", active_count)
+        connection_test_span.set_attribute("airflow.scheduler.connection_tests_pending", pending_count)
 
         budget = max_concurrency - active_count
         if budget <= 0:
@@ -4055,6 +4155,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         session.flush()
 
+    @start_debug_span("scheduler._executor_to_workloads")
     def _executor_to_workloads(
         self,
         workloads: Iterable[SchedulerWorkload],
