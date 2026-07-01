@@ -2475,6 +2475,7 @@ export type DeadlineAlertResponse = {
      * Interval in seconds between the reference time and the deadline. Null for a dynamic interval (e.g. a VariableInterval) whose value is only resolved at scheduler evaluation time.
      */
     interval?: number | null;
+    fire_on_failure: boolean;
     created_at: string;
 };
 
