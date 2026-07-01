@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import queue
 import random
 import re
 import string
@@ -1539,6 +1540,9 @@ class TestKubernetesExecutor:
         executor = self.kubernetes_executor
         executor.kube_config.worker_pods_creation_batch_size = 16
         executor.kube_scheduler = mock.MagicMock()
+        # task_queue is created lazily in start(); this test drives _create_pods_concurrently
+        # directly, so seed a lightweight in-process queue instead of spawning a Manager.
+        executor.task_queue = queue.Queue()
 
         ok_key = TaskInstanceKey("dag", "ok", "run_id", 1)
         bad_key = TaskInstanceKey("dag", "bad", "run_id", 1)
