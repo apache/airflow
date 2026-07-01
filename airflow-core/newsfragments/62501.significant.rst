@@ -1,0 +1,24 @@
+Fix a race condition that could cause asset-triggered Dags to be skipped
+
+Under concurrent asset updates, the scheduler could occasionally miss a newly
+produced asset event and fail to create the asset-triggered Dag run it should
+have. Asset-triggered Dags now run reliably when their upstream assets are
+updated.
+
+As part of this fix the asset event is made visible to the scheduler slightly
+earlier than the rest of the producing task's bookkeeping. In the rare case
+that the producing task fails at exactly that moment, you may observe a
+duplicate asset event (if the task retries) or an asset event that does not
+trigger a run. Neither leaves the system in an inconsistent state, but operators
+investigating missing or duplicated asset-triggered runs should be aware of it.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
