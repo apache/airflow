@@ -353,6 +353,7 @@ class PlainXComArg(XComArg):
                     upstream=self.operator,
                     ti_count=ti_count,
                     session=None,  # Not used in SDK implementation
+                    use_post_expansion_placeholder=True,
                 )
                 # None means "no filtering needed" -> use NOTSET to pull all values
                 map_indexes = NOTSET if computed is None else computed
