@@ -118,6 +118,35 @@ def dagbag():
 
 
 @pytest.fixture
+def create_dagruns():
+    def _create_dagruns(
+        dag_maker,
+        session,
+        last_scheduling_decision: datetime.datetime | None = None,
+        count: int = 20,
+    ):
+        dagrun = dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            state=State.RUNNING,
+            run_after=datetime.datetime(2024, 1, 1),
+        )
+        dagrun.last_scheduling_decision = last_scheduling_decision
+        session.merge(dagrun)
+        for _ in range(count - 1):
+            dagrun = dag_maker.create_dagrun_after(
+                dagrun,
+                run_type=DagRunType.SCHEDULED,
+                state=State.RUNNING,
+                run_after=datetime.datetime(2024, 1, 1),
+            )
+
+            dagrun.last_scheduling_decision = last_scheduling_decision
+            session.merge(dagrun)
+
+    return _create_dagruns
+
+
+@pytest.fixture
 def deadline_test_dag(session):
     """Fixture that creates and syncs a basic DAG with two tasks."""
 
@@ -1047,6 +1076,93 @@ class TestDagRun:
         schedulable_tis = [ti.task_id for ti in decision.schedulable_tis]
         assert (upstream.task_id in schedulable_tis) == is_ti_schedulable
 
+    @pytest.mark.parametrize(
+        "new_dagruns_to_examine",
+        [
+            0,
+            -1,
+        ],
+    )
+    def test_get_running_dag_runs_ignores_new_dagruns_to_examine_when_smaller_than_0(
+        self,
+        session,
+        dag_maker,
+        create_dagruns,
+        monkeypatch,
+        new_dagruns_to_examine,
+    ):
+        monkeypatch.setattr(
+            DagRun,
+            "DEFAULT_NEW_DAGRUNS_TO_EXAMINE",
+            new_dagruns_to_examine,
+        )
+
+        with dag_maker(
+            dag_id="dummy_dag",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2024, 1, 1),
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy_task")
+
+        create_dagruns(dag_maker, session, None, 10)
+
+        with dag_maker(
+            dag_id="dummy_dag2",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2024, 1, 1),
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy_task2")
+
+        create_dagruns(dag_maker, session, timezone.utcnow(), 20)
+
+        session.flush()
+
+        dagruns = list(DagRun.get_running_dag_runs_to_examine(session=session))
+
+        assert len([dagrun for dagrun in dagruns if dagrun.last_scheduling_decision is None]) == 10
+
+        assert len([dagrun for dagrun in dagruns if dagrun.last_scheduling_decision is not None]) == 10
+
+    def test_get_running_dag_runs_with_max_new_dagruns_to_examine(
+        self, session, dag_maker, create_dagruns, monkeypatch
+    ):
+        monkeypatch.setattr(DagRun, "DEFAULT_NEW_DAGRUNS_TO_EXAMINE", 10)
+
+        with dag_maker(
+            dag_id="dummy_dag",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2024, 1, 1),
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy_task")
+
+        create_dagruns(dag_maker, session, None)
+
+        with dag_maker(
+            dag_id="dummy_dag2",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2024, 1, 1),
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy_task2")
+
+        create_dagruns(dag_maker, session, timezone.utcnow())
+
+        session.flush()
+
+        dagruns = list(DagRun.get_running_dag_runs_to_examine(session=session))
+
+        assert (
+            len([dagrun for dagrun in dagruns if dagrun.last_scheduling_decision is None])
+            == DagRun.DEFAULT_NEW_DAGRUNS_TO_EXAMINE
+        )
+        assert (
+            len([dagrun for dagrun in dagruns if dagrun.last_scheduling_decision is not None])
+            == DagRun.DEFAULT_DAGRUNS_TO_EXAMINE
+        )
+
     @pytest.mark.parametrize("state", [DagRunState.QUEUED, DagRunState.RUNNING])
     def test_next_dagruns_to_examine_only_unpaused(self, session, state, testing_dag_bundle):
         """
@@ -1085,9 +1201,10 @@ class TestDagRun:
 
         if state == DagRunState.RUNNING:
             func = DagRun.get_running_dag_runs_to_examine
+            runs = func(session)
         else:
             func = DagRun.get_queued_dag_runs_to_set_running
-        runs = func(session).all()
+            runs = func(session).all()
 
         assert runs == [dr]
 
@@ -1095,7 +1212,11 @@ class TestDagRun:
         session.merge(orm_dag)
         session.commit()
 
-        runs = func(session).all()
+        if state == DagRunState.RUNNING:
+            runs = func(session)
+        else:
+            runs = func(session).all()
+
         assert runs == []
 
     @mock.patch("airflow._shared.observability.metrics.stats.timing")
@@ -1177,7 +1298,7 @@ class TestDagRun:
             session.flush()
 
             with mock.patch("airflow._shared.observability.metrics.stats.timing") as stats_mock:
-                dag_run.update_state(session=session)
+                dag_run.update_state(session)
 
             metric_name = f"dagrun.{dag.dag_id}.first_task_scheduling_delay"
 
@@ -1266,7 +1387,7 @@ class TestDagRun:
             session.flush()
 
             with mock.patch("airflow._shared.observability.metrics.stats.timing") as stats_mock:
-                dag_run.update_state(session=session)
+                dag_run.update_state(session)
 
             start_delay_call = call("dagrun.first_task_start_delay", mock.ANY, tags=expected_stat_tags)
             if expected:
@@ -1379,28 +1500,17 @@ class TestDagRun:
         assert isinstance(dag_run.dag_versions, list)
         assert len(dag_run.dag_versions) == 0
 
-    @pytest.mark.parametrize(
-        "interval",
-        [
-            datetime.timedelta(hours=1),
-            VariableInterval("my_key"),
-        ],
-    )
-    @mock.patch.object(Variable, "get")
     @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_success_deadline(self, _, mock_get, interval, session, deadline_test_dag):
+    def test_dagrun_success_deadline(self, _, session, deadline_test_dag):
         def on_success_callable(context):
             assert context["dag_run"].dag_id == "test_dag"
 
         future_date = datetime.datetime.now() + datetime.timedelta(days=365)
 
-        # First value used during resolution
-        mock_get.return_value = "5"
-
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
                 reference=DeadlineReference.FIXED_DATETIME(future_date),
-                interval=interval,
+                interval=datetime.timedelta(hours=1),
                 callback=AsyncCallback(empty_callback_for_deadline),
             ),
             on_success_callback=on_success_callable,
