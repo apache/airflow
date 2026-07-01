@@ -914,6 +914,8 @@ class TestKubernetesExecutor:
             kubernetes_executor = self.kubernetes_executor
             kubernetes_executor.task_publish_max_retries = task_publish_max_retries
             kubernetes_executor.start()
+            task_queue = kubernetes_executor.task_queue
+            assert task_queue is not None
             try:
                 # Execute a task while the Api Throws errors
                 try_number = 1
@@ -928,7 +930,7 @@ class TestKubernetesExecutor:
                 assert mock_kube_client.create_namespaced_pod.call_count == 1  # type: ignore[attr-defined]
 
                 if should_requeue:
-                    assert not kubernetes_executor.task_queue.empty()
+                    assert not task_queue.empty()
 
                     # Disable the ApiException
                     if task_expected_state == State.SUCCESS or task_expected_state == State.QUEUED:
@@ -942,11 +944,11 @@ class TestKubernetesExecutor:
 
                     kubernetes_executor.sync()
                     assert mock_kube_client.create_namespaced_pod.called  # type: ignore[attr-defined]
-                    assert kubernetes_executor.task_queue.empty()
+                    assert task_queue.empty()
                     if task_expected_state != State.SUCCESS:
                         assert kubernetes_executor.event_buffer[task_instance_key][0] == task_expected_state
                 else:
-                    assert kubernetes_executor.task_queue.empty()
+                    assert task_queue.empty()
                     assert kubernetes_executor.event_buffer[task_instance_key][0] == task_expected_state
             finally:
                 kubernetes_executor.end()
@@ -2353,6 +2355,72 @@ class TestKubernetesExecutor:
             "Reading from k8s pod logs failed: error_fetching_pod_log",
         ]
 
+    def test_init_does_not_create_manager_process(self):
+        """
+        Constructing the executor must not spawn a ``multiprocessing.Manager``.
+
+        The API server builds a ``KubernetesExecutor`` purely to call ``get_task_log()`` for
+        RUNNING tasks and never starts it. Eagerly creating the Manager in ``__init__`` leaked an
+        orphaned ``serve_forever`` process per API-server worker.
+        """
+        executor = KubernetesExecutor()
+
+        assert executor._manager is None
+        assert executor.task_queue is None
+        assert executor.result_queue is None
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_get_task_log_does_not_create_manager_process(
+        self, mock_get_kube_client, create_task_instance_of_operator
+    ):
+        """Reading a running task's logs must not spawn a ``multiprocessing.Manager``."""
+        mock_kube_client = mock_get_kube_client.return_value
+        mock_kube_client.read_namespaced_pod_log.return_value = [b"a_"]
+        mock_pod = mock.Mock(spec=k8s.V1Pod)
+        mock_pod.metadata.name = "x"
+        mock_kube_client.list_namespaced_pod.return_value.items = [mock_pod]
+        ti = create_task_instance_of_operator(EmptyOperator, dag_id="test_k8s_log_dag", task_id="test_task")
+
+        executor = KubernetesExecutor()
+        executor.get_task_log(ti=ti, try_number=1)
+
+        assert executor._manager is None
+
+    def test_end_without_start_is_noop(self):
+        """``end()`` on an executor that was never started must not raise."""
+        executor = KubernetesExecutor()
+
+        # Must not raise even though no Manager/queues were ever created.
+        executor.end()
+
+        assert executor._manager is None
+
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.client")
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    def test_start_creates_manager_and_queues(self, mock_watcher, mock_client, mock_kube_client):
+        """``start()`` creates the Manager and queues; ``end()`` tears them down idempotently."""
+        executor = KubernetesExecutor()
+        executor.job_id = 1
+        try:
+            executor.start()
+
+            assert executor._manager is not None
+            assert executor.task_queue is not None
+            assert executor.result_queue is not None
+        finally:
+            executor.end()
+
+        # end() returns the executor to the unstarted state, so a second end() is a safe no-op.
+        assert executor._manager is None
+        assert executor.task_queue is None
+        assert executor.result_queue is None
+        executor.end()
+
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Airflow 3.2+ prefers new configuration")
     def test_sentry_integration(self):
         assert not KubernetesExecutor.sentry_integration
@@ -2866,16 +2934,30 @@ class TestKubernetesExecutorMultiTeam:
         assert executor.team_name == "ml_team"
         assert executor.kube_config is not None
 
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Multi-team requires Airflow 3.2+")
-    def test_multiple_team_executors_isolation(self, monkeypatch):
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.client")
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    def test_multiple_team_executors_isolation(
+        self, mock_watcher, mock_client, mock_kube_client, monkeypatch
+    ):
         """Test that multiple team executors can coexist with isolated resources."""
         monkeypatch.setenv("AIRFLOW__TEAM_A___KUBERNETES_EXECUTOR__WORKER_PODS_CREATION_BATCH_SIZE", "4")
         monkeypatch.setenv("AIRFLOW__TEAM_B___KUBERNETES_EXECUTOR__WORKER_PODS_CREATION_BATCH_SIZE", "8")
 
         team_a_executor = KubernetesExecutor(team_name="team_a")
         team_b_executor = KubernetesExecutor(team_name="team_b")
+        team_a_executor.job_id = 1
+        team_b_executor.job_id = 2
 
         try:
+            # Queues are created lazily in start(), so each team executor gets its own.
+            team_a_executor.start()
+            team_b_executor.start()
+
             assert team_a_executor.task_queue is not team_b_executor.task_queue
             assert team_a_executor.result_queue is not team_b_executor.result_queue
             assert team_a_executor.running is not team_b_executor.running

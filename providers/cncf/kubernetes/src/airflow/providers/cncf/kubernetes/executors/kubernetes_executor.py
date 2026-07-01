@@ -60,6 +60,7 @@ from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from multiprocessing.managers import SyncManager
 
     from kubernetes import client
     from kubernetes.client import models as k8s
@@ -102,9 +103,14 @@ class KubernetesExecutor(BaseExecutor):
         # Override parallelism with team-aware config value
         self.parallelism = self.kube_config.parallelism
 
-        self._manager = multiprocessing.Manager()
-        self.task_queue: Queue[KubernetesJob] = self._manager.JoinableQueue()
-        self.result_queue: Queue[KubernetesResults] = self._manager.JoinableQueue()
+        # The multiprocessing.Manager() (and the queues it backs) is only needed once the
+        # scheduler actually runs the executor, so it is created lazily in start(). Constructing
+        # the executor without starting it -- as the API server does to call get_task_log() for a
+        # RUNNING task -- must not spawn a Manager process, otherwise that serve_forever child is
+        # orphaned and leaks (one per API-server worker).
+        self._manager: SyncManager | None = None
+        self.task_queue: Queue[KubernetesJob] | None = None
+        self.result_queue: Queue[KubernetesResults] | None = None
         self.kube_scheduler: AirflowKubernetesScheduler | None = None
         self.kube_client: client.CoreV1Api | None = None
         self.scheduler_job_id: str | None = None
@@ -188,6 +194,9 @@ class KubernetesExecutor(BaseExecutor):
     def start(self) -> None:
         """Start the executor."""
         self.log.info("Start Kubernetes executor")
+        self._manager = multiprocessing.Manager()
+        self.task_queue = self._manager.JoinableQueue()
+        self.result_queue = self._manager.JoinableQueue()
         self.scheduler_job_id = str(self.job_id)
         self.log.debug("Start with scheduler_job_id: %s", self.scheduler_job_id)
         from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
@@ -961,10 +970,15 @@ class KubernetesExecutor(BaseExecutor):
 
     def end(self) -> None:
         """Shut down the executor."""
+        if self._manager is None:
+            # start() was never called (e.g. the executor was only constructed to read task
+            # logs), so there is no Manager process or queues to shut down.
+            return
         if TYPE_CHECKING:
             assert self.task_queue
             assert self.result_queue
             assert self.kube_scheduler
+            assert self._manager
 
         self.log.info("Shutting down Kubernetes executor")
         try:
@@ -985,6 +999,11 @@ class KubernetesExecutor(BaseExecutor):
             except Exception:
                 self.log.exception("Unknown error while flushing task queue and result queue.")
         self._manager.shutdown()
+        # Return to the unstarted state so a second end() is a no-op (the guard above) and the
+        # Manager/queues are recreated cleanly if start() is ever called again.
+        self._manager = None
+        self.task_queue = None
+        self.result_queue = None
 
     def terminate(self):
         """Terminate the executor is not doing anything."""
