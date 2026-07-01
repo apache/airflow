@@ -33,7 +33,13 @@ imaplib_string = "airflow.providers.imap.hooks.imap.imaplib"
 open_string = "airflow.providers.imap.hooks.imap.open"
 
 
-def _create_fake_imap(mock_imaplib, with_mail=False, attachment_name="test1.csv", use_ssl=True):
+def _create_fake_imap(
+    mock_imaplib,
+    with_mail=False,
+    attachment_name="test1.csv",
+    use_ssl=True,
+    payload="SWQsTmFtZQoxLEZlbGl4",
+):
     if use_ssl:
         mock_conn = Mock(spec=imaplib.IMAP4_SSL)
         mock_imaplib.IMAP4_SSL.return_value = mock_conn
@@ -51,7 +57,7 @@ def _create_fake_imap(mock_imaplib, with_mail=False, attachment_name="test1.csv"
             f"boundary=123\r\n--123\r\n"
             f"Content-Disposition: attachment; "
             f'filename="{attachment_name}";'
-            f"Content-Transfer-Encoding: base64\r\nSWQsTmFtZQoxLEZlbGl4\r\n--123--"
+            f"Content-Transfer-Encoding: base64\r\n{payload}\r\n--123--"
         )
         mock_conn.fetch.return_value = ("OK", [(b"", mail_string.encode("utf-8"))])
         mock_conn.close.return_value = ("OK", [])
@@ -407,6 +413,55 @@ class TestImapHook:
 
         mock_imaplib.IMAP4_SSL.return_value.search.assert_called_once_with(None, mail_filter)
         assert mock_open_method.call_count == 1
+
+    @pytest.mark.parametrize(
+        ("attachment_name", "unexpected_files"),
+        [
+            ("test1.csv", ["test1_1.csv", "test1_2.csv"]),
+            ("README", ["README_1", "README_2"]),
+            ("test.tar.gz", ["test.tar_1.gz", "test.tar_2.gz"]),
+        ],
+    )
+    @patch(imaplib_string)
+    def test_download_mail_attachments_overwrites_existing_file(
+        self, mock_imaplib, tmp_path, attachment_name, unexpected_files
+    ):
+        for payload in ("first", "second", "third"):
+            _create_fake_imap(
+                mock_imaplib, with_mail=True, attachment_name=attachment_name, payload=payload
+            )
+            with ImapHook() as imap_hook:
+                imap_hook.download_mail_attachments(attachment_name, str(tmp_path))
+
+        assert (tmp_path / attachment_name).read_bytes() == b"third"
+        for unexpected_file in unexpected_files:
+            assert not (tmp_path / unexpected_file).exists()
+        assert len(list(tmp_path.iterdir())) == 1
+
+    @pytest.mark.parametrize(
+        ("attachment_name", "expected_files"),
+        [
+            ("test1.csv", ["test1.csv", "test1_1.csv", "test1_2.csv"]),
+            ("README", ["README", "README_1", "README_2"]),
+            ("test.tar.gz", ["test.tar.gz", "test.tar_1.gz", "test.tar_2.gz"]),
+        ],
+    )
+    @patch(imaplib_string)
+    def test_download_mail_attachments_without_overwrite_preserves_existing_files(
+        self, mock_imaplib, tmp_path, attachment_name, expected_files
+    ):
+        _create_fake_imap(mock_imaplib, with_mail=True, attachment_name=attachment_name)
+
+        with ImapHook() as imap_hook:
+            for _ in range(3):
+                imap_hook.download_mail_attachments(
+                    attachment_name, str(tmp_path), overwrite_file=False
+                )
+
+        payload = b"SWQsTmFtZQoxLEZlbGl4"
+        for expected_file in expected_files:
+            assert (tmp_path / expected_file).read_bytes() == payload
+        assert len(list(tmp_path.iterdir())) == 3
 
     @patch(imaplib_string)
     def test_retrieve_mail_attachments_with_max_mails(self, mock_imaplib):
