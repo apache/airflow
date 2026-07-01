@@ -2953,6 +2953,21 @@ class TestDatabricksRunNowOperatorDurable:
         assert op.run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_reconnects_to_blocked_run_without_resubmitting(self, db_mock_class):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)
+        db_mock = db_mock_class.return_value
+        # A gated run sits in BLOCKED; the durable retry must reconnect and wait, not resubmit.
+        db_mock.get_run.side_effect = [self._state("BLOCKED"), self._state("TERMINATED", "SUCCESS")]
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = RUN_ID
+
+        op.execute(self._context(task_store))
+
+        db_mock.run_now.assert_not_called()
+        task_store.set.assert_not_called()
+        assert op.run_id == RUN_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_reconnect_with_job_name_resolves_job_id_for_repair(self, db_mock_class):
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_name=JOB_NAME)
         db_mock = db_mock_class.return_value
@@ -3086,6 +3101,8 @@ class TestDatabricksRunNowOperatorDurable:
             ("PENDING:", True),
             ("QUEUED:", True),
             ("TERMINATING:", True),
+            ("BLOCKED:", True),
+            ("WAITING_FOR_RETRY:", True),
             ("TERMINATED:SUCCESS", False),
             ("TERMINATED:FAILED", False),
             ("SKIPPED:", False),
