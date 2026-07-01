@@ -38,6 +38,10 @@ KubernetesExecutor requires a non-sqlite database in the backend.
 
 When a Dag submits a task, the KubernetesExecutor requests a worker pod from the Kubernetes API. The worker pod then runs the task, reports the result, and terminates.
 
+The scheduler credentials used by KubernetesExecutor need permission to create,
+watch, patch, and delete task pods in Kubernetes. See
+:ref:`kubernetes:rbac` for example RBAC rules.
+
 .. image:: img/arch-diag-kubernetes.png
 
 
