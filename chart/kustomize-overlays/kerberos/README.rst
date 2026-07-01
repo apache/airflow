@@ -102,8 +102,6 @@ This overlay produces a Secret with exactly that name, so nothing in
       ccacheMountPath: /var/kerberos-ccache
       keytabPath: /etc/airflow.keytab
       principal: airflow/airflow.airflow.svc.cluster.local@EXAMPLE.COM
-      # keytabBase64Content left unset on purpose: the overlay supplies the
-      # <release>-kerberos-keytab Secret that the sidecar mounts.
 
     workers:
       celery:
