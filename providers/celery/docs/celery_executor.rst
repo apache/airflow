@@ -203,6 +203,42 @@ During this process, two processes are created:
 | [11] **WorkerProcess** saves status information in **ResultBackend**.
 | [13] When **SchedulerProcess** asks **ResultBackend** again about the status, it will get information about the status of the task.
 
+.. _celery_executor:logging:
+
+Worker logging
+--------------
+
+By default the Celery worker writes plain-text logs to stdout. To emit structured
+JSON instead, enable it via the ``[logging]`` section (applies to all Airflow
+components) or override it for the worker alone with the ``[celery]`` section:
+
+.. code-block:: ini
+
+    # Global — affects the API server, scheduler, and workers:
+    [logging]
+    json_logs = True
+
+    # Or override for the Celery worker only, leaving other components unchanged:
+    [celery]
+    json_logs = True
+
+The lookup order is:
+
+1. ``[celery] json_logs`` — if set, takes precedence.
+2. ``[logging] json_logs`` — used when the celery-specific key is absent.
+3. ``False`` — the default when neither key is configured.
+
+This mirrors the existing ``[logging] CELERY_LOGGING_LEVEL`` /
+``[logging] LOGGING_LEVEL`` fallback already present in the worker startup
+code.
+
+.. note::
+
+    ``[logging] json_logs`` was added in Airflow 3.2.0. On older 3.x versions the
+    global key is silently ignored (``fallback=False``), so setting only
+    ``[celery] json_logs = True`` is the safe way to enable JSON logs regardless
+    of the core version.
+
 .. _celery_executor:queue:
 
 Queues

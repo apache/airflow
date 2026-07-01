@@ -860,7 +860,7 @@ export type DAGDetailsResponse = {
     bundle_name: string | null;
     bundle_version: string | null;
     relative_fileloc: string | null;
-    fileloc: string;
+    fileloc: string | null;
     description: string | null;
     timetable_summary: string | null;
     timetable_description: string | null;
@@ -943,7 +943,7 @@ export type DAGResponse = {
     bundle_name: string | null;
     bundle_version: string | null;
     relative_fileloc: string | null;
-    fileloc: string;
+    fileloc: string | null;
     description: string | null;
     timetable_summary: string | null;
     timetable_description: string | null;
@@ -2326,7 +2326,7 @@ export type DAGWithLatestDagRunsResponse = {
     bundle_name: string | null;
     bundle_version: string | null;
     relative_fileloc: string | null;
-    fileloc: string;
+    fileloc: string | null;
     description: string | null;
     timetable_summary: string | null;
     timetable_description: string | null;
@@ -4544,6 +4544,8 @@ export type GenerateTokenResponse2 = GenerateTokenResponse;
 export type GetPartitionedDagRunsData = {
     dagId?: string | null;
     hasCreatedDagRunId?: boolean | null;
+    limit?: number;
+    offset?: number;
 };
 
 export type GetPartitionedDagRunsResponse = PartitionedDagRunCollectionResponse;

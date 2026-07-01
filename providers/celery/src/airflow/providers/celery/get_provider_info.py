@@ -110,6 +110,13 @@ def get_provider_info():
                         "example": None,
                         "default": "true",
                     },
+                    "json_logs": {
+                        "description": "Emit Celery worker stdout in JSON format. When set, this takes precedence over\nthe global ``[logging] json_logs`` setting, allowing the worker to use a\ndifferent format than the rest of the deployment. When unset (the default),\nthe value falls back to ``[logging] json_logs``, which itself defaults to\n``False``.\n",
+                        "version_added": None,
+                        "type": "boolean",
+                        "example": None,
+                        "default": None,
+                    },
                     "broker_url": {
                         "description": "The Celery broker URL. Celery supports multiple broker types. See:\nhttps://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/index.html#broker-overview\n",
                         "version_added": None,
@@ -123,7 +130,7 @@ def get_provider_info():
                         "version_added": None,
                         "type": "string",
                         "sensitive": True,
-                        "example": "db+postgresql://postgres:airflow@postgres/airflow",
+                        "example": "db+postgresql+psycopg2://postgres:airflow@postgres/airflow",
                         "default": None,
                     },
                     "result_backend_sqlalchemy_engine_options": {
