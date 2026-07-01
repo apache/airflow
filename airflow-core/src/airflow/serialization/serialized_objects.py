@@ -60,7 +60,7 @@ from airflow.sdk.definitions.asset import (
 from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.operator_resources import Resources
-from airflow.sdk.definitions.param import Param, ParamsDict
+from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import serialize_xcom_arg
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
@@ -278,6 +278,24 @@ class _XComRef(NamedTuple):
 
     def deref(self, dag: SerializedDAG) -> SchedulerXComArg:
         return deserialize_xcom_arg(self.data, dag)
+
+
+class _DagParamRef(NamedTuple):
+    """
+    Placeholder for a DagParam found inside partial_kwargs during deserialization.
+
+    DagParam requires a live DAG reference, which is not yet available when
+    partial_kwargs are first deserialized. This placeholder stores the param's
+    identity and default so it can be resolved to a real DagParam object in
+    ``set_task_dag_references`` once the DAG has been fully hydrated.
+    """
+
+    dag_id: str
+    name: str
+    default: Any
+
+    def deref(self, dag: SerializedDAG) -> DagParam:
+        return DagParam(current_dag=dag, name=self.name, default=self.default)
 
 
 # These two should be kept in sync. Note that these are intentionally not using
@@ -578,6 +596,15 @@ class BaseSerialization:
             )
         elif isinstance(var, TaskGroup):
             return TaskGroupSerialization.serialize_task_group(var)
+        elif isinstance(var, DagParam):
+            return cls._encode(
+                {
+                    "dag_id": var.current_dag.dag_id,
+                    "name": var._name,
+                    "default": cls.serialize(var._default),
+                },
+                type_=DAT.DAG_PARAM,
+            )
         elif isinstance(var, Param):
             return cls._encode(cls._serialize_param(var), type_=DAT.PARAM)
         elif isinstance(var, XComArg):
@@ -670,6 +697,13 @@ class BaseSerialization:
             return cls._deserialize_param(var)
         elif type_ == DAT.XCOM_REF:
             return _XComRef(var)  # Delay deserializing XComArg objects until we have the entire DAG.
+        elif type_ == DAT.DAG_PARAM:
+            # Delay resolving DagParam until the DAG is available in set_task_dag_references.
+            return _DagParamRef(
+                dag_id=var["dag_id"],
+                name=var["name"],
+                default=cls.deserialize(var["default"]),
+            )
         elif type_ in (DAT.ASSET, DAT.ASSET_ALIAS, DAT.ASSET_ALL, DAT.ASSET_ANY, DAT.ASSET_REF):
             return decode_asset_like(encoded_var)
         elif type_ == DAT.CONNECTION:
@@ -1207,6 +1241,17 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         setattr(op, "start_from_trigger", bool(encoded_op.get("start_from_trigger", False)))
 
     @staticmethod
+    def _resolve_dag_param_refs(obj: Any, dag: SerializedDAG) -> Any:
+        """Recursively replace _DagParamRef placeholders with live DagParam objects."""
+        if isinstance(obj, _DagParamRef):
+            return obj.deref(dag)
+        if isinstance(obj, dict):
+            return {k: OperatorSerialization._resolve_dag_param_refs(v, dag) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [OperatorSerialization._resolve_dag_param_refs(item, dag) for item in obj]
+        return obj
+
+    @staticmethod
     def set_task_dag_references(task: SerializedOperator | MappedOperator, dag: SerializedDAG) -> None:
         """
         Handle DAG references on an operator.
@@ -1225,6 +1270,11 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         for k in ("expand_input", "op_kwargs_expand_input"):
             if isinstance(kwargs_ref := getattr(task, k, None), _ExpandInputRef):
                 setattr(task, k, kwargs_ref.deref(dag))
+
+        # Resolve DagParam references that may be nested inside partial_kwargs
+        # (e.g. inside op_kwargs of a mapped @task operator).
+        if isinstance(task, MappedOperator) and task.partial_kwargs:
+            task.partial_kwargs = OperatorSerialization._resolve_dag_param_refs(task.partial_kwargs, dag)
 
         for task_id in task.downstream_task_ids:
             # Bypass set_upstream etc here - it does more than we want
