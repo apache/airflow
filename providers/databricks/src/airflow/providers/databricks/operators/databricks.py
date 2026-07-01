@@ -980,7 +980,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         _handle_deferrable_databricks_operator_completion(event, self.log)
 
 
-class DatabricksRunNowOperator(BaseOperator):
+class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
     """
     Runs an existing Spark job run to Databricks using the api/2.2/jobs/run-now API endpoint.
 
@@ -1163,6 +1163,10 @@ class DatabricksRunNowOperator(BaseOperator):
             (https://docs.databricks.com/api/workspace/jobs/update). If nothing is matched, then repair
             will not get triggered.
     :param cancel_previous_runs: Cancel all existing running jobs before submitting new one.
+    :param durable: When ``True`` (the default), the Databricks run id is persisted to task state
+        before polling begins so that a worker crash and retry reconnects to the existing run
+        instead of triggering a duplicate run of the same job. Set to ``False`` to always trigger a
+        fresh run on retry. Requires Airflow 3.3+; on earlier versions it is silently ignored.
 
     .. note::
         If ``job_parameters`` is not set in ``json`` and the operator's ``params`` dict is
@@ -1170,6 +1174,8 @@ class DatabricksRunNowOperator(BaseOperator):
         so that Airflow Dag params can be passed dynamically to Databricks runs without
         hardcoding them in ``json``.
     """
+
+    external_id_key = "databricks_run_now_id"
 
     # Used in airflow.models.BaseOperator
     template_fields: Sequence[str] = (
@@ -1283,10 +1289,21 @@ class DatabricksRunNowOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
+        if self.deferrable:
+            json = self._prepare_run_now_json()
+            self.run_id = self._hook.run_now(json)
+            _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
+        else:
+            return self.execute_resumable(context)
+
+    def _build_run_now_payload(self) -> dict[str, Any]:
+        # Utility to build the run payload: merge, validate, resolve job_name -> job_id, inject params.
+        # Kept separate from cancel_previous_runs so the reconnect path can rebuild the payload
+        # (for repair_run) without re-cancelling the run it is reconnecting to.
         json = self._get_merged_json()
         self._validate_merged_json(json)
         # Validate payload types before touching the hook so an invalid payload fails fast,
-        # before find_job_id_by_name / cancel_all_runs hit the Databricks API.
+        # before find_job_id_by_name hits the Databricks API.
         json = cast("dict[str, Any]", normalise_json_content(json))
         hook = self._hook
         if "job_name" in json:
@@ -1298,23 +1315,82 @@ class DatabricksRunNowOperator(BaseOperator):
             json["job_id"] = job_id
             del json["job_name"]
 
+        if not json.get("job_parameters") and self.params:
+            json["job_parameters"] = dict(self.params)
+
+        return json
+
+    def _prepare_run_now_json(self) -> dict[str, Any]:
+        json = self._build_run_now_payload()
         if self.cancel_previous_runs:
             if (job_id := json.get("job_id")) is None:
                 raise ValueError(
                     "cancel_previous_runs=True requires either job_id or job_name to be provided."
                 )
-
-            hook.cancel_all_runs(job_id)
-
-        if not json.get("job_parameters") and self.params:
-            json["job_parameters"] = dict(self.params)
+            self._hook.cancel_all_runs(job_id)
 
         self._merged_json = json
-        self.run_id = hook.run_now(json)
-        if self.deferrable:
-            _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
-        else:
-            _handle_databricks_operator_execution(self, hook, self.log, context)
+        return json
+
+    def submit_job(self, context: Context) -> int:
+        json = self._prepare_run_now_json()
+        # Set run_id the instant the run exists so on_kill can cancel it even if the worker dies
+        # before polling begins.
+        self.run_id = self._hook.run_now(json)
+        self.log.info("Run submitted with run_id: %s", self.run_id)
+        return self.run_id
+
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        # Databricks splits run state across life_cycle_state and result_state; the mixin's status
+        # interface is a single string, so encode both as "LIFE_CYCLE:RESULT" and decode them in
+        # is_job_active / is_job_succeeded.
+        try:
+            run_info = self._hook.get_run(external_id)
+        except DatabricksApiError as e:
+            # A stored run whose history expired (or was deleted) returns 404. Report a sentinel that
+            # is neither active nor succeeded so the mixin resubmits fresh instead of failing the task.
+            if e.http_status_code == 404:
+                return "NOT_FOUND:"
+            raise
+        state = RunState(**run_info["state"])
+        return f"{state.life_cycle_state}:{state.result_state}"
+
+    def is_job_active(self, status: str) -> bool:
+        life_cycle_state = status.split(":", 1)[0]
+        return life_cycle_state in (
+            "PENDING",
+            "QUEUED",
+            "RUNNING",
+            "TERMINATING",
+            "BLOCKED",
+            "WAITING_FOR_RETRY",
+        )
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return status == "TERMINATED:SUCCESS"
+
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        # submit_job and the stored external id are always Databricks run ids (int).
+        self.run_id = cast("int", external_id)
+        # On reconnect submit_job did not run, so rebuild the merged payload (read by the repair path
+        # in the poll helper). _build_run_now_payload resolves job_name -> job_id but omits
+        # cancel_previous_runs, which would otherwise cancel the run we are reconnecting to.
+        if not getattr(self, "_merged_json", None):
+            self._merged_json = self._build_run_now_payload()
+        # The run already exists here (fresh submit logged in submit_job, or reconnect logged by the
+        # mixin), so the poll helper must not announce a submission.
+        _handle_databricks_operator_execution(self, self._hook, self.log, context, announce_submission=False)
+        # The helper pushed run_id/run_page_url xcoms; record that so get_job_result does not push again.
+        self._run_xcoms_pushed = True
+
+    def get_job_result(self, external_id: JsonValue, context: Context) -> None:
+        self.run_id = cast("int", external_id)
+        # The already-succeeded retry path skips polling, so push the run xcoms here for parity with the
+        # normal success path. When polling ran, poll_until_complete already pushed them.
+        if not getattr(self, "_run_xcoms_pushed", False) and self.do_xcom_push and context is not None:
+            context["ti"].xcom_push(key=XCOM_RUN_ID_KEY, value=self.run_id)
+            context["ti"].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=self._hook.get_run_page_url(self.run_id))
+        return None
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         if event:
