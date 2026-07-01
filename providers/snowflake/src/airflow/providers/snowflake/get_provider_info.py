@@ -75,6 +75,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.snowflake.hooks.snowflake",
                     "airflow.providers.snowflake.hooks.snowflake_sql_api",
+                    "airflow.providers.snowflake.hooks.snowflake_cortex_agent",
                 ],
             }
         ],
