@@ -29,9 +29,13 @@ Prerequisites are provisioned by ``breeze k8s setup-lang-sdk-test``.
 
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from kubernetes_tests.test_base import EXECUTOR, BaseK8STest
+
+_RUN_LANG_SDK = os.environ.get("RUN_LANG_SDK_K8S_TESTS", "").lower() in ("true", "1")
 
 DAG_ID = "lang_sdk_combined"
 TASK_IDS = [
@@ -47,7 +51,10 @@ TASK_IDS = [
 _TIMEOUT = 600
 
 
-@pytest.mark.skipif(EXECUTOR != "KubernetesExecutor", reason="Only runs on KubernetesExecutor")
+@pytest.mark.skipif(
+    EXECUTOR != "KubernetesExecutor" or not _RUN_LANG_SDK,
+    reason="Runs only on KubernetesExecutor with the lang-SDK env provisioned (RUN_LANG_SDK_K8S_TESTS)",
+)
 class TestLangSdkCoordinatorExecutor(BaseK8STest):
     def _ensure_variable(self, key: str, value: str) -> None:
         """Create the Airflow Variable the Go/Java transform tasks read (idempotent)."""

@@ -89,7 +89,15 @@ breeze k8s deploy-airflow --executor KubernetesExecutor
 #    deploy localstack, upload artifacts + stub Dag, render config, helm upgrade.
 breeze k8s setup-lang-sdk-test
 
-# 3. Run the test by name (the shared harness triggers a fresh Dag run).
-breeze k8s tests --executor KubernetesExecutor \
+# 3. Run the test by name (the shared harness triggers a fresh Dag run). The test is gated on
+#    RUN_LANG_SDK_K8S_TESTS so it stays out of the regular k8s suites; set it to run the test here.
+RUN_LANG_SDK_K8S_TESTS=true breeze k8s tests --executor KubernetesExecutor \
     -- -k test_lang_sdk_combined_dag_succeeds
 ```
+
+In CI (and for a one-shot local run) steps 2-3 are folded into the standard k8s job via
+`breeze k8s run-complete-tests --lang-sdk-test`: it provisions the lang-SDK env after the base
+deploy, then runs the test. The `k8s-tests.yml` workflow enables it (`RUN_LANG_SDK_K8S_TESTS=true`,
+which `--lang-sdk-test` reads) for a single variant only -- KubernetesExecutor with standard-naming
+off -- so the other five k8s jobs skip the test. The provisioning builds (Go bundle, Java jar, Java
+worker image) and the localstack deploy run in parallel.

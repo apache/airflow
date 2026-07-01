@@ -22,6 +22,7 @@ import re
 import shutil
 import sys
 import tempfile
+from collections.abc import Callable
 from copy import deepcopy
 from itertools import chain
 from pathlib import Path
@@ -60,7 +61,7 @@ from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import confirm_action
-from airflow_breeze.utils.console import Output, console_print, get_console
+from airflow_breeze.utils.console import MessageType, Output, console_print, get_console
 from airflow_breeze.utils.custom_param_types import CacheableChoice, CacheableDefault
 from airflow_breeze.utils.docker_command_utils import perform_environment_checks
 from airflow_breeze.utils.kubernetes_utils import (
@@ -88,6 +89,7 @@ from airflow_breeze.utils.parallel import (
     DockerBuildxProgressMatcher,
     GenericRegexpProgressMatcher,
     check_async_run_results,
+    get_output_files,
     run_with_pool,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
@@ -269,6 +271,14 @@ option_skip_compile_ui_assets = click.option(
     envvar="SKIP_IMAGE_BUILD",
 )
 option_all = click.option("--all", help="Apply it to all created clusters", is_flag=True, envvar="ALL")
+option_lang_sdk_test = click.option(
+    "--lang-sdk-test/--no-lang-sdk-test",
+    help="Provision the lang-SDK (Go + Java) coordinator env and run its system test as part of the "
+    "run (KubernetesExecutor only). Off by default so the regular k8s suites skip the test.",
+    default=False,
+    show_default=True,
+    envvar="RUN_LANG_SDK_K8S_TESTS",
+)
 
 K8S_CLUSTER_CREATE_PROGRESS_REGEXP = r".*airflow-python-[0-9.]+-v[0-9.].*|.*Connecting to localhost.*"
 K8S_UPLOAD_PROGRESS_REGEXP = r".*airflow-python-[0-9.]+-v[0-9.].*"
@@ -2103,6 +2113,7 @@ def _run_complete_tests(
     wait_time_in_seconds: int,
     force_recreate_cluster: bool,
     use_standard_naming: bool,
+    lang_sdk_test: bool,
     num_tries: int,
     extra_options: tuple[str, ...] | None,
     test_args: list[str],
@@ -2180,6 +2191,12 @@ def _run_complete_tests(
         if returncode != 0:
             _logs(python=python, kubernetes_version=kubernetes_version)
             return returncode, message
+        if lang_sdk_test and executor == KUBERNETES_EXECUTOR:
+            get_console(output=output).print(
+                f"\n[info]Provisioning lang-SDK test env for Python {python}, "
+                f"Kubernetes {kubernetes_version}\n"
+            )
+            _setup_lang_sdk_test(python=python, kubernetes_version=kubernetes_version, output=output)
         get_console(output=output).print(
             f"\n[info]Running tests Python {python}, Kubernetes {kubernetes_version}\n"
         )
@@ -2250,6 +2267,7 @@ def _run_complete_tests(
 @option_include_success_outputs
 @option_kubernetes_version
 @option_kubernetes_versions
+@option_lang_sdk_test
 @option_parallelism_cluster
 @option_python
 @option_python_versions
@@ -2271,6 +2289,7 @@ def run_complete_tests(
     include_success_outputs: bool,
     kubernetes_version: str,
     kubernetes_versions: str,
+    lang_sdk_test: bool,
     parallelism: int,
     python: str,
     python_versions: str,
@@ -2329,6 +2348,7 @@ def run_complete_tests(
                             "wait_time_in_seconds": wait_time_in_seconds,
                             "force_recreate_cluster": force_recreate_cluster,
                             "use_standard_naming": use_standard_naming,
+                            "lang_sdk_test": lang_sdk_test,
                             "num_tries": 3,  # when creating cluster in parallel, sometimes we need to retry
                             "extra_options": None,
                             "test_args": pytest_args,
@@ -2359,6 +2379,7 @@ def run_complete_tests(
             wait_time_in_seconds=wait_time_in_seconds,
             force_recreate_cluster=force_recreate_cluster,
             use_standard_naming=use_standard_naming,
+            lang_sdk_test=lang_sdk_test,
             num_tries=1,
             extra_options=None,
             test_args=pytest_args,
@@ -2478,17 +2499,14 @@ LANG_SDK_AWS_CONN_URI = (
 )
 
 
-def _lang_sdk_build_artifacts(staging: Path, output: Output | None) -> None:
-    """Build the Go bundle and Java jar into ``staging/{go,java}-artifacts``.
+def _lang_sdk_build_go_bundle(staging: Path, output: Output | None) -> None:
+    """Build the Go bundle into ``staging/go-artifacts`` in an ephemeral Go toolchain container.
 
-    Both toolchains run inside ephemeral Docker containers so the host does not
-    need Go or a JDK; each builds into a gitignored dir under the repo and the
-    result is copied into the staging dir.
+    The container means the host needs no Go install; the build writes into a gitignored dir under
+    the repo (with persistent caches) and the result is copied into the staging dir.
     """
     go_dir = staging / "go-artifacts"
-    java_dir = staging / "java-artifacts"
     go_dir.mkdir(parents=True, exist_ok=True)
-    java_dir.mkdir(parents=True, exist_ok=True)
 
     uid_gid = f"{os.getuid()}:{os.getgid()}"
 
@@ -2527,6 +2545,18 @@ def _lang_sdk_build_artifacts(staging: Path, output: Output | None) -> None:
         check=True,
     )
     shutil.copy(LANG_SDK_GO_SDK_PATH / "bin" / LANG_SDK_GO_BUNDLE_NAME, go_dir / LANG_SDK_GO_BUNDLE_NAME)
+
+
+def _lang_sdk_build_java_jar(staging: Path, output: Output | None) -> None:
+    """Publish the Java SDK to mavenLocal then build the k8s-example jar into ``staging/java-artifacts``.
+
+    Runs in an ephemeral JDK container so the host needs no JDK; the Gradle distribution, dependency
+    and Maven caches persist between runs via the mounted dirs.
+    """
+    java_dir = staging / "java-artifacts"
+    java_dir.mkdir(parents=True, exist_ok=True)
+
+    uid_gid = f"{os.getuid()}:{os.getgid()}"
 
     # The k8s-example resolves the SDK plugin and libraries from mavenLocal(),
     # so publish them first, then build the bundle. --user keeps build outputs
@@ -2789,13 +2819,93 @@ def _lang_sdk_deploy_airflow(python: str, kubernetes_version: str, output: Outpu
     )
 
 
+def _run_lang_sdk_parallel(
+    steps: list[tuple[str, Callable[[Output | None], Any]]],
+    output: Output | None,
+) -> dict[str, Any]:
+    """Run mutually-independent lang-SDK build/deploy steps concurrently.
+
+    The Go build, Java jar build, Java worker image build and localstack deploy share no inputs, so
+    running them together turns provisioning time into roughly the slowest single step. Each step
+    captures its own output; the captured logs are streamed in a stable order once all steps finish
+    (so parallel docker/kubectl output does not interleave), and the first failure is re-raised.
+    Returns each step's return value keyed by its title.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    titles = [title for title, _ in steps]
+    step_outputs = get_output_files(titles)
+    get_console(output=output).print(
+        f"[info]Running lang-SDK provisioning steps in parallel: {', '.join(titles)}"
+    )
+    results: dict[str, Any] = {}
+    errors: list[tuple[str, BaseException]] = []
+    with ThreadPoolExecutor(max_workers=len(steps)) as pool:
+        futures = [pool.submit(fn, step_output) for (_, fn), step_output in zip(steps, step_outputs)]
+        for (title, _), future in zip(steps, futures):
+            try:
+                results[title] = future.result()
+            except BaseException as error:
+                errors.append((title, error))
+    failed_titles = {title for title, _ in errors}
+    for (title, _), step_output in zip(steps, step_outputs):
+        message_type = MessageType.ERROR if title in failed_titles else MessageType.SUCCESS
+        with ci_group(step_output.escaped_title, message_type):
+            os.write(1, Path(step_output.file_name).read_bytes())
+    if errors:
+        get_console(output=output).print(
+            f"[error]lang-SDK provisioning failed in: {', '.join(sorted(failed_titles))}"
+        )
+        raise errors[0][1]
+    return results
+
+
+def _setup_lang_sdk_test(
+    python: str,
+    kubernetes_version: str,
+    go_image: str | None = None,
+    java_image: str | None = None,
+    output: Output | None = None,
+) -> None:
+    """Provision the lang-SDK coordinator env on an already-deployed KubernetesExecutor cluster.
+
+    Builds the Go/Java artifacts, the Java worker image and deploys localstack in parallel, then
+    serially uploads the artifacts, applies the config + secret, and helm-upgrades Airflow with the
+    lang-SDK values.
+    """
+    go_image = go_image or f"{BuildProdParams(python=python).airflow_image_kubernetes}:latest"
+    build_java_image = java_image is None
+    if java_image is None:
+        # The worker-image build below produces this fixed tag; resolve it up-front so the config
+        # rendering (which needs the tag, not the build result) does not depend on the parallel run.
+        java_image = LANG_SDK_JAVA_WORKER_IMAGE
+    with tempfile.TemporaryDirectory(prefix="lang_sdk_artifacts_") as tmp:
+        staging = Path(tmp)
+        steps: list[tuple[str, Callable[[Output | None], Any]]] = [
+            ("Build Go bundle", lambda o: _lang_sdk_build_go_bundle(staging, o)),
+            ("Build Java jar", lambda o: _lang_sdk_build_java_jar(staging, o)),
+            ("Deploy localstack", lambda o: _lang_sdk_deploy_localstack(python, kubernetes_version, o)),
+        ]
+        if build_java_image:
+            steps.append(
+                (
+                    "Build Java worker image",
+                    lambda o: _lang_sdk_build_java_worker_image(go_image, python, kubernetes_version, o),
+                )
+            )
+        _run_lang_sdk_parallel(steps, output=output)
+        _lang_sdk_upload_artifacts(staging, python, kubernetes_version, output)
+    _lang_sdk_apply_configmaps_and_secret(python, kubernetes_version, go_image, java_image, output)
+    _lang_sdk_deploy_airflow(python, kubernetes_version, output)
+
+
 @kubernetes_group.command(
     name="setup-lang-sdk-test",
     help="Provision the lang-SDK (Go + Java) coordinator system test on an already-deployed "
     "KubernetesExecutor cluster: build artifacts, build + load the Java worker image, deploy "
     "localstack S3, upload artifacts + stub Dag, create config, and upgrade the Helm release. "
-    "Run the test afterwards with `breeze k8s tests --executor KubernetesExecutor "
-    "-- -k test_lang_sdk_combined_dag_succeeds`.",
+    "Run the test afterwards with `RUN_LANG_SDK_K8S_TESTS=true breeze k8s tests "
+    "--executor KubernetesExecutor -- -k test_lang_sdk_combined_dag_succeeds`.",
 )
 @option_python
 @option_kubernetes_version
@@ -2815,19 +2925,16 @@ def setup_lang_sdk_test(python: str, kubernetes_version: str, go_image: str | No
     if result.returncode != 0:
         sys.exit(result.returncode)
     make_sure_kubernetes_tools_are_installed()
-    default_image = f"{BuildProdParams(python=python).airflow_image_kubernetes}:latest"
-    go_image = go_image or default_image
-    if not java_image:
-        java_image = _lang_sdk_build_java_worker_image(go_image, python, kubernetes_version, output=None)
-    with tempfile.TemporaryDirectory(prefix="lang_sdk_artifacts_") as tmp:
-        _lang_sdk_build_artifacts(Path(tmp), output=None)
-        _lang_sdk_deploy_localstack(python, kubernetes_version, output=None)
-        _lang_sdk_upload_artifacts(Path(tmp), python, kubernetes_version, output=None)
-    _lang_sdk_apply_configmaps_and_secret(python, kubernetes_version, go_image, java_image, output=None)
-    _lang_sdk_deploy_airflow(python, kubernetes_version, output=None)
+    _setup_lang_sdk_test(
+        python=python,
+        kubernetes_version=kubernetes_version,
+        go_image=go_image,
+        java_image=java_image,
+        output=None,
+    )
     console_print(
         "\n[success]lang-SDK test environment is ready.[/]\n"
-        "[info]Run the test with:\n"
-        "  breeze k8s tests --executor KubernetesExecutor "
+        "[info]Run the test with (the test is gated on RUN_LANG_SDK_K8S_TESTS):\n"
+        "  RUN_LANG_SDK_K8S_TESTS=true breeze k8s tests --executor KubernetesExecutor "
         "-- -k test_lang_sdk_combined_dag_succeeds\n"
     )
