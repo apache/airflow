@@ -172,6 +172,15 @@ repos:
         language: python
         pass_filenames: true
         files: ^tests/.*\.py$
+      - id: check-no-caplog-in-tests
+        language: pygrep
+        name: Tests do not use caplog fixture
+        description: >
+          Do not use caplog in tests — prefer checking logic and not log output.
+          See https://github.com/apache/airflow/blob/main/CLAUDE.md#testing-standards
+        entry: \bcaplog\b
+        pass_filenames: true
+        files: ^tests/.*\.py$
       - id: check-no-fab-migrations
         language: pygrep
         name: Check no migration is done on FAB related table
