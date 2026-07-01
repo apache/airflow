@@ -142,21 +142,15 @@ class DeadlockImminentError(BaseException):
     Fix: replace ``BaseHook.get_hook()`` with ``await BaseHook.aget_hook()``.
     """
 
-    def __init__(self, msg: object, *, deadlock_imminent: bool) -> None:
+    def __init__(self, msg: object) -> None:
         self.msg_type = type(msg).__name__
-        self.deadlock_imminent = deadlock_imminent
         self.stack = "".join(traceback.format_stack())
         super().__init__()
 
     def __str__(self) -> str:
-        detail = (
-            "deadlock is imminent (asend() is concurrently in-flight)"
-            if self.deadlock_imminent
-            else "deadlock will occur as soon as another coroutine calls asend()"
-        )
         return (
             f"comms.send() called from the event loop thread for message '{self.msg_type}' "
-            f"— {detail}. "
+            "— deadlock is imminent (asend() is concurrently in-flight). "
             "Likely cause: BaseHook.get_hook() or BaseHook.get_connection() was called "
             "from inside an async task. "
             "Use the async equivalents instead: "
@@ -298,7 +292,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         # an imminent deadlock: an asend() coroutine currently holds _thread_lock and
         # is waiting for the event loop to complete its I/O — a true deadlock.
         if not self._thread_lock.acquire(blocking=not self._is_on_loop_thread):
-            raise DeadlockImminentError(msg, deadlock_imminent=True)
+            raise DeadlockImminentError(msg)
         try:
             self.socket.sendall(frame_bytes)
             if isinstance(msg, ResendLoggingFD):
