@@ -22,7 +22,6 @@ import re
 import shutil
 import sys
 import tempfile
-import time
 from collections.abc import Callable
 from copy import deepcopy
 from itertools import chain
@@ -748,6 +747,8 @@ def _docker_pull_with_429_retry(image: str, output: Output | None, max_attempts:
     fast — only the rate-limit pattern is retried, since for everything else
     retrying would just amplify a real error.
     """
+    import time
+
     delay = 5
     for attempt in range(1, max_attempts + 1):
         result = run_command(
