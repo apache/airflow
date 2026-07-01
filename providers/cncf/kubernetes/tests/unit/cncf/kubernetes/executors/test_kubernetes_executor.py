@@ -2356,13 +2356,7 @@ class TestKubernetesExecutor:
         ]
 
     def test_init_does_not_create_manager_process(self):
-        """
-        Constructing the executor must not spawn a ``multiprocessing.Manager``.
-
-        The API server builds a ``KubernetesExecutor`` purely to call ``get_task_log()`` for
-        RUNNING tasks and never starts it. Eagerly creating the Manager in ``__init__`` leaked an
-        orphaned ``serve_forever`` process per API-server worker.
-        """
+        """Constructing the executor must not spawn a ``multiprocessing.Manager``."""
         executor = KubernetesExecutor()
 
         assert executor._manager is None
@@ -2391,7 +2385,6 @@ class TestKubernetesExecutor:
         """``end()`` on an executor that was never started must not raise."""
         executor = KubernetesExecutor()
 
-        # Must not raise even though no Manager/queues were ever created.
         executor.end()
 
         assert executor._manager is None
@@ -2954,7 +2947,6 @@ class TestKubernetesExecutorMultiTeam:
         team_b_executor.job_id = 2
 
         try:
-            # Queues are created lazily in start(), so each team executor gets its own.
             team_a_executor.start()
             team_b_executor.start()
 
