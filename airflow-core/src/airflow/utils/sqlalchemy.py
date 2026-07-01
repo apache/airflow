@@ -592,6 +592,10 @@ def is_lock_not_available_error(error: OperationalError):
     # importing it. This doesn't
     if db_err_code in ("55P03", 1205, 3572):
         return True
+    # SQLite: `database is locked` (SQLITE_BUSY) — check the error text since
+    # sqlite3.OperationalError.args[0] is a human-readable string, not a numeric code
+    if error.orig and "database is locked" in str(error.orig).lower():
+        return True
     return False
 
 
