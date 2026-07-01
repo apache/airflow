@@ -49,12 +49,6 @@ java {
     }
 }
 
-sourceSets {
-    main {
-        scala.srcDir("src/scala")
-    }
-}
-
 airflowBundle {
     mainClass = "org.apache.airflow.example.ScalaSparkBundleBuilder"
     // Spark drags in hundreds of dependency JARs; a thin bundle copies every

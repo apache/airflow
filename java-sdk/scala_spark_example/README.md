@@ -42,3 +42,37 @@ cd scala_spark_example
 
 `fatJar` is disabled, so `build/bundle/` holds the bundle JAR plus every runtime
 JAR (Spark included) — copy it into a Java coordinator's `jars_root`.
+
+## Running Spark under the Java SDK
+
+Spark on Java 17 needs a set of `--add-opens` / `--add-exports` options that open
+internal JDK modules (reflection, NIO, the off-heap cleaner, Kerberos, ...) to
+Spark. `spark-submit` and the `SparkSession` builder inject these through Spark's
+own launcher, but the Java SDK's `JavaCoordinator` starts the bundle JVM directly
+and bypasses that launcher, so the coordinator has to pass them itself via
+`jvm_args`:
+
+```json
+{
+  "scala-jdk": {
+    "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+    "kwargs": {
+      "jars_root": ["/path/to/scala-jars"],
+      "main_class": "org.apache.airflow.example.ScalaSparkBundleBuilder",
+      "jvm_args": [
+        "-Xmx512m",
+        "-XX:+IgnoreUnrecognizedVMOptions",
+        "--add-opens=java.base/java.lang=ALL-UNNAMED",
+        "--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED",
+        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+      ]
+    }
+  }
+}
+```
+
+The full list mirrors `org.apache.spark.launcher.JavaModuleOptions` for the Spark
+version pinned in `build.gradle`. Spark may add or drop openings between releases,
+so revisit it whenever you bump Spark. The end-to-end test keeps the authoritative,
+complete copy in `airflow-e2e-tests/tests/airflow_e2e_tests/conftest.py`
+(`_SPARK_JAVA_MODULE_OPTIONS`).

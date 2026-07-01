@@ -730,7 +730,7 @@ repos:
           ^java-sdk/gradlew$|
           ^java-sdk/gradlew\.bat$|
           ^java-sdk/gradle|
-          ^java-sdk/scala_spark_example/src/scala/org/apache/airflow/example/ScalaSparkExample\.scala$|
+          ^java-sdk/scala_spark_example/src/main/scala/org/apache/airflow/example/ScalaSparkExample\.scala$|
           ^task-sdk/tests/|
           ^.*changelog\.(rst|txt)$|
           ^.*CHANGELOG\.(rst|txt)$|

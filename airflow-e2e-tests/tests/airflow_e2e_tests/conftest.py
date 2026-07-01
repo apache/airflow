@@ -256,6 +256,7 @@ def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):
 # A partial set passes the toy aggregation here but breaks real Spark code paths
 # (Kryo -> java.lang.reflect, off-heap cleaner -> jdk.internal.ref, charset ->
 # sun.nio.cs, Kerberos -> sun.security.krb5); keep it in sync if Spark is bumped.
+# The user-facing writeup lives in java-sdk/scala_spark_example/README.md.
 _SPARK_JAVA_MODULE_OPTIONS = [
     "-XX:+IgnoreUnrecognizedVMOptions",
     "--add-opens=java.base/java.lang=ALL-UNNAMED",
@@ -420,12 +421,10 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         check=True,
     )
 
-    # Coordinator registry: two JavaCoordinators on the same worker image,
-    # serving different bundles on different queues.
-    #   java-jdk  -> the lean Java example bundle (queue "java")
-    #   scala-jdk -> the Scala Spark bundle (queue "scala"), which needs Spark's
-    #                Java 17 module openings, a small driver heap, and a longer
-    #                startup timeout for its large dependency classpath.
+    # Two JavaCoordinators on the same worker image, one bundle per queue. The
+    # scala-jdk entry pins main_class (Spark's large classpath makes Main-Class
+    # discovery ambiguous) and carries Spark's Java 17 module openings, a small
+    # driver heap, and a longer startup timeout for its large dependency classpath.
     coordinator_config = json.dumps(
         {
             "java-jdk": {
@@ -436,13 +435,8 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
                 "kwargs": {
                     "jars_root": ["/opt/airflow/scala-jars"],
-                    # Pin the entry point so Spark's large dependency classpath
-                    # cannot make Main-Class discovery ambiguous.
                     "main_class": "org.apache.airflow.example.ScalaSparkBundleBuilder",
-                    # Small driver heap plus Spark's full Java 17 module openings.
                     "jvm_args": ["-Xmx512m", *_SPARK_JAVA_MODULE_OPTIONS],
-                    # Booting a JVM over the large Spark classpath takes longer
-                    # than the 10 s default before it connects back.
                     "task_startup_timeout": 60.0,
                 },
             },
