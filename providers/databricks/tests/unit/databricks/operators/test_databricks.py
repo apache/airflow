@@ -1718,6 +1718,23 @@ class TestDatabricksSubmitRunOperatorDurable:
         task_store.set.assert_not_called()
         assert op.run_id == RUN_ID
 
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_reconnects_to_blocked_run_without_resubmitting(self, db_mock_class):
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID, json={"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK}
+        )
+        db_mock = db_mock_class.return_value
+        # A gated run sits in BLOCKED; the durable retry must reconnect and wait, not resubmit.
+        db_mock.get_run.side_effect = [self._state("BLOCKED"), self._state("TERMINATED", "SUCCESS")]
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = RUN_ID
+
+        op.execute(self._context(task_store))
+
+        db_mock.submit_run.assert_not_called()
+        task_store.set.assert_not_called()
+        assert op.run_id == RUN_ID
+
     @mock.patch("airflow.providers.databricks.operators.databricks._handle_databricks_operator_execution")
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_already_succeeded_pushes_xcoms_without_polling(self, db_mock_class, mock_poll):
@@ -1846,6 +1863,8 @@ class TestDatabricksSubmitRunOperatorDurable:
             ("PENDING:", True),
             ("QUEUED:", True),
             ("TERMINATING:", True),
+            ("BLOCKED:", True),
+            ("WAITING_FOR_RETRY:", True),
             ("TERMINATED:SUCCESS", False),
             ("TERMINATED:FAILED", False),
             ("SKIPPED:", False),
