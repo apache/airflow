@@ -363,24 +363,45 @@ class TestAgentEngineAsyncHook:
         ):
             self.hook = AgentEngineAsyncHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
+    @mock.patch(AGENT_ENGINE_STRING.format("ClientSession"), autospec=True)
+    @pytest.mark.parametrize(
+        ("valid_credentials", "expected_refresh_calls"),
+        [
+            (False, 1),
+            (True, 0),
+        ],
+    )
     @pytest.mark.asyncio
-    async def test_get_agent_engine_operation_calls_sync_hook(self):
+    async def test_get_agent_engine_operation(
+        self, mock_client_session, valid_credentials, expected_refresh_calls
+    ):
         sync_hook = mock.Mock(spec=AgentEngineHook)
-        sync_hook.get_agent_engine_operation.return_value = {"name": OPERATION_NAME, "done": True}
+        sync_hook.project_id = GCP_PROJECT
+        credentials = mock.Mock(valid=valid_credentials, token="test-token")
+        sync_hook.get_credentials.return_value = credentials
         self.hook.get_sync_hook = mock.AsyncMock(return_value=sync_hook)
+        session = mock.MagicMock()
+        mock_client_session.return_value.__aenter__.return_value = session
+        response = mock.Mock()
+        response.json = mock.AsyncMock(return_value={"name": OPERATION_NAME, "done": True})
+        request = mock.MagicMock()
+        request.__aenter__.return_value = response
+        session.get.return_value = request
 
         result = await self.hook.get_agent_engine_operation(
-            project_id=GCP_PROJECT,
             location=GCP_LOCATION,
             operation_id=OPERATION_ID,
+            request_timeout=10,
         )
 
-        sync_hook.get_agent_engine_operation.assert_called_once_with(
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            operation_id=OPERATION_ID,
-            request_timeout=60.0,
+        assert credentials.refresh.call_count == expected_refresh_calls
+        session.get.assert_called_once_with(
+            f"https://{GCP_LOCATION}-aiplatform.googleapis.com/v1beta1/{OPERATION_NAME}",
+            headers={"Authorization": "Bearer test-token"},
+            timeout=10,
         )
+        response.raise_for_status.assert_called_once_with()
+        sync_hook.get_agent_engine_operation.assert_not_called()
         assert result == {"name": OPERATION_NAME, "done": True}
 
     @pytest.mark.asyncio
