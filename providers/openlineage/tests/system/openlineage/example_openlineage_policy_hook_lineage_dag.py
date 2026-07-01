@@ -37,7 +37,7 @@ from system.openlineage.operator import OpenLineageTestOperator
 
 
 def _register_hook_lineage():
-    from airflow.lineage.hook import get_hook_lineage_collector
+    from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 
     collector = get_hook_lineage_collector()
     collector.add_input_asset(context=None, uri="file://host1/in1.txt")
@@ -47,7 +47,7 @@ def _register_hook_lineage():
 
 
 def _register_sql_hook_lineage():
-    from airflow.lineage.hook import get_hook_lineage_collector
+    from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
     from airflow.providers.common.sql.hooks.lineage import SqlJobHookLineageExtra
 
     collector = get_hook_lineage_collector()
