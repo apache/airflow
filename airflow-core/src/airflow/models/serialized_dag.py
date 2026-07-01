@@ -742,17 +742,24 @@ class SerializedDagModel(Base):
                 )
             )
 
-            if getattr(result, "rowcount", 0) == 0:
-                # No rows updated - serialized DAG doesn't exist
-                return False
+            serialized_dag_existed = getattr(result, "rowcount", 0) > 0
 
-            if deadline_uuid_mapping:
-                updated_serialized_dag = session.scalar(
-                    select(cls).where(cls.dag_version_id == dag_version.id)
-                )
-                if updated_serialized_dag:
-                    updated_serialized_dag.deadline_alerts.clear()
-                    cls._create_deadline_alert_records(updated_serialized_dag, deadline_uuid_mapping)
+            if serialized_dag_existed:
+                if deadline_uuid_mapping:
+                    updated_serialized_dag = session.scalar(
+                        select(cls).where(cls.dag_version_id == dag_version.id)
+                    )
+                    if updated_serialized_dag:
+                        updated_serialized_dag.deadline_alerts.clear()
+                        cls._create_deadline_alert_records(updated_serialized_dag, deadline_uuid_mapping)
+            else:
+                # The DagVersion exists but has no serialized_dag row to update — e.g. a prior write
+                # created the version without persisting the serialized DAG. Insert it for this
+                # version rather than returning early, which would otherwise leave the DAG
+                # permanently unserialized on every subsequent parse.
+                new_serialized_dag.dag_version = dag_version
+                session.add(new_serialized_dag)
+                cls._create_deadline_alert_records(new_serialized_dag, deadline_uuid_mapping)
 
             # The dag_version and dag_code may not have changed, still we should
             # do the below actions:
@@ -761,8 +768,13 @@ class SerializedDagModel(Base):
             dag_version.bundle_version = bundle_version
             dag_version.version_data = version_data
             session.merge(dag_version)
-            # Update the latest DagCode
-            DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
+            # Refresh the latest DagCode; write it when this version has none yet (the repair case).
+            if serialized_dag_existed or session.scalar(
+                select(exists().where(DagCode.dag_version_id == dag_version.id))
+            ):
+                DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
+            else:
+                DagCode.write_code(dag_version, dag.fileloc, session=session)
             return True
 
         dagv = DagVersion.write_dag(
