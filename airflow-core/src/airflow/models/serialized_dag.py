@@ -467,6 +467,7 @@ class SerializedDagModel(Base):
                 deadline_data[DeadlineAlertFields.REFERENCE] == existing.reference
                 and deadline_data[DeadlineAlertFields.INTERVAL] == existing.interval
                 and deadline_data[DeadlineAlertFields.CALLBACK] == existing.callback_def
+                and deadline_data.get(DeadlineAlertFields.FIRE_ON_FAILURE, False) == existing.fire_on_failure
             )
 
         if len(existing_deadline_uuids) != len(new_deadline_data):
@@ -533,6 +534,7 @@ class SerializedDagModel(Base):
                 reference=deadline_data[DeadlineAlertFields.REFERENCE],
                 interval=deadline_data[DeadlineAlertFields.INTERVAL],
                 callback_def=deadline_data[DeadlineAlertFields.CALLBACK],
+                fire_on_failure=deadline_data.get(DeadlineAlertFields.FIRE_ON_FAILURE, False),
             )
             serialized_dag.deadline_alerts.append(alert)
 

@@ -9838,6 +9838,10 @@ export const $DeadlineAlertResponse = {
             title: 'Interval',
             description: 'Interval in seconds between the reference time and the deadline. Null for a dynamic interval (e.g. a VariableInterval) whose value is only resolved at scheduler evaluation time.'
         },
+        fire_on_failure: {
+            type: 'boolean',
+            title: 'Fire On Failure'
+        },
         created_at: {
             type: 'string',
             format: 'date-time',
@@ -9845,7 +9849,7 @@ export const $DeadlineAlertResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'reference_type', 'created_at'],
+    required: ['id', 'reference_type', 'fire_on_failure', 'created_at'],
     title: 'DeadlineAlertResponse',
     description: 'DeadlineAlert serializer for responses.'
 } as const;
