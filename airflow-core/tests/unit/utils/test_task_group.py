@@ -1150,6 +1150,31 @@ def test_topological_group_dep():
     ]
 
 
+def test_topological_sort_serialized_task_level_cross_group_dep():
+    """Task-level deps between groups are respected for ordering after serialization.
+
+    When a task inside group_b depends on a task inside group_a, the serialized
+    topological sort must place group_a before group_b.
+    """
+    with DAG("test_cross_group_task_dep", schedule=None, start_date=DEFAULT_DATE) as dag:
+        with TaskGroup("stage_b"):
+            b_start = EmptyOperator(task_id="b_start")
+            b_end = EmptyOperator(task_id="b_end")
+            b_start >> b_end
+
+        with TaskGroup("stage_a"):
+            a_start = EmptyOperator(task_id="a_start")
+            a_end = EmptyOperator(task_id="a_end")
+            a_start >> a_end
+
+        b_end >> a_start
+
+    serialized = create_scheduler_dag(dag)
+    order = [node.node_id for node in serialized.task_group.topological_sort()]
+
+    assert order.index("stage_b") < order.index("stage_a")
+
+
 def test_topological_sort_serialized_layered():
     """SerializedTaskGroup.topological_sort emits a valid order after DAG round-trip.
 
