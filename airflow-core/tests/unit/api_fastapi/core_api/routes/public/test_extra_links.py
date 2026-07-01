@@ -72,6 +72,21 @@ class TryNumberPlugin(AirflowPlugin):
     operator_extra_links = [TryNumberLink()]
 
 
+class XComModelLink(BaseOperatorLink):
+    name = "XCom Model"
+    operators = [CustomOperator]
+
+    def get_link(self, operator, *, ti_key):
+        from airflow.providers.common.compat.sdk import XComModel
+
+        return XComModel.get_value(key="plugin_link", ti_key=ti_key) or ""
+
+
+class XComModelPlugin(AirflowPlugin):
+    name = "xcom_model_plugin"
+    operator_extra_links = [XComModelLink()]
+
+
 @pytest.mark.mock_plugin_manager(plugins=[])
 class TestGetExtraLinks:
     dag_id = "TEST_DAG_ID"
@@ -264,6 +279,23 @@ class TestGetExtraLinks:
                 total_entries=3,
             ).model_dump()
         )
+
+    @pytest.mark.mock_plugin_manager(plugins=[XComModelPlugin])
+    def test_plugin_link_can_read_xcom_with_xcommodel(self, test_client):
+        XCom.set(
+            key="plugin_link",
+            value="https://example.com/plugin-link",
+            task_id=self.task_single_link,
+            dag_id=self.dag_id,
+            run_id=self.dag_run_id,
+        )
+
+        response = test_client.get(
+            f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
+        )
+
+        assert response.status_code == 200
+        assert response.json()["extra_links"]["XCom Model"] == "https://example.com/plugin-link"
 
     def test_should_respond_200_mapped_task_instance(self, test_client, session):
         for map_index, value in enumerate(["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"]):

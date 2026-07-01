@@ -222,6 +222,32 @@ class TestXComObjectStorageBackend:
             )
             assert str(p) == qry.first().value
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="XComModel helper is only available in Airflow 3")
+    def test_xcommodel_get_value_uses_configured_backend(self, task_instance, session):
+        session.add(task_instance)
+        session.commit()
+        XCom = resolve_xcom_backend()
+        airflow.models.xcom.XCom = XCom
+
+        expected_value = {"key": "bigvaluebigvaluebigvalue" * 100}
+        stored_value = XCom.serialize_value(
+            value=expected_value,
+            key=XCOM_RETURN_KEY,
+            dag_id=task_instance.dag_id,
+            task_id=task_instance.task_id,
+            run_id=task_instance.run_id,
+        )
+        XComModel.set(
+            key=XCOM_RETURN_KEY,
+            value=stored_value,
+            dag_id=task_instance.dag_id,
+            task_id=task_instance.task_id,
+            run_id=task_instance.run_id,
+            serialize=False,
+        )
+
+        assert XComModel.get_value(key=XCOM_RETURN_KEY, ti_key=task_instance.key) == expected_value
+
     def test_clear(self, task_instance, session, mock_supervisor_comms):
         session.add(task_instance)
         session.commit()
