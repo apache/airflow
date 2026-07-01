@@ -67,6 +67,7 @@ class DagProcessorInstanceInfoResponse(BaseInfoResponse):
 
     hostname: str | None
     latest_dag_processor_heartbeat: str | None
+    team_name: str | None
 
 class HealthInfoResponse(BaseModel):
     """Health serializer for responses."""
