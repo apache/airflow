@@ -1,0 +1,1 @@
+Fix scheduler crash at startup when an ``InsecureKeyLengthWarning`` is emitted and the log format uses numeric specifiers like ``%(process)d`` or ``%(thread)d``.
