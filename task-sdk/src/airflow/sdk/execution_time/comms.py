@@ -51,6 +51,7 @@ from __future__ import annotations
 import asyncio
 import itertools
 import threading
+import traceback
 from collections.abc import Iterator
 from contextlib import suppress
 from datetime import datetime
@@ -142,8 +143,6 @@ class DeadlockImminentError(BaseException):
     """
 
     def __init__(self, msg: object, *, deadlock_imminent: bool) -> None:
-        import traceback
-
         self.msg_type = type(msg).__name__
         self.deadlock_imminent = deadlock_imminent
         self.stack = "".join(traceback.format_stack())
