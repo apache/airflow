@@ -241,8 +241,28 @@ def load_policy_plugins(pm: pluggy.PluginManager):
 
 
 def _get_async_conn_uri_from_sync(sync_uri):
+    """
+    Convert a sync SQLAlchemy URI to its async equivalent.
+
+    Args:
+        sync_uri: The synchronous SQLAlchemy connection URI
+
+    Returns:
+        The async URI with appropriate async driver (e.g., aiosqlite, asyncpg, aiomysql),
+        or the original URI if no async driver mapping exists
+
+    Raises:
+        ValueError: If the URI is malformed (missing ':' scheme separator)
+    """
     AIO_LIBS_MAPPING = {"sqlite": "aiosqlite", "postgresql": "asyncpg", "mysql": "aiomysql"}
-    """Mapping of sync scheme to async scheme."""
+
+    if not sync_uri or ":" not in sync_uri:
+        raise ValueError(
+            f"Invalid SQLAlchemy connection URI: {sync_uri!r}. "
+            "The URI must be in the format 'scheme://host/path' or similar with a ':' separator. "
+            "Check that AIRFLOW__DATABASE__SQL_ALCHEMY_CONN environment variable or "
+            "sql_alchemy_conn in airflow.cfg contains a valid database URI."
+        )
 
     scheme, rest = sync_uri.split(":", maxsplit=1)
     scheme = scheme.split("+", maxsplit=1)[0]
