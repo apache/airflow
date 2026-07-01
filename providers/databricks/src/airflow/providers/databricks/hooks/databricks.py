@@ -99,9 +99,9 @@ class RunState:
         "TERMINATED",
         "SKIPPED",
         "INTERNAL_ERROR",
-        "QUEUED",
         "BLOCKED",
         "WAITING_FOR_RETRY",
+        "QUEUED",
     ]
 
     def __init__(
