@@ -891,12 +891,6 @@ class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
     Used by :class:`~airflow.providers.google.cloud.sensors.bigquery.BigQueryStreamingBufferEmptySensor`
     in deferrable mode.
 
-    The ``streamingBuffer`` table metadata BigQuery returns is eventually
-    consistent, so a single absent reading can be a false "empty" right after a
-    streaming insert. The trigger therefore yields success only after
-    ``empty_confirmations`` consecutive empty polls, each ``poll_interval``
-    apart.
-
     :param project_id: Google Cloud project ID.
     :param dataset_id: Dataset of the table to monitor.
     :param table_id: Table to monitor.
@@ -951,6 +945,11 @@ class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
+        # The ``streamingBuffer`` table metadata BigQuery returns is eventually
+        # consistent, so a single absent reading can be a false "empty" right
+        # after a streaming insert. Yield success only after
+        # ``empty_confirmations`` consecutive empty polls, each ``poll_interval``
+        # apart.
         consecutive_empty = 0
         try:
             hook = self._get_async_hook()

@@ -333,14 +333,12 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
     ``UPDATE/MERGE/DELETE statement over table ... would affect rows in the
     streaming buffer`` errors.
 
-    The ``table.streaming_buffer`` metadata BigQuery exposes is eventually
-    consistent: for a short window right after a streaming insert the rows are
-    in the buffer but the metadata still reads absent. A single absent reading
-    is therefore ambiguous (truly empty vs. metadata lag), so the sensor only
-    reports empty after ``empty_confirmations`` consecutive empty readings, each
-    one ``poke_interval`` apart. This spans the eventual-consistency window
-    without hanging when the table is genuinely empty or the buffer flushes
-    between two pokes.
+    .. warning::
+        BigQuery's ``table.streaming_buffer`` metadata is eventually consistent.
+        The sensor mitigates this by requiring multiple consecutive empty
+        observations before reporting the buffer empty (configurable via
+        ``empty_confirmations``), but this may delay success by up to one
+        ``poke_interval`` compared to earlier releases.
 
     :param project_id: Google Cloud project containing the table.
     :param dataset_id: Dataset of the table to monitor.
@@ -348,11 +346,9 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
     :param gcp_conn_id: Airflow connection ID for GCP.
     :param impersonation_chain: Optional service account to impersonate, or a
         chained list of accounts. See the Google provider docs for details.
-    :param empty_confirmations: Number of consecutive empty readings (each
-        ``poke_interval`` apart) required before reporting the buffer empty.
-        Must be at least 1; values above 1 guard against BigQuery's
-        eventually-consistent streaming-buffer metadata reporting empty too
-        early after a streaming insert.
+    :param empty_confirmations: Number of consecutive empty readings required
+        before considering the streaming buffer empty. Must be at least 1.
+        Defaults to 2.
     :param deferrable: Run in deferrable mode using
         :class:`BigQueryStreamingBufferEmptyTrigger`.
     """
@@ -451,4 +447,6 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
             self.empty_confirmations,
             table_uri,
         )
-        return self._consecutive_empty >= self.empty_confirmations
+        if self._consecutive_empty >= self.empty_confirmations:
+            return True
+        return False

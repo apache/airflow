@@ -344,17 +344,29 @@ class TestBigQueryStreamingBufferEmptySensor:
 
         assert sensor.poke(mock.MagicMock()) is False
 
+    @pytest.mark.parametrize(
+        ("empty_confirmations", "expected_results"),
+        [
+            pytest.param(2, [False, True], id="default"),
+            pytest.param(3, [False, False, True], id="three_confirmations"),
+        ],
+    )
     @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
-    def test_poke_requires_consecutive_empty_confirmations(self, mock_hook):
-        sensor = _make_streaming_sensor(empty_confirmations=2)
+    def test_poke_requires_consecutive_empty_confirmations(
+        self,
+        mock_hook,
+        empty_confirmations,
+        expected_results,
+    ):
+        sensor = _make_streaming_sensor(empty_confirmations=empty_confirmations)
         mock_hook.return_value.get_client.return_value.get_table.return_value = mock.MagicMock(
             streaming_buffer=None
         )
 
-        # A single absent reading is ambiguous (metadata lag), so it must not
-        # report empty; only the second consecutive empty reading does.
-        assert sensor.poke(mock.MagicMock()) is False
-        assert sensor.poke(mock.MagicMock()) is True
+        # A single absent reading is ambiguous (metadata lag), so the sensor only
+        # reports empty after the configured number of consecutive empty readings.
+        for expected in expected_results:
+            assert sensor.poke(mock.MagicMock()) is expected
 
     @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
     def test_poke_resets_confirmations_when_buffer_reappears(self, mock_hook):
