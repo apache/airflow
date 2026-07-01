@@ -1100,18 +1100,41 @@ class TestBigQueryStreamingBufferEmptyTrigger:
         )
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("empty_confirmations", "side_effect", "expected_polls"),
+        [
+            pytest.param(2, [True, True], 2, id="default"),
+            pytest.param(3, [True, True, True], 3, id="three_confirmations"),
+        ],
+    )
     @mock.patch("airflow.providers.google.cloud.triggers.bigquery.asyncio.sleep", new_callable=AsyncMock)
     @mock.patch(f"{_TRIGGER_PATH}._is_streaming_buffer_empty")
     @mock.patch(f"{_TRIGGER_PATH}._get_async_hook")
     async def test_run_waits_for_consecutive_empty_confirmations(
-        self, _mock_hook, mock_is_empty, mock_sleep, streaming_buffer_trigger
+        self,
+        _mock_hook,
+        mock_is_empty,
+        mock_sleep,
+        empty_confirmations,
+        side_effect,
+        expected_polls,
     ):
-        # A single empty reading must not yield success (default empty_confirmations=2);
-        # success only after the second consecutive empty poll.
-        mock_is_empty.side_effect = [True, True]
-        actual = await streaming_buffer_trigger.run().asend(None)
+        # A single empty reading must not yield success; success only after
+        # ``empty_confirmations`` consecutive empty polls.
+        mock_is_empty.side_effect = side_effect
 
-        assert mock_is_empty.await_count == 2
+        trigger = BigQueryStreamingBufferEmptyTrigger(
+            project_id=TEST_GCP_PROJECT_ID,
+            dataset_id=TEST_DATASET_ID,
+            table_id=TEST_TABLE_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            empty_confirmations=empty_confirmations,
+        )
+
+        actual = await trigger.run().asend(None)
+
+        assert mock_is_empty.await_count == expected_polls
+
         table_uri = f"{TEST_GCP_PROJECT_ID}:{TEST_DATASET_ID}.{TEST_TABLE_ID}"
         assert actual == TriggerEvent(
             {"status": "success", "message": f"Streaming buffer is empty for table: {table_uri}"}
