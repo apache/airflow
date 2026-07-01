@@ -15233,6 +15233,11 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
       additionalProperties: false
       type: object
       title: MaterializeAssetBody
@@ -16766,6 +16771,11 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
       additionalProperties: false
       type: object
       required:

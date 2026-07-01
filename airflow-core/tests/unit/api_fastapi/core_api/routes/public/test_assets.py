@@ -1671,6 +1671,57 @@ class TestPostAssetMaterialize(TestAssets):
                 user=mock.ANY,
             )
 
+    def test_should_respond_with_bundle_version(self, test_client, session, dag_maker):
+        """Test that asset materialization respects bundle_version parameter."""
+        bundle_name = "testing_bundle"
+        asset = session.get(AssetModel, 1).to_serialized()
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            schedule=None,
+            session=session,
+        ):
+            EmptyOperator(task_id="task_v1", outlets=asset)
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            schedule=None,
+            session=session,
+        ):
+            EmptyOperator(task_id="task_v2", outlets=asset)
+
+        response = test_client.post("/assets/1/materialize", json={"bundle_version": "v1"})
+        assert response.status_code == 200
+        assert response.json()["bundle_version"] == "v1"
+
+        response = test_client.post("/assets/1/materialize", json={"bundle_version": "invalid_version"})
+        assert response.status_code == 404
+        assert (
+            f"DAG with dag_id: '{self.DAG_ASSET1_ID}' does not have a version for bundle_version 'invalid_version'"
+            in response.json()["detail"]
+        )
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v3",
+            schedule=None,
+            session=session,
+        ):
+            EmptyOperator(task_id="task_v3", outlets=asset)
+            dag_maker.dag.disable_bundle_versioning = True
+
+        response = test_client.post("/assets/1/materialize", json={"bundle_version": "v1"})
+        assert response.status_code == 400
+        assert (
+            f"DAG with dag_id: '{self.DAG_ASSET1_ID}' does not support bundle versioning"
+            in response.json()["detail"]
+        )
+
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_400_on_invalid_dag_run_id(self, test_client):
         """A dag_run_id containing '..' triggers ValueError in DagRun.validate_run_id.
