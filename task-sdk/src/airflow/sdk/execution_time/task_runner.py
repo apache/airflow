@@ -2065,6 +2065,43 @@ def _send_error_email_notification(
         log.exception("Failed to send email notification")
 
 
+@detail_span("task.execute")
+def _run_execute_callable(
+    context: Context,
+    execute: Callable[..., Any] | functools.partial[Any],
+    task: BaseOperator,
+) -> Any:
+    """
+    Run the task's execute callable, applying the execution timeout if one is set.
+
+    The contextvars snapshot is taken here, after the ``task.execute`` span is
+    current, so spans the operator emits during ``execute`` nest under it rather
+    than under the caller. ``ExecutorSafeguard``'s tracker is set into that copy
+    so the operator's ``execute`` passes the safeguard check, while the copy keeps
+    the change from leaking into the surrounding context.
+    """
+    ctx = contextvars.copy_context()
+    ctx.run(ExecutorSafeguard.tracker.set, task)
+    if task.execution_timeout:
+        from airflow.sdk.execution_time.timeout import timeout
+
+        # TODO: handle timeout in case of deferral
+        timeout_seconds = task.execution_timeout.total_seconds()
+        try:
+            # It's possible we're already timed out, so fast-fail if true
+            if timeout_seconds <= 0:
+                raise AirflowTaskTimeout()
+            # Run task in timeout wrapper
+            with timeout(timeout_seconds):
+                result = ctx.run(execute, context=context)
+        except AirflowTaskTimeout:
+            task.on_kill()
+            raise
+    else:
+        result = ctx.run(execute, context=context)
+    return result
+
+
 @detail_span("_execute_task")
 def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
@@ -2088,10 +2125,6 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
             assert isinstance(kwargs, dict)
         execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
-    ctx = contextvars.copy_context()
-    # Populate the context var so ExecutorSafeguard doesn't complain
-    ctx.run(ExecutorSafeguard.tracker.set, task)
-
     # Export context in os.environ to make it available for operators to use.
     airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
     os.environ.update(airflow_context_vars)
@@ -2107,23 +2140,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     log.info("::endgroup::")
 
-    if task.execution_timeout:
-        from airflow.sdk.execution_time.timeout import timeout
-
-        # TODO: handle timeout in case of deferral
-        timeout_seconds = task.execution_timeout.total_seconds()
-        try:
-            # It's possible we're already timed out, so fast-fail if true
-            if timeout_seconds <= 0:
-                raise AirflowTaskTimeout()
-            # Run task in timeout wrapper
-            with timeout(timeout_seconds):
-                result = ctx.run(execute, context=context)
-        except AirflowTaskTimeout:
-            task.on_kill()
-            raise
-    else:
-        result = ctx.run(execute, context=context)
+    result = _run_execute_callable(context, execute, task)
 
     if (post_execute_hook := task._post_execute_hook) is not None:
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
