@@ -1042,3 +1042,34 @@ class TestSerializedDagModel:
 
         # The name must have been updated in the DB.
         assert updated_alert.name == "updated name"
+
+    def test_stored_deadline_data_passes_schema_validation(self, testing_dag_bundle, session):
+        """A Dag with a deadline alert should still pass schema validation after being stored.
+
+        A deadline alert is moved into its own ``deadline_alert`` table when the Dag is saved, so the stored
+        serialized Dag keeps only a list of UUID strings pointing at those rows. ``schema.json`` should accept
+        that list-of-strings shape.
+        """
+        dag_id = "test_stored_deadline_schema"
+        dag = DAG(
+            dag_id=dag_id,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+
+        sync_dag_to_db(dag, session=session)
+        session.commit()
+
+        result = session.scalar(select(SDM).where(SDM.dag_id == dag_id))
+        stored_deadline = result.data["dag"]["deadline"]
+
+        # Once stored, the deadline is a list of UUID strings.
+        assert isinstance(stored_deadline, list)
+        assert all(isinstance(item, str) for item in stored_deadline)
+
+        # The schema should allow this stored list-of-UUIDs shape.
+        DagSerialization.validate_schema(result.data)
