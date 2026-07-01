@@ -44,6 +44,23 @@ scheduler:
       readOnly: true
       mountPath: /opt/airflow/lang_sdk/pod_templates
 
+# Serve BOTH the baked-in example Dags (dags-folder) and the lang-SDK stub Dag pulled from the
+# localstack "dags" bucket. This must be additive: the standard KubernetesExecutor tests share this
+# run and trigger example Dags, so dropping dags-folder marks them stale and their runs 404.
+# Configure it here (dagProcessor.dagBundleConfigList) rather than overriding
+# config.dag_processor.dag_bundle_config_list directly -- the chart renders the config from this and
+# it is the recommended, drift-safe path.
+dagProcessor:
+  dagBundleConfigList:
+    - name: dags-folder
+      classpath: "airflow.dag_processing.bundles.local.LocalDagBundle"
+      kwargs: {}
+    - name: lang-sdk-dags
+      classpath: "airflow.providers.amazon.aws.bundles.s3.S3DagBundle"
+      kwargs:
+        bucket_name: "dags"
+        aws_conn_id: "aws_localstack"
+
 config:
   # Route the golang/java queues to their coordinators, each carrying an
   # extra.pod_template_file (the worktree-1 feature) so the worker pod is
@@ -55,8 +72,3 @@ config:
     # yamllint disable-line rule:line-length
     coordinators: '{"go-sdk": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator", "kwargs": {"executables_root": ["/opt/airflow/artifacts/go-artifacts"]}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_golang.yaml"}}, "java-sdk": {"classpath": "airflow.sdk.coordinators.java.JavaCoordinator", "kwargs": {"jars_root": ["/opt/airflow/artifacts/java-artifacts"]}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_java.yaml", "worker_container_repository": "lang-sdk-java-worker", "worker_container_tag": "latest"}}}'
     queue_to_coordinator: '{"golang": "go-sdk", "java": "java-sdk"}'
-  # The Python stub Dag (lang_sdk_combined.py) is pulled from the localstack
-  # "dags" bucket by the dag-processor.
-  dag_processor:
-    # yamllint disable-line rule:line-length
-    dag_bundle_config_list: '[{"name": "lang-sdk-dags", "classpath": "airflow.providers.amazon.aws.bundles.s3.S3DagBundle", "kwargs": {"bucket_name": "dags", "aws_conn_id": "aws_localstack"}}]'
