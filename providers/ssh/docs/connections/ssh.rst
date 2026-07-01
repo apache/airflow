@@ -58,6 +58,13 @@ Extra (optional)
     * ``disabled_algorithms`` - A dictionary mapping algorithm type to an iterable of algorithm identifiers, which will be disabled for the lifetime of the transport.
     * ``ciphers`` - A list of ciphers to use in order of preference.
 
+    .. note::
+        As of ``paramiko`` 4.0 (a minimum requirement of this provider), DSA (DSS) private keys are no
+        longer supported due to their removal from the underlying library. Supported key types are RSA,
+        ECDSA, and Ed25519. If your connection currently uses a DSA key, generate a new key of one of the
+        supported types (e.g. ``ssh-keygen -t ed25519``) and update the connection's ``key_file`` or
+        ``private_key`` accordingly.
+
     Example "extras" field:
 
     .. code-block:: json
