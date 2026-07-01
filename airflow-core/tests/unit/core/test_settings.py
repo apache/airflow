@@ -568,6 +568,43 @@ def test_explicit_sql_alchemy_conn_async_is_not_rewritten():
         settings.configure_vars()
 
 
+@pytest.mark.parametrize(
+    ("otel_on", "otel_debug_traces_on", "expected_otel_debug_traces_on"),
+    [
+        pytest.param("True", "True", True, id="all-true"),
+        pytest.param("False", "True", False, id="otel-disabled"),
+        pytest.param("True", "False", False, id="otel-enabled-debug-traces-disabled"),
+    ],
+)
+def test_initialize_otel_core_and_sdk_conf_in_sync(
+    otel_on, otel_debug_traces_on, expected_otel_debug_traces_on, monkeypatch
+):
+    """
+    Tests that the otel configuration for both airflow-core and task-sdk are in sync.
+    """
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+    import airflow.settings
+    from airflow._shared.observability import traces as core_traces
+    from airflow.sdk._shared.observability import traces as sdk_traces
+
+    monkeypatch.setattr(core_traces, "_load_exporter_from_env", InMemorySpanExporter)
+    monkeypatch.setattr(core_traces, "BatchSpanProcessor", SimpleSpanProcessor)
+    monkeypatch.setattr(core_traces.trace, "set_tracer_provider", lambda provider: None)
+    monkeypatch.setattr(core_traces, "_otel_debug_traces_on", False)
+    monkeypatch.setattr(sdk_traces, "_otel_debug_traces_on", False)
+
+    with conf_vars(
+        {("traces", "otel_on"): otel_on, ("traces", "otel_debug_traces_on"): otel_debug_traces_on}
+    ):
+        airflow.settings.initialize()
+
+    # Both flags should be synced.
+    assert core_traces._otel_debug_traces_on is expected_otel_debug_traces_on
+    assert sdk_traces._otel_debug_traces_on is expected_otel_debug_traces_on
+
+
 class TestDisposeOrm:
     """Tests for dispose_orm() async engine disposal."""
 
