@@ -291,6 +291,7 @@ conda
 conf
 Config
 config
+ConfigDict
 configfile
 configMap
 configmap
@@ -1353,6 +1354,7 @@ Quantiles
 quantiles
 Qubole
 qubole
+queryable
 querybook
 Querybooks
 querybooks
