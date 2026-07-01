@@ -87,7 +87,7 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.asset_state_store import AssetStateStoreModel
-from airflow.models.backfill import Backfill, BackfillDagRun
+from airflow.models.backfill import Backfill, BackfillDagRun, BackfillDagRunExceptionReason
 from airflow.models.callback import Callback, CallbackKey, CallbackType, ExecutorCallback
 from airflow.models.connection_test import (
     ACTIVE_STATES as CONNECTION_TEST_ACTIVE_STATES,
@@ -2364,7 +2364,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _mark_backfills_complete(self, *, session: Session = NEW_SESSION) -> None:
         """Mark completed backfills as completed."""
         self.log.debug("checking for completed backfills.")
-        unfinished_states = (DagRunState.RUNNING, DagRunState.QUEUED)
         now = timezone.utcnow()
         # todo: AIP-78 simplify this function to an update statement
         initializing_cutoff = now - timedelta(minutes=2)
@@ -2379,8 +2378,38 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Backfill.created_at < initializing_cutoff,
             ),
             ~exists(
-                select(DagRun.id).where(
-                    and_(DagRun.backfill_id == Backfill.id, DagRun.state.in_(unfinished_states))
+                select(BackfillDagRun.id)
+                .join(DagRun, DagRun.id == BackfillDagRun.dag_run_id, isouter=True)
+                .where(
+                    BackfillDagRun.backfill_id == Backfill.id,
+                    or_(
+                        and_(
+                            BackfillDagRun.dag_run_id.is_(None),
+                            BackfillDagRun.exception_reason.is_(None),
+                        ),
+                        DagRun.state.in_(State.unfinished_dr_states),
+                        and_(
+                            BackfillDagRun.dag_run_id.is_(None),
+                            BackfillDagRun.exception_reason == BackfillDagRunExceptionReason.IN_FLIGHT,
+                            exists(
+                                select(DagRun.id).where(
+                                    DagRun.dag_id == Backfill.dag_id,
+                                    DagRun.state.in_(State.unfinished_dr_states),
+                                    or_(
+                                        and_(
+                                            BackfillDagRun.logical_date.is_not(None),
+                                            DagRun.logical_date == BackfillDagRun.logical_date,
+                                        ),
+                                        and_(
+                                            BackfillDagRun.logical_date.is_(None),
+                                            BackfillDagRun.partition_key.is_not(None),
+                                            DagRun.partition_key == BackfillDagRun.partition_key,
+                                        ),
+                                    ),
+                                )
+                            ),
+                        ),
+                    ),
                 )
             ),
         )

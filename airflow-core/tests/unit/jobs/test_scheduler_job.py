@@ -67,7 +67,13 @@ from airflow.models.asset import (
     AssetPartitionDagRun,
     PartitionedAssetKeyLog,
 )
-from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
+from airflow.models.backfill import (
+    Backfill,
+    BackfillDagRun,
+    BackfillDagRunExceptionReason,
+    ReprocessBehavior,
+    _create_backfill,
+)
 from airflow.models.callback import Callback, ExecutorCallback
 from airflow.models.connection_test import (
     ConnectionTestKey,
@@ -10197,6 +10203,82 @@ def test_mark_backfills_complete_multiple_independent(dag_maker, session):
     b_running = session.get(Backfill, running_id)
     assert b_finished.completed_at is not None
     assert b_running.completed_at is None
+
+
+def test_mark_backfills_complete_waits_for_inflight_association(dag_maker, session):
+    """Backfill should stay active while an IN_FLIGHT association points at a queued DagRun."""
+    clear_db_backfills()
+    dag_id = "test_backfill_waits_for_inflight_association"
+    with dag_maker(serialized=True, dag_id=dag_id, schedule="@daily"):
+        BashOperator(task_id="hi", bash_command="echo hi")
+    b = Backfill(
+        dag_id=dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-03"),
+        max_active_runs=10,
+        dag_run_conf={},
+        reprocess_behavior=ReprocessBehavior.NONE,
+    )
+    session.add(b)
+    session.commit()
+    backfill_id = b.id
+
+    successful_dr = DagRun(
+        dag_id=dag_id,
+        run_id="backfill__2021-01-01T00:00:00+00:00",
+        run_type=DagRunType.BACKFILL_JOB,
+        logical_date=pendulum.parse("2021-01-01"),
+        data_interval=(pendulum.parse("2021-01-01"), pendulum.parse("2021-01-02")),
+        run_after=pendulum.parse("2021-01-02"),
+        state=DagRunState.SUCCESS,
+        backfill_id=backfill_id,
+    )
+    inflight_dr = DagRun(
+        dag_id=dag_id,
+        run_id="scheduled__2021-01-02T00:00:00+00:00",
+        run_type=DagRunType.SCHEDULED,
+        logical_date=pendulum.parse("2021-01-02"),
+        data_interval=(pendulum.parse("2021-01-02"), pendulum.parse("2021-01-03")),
+        run_after=pendulum.parse("2021-01-03"),
+        state=DagRunState.QUEUED,
+    )
+    session.add_all([successful_dr, inflight_dr])
+    session.flush()
+    session.add_all(
+        [
+            BackfillDagRun(
+                backfill_id=backfill_id,
+                dag_run_id=successful_dr.id,
+                logical_date=pendulum.parse("2021-01-01"),
+                sort_ordinal=1,
+            ),
+            BackfillDagRun(
+                backfill_id=backfill_id,
+                dag_run_id=inflight_dr.id,
+                logical_date=pendulum.parse("2021-01-02"),
+                exception_reason=BackfillDagRunExceptionReason.IN_FLIGHT,
+                sort_ordinal=2,
+            ),
+        ]
+    )
+    session.commit()
+    session.expunge_all()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._mark_backfills_complete()
+    b = session.get(Backfill, backfill_id)
+    assert b.completed_at is None
+
+    inflight_dr = session.get(DagRun, inflight_dr.id)
+    inflight_dr.state = DagRunState.SUCCESS
+    session.commit()
+    session.expunge_all()
+
+    runner._mark_backfills_complete()
+    b = session.get(Backfill, backfill_id)
+    assert b.completed_at is not None
 
 
 class Key1Mapper(CorePartitionMapper):
