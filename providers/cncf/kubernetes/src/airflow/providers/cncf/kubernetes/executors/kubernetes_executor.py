@@ -31,7 +31,7 @@ import multiprocessing
 import time
 from collections import Counter, defaultdict
 from contextlib import suppress
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any
 
@@ -108,6 +108,7 @@ class KubernetesExecutor(BaseExecutor):
         self.kube_client: client.CoreV1Api | None = None
         self.scheduler_job_id: str | None = None
         self._last_completed_pod_adoption = 0.0
+        self._last_zombie_kpo_cleanup = 0.0
         self.kubernetes_queue: str | None = None
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
         self.task_publish_max_retries = self.conf.getint(
@@ -349,6 +350,12 @@ class KubernetesExecutor(BaseExecutor):
         if now - self._last_completed_pod_adoption >= adoption_interval:
             self._last_completed_pod_adoption = now
             self._adopt_completed_pods(self.kube_client)
+
+        if self.kube_config.clean_zombie_kpo_pods:
+            zombie_interval = float(self.kube_config.zombie_kpo_pod_cleanup_interval)
+            if now - self._last_zombie_kpo_cleanup >= zombie_interval:
+                self._last_zombie_kpo_cleanup = now
+                self._cleanup_zombie_kpo_pods(self.kube_client)
 
         if self.running:
             self.log.debug("self.running: %s", self.running)
@@ -909,6 +916,151 @@ class KubernetesExecutor(BaseExecutor):
                 resource_version=pod.metadata.resource_version,
                 failure_details=None,
             )
+
+    # Operators whose pods this cleanup manages.  EksPodOperator and
+    # GKEStartPodOperator are intentionally excluded: their pods run in
+    # external clusters where this kube_client has no authority.
+    _KPO_OPERATORS: frozenset[str] = frozenset(
+        [
+            "KubernetesPodOperator",
+            "SparkKubernetesOperator",
+        ]
+    )
+
+    @provide_session
+    def _cleanup_zombie_kpo_pods(
+        self, kube_client: client.CoreV1Api, *, session: Session = NEW_SESSION
+    ) -> None:
+        """
+        Force-delete KubernetesPodOperator pods whose TaskInstance is no longer active.
+
+        A pod is a zombie when either:
+
+        - No matching non-terminal TaskInstance exists in the DB (the TI already
+          finished or was never recorded), or
+        - The pod's ``try_number`` label is less than the active TI's current
+          ``try_number`` (the pod is a leftover from a previous retry attempt).
+
+        Force-deletion (``grace_period_seconds=0``) is used so that sidecar
+        containers that ignore SIGTERM cannot delay pod termination.
+        """
+        from sqlalchemy import or_
+
+        from airflow.models.taskinstance import TaskInstance
+        from airflow.providers.cncf.kubernetes.pod_generator import make_safe_label_value
+        from airflow.utils.state import State
+
+        pod_list = self._list_pods({
+            "label_selector": "kubernetes_pod_operator=True",
+            "field_selector": "status.phase=Running",
+        })
+        if not pod_list:
+            return
+
+        # Parse pod labels.  Values were already normalized by make_safe_label_value()
+        # at pod-creation time (operators/pod.py get_labels()), so they are ready to
+        # compare directly against normalized DB values.
+        # Skip pods younger than one cleanup interval — a freshly started pod with no
+        # DB entry yet (e.g. during the submit→schedule gap, or in system tests) must
+        # not be mistaken for a zombie.
+        min_age = timedelta(seconds=float(self.kube_config.zombie_kpo_pod_cleanup_interval))
+        now_utc = datetime.now(timezone.utc)
+        pod_identities = []
+        for pod in pod_list:
+            labels = pod.metadata.labels or {}
+            dag_id = labels.get("dag_id")
+            task_id = labels.get("task_id")
+            run_id = labels.get("run_id")
+            if not (dag_id and task_id and run_id):
+                continue
+            created = pod.metadata.creation_timestamp
+            if created and (now_utc - created) < min_age:
+                continue
+            map_index = int(labels.get("map_index", -1))
+            try_number = int(labels.get("try_number", 0))
+            pod_identities.append((pod, dag_id, task_id, run_id, map_index, try_number))
+
+        if not pod_identities:
+            return
+
+        # Scope the DB query to the DAGs that actually have live KPO pods.
+        # dag_id values in pod labels are safe-encoded by make_safe_label_value(),
+        # but dag_ids are almost always short alphanumeric strings where the
+        # encoding is a no-op — so this filter is correct in practice and
+        # drastically reduces the result set on large installations.
+        pod_dag_ids = {dag_id for _, dag_id, _, _, _, _ in pod_identities}
+
+        # We match on notin_(finished) rather than in_(unfinished) because SQL
+        # evaluates "NULL NOT IN (...)" as NULL, not TRUE — the explicit is_(None)
+        # arm ensures we also capture TIs with no state set yet.
+        terminal_state_values = [s.value for s in State.finished]
+        active_tis = session.execute(
+            select(
+                TaskInstance.dag_id,
+                TaskInstance.task_id,
+                TaskInstance.run_id,
+                TaskInstance.map_index,
+                TaskInstance.try_number,
+            ).where(
+                or_(
+                    TaskInstance.state.notin_(terminal_state_values),
+                    TaskInstance.state.is_(None),
+                ),
+                TaskInstance.operator.in_(self._KPO_OPERATORS),
+                TaskInstance.dag_id.in_(pod_dag_ids),
+            )
+        ).all()
+
+        # Build lookup: normalized (dag_id, task_id, run_id, map_index) → max try_number.
+        # DB values must be normalized identically to how the operator wrote pod labels.
+        active_lookup: dict[tuple[str, str, str, int], int] = {}
+        for ti in active_tis:
+            key = (
+                make_safe_label_value(ti.dag_id),
+                make_safe_label_value(ti.task_id),
+                make_safe_label_value(ti.run_id),
+                ti.map_index,
+            )
+            if key not in active_lookup or ti.try_number > active_lookup[key]:
+                active_lookup[key] = ti.try_number
+
+        from kubernetes.client import V1DeleteOptions
+        from kubernetes.client.rest import ApiException
+
+        for pod, dag_id, task_id, run_id, map_index, pod_try in pod_identities:
+            pod_key = (dag_id, task_id, run_id, map_index)
+            active_try = active_lookup.get(pod_key)
+
+            is_zombie = active_try is None or pod_try < active_try
+            if not is_zombie:
+                continue
+
+            self.log.warning(
+                "Force-deleting zombie KPO pod %s/%s "
+                "(dag_id=%s task_id=%s run_id=%s map_index=%d try_number=%d active_try=%s)",
+                pod.metadata.namespace,
+                pod.metadata.name,
+                dag_id,
+                task_id,
+                run_id,
+                map_index,
+                pod_try,
+                active_try,
+            )
+            try:
+                kube_client.delete_namespaced_pod(
+                    pod.metadata.name,
+                    pod.metadata.namespace,
+                    body=V1DeleteOptions(grace_period_seconds=0),
+                )
+            except ApiException as e:
+                if e.status != 404:
+                    self.log.warning(
+                        "Failed to force-delete zombie KPO pod %s/%s: %s",
+                        pod.metadata.namespace,
+                        pod.metadata.name,
+                        e,
+                    )
 
     def _flush_task_queue(self) -> None:
         if TYPE_CHECKING:

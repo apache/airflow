@@ -288,3 +288,35 @@ When monitoring the Kubernetes cluster's watcher thread, each event has a monoto
 Every time the executor reads a ``resourceVersion``, the executor stores the latest value in the backend database.
 Because the resourceVersion is stored, the scheduler can restart and continue reading the watcher stream from where it left off.
 Since the tasks are run independently of the executor and report results directly to the database, scheduler failures will not lead to task failures or re-runs.
+
+Zombie KPO Pod Cleanup
+-----------------------
+
+When a ``KubernetesPodOperator`` task reaches a terminal state, the scheduler signals its pod to terminate.
+However, sidecar containers that ignore ``SIGTERM`` — such as the xcom sidecar or custom log-aggregation
+sidecars — can keep the pod in ``Running`` state indefinitely, leaking cluster resources and confusing
+monitoring dashboards.
+
+The ``KubernetesExecutor`` includes a periodic zombie-pod cleanup that identifies and force-deletes these
+stale pods. A pod is considered a zombie if:
+
+- No matching non-terminal ``TaskInstance`` exists in the database (the task already finished or was
+  never recorded), or
+- The pod's ``try_number`` label is lower than the active ``TaskInstance``'s current ``try_number``
+  (the pod is a leftover from a previous retry attempt).
+
+Zombie pods are force-deleted with ``grace_period_seconds=0`` so that stuck sidecar containers cannot
+delay pod termination.
+
+.. note::
+
+    Only pods belonging to ``KubernetesPodOperator`` and ``SparkKubernetesOperator`` are scanned.
+    ``EksPodOperator`` and ``GKEStartPodOperator`` pods run in external clusters where the executor's
+    ``kube_client`` has no authority, so they are intentionally excluded.
+
+The feature is controlled by two ``[kubernetes_executor]`` configuration options:
+
+- :ref:`config:kubernetes_executor__clean_zombie_kpo_pods` (boolean, default ``True``) —
+  set to ``False`` to disable the cleanup scan entirely.
+- :ref:`config:kubernetes_executor__zombie_kpo_pod_cleanup_interval` (integer seconds, default ``300``) —
+  how often to run the scan.
