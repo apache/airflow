@@ -1,0 +1,23 @@
+Deprecate ``BaseExecutor.queued_tasks``, ``queued_callbacks``, ``supports_callbacks``, ``trigger_tasks``, and ``order_queued_tasks_by_priority``
+
+Executor workload state is now stored on the unified ``BaseExecutor.executor_queues`` mapping
+keyed by ``WorkloadType``, and scheduling is driven by ``trigger_workloads`` /
+``_get_workloads_to_schedule``. The previous per-type attributes and entrypoints are kept as
+backward-compatible shims that emit ``RemovedInAirflow4Warning`` and will be removed in Airflow 4.0.
+
+**Migration:**
+
+- Replace ``executor.queued_tasks`` with ``executor.executor_queues[WorkloadType.EXECUTE_TASK]``.
+- Replace ``executor.queued_callbacks`` with ``executor.executor_queues[WorkloadType.EXECUTE_CALLBACK]``.
+- Replace ``supports_callbacks = True`` class declarations with
+  ``supported_workload_types = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})``.
+- Replace ``executor.trigger_tasks(open_slots)`` with ``executor.trigger_workloads(open_slots)``.
+- Replace ``executor.order_queued_tasks_by_priority()`` with
+  ``executor._get_workloads_to_schedule(open_slots)``.
+
+Legacy ``supports_callbacks = True`` class attributes on out-of-tree executors are still honored:
+``BaseExecutor.__init_subclass__`` detects them and synthesizes the corresponding
+``supported_workload_types`` entry while emitting a deprecation warning.
+
+Deprecation warnings for these compat entrypoints are emitted at most once per executor class to
+avoid flooding scheduler heartbeat logs.
