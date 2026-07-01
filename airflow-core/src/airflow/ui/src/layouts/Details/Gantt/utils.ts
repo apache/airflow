@@ -137,16 +137,9 @@ export const transformGanttData = ({
             const queuedMs = queuedDttm === null ? undefined : dayjs(queuedDttm).valueOf();
             const scheduledMs = scheduledDttm === null ? undefined : dayjs(scheduledDttm).valueOf();
 
-            // Effective task end for tooltips: the real end_date, or "now" while a started task
-            // is still running. Mirrors startDate/start_when so end_when stays on the same scale —
-            // both are skipped together for a not-yet-started task and fall back to the bar's own
-            // bounds.
             const effectiveEndDate =
               endDate ?? (hasTaskRunning && startDate !== null ? new Date().toISOString() : null);
 
-            // Carry scheduled/queued/start/end times on every segment of a try so the tooltip
-            // reports the task's actual start and end on the scheduled and queued bars too, not
-            // just the execution bar's own bounds.
             const tryWhenForTooltip = {
               ...(scheduledMs === undefined ? {} : { scheduled_when: scheduledDttm }),
               ...(queuedMs === undefined ? {} : { queued_when: queuedDttm }),
