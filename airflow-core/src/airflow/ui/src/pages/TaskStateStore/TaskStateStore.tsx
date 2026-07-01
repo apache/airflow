@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Flex } from "@chakra-ui/react";
+import { Badge, Flex, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
@@ -31,7 +31,6 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StoreValueCell } from "src/components/StoreValueCell";
 import Time from "src/components/Time";
-import { TruncatedText } from "src/components/TruncatedText";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { AddTaskStateStoreButton } from "./AddTaskStateStoreButton";
@@ -56,7 +55,7 @@ const getColumns = ({
 }: ColumnsProps): Array<ColumnDef<TaskStateStoreResponse>> => [
   {
     accessorKey: "key",
-    cell: ({ row: { original } }) => <TruncatedText text={original.key} />,
+    cell: ({ row: { original } }) => <Text>{original.key}</Text>,
     header: translate("common:key"),
   },
   {
