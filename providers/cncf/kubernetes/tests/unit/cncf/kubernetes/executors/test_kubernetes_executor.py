@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import queue
 import random
 import re
 import string
@@ -25,10 +26,12 @@ from unittest import mock
 
 import pytest
 import yaml
+from aiohttp import ClientConnectionError
 from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from sqlalchemy import inspect
-from urllib3 import HTTPResponse
+from urllib3 import HTTPConnectionPool, HTTPResponse
+from urllib3.exceptions import MaxRetryError, ProtocolError
 
 from airflow.jobs.job import Job
 from airflow.models.taskinstancekey import TaskInstanceKey
@@ -861,6 +864,46 @@ class TestKubernetesExecutor:
                 None,
                 id="500 Internal Server Error (webhook failure) (retry failed)",
             ),
+            pytest.param(
+                HTTPResponse(body='{"message": "Bad Gateway"}', status=502),
+                1,
+                True,
+                State.SUCCESS,
+                None,
+                id="502 Bad Gateway (transient, requeued, retry next loop)",
+            ),
+            pytest.param(
+                HTTPResponse(
+                    body='{"message": "apiserver is shutting down"}',
+                    status=503,
+                    headers={"Retry-After": "1"},
+                ),
+                1,
+                True,
+                State.SUCCESS,
+                1,
+                id="503 Service Unavailable (Retry-After honored, requeued after retry delay)",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "Gateway Timeout"}', status=504),
+                1,
+                True,
+                State.SUCCESS,
+                None,
+                id="504 Gateway Timeout (transient, requeued, retry next loop)",
+            ),
+            pytest.param(
+                HTTPResponse(
+                    body='{"message": "apiserver is shutting down"}',
+                    status=503,
+                    headers={"Retry-After": "1"},
+                ),
+                1,
+                True,
+                State.FAILED,
+                1,
+                id="503 Service Unavailable (retries exhausted, failed)",
+            ),
         ],
     )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
@@ -1109,6 +1152,474 @@ class TestKubernetesExecutor:
                 assert kubernetes_executor.event_buffer[task_instance_key][1].args[0] == fail_msg
             finally:
                 kubernetes_executor.end()
+
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
+    @pytest.mark.parametrize(
+        ("exc", "task_publish_max_retries", "should_requeue"),
+        [
+            pytest.param(ProtocolError("Connection aborted."), 1, True, id="connection reset (requeued)"),
+            pytest.param(
+                MaxRetryError(
+                    HTTPConnectionPool("localhost"), "/api/v1/namespaces/default/pods", Exception("refused")
+                ),
+                1,
+                True,
+                id="client connect retries exhausted (requeued)",
+            ),
+            pytest.param(
+                ProtocolError("Connection aborted."), 0, False, id="connection reset, retries off (failed)"
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_run_next_connection_error_requeue(
+        self,
+        mock_get_kube_client,
+        mock_kubernetes_job_watcher,
+        exc,
+        task_publish_max_retries,
+        should_requeue,
+        data_file,
+    ):
+        """A transient connection error on the sync client re-queues the task instead of failing it."""
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+
+        mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
+        mock_kube_client.create_namespaced_pod = mock.MagicMock(side_effect=exc)
+        mock_get_kube_client.return_value = mock_kube_client
+        mock_api_client = mock.MagicMock()
+        mock_api_client.sanitize_for_serialization.return_value = {}
+        mock_kube_client.api_client = mock_api_client
+
+        config = {("kubernetes_executor", "pod_template_file"): template_file}
+        with conf_vars(config):
+            kubernetes_executor = self.kubernetes_executor
+            kubernetes_executor.task_publish_max_retries = task_publish_max_retries
+            kubernetes_executor.start()
+            try:
+                task_instance_key = TaskInstanceKey("dag", "task", "run_id", 1)
+                kubernetes_executor.execute_async(
+                    key=task_instance_key,
+                    queue=None,
+                    command=["airflow", "tasks", "run", "true", "some_parameter"],
+                )
+                kubernetes_executor.sync()
+
+                assert mock_kube_client.create_namespaced_pod.call_count == 1
+                if should_requeue:
+                    assert not kubernetes_executor.task_queue.empty()
+                else:
+                    assert kubernetes_executor.task_queue.empty()
+                    assert kubernetes_executor.event_buffer[task_instance_key][0] == State.FAILED
+            finally:
+                kubernetes_executor.end()
+
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.get_async_kube_client",
+        new_callable=mock.AsyncMock,
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_async_pod_creation_creates_all_pods(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, mock_get_async_client, data_file
+    ):
+        """With async_pod_creation enabled, every dequeued pod is created via the async client."""
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.api_client.sanitize_for_serialization.return_value = {}
+        mock_get_kube_client.return_value = mock_kube_client
+
+        mock_async_api = mock.MagicMock()
+        mock_async_api.create_namespaced_pod = mock.AsyncMock()
+        mock_async_api.api_client.close = mock.AsyncMock()
+        mock_get_async_client.return_value = mock_async_api
+
+        config = {
+            ("kubernetes_executor", "pod_template_file"): template_file,
+            ("kubernetes_executor", "async_pod_creation"): "True",
+            ("kubernetes_executor", "pod_creation_max_concurrency"): "0",
+            ("kubernetes_executor", "worker_pods_creation_batch_size"): "16",
+        }
+        with conf_vars(config):
+            executor = KubernetesExecutor()
+            executor.job_id = 5
+            executor._last_completed_pod_adoption = time.monotonic()
+            executor.start()
+            try:
+                for i in range(5):
+                    executor.execute_async(
+                        key=TaskInstanceKey("dag", f"task{i}", "run_id", 1),
+                        queue=None,
+                        command=["airflow", "tasks", "run", "true", "x"],
+                    )
+                executor.sync()
+                assert mock_async_api.create_namespaced_pod.await_count == 5
+                assert executor.task_queue.empty()
+                # max_concurrency=0 falls back to worker_pods_creation_batch_size
+                assert executor.kube_scheduler.pod_creation_max_concurrency == 16
+            finally:
+                executor.end()
+
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.get_async_kube_client",
+        new_callable=mock.AsyncMock,
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_async_pod_creation_respects_concurrency_limit(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, mock_get_async_client, data_file
+    ):
+        """The number of in-flight create calls never exceeds pod_creation_max_concurrency."""
+        import asyncio as _asyncio
+
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.api_client.sanitize_for_serialization.return_value = {}
+        mock_get_kube_client.return_value = mock_kube_client
+
+        inflight = {"current": 0, "peak": 0}
+
+        async def _tracked_create(*args, **kwargs):
+            inflight["current"] += 1
+            inflight["peak"] = max(inflight["peak"], inflight["current"])
+            await _asyncio.sleep(0.02)
+            inflight["current"] -= 1
+
+        mock_async_api = mock.MagicMock()
+        mock_async_api.create_namespaced_pod = mock.AsyncMock(side_effect=_tracked_create)
+        mock_async_api.api_client.close = mock.AsyncMock()
+        mock_get_async_client.return_value = mock_async_api
+
+        config = {
+            ("kubernetes_executor", "pod_template_file"): template_file,
+            ("kubernetes_executor", "async_pod_creation"): "True",
+            ("kubernetes_executor", "pod_creation_max_concurrency"): "3",
+            ("kubernetes_executor", "worker_pods_creation_batch_size"): "16",
+        }
+        with conf_vars(config):
+            executor = KubernetesExecutor()
+            executor.job_id = 5
+            executor._last_completed_pod_adoption = time.monotonic()
+            executor.start()
+            try:
+                for i in range(9):
+                    executor.execute_async(
+                        key=TaskInstanceKey("dag", f"task{i}", "run_id", 1),
+                        queue=None,
+                        command=["airflow", "tasks", "run", "true", "x"],
+                    )
+                executor.sync()
+                assert mock_async_api.create_namespaced_pod.await_count == 9
+                assert inflight["peak"] <= 3
+            finally:
+                executor.end()
+
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.get_async_kube_client",
+        new_callable=mock.AsyncMock,
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_async_pod_creation_requeues_on_exceeded_quota(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, mock_get_async_client, data_file
+    ):
+        """An async-client quota error requeues the task via the shared pod-publish error handler."""
+        from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
+
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.api_client.sanitize_for_serialization.return_value = {}
+        mock_get_kube_client.return_value = mock_kube_client
+
+        quota_exc = AsyncApiException(status=403, reason="Forbidden")
+        quota_exc.body = '{"message": "pods \\"x\\" is forbidden: exceeded quota: my-quota"}'
+        quota_exc.headers = {}
+
+        mock_async_api = mock.MagicMock()
+        mock_async_api.create_namespaced_pod = mock.AsyncMock(side_effect=quota_exc)
+        mock_async_api.api_client.close = mock.AsyncMock()
+        mock_get_async_client.return_value = mock_async_api
+
+        config = {
+            ("kubernetes_executor", "pod_template_file"): template_file,
+            ("kubernetes_executor", "async_pod_creation"): "True",
+        }
+        with conf_vars(config):
+            executor = KubernetesExecutor()
+            executor.job_id = 5
+            executor._last_completed_pod_adoption = time.monotonic()
+            executor.task_publish_max_retries = 1
+            executor.start()
+            try:
+                executor.execute_async(
+                    key=TaskInstanceKey("dag", "task", "run_id", 1),
+                    queue=None,
+                    command=["airflow", "tasks", "run", "true", "x"],
+                )
+                executor.sync()
+                assert mock_async_api.create_namespaced_pod.await_count == 1
+                # Quota error is retryable -> task is requeued rather than failed.
+                assert not executor.task_queue.empty()
+            finally:
+                executor.end()
+
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.get_async_kube_client",
+        new_callable=mock.AsyncMock,
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_async_pod_creation_rate_limit_sets_create_pods_after(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, mock_get_async_client, data_file
+    ):
+        """A 429 from the async client sets create_pods_after so the next loop backs off."""
+        from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
+
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.api_client.sanitize_for_serialization.return_value = {}
+        mock_get_kube_client.return_value = mock_kube_client
+
+        rate_exc = AsyncApiException(status=429, reason="Too Many Requests")
+        rate_exc.body = '{"message": "slow down"}'
+        rate_exc.headers = {"Retry-After": "1"}
+
+        mock_async_api = mock.MagicMock()
+        mock_async_api.create_namespaced_pod = mock.AsyncMock(side_effect=rate_exc)
+        mock_async_api.api_client.close = mock.AsyncMock()
+        mock_get_async_client.return_value = mock_async_api
+
+        config = {
+            ("kubernetes_executor", "pod_template_file"): template_file,
+            ("kubernetes_executor", "async_pod_creation"): "True",
+        }
+        with conf_vars(config):
+            executor = KubernetesExecutor()
+            executor.job_id = 5
+            executor._last_completed_pod_adoption = time.monotonic()
+            executor.task_publish_max_retries = 1
+            executor.start()
+            try:
+                executor.execute_async(
+                    key=TaskInstanceKey("dag", "task", "run_id", 1),
+                    queue=None,
+                    command=["airflow", "tasks", "run", "true", "x"],
+                )
+                executor.sync()
+                assert executor.create_pods_after is not None
+                assert not executor.task_queue.empty()
+            finally:
+                executor.end()
+
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.get_async_kube_client",
+        new_callable=mock.AsyncMock,
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_async_pod_creation_requeues_and_backs_off_on_503(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, mock_get_async_client, data_file
+    ):
+        """A 503 + Retry-After from the async client (apiserver shutting down) requeues and backs off."""
+        from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
+
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.api_client.sanitize_for_serialization.return_value = {}
+        mock_get_kube_client.return_value = mock_kube_client
+
+        unavailable_exc = AsyncApiException(status=503, reason="Service Unavailable")
+        unavailable_exc.body = '{"message": "apiserver is shutting down"}'
+        unavailable_exc.headers = {"Retry-After": "1"}
+
+        mock_async_api = mock.MagicMock()
+        mock_async_api.create_namespaced_pod = mock.AsyncMock(side_effect=unavailable_exc)
+        mock_async_api.api_client.close = mock.AsyncMock()
+        mock_get_async_client.return_value = mock_async_api
+
+        config = {
+            ("kubernetes_executor", "pod_template_file"): template_file,
+            ("kubernetes_executor", "async_pod_creation"): "True",
+        }
+        with conf_vars(config):
+            executor = KubernetesExecutor()
+            executor.job_id = 5
+            executor._last_completed_pod_adoption = time.monotonic()
+            executor.task_publish_max_retries = 1
+            executor.start()
+            try:
+                executor.execute_async(
+                    key=TaskInstanceKey("dag", "task", "run_id", 1),
+                    queue=None,
+                    command=["airflow", "tasks", "run", "true", "x"],
+                )
+                executor.sync()
+                assert mock_async_api.create_namespaced_pod.await_count == 1
+                assert executor.create_pods_after is not None
+                assert not executor.task_queue.empty()
+            finally:
+                executor.end()
+
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.get_async_kube_client",
+        new_callable=mock.AsyncMock,
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_async_pod_creation_requeues_on_connection_error(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, mock_get_async_client, data_file
+    ):
+        """A connection error from the async (aiohttp) client requeues the task via the shared handler."""
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.api_client.sanitize_for_serialization.return_value = {}
+        mock_get_kube_client.return_value = mock_kube_client
+
+        mock_async_api = mock.MagicMock()
+        mock_async_api.create_namespaced_pod = mock.AsyncMock(
+            side_effect=ClientConnectionError("Cannot connect to host")
+        )
+        mock_async_api.api_client.close = mock.AsyncMock()
+        mock_get_async_client.return_value = mock_async_api
+
+        config = {
+            ("kubernetes_executor", "pod_template_file"): template_file,
+            ("kubernetes_executor", "async_pod_creation"): "True",
+        }
+        with conf_vars(config):
+            executor = KubernetesExecutor()
+            executor.job_id = 5
+            executor._last_completed_pod_adoption = time.monotonic()
+            executor.task_publish_max_retries = 1
+            executor.start()
+            try:
+                executor.execute_async(
+                    key=TaskInstanceKey("dag", "task", "run_id", 1),
+                    queue=None,
+                    command=["airflow", "tasks", "run", "true", "x"],
+                )
+                executor.sync()
+                assert mock_async_api.create_namespaced_pod.await_count == 1
+                # Connection error is transient -> requeued (not failed).
+                assert not executor.task_queue.empty()
+            finally:
+                executor.end()
+
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_concurrent_path_fails_errored_and_completes_successful(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher
+    ):
+        """A build/create failure for one job in a batch must not affect the others (isolation)."""
+        from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import KubernetesJob
+
+        executor = self.kubernetes_executor
+        executor.kube_config.worker_pods_creation_batch_size = 16
+        executor.kube_scheduler = mock.MagicMock()
+        # task_queue is created lazily in start(); this test drives _create_pods_concurrently
+        # directly, so seed a lightweight in-process queue instead of spawning a Manager.
+        executor.task_queue = queue.Queue()
+
+        ok_key = TaskInstanceKey("dag", "ok", "run_id", 1)
+        bad_key = TaskInstanceKey("dag", "bad", "run_id", 1)
+        ok_job = KubernetesJob(ok_key, ["airflow", "tasks", "run"], {}, None)
+        bad_job = KubernetesJob(bad_key, ["airflow", "tasks", "run"], {}, None)
+        executor.task_queue.put(ok_job)
+        executor.task_queue.put(bad_job)
+        executor.kube_scheduler.run_next_batch.return_value = [
+            (ok_job, None),
+            (bad_job, PodReconciliationError("boom")),
+        ]
+
+        executor._create_pods_concurrently()
+
+        executor.kube_scheduler.run_next_batch.assert_called_once()
+        assert executor.task_queue.empty()
+        assert executor.event_buffer[bad_key][0] == State.FAILED
+        assert ok_key not in executor.event_buffer
+
+    @pytest.mark.db_test
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="ExecuteTask workloads require Airflow 3.0+")
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.get_async_kube_client",
+        new_callable=mock.AsyncMock,
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_async_pod_creation_with_executetask_workload(
+        self,
+        mock_get_kube_client,
+        mock_kubernetes_job_watcher,
+        mock_get_async_client,
+        create_task_instance,
+        data_file,
+    ):
+        """The concurrent path builds and creates a pod from an AF3 ExecuteTask workload.
+
+        Real AF3 schedulers feed the executor ExecuteTask workloads (command == [workload]),
+        not the legacy ["airflow", "tasks", "run", ...] list. This exercises that branch of
+        the pod build through the concurrent creation path.
+        """
+        from airflow.executors import workloads
+        from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import KubernetesJob
+
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.api_client.sanitize_for_serialization.return_value = {}
+        mock_get_kube_client.return_value = mock_kube_client
+
+        mock_async_api = mock.MagicMock()
+        mock_async_api.create_namespaced_pod = mock.AsyncMock()
+        mock_async_api.api_client.close = mock.AsyncMock()
+        mock_get_async_client.return_value = mock_async_api
+
+        ti = create_task_instance(dag_id="wl_dag", task_id="wl_task", run_id="wl_run")
+        workload = workloads.ExecuteTask.make(ti)
+
+        config = {
+            ("kubernetes_executor", "pod_template_file"): template_file,
+            ("kubernetes_executor", "async_pod_creation"): "True",
+        }
+        with conf_vars(config):
+            executor = KubernetesExecutor()
+            executor.job_id = 5
+            executor._last_completed_pod_adoption = time.monotonic()
+            executor.start()
+            try:
+                job = KubernetesJob(ti.key, [workload], None, template_file)
+                results = executor.kube_scheduler.run_next_batch([job])
+                assert len(results) == 1
+                assert results[0][1] is None  # workload built + pod created, no error
+                mock_async_api.create_namespaced_pod.assert_awaited_once()
+            finally:
+                executor.end()
 
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubeConfig")
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.sync")
