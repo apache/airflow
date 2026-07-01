@@ -87,19 +87,20 @@ class SSHHook(BaseHook):
         once and some connections are transiently refused (e.g. ``sshd`` ``MaxStartups`` throttling).
     """
 
-    # List of classes to try loading private keys as, ordered (roughly) by most common to least common
+    # List of classes to try loading private keys as, ordered (roughly) by most common to least common.
+    # DSA/DSS keys are not supported (removed in paramiko 4.0).
     _pkey_loaders: Sequence[type[paramiko.PKey]] = (
         paramiko.RSAKey,
         paramiko.ECDSAKey,
         paramiko.Ed25519Key,
-        paramiko.DSSKey,
     )
 
-    _host_key_mappings = {
-        "rsa": paramiko.RSAKey,
-        "dss": paramiko.DSSKey,
-        "ecdsa": paramiko.ECDSAKey,
-        "ed25519": paramiko.Ed25519Key,
+    _host_key_mappings: dict[str, type[paramiko.PKey]] = {
+        "ssh-rsa": paramiko.RSAKey,
+        "ecdsa-sha2-nistp256": paramiko.ECDSAKey,
+        "ecdsa-sha2-nistp384": paramiko.ECDSAKey,
+        "ecdsa-sha2-nistp521": paramiko.ECDSAKey,
+        "ssh-ed25519": paramiko.Ed25519Key,
     }
 
     conn_name_attr = "ssh_conn_id"
@@ -227,9 +228,20 @@ class SSHHook(BaseHook):
                     self.ciphers = extra_options.get("ciphers")
 
                 if host_key is not None:
-                    if host_key.startswith("ssh-"):
+                    if " " in host_key:
                         key_type, host_key = host_key.split(None)[:2]
-                        key_constructor = self._host_key_mappings[key_type[4:]]
+                        if key_type == "ssh-dss":
+                            raise ValueError(
+                                "DSA/DSS host keys are not supported. Paramiko 4.0 removed DSS support; "
+                                "use an RSA, ECDSA, or Ed25519 host key and update the connection `host_key`."
+                            )
+                        key_constructor = self._host_key_mappings.get(key_type)
+                        if key_constructor is None:
+                            raise ValueError(
+                                f"Unsupported SSH host key algorithm {key_type!r}. "
+                                "Supported types are: ssh-rsa, ecdsa-sha2-nistp256, "
+                                "ecdsa-sha2-nistp384, ecdsa-sha2-nistp521, ssh-ed25519."
+                            )
                     else:
                         key_constructor = paramiko.RSAKey
                     decoded_host_key = decodebytes(host_key.encode("utf-8"))
@@ -423,9 +435,9 @@ class SSHHook(BaseHook):
             except (paramiko.ssh_exception.SSHException, ValueError):
                 continue
         raise AirflowException(
-            "Private key provided cannot be read by paramiko."
-            "Ensure key provided is valid for one of the following"
-            "key formats: RSA, DSS, ECDSA, or Ed25519"
+            "Private key provided cannot be read by paramiko. "
+            "Ensure key provided is valid for one of the following "
+            "key formats: RSA, ECDSA, or Ed25519."
         )
 
     def exec_ssh_client_command(
