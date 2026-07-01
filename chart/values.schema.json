@@ -1,5 +1,5 @@
 {
-    "$schema": "http://json-schema.org/draft-07/schema",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "Default values for airflow. Declare variables to be passed into your templates.",
     "type": "object",
     "x-docsSectionOrder": [
