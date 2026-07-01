@@ -396,6 +396,82 @@ class TestImapHook:
 
     @patch(open_string, new_callable=mock_open)
     @patch(imaplib_string)
+    def test_download_mail_attachments_with_unique_filenames(self, mock_imaplib, mock_open_method):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with patch("os.path.exists") as mock_exists:
+            mock_exists.side_effect = lambda p: p == "test_directory/test1.csv"
+            with ImapHook() as imap_hook:
+                imap_hook.download_mail_attachments(
+                    "test1.csv",
+                    "test_directory",
+                    overwrite=False,
+                )
+
+        mock_open_method.assert_called_once_with("test_directory/test1_1.csv", "xb")
+        mock_open_method.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_with_unique_filenames_no_collision(
+        self, mock_imaplib, mock_open_method
+    ):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments(
+                "test1.csv",
+                "test_directory",
+                overwrite=False,
+            )
+
+        mock_open_method.assert_called_once_with("test_directory/test1.csv", "xb")
+        mock_open_method.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_with_unique_filenames_skips_collision_for_different_name(
+        self, mock_imaplib, mock_open_method
+    ):
+        _create_fake_imap(mock_imaplib, with_mail=True, attachment_name="report.xlsx")
+
+        with patch("os.path.exists") as mock_exists:
+            mock_exists.side_effect = lambda p: p == "test_directory/report.xlsx"
+            with ImapHook() as imap_hook:
+                imap_hook.download_mail_attachments(
+                    "report.xlsx",
+                    "test_directory",
+                    overwrite=False,
+                )
+
+        mock_open_method.assert_called_once_with("test_directory/report_1.xlsx", "xb")
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_with_unique_filenames_skips_existing_unique_names(
+        self, mock_imaplib, mock_open_method
+    ):
+        _create_fake_imap(mock_imaplib, with_mail=True, attachment_name="report.xlsx")
+
+        existing_files = {
+            "test_directory/report.xlsx",
+            "test_directory/report_1.xlsx",
+            "test_directory/report_2.xlsx",
+        }
+
+        with patch("os.path.exists") as mock_exists:
+            mock_exists.side_effect = lambda p: p in existing_files
+            with ImapHook() as imap_hook:
+                imap_hook.download_mail_attachments(
+                    "report.xlsx",
+                    "test_directory",
+                    overwrite=False,
+                )
+
+        mock_open_method.assert_called_once_with("test_directory/report_3.xlsx", "xb")
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
     def test_download_mail_attachments_with_mail_filter(self, mock_imaplib, mock_open_method):
         _create_fake_imap(mock_imaplib, with_mail=True)
         mail_filter = '(SINCE "01-Jan-2019")'
@@ -509,3 +585,142 @@ class TestImapHook:
 
         assert result is True
         assert 1 <= mock_conn.fetch.call_count <= 2
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_attachments_overwrite_default(self, mock_imaplib, mock_open_method):
+        """Default overwrite=True preserves backward-compatible overwrite behavior."""
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        duplicates = [("report.csv", b"data1"), ("report.csv", b"data2")]
+
+        with ImapHook() as imap_hook:
+            with patch.object(imap_hook, "_retrieve_mails_attachments_by_name", return_value=duplicates):
+                imap_hook.download_mail_attachments("report.csv", "test_directory")
+
+        assert mock_open_method.call_count == 2
+        mock_open_method.assert_any_call("test_directory/report.csv", "wb")
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_attachments_overwrite_false(self, mock_imaplib, mock_open_method):
+        """overwrite=False generates unique filenames for duplicates."""
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        duplicates = [("report.csv", b"data1"), ("report.csv", b"data2"), ("report.csv", b"data3")]
+
+        with ImapHook() as imap_hook:
+            with patch.object(imap_hook, "_retrieve_mails_attachments_by_name", return_value=duplicates):
+                imap_hook.download_mail_attachments("report.csv", "test_directory", overwrite=False)
+
+        assert mock_open_method.call_count == 3
+        mock_open_method.assert_any_call("test_directory/report.csv", "xb")
+        mock_open_method.assert_any_call("test_directory/report_1.csv", "xb")
+        mock_open_method.assert_any_call("test_directory/report_2.csv", "xb")
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_attachments_overwrite_false_generated_name_collision(
+        self, mock_imaplib, mock_open_method
+    ):
+        """overwrite=False avoids collision between generated name and original attachment name."""
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        duplicates = [
+            ("report.csv", b"data1"),
+            ("report.csv", b"data2"),
+            ("report_1.csv", b"data3"),
+        ]
+
+        with ImapHook() as imap_hook:
+            with patch.object(imap_hook, "_retrieve_mails_attachments_by_name", return_value=duplicates):
+                imap_hook.download_mail_attachments("report.csv", "test_directory", overwrite=False)
+
+        assert mock_open_method.call_count == 3
+        mock_open_method.assert_any_call("test_directory/report.csv", "xb")
+        mock_open_method.assert_any_call("test_directory/report_1.csv", "xb")
+        mock_open_method.assert_any_call("test_directory/report_1_1.csv", "xb")
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_attachments_overwrite_false_generated_name_reuse(self, mock_imaplib, mock_open_method):
+        """overwrite=False probes until finding an unused name."""
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        duplicates = [
+            ("report.csv", b"data1"),
+            ("report_1.csv", b"data2"),
+            ("report.csv", b"data3"),
+        ]
+
+        with ImapHook() as imap_hook:
+            with patch.object(imap_hook, "_retrieve_mails_attachments_by_name", return_value=duplicates):
+                imap_hook.download_mail_attachments("report.csv", "test_directory", overwrite=False)
+
+        assert mock_open_method.call_count == 3
+        mock_open_method.assert_any_call("test_directory/report.csv", "xb")
+        mock_open_method.assert_any_call("test_directory/report_1.csv", "xb")
+        mock_open_method.assert_any_call("test_directory/report_2.csv", "xb")
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_attachments_overwrite_false_filesystem_collision(self, mock_imaplib, mock_open_method):
+        """overwrite=False avoids suffixed names already on disk from previous runs."""
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        duplicates = [("report.csv", b"data1"), ("report.csv", b"data2")]
+
+        def exists(path):
+            return path == "test_directory/report_1.csv"
+
+        with ImapHook() as imap_hook:
+            with patch.object(imap_hook, "_retrieve_mails_attachments_by_name", return_value=duplicates):
+                with patch("os.path.exists", side_effect=exists):
+                    imap_hook.download_mail_attachments("report.csv", "test_directory", overwrite=False)
+
+        assert mock_open_method.call_count == 2
+        mock_open_method.assert_any_call("test_directory/report.csv", "xb")
+        mock_open_method.assert_any_call("test_directory/report_2.csv", "xb")
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_attachments_overwrite_false_original_on_disk(self, mock_imaplib, mock_open_method):
+        """overwrite=False generates suffix when original filename exists on disk."""
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        duplicates = [("report.csv", b"data1")]
+
+        def exists(path):
+            return path == "test_directory/report.csv"
+
+        with ImapHook() as imap_hook:
+            with patch.object(imap_hook, "_retrieve_mails_attachments_by_name", return_value=duplicates):
+                with patch("os.path.exists", side_effect=exists):
+                    imap_hook.download_mail_attachments("report.csv", "test_directory", overwrite=False)
+
+        mock_open_method.assert_called_once_with("test_directory/report_1.csv", "xb")
+
+    @patch(imaplib_string)
+    def test_download_attachments_overwrite_false_file_exists_error_retries(self, mock_imaplib):
+        """Retry with the next generated name when exclusive create raises FileExistsError."""
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        duplicates = [("report.csv", b"data1")]
+        successful_open = mock_open()
+
+        def open_side_effect(path, mode, *args, **kwargs):
+            if path == "test_directory/report.csv" and mode == "xb":
+                raise FileExistsError(path)
+            return successful_open(path, mode)
+
+        mock_open_wrapper = Mock(side_effect=open_side_effect)
+
+        with ImapHook() as imap_hook:
+            with patch.object(imap_hook, "_retrieve_mails_attachments_by_name", return_value=duplicates):
+                with patch(open_string, mock_open_wrapper):
+                    imap_hook.download_mail_attachments("report.csv", "test_directory", overwrite=False)
+
+        assert mock_open_wrapper.call_count == 2
+        mock_open_wrapper.assert_any_call("test_directory/report.csv", "xb")
+        mock_open_wrapper.assert_any_call("test_directory/report_1.csv", "xb")
+        successful_open.assert_called_once_with("test_directory/report_1.csv", "xb")
