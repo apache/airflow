@@ -136,8 +136,8 @@ spec:
         {{- if .Values.apiServer.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations
           resources: {{- toYaml .Values.apiServer.resources | nindent 12 }}
-          image: {{ template "airflow_image_for_migrations" . }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          image: {{ include "airflow_component_image_for_migrations" (merge (dict "component" "apiServer" "isSidecar" true) .) }}
+          imagePullPolicy: {{ include "airflow_component_image_pull_policy" (merge (dict "component" "apiServer" "isSidecar" true) .) }}
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
@@ -161,8 +161,8 @@ spec:
         {{- end }}
       containers:
         - name: api-server
-          image: {{ template "airflow_image" . }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          image: {{ include "airflow_component_image" (merge (dict "component" "apiServer") .) }}
+          imagePullPolicy: {{ include "airflow_component_image_pull_policy" (merge (dict "component" "apiServer") .) }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
           {{- if $containerLifecycleHooks  }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}

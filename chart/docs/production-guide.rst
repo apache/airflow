@@ -318,6 +318,44 @@ See :ref:`Extending Airflow Image <quick-start:extending-airflow-image>` and/or
 `Building the image <https://airflow.apache.org/docs/docker-stack/build.html>`_ for more
 details on how you can extend, customize and test the modifications of Airflow image.
 
+Per-component image overrides
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can set a different Airflow image for the API server, scheduler, DAG processor, and
+triggerer under each component's ``image`` block. This is useful when you build
+component-specific images (for example slimmer images per role) while keeping a shared default
+in ``images.airflow`` for jobs, workers, and other containers.
+
+Omitted fields in a component ``image`` block inherit from ``images.airflow`` and then from
+``defaultAirflowRepository``, ``defaultAirflowTag``, and ``defaultAirflowDigest``.
+When both tag and digest are set, digest takes precedence.
+
+Set ``applyToSidecars: true`` on a component to use the same override for log-groomer and
+wait-for-migrations containers in that pod. The default is ``false``.
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   images:
+     airflow:
+       repository: my-registry/airflow
+       tag: "3.1.0"
+   scheduler:
+     image:
+       repository: my-registry/airflow-scheduler
+       tag: "3.1.0-slim"
+   apiServer:
+     image:
+       tag: "3.1.0-api"
+
+.. code-block:: bash
+
+   helm upgrade --install my-release apache-airflow/airflow \
+     --set scheduler.image.repository=my-registry/airflow-scheduler \
+     --set scheduler.image.tag=3.1.0-slim
+
+See :doc:`parameters-ref` for the full list of per-component ``image`` parameters.
+
 Managing Dag Files
 ------------------
 

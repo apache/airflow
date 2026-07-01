@@ -319,6 +319,204 @@ class TestAirflowCommon:
         for doc in docs:
             assert expected_image == jmespath.search("spec.template.spec.initContainers[0].image", doc)
 
+    @pytest.mark.parametrize(
+        ("component", "component_key", "expected_image", "digest"),
+        [
+            ("api-server", "apiServer", "apache/airflow-api-server@api-server-digest", "api-server-digest"),
+            ("scheduler", "scheduler", "apache/airflow-scheduler:scheduler-tag", None),
+            ("dag-processor", "dagProcessor", "apache/airflow-dag-processor@test-digest", "test-digest"),
+            ("triggerer", "triggerer", "apache/airflow-triggerer:triggerer-tag", None),
+        ],
+    )
+    def test_should_use_correct_component_image(self, component, component_key, expected_image, digest):
+        image_values = {
+            "repository": f"apache/airflow-{component}",
+            "tag": f"{component}-tag",
+        }
+        if digest:
+            image_values["digest"] = digest
+        docs = render_chart(
+            values={
+                "defaultAirflowRepository": "apache/airflow",
+                "defaultAirflowTag": "default-tag",
+                "defaultAirflowDigest": "default-digest",
+                component_key: {
+                    "image": image_values,
+                },
+            },
+            show_only=[
+                f"templates/{component}/{component}-deployment.yaml",
+            ],
+        )
+
+        for doc in docs:
+            assert expected_image == jmespath.search("spec.template.spec.containers[0].image", doc)
+
+    @pytest.mark.parametrize(
+        ("component", "component_key", "image_jmespath"),
+        [
+            ("api-server", "apiServer", "initContainers[?name=='wait-for-airflow-migrations'] | [0].image"),
+            ("scheduler", "scheduler", "containers[?name=='scheduler-log-groomer'] | [0].image"),
+            ("scheduler", "scheduler", "initContainers[?name=='wait-for-airflow-migrations'] | [0].image"),
+            ("dag-processor", "dagProcessor", "containers[?name=='dag-processor-log-groomer'] | [0].image"),
+            (
+                "dag-processor",
+                "dagProcessor",
+                "initContainers[?name=='wait-for-airflow-migrations'] | [0].image",
+            ),
+            ("triggerer", "triggerer", "initContainers[?name=='wait-for-airflow-migrations'] | [0].image"),
+            ("triggerer", "triggerer", "containers[?name=='triggerer-log-groomer'] | [0].image"),
+        ],
+    )
+    def test_component_image_does_not_apply_to_sidecars_by_default(
+        self, component, component_key, image_jmespath
+    ):
+        docs = render_chart(
+            values={
+                "defaultAirflowRepository": "apache/airflow",
+                "defaultAirflowTag": "global-tag",
+                component_key: {
+                    "image": {
+                        "repository": "custom/airflow",
+                        "tag": "component-tag",
+                    },
+                },
+            },
+            show_only=[f"templates/{component}/{component}-deployment.yaml"],
+        )
+
+        sidecar_image = jmespath.search(f"spec.template.spec.{image_jmespath}", docs[0])
+        assert sidecar_image == "apache/airflow:global-tag"
+
+    def test_scheduler_image_applies_to_sidecars_when_configured(self):
+        docs = render_chart(
+            values={
+                "defaultAirflowRepository": "apache/airflow",
+                "defaultAirflowTag": "global-tag",
+                "scheduler": {
+                    "image": {
+                        "repository": "custom/airflow",
+                        "tag": "scheduler-tag",
+                        "applyToSidecars": True,
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        log_groomer = jmespath.search(
+            "spec.template.spec.containers[?name=='scheduler-log-groomer'] | [0].image",
+            docs[0],
+        )
+        assert log_groomer == "custom/airflow:scheduler-tag"
+
+        migrations_image = jmespath.search(
+            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations'] | [0].image",
+            docs[0],
+        )
+        assert migrations_image == "custom/airflow:scheduler-tag"
+
+    @pytest.mark.parametrize(
+        ("component", "component_key", "values", "expected_image"),
+        [
+            (
+                "scheduler",
+                "scheduler",
+                {
+                    "images": {"airflow": {"repository": "apache/airflow", "digest": "global-digest"}},
+                    "scheduler": {"image": {"tag": "scheduler-tag"}},
+                },
+                "apache/airflow:scheduler-tag",
+            ),
+            (
+                "api-server",
+                "apiServer",
+                {
+                    "images": {
+                        "airflow": {"repository": "my-registry/airflow", "tag": "global-tag"},
+                    },
+                    "apiServer": {"image": {"tag": "api-only-tag"}},
+                },
+                "my-registry/airflow:api-only-tag",
+            ),
+        ],
+    )
+    def test_component_main_image_inheritance(self, component, component_key, values, expected_image):
+        docs = render_chart(
+            values=values,
+            show_only=[f"templates/{component}/{component}-deployment.yaml"],
+        )
+
+        main_image = jmespath.search(
+            f"spec.template.spec.containers[?name=='{component}'] | [0].image",
+            docs[0],
+        )
+        assert main_image == expected_image
+
+    @pytest.mark.parametrize(
+        "apply_to_sidecars",
+        [False, True],
+        ids=["apply_to_sidecars_false", "apply_to_sidecars_true"],
+    )
+    def test_component_pull_policy_apply_to_sidecars(self, apply_to_sidecars):
+        scheduler_image = {
+            "repository": "custom/airflow",
+            "tag": "scheduler-tag",
+            "pullPolicy": "Always",
+        }
+        if apply_to_sidecars:
+            scheduler_image["applyToSidecars"] = True
+
+        docs = render_chart(
+            values={
+                "images": {"airflow": {"pullPolicy": "IfNotPresent"}},
+                "scheduler": {"image": scheduler_image},
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        main_pull_policy = jmespath.search(
+            "spec.template.spec.containers[?name=='scheduler'] | [0].imagePullPolicy",
+            docs[0],
+        )
+        assert main_pull_policy == "Always"
+
+        sidecar_pull_policy = jmespath.search(
+            "spec.template.spec.containers[?name=='scheduler-log-groomer'] | [0].imagePullPolicy",
+            docs[0],
+        )
+        expected_sidecar_policy = "Always" if apply_to_sidecars else "IfNotPresent"
+        assert sidecar_pull_policy == expected_sidecar_policy
+
+    def test_use_default_image_for_migration_ignores_component_override(self):
+        docs = render_chart(
+            values={
+                "defaultAirflowRepository": "apache/airflow",
+                "defaultAirflowTag": "default-tag",
+                "images": {"useDefaultImageForMigration": True},
+                "scheduler": {
+                    "image": {
+                        "repository": "custom/airflow",
+                        "tag": "scheduler-tag",
+                        "applyToSidecars": True,
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        migrations_image = jmespath.search(
+            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations'] | [0].image",
+            docs[0],
+        )
+        assert migrations_image == "apache/airflow:default-tag"
+
+        scheduler_image = jmespath.search(
+            "spec.template.spec.containers[?name=='scheduler'] | [0].image",
+            docs[0],
+        )
+        assert scheduler_image == "custom/airflow:scheduler-tag"
+
     def test_should_set_correct_helm_hooks_weight(self):
         docs = render_chart(
             show_only=["templates/secrets/fernetkey-secret.yaml"],
