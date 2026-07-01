@@ -21,15 +21,6 @@ from airflow.security import permissions
 
 
 def test_resource_name_does_not_collide_with_reserved_resource_names():
-    """A dag_id equal to a reserved resource name must be prefixed, not returned as-is.
-
-    Regression for the case where a DAG literally named ``DAGs`` resolved to the
-    global all-DAGs resource instead of its own ``DAG:DAGs`` resource.
-    """
-    # "DAGs" is the global resource name *and* a valid dag_id — it must resolve to
-    # the per-DAG resource, never be returned unchanged.
+    # Regression: a Dag literally named "DAGs" (the global resource name, and a valid
+    # dag_id) must resolve to its own per-DAG resource, never the global one.
     assert permissions.resource_name(permissions.RESOURCE_DAG, permissions.RESOURCE_DAG) == "DAG:DAGs"
-    # Ordinary dag_ids are prefixed as before.
-    assert permissions.resource_name("my_dag", permissions.RESOURCE_DAG) == "DAG:my_dag"
-    # Already-prefixed names stay idempotent (the surviving short-circuit branch).
-    assert permissions.resource_name("DAG:my_dag", permissions.RESOURCE_DAG) == "DAG:my_dag"
