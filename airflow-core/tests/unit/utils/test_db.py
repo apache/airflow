@@ -40,12 +40,14 @@ from airflow.utils.db import (
     LazySelectSequence,
     _get_alembic_config,
     _get_current_revision,
+    add_default_pool_if_not_exists,
     check_migrations,
     compare_server_default,
     compare_type,
     create_default_connections,
     downgrade,
     initdb,
+    merge_conn,
     resetdb,
     upgradedb,
 )
@@ -595,3 +597,80 @@ class TestAutocommitEngineForMySQL:
         assert mock_settings.prepare_engine_args == original_prepare
         assert mock_settings.dispose_orm.call_count == 2
         assert mock_settings.configure_orm.call_count == 2
+
+
+class TestMergeAndPool:
+    def setup_method(self):
+        from tests_common.test_utils.db import clear_db_connections, clear_db_pools
+
+        clear_db_connections()
+        clear_db_pools()
+
+    def teardown_method(self):
+        from tests_common.test_utils.db import clear_db_connections, clear_db_pools
+
+        clear_db_connections()
+        clear_db_pools()
+
+    def test_merge_conn_provide_session(self):
+        """Test that merge_conn commits when @provide_session handles the session."""
+        from airflow.models.connection import Connection
+
+        conn_id = "test_conn"
+        conn = Connection(conn_id=conn_id, conn_type="http")
+
+        # We can't easily mock the session inside @provide_session without side effects,
+        # so we verify by checking if it's persisted in a fresh session.
+        merge_conn(conn)
+
+        with settings.Session() as session:
+            stored_conn = session.scalar(select(Connection).where(Connection.conn_id == conn_id))
+            assert stored_conn is not None
+            assert stored_conn.conn_id == conn_id
+
+    def test_merge_conn_external_session(self, mocker):
+        """Test that merge_conn flushes but does not commit when an external session is provided."""
+        from airflow.models.connection import Connection
+
+        conn_id = "test_conn_ext"
+        conn = Connection(conn_id=conn_id, conn_type="http")
+
+        # Mock session to verify commit is NOT called
+        session = mocker.Mock()
+        # Mock scalar to return None so it proceeds to add
+        session.scalar.return_value = None
+
+        merge_conn(conn, session=session)
+
+        session.add.assert_called_once_with(conn)
+        session.flush.assert_called_once()
+        session.commit.assert_not_called()
+
+    def test_add_default_pool_provide_session(self):
+        """Test that add_default_pool_if_not_exists commits with @provide_session."""
+        from airflow.models.pool import Pool
+
+        # Ensure no default pool
+        with settings.Session() as session:
+            session.execute(Pool.__table__.delete().where(Pool.pool == Pool.DEFAULT_POOL_NAME))
+            session.commit()
+
+        # Call without session
+        add_default_pool_if_not_exists()
+
+        # Verify
+        with settings.Session() as session:
+            pool = session.scalar(select(Pool).where(Pool.pool == Pool.DEFAULT_POOL_NAME))
+            assert pool is not None
+
+    def test_add_default_pool_external_session(self, mocker):
+        """Test that add_default_pool_if_not_exists flushes but does not commit with external session."""
+
+        session = mocker.Mock()
+        session.scalar.return_value = None
+
+        add_default_pool_if_not_exists(session=session)
+
+        session.add.assert_called_once()
+        session.flush.assert_called_once()
+        session.commit.assert_not_called()
