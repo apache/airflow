@@ -4228,7 +4228,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-cncf-kubernetes"
-version = "10.18.1"
+version = "10.19.0"
 source = { editable = "providers/cncf/kubernetes" }
 dependencies = [
     { name = "aiofiles" },
@@ -4500,7 +4500,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-io"
-version = "1.7.3"
+version = "1.8.0"
 source = { editable = "providers/common/io" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6118,7 +6118,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-keycloak"
-version = "0.8.1"
+version = "0.8.2"
 source = { editable = "providers/keycloak" }
 dependencies = [
     { name = "apache-airflow" },

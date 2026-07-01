@@ -27,6 +27,31 @@
 Changelog
 ---------
 
+10.19.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Decide pod_template and image based on Coordinator for lang-SDK tasks on KubernetesExecutor (#68713)``
+* ``Add team_name tags to Kubernetes executor metrics (#69046)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix KubernetesExecutor leaking a Manager process when reading running task logs (#68800)``
+* ``KubernetesExecutor: self.completed adoption set is never drained (#68674)``
+
+Misc
+~~~~
+
+* ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Trim redundant comments from KubernetesExecutor lazy-Manager tests (#69216)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
+
 10.18.1
 .......
 
