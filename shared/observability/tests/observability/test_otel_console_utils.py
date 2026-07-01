@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from tests_common.test_utils.otel_utils import (
+from tests_common.test_utils.otel_console_utils import (
     clean_task_lines,
     extract_metrics_from_output,
     extract_spans_from_output,
@@ -26,7 +26,7 @@ from tests_common.test_utils.otel_utils import (
 )
 
 
-class TestUtilsUnit:
+class TestConsoleUtilsUnit:
     # The method that extracts the spans from the output,
     # counts that there is no indentation on the cli, when a span starts and finishes.
     example_output = """

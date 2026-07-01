@@ -81,6 +81,7 @@ from airflow._shared.observability.traces import (
     TRACE_SAMPLED_KEY,
     new_dagrun_trace_carrier,
     override_ids,
+    start_debug_span,
 )
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
@@ -1050,6 +1051,7 @@ class DagRun(Base, LoggingMixin):
     ) -> Sequence[Row[Any]]: ...
 
     @staticmethod
+    @start_debug_span("dagrun.fetch_task_instances")
     @provide_session
     def fetch_task_instances(
         dag_id: str | None = None,
@@ -1091,8 +1093,15 @@ class DagRun(Base, LoggingMixin):
         if task_ids is not None:
             stmt = stmt.where(TI.task_id.in_(task_ids))
         if columns:
-            return session.execute(stmt).all()
-        return list(session.scalars(stmt).all())
+            with start_debug_span("dagrun.fetch_task_instances.sql_execute"):
+                # This span covers the DB round trip for the query execution.
+                return session.execute(stmt).all()
+        with start_debug_span("dagrun.fetch_task_instances.sql_execute"):
+            # This span covers the DB round trip for the query execution.
+            result = session.scalars(stmt)
+        with start_debug_span("dagrun.fetch_task_instances.orm_hydration"):
+            # This span covers the building of mapped TaskInstance objects from the buffered rows.
+            return list(result.all())
 
     def _check_last_n_dagruns_failed(self, dag_id, max_consecutive_failed_dag_runs, session):
         """Check if last N dags failed."""
@@ -1139,6 +1148,7 @@ class DagRun(Base, LoggingMixin):
                 self.dag_id,
             )
 
+    @start_debug_span("dagrun.get_task_instances")
     @provide_session
     def get_task_instances(
         self,
@@ -1153,9 +1163,11 @@ class DagRun(Base, LoggingMixin):
         Keep this method because it is widely used across the code.
         """
         task_ids = DagRun._get_partial_task_ids(self.dag)
-        return DagRun.fetch_task_instances(
+        tis = DagRun.fetch_task_instances(
             dag_id=self.dag_id, run_id=self.run_id, task_ids=task_ids, state=state, session=session
         )
+        trace.get_current_span().set_attribute("num_tis_fetched", len(tis))
+        return tis
 
     @provide_session
     def get_task_instance(
@@ -1354,6 +1366,7 @@ class DagRun(Base, LoggingMixin):
             span.end()
 
     @provide_session
+    @start_debug_span("dagrun.update_state")
     def update_state(
         self, *, session: Session = NEW_SESSION, execute_callbacks: bool = True
     ) -> tuple[list[TI], DagCallbackRequest | None]:
@@ -1555,8 +1568,15 @@ class DagRun(Base, LoggingMixin):
         session.merge(self)
         # We do not flush here for performance reasons(It increases queries count by +20)
 
+        update_state_span = trace.get_current_span()
+        update_state_span.set_attribute("airflow.dag_run.dag_id", self.dag_id)
+        update_state_span.set_attribute("airflow.dag_run.run_id", self.run_id)
+        update_state_span.set_attribute("airflow.dag_run.state", str(self.state))
+        update_state_span.set_attribute("airflow.dag_run.num_schedulable_tis", len(schedulable_tis))
+
         return schedulable_tis, callback
 
+    @start_debug_span("dagrun.task_instance_scheduling_decisions")
     @provide_session
     def task_instance_scheduling_decisions(self, *, session: Session = NEW_SESSION) -> TISchedulingDecision:
         # Fetch finished task instances as lightweight read-only rows and only the
@@ -1659,6 +1679,13 @@ class DagRun(Base, LoggingMixin):
             changed_tis = False
 
         tis: list[SchedulingTI] = [*unfinished_tis, *finished_tis]
+
+        decision_span = trace.get_current_span()
+        decision_span.set_attribute("airflow.dag_run.num_tis", len(tis))
+        decision_span.set_attribute("airflow.dag_run.num_schedulable_tis", len(schedulable_tis))
+        decision_span.set_attribute("airflow.dag_run.num_unfinished_tis", len(unfinished_tis))
+        decision_span.set_attribute("airflow.dag_run.num_finished_tis", len(finished_tis))
+
         return TISchedulingDecision(
             tis=tis,
             schedulable_tis=schedulable_tis,
@@ -1858,6 +1885,7 @@ class DagRun(Base, LoggingMixin):
                     ),
                 )
 
+    @start_debug_span("dagrun._get_ready_tis")
     def _get_ready_tis(
         self,
         schedulable_tis: list[TI],
@@ -1915,70 +1943,77 @@ class DagRun(Base, LoggingMixin):
         # (task id, region id) pairs for which _revise_map_indexes_if_mapped was already done
         revised_expansion_keys: set[tuple[str, UUID]] = set()
         now = timezone.utcnow()
-        for schedulable in itertools.chain(schedulable_tis, additional_tis):
-            if TYPE_CHECKING:
-                assert isinstance(schedulable.task, Operator)
-            old_state = schedulable.state
-            if old_state == TaskInstanceState.UP_FOR_RETRY:
-                # Worker-reported retries arrive without one; storing it spares later passes the
-                # previous-attempt lookup.
-                if schedulable.retry_at is None:
-                    schedulable.retry_at = schedulable.next_retry_datetime()
-                # Not due yet, so no dependency of it can pass; _are_premature_tis still counts it
-                # as runnable when the run looks for a deadlock.
-                if schedulable.retry_at >= now:
-                    continue
-            if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
-                old_states[schedulable.id] = old_state
-                continue
-            # If schedulable is not yet expanded, try doing it now. This is
-            # called in two places: First and ideally in the mini scheduler at
-            # the end of LocalTaskJob, and then as an "expansion of last resort"
-            # in the scheduler to ensure that the mapped task is correctly
-            # expanded before executed. Also see _revise_map_indexes_if_mapped
-            # docstring for additional information.
-            new_tis = None
-            if schedulable.region_index < 0:
-                new_tis = _expand_mapped_task_if_needed(schedulable)
-                if new_tis is not None:
-                    additional_tis.extend(new_tis)
-                    expansion_happened = True
-                    # Expansion changes a mapped task's instance count, which invalidates the
-                    # trigger-rule upstream-count memo on this DepContext (a downstream evaluated
-                    # later in this same pass must see the post-expansion count).
-                    dep_context.invalidate_upstream_task_id_counts()
-            if new_tis is None and schedulable.state in SCHEDULEABLE_STATES:
-                # It's enough to revise map index once per task and region,
-                # checking the map index for each mapped task significantly slows down scheduling
-                expansion_key = (schedulable.task.task_id, schedulable.region_id)
-                if expansion_key not in revised_expansion_keys:
-                    revised_tis, removed_indexes = self._revise_map_indexes_if_mapped(
-                        schedulable,
-                        session=session,
-                    )
-                    if removed_indexes:
-                        # Mirror the bulk UPDATE onto the frozen views, as the session does for ORM rows.
-                        for i, fti in enumerate(finished_tis):
-                            if (
-                                isinstance(fti, FinishedTI)
-                                and fti.task_id == schedulable.task_id
-                                and fti.region_id == schedulable.region_id
-                                and fti.region_index in removed_indexes
-                            ):
-                                finished_tis[i] = replace(fti, state=TaskInstanceState.REMOVED)
-                    ready_tis.extend(revised_tis)
-                    revised_expansion_keys.add(expansion_key)
-                    if revised_tis:
-                        # Revising a mapped task can add new instances, growing its instance count
-                        # the same way expansion does. Drop the upstream-count memo so a downstream
-                        # evaluated later in this pass recomputes it instead of reading a stale value.
-                        dep_context.invalidate_upstream_task_id_counts()
+        with start_debug_span("dagrun.resolve_dependencies") as dep_span:
+            for schedulable in itertools.chain(schedulable_tis, additional_tis):
+                with start_debug_span("dagrun.resolve_dependencies_for_ti") as schedulable_span:
+                    if TYPE_CHECKING:
+                        assert isinstance(schedulable.task, Operator)
+                    schedulable_span.set_attribute("airflow.ti.task_id", schedulable.task.task_id)
+                    schedulable_span.set_attribute("airflow.ti.map_index", schedulable.map_index)
+                    old_state = schedulable.state
+                    if old_state == TaskInstanceState.UP_FOR_RETRY:
+                        # Worker-reported retries arrive without one; storing it spares later passes the
+                        # previous-attempt lookup.
+                        if schedulable.retry_at is None:
+                            schedulable.retry_at = schedulable.next_retry_datetime()
+                        # Not due yet, so no dependency of it can pass; _are_premature_tis still counts it
+                        # as runnable when the run looks for a deadlock.
+                        if schedulable.retry_at >= now:
+                            continue
+                    if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
+                        old_states[schedulable.id] = old_state
+                        continue
+                    # If schedulable is not yet expanded, try doing it now. This is
+                    # called in two places: First and ideally in the mini scheduler at
+                    # the end of LocalTaskJob, and then as an "expansion of last resort"
+                    # in the scheduler to ensure that the mapped task is correctly
+                    # expanded before executed. Also see _revise_map_indexes_if_mapped
+                    # docstring for additional information.
+                    new_tis = None
+                    if schedulable.region_index < 0:
+                        new_tis = _expand_mapped_task_if_needed(schedulable)
+                        if new_tis is not None:
+                            additional_tis.extend(new_tis)
+                            expansion_happened = True
+                            # Expansion changes a mapped task's instance count, which invalidates the
+                            # trigger-rule upstream-count memo on this DepContext (a downstream evaluated
+                            # later in this same pass must see the post-expansion count).
+                            dep_context.invalidate_upstream_task_id_counts()
+                    if new_tis is None and schedulable.state in SCHEDULEABLE_STATES:
+                        # It's enough to revise map index once per task and region,
+                        # checking the map index for each mapped task significantly slows down scheduling
+                        expansion_key = (schedulable.task.task_id, schedulable.region_id)
+                        if expansion_key not in revised_expansion_keys:
+                            revised_tis, removed_indexes = self._revise_map_indexes_if_mapped(
+                                schedulable,
+                                session=session,
+                            )
+                            if removed_indexes:
+                                # Mirror the bulk UPDATE onto the frozen views, as the session does for ORM rows.
+                                for i, fti in enumerate(finished_tis):
+                                    if (
+                                        isinstance(fti, FinishedTI)
+                                        and fti.task_id == schedulable.task_id
+                                        and fti.region_id == schedulable.region_id
+                                        and fti.region_index in removed_indexes
+                                    ):
+                                        finished_tis[i] = replace(fti, state=TaskInstanceState.REMOVED)
+                            ready_tis.extend(revised_tis)
+                            revised_expansion_keys.add(expansion_key)
+                            if revised_tis:
+                                # Revising a mapped task can add new instances, growing its instance count
+                                # the same way expansion does. Drop the upstream-count memo so a downstream
+                                # evaluated later in this pass recomputes it instead of reading a stale value.
+                                dep_context.invalidate_upstream_task_id_counts()
 
-                # _revise_map_indexes_if_mapped might mark the current task as REMOVED
-                # after calculating mapped task length, so we need to re-check
-                # the task state to ensure it's still schedulable
-                if schedulable.state in SCHEDULEABLE_STATES:
-                    ready_tis.append(schedulable)
+                        # _revise_map_indexes_if_mapped might mark the current task as REMOVED
+                        # after calculating mapped task length, so we need to re-check
+                        # the task state to ensure it's still schedulable
+                        if schedulable.state in SCHEDULEABLE_STATES:
+                            ready_tis.append(schedulable)
+            dep_span.set_attribute(
+                "airflow.dag_run.num_dep_checks", len(schedulable_tis) + len(additional_tis)
+            )
 
         # Check if any ti changed state
         if old_states:
@@ -1987,6 +2022,8 @@ class DagRun(Base, LoggingMixin):
                 select(TI).options(lazyload(TI.dag_run)).where(TI.id.in_(old_states))
             ).all()
             changed_tis = any(ti.state != old_states[ti.id] for ti in fresh_tis)
+
+        trace.get_current_span().set_attribute("airflow.dag_run.num_ready_tis", len(ready_tis))
 
         return ready_tis, changed_tis, expansion_happened
 
@@ -2824,6 +2861,7 @@ class DagRun(Base, LoggingMixin):
             ).all()
         )
 
+    @start_debug_span("dagrun.schedule_tis")
     @provide_session
     def schedule_tis(
         self,
@@ -2956,6 +2994,8 @@ class DagRun(Base, LoggingMixin):
                     )
                 )
                 count += getattr(result, "rowcount", 0)
+
+        trace.get_current_span().set_attribute("airflow.dag_run.num_scheduled_tis", count)
 
         return count
 
