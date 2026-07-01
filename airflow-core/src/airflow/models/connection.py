@@ -90,6 +90,28 @@ def sanitize_conn_id(conn_id: str | None, max_length=CONN_ID_MAX_LEN) -> str | N
     return res.group(0)
 
 
+def _validate_port(port: int | None, conn_id: str | None = None) -> None:
+    """
+    Validate that the port number is a valid TCP/UDP port (0-65535).
+
+    :param port: The port number to validate.
+    :param conn_id: Optional connection ID for error messages.
+    :raises ValueError: If the port is outside the valid range.
+    """
+    if port is None:
+        return None
+    if not isinstance(port, int):
+        raise ValueError(
+            f"Port must be an integer, got {type(port).__name__}. "
+            f"Connection {conn_id!r} port: {port!r}"
+        )
+    if port < 0 or port > 65535:
+        raise ValueError(
+            f"Port must be between 0 and 65535, got {port}. "
+            f"Connection {conn_id!r} port: {port!r}"
+        )
+
+
 def _parse_netloc_to_hostname(uri_parts):
     """
     Parse a URI string to get the correct Hostname.
@@ -190,6 +212,9 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
             self.port = port
             self.extra = extra
 
+            # Validate port is a valid TCP/UDP port (0-65535)
+            _validate_port(port, conn_id)
+
         if conn_id is not None:
             sanitized_id = sanitize_conn_id(conn_id)
             if sanitized_id is not None:
@@ -257,6 +282,8 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         self.login = unquote(uri_parts.username) if uri_parts.username else uri_parts.username
         self.password = unquote(uri_parts.password) if uri_parts.password else uri_parts.password
         self.port = uri_parts.port
+        # Validate port is a valid TCP/UDP port (0-65535)
+        _validate_port(self.port, self.conn_id)
         if uri_parts.query:
             query = dict(parse_qsl(uri_parts.query, keep_blank_values=True))
             if self.EXTRA_KEY in query:
