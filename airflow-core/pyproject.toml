@@ -75,7 +75,7 @@ dependencies = [
     # is not compatible with it and leaves thread hanging This is already fixed in main of sqlalchemy
     # But not released yet - and we will likely have to add >=2.0.46+ for sqlalchemy when released to
     # protect against it https://github.com/sqlalchemy/sqlalchemy/issues/13039
-    "aiosqlite>=0.20.0,<0.22.0",
+    "aiosqlite>=0.20.0,<0.23.0",
     # Alembic is important to handle our migrations in predictable and performant way. It is developed
     # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
     # The 1.13.0 of alembic marked some migration code as SQLAlchemy 2+ only so we limit it to 1.13.1
@@ -99,7 +99,7 @@ dependencies = [
     # versioned router generation (RouterGenerationError) and fails api-server / dag-processor
     # startup. Relax once cadwyn supports FastAPI 0.137. See
     # https://github.com/apache/airflow/issues/68562
-    "fastapi[standard-no-fastapi-cloud-cli]>=0.129.0,<0.137.0",
+    "fastapi[standard-no-fastapi-cloud-cli]>=0.129.0,<0.139.0",
     "uvicorn>=0.37.0",
     "starlette>=1.0.1",
     "httpx>=0.25.0",
