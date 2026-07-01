@@ -51,7 +51,9 @@ from __future__ import annotations
 import asyncio
 import itertools
 import threading
+import traceback
 from collections.abc import Iterator
+from contextlib import suppress
 from datetime import datetime
 from functools import cached_property
 from pathlib import Path
@@ -116,6 +118,42 @@ if TYPE_CHECKING:
 
 SendMsgType = TypeVar("SendMsgType", bound=BaseModel)
 ReceiveMsgType = TypeVar("ReceiveMsgType", bound=BaseModel)
+
+
+class DeadlockImminentError(BaseException):
+    """
+    Raised when ``CommsDecoder.send()`` is called from the event loop thread while
+    ``_thread_lock`` is already held by a concurrent ``asend()`` round-trip.
+
+    The sync ``send()`` attempts a non-blocking lock acquire when it detects it is
+    running on the event loop thread.  If the acquire fails — meaning an ``asend()``
+    coroutine currently owns the lock and is waiting for the event loop to complete
+    its I/O — a true deadlock would result, so this error is raised instead.
+
+    Inherits from :class:`BaseException` rather than :class:`Exception` so that
+    ``contextlib.suppress(Exception)`` — used in :func:`airflow.sdk.log.mask_secret`
+    and similar helpers — does **not** catch it.  This ensures the error always
+    surfaces to the caller, pinpointing the incorrect use of a sync API from an
+    async context (e.g. ``BaseHook.get_hook()`` inside ``aexecute()``).
+
+    Fix: replace ``BaseHook.get_hook()`` with ``await BaseHook.aget_hook()``.
+    """
+
+    def __init__(self, msg: object) -> None:
+        self.msg_type = type(msg).__name__
+        self.stack = "".join(traceback.format_stack())
+        super().__init__()
+
+    def __str__(self) -> str:
+        return (
+            f"comms.send() called from the event loop thread for message '{self.msg_type}' "
+            "— deadlock is imminent (asend() is concurrently in-flight). "
+            "Likely cause: BaseHook.get_hook() or BaseHook.get_connection() was called "
+            "from inside an async task. "
+            "Use the async equivalents instead: "
+            "await BaseHook.aget_hook() or await BaseHook.aget_connection()."
+            f"\nOffending call stack:\n{self.stack}"
+        )
 
 
 def _msgpack_enc_hook(obj: Any) -> Any:
@@ -208,19 +246,51 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     _thread_lock: threading.Lock = attrs.field(factory=threading.Lock, repr=False)
     # Async lock for async operations
     _async_lock: asyncio.Lock = attrs.field(factory=asyncio.Lock, repr=False)
+    # Thread ID of the event loop thread, recorded on the first asend() call.
+    # Used by send() to detect an imminent deadlock.
+    _loop_thread_id: int | None = attrs.field(default=None, repr=False, init=False)
 
     def _make_frame(self, msg: SendMsgType) -> _RequestFrame:
         carrier: dict[str, str] = {}
         _trace_propagator.inject(carrier)
         return _RequestFrame(id=next(self.id_counter), body=msg.model_dump(), context_carrier=carrier or None)
 
+    # A deadlock can only occur when the event loop is *currently running* in
+    # this thread.  After AsyncOperator.execute() / loop.run_until_complete()
+    # returns, the loop is no longer running; subsequent sync send() calls are
+    # safe.  asyncio.get_running_loop() raises RuntimeError when there is no
+    # active loop in the calling thread, so we use it to gate the check.
+    @property
+    def _is_on_loop_thread(self) -> bool:
+        if threading.get_ident() == self._loop_thread_id:
+            with suppress(RuntimeError):
+                return bool(asyncio.get_running_loop())
+        return False
+
     def send(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """Send a request to the parent and block until the response is received."""
+        # Two-level detection for sync send() called from the event loop thread.
+        # Raises DeadlockImminentError (BaseException subclass) so it escapes
+        # contextlib.suppress(Exception) in mask_secret() and other helpers.
+        #
+        # Level 1 — wrong pattern (broader): send() is on the event loop thread at
+        #   all, detected via the stored loop thread id from the last asend() call.
+        # Level 2 — imminent deadlock (precise): _thread_lock is also currently held
+        #   by a thread-pool worker from a concurrent asend() round-trip.
+        #
+        # Typical cause: BaseHook.get_hook() or BaseHook.get_connection() called
+        # from inside an async task / aexecute().
+        # Fix: use 'await BaseHook.aget_hook()' or 'await BaseHook.aget_connection()'.
         frame_bytes = self._make_frame(msg).as_bytes()
 
         # We must make sure sockets aren't intermixed between sync and async calls,
         # thus we need a dual locking mechanism to ensure that.
-        with self._thread_lock:
+        # When called from the event loop thread, use non-blocking acquire to detect
+        # an imminent deadlock: an asend() coroutine currently holds _thread_lock and
+        # is waiting for the event loop to complete its I/O — a true deadlock.
+        if not self._thread_lock.acquire(blocking=not self._is_on_loop_thread):
+            raise DeadlockImminentError(msg)
+        try:
             self.socket.sendall(frame_bytes)
             if isinstance(msg, ResendLoggingFD):
                 if recv_fds is None:
@@ -232,11 +302,13 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
                 if TYPE_CHECKING:
                     assert isinstance(resp, SentFDs)
                 resp.fds = fds
-                # Since we know this is an expliclt SendFDs, and since this class is generic SendFDs might not
+                # Since we know this is an explicit ResendLoggingFD, and since this class is generic SentFDs might not
                 # always be in the return type union
                 return resp  # type: ignore[return-value]
 
             return self._get_response()
+        finally:
+            self._thread_lock.release()
 
     async def asend(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """
@@ -244,6 +316,10 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
         Uses async lock for coroutine safety and thread lock for socket safety.
         """
+        # Record which OS thread is running the event loop so that send() can
+        # detect when it is called from this same thread (the deadlock scenario).
+        self._loop_thread_id = threading.get_ident()
+
         frame_bytes = self._make_frame(msg).as_bytes()
 
         async with self._async_lock:
