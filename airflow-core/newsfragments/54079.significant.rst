@@ -1,0 +1,3 @@
+The SSH and SFTP providers now require ``paramiko>=4.0.0``, which drops support for DSA (DSS)
+private keys. Connections that rely on a DSA key must generate a new RSA, ECDSA, or Ed25519 key
+and update the connection's ``key_file`` or ``private_key`` accordingly.
