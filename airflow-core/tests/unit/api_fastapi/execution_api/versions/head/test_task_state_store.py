@@ -79,7 +79,6 @@ class TestGetTaskState:
         assert "Task instance" in response.json()["detail"]["message"]
 
     def test_get_key_with_slash(self, client: TestClient, create_task_instance: CreateTaskInstance):
-        """Keys containing slashes must be routed correctly — route uses {key:path}."""
         ti = create_task_instance()
         client.put(_api_url(ti.id, "spark/job_id"), json={"value": "spark_001"})
 
@@ -214,7 +213,6 @@ class TestPutTaskState:
         assert response.status_code == 404
 
     def test_put_key_with_slash(self, client: TestClient, create_task_instance: CreateTaskInstance):
-        """Keys containing slashes must be stored and retrieved correctly — route uses {key:path}."""
         ti = create_task_instance()
 
         response = client.put(_api_url(ti.id, "spark/job_id"), json={"value": "spark_001"})
@@ -251,7 +249,6 @@ class TestDeleteTaskState:
         assert client.get(_api_url(ti.id, "checkpoint")).json() == {"value": "b"}
 
     def test_delete_key_with_slash(self, client: TestClient, create_task_instance: CreateTaskInstance):
-        """Keys containing slashes must be deletable — route uses {key:path}."""
         ti = create_task_instance()
         client.put(_api_url(ti.id, "spark/job_id"), json={"value": "spark_001"})
 
