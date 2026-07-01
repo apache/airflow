@@ -1803,6 +1803,26 @@ class TestStringifiedDAGs:
     def assert_taskgroup_children(se_task_group, dag_task_group, expected_children):
         assert se_task_group.children.keys() == dag_task_group.children.keys() == expected_children
 
+    def test_task_group_retries_serialization(self):
+        """``TaskGroup.retries`` round-trips and defaults to 0 for blobs serialized before it existed."""
+        from airflow.providers.standard.operators.empty import EmptyOperator
+
+        with DAG("test_tg_retries_serde", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
+            with TaskGroup("g", retries=3):
+                EmptyOperator(task_id="t")
+            with TaskGroup("plain"):
+                EmptyOperator(task_id="t2")
+
+        encoded = DagSerialization.serialize_dag(dag)
+        groups = DagSerialization.deserialize_dag(encoded).task_group.get_task_group_dict()
+        assert groups["g"].retries == 3
+        assert groups["plain"].retries == 0
+
+        # A blob predating the field (no "retries" key) deserializes to the default of 0.
+        del encoded["task_group"]["children"]["g"][1]["retries"]
+        legacy = DagSerialization.deserialize_dag(encoded)
+        assert legacy.task_group.get_task_group_dict()["g"].retries == 0
+
     @staticmethod
     def assert_task_is_setup_teardown(task, is_setup: bool = False, is_teardown: bool = False):
         assert task.is_setup == is_setup

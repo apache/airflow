@@ -2103,6 +2103,9 @@ class TaskGroupSerialization(BaseSerialization):
         }
         if task_group.doc_md is not None:
             encoded["doc_md"] = task_group.doc_md
+        # Only emit when set, so groups without retries (the default) serialize unchanged.
+        if task_group.retries:
+            encoded["retries"] = task_group.retries
 
         if isinstance(task_group, MappedTaskGroup):
             encoded["expand_input"] = encode_expand_input(task_group._expand_input)
@@ -2126,6 +2129,7 @@ class TaskGroupSerialization(BaseSerialization):
         }
         kwargs["doc_md"] = cls.deserialize(encoded_group.get("doc_md"))
         kwargs["group_display_name"] = cls.deserialize(encoded_group.get("group_display_name", ""))
+        kwargs["retries"] = cls.deserialize(encoded_group.get("retries", 0))
 
         if not encoded_group.get("is_mapped"):
             group = SerializedTaskGroup(group_id=group_id, parent_group=parent_group, dag=dag, **kwargs)
