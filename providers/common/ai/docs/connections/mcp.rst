@@ -169,9 +169,9 @@ store here at all -- the same situation ``token_provider`` exists for on
 HTTP/SSE:
 
 - **It lives in a different connection.** A server that reaches Splunk needs a
-  Splunk credential, not an MCP-server credential; duplicating it into this
-  connection's ``Extra.env`` means two places to rotate and a real chance the
-  copies drift.
+  Splunk credential, not a credential for the MCP server itself; duplicating
+  it into this connection's ``Extra.env`` means two places to rotate and a
+  real chance the copies drift.
 - **It's minted fresh per call** -- an OAuth token, a Vault lease, an
   STS-assumed role -- so there is no fixed value to store anywhere, on this
   connection or any other.
