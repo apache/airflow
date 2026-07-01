@@ -33,6 +33,7 @@ from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOpe
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 from airflow.sdk import Metadata, task
 from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset
+from airflow.sdk.definitions.taskgroup import TaskGroup
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_assets, clear_db_runs
@@ -58,6 +59,8 @@ LATEST_VERSION_DAG_RESPONSE: dict = {
             "team": None,
             "operator": "EmptyOperator",
             "asset_condition_type": None,
+            "ui_color": None,
+            "ui_fgcolor": None,
         },
         {
             "children": None,
@@ -70,6 +73,8 @@ LATEST_VERSION_DAG_RESPONSE: dict = {
             "team": None,
             "operator": "EmptyOperator",
             "asset_condition_type": None,
+            "ui_color": None,
+            "ui_fgcolor": None,
         },
         {
             "children": None,
@@ -82,6 +87,8 @@ LATEST_VERSION_DAG_RESPONSE: dict = {
             "team": None,
             "operator": "EmptyOperator",
             "asset_condition_type": None,
+            "ui_color": None,
+            "ui_fgcolor": None,
         },
     ],
 }
@@ -274,6 +281,8 @@ class TestStructureDataEndpoint:
                     "nodes": [
                         {
                             "asset_condition_type": None,
+                            "ui_color": None,
+                            "ui_fgcolor": None,
                             "children": None,
                             "id": "task_1",
                             "is_mapped": None,
@@ -286,6 +295,8 @@ class TestStructureDataEndpoint:
                         },
                         {
                             "asset_condition_type": None,
+                            "ui_color": None,
+                            "ui_fgcolor": None,
                             "children": None,
                             "id": "external_task_sensor",
                             "is_mapped": None,
@@ -298,6 +309,8 @@ class TestStructureDataEndpoint:
                         },
                         {
                             "asset_condition_type": None,
+                            "ui_color": None,
+                            "ui_fgcolor": None,
                             "children": None,
                             "id": "task_2",
                             "is_mapped": None,
@@ -332,6 +345,8 @@ class TestStructureDataEndpoint:
                     "nodes": [
                         {
                             "asset_condition_type": None,
+                            "ui_color": None,
+                            "ui_fgcolor": None,
                             "children": None,
                             "id": "task_1",
                             "is_mapped": None,
@@ -361,6 +376,8 @@ class TestStructureDataEndpoint:
                     "nodes": [
                         {
                             "asset_condition_type": None,
+                            "ui_color": None,
+                            "ui_fgcolor": None,
                             "children": None,
                             "id": "trigger_dag_run_operator",
                             "is_mapped": None,
@@ -373,6 +390,8 @@ class TestStructureDataEndpoint:
                         },
                         {
                             "asset_condition_type": None,
+                            "ui_color": None,
+                            "ui_fgcolor": None,
                             "children": None,
                             "id": "trigger:external_trigger:dag_with_multiple_versions:trigger_dag_run_operator",
                             "is_mapped": None,
@@ -480,6 +499,8 @@ class TestStructureDataEndpoint:
                     "team": None,
                     "operator": "EmptyOperator",
                     "asset_condition_type": None,
+                    "ui_color": None,
+                    "ui_fgcolor": None,
                 },
                 {
                     "children": None,
@@ -492,6 +513,8 @@ class TestStructureDataEndpoint:
                     "team": None,
                     "operator": "ExternalTaskSensor",
                     "asset_condition_type": None,
+                    "ui_color": None,
+                    "ui_fgcolor": None,
                 },
                 {
                     "children": None,
@@ -504,6 +527,8 @@ class TestStructureDataEndpoint:
                     "team": None,
                     "operator": "EmptyOperator",
                     "asset_condition_type": None,
+                    "ui_color": None,
+                    "ui_fgcolor": None,
                 },
                 {
                     "children": None,
@@ -516,6 +541,8 @@ class TestStructureDataEndpoint:
                     "team": None,
                     "operator": None,
                     "asset_condition_type": None,
+                    "ui_color": None,
+                    "ui_fgcolor": None,
                 },
                 {
                     "children": None,
@@ -528,6 +555,8 @@ class TestStructureDataEndpoint:
                     "team": None,
                     "operator": None,
                     "asset_condition_type": None,
+                    "ui_color": None,
+                    "ui_fgcolor": None,
                 },
                 {
                     "children": None,
@@ -540,6 +569,8 @@ class TestStructureDataEndpoint:
                     "team": None,
                     "operator": None,
                     "asset_condition_type": None,
+                    "ui_color": None,
+                    "ui_fgcolor": None,
                 },
                 {
                     "children": None,
@@ -552,6 +583,8 @@ class TestStructureDataEndpoint:
                     "team": None,
                     "operator": None,
                     "asset_condition_type": "and-gate",
+                    "ui_color": None,
+                    "ui_fgcolor": None,
                 },
                 {
                     "children": None,
@@ -564,6 +597,8 @@ class TestStructureDataEndpoint:
                     "team": None,
                     "operator": None,
                     "asset_condition_type": None,
+                    "ui_color": None,
+                    "ui_fgcolor": None,
                 },
                 {
                     "children": None,
@@ -576,6 +611,8 @@ class TestStructureDataEndpoint:
                     "team": None,
                     "operator": None,
                     "asset_condition_type": None,
+                    "ui_color": None,
+                    "ui_fgcolor": None,
                 },
                 {
                     "children": None,
@@ -588,6 +625,8 @@ class TestStructureDataEndpoint:
                     "team": None,
                     "operator": None,
                     "asset_condition_type": None,
+                    "ui_color": None,
+                    "ui_fgcolor": None,
                 },
             ],
         }
@@ -637,6 +676,8 @@ class TestStructureDataEndpoint:
                     "setup_teardown_type": None,
                     "operator": "@task",
                     "asset_condition_type": None,
+                    "ui_color": None,
+                    "ui_fgcolor": None,
                 },
                 {
                     "id": "task_2",
@@ -649,6 +690,8 @@ class TestStructureDataEndpoint:
                     "setup_teardown_type": None,
                     "operator": "EmptyOperator",
                     "asset_condition_type": None,
+                    "ui_color": None,
+                    "ui_fgcolor": None,
                 },
                 {
                     "id": f"asset:{resolved_asset.id}",
@@ -661,6 +704,8 @@ class TestStructureDataEndpoint:
                     "setup_teardown_type": None,
                     "operator": None,
                     "asset_condition_type": None,
+                    "ui_color": None,
+                    "ui_fgcolor": None,
                 },
             ],
         }
@@ -833,6 +878,38 @@ class TestStructureDataEndpoint:
         )
         assert mapped_in_group["is_mapped"] is True
         assert mapped_in_group["operator"] == "PythonOperator"
+
+    def test_ui_colors_only_exposed_for_chakra_tokens(self, dag_maker, test_client, session):
+        """Only Chakra palette tokens reach the graph; legacy hex/defaults are dropped to null."""
+
+        class ColoredOperator(EmptyOperator):
+            ui_color = "blue.500"
+            ui_fgcolor = "red.700"
+
+        with dag_maker(
+            dag_id="test_ui_colors_dag",
+            serialized=True,
+            session=session,
+            start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+        ):
+            ColoredOperator(task_id="colored")
+            EmptyOperator(task_id="plain")  # default ui_color "#fff" -> not a token
+            with TaskGroup(group_id="grp", ui_color="teal.400"):
+                EmptyOperator(task_id="inner")
+
+        dag_maker.sync_dagbag_to_db()
+        response = test_client.get("/structure/structure_data", params={"dag_id": "test_ui_colors_dag"})
+        assert response.status_code == 200
+        nodes = {node["id"]: node for node in response.json()["nodes"]}
+
+        assert nodes["colored"]["ui_color"] == "blue.500"
+        assert nodes["colored"]["ui_fgcolor"] == "red.700"
+        # Hex/default values are filtered out
+        assert nodes["plain"]["ui_color"] is None
+        assert nodes["plain"]["ui_fgcolor"] is None
+        # Task group keeps its token fill; the unset fgcolor default is dropped
+        assert nodes["grp"]["ui_color"] == "teal.400"
+        assert nodes["grp"]["ui_fgcolor"] is None
 
     @pytest.mark.parametrize(
         ("params", "expected_task_ids", "description"),

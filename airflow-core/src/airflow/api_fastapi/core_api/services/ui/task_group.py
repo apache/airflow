@@ -23,6 +23,7 @@ from collections.abc import Callable
 from functools import cache
 from operator import methodcaller
 
+from airflow._shared.dagnode.ui_color import is_chakra_color_token
 from airflow.configuration import conf
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator, is_mapped
@@ -37,6 +38,20 @@ def get_task_group_children_getter() -> Callable:
     return methodcaller("hierarchical_alphabetical_sort")
 
 
+def _ui_colors(node) -> dict[str, str]:
+    """
+    Return the node's ``ui_color``/``ui_fgcolor`` keys, keeping only valid Chakra color tokens.
+
+    Legacy values (raw hex, CSS names, the unset defaults) are dropped so the graph only ever
+    receives colors the UI can resolve against the theme.
+    """
+    return {
+        key: value
+        for key in ("ui_color", "ui_fgcolor")
+        if is_chakra_color_token(value := getattr(node, key, None))
+    }
+
+
 def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
     if isinstance(task := task_item_or_group, (SerializedBaseOperator, SerializedMappedOperator)):
@@ -47,6 +62,7 @@ def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
             "label": task_display_name,
             "operator": task.operator_name,
             "type": "task",
+            **_ui_colors(task),
         }
         if task.is_setup:
             node_operator["setup_teardown_type"] = "setup"
@@ -78,6 +94,7 @@ def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
         "is_mapped": mapped,
         "children": children,
         "type": "task",
+        **_ui_colors(task_group),
     }
     return node
 

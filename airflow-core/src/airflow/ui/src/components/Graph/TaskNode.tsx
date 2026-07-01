@@ -47,6 +47,8 @@ export const TaskNode = ({
     taskInstance,
     team,
     tooltip,
+    uiColor,
+    uiFgcolor,
     width = 0,
   },
   id,
@@ -84,6 +86,15 @@ export const TaskNode = ({
     .map(([_state, count]) => count)
     .reduce((sum, val) => sum + val, 0);
 
+  // Custom operator and task group fill (ui_color), as in Airflow 2.x where ui_color is the node's
+  // fill. The colour is blended toward the theme background so it stays subtle against the run-state
+  // border and works in both light and dark mode. The value is a Chakra token, resolved through its
+  // CSS variable; a non-token (e.g. the legacy CornflowerBlue default) resolves to nothing and is ignored.
+  const customBg =
+    uiColor !== undefined && uiColor !== null
+      ? `color-mix(in srgb, var(--chakra-colors-${uiColor.replaceAll(".", "-")}, transparent) 25%, var(--chakra-colors-bg))`
+      : undefined;
+
   return (
     <NodeWrapper>
       <Flex alignItems="center" cursor="default" flexDirection="column" {...opacityStyle(isFiltered)}>
@@ -96,8 +107,8 @@ export const TaskNode = ({
           tooltip={isGroup ? tooltip : undefined}
         >
           <Flex
-            // Alternate background color for nested open groups
-            bg={isOpen && depth !== undefined && depth % 2 === 0 ? "bg.muted" : "bg"}
+            // Custom operator fill, else alternate background color for nested open groups
+            bg={customBg ?? (isOpen && depth !== undefined && depth % 2 === 0 ? "bg.muted" : "bg")}
             borderColor={
               isSelected ? "blue.500" : taskInstance?.state ? `${taskInstance.state}.solid` : "border"
             }
@@ -126,7 +137,7 @@ export const TaskNode = ({
               </LinkOverlay>
             </HStack>
             <Text
-              color="fg.muted"
+              color={uiFgcolor ?? "fg.muted"}
               fontSize="sm"
               overflow="hidden"
               textOverflow="ellipsis"
