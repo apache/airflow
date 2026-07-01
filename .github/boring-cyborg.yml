@@ -30,6 +30,9 @@ labelPRBasedOnFilePath:
   provider:amazon:
     - providers/amazon/**
 
+  provider:anthropic:
+    - providers/anthropic/**
+
   provider:apache-beam:
     - providers/apache/beam/**
 
