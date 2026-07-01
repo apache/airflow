@@ -30,11 +30,16 @@ from collections.abc import Iterable, Mapping, Sequence
 from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal, NoReturn, cast, overload
+from urllib.parse import urlparse
 
+import google_auth_httplib2
+import httplib2
 import pendulum
+import requests
 from aiohttp import ClientSession as ClientSession
 from asgiref.sync import sync_to_async
 from gcloud.aio.bigquery import Job, Table as Table_async
+from google.auth.transport.requests import AuthorizedSession, Request
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
     Client,
@@ -42,6 +47,7 @@ from google.cloud.bigquery import (
     ExtractJob,
     LoadJob,
     QueryJob,
+    QueryJobConfig,
     SchemaField,
     UnknownJob,
 )
@@ -57,10 +63,12 @@ from google.cloud.bigquery.table import (
 )
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import build
+from googleapiclient.http import set_user_agent
 from pandas_gbq import read_gbq
 from pandas_gbq.gbq import GbqConnector  # noqa: F401 used in ``airflow.contrib.hooks.bigquery``
 from sqlalchemy import create_engine
 
+from airflow import version
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
@@ -172,8 +180,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         connection_form_widgets["labels"] = StringField(
             lazy_gettext("Labels"), widget=BS3TextFieldWidget(), validators=[ValidJson()]
         )
-        connection_form_widgets["labels"] = StringField(
-            lazy_gettext("Labels"), widget=BS3TextFieldWidget(), validators=[ValidJson()]
+        connection_form_widgets["http_proxy"] = StringField(
+            lazy_gettext("HTTP Proxy"), widget=BS3TextFieldWidget()
+        )
+        connection_form_widgets["https_proxy"] = StringField(
+            lazy_gettext("HTTPS Proxy"), widget=BS3TextFieldWidget()
         )
         return connection_form_widgets
 
@@ -190,6 +201,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         api_resource_configs: dict | None | object = _UNSET,
         impersonation_scopes: str | Sequence[str] | None = None,
         labels: dict | None | object = _UNSET,
+        http_proxy: str | None | object = _UNSET,
+        https_proxy: str | None | object = _UNSET,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -233,6 +246,16 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         else:
             self.labels = labels or {}  # type: ignore[assignment]
 
+        if http_proxy is _UNSET:
+            self.http_proxy: str | None = self._get_field("http_proxy", None)
+        else:
+            self.http_proxy = http_proxy  # type: ignore[assignment]
+
+        if https_proxy is _UNSET:
+            self.https_proxy: str | None = self._get_field("https_proxy", None)
+        else:
+            self.https_proxy = https_proxy  # type: ignore[assignment]
+
         self.impersonation_scopes: str | Sequence[str] | None = impersonation_scopes
 
     def get_conn(self) -> BigQueryConnection:
@@ -254,6 +277,22 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             hook=self,
         )
 
+    def _authorize(self) -> google_auth_httplib2.AuthorizedHttp:
+        """Return an authorized HTTP object, optionally configured with a proxy."""
+        proxy_url = self.http_proxy or self.https_proxy
+        if not proxy_url:
+            return super()._authorize()
+        parsed = urlparse(proxy_url)
+        proxy_info = httplib2.ProxyInfo(
+            proxy_type=httplib2.socks.PROXY_TYPE_HTTP,
+            proxy_host=parsed.hostname,
+            proxy_port=parsed.port or 80,
+            proxy_user=parsed.username,
+            proxy_pass=parsed.password,
+        )
+        http = set_user_agent(httplib2.Http(proxy_info=proxy_info), "airflow/" + version.version)
+        return google_auth_httplib2.AuthorizedHttp(self.get_credentials(), http=http)
+
     def get_client(self, project_id: str = PROVIDE_PROJECT_ID, location: str | None = None) -> Client:
         """
         Get an authenticated BigQuery Client.
@@ -261,13 +300,25 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param project_id: Project ID for the project which the client acts on behalf of.
         :param location: Default location for jobs / datasets / tables.
         """
-        return Client(
-            client_info=CLIENT_INFO,
-            project=project_id,
-            location=location,
-            credentials=self.get_credentials(),
-            client_options=self.get_client_options(),
-        )
+        credentials = self.get_credentials()
+        kwargs: dict[str, Any] = {
+            "client_info": CLIENT_INFO,
+            "project": project_id,
+            "location": location,
+            "credentials": credentials,
+            "client_options": getattr(self, "get_client_options", lambda: None)(),
+        }
+        if self.http_proxy or self.https_proxy:
+            session = requests.Session()
+            session.proxies = {}
+            if self.http_proxy:
+                session.proxies["http"] = self.http_proxy
+            if self.https_proxy:
+                session.proxies["https"] = self.https_proxy
+            authorized_session = AuthorizedSession(credentials, auth_request=Request(session=session))
+            authorized_session.proxies = dict(session.proxies)
+            kwargs["_http"] = authorized_session
+        return Client(**kwargs)
 
     def get_uri(self) -> str:
         """Override from ``DbApiHook`` for ``get_sqlalchemy_engine()``."""
@@ -354,10 +405,19 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         sql: str,
         parameters: Iterable | Mapping[str, Any] | None = None,
         dialect: str | None = None,
+        timeout: float | None = None,
         **kwargs,
     ) -> pd.DataFrame:
         if dialect is None:
             dialect = "legacy" if self.use_legacy_sql else "standard"
+
+        if self.http_proxy or self.https_proxy:
+            job_config = QueryJobConfig(use_legacy_sql=(dialect == "legacy"))
+            return (
+                self.get_client()
+                .query(sql, job_config=job_config, timeout=timeout if timeout is not None else 60)
+                .to_dataframe(create_bqstorage_client=False)
+            )
 
         credentials, project_id = self.get_credentials_and_project_id()
 
