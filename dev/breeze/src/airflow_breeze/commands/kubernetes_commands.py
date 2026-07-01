@@ -2478,10 +2478,12 @@ def deploy_cluster(
 # Assets live under kubernetes-tests/lang_sdk/. See that directory's README.md.
 # ---------------------------------------------------------------------------
 LANG_SDK_PATH = AIRFLOW_ROOT_PATH / "kubernetes-tests" / "lang_sdk"
-LANG_SDK_GO_BUNDLE_PKG = "./example/k8s_combined"
+# The Go/Java example sources live under the test dir (not in go-sdk/java-sdk). go_example is its
+# own Go module (replace-directive onto the in-repo go-sdk); java_example is a standalone Gradle
+# build that resolves the SDK from mavenLocal.
+LANG_SDK_GO_EXAMPLE_PATH = LANG_SDK_PATH / "go_example"
 LANG_SDK_GO_BUNDLE_NAME = "lang_sdk_combined"
-LANG_SDK_JAVA_EXAMPLE_PATH = AIRFLOW_ROOT_PATH / "java-sdk" / "k8s-example"
-LANG_SDK_GO_SDK_PATH = AIRFLOW_ROOT_PATH / "go-sdk"
+LANG_SDK_JAVA_EXAMPLE_PATH = LANG_SDK_PATH / "java_example"
 # Build the artifacts inside ephemeral toolchain containers so the host needs
 # neither Go nor a JDK installed (mirrors the airflow-e2e-tests conftest).
 LANG_SDK_GO_BUILDER_IMAGE = os.environ.get("GO_BUILDER_IMAGE", "golang:1.24-alpine")
@@ -2509,12 +2511,14 @@ def _lang_sdk_build_go_bundle(staging: Path, output: Output | None) -> None:
     go_dir.mkdir(parents=True, exist_ok=True)
 
     uid_gid = f"{os.getuid()}:{os.getgid()}"
+    go_example_ctr = f"/repo/{LANG_SDK_GO_EXAMPLE_PATH.relative_to(AIRFLOW_ROOT_PATH).as_posix()}"
 
     # CGO_ENABLED=0 yields a fully static binary that runs on the stock worker.
     # USER/HOME must be set because the SDK calls user.Current() at init; with
     # cgo disabled Go's pure-Go resolver reads those env vars and panics if
-    # either is empty. HOME points at a writable, gitignored dir under go-sdk/bin
-    # so the Go build and module caches persist between runs.
+    # either is empty. HOME points at a writable, gitignored dir under go_example
+    # so the Go build and module caches persist between runs. The package built is
+    # the current dir (".") because go_example is its own module.
     get_console(output=output).print(f"[info]Building Go bundle in {LANG_SDK_GO_BUILDER_IMAGE}")
     run_command(
         [
@@ -2524,7 +2528,7 @@ def _lang_sdk_build_go_bundle(staging: Path, output: Output | None) -> None:
             "--user",
             uid_gid,
             "-e",
-            "HOME=/repo/go-sdk/bin/.home",
+            f"HOME={go_example_ctr}/.home",
             "-e",
             "USER=airflow",
             "-e",
@@ -2532,23 +2536,23 @@ def _lang_sdk_build_go_bundle(staging: Path, output: Output | None) -> None:
             "-v",
             f"{AIRFLOW_ROOT_PATH}:/repo",
             "-w",
-            "/repo/go-sdk",
+            go_example_ctr,
             LANG_SDK_GO_BUILDER_IMAGE,
             "go",
             "tool",
             "airflow-go-pack",
             "--output",
-            f"/repo/go-sdk/bin/{LANG_SDK_GO_BUNDLE_NAME}",
-            LANG_SDK_GO_BUNDLE_PKG,
+            f"{go_example_ctr}/bin/{LANG_SDK_GO_BUNDLE_NAME}",
+            ".",
         ],
         output=output,
         check=True,
     )
-    shutil.copy(LANG_SDK_GO_SDK_PATH / "bin" / LANG_SDK_GO_BUNDLE_NAME, go_dir / LANG_SDK_GO_BUNDLE_NAME)
+    shutil.copy(LANG_SDK_GO_EXAMPLE_PATH / "bin" / LANG_SDK_GO_BUNDLE_NAME, go_dir / LANG_SDK_GO_BUNDLE_NAME)
 
 
 def _lang_sdk_build_java_jar(staging: Path, output: Output | None) -> None:
-    """Publish the Java SDK to mavenLocal then build the k8s-example jar into ``staging/java-artifacts``.
+    """Publish the Java SDK to mavenLocal then build the java_example jar into ``staging/java-artifacts``.
 
     Runs in an ephemeral JDK container so the host needs no JDK; the Gradle distribution, dependency
     and Maven caches persist between runs via the mounted dirs.
@@ -2557,12 +2561,14 @@ def _lang_sdk_build_java_jar(staging: Path, output: Output | None) -> None:
     java_dir.mkdir(parents=True, exist_ok=True)
 
     uid_gid = f"{os.getuid()}:{os.getgid()}"
+    java_example_ctr = f"/repo/{LANG_SDK_JAVA_EXAMPLE_PATH.relative_to(AIRFLOW_ROOT_PATH).as_posix()}"
 
-    # The k8s-example resolves the SDK plugin and libraries from mavenLocal(),
-    # so publish them first, then build the bundle. --user keeps build outputs
-    # owned by the host user; HOME is set explicitly because that UID has no
-    # /etc/passwd entry; GRADLE_USER_HOME and the mounted ~/.m2 persist the
-    # Gradle distribution and dependency caches between runs.
+    # java_example resolves the SDK plugin and libraries from mavenLocal(), so
+    # publish them first, then build the bundle with java-sdk's gradle wrapper
+    # pointed at the moved project (-p). --user keeps build outputs owned by the
+    # host user; HOME is set explicitly because that UID has no /etc/passwd entry;
+    # GRADLE_USER_HOME and the mounted ~/.m2 persist the Gradle distribution and
+    # dependency caches between runs.
     LANG_SDK_MAVEN_CACHE_PATH.mkdir(parents=True, exist_ok=True)
     java_docker_prefix = [
         "docker",
@@ -2600,9 +2606,11 @@ def _lang_sdk_build_java_jar(staging: Path, output: Output | None) -> None:
         [
             *java_docker_prefix,
             "-w",
-            "/repo/java-sdk/k8s-example",
+            "/repo/java-sdk",
             LANG_SDK_JAVA_BUILDER_IMAGE,
-            "../gradlew",
+            "./gradlew",
+            "-p",
+            java_example_ctr,
             "bundle",
             "--no-daemon",
             "--console=plain",

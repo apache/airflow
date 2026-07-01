@@ -52,8 +52,8 @@ coordinator scans.
 | Path | Role |
 | --- | --- |
 | `dags/lang_sdk_combined.py` | Python stub Dag (`dag_id=lang_sdk_combined`); uploaded to the `dags` bucket. |
-| `../../../go-sdk/example/k8s_combined` | Go bundle: `go_extract` / `go_transform` under `lang_sdk_combined`. |
-| `../../../java-sdk/k8s-example` | Java bundle: `java_extract` / `java_transform` under `lang_sdk_combined`. |
+| `go_example/` | Go bundle sources (own module, `replace` onto `../../../go-sdk`): `go_extract` / `go_transform` under `lang_sdk_combined`. |
+| `java_example/` | Java bundle sources (standalone Gradle build, SDK from mavenLocal): `java_extract` / `java_transform` under `lang_sdk_combined`. |
 | `stage_artifacts.py` | Init-container entrypoint; stages an artifact bucket via DagBundle. |
 | `pod_templates/lang_sdk_golang.yaml` | `golang` queue worker pod: prod image + go-artifacts init container. |
 | `pod_templates/lang_sdk_java.yaml` | `java` queue worker pod: JVM image + java-artifacts init container. |

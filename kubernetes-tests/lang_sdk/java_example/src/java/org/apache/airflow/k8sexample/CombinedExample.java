@@ -26,9 +26,9 @@ import org.slf4j.LoggerFactory;
 
 // Java half of the KubernetesExecutor lang-SDK system test bundle. Registers the
 // Java tasks of the shared "lang_sdk_combined" Dag; the Go tasks of the same
-// dag_id live in go-sdk/example/k8s_combined and the Python stub Dag in
-// kubernetes-tests/lang_sdk/dags. The coordinator locates this jar by dag_id, so
-// only the Java tasks are registered here.
+// dag_id live in ../go_example and the Python stub Dag in ../dags. The
+// coordinator locates this jar by dag_id, so only the Java tasks are registered
+// here.
 @Builder.Dag(id = "lang_sdk_combined")
 public class CombinedExample {
   private static final Logger logger = LoggerFactory.getLogger(CombinedExample.class);

@@ -24,10 +24,10 @@ Java stub tasks so one run exercises all three runtimes on KubernetesExecutor::
 
 * ``go_extract`` / ``go_transform`` are ``@task.stub(queue="golang")``; the
   ``golang`` queue is routed to the ``ExecutableCoordinator``. Their Go
-  implementations live in ``go-sdk/example/k8s_combined`` under this same dag_id.
+  implementations live in ``../go_example`` under this same dag_id.
 * ``java_extract`` / ``java_transform`` are ``@task.stub(queue="java")``; the
   ``java`` queue is routed to the ``JavaCoordinator``. Their Java
-  implementations live in ``java-sdk/k8s-example`` under this same dag_id.
+  implementations live in ``../java_example`` under this same dag_id.
 * The Python tasks run on the default Python path.
 
 The dag_id and the Go/Java task ids MUST match the identities the bundles expose

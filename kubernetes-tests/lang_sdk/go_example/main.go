@@ -15,12 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Command k8s_combined is the Go half of the KubernetesExecutor lang-SDK system
+// Command go_example is the Go half of the KubernetesExecutor lang-SDK system
 // test bundle. It registers the Go tasks of the shared lang_sdk_combined Dag
-// (the Java half lives in java-sdk/k8s-example, the Python stub Dag in
-// kubernetes-tests/lang_sdk/dags). The coordinator locates this binary by
-// dag_id, so only the Go tasks are registered here; the Java tasks of the same
-// dag_id live in the Java jar.
+// (the Java half lives in ../java_example, the Python stub Dag in ../dags). The
+// coordinator locates this binary by dag_id, so only the Go tasks are registered
+// here; the Java tasks of the same dag_id live in the Java jar.
 package main
 
 import (
