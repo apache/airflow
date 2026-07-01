@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 import pendulum
 
 from airflow._shared.observability.metrics import stats
+from airflow._shared.observability.traces import start_debug_span
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.executors import workloads
@@ -442,6 +443,7 @@ class BaseExecutor(LoggingMixin):
             reverse=False,
         )
 
+    @start_debug_span("base_executor.trigger_tasks")
     def trigger_tasks(self, open_slots: int) -> None:
         """
         Initiate async execution of queued workloads (tasks and callbacks), up to the number of available slots.

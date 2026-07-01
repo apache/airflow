@@ -816,6 +816,13 @@ def initialize():
     import_local_settings()
     configure_logging()
     configure_otel(conf)
+    # configure_otel configures only the airflow-core copy of the symlinked shared traces
+    # module. Set the resolved flag in the task-sdk copy that providers import.
+    from airflow._shared.observability import traces as _core_traces
+    from airflow.sdk._shared.observability.traces import set_debug_traces_enabled
+
+    debug_traces_on = _core_traces._otel_debug_traces_on
+    set_debug_traces_enabled(debug_traces_on)
     configure_adapters()
     # The webservers import this file from models.py with the default settings.
 

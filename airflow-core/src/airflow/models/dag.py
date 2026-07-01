@@ -28,6 +28,7 @@ import sqlalchemy as sa
 import structlog
 from cachetools import TTLCache, cached
 from dateutil.relativedelta import relativedelta
+from opentelemetry import trace
 from sqlalchemy import (
     Boolean,
     Float,
@@ -56,6 +57,7 @@ from sqlalchemy.orm import (
 from sqlalchemy.sql import expression
 
 from airflow import settings
+from airflow._shared.observability.traces import start_debug_span
 from airflow._shared.timezones import timezone
 from airflow.assets.evaluation import AssetEvaluator
 from airflow.configuration import conf as airflow_conf
@@ -680,6 +682,7 @@ class DagModel(Base):
         return any_deactivated
 
     @classmethod
+    @start_debug_span("dag.dagmodel.dags_needing_dagruns")
     def dags_needing_dagruns(cls, session: Session) -> tuple[Any, dict[str, datetime]]:
         """
         Return (and lock) a list of Dag objects that are due to create a new DagRun.
@@ -803,6 +806,8 @@ class DagModel(Base):
             .order_by(cls.next_dagrun_create_after)
             .limit(cls.NUM_DAGS_PER_DAGRUN_QUERY)
         )
+
+        trace.get_current_span().set_attribute("airflow.dag.asset_triggered_dags", len(triggered_date_by_dag))
 
         return (
             session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)),

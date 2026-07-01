@@ -74,6 +74,7 @@ from airflow._shared.observability.traces import (
     TASK_SPAN_DETAIL_LEVEL_KEY,
     new_dagrun_trace_carrier,
     new_task_run_carrier,
+    start_debug_span,
 )
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
@@ -2135,13 +2136,18 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         return session.scalar(stmt) or 0
 
     @staticmethod
+    @start_debug_span("taskinstance.filter_for_tis")
     def filter_for_tis(tis: Iterable[TaskInstance | TaskInstanceKey]) -> ColumnElement[bool] | None:
         """Return SQLAlchemy filter to query selected task instances."""
         # DictKeys type, (what we often pass here from the scheduler) is not directly indexable :(
         # Or it might be a generator, but we need to be able to iterate over it more than once
         tis = list(tis)
 
+        filter_tis_span = trace.get_current_span()
+        filter_tis_span.set_attribute("airflow.taskinstance.filter_for_tis.num_tis", len(tis))
+
         if not tis:
+            filter_tis_span.set_attribute("airflow.taskinstance.filter_for_tis.result", "empty")
             return None
 
         first = tis[0]
@@ -2159,9 +2165,15 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             map_indices.add(t.map_index)
             task_ids.add(t.task_id)
 
+        filter_tis_span.set_attribute("airflow.taskinstance.filter_for_tis.num_dag_ids", len(dag_ids))
+        filter_tis_span.set_attribute("airflow.taskinstance.filter_for_tis.num_run_ids", len(run_ids))
+        filter_tis_span.set_attribute("airflow.taskinstance.filter_for_tis.num_task_ids", len(task_ids))
+        filter_tis_span.set_attribute("airflow.taskinstance.filter_for_tis.num_map_indices", len(map_indices))
+
         # Common path optimisations: when all TIs are for the same dag_id and run_id, or same dag_id
         # and task_id -- this can be over 150x faster for huge numbers of TIs (20k+)
         if dag_ids == {dag_id} and run_ids == {run_id} and map_indices == {map_index}:
+            filter_tis_span.set_attribute("airflow.taskinstance.filter_for_tis.result", "same_dag_run_map")
             return and_(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id == run_id,
@@ -2169,6 +2181,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 TaskInstance.task_id.in_(task_ids),
             )
         if dag_ids == {dag_id} and task_ids == {first_task_id} and map_indices == {map_index}:
+            filter_tis_span.set_attribute("airflow.taskinstance.filter_for_tis.result", "same_dag_task_map")
             return and_(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id.in_(run_ids),
@@ -2176,6 +2189,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 TaskInstance.task_id == first_task_id,
             )
         if dag_ids == {dag_id} and run_ids == {run_id} and task_ids == {first_task_id}:
+            filter_tis_span.set_attribute("airflow.taskinstance.filter_for_tis.result", "same_dag_run_task")
             return and_(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id == run_id,
@@ -2220,6 +2234,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                         )
                     )
 
+        filter_tis_span.set_attribute("airflow.taskinstance.filter_for_tis.result", "grouped")
         return or_(*filter_condition)
 
     @classmethod

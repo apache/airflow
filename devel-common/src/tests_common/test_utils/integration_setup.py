@@ -109,12 +109,16 @@ def start_scheduler(capture_output: bool = False):
     return scheduler_process, apiserver_process
 
 
-def serialize_and_get_dags(dag_folder) -> dict[str, SerializedDAG]:
+def serialize_and_get_dags(dag_folder: str, num_of_dags: int | None = None) -> dict[str, SerializedDAG]:
     log.info("Serializing Dags from directory %s", dag_folder)
     # Load DAGs from the dag directory.
     dag_bag = DagBag(dag_folder=dag_folder)
 
     dag_ids = dag_bag.dag_ids
+    if num_of_dags is None:
+        assert len(dag_ids) > 0
+    else:
+        assert len(dag_ids) == num_of_dags
 
     dag_dict: dict[str, SerializedDAG] = {}
     with create_session() as session:
