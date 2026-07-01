@@ -982,6 +982,28 @@ def test_create_backfill_partitioned_from_date_after_to_date_raises(dag_maker, s
         )
 
 
+def test_create_backfill_with_no_runs_does_not_persist_backfill(dag_maker, session):
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    today_start = pendulum.now("UTC").start_of("day")
+
+    with pytest.raises(RuntimeError, match="No runs to create"):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=today_start,
+            to_date=today_start,
+            max_active_runs=2,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf={},
+        )
+
+    persisted_backfill = session.scalar(select(Backfill).where(Backfill.dag_id == dag.dag_id).limit(1))
+    assert persisted_backfill is None
+
+
 @pytest.mark.parametrize("reverse", [False, True])
 def test_backfill_partitioned_with_partition_window(reverse, dag_maker, session):
     """Partitioned Dag: from/to window of 3 days produces 3 runs (auto-detected)."""

@@ -665,6 +665,15 @@ def _create_backfill(
             dag_run_conf,
         )
 
+        dagrun_info_list = _get_info_list(
+            from_date=from_date,
+            to_date=to_date,
+            reverse=reverse,
+            dag=dag,
+        )
+        if not dagrun_info_list:
+            raise RuntimeError(f"No runs to create for Dag {dag_id}")
+
         br = Backfill(
             dag_id=dag_id,
             from_date=from_date,
@@ -676,18 +685,7 @@ def _create_backfill(
             triggering_user_name=triggering_user_name,
         )
         session.add(br)
-        session.commit()
-
-        session.scalars(select(DagModel).where(DagModel.dag_id == dag_id)).one()
-
-        dagrun_info_list = _get_info_list(
-            from_date=from_date,
-            to_date=to_date,
-            reverse=reverse,
-            dag=dag,
-        )
-        if not dagrun_info_list:
-            raise RuntimeError(f"No runs to create for Dag {dag_id}")
+        session.flush()
 
         first_info = dagrun_info_list[0]
         if first_info.partition_key:
