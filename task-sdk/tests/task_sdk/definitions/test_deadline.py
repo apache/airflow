@@ -97,6 +97,16 @@ class TestDeadlineAlert:
                 False,
                 id="different_kwargs",
             ),
+            pytest.param(
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                    interval=timedelta(hours=1),
+                    callback=TEST_DEADLINE_CALLBACK,
+                    fire_on_failure=True,
+                ),
+                False,
+                id="different_fire_on_failure",
+            ),
             pytest.param("not a DeadlineAlert", False, id="non_deadline_alert"),
         ],
     )
@@ -146,6 +156,15 @@ class TestDeadlineAlert:
 
         alert_set = {alert1, alert2}
         assert len(alert_set) == 1
+
+    def test_deadline_alert_fire_on_failure_defaults_false(self):
+        alert = DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(hours=1),
+            callback=TEST_DEADLINE_CALLBACK,
+        )
+
+        assert alert.fire_on_failure is False
 
     @pytest.mark.parametrize(
         ("test_callback", "expected_name", "expected_pass"),
