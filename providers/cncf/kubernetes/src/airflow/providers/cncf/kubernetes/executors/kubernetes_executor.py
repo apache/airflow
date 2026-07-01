@@ -69,6 +69,19 @@ from airflow.utils.state import TaskInstanceState
 if AIRFLOW_V_3_4_PLUS:
     from airflow.executors.workloads.base import WorkloadType
 
+try:
+    from airflow.sdk._shared.observability.traces import start_debug_span
+except ImportError:
+
+    def start_debug_span(name, **_kwargs):
+        """No-op fallback so executor code can decorate methods unconditionally."""
+
+        def _decorator(func):
+            return func
+
+        return _decorator
+
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from multiprocessing.managers import SyncManager
@@ -371,6 +384,7 @@ class KubernetesExecutor(BaseExecutor):
         self.pod_launch_attempts[key] = _PodLaunchAttempt(job=job)
         self.task_queue.put(job)
 
+    @start_debug_span("kubernetes_executor._process_workloads")
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         from airflow.executors.workloads import ExecuteTask
 
