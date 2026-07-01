@@ -190,4 +190,5 @@ class DagCode(Base):
         if new_source_code_hash != latest_dagcode.source_code_hash:
             latest_dagcode.source_code = new_source_code
             latest_dagcode.source_code_hash = new_source_code_hash
-            session.merge(latest_dagcode)
+            # Keep fileloc aligned with the refreshed source.
+            latest_dagcode.fileloc = fileloc
