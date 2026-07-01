@@ -1071,6 +1071,104 @@ class TestTIRunState:
         assert logs[0].owner == ti.task.owner
         assert logs[0].extra == '{"host_name": "random-hostname"}'
 
+    @pytest.mark.parametrize(
+        "scenario",
+        ["first_run", "retry"],
+    )
+    def test_ti_run_emits_queued_duration_metric(
+        self, client, session, create_task_instance, time_machine, scenario
+    ):
+        """task.queued_duration is emitted on a real QUEUED -> RUNNING transition.
+
+        The scheduler refreshes queued_dttm every time it queues a task, so a retry has a
+        fresh queue wait just like a first run and must emit too. A retry still carries the
+        previous attempt's end_date on the row when ti_run is reached, so this asserts the
+        emit does not depend on end_date being unset.
+        """
+        queued_at = timezone.parse("2024-09-30T12:00:00Z")
+        run_at = queued_at.add(seconds=42)
+
+        ti = create_task_instance(
+            task_id=f"test_ti_run_emits_queued_duration_metric_{scenario}",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=queued_at,
+            dag_id=str(uuid4()),
+        )
+        ti.queued_dttm = queued_at
+        ti.queue = "default"
+        if scenario == "retry":
+            # A retried TI still has the previous attempt's end_date set on the row until
+            # ti_run clears it; the metric must fire regardless.
+            ti.end_date = queued_at.add(seconds=10)
+        session.commit()
+
+        time_machine.move_to(run_at, tick=False)
+
+        with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats") as mock_stats:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": run_at.isoformat(),
+                },
+            )
+
+        assert response.status_code == 200
+        mock_stats.timing.assert_called_once_with(
+            "task.queued_duration",
+            run_at - queued_at,
+            tags={"task_id": ti.task_id, "dag_id": ti.dag_id, "queue": "default"},
+        )
+
+    @pytest.mark.parametrize(
+        "skip_reason",
+        ["deferral_resume", "queued_dttm_missing"],
+    )
+    def test_ti_run_skips_queued_duration_metric(
+        self, client, session, create_task_instance, time_machine, skip_reason
+    ):
+        """task.queued_duration is skipped on a resume from deferral (next_method set, so
+        the queue wait belongs to the same try already counted) and when queued_dttm was
+        not recorded (rare race / test setups)."""
+        queued_at = timezone.parse("2024-09-30T12:00:00Z")
+        run_at = queued_at.add(seconds=42)
+        time_machine.move_to(run_at, tick=False)
+
+        ti = create_task_instance(
+            task_id=f"test_ti_run_skips_queued_duration_metric_{skip_reason}",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=queued_at,
+            dag_id=str(uuid4()),
+        )
+        if skip_reason == "deferral_resume":
+            ti.queued_dttm = queued_at
+            ti.next_method = "execute_complete"
+        else:
+            ti.queued_dttm = None
+        session.commit()
+
+        with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats") as mock_stats:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": run_at.isoformat(),
+                },
+            )
+
+        assert response.status_code == 200
+        mock_stats.timing.assert_not_called()
+
 
 class TestTIUpdateState:
     def setup_method(self):
