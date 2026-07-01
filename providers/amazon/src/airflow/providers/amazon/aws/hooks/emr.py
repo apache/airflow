@@ -263,6 +263,10 @@ class EmrServerlessHook(AwsBaseHook):
     APPLICATION_FAILURE_STATES = {"STOPPED", "TERMINATED"}
     APPLICATION_SUCCESS_STATES = {"CREATED", "STARTED"}
 
+    SESSION_INTERMEDIATE_STATES = {"SUBMITTED", "STARTING"}
+    SESSION_FAILURE_STATES = {"FAILED", "TERMINATING", "TERMINATED"}
+    SESSION_SUCCESS_STATES = {"STARTED", "IDLE"}
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         kwargs["client_type"] = "emr-serverless"
         super().__init__(*args, **kwargs)
@@ -310,6 +314,56 @@ class EmrServerlessHook(AwsBaseHook):
                 )
 
         return count
+
+    def start_session(
+        self,
+        application_id: str,
+        execution_role_arn: str,
+        name: str | None = None,
+        idle_timeout_minutes: int | None = None,
+        configuration_overrides: dict | None = None,
+    ) -> str:
+        """
+        Start an EMR Serverless interactive session and return its id.
+
+        :param application_id: The id of the EMR Serverless application to run the session on.
+        :param execution_role_arn: The IAM role ARN the session assumes to access data.
+        :param name: An optional name for the session.
+        :param idle_timeout_minutes: Auto-stop the session after this many idle minutes.
+        :param configuration_overrides: Optional Spark/monitoring configuration overrides.
+        """
+        params: dict[str, Any] = {
+            "applicationId": application_id,
+            "executionRoleArn": execution_role_arn,
+        }
+        if name is not None:
+            params["name"] = name
+        if idle_timeout_minutes is not None:
+            params["idleTimeoutMinutes"] = idle_timeout_minutes
+        if configuration_overrides is not None:
+            params["configurationOverrides"] = configuration_overrides
+        return self.conn.start_session(**params)["sessionId"]
+
+    def get_session_state(self, application_id: str, session_id: str) -> str:
+        """Return the current state of an interactive session."""
+        return self.conn.get_session(applicationId=application_id, sessionId=session_id)["session"]["state"]
+
+    def get_session_endpoint(self, application_id: str, session_id: str) -> dict:
+        """
+        Return the raw ``GetSessionEndpoint`` boto3 response for a session.
+
+        The response includes the Spark Connect ``endpoint`` URL, a short-lived ``authToken``
+        (valid for about one hour), and its ``authTokenExpiresAt`` timestamp. Callers should
+        fetch it immediately before connecting rather than caching it.
+
+        .. seealso::
+            - :external+boto3:py:meth:`EMRServerless.Client.get_session_endpoint`
+        """
+        return self.conn.get_session_endpoint(applicationId=application_id, sessionId=session_id)
+
+    def terminate_session(self, application_id: str, session_id: str) -> None:
+        """Terminate an interactive session."""
+        self.conn.terminate_session(applicationId=application_id, sessionId=session_id)
 
 
 def is_connection_being_updated_exception(exception: BaseException) -> bool:
