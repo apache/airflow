@@ -23,8 +23,6 @@ import requests
 
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
-AGENT_REQUEST_TIMEOUT = 60  # Prevent hanging agent requests.
-
 
 class SnowflakeCortexAgentHook(SnowflakeHook):
     """Hook for interacting with Snowflake Cortex Agents."""
@@ -45,7 +43,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         if not token:
             raise ValueError(
                 "Snowflake connection does not provide an OAuth access token. "
-                "Cortex Agents require OAuth authentication."
+                "This hook currently requires an OAuth access token."
             )
 
         return token
@@ -56,6 +54,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         method: str,
         endpoint: str,
         payload: dict[str, Any] | None = None,
+        timeout: int | None = None,
     ) -> dict[str, Any]:
 
         response = requests.request(
@@ -66,8 +65,15 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
                 "Content-Type": "application/json",
             },
             json=payload,
-            timeout=AGENT_REQUEST_TIMEOUT,
+            timeout=timeout,
         )
+
+        if response.status_code >= 400:
+            self.log.error(
+                "Snowflake Cortex Agent request failed with status %s: %s",
+                response.status_code,
+                response.text,
+            )
 
         response.raise_for_status()
 
@@ -82,13 +88,13 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         messages: list[dict[str, Any]],
         thread_id: int | None = None,
         parent_message_id: int | None = None,
-        stream: bool = False,
         tool_choice: dict[str, Any] | None = None,
         models: dict[str, Any] | None = None,
         instructions: dict[str, Any] | None = None,
         orchestration: dict[str, Any] | None = None,
         tools: list[dict[str, Any]] | None = None,
         tool_resources: dict[str, Any] | None = None,
+        timeout: int | None = 600,
     ) -> dict[str, Any]:
         """
         Execute a Snowflake Cortex Agent and return the response payload.
@@ -105,8 +111,6 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
             Defaults to ``None``.
         :param parent_message_id: Parent message identifier within the specified
             thread. Required when ``thread_id`` is provided. Defaults to ``None``.
-        :param stream: Whether to request a streaming response. Defaults to
-            ``False``.
         :param tool_choice: Tool selection configuration for the agent. Optional.
             Defaults to ``None``.
         :param models: Model configuration for the agent. Optional. Defaults to
@@ -119,15 +123,14 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
             Defaults to ``None``.
         :param tool_resources: Configuration for tools specified in ``tools``.
             Optional. Defaults to ``None``.
+        :param timeout: Maximum time in seconds to wait for the Cortex Agent request
+            to complete. Defaults to ``600``.
         :return: JSON response returned by the Cortex Agent.
         """
         if thread_id is not None and parent_message_id is None:
             raise ValueError("parent_message_id must be provided when thread_id is specified.")
 
-        payload: dict[str, Any] = {
-            "messages": messages,
-            "stream": stream,
-        }
+        payload: dict[str, Any] = {"messages": messages}
 
         if thread_id is not None:
             payload["thread_id"] = thread_id
@@ -157,6 +160,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
             method="POST",
             endpoint=endpoint,
             payload=payload,
+            timeout=timeout,
         )
 
     @staticmethod

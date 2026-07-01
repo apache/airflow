@@ -22,7 +22,6 @@ import pytest
 import requests
 
 from airflow.providers.snowflake.hooks.snowflake_cortex_agent import (
-    AGENT_REQUEST_TIMEOUT,
     SnowflakeCortexAgentHook,
 )
 
@@ -43,6 +42,8 @@ CONN_PARAMS = {
 STATIC_CONN_PARAMS = {
     "account": ACCOUNT,
 }
+
+REQUEST_TIMEOUT = 600
 
 
 def create_response(
@@ -124,9 +125,8 @@ class TestSnowflakeCortexAgentHook:
                         ],
                     }
                 ],
-                "stream": False,
             },
-            timeout=AGENT_REQUEST_TIMEOUT,
+            timeout=REQUEST_TIMEOUT,
         )
 
     def test_run_agent_requires_parent_message_id_when_thread_id_provided(self):
