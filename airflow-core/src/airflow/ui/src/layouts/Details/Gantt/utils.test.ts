@@ -29,6 +29,7 @@ import {
   buildMaxTryByTaskId,
   GANTT_TIME_AXIS_TICK_COUNT,
   gridSummariesToTaskIdMap,
+  toTooltipSummary,
   transformGanttData,
 } from "./utils";
 
@@ -213,10 +214,11 @@ describe("transformGanttData", () => {
   });
 
   it("produces 3 segments when scheduled_dttm and queued_dttm are present", () => {
+    const taskEndDate = "2024-03-14T10:05:00+00:00";
     const result = transformGanttData({
       allTries: [
         {
-          end_date: "2024-03-14T10:05:00+00:00",
+          end_date: taskEndDate,
           is_mapped: false,
           queued_dttm: "2024-03-14T09:59:00+00:00",
           scheduled_dttm: "2024-03-14T09:58:00+00:00",
@@ -235,6 +237,40 @@ describe("transformGanttData", () => {
     expect(result[0]?.state).toBe("scheduled");
     expect(result[1]?.state).toBe("queued");
     expect(result[2]?.state).toBe("success");
+    expect(result.map((segment) => segment.end_when)).toEqual([taskEndDate, taskEndDate, taskEndDate]);
+  });
+
+  it("uses the task end date in tooltips for queued segments", () => {
+    const result = transformGanttData({
+      allTries: [
+        {
+          end_date: "2024-03-14T10:05:00+00:00",
+          is_mapped: false,
+          queued_dttm: "2024-03-14T09:59:00+00:00",
+          scheduled_dttm: null,
+          start_date: "2024-03-14T10:00:00+00:00",
+          state: "success",
+          task_display_name: "task_1",
+          task_id: "task_1",
+          try_number: 1,
+        },
+      ],
+      flatNodes: [{ depth: 0, id: "task_1", is_mapped: false, label: "task_1" }],
+      gridSummaries: [],
+    });
+    const [queuedSegment] = result;
+
+    expect(queuedSegment?.state).toBe("queued");
+    expect(queuedSegment?.x[1]).toBe(dayjs("2024-03-14T10:00:00+00:00").valueOf());
+
+    const summary = toTooltipSummary(
+      queuedSegment as GanttDataItem,
+      { depth: 0, id: "task_1", is_mapped: false, label: "task_1" },
+      undefined,
+    );
+
+    expect(summary.min_start_date).toBe("2024-03-14T10:00:00+00:00");
+    expect(summary.max_end_date).toBe("2024-03-14T10:05:00+00:00");
   });
 
   it("produces 2 segments when only queued_dttm is present", () => {
