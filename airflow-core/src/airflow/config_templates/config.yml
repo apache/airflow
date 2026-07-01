@@ -2945,6 +2945,17 @@ triggerer:
       type: integer
       example: ~
       default: "50"
+    unreferenced_triggers_cleanup_batch_size:
+      description: |
+        Maximum number of unreferenced ``trigger`` rows the triggerer removes per transaction
+        when running trigger cleanup. Batching avoids holding row locks on the ``trigger`` table
+        for the duration of a single large delete, which would otherwise stall the triggerer loop
+        while many rows are removed. Set to ``0`` to disable batching and delete all matching
+        rows in a single transaction.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "500"
     on_kill_timeout:
       description: |
         Maximum number of seconds the triggerer will wait for ``BaseTrigger.on_kill()`` to complete
