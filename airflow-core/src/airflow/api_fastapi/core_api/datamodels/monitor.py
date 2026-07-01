@@ -29,18 +29,24 @@ class SchedulerInfoResponse(BaseInfoResponse):
     """Scheduler info serializer for responses."""
 
     latest_scheduler_heartbeat: str | None
+    detailed_status: str | None
+    instances: list[SchedulerInstanceInfoResponse] | None = None
 
 
 class TriggererInfoResponse(BaseInfoResponse):
     """Triggerer info serializer for responses."""
 
     latest_triggerer_heartbeat: str | None
+    detailed_status: str | None
+    instances: list[TriggererInstanceInfoResponse] | None = None
 
 
 class DagProcessorInfoResponse(BaseInfoResponse):
     """DagProcessor info serializer for responses."""
 
     latest_dag_processor_heartbeat: str | None
+    detailed_status: str | None
+    instances: list[DagProcessorInstanceInfoResponse] | None = None
 
 class SchedulerInstanceInfoResponse(BaseInfoResponse):
     """Scheduler instance info serializer for responses."""
@@ -56,27 +62,11 @@ class TriggererInstanceInfoResponse(BaseInfoResponse):
     latest_triggerer_heartbeat: str | None
     team_name: str | None
 
-
 class DagProcessorInstanceInfoResponse(BaseInfoResponse):
     """Dag processor instance info serializer for responses."""
 
     hostname: str | None
     latest_dag_processor_heartbeat: str | None
-
-class SchedulersInfoResponse(BaseModel):
-    """Schedulers info serializer for responses."""
-    status: str | None
-    instances: list[SchedulerInstanceInfoResponse] | None = None
-
-class TriggerersInfoResponse(BaseModel):
-    """Triggerers info serializer for responses."""
-    status: str | None
-    instances: list[TriggererInstanceInfoResponse] | None = None
-
-class DagProcessorsInfoResponse(BaseModel):
-    """Dag processors info serializer for responses."""
-    status: str | None
-    instances: list[DagProcessorInstanceInfoResponse] | None = None
 
 class HealthInfoResponse(BaseModel):
     """Health serializer for responses."""
@@ -85,6 +75,3 @@ class HealthInfoResponse(BaseModel):
     scheduler: SchedulerInfoResponse
     triggerer: TriggererInfoResponse
     dag_processor: DagProcessorInfoResponse | None = None
-    schedulers: SchedulersInfoResponse | None = None
-    triggerers: TriggerersInfoResponse | None = None
-    dag_processors: DagProcessorsInfoResponse | None = None
