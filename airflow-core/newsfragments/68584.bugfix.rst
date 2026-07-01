@@ -1,0 +1,1 @@
+Fix triggerer ``CrashLoopBackOff`` when ``[logging] json_logs`` is enabled. The triggerer reconfigured structlog without honoring ``json_logs`` when setting up subprocess log forwarding, so the JSON (bytes) renderer was paired with a text logger and raised ``TypeError: can't concat str to bytes`` the first time a trigger subprocess wrote to stdout/stderr.
