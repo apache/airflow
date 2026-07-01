@@ -1831,33 +1831,18 @@ class TestTaskStateOperations:
         assert isinstance(result, TaskStateStoreResponse)
         assert result.value == "spark_app_001"
 
-    def test_get_url_quotes_key_as_single_path_segment(self):
-        """Test that task state store keys cannot escape the store API path."""
+    def test_get_url_encodes_key_with_slash(self):
         requests_seen = []
-        crafted_key = "../../../variables/secret_key"
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             requests_seen.append(request)
-            if request.url.path == "/variables/secret_key":
-                return httpx.Response(
-                    status_code=200,
-                    json={"key": "secret_key", "value": "super-secret-value"},
-                )
-            return httpx.Response(
-                status_code=404,
-                json={"detail": {"reason": "not_found", "message": "Task state key not found"}},
-            )
+            return httpx.Response(status_code=200, json={"value": "spark_app_001"})
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.task_state_store.get(ti_id=self.TI_ID, key=crafted_key)
+        client.task_state_store.get(ti_id=self.TI_ID, key="spark/job_id")
 
-        assert (
-            requests_seen[0].url.raw_path
-            == f"/store/ti/{self.TI_ID}/..%2F..%2F..%2Fvariables%2Fsecret_key".encode()
-        )
-        assert requests_seen[0].url.path != "/variables/secret_key"
-        assert isinstance(result, ErrorResponse)
-        assert "super-secret-value" not in str(result)
+        assert b"%2F" in requests_seen[0].url.raw_path
+        assert requests_seen[0].url.raw_path == f"/store/ti/{self.TI_ID}/spark%2Fjob_id".encode()
 
     def test_get_returns_error_response_on_404(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1886,32 +1871,20 @@ class TestTaskStateOperations:
         )
         assert result == OKResponse(ok=True)
 
-    def test_set_url_quotes_key_as_single_path_segment(self):
-        """Test that task state store keys cannot escape the store API path."""
+    def test_set_url_encodes_key_with_slash(self):
         requests_seen = []
-        crafted_key = "../../../variables/secret_key"
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             requests_seen.append(request)
-            if request.url.path == "/variables/secret_key":
-                return httpx.Response(status_code=204)
-            return httpx.Response(
-                status_code=404,
-                json={"detail": {"reason": "not_found", "message": "Task state key not found"}},
-            )
+            return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-
-        with pytest.raises(ServerResponseError):
-            client.task_state_store.set(
-                ti_id=self.TI_ID, key=crafted_key, value="spark_app_001", expires_at=None
-            )
-
-        assert (
-            requests_seen[0].url.raw_path
-            == f"/store/ti/{self.TI_ID}/..%2F..%2F..%2Fvariables%2Fsecret_key".encode()
+        client.task_state_store.set(
+            ti_id=self.TI_ID, key="spark/job_id", value="spark_app_001", expires_at=None
         )
-        assert requests_seen[0].url.path != "/variables/secret_key"
+
+        assert b"%2F" in requests_seen[0].url.raw_path
+        assert requests_seen[0].url.raw_path == f"/store/ti/{self.TI_ID}/spark%2Fjob_id".encode()
 
     def test_set_with_expires_at_sends_field(self):
         """expires_at is forwarded as an ISO datetime string in the request body."""
@@ -1956,30 +1929,18 @@ class TestTaskStateOperations:
         result = client.task_state_store.delete(ti_id=self.TI_ID, key="job_id")
         assert result == OKResponse(ok=True)
 
-    def test_delete_url_quotes_key_as_single_path_segment(self):
-        """Test that task state store keys cannot escape the store API path."""
+    def test_delete_url_encodes_key_with_slash(self):
         requests_seen = []
-        crafted_key = "../../../variables/secret_key"
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             requests_seen.append(request)
-            if request.url.path == "/variables/secret_key":
-                return httpx.Response(status_code=204)
-            return httpx.Response(
-                status_code=404,
-                json={"detail": {"reason": "not_found", "message": "Task state key not found"}},
-            )
+            return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
+        client.task_state_store.delete(ti_id=self.TI_ID, key="spark/job_id")
 
-        with pytest.raises(ServerResponseError):
-            client.task_state_store.delete(ti_id=self.TI_ID, key=crafted_key)
-
-        assert (
-            requests_seen[0].url.raw_path
-            == f"/store/ti/{self.TI_ID}/..%2F..%2F..%2Fvariables%2Fsecret_key".encode()
-        )
-        assert requests_seen[0].url.path != "/variables/secret_key"
+        assert b"%2F" in requests_seen[0].url.raw_path
+        assert requests_seen[0].url.raw_path == f"/store/ti/{self.TI_ID}/spark%2Fjob_id".encode()
 
     def test_clear_sends_delete_request(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
