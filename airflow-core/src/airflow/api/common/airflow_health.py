@@ -133,26 +133,17 @@ def get_airflow_health() -> dict[str, Any]:
         "scheduler": {
             "status": scheduler_status,
             "latest_scheduler_heartbeat": latest_scheduler_heartbeat,
+            "detailed_status": scheduler_status,
         },
         "triggerer": {
             "status": triggerer_status,
             "latest_triggerer_heartbeat": latest_triggerer_heartbeat,
+            "detailed_status": triggerer_status,
         },
         "dag_processor": {
             "status": dag_processor_status,
             "latest_dag_processor_heartbeat": latest_dag_processor_heartbeat,
-        },
-        "schedulers": {
-            "status": schedulers_status,    
-            "instances": scheduler_instances,
-        },
-        "triggerers": {
-            "status": triggerers_status,
-            "instances": triggerer_instances,
-        },
-        "dag_processors": {
-            "status": dag_processors_status,
-            "instances": dag_processor_instances,
+            "detailed_status": dag_processor_status,
         },
     }
 
