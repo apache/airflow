@@ -653,6 +653,20 @@ spark_job_template.json
 An alternative method, apart from using YAML or JSON files, is to directly pass the ``template_spec`` field instead of application_file
 if you prefer not to employ a file for configuration.
 
+How does XCom work?
+^^^^^^^^^^^^^^^^^^^
+
+When ``do_xcom_push=True``, :class:`~airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator`
+injects an XCom ``emptyDir`` volume, a driver ``volumeMount`` at ``/airflow/xcom``, and an
+``airflow-xcom-sidecar`` sidecar into the SparkApplication spec before submission.
+
+.. important::
+
+  Do **not** define the XCom volume (for example ``spec.volumes`` with name ``xcom``),
+  a driver ``volumeMounts`` entry for ``/airflow/xcom``, or an ``airflow-xcom-sidecar``
+  entry under ``driver.sidecars`` in your SparkApplication YAML or ``template_spec``.
+  The operator adds these resources when ``do_xcom_push=True``. Defining them yourself
+  duplicates the mount path and Kubernetes rejects the driver pod.
 
 Reference
 ^^^^^^^^^
