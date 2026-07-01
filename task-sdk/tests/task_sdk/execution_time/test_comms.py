@@ -208,6 +208,7 @@ class TestCommsDecoder:
         for idx in range(num_threads):
             assert errors[idx] is None, f"Thread {idx} error: {errors[idx]}"
             assert results[idx].key == f"key{idx}", f"Out-of-order or missing response for thread {idx}"
+            assert results[idx].value == f"value{idx}", f"Incorrect value for thread {idx}"
 
     @pytest.mark.asyncio
     async def test_send_from_event_loop_raises_deadlock_imminent_error_when_asend_in_flight(
