@@ -1304,6 +1304,22 @@ class TestSchedulerJob:
             for executor, timer_call in zip(self.job_runner.executors, heartbeat_calls):
                 assert timer_call.kwargs.get("tags") == {"executor": type(executor).__name__}
 
+    def test_process_executor_events_emits_timer(self, mock_executors, configure_testing_dag_bundle):
+        with configure_testing_dag_bundle(os.devnull):
+            scheduler_job = Job()
+            self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1)
+            with patch("airflow.jobs.scheduler_job_runner.stats.timer") as mock_timer:
+                self.job_runner._execute()
+
+            event_calls = [
+                timer_call
+                for timer_call in mock_timer.call_args_list
+                if timer_call.args and timer_call.args[0] == "scheduler.executor_events_duration"
+            ]
+            assert len(event_calls) == len(self.job_runner.executors)
+            for executor, timer_call in zip(self.job_runner.executors, event_calls):
+                assert timer_call.kwargs.get("tags") == {"executor": type(executor).__name__}
+
     def test_executor_events_processed(self, mock_executors, configure_testing_dag_bundle):
         with configure_testing_dag_bundle(os.devnull):
             scheduler_job = Job()
