@@ -40,17 +40,52 @@
     "parseDuration": "Duración del parseo:",
     "parsedAt": "Parseado en:"
   },
+  "deadlineAlerts": {
+    "completionRule": "Debe completarse dentro de {{interval}} de {{reference}}",
+    "count_many": "{{count}} plazos",
+    "count_one": "{{count}} plazos",
+    "count_other": "{{count}} plazos",
+    "referenceType": {
+      "AverageRuntimeDeadline": "duración promedio de ejecución",
+      "DagRunLogicalDateDeadline": "fecha lógica",
+      "DagRunQueuedAtDeadline": "hora de cola"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "Real",
+    "expected": "Esperado",
+    "finishedEarly": "Finalizado {{duration}} antes del plazo",
+    "finishedLate": "Finalizado {{duration}} después del plazo",
+    "label": "Plazo",
+    "met": "Cumplido",
+    "missed": "Incumplido",
+    "missedCount_many": "{{count}} Plazos Incumplidos",
+    "missedCount_one": "{{count}} Plazos Incumplidos",
+    "missedCount_other": "{{count}} Plazos Incumplidos",
+    "mixedCount": "{{missedCount}} Incumplidos, {{upcomingCount}} Próximos",
+    "stillRunning": "Aún en ejecución",
+    "upcoming": "Próximos",
+    "upcomingCount_many": "{{count}} Plazos Próximos",
+    "upcomingCount_one": "{{count}} Plazos Próximos",
+    "upcomingCount_other": "{{count}} Plazos Próximos"
+  },
   "extraLinks": "Enlaces Extra",
   "grid": {
     "buttons": {
+      "newerRuns": "Ejecuciones más recientes",
+      "olderRuns": "Ejecuciones más antiguas",
       "resetToLatest": "Reiniciar a la última",
       "toggleGroup": "Alternar grupo"
-    }
+    },
+    "runTypeLegend": "Leyenda de Tipo de Ejecución"
   },
   "header": {
     "buttons": {
       "advanced": "Avanzado",
       "dagDocs": "Documentacion del Dag"
+    },
+    "status": {
+      "deactivated": "Desactivado"
     }
   },
   "logs": {
@@ -59,19 +94,27 @@
     "critical": "CRÍTICO",
     "debug": "DEPURACIÓN",
     "error": "ERROR",
-    "fullscreen": {
-      "button": "Pantalla completa",
-      "tooltip": "Presiona {{hotkey}} para pantalla completa"
-    },
     "info": "INFO",
     "noTryNumber": "No hay número de intento",
+    "search": {
+      "matchCount": "{{current}} de {{total}}",
+      "noMatches": "Sin coincidencias",
+      "placeholder": "Buscar en logs..."
+    },
     "settings": "Configuración de logs",
     "viewInExternal": "Ver logs en {{name}} (intento {{attempt}})",
     "warning": "ADVERTENCIA"
   },
   "navigation": {
     "navigation": "Navegación: Shift+{{arrow}}",
+    "openGraphFilters": "Filtros de Tareas: Ctrl+Shift+F",
     "toggleGroup": "Alternar grupo: Espacio"
+  },
+  "notFound": {
+    "back": "Volver",
+    "backToDags": "Volver a Dags",
+    "message": "El Dag \"{{dagId}}\" no existe.",
+    "title": "Dag No Encontrado"
   },
   "overview": {
     "buttons": {
@@ -89,6 +132,10 @@
       "assetEvent_many": "Eventos de Asset Creados",
       "assetEvent_one": "Evento de Asset Creado",
       "assetEvent_other": "Eventos de Asset Creados"
+    },
+    "deadlines": {
+      "showAll": "Mostrar Todo",
+      "title": "Plazos"
     },
     "failedLogs": {
       "hideLogs": "Ocultar Logs",
@@ -118,6 +165,45 @@
     },
     "graphDirection": {
       "label": "Dirección del Gráfico"
+    },
+    "graphFilters": {
+      "clearFilters": "Limpiar Filtros",
+      "durationGte": "Duración mín. (s)",
+      "durationGteHint": "Para tareas mapeadas, mide la duración total en todas las instancias",
+      "mapIndex": "Map Index mín.",
+      "mapIndexHint": "Muestra tareas mapeadas expandidas al menos hasta este índice",
+      "selectStatus": "Seleccionar estado",
+      "selectTaskGroup": "Seleccionar grupo de tareas",
+      "title": "Filtros de Tareas"
+    },
+    "showVersionIndicator": {
+      "label": "Mostrar Indicador de Versión",
+      "options": {
+        "hideAll": "Ocultar Todo",
+        "showAll": "Mostrar Todo",
+        "showBundleVersion": "Mostrar Versión del Bundle",
+        "showDagVersion": "Mostrar Versión del Dag"
+      }
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Filtro activo",
+      "clearFilter": "Limpiar Filtro",
+      "clickTask": "Haz clic en una tarea para seleccionarla como raíz del filtro",
+      "depth": "Profundidad",
+      "direction": "Dirección",
+      "label": "Filtro",
+      "mode": "Modo",
+      "modes": {
+        "static": "Estático",
+        "traverse": "Recorrer"
+      },
+      "modeTooltip": "El modo Estático mantiene la vista actual al navegar a diferentes tareas, mientras que el modo Recorrer actualiza automáticamente el filtro activo a la tarea en la que se hace clic para facilitar el recorrido del Dag.",
+      "options": {
+        "both": "Upstream y Downstream",
+        "downstream": "Downstream",
+        "upstream": "Upstream"
+      },
+      "selectedTask": "Tarea seleccionada"
     }
   },
   "paramsFailed": "Error al cargar los parámetros",
@@ -148,12 +234,34 @@
     "renderedTemplates": "Plantillas Renderizadas",
     "requiredActions": "Acciones Requeridas",
     "runs": "Ejecuciones",
+    "storage": "Almacenamiento",
     "taskInstances": "Instancias de Tarea",
+    "taskStateStore": "Almacenamiento de Estado de Tarea",
     "tasks": "Tareas",
     "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "Colapsar todos los grupos de tareas",
     "expandAll": "Expandir todos los grupos de tareas"
+  },
+  "taskStateStore": {
+    "add": "Agregar Almacenamiento de Estado de Tarea",
+    "clearAll": {
+      "resource": "todo el almacenamiento de estado de tarea",
+      "title": "Limpiar Todo el Almacenamiento de Estado de Tarea",
+      "warning": "Se borrará todo el almacenamiento de estado de tarea. Las tareas que usan este almacenamiento para hacer seguimiento de trabajo externo no podrán reanudarlo sin volver a ejecutarse desde cero."
+    },
+    "delete": "Eliminar Almacenamiento de Estado de Tarea",
+    "deleteWarning": "La tarea perderá esta memoria persistente. Si la tarea usa esta clave para hacer seguimiento de trabajo externo (p. ej., un ID de trabajo externo), no podrá reanudarlo.",
+    "edit": "Editar Almacenamiento de Estado de Tarea",
+    "emptyStore": "El almacenamiento de estado de tarea almacena valores que persisten entre reintentos. Los workers pueden escribir en el almacenamiento de estado de tarea mediante el Task SDK.",
+    "expiresAt": {
+      "column": "Expira en",
+      "custom": "Personalizado",
+      "default": "Predeterminado ({{interval}})",
+      "label": "Expiración",
+      "never": "Nunca"
+    },
+    "title": "Almacenamiento de Estado de Tarea"
   }
 }
