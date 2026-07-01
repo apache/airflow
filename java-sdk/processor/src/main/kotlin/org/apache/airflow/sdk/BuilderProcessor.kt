@@ -224,9 +224,7 @@ private fun xcomAccess(xcom: RequiredXCom): CodeBlock {
   // cast throws ClassCastException; widen via Number instead.
   return when {
     accessor == null -> CodeBlock.of($$"($T) $L", if (type.isPrimitive) type.box() else type, call)
-    // A primitive target cannot hold null; an absent XCom fails fast on unboxing, as before.
     type.isPrimitive -> CodeBlock.of($$"(($T) $L).$L()", number, call, accessor)
-    // A boxed numeric target keeps null on an absent XCom instead of NPE-ing in the accessor.
     else ->
       CodeBlock.of(
         $$"$T.ofNullable(($T) $L).map($T::$L).orElse(null)",

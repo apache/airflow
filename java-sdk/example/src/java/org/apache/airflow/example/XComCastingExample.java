@@ -23,11 +23,6 @@ import static java.lang.System.Logger.Level.INFO;
 
 import org.apache.airflow.sdk.*;
 
-// Exercises numeric XCom handling end to end: a value flows int -> long -> double
-// across tasks (wire integers arrive as Long, so each hop widens via Number), a wire
-// double is read back as a float (wire floats arrive as Double), and a boxed parameter
-// stays null when the upstream XCom is absent. Each hop reads through Number so the
-// declared type can differ from the wire type.
 @Builder.Dag(id = "java_xcom_casting_example")
 public class XComCastingExample {
   private static final System.Logger log = System.getLogger(XComCastingExample.class.getName());
@@ -38,6 +33,7 @@ public class XComCastingExample {
     return 7;
   }
 
+  // Any primitive numeric type (byte, short, int, long, float, double) and its boxed form works the same way.
   @Builder.Task(id = "widen_to_long")
   public long widenToLong(@Builder.XCom(task = "produce_number") long value) {
     log.log(INFO, "Got long {0}", value);
