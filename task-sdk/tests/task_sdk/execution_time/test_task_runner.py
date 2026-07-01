@@ -5728,7 +5728,7 @@ class TestRunExecuteCallable:
         task = self._make_task(execution_timeout=timedelta(milliseconds=10))
 
         def execute(context):
-            time.sleep(2)
+            time.sleep(0.2)
 
         with pytest.raises(AirflowTaskTimeout):
             _run_execute_callable(context={}, execute=execute, task=task)
