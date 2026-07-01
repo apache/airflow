@@ -87,6 +87,7 @@ from airflowctl.api.datamodels.generated import (
     PluginResponse,
     PoolBody,
     PoolCollectionResponse,
+    PoolPatchBody,
     PoolResponse,
     ProviderCollectionResponse,
     ProviderResponse,
@@ -1417,6 +1418,20 @@ class TestPoolsOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.pools.bulk(pools=self.pools_bulk_body)
         assert response == self.pool_bulk_response
+
+    def test_update_omits_unset_include_deferred(self):
+        """Unset bool fields must be omitted, not sent as null, so the server keeps existing values."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/pools/{self.pool_name}"
+            request_body = json.loads(request.content.decode())
+            assert "include_deferred" not in request_body
+            assert request_body == {"pool": self.pool_name, "slots": 10}
+            return httpx.Response(200, json=json.loads(self.pool_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.pools.update(pool_body=PoolPatchBody(pool=self.pool_name, slots=10))
+        assert response == self.pool_response
 
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:

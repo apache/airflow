@@ -714,7 +714,7 @@ class PoolsOperations(BaseOperations):
         """Update a pool."""
         try:
             self.response = self.client.patch(
-                f"pools/{pool_body.pool}", json=pool_body.model_dump(mode="json")
+                f"pools/{pool_body.pool}", json=pool_body.model_dump(mode="json", exclude_none=True)
             )
             return PoolResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
