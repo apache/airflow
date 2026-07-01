@@ -33,6 +33,7 @@ Changelog
 Features
 ~~~~~~~~
 
+* ``Add Azure AI Foundry Hosted agents operators``
 * ``Add GCSToAzureBlobStorageOperator for GCS to Azure Blob transfer (#64966)``
 
 Bug Fixes

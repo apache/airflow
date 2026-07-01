@@ -1,0 +1,115 @@
+ .. Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+ ..   http://www.apache.org/licenses/LICENSE-2.0
+
+ .. Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+
+Azure AI Foundry Hosted Agents Operators
+========================================
+
+Azure AI Foundry Hosted agents let you run a containerized agent in Microsoft Foundry Agent Service.
+Build and push your agent image to Azure Container Registry first, then use these operators to create
+agent versions, invoke the hosted endpoint, and clean up the deployment.
+
+Prerequisite Tasks
+^^^^^^^^^^^^^^^^^^
+
+.. include:: /operators/_partials/prerequisite_tasks.rst
+
+The operators use the ``azure_ai_agents_default`` connection by default. Configure the Azure AI Foundry
+project endpoint in the connection host field or in the ``endpoint`` connection extra. The endpoint
+format is:
+
+.. code-block:: text
+
+    https://<aiservices-id>.services.ai.azure.com/api/projects/<project-name>
+
+The container image must be available in Azure Container Registry and must implement one of the
+Hosted agent protocols exposed by Microsoft Foundry, such as ``responses`` or ``invocations``.
+
+.. _howto/operator:CreateAzureAIAgentOperator:
+
+CreateAzureAIAgentOperator
+--------------------------
+
+To create an Azure AI Hosted agent from a container image, use the
+:class:`~airflow.providers.microsoft.azure.operators.ai_agents.CreateAzureAIAgentOperator`.
+The operator returns the created Hosted agent version as a serializable dictionary.
+Optional agent fields such as ``metadata``, ``description``, ``blueprint_reference``,
+``agent_endpoint``, and ``agent_card`` can be passed through to the Foundry API.
+
+.. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_azure_ai_agent_create]
+    :end-before: [END howto_operator_azure_ai_agent_create]
+
+.. _howto/operator:UpdateAzureAIAgentOperator:
+
+UpdateAzureAIAgentOperator
+--------------------------
+
+Azure AI Hosted agent updates are published as new immutable versions. To create a new version, use the
+:class:`~airflow.providers.microsoft.azure.operators.ai_agents.UpdateAzureAIAgentOperator`.
+The operator accepts the same ``metadata``, ``description``, and ``blueprint_reference`` fields
+documented by the update endpoint.
+
+.. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_azure_ai_agent_update]
+    :end-before: [END howto_operator_azure_ai_agent_update]
+
+.. _howto/operator:RunAzureAIAgentOperator:
+
+RunAzureAIAgentOperator
+-----------------------
+
+To invoke an Azure AI Hosted agent through the ``invocations`` protocol, use the
+:class:`~airflow.providers.microsoft.azure.operators.ai_agents.RunAzureAIAgentOperator`.
+The operator sends the agent reference for the selected ``agent_name`` in the invocation payload.
+Pass ``agent_session_id`` to reuse an existing Hosted agent session and
+``user_isolation_key`` to scope endpoint resources to a specific end user.
+
+.. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_azure_ai_agent_run]
+    :end-before: [END howto_operator_azure_ai_agent_run]
+
+For the ``responses`` protocol, pass ``agent_version`` to target a specific Hosted agent version.
+
+.. _howto/operator:DeleteAzureAIAgentOperator:
+
+DeleteAzureAIAgentOperator
+--------------------------
+
+To delete an Azure AI Hosted agent and all of its versions, use the
+:class:`~airflow.providers.microsoft.azure.operators.ai_agents.DeleteAzureAIAgentOperator`.
+Pass ``agent_version`` to delete only one version.
+
+.. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_agents.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_azure_ai_agent_delete]
+    :end-before: [END howto_operator_azure_ai_agent_delete]
+
+Reference
+---------
+
+For further information, look at:
+
+* `Deploy an Azure AI Hosted agent <https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/deploy-hosted-agent>`__
+* `Azure AI Foundry Agents documentation <https://learn.microsoft.com/en-us/azure/foundry/agents/>`__

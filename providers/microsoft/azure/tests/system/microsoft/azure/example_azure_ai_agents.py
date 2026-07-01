@@ -1,0 +1,208 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import json
+import os
+from datetime import datetime
+from typing import Any
+
+from sqlalchemy import select
+
+from airflow import settings
+from airflow.models import Connection
+from airflow.providers.microsoft.azure.operators.ai_agents import (
+    CreateAzureAIAgentOperator,
+    DeleteAzureAIAgentOperator,
+    RunAzureAIAgentOperator,
+    UpdateAzureAIAgentOperator,
+)
+
+try:
+    from airflow.sdk import task
+except ImportError:
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, chain
+else:
+    from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+
+DAG_ID = "example_azure_ai_agents"
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+
+
+def _get_env(name: str, default: str = "") -> str:
+    return os.environ.get(name) or os.environ.get(f"AIRFLOW_VAR_{name}", default)
+
+
+AZURE_AI_AGENTS_CONN_ID = _get_env("AZURE_AI_AGENTS_CONN_ID", "azure_ai_agents_default")
+AZURE_AI_AGENTS_CONN_URI = _get_env("AIRFLOW_CONN_AZURE_AI_AGENTS_DEFAULT")
+ENDPOINT = _get_env("AZURE_AI_AGENTS_ENDPOINT")
+MODEL_DEPLOYMENT_NAME = _get_env("AZURE_AI_AGENTS_MODEL_DEPLOYMENT_NAME", "gpt-4o")
+CONTAINER_IMAGE = _get_env(
+    "AZURE_AI_AGENTS_CONTAINER_IMAGE", "myregistry.azurecr.io/airflow-hosted-agent:latest"
+)
+AGENT_NAME = _get_env("AZURE_AI_AGENT_NAME", f"airflow-ai-agent-{ENV_ID}")
+
+HOSTED_AGENT_DEFINITION: dict[str, Any] = {
+    "kind": "hosted",
+    "container_configuration": {
+        "image": CONTAINER_IMAGE,
+    },
+    "cpu": "1",
+    "memory": "2Gi",
+    "protocol_versions": [
+        {"protocol": "invocations", "version": "1.0.0"},
+    ],
+    "environment_variables": {
+        "AZURE_AI_MODEL_DEPLOYMENT_NAME": MODEL_DEPLOYMENT_NAME,
+        "AIRFLOW_AGENT_FOUNDRY_PROJECT_ENDPOINT": ENDPOINT,
+        "AIRFLOW_AGENT_USE_MODEL": _get_env("AZURE_AI_AGENTS_USE_MODEL", "true"),
+        "AIRFLOW_AGENT_USE_MOCKS": _get_env("AGENT_USE_MOCKS", "true"),
+        "GITHUB_REPO": _get_env("GITHUB_REPO"),
+        "GITHUB_REF": _get_env("GITHUB_REF", "main"),
+        "GITHUB_DAG_PATH": _get_env("GITHUB_DAG_PATH", "airflow/dags"),
+        "GITHUB_TOKEN": _get_env("GITHUB_TOKEN"),
+        "SLACK_WEBHOOK_URL": _get_env("SLACK_WEBHOOK_URL"),
+    },
+}
+
+UPDATED_AGENT_DEFINITION: dict[str, Any] = {
+    **HOSTED_AGENT_DEFINITION,
+    "environment_variables": {
+        **HOSTED_AGENT_DEFINITION["environment_variables"],
+        "AIRFLOW_AGENT_BEHAVIOR": "troubleshoot-airflow-task-failures",
+    },
+}
+
+SMOKE_FAILURE_CONTEXT = json.dumps(
+    {
+        "dag_id": "azure_ai_agents_demo_failing_etl",
+        "run_id": "manual__azure_ai_agents_smoke",
+        "dag_file": "azure_ai_agents/demo_failing_etl.py",
+        "failed_task": {
+            "task_id": "transform",
+            "state": "failed",
+            "try_number": 1,
+        },
+        "log_excerpt": "KeyError: 'rowz'",
+    }
+)
+
+RUN_AGENT_INPUT = {
+    "message": (
+        "Analyze this Airflow failure context and return JSON with summary, "
+        "root_cause, and suggested_fix. Do not claim PR or Slack actions unless "
+        "the hosted agent tools actually performed them.\n\n"
+        f"{SMOKE_FAILURE_CONTEXT}"
+    ),
+}
+
+
+@task
+def create_connection(conn_id_name: str, conn_uri: str) -> None:
+    if not conn_uri:
+        raise RuntimeError("AIRFLOW_CONN_AZURE_AI_AGENTS_DEFAULT is required for this system test.")
+    if settings.Session is None:
+        raise RuntimeError("Session not configured. Call configure_orm() first.")
+    session = settings.Session()
+    conn = session.scalar(select(Connection).where(Connection.conn_id == conn_id_name))
+    if conn is None:
+        conn = Connection(conn_id=conn_id_name, uri=conn_uri)
+        session.add(conn)
+    else:
+        conn.uri = conn_uri
+    session.commit()
+
+
+with DAG(
+    dag_id=DAG_ID,
+    schedule="@once",
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+) as dag:
+    set_up_connection = create_connection(AZURE_AI_AGENTS_CONN_ID, AZURE_AI_AGENTS_CONN_URI)
+
+    # [START howto_operator_azure_ai_agent_create]
+    create_agent = CreateAzureAIAgentOperator(
+        task_id="create_agent",
+        agent_name=AGENT_NAME,
+        definition=HOSTED_AGENT_DEFINITION,
+        poll_interval=10,
+        timeout=900,
+        deferrable=True,
+        azure_ai_agents_conn_id=AZURE_AI_AGENTS_CONN_ID,
+        endpoint=ENDPOINT,
+    )
+    # [END howto_operator_azure_ai_agent_create]
+
+    # [START howto_operator_azure_ai_agent_update]
+    update_agent = UpdateAzureAIAgentOperator(
+        task_id="update_agent",
+        agent_name=AGENT_NAME,
+        definition=UPDATED_AGENT_DEFINITION,
+        poll_interval=10,
+        timeout=900,
+        deferrable=True,
+        azure_ai_agents_conn_id=AZURE_AI_AGENTS_CONN_ID,
+        endpoint=ENDPOINT,
+    )
+    # [END howto_operator_azure_ai_agent_update]
+
+    # [START howto_operator_azure_ai_agent_run]
+    run_agent = RunAzureAIAgentOperator(
+        task_id="run_agent",
+        agent_name=AGENT_NAME,
+        protocol="invocations",
+        input_data=RUN_AGENT_INPUT,
+        azure_ai_agents_conn_id=AZURE_AI_AGENTS_CONN_ID,
+        endpoint=ENDPOINT,
+    )
+    # [END howto_operator_azure_ai_agent_run]
+
+    # [START howto_operator_azure_ai_agent_delete]
+    delete_agent = DeleteAzureAIAgentOperator(
+        task_id="delete_agent",
+        agent_name=AGENT_NAME,
+        force=True,
+        poll_interval=10,
+        timeout=900,
+        trigger_rule=TriggerRule.ALL_DONE,
+        azure_ai_agents_conn_id=AZURE_AI_AGENTS_CONN_ID,
+        endpoint=ENDPOINT,
+    )
+    # [END howto_operator_azure_ai_agent_delete]
+
+    chain(set_up_connection, create_agent, update_agent, run_agent, delete_agent)
+
+    from tests_common.test_utils.watcher import watcher
+
+    list(dag.tasks) >> watcher()
+
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+
+test_run = get_test_run(dag)
