@@ -413,6 +413,32 @@ class TestVariableAccessor:
         mock_mask_secret.assert_any_call(raw_json, "my_secret")
         mock_mask_secret.assert_any_call({"endpoint": "https://api.example.com", "token": "abc123"})
 
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_string_value_skips_second_mask(self, mock_mask_secret, mock_supervisor_comms):
+        """var.json with a JSON string value calls mask_secret once; the dict-walk call is skipped."""
+        accessor = VariableAccessor(deserialize_json=True)
+        mock_supervisor_comms.send.return_value = VariableResult(key="my_token", value='"s3cr3t"')
+
+        val = accessor.my_token
+
+        assert val == "s3cr3t"
+        mock_mask_secret.assert_called_once_with('"s3cr3t"', "my_token")
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_invalid_json_raises(self, mock_mask_secret):
+        """Invalid JSON raises JSONDecodeError; the raw value is still masked before the error."""
+        import json
+
+        from airflow.sdk.execution_time.cache import SecretCache
+
+        raw = "not-valid-json"
+        with mock.patch.object(SecretCache, "get_variable", return_value=raw):
+            accessor = VariableAccessor(deserialize_json=True)
+            with pytest.raises(json.JSONDecodeError):
+                accessor.bad_var
+
+        mock_mask_secret.assert_called_once_with(raw, "bad_var")
+
 
 class TestCurrentContext:
     def test_current_context_roundtrip(self):
