@@ -138,20 +138,25 @@ class DeadlockImminentError(BaseException):
     def __init__(self, msg: object, *, deadlock_imminent: bool) -> None:
         import traceback
 
+        self.msg_type = type(msg).__name__
+        self.deadlock_imminent = deadlock_imminent
+        self.stack = "".join(traceback.format_stack())
+        super().__init__()
+
+    def __str__(self) -> str:
         detail = (
             "deadlock is imminent (asend() is concurrently in-flight)"
-            if deadlock_imminent
+            if self.deadlock_imminent
             else "deadlock will occur as soon as another coroutine calls asend()"
         )
-        stack = "".join(traceback.format_stack())
-        super().__init__(
-            f"comms.send() called from the event loop thread for message '{type(msg).__name__}' "
+        return (
+            f"comms.send() called from the event loop thread for message '{self.msg_type}' "
             f"— {detail}. "
             "Likely cause: BaseHook.get_hook() or BaseHook.get_connection() was called "
             "from inside an async task. "
             "Use the async equivalents instead: "
             "await BaseHook.aget_hook() or await BaseHook.aget_connection()."
-            f"\nOffending call stack:\n{stack}"
+            f"\nOffending call stack:\n{self.stack}"
         )
 
 
