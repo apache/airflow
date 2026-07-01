@@ -22,9 +22,8 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 import structlog
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import inspect as sa_inspect
-from sqlalchemy.exc import NoInspectionAvailable
+from sqlalchemy.exc import NoInspectionAvailable, SQLAlchemyError
 from sqlalchemy.orm.attributes import set_committed_value
-from sqlalchemy.orm.exc import DetachedInstanceError
 
 from airflow.api_fastapi.execution_api.datamodels import taskinstance as ti_datamodel  # noqa: TC001
 from airflow.utils.state import TaskInstanceState
@@ -116,8 +115,9 @@ class DagRunContext(BaseModel):
         except NoInspectionAvailable:
             return values
 
-        # Relationship access may raise DetachedInstanceError; on that path, reload DagRun
-        # from the DB to avoid crashing the scheduler.
+        # Relationship access may raise DetachedInstanceError or other SQLAlchemy
+        # exceptions (e.g. InvalidRequestError when the session is closed); on that
+        # path, reload the DagRun from the DB to avoid crashing the scheduler.
         try:
             events = dag_run.consumed_asset_events
             set_committed_value(
@@ -125,10 +125,10 @@ class DagRunContext(BaseModel):
                 "consumed_asset_events",
                 list(events) if events is not None else [],
             )
-        except DetachedInstanceError:
+        except SQLAlchemyError:
             log.warning(
-                "DagRunContext encountered DetachedInstanceError while accessing "
-                "consumed_asset_events; reloading DagRun from DB."
+                "DagRunContext failed to access consumed_asset_events; reloading DagRun from DB.",
+                exc_info=True,
             )
             from sqlalchemy import select
             from sqlalchemy.orm import selectinload
@@ -137,26 +137,31 @@ class DagRunContext(BaseModel):
             from airflow.models.dagrun import DagRun
             from airflow.utils.session import create_session
 
-            # Defensive guardrail: reload DagRun with eager-loaded relationships on
-            # DetachedInstanceError to recover state without adding DB I/O to the hot path.
+            # Read the primary key via the instance identity: attribute access on
+            # an expired instance would hit the same broken session and re-raise.
+            identity = sa_inspect(dag_run).identity
+            if identity is None:
+                raise
+
+            # Reload DagRun with eager-loaded relationships to recover state
+            # without adding DB I/O to the hot path.
             with create_session() as session:
                 dag_run_reloaded = session.scalar(
                     select(DagRun)
-                    .where(DagRun.id == dag_run.id)
+                    .where(DagRun.id == identity[0])
                     .options(
                         selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.asset),
                         selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.source_aliases),
                     )
                 )
 
-                # DagRun exists; reload is expected to succeed.
+                if dag_run_reloaded is None:
+                    raise
                 dag_run_reloaded = cast("DagRun", dag_run_reloaded)
-                reloaded_events = dag_run_reloaded.consumed_asset_events
 
-            # Install DB-backed relationship state on the detached instance.
-            set_committed_value(
-                dag_run, "consumed_asset_events", list(reloaded_events) if reloaded_events is not None else []
-            )
+            # Validate the reloaded instance: attribute reads on the original
+            # would hit the broken session again.
+            return {**values, "dag_run": dag_run_reloaded}
 
         return values
 
