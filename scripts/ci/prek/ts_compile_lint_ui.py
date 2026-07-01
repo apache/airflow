@@ -54,18 +54,30 @@ if __name__ == "__main__":
 
     hash_file = AIRFLOW_ROOT_PATH / ".build" / "ui" / "pnpm-install-hash.txt"
     node_modules = dir / "node_modules"
-    current_hash = hashlib.sha256(
-        (dir / "package.json").read_bytes() + (dir / "pnpm-lock.yaml").read_bytes()
-    ).hexdigest()
+    hasher = hashlib.sha256()
+    for hashed_file_name in ("package.json", "pnpm-lock.yaml"):
+        file_bytes = (dir / hashed_file_name).read_bytes()
+        hasher.update(f"{hashed_file_name}:{len(file_bytes)}:".encode())
+        hasher.update(file_bytes)
+    current_hash = hasher.hexdigest()
     stored_hash = hash_file.read_text().strip() if hash_file.exists() else ""
 
-    if node_modules.exists() and current_hash == stored_hash:
+    # A stored hash only proves node_modules matched the lockfile when it was written; guard
+    # against node_modules having been modified afterwards (e.g. a manual `pnpm install`).
+    cache_valid = (
+        node_modules.is_dir()
+        and current_hash == stored_hash
+        and hash_file.stat().st_mtime >= node_modules.stat().st_mtime
+    )
+    if cache_valid:
         print("pnpm deps unchanged — skipping install.")
     else:
         run_command(["pnpm", "config", "set", "store-dir", ".pnpm-store"], cwd=dir)
         run_command(["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"], cwd=dir)
         hash_file.parent.mkdir(parents=True, exist_ok=True)
-        hash_file.write_text(current_hash)
+        tmp_hash_file = hash_file.with_suffix(".tmp")
+        tmp_hash_file.write_text(current_hash)
+        tmp_hash_file.replace(hash_file)
     if any("/openapi/" in file for file in original_files):
         run_command(["pnpm", "codegen"], cwd=dir)
     if all_non_yaml_files:
