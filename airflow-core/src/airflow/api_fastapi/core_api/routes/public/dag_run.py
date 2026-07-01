@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import datetime
 import textwrap
 from typing import Annotated, Literal, cast
 
@@ -509,6 +510,7 @@ def get_dag_runs(
                     "dag_id",
                     "run_id",
                     "logical_date",
+                    "partition_date",
                     "run_after",
                     "start_date",
                     "end_date",
@@ -547,6 +549,20 @@ def get_dag_runs(
     partition_key_pattern: QueryDagRunPartitionKeySearch,
     partition_key_prefix_pattern: QueryDagRunPartitionKeyPrefixSearch,
     consuming_asset_pattern: QueryConsumingAssetPatternSearch,
+    partition_date_start: datetime.date | None = Query(
+        None,
+        description=(
+            "Inclusive lower bound of the partition_date window, interpreted as a local calendar "
+            "day in the Dag's timetable timezone."
+        ),
+    ),
+    partition_date_end: datetime.date | None = Query(
+        None,
+        description=(
+            "Inclusive upper bound of the partition_date window, interpreted as a local calendar "
+            "day in the Dag's timetable timezone."
+        ),
+    ),
     cursor: str | None = Query(
         None,
         description="Cursor for keyset-based pagination. "
@@ -571,9 +587,41 @@ def get_dag_runs(
     use_cursor = cursor is not None
     query = select(DagRun).options(*eager_load_dag_run_for_list())
 
+    partition_date_local_day: RangeFilter | None = None
     if dag_id != "~":
-        get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the Dag exists.
+        dag = get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the Dag exists.
         query = query.filter(DagRun.dag_id == dag_id).options()
+        # This endpoint accepts date-only bounds, so convert the inclusive local calendar
+        # day window to a half-open datetime interval. DagRun.apply_partition_date_window
+        # accepts datetime bounds and intentionally keeps an inclusive upper bound.
+        partition_date_local_day = RangeFilter(
+            Range(
+                lower_bound_gte=(
+                    dag.timetable.localize_partition_datetime(
+                        datetime.datetime.combine(partition_date_start, datetime.time.min)
+                    )
+                    if partition_date_start is not None
+                    else None
+                ),
+                lower_bound_gt=None,
+                upper_bound_lte=None,
+                upper_bound_lt=(
+                    dag.timetable.localize_partition_datetime(
+                        datetime.datetime.combine(
+                            partition_date_end + datetime.timedelta(days=1), datetime.time.min
+                        )
+                    )
+                    if partition_date_end is not None
+                    else None
+                ),
+            ),
+            attribute=DagRun.partition_date,  # type: ignore[arg-type]
+        )
+    elif partition_date_start is not None or partition_date_end is not None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "partition_date_start and partition_date_end require a specific dag_id.",
+        )
 
     # Add join with DagVersion if dag_version filter is active
     if dag_version.value:
@@ -602,6 +650,8 @@ def get_dag_runs(
         partition_key_prefix_pattern,
         consuming_asset_pattern,
     ]
+    if partition_date_local_day is not None:
+        filters.append(partition_date_local_day)
 
     if use_cursor:
         # Fetch one extra row so we can detect whether a next page exists.
