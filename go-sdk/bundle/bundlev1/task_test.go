@@ -105,6 +105,13 @@ func (s *TaskSuite) TestArgumentBinding() {
 				return nil
 			},
 		},
+		"xcom-client": {
+			func(client sdk.XComClient) error {
+				s.NotNil(client)
+
+				return nil
+			},
+		},
 	}
 
 	for name, tt := range cases {

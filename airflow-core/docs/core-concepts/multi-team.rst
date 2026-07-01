@@ -81,8 +81,23 @@ When Multi-Team mode is enabled, the following resources can be scoped to specif
 - **Variables**: Team members can only access variables owned by their team or global variables
 - **Connections**: Team members can only access connections owned by their team or global connections
 - **Pools**: Pools can be assigned to teams
+- **XComs**: Tasks can only access XComs of Dags in their own team (plus, for reads, global Dags)
 
 Resources without a team assignment are considered **global** and accessible to all teams.
+
+Team-scoped XComs
+"""""""""""""""""
+
+When Multi-Team mode is enabled, XCom access through the Task Execution API is scoped to the requesting
+task's team, derived from the task's Dag via the ``Dag -> bundle -> team`` relationship. There is **no
+cross-team XCom sharing**:
+
+- A task may **read** XComs belonging to Dags in its own team, as well as XComs of global (teamless) Dags.
+- A task may **write or delete** XComs only for Dags in its own team. A team task cannot mutate a global
+  Dag's XCom, mirroring how team-scoped Variables and Connections behave.
+
+This boundary is enforced at the Execution API only. As with other resources, it does not constrain
+components that have direct database access (see :doc:`/security/security_model`).
 
 Secrets Backends
 """"""""""""""""
@@ -471,7 +486,7 @@ is uppercase.
     export AIRFLOW__TEAM_B___CELERY__BROKER_URL="redis://team-b-redis:6379/0"
 
     # team_b's Celery result backend
-    export AIRFLOW__TEAM_B___CELERY__RESULT_BACKEND="db+postgresql://team-b-db/celery_results"
+    export AIRFLOW__TEAM_B___CELERY__RESULT_BACKEND="db+postgresql+psycopg2://team-b-db/celery_results"
 
 Via Config File
 """""""""""""""
@@ -484,17 +499,17 @@ name followed by an equals sign:
     # Global celery settings (used by the global executor, NOT as a fallback for teams)
     [celery]
     broker_url = redis://default-redis:6379/0
-    result_backend = db+postgresql://default-db/celery_results
+    result_backend = db+postgresql+psycopg2://default-db/celery_results
 
     # team_a overrides
     [team_a=celery]
     broker_url = redis://team-a-redis:6379/0
-    result_backend = db+postgresql://team-a-db/celery_results
+    result_backend = db+postgresql+psycopg2://team-a-db/celery_results
 
     # team_b overrides
     [team_b=celery]
     broker_url = redis://team-b-redis:6379/0
-    result_backend = db+postgresql://team-b-db/celery_results
+    result_backend = db+postgresql+psycopg2://team-b-db/celery_results
 
 Dag Bundle to Team Association
 ------------------------------

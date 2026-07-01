@@ -565,6 +565,23 @@ All parameters of the command are here:
   :width: 100%
   :alt: Breeze k8s deploy-airflow
 
+Setting up the lang-SDK coordinator system test
+...............................................
+
+``breeze k8s setup-lang-sdk-test`` provisions a cluster for the lang-SDK coordinator
+system test: it builds the Go and Java example bundles, deploys an in-cluster localstack
+S3, uploads the artifacts and the Python stub Dag to their buckets, renders the
+coordinator pod-template image placeholders, and installs the Helm release configured for
+the ``golang`` and ``java`` queues. After it completes, run the test with
+``breeze k8s tests``.
+
+All parameters of the command are here:
+
+.. image:: ./images/output_k8s_setup-lang-sdk-test.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_k8s_setup-lang-sdk-test.svg
+  :width: 100%
+  :alt: Breeze k8s setup-lang-sdk-test
+
 Hot-reloading Dags and core sources
 ...................................
 

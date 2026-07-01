@@ -21,12 +21,15 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
-from tableauserverclient import JWTAuth, Pager, Server, TableauAuth
-
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.utils.helpers import exactly_one
 
+# tableauserverclient is imported lazily inside the methods that use it rather than at module level:
+# importing it is expensive (it self-instruments via beartype's import hook on first import), and that
+# cost would otherwise be paid whenever the ProvidersManager imports this hook module just to discover
+# provider metadata -- which never instantiates the hook.
 if TYPE_CHECKING:
+    from tableauserverclient import Pager
     from tableauserverclient.server import Auth
 
 
@@ -87,6 +90,8 @@ class TableauHook(BaseHook):
         self.conn = self.get_connection(self.tableau_conn_id)
         self.site_id = site_id or self.conn.extra_dejson.get("site_id", "")
         server_address = f"{self.conn.schema}://{self.conn.host}" if self.conn.schema else self.conn.host
+        from tableauserverclient import Server
+
         self.server = Server(server_address)
         verify: Any = self.conn.extra_dejson.get("verify", True)
         if isinstance(verify, str):
@@ -141,6 +146,8 @@ class TableauHook(BaseHook):
         raise NotImplementedError("No Authentication method found for given Credentials!")
 
     def _auth_via_password(self) -> Auth.contextmgr:
+        from tableauserverclient import TableauAuth
+
         tableau_auth = TableauAuth(
             username=cast("str", self.conn.login),
             password=cast("str", self.conn.password),
@@ -149,6 +156,8 @@ class TableauHook(BaseHook):
         return self.server.auth.sign_in(tableau_auth)
 
     def _auth_via_jwt(self) -> Auth.contextmgr:
+        from tableauserverclient import JWTAuth
+
         jwt_auth = JWTAuth(jwt=self.jwt_token, site_id=self.site_id)
         return self.server.auth.sign_in(jwt_auth)
 
@@ -162,6 +171,8 @@ class TableauHook(BaseHook):
             For example: jobs or workbooks.
         :return: all items by returning a Pager.
         """
+        from tableauserverclient import Pager
+
         try:
             resource = getattr(self.server, resource_name)
         except AttributeError:

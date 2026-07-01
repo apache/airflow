@@ -100,6 +100,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES,
     DESTINATION_LOCATIONS,
     MULTI_PLATFORM,
+    SCHEMA_DESTINATION_LOCATIONS,
     UV_VERSION,
     get_airflow_version,
     get_airflowctl_version,
@@ -255,6 +256,16 @@ MY_DIR_PATH = os.path.dirname(__file__)
 SOURCE_DIR_PATH = str(AIRFLOW_ROOT_PATH)
 PR_PATTERN = re.compile(r".*\(#([0-9]+)\)")
 ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)[^0-9]")
+# Release-management commits (provider documentation / release preparation) are pure
+# release-process noise: they are not user-facing changes and existing providers already
+# exclude them (the release tooling parks them in the changelog's excluded section). Match
+# only the release-manager titles, not every commit starting with "Prepare" (real provider
+# PRs such as "Prepare bteq command ..." must not be filtered out).
+RELEASE_MANAGEMENT_COMMIT_PATTERN = re.compile(
+    r"^Prepare\s+(?:provider|providers|provider's|ad-hoc)\b.*\b(?:release|documentation)\b"
+    r"|^Prepare\s+documentation\s+for\s+next\s+release\b",
+    re.IGNORECASE,
+)
 
 
 def remove_code_blocks(text: str) -> str:
@@ -274,11 +285,11 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "26.1.2"
-AIRFLOW_UV_VERSION = "0.11.19"
+AIRFLOW_UV_VERSION = "0.11.24"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.50"
 RICH_VERSION = "15.0.0"
-PREK_VERSION = "0.4.4"
+PREK_VERSION = "0.4.5"
 HATCH_VERSION = "1.17.0"
 PYYAML_VERSION = "6.0.3"
 
@@ -2630,6 +2641,53 @@ def get_prs_for_package(provider_id: str, current_release_version: str | None = 
     return prs
 
 
+def get_prs_from_git_log_for_new_provider(provider_id: str) -> list[int]:
+    """
+    Return PR numbers referenced by every commit that touched a new provider's sources.
+
+    A new provider's changelog only lists changes made *after* its initial release, so for
+    the first release there are no PR references to extract from it. Instead, we collect the
+    related PRs directly from the git history of the provider's directory. The result is
+    ordered from newest to oldest commit. Release-management commits (provider documentation
+    / release preparation) are skipped to match how existing providers behave, but the list
+    may still include other bootstrap and development commits that are not user-facing.
+    """
+    provider_details = get_provider_details(provider_id)
+    git_command = [
+        "git",
+        "log",
+        "--pretty=format:%s",
+        "--",
+        provider_details.root_provider_path.as_posix(),
+    ]
+    result = run_command(
+        git_command,
+        cwd=AIRFLOW_ROOT_PATH,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        console_print(
+            f"[warning]Could not retrieve git history for provider {provider_id}: {result.stderr}[/]"
+        )
+        return []
+    prs: list[int] = []
+    seen: set[int] = set()
+    for line in result.stdout.splitlines():
+        subject = line.strip()
+        if RELEASE_MANAGEMENT_COMMIT_PATTERN.match(subject):
+            # Skip release-preparation / documentation commits (release-process noise).
+            continue
+        match_result = PR_PATTERN.match(subject)
+        if match_result:
+            pr_number = int(match_result.group(1))
+            if pr_number not in seen:
+                seen.add(pr_number)
+                prs.append(pr_number)
+    return prs
+
+
 def _is_initial_provider_release(provider_yaml_dict: dict[str, Any] | None) -> bool:
     """Return True when metadata indicates this is the provider's first release."""
     if not provider_yaml_dict:
@@ -2795,6 +2853,19 @@ def generate_issue_content_providers(
             if not provider_yaml_dict:
                 raise RuntimeError(f"The provider id {provider_id} does not have provider.yaml file")
             prs = get_prs_for_package(provider_id, current_release_version=provider_yaml_dict["versions"][0])
+            if not prs and _is_initial_provider_release(provider_yaml_dict):
+                # New providers have no PR references in their changelog yet, so collect the
+                # related PRs directly from the git history of the provider's sources.
+                prs = get_prs_from_git_log_for_new_provider(provider_id)
+                if prs:
+                    console_print(
+                        f"[info]Including new provider {provider_id}: collected {len(prs)} related "
+                        "PR(s) from the git history of its sources."
+                    )
+                else:
+                    console_print(
+                        f"[info]Including new provider {provider_id}: no related PRs found in git history."
+                    )
             filtered_prs = [pr for pr in prs if pr not in excluded_prs]
             if not _should_include_provider_in_issue(provider_yaml_dict, prs, filtered_prs):
                 console_print(
@@ -2802,10 +2873,6 @@ def generate_issue_content_providers(
                     "The changelog file does not contain PR references for the release.\n"
                 )
                 continue
-            if not prs and _is_initial_provider_release(provider_yaml_dict):
-                console_print(
-                    f"[info]Including provider {provider_id}: initial release without PR references in changelog."
-                )
             all_prs.update(prs)
             provider_prs[provider_id] = filtered_prs
             all_retrieved_prs.update(provider_prs[provider_id])
@@ -4765,6 +4832,67 @@ def publish_docs_to_s3(
             "Please check the version in the docs and try again.[/]"
         )
         sys.exit(1)
+
+
+@release_management_group.command(
+    name="publish-schemas-to-s3",
+    help="Publishes generated JSON schema artifacts (Execution API, Supervisor) to S3.",
+)
+@click.option(
+    "--execution-api",
+    help="Path to the generated Execution API OpenAPI JSON file.",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+)
+@click.option(
+    "--supervisor",
+    help="Path to the generated Supervisor schema JSON file.",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+)
+@click.option(
+    "--destination-location",
+    help="S3 location to publish the schemas under, e.g. "
+    "s3://live-docs-airflow-apache-org/schemas/. Each schema is written to "
+    "<location>/<schema-type>/<version>.json.",
+    type=NotVerifiedBetterChoice(SCHEMA_DESTINATION_LOCATIONS),
+    required=True,
+)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    help="Overwrite the dated schema file if it already exists in S3.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Dry run - only print what would be done.",
+)
+def publish_schemas_to_s3(
+    execution_api: Path | None,
+    supervisor: Path | None,
+    destination_location: str,
+    overwrite: bool,
+    dry_run: bool,
+):
+    from airflow_breeze.utils.publish_docs_to_s3 import publish_schemas_to_s3 as _publish_schemas_to_s3
+
+    if not execution_api and not supervisor:
+        console_print("[error]Provide at least one of --execution-api or --supervisor[/]")
+        sys.exit(1)
+
+    console_print("[info]Publishing schemas to S3[/]")
+    console_print(f"[info]Destination bucket location: {destination_location}[/]")
+    if execution_api:
+        console_print(f"[info]Execution API schema: {execution_api}[/]")
+    if supervisor:
+        console_print(f"[info]Supervisor schema: {supervisor}[/]")
+
+    _publish_schemas_to_s3(
+        destination_location=destination_location.rstrip("/"),
+        execution_api_schema=execution_api,
+        supervisor_schema=supervisor,
+        overwrite=overwrite,
+        dry_run=dry_run,
+    )
 
 
 @release_management_group.command(

@@ -21,7 +21,7 @@ import os
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from shutil import copyfile, copytree
+from shutil import copyfile, copytree, rmtree
 
 import pytest
 from rich.console import Console
@@ -54,6 +54,8 @@ from airflow_e2e_tests.constants import (
     OPENSEARCH_PATH,
     PROVIDERS_MOUNT_CONTAINER_PATH,
     PROVIDERS_ROOT_PATH,
+    SCALA_SPARK_EXAMPLE_DAGS_PATH,
+    SCALA_SPARK_EXAMPLE_LIBS_PATH,
     TEST_REPORT_FILE,
     XCOM_BUCKET,
 )
@@ -247,6 +249,35 @@ def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
+# Spark normally injects these JVM options through its own launcher; the raw
+# JavaCoordinator launch bypasses that, so the bundle must carry them itself.
+# This mirrors org.apache.spark.launcher.JavaModuleOptions.defaultModuleOptions()
+# verbatim for the pinned Spark 3.5.8 (java-sdk/scala_spark_example/build.gradle).
+# A partial set passes the toy aggregation here but breaks real Spark code paths
+# (Kryo -> java.lang.reflect, off-heap cleaner -> jdk.internal.ref, charset ->
+# sun.nio.cs, Kerberos -> sun.security.krb5); keep it in sync if Spark is bumped.
+# The user-facing writeup lives in java-sdk/scala_spark_example/README.md.
+_SPARK_JAVA_MODULE_OPTIONS = [
+    "-XX:+IgnoreUnrecognizedVMOptions",
+    "--add-opens=java.base/java.lang=ALL-UNNAMED",
+    "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+    "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+    "--add-opens=java.base/java.io=ALL-UNNAMED",
+    "--add-opens=java.base/java.net=ALL-UNNAMED",
+    "--add-opens=java.base/java.nio=ALL-UNNAMED",
+    "--add-opens=java.base/java.util=ALL-UNNAMED",
+    "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED",
+    "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
+    "--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED",
+    "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+    "--add-opens=java.base/sun.nio.cs=ALL-UNNAMED",
+    "--add-opens=java.base/sun.security.action=ALL-UNNAMED",
+    "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED",
+    "--add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED",
+    "-Djdk.reflect.useDirectMethodHandle=false",
+]
+
+
 def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     """Set up the java_sdk E2E test mode.
 
@@ -290,6 +321,12 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         ],
         check=True,
     )
+    # TODO: Make the following build steps parallel
+    # The Gradle `bundle` task is a Copy that never prunes its destination, so
+    # JARs from an earlier build linger. A stale dependency JAR with its own
+    # Main-Class would make JavaCoordinator's Main-Class discovery ambiguous, so
+    # start each bundle from an empty directory.
+    rmtree(JAVA_SDK_EXAMPLE_LIBS_PATH, ignore_errors=True)
     console.print("[yellow]Building Java SDK example bundle (eclipse-temurin:17-jdk)...")
     subprocess.run(
         [
@@ -315,17 +352,54 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         ],
         check=True,
     )
+    rmtree(SCALA_SPARK_EXAMPLE_LIBS_PATH, ignore_errors=True)
+    console.print("[yellow]Building Scala Spark example bundle (eclipse-temurin:17-jdk)...")
+    subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--user",
+            f"{os.getuid()}:{os.getgid()}",
+            "-e",
+            "GRADLE_USER_HOME=/repo/java-sdk/.gradle",
+            "-e",
+            "HOME=/workspace-home",
+            "-v",
+            f"{JAVA_SDK_MAVEN_CACHE_PATH}:/workspace-home/.m2",
+            "-v",
+            f"{AIRFLOW_ROOT_PATH}:/repo",
+            "-w",
+            "/repo/java-sdk/scala_spark_example",
+            "eclipse-temurin:17-jdk",
+            "../gradlew",
+            "bundle",
+            "--no-daemon",
+        ],
+        check=True,
+    )
 
     # Copy compose override and Dockerfile into the temp directory.
     copyfile(JAVA_COMPOSE_PATH, tmp_dir / "java.yml")
     copyfile(JAVA_DOCKERFILE_PATH, tmp_dir / "Dockerfile.java")
 
-    # Copy all JARs from installDist output so the compose bind-mount ./jars
-    # gives the worker everything JavaCoordinator needs to build a classpath.
-    copytree(JAVA_SDK_EXAMPLE_LIBS_PATH, tmp_dir / "jars")
+    # Copy each bundle's JARs into its own directory; the compose bind-mounts
+    # expose them to the worker, and each JavaCoordinator globs its own dir.
+    copytree(JAVA_SDK_EXAMPLE_LIBS_PATH, tmp_dir / "java-jars")
+    copytree(SCALA_SPARK_EXAMPLE_LIBS_PATH, tmp_dir / "scala-jars")
 
-    # Copy the Java SDK example Dag file so Airflow can discover it.
+    # Copy the Java SDK example Dag files so Airflow can discover them.
     copyfile(JAVA_SDK_EXAMPLE_DAGS_PATH / "java_examples.py", tmp_dir / "dags" / "java_examples.py")
+    copyfile(
+        SCALA_SPARK_EXAMPLE_DAGS_PATH / "scala_spark_examples.py",
+        tmp_dir / "dags" / "scala_spark_examples.py",
+    )
+
+    # Keep the bundle JARs out of the build context: Dockerfile.java only adds a
+    # JRE and copies nothing from the context, so without this docker build would
+    # tar and stream the bundles (hundreds of MB of Spark JARs) to the daemon for
+    # nothing. The JARs reach the worker via the compose bind-mounts, not the image.
+    (tmp_dir / ".dockerignore").write_text("java-jars/\nscala-jars/\n")
 
     # Build a local Docker image that extends DOCKER_IMAGE with a JRE.
     # We do this explicitly so testcontainers' DockerCompose.start() does not
@@ -347,17 +421,28 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         check=True,
     )
 
-    # Coordinator registry: maps the logical name "java-jdk" to JavaCoordinator.
-    # Queue mapping: routes tasks on the "java" Celery queue to "java-jdk".
+    # Two JavaCoordinators on the same worker image, one bundle per queue. The
+    # scala-jdk entry pins main_class (Spark's large classpath makes Main-Class
+    # discovery ambiguous) and carries Spark's Java 17 module openings, a small
+    # driver heap, and a longer startup timeout for its large dependency classpath.
     coordinator_config = json.dumps(
         {
             "java-jdk": {
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-                "kwargs": {"jars_root": ["/opt/airflow/jars"]},
-            }
+                "kwargs": {"jars_root": ["/opt/airflow/java-jars"]},
+            },
+            "scala-jdk": {
+                "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+                "kwargs": {
+                    "jars_root": ["/opt/airflow/scala-jars"],
+                    "main_class": "org.apache.airflow.example.ScalaSparkBundleBuilder",
+                    "jvm_args": ["-Xmx512m", *_SPARK_JAVA_MODULE_OPTIONS],
+                    "task_startup_timeout": 60.0,
+                },
+            },
         }
     )
-    queue_to_coordinator = json.dumps({"java": "java-jdk"})
+    queue_to_coordinator = json.dumps({"java": "java-jdk", "scala": "scala-jdk"})
 
     # Connection expected by the Java example bundle tasks. The JSON form
     # covers all connection fields, in particular the port: wire integers

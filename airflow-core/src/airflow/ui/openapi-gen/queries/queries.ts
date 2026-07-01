@@ -2,7 +2,7 @@
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { AssetStateStoreBody, BackfillPostBody, BulkBody_BulkDAGRunBody_, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, BulkDAGRunClearBody, ClearTaskInstancesBody, ConnectionBody, ConnectionTestRequestBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, GenerateTokenBody, MaterializeAssetBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TaskStateStoreBody, TaskStateStorePatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
+import { AssetStateStoreBody, BackfillPostBody, BulkBody_BulkDAGRunBody_, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, BulkDAGRunClearBody, ClearPartitionsBody, ClearTaskInstancesBody, ConnectionBody, ConnectionTestRequestBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, GenerateTokenBody, MaterializeAssetBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TaskStateStoreBody, TaskStateStorePatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -1794,15 +1794,19 @@ export const useAuthLinksServiceGetCurrentUserInfo = <TData = Common.AuthLinksSe
 * Get Partitioned Dag Runs
 * Return PartitionedDagRuns. Filter by dag_id and/or has_created_dag_run_id.
 * @param data The data for the request.
+* @param data.limit
+* @param data.offset
 * @param data.dagId
 * @param data.hasCreatedDagRunId
 * @returns PartitionedDagRunCollectionResponse Successful Response
 * @throws ApiError
 */
-export const usePartitionedDagRunServiceGetPartitionedDagRuns = <TData = Common.PartitionedDagRunServiceGetPartitionedDagRunsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, hasCreatedDagRunId }: {
+export const usePartitionedDagRunServiceGetPartitionedDagRuns = <TData = Common.PartitionedDagRunServiceGetPartitionedDagRunsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, hasCreatedDagRunId, limit, offset }: {
   dagId?: string;
   hasCreatedDagRunId?: boolean;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UsePartitionedDagRunServiceGetPartitionedDagRunsKeyFn({ dagId, hasCreatedDagRunId }, queryKey), queryFn: () => PartitionedDagRunService.getPartitionedDagRuns({ dagId, hasCreatedDagRunId }) as TData, ...options });
+  limit?: number;
+  offset?: number;
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UsePartitionedDagRunServiceGetPartitionedDagRunsKeyFn({ dagId, hasCreatedDagRunId, limit, offset }, queryKey), queryFn: () => PartitionedDagRunService.getPartitionedDagRuns({ dagId, hasCreatedDagRunId, limit, offset }) as TData, ...options });
 /**
 * Get Pending Partitioned Dag Run
 * Return full details for pending PartitionedDagRun.
@@ -2253,6 +2257,22 @@ export const useDagRunServiceClearDagRuns = <TData = Common.DagRunServiceClearDa
   dagId: string;
   requestBody: BulkDAGRunClearBody;
 }, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.clearDagRuns({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
+/**
+* Clear Dag Run Partitions
+* Reset partition_key and partition_date fields on matching Dag Runs.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.requestBody
+* @returns ClearPartitionsResponse Successful Response
+* @throws ApiError
+*/
+export const useDagRunServiceClearDagRunPartitions = <TData = Common.DagRunServiceClearDagRunPartitionsMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  requestBody: ClearPartitionsBody;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  requestBody: ClearPartitionsBody;
+}, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.clearDagRunPartitions({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Favorite Dag
 * Mark the Dag as favorite.

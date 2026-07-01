@@ -22,10 +22,12 @@ import json
 
 import pytest
 
-from airflow.sdk.configuration import conf
+from airflow.sdk._shared.module_loading import import_string
+from airflow.sdk.configuration import conf, retrieve_configuration_description
 from airflow.sdk.execution_time.coordinator import (
     BaseCoordinator,
     CoordinatorManager,
+    InvalidCoordinatorError,
     _PythonCoordinator,
     get_coordinator_manager,
     reset_coordinator_manager,
@@ -39,6 +41,11 @@ class _CoordinatorA(BaseCoordinator):
 
 class _CoordinatorB(BaseCoordinator):
     pass
+
+
+class _ExplodingCoordinator(BaseCoordinator):
+    def __init__(self):
+        raise RuntimeError("This coordinator must not be instantiated")
 
 
 @pytest.fixture
@@ -110,6 +117,57 @@ class TestCoordinatorManager:
         assert manager._coordinator_specs == {}
         assert manager._queue_to_coordinator == {}
 
+    def test_from_config_rejects_invalid_queue_mapping(self, sdk_config):
+        sdk_config(
+            coordinators=json.dumps(
+                {"alpha": {"classpath": f"{_CoordinatorA.__module__}._CoordinatorA", "kwargs": {}}}
+            ),
+            queue_to_coordinator=json.dumps({"queue-x": "nonexistent"}),
+        )
+        with pytest.raises(
+            ValueError,
+            match=r"queue_to_coordinator references invalid coordinator key: 'nonexistent'",
+        ):
+            CoordinatorManager.from_config()
+
+    @pytest.mark.parametrize(
+        ("coordinator_spec", "expected_match"),
+        [
+            pytest.param(
+                {"classpath": "nonexistent.module.MissingCoordinator", "kwargs": {}},
+                r"Cannot import coordinator 'bad-coord'",
+                id="classpath-cannot-be-imported",
+            ),
+            pytest.param(
+                {
+                    "classpath": f"{_CoordinatorA.__module__}._CoordinatorA",
+                    "kwargs": {"unknown_param": "x"},
+                },
+                r"Cannot instantiate coordinator 'bad-coord'",
+                id="kwargs-dont-match-constructor",
+            ),
+        ],
+    )
+    def test_for_queue_raises_invalid_coordinator_error(self, sdk_config, coordinator_spec, expected_match):
+        sdk_config(
+            coordinators=json.dumps({"bad-coord": coordinator_spec}),
+            queue_to_coordinator=json.dumps({"queue-bad": "bad-coord"}),
+        )
+        manager = CoordinatorManager.from_config()
+        with pytest.raises(InvalidCoordinatorError, match=expected_match):
+            manager.for_queue("queue-bad")
+
+    def test_for_queue_raises_when_spec_missing(self):
+        manager = CoordinatorManager(
+            coordinator_specs={},
+            queue_to_coordinator={"queue-bad": "missing"},
+        )
+        with pytest.raises(
+            InvalidCoordinatorError,
+            match=r"Queue 'queue-bad' configured to nonexistent coordinator",
+        ):
+            manager.for_queue("queue-bad")
+
     def test_get_coordinator_manager_is_cached(self, monkeypatch):
         monkeypatch.delenv("AIRFLOW__SDK__COORDINATORS", raising=False)
 
@@ -120,3 +178,106 @@ class TestCoordinatorManager:
         m1 = get_coordinator_manager()
         m2 = get_coordinator_manager()
         assert m1 is m2
+
+    @pytest.mark.parametrize(
+        ("queue", "expected"),
+        [
+            pytest.param(
+                "queue-java",
+                {"pod_template_file": "/opt/airflow/pod_templates/java.yaml"},
+                id="mapped-with-extra",
+            ),
+            pytest.param("queue-go", None, id="mapped-without-extra"),
+            pytest.param("queue-unmapped", None, id="unmapped-queue"),
+        ],
+    )
+    def test_extra_for_queue(self, sdk_config, queue, expected):
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "java": {
+                        "classpath": f"{_CoordinatorA.__module__}._CoordinatorA",
+                        "extra": {"pod_template_file": "/opt/airflow/pod_templates/java.yaml"},
+                    },
+                    "go": {"classpath": f"{_CoordinatorB.__module__}._CoordinatorB"},
+                }
+            ),
+            queue_to_coordinator=json.dumps({"queue-java": "java", "queue-go": "go"}),
+        )
+        manager = CoordinatorManager.from_config()
+        # Resolving the extra must not instantiate the coordinator.
+        assert manager.extra_for_queue(queue) == expected
+        assert manager._created_coordinators == {}
+
+    def test_extra_not_forwarded_to_constructor(self, sdk_config):
+        """``extra`` is kept separate from ``kwargs`` and never reaches the coordinator constructor."""
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "java": {
+                        "classpath": f"{_CoordinatorA.__module__}._CoordinatorA",
+                        "kwargs": {"label": "java-label"},
+                        "extra": {"pod_template_file": "/opt/airflow/pod_templates/java.yaml"},
+                    },
+                }
+            ),
+            queue_to_coordinator=json.dumps({"queue-java": "java"}),
+        )
+        manager = CoordinatorManager.from_config()
+        # _CoordinatorA only accepts ``label``; construction would raise TypeError
+        # if ``extra`` were passed through.
+        coordinator = manager.for_queue("queue-java")
+        assert isinstance(coordinator, _CoordinatorA)
+        assert coordinator.label == "java-label"
+        # The extra is still readable from the spec without instantiation cost.
+        assert manager.extra_for_queue("queue-java") == {
+            "pod_template_file": "/opt/airflow/pod_templates/java.yaml"
+        }
+
+    def test_extra_for_queue_does_not_instantiate_coordinator(self, sdk_config):
+        """Reading ``extra`` reads only the spec; a failing constructor must never run."""
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "boom": {
+                        "classpath": f"{_ExplodingCoordinator.__module__}._ExplodingCoordinator",
+                        "extra": {"pod_template_file": "/opt/airflow/pod_templates/boom.yaml"},
+                    },
+                }
+            ),
+            queue_to_coordinator=json.dumps({"queue-boom": "boom"}),
+        )
+        manager = CoordinatorManager.from_config()
+        assert manager.extra_for_queue("queue-boom") == {
+            "pod_template_file": "/opt/airflow/pod_templates/boom.yaml"
+        }
+        assert manager._created_coordinators == {}
+
+
+class TestConfigYamlCoordinatorsExample:
+    """Guard the ``[sdk] coordinators`` example in ``config.yml`` against drift.
+
+    Nothing else exercises the example, so a broken one (e.g. dropping the
+    required ``jars_root`` kwarg) can ship unnoticed. Loading it through
+    CoordinatorManager and constructing every entry keeps the example honest.
+    """
+
+    def test_every_example_coordinator_constructs(self, sdk_config):
+        description = retrieve_configuration_description()
+        coordinators_example = description["sdk"]["options"]["coordinators"]["example"]
+        specs = json.loads(coordinators_example)
+        assert specs, "config.yml [sdk] coordinators example must not be empty"
+
+        # The example's own queue_to_coordinator illustrates different keys, so
+        # route every coordinator through a synthetic queue to construct each one.
+        queue_to_coordinator = {f"queue-{key}": key for key in specs}
+        sdk_config(
+            coordinators=coordinators_example,
+            queue_to_coordinator=json.dumps(queue_to_coordinator),
+        )
+        manager = CoordinatorManager.from_config()
+        assert set(manager._coordinator_specs) == set(specs)
+
+        for queue, key in queue_to_coordinator.items():
+            coordinator = manager.for_queue(queue)
+            assert isinstance(coordinator, import_string(specs[key]["classpath"]))

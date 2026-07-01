@@ -370,12 +370,11 @@ class ExecutableCoordinator(SubprocessCoordinator):
     Configuration is taken from the ``[sdk] coordinators`` entry that constructs
     this instance::
 
-        {
-            "name": "go",
+        "go": {
             "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
             "kwargs": {
-                "executables_root": ["~/airflow/executable-bundles"],
-            },
+                "executables_root": ["~/airflow/executable-bundles"]
+            }
         }
 
     :param executables_root: A list of directories scanned for executable
