@@ -124,7 +124,13 @@ ReceiveMsgType = TypeVar("ReceiveMsgType", bound=BaseModel)
 
 class DeadlockImminentError(BaseException):
     """
-    Raised when ``CommsDecoder.send()`` is called from the event loop thread.
+    Raised when ``CommsDecoder.send()`` is called from the event loop thread while
+    ``_thread_lock`` is already held by a concurrent ``asend()`` round-trip.
+
+    The sync ``send()`` attempts a non-blocking lock acquire when it detects it is
+    running on the event loop thread.  If the acquire fails — meaning an ``asend()``
+    coroutine currently owns the lock and is waiting for the event loop to complete
+    its I/O — a true deadlock would result, so this error is raised instead.
 
     Inherits from :class:`BaseException` rather than :class:`Exception` so that
     ``contextlib.suppress(Exception)`` — used in :func:`airflow.sdk.log.mask_secret`
