@@ -417,7 +417,7 @@ class TestImapHook:
         with ImapHook() as imap_hook:
             imap_hook.download_mail_attachments(name="symlink", local_output_directory="test_directory")
 
-        assert mock_is_symlink.call_count == 1
+        mock_is_symlink.assert_called_once_with("test_directory/symlink")
         mock_open_method.assert_not_called()
         mock_open_method.return_value.write.assert_not_called()
 
