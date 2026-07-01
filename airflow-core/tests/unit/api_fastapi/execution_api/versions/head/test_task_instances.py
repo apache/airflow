@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import re
 from datetime import datetime
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -31,7 +33,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from sqlalchemy import select, update
+from sqlalchemy import event, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -77,6 +79,23 @@ pytestmark = pytest.mark.db_test
 DEFAULT_START_DATE = timezone.parse("2024-10-31T11:00:00Z")
 DEFAULT_END_DATE = timezone.parse("2024-10-31T12:00:00Z")
 DEFAULT_RENDERED_MAP_INDEX = "test rendered map index"
+
+
+@contextlib.contextmanager
+def _capture_task_instance_selects(session):
+    statements = []
+
+    def collect_selects(conn, cursor, statement, parameters, context, executemany):
+        normalized = " ".join(statement.lower().split())
+        if normalized.startswith("select") and re.search(r"\bfrom task_instance\b", normalized):
+            statements.append(normalized)
+
+    bind = session.get_bind()
+    event.listen(bind, "after_cursor_execute", collect_selects)
+    try:
+        yield statements
+    finally:
+        event.remove(bind, "after_cursor_execute", collect_selects)
 
 
 def _where_column_keys(statement) -> set[str]:
@@ -3060,12 +3079,14 @@ class TestGetCount:
         dag_maker.create_dagrun(session=session)
         session.commit()
 
-        response = client.get(
-            "/execution/task-instances/count",
-            params={"dag_id": "test_dag", "task_group_id": "group1"},
-        )
+        with _capture_task_instance_selects(session) as task_instance_selects:
+            response = client.get(
+                "/execution/task-instances/count",
+                params={"dag_id": "test_dag", "task_group_id": "group1"},
+            )
         assert response.status_code == 200
         assert response.json() == 2
+        assert len(task_instance_selects) == 1
 
     def test_get_count_task_group_not_found(self, client, session, dag_maker):
         with dag_maker(dag_id="test_get_count_task_group_not_found", serialized=True):
@@ -3475,10 +3496,11 @@ class TestGetTaskStates:
         dag_maker.create_dagrun(session=session)
         session.commit()
 
-        response = client.get(
-            "/execution/task-instances/states",
-            params={"dag_id": "test_dag", "task_group_id": "group1"},
-        )
+        with _capture_task_instance_selects(session) as task_instance_selects:
+            response = client.get(
+                "/execution/task-instances/states",
+                params={"dag_id": "test_dag", "task_group_id": "group1"},
+            )
         assert response.status_code == 200
         assert response.json() == {
             "task_states": {
@@ -3487,6 +3509,7 @@ class TestGetTaskStates:
                 },
             },
         }
+        assert len(task_instance_selects) == 1
 
     def test_get_task_states_with_task_group_id_and_task_id(self, client, session, dag_maker):
         with dag_maker("test_get_task_group_states_with_multiple_task_tasks", serialized=True):
