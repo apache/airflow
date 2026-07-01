@@ -118,10 +118,18 @@ class Connection:
     schema: str | None = None
     login: str | None = None
     password: str | None = None
-    port: int | None = None
+    port: int | None = attrs.field(default=None)
     extra: str | None = None
 
     EXTRA_KEY = "__extra__"
+
+    @port.validator
+    def _validate_port(self, attribute, value):
+        if value is not None and (value < 1 or value > 65535):
+            raise ValueError(
+                f"The connection port must be between 1 and 65535, but got {value!r}."
+            )
+
 
     @overload
     def __init__(self, *, conn_id: str, uri: str) -> None: ...
@@ -360,6 +368,11 @@ class Connection:
                 kwargs["port"] = int(port)
             except ValueError:
                 raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+            port_val = kwargs["port"]
+            if port_val < 1 or port_val > 65535:
+                raise ValueError(
+                    f"The connection port must be between 1 and 65535, but got {port_val!r}."
+                )
         return cls(conn_id=conn_id, **kwargs)
 
     def as_json(self) -> str:

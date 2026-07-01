@@ -190,6 +190,8 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
             self.port = port
             self.extra = extra
 
+        self._validate_port(self.port)
+
         if conn_id is not None:
             sanitized_id = sanitize_conn_id(conn_id)
             if sanitized_id is not None:
@@ -201,6 +203,13 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
             mask_secret(self.password)
             mask_secret(quote(self.password))
         self.team_name = team_name
+
+    @staticmethod
+    def _validate_port(port: int | None) -> None:
+        if port is not None and (port < 1 or port > 65535):
+            raise ValueError(
+                f"The connection port must be between 1 and 65535, but got {port!r}."
+            )
 
     @staticmethod
     def _validate_extra(extra, conn_id) -> None:
@@ -591,6 +600,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
                 kwargs["port"] = int(port)
             except ValueError:
                 raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+            cls._validate_port(kwargs["port"])
         return Connection(conn_id=conn_id, **kwargs)
 
     def as_json(self) -> str:

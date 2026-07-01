@@ -721,6 +721,36 @@ class TestCliAddConnections:
                 self.parser.parse_args(["connections", "add", conn_id, f"--conn-uri={TEST_URL}"])
             )
 
+    @pytest.mark.parametrize("port", ["0", "-1", "65536", "99999"])
+    def test_cli_connections_add_rejects_out_of_range_port(self, port):
+        """CLI ``connections add`` must reject port values outside 1-65535 (closes #68382)."""
+        with pytest.raises((SystemExit, ValueError)):
+            connection_command.connections_add(
+                self.parser.parse_args(
+                    [
+                        "connections",
+                        "add",
+                        "new_conn",
+                        "--conn-type=http",
+                        "--conn-host=example.com",
+                        f"--conn-port={port}",
+                    ]
+                )
+            )
+
+    def test_cli_connections_add_rejects_non_integer_port(self):
+        """CLI ``--conn-port`` is typed as int — argparse should reject non-integer strings."""
+        with pytest.raises(SystemExit):
+            self.parser.parse_args(
+                [
+                    "connections",
+                    "add",
+                    "new_conn",
+                    "--conn-type=http",
+                    "--conn-port=not-a-number",
+                ]
+            )
+
     def test_cli_connections_add_delete_with_missing_parameters(self):
         # Attempt to add without providing conn_uri
         with pytest.raises(

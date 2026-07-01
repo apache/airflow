@@ -208,6 +208,30 @@ class TestConnections:
         assert connection.password == "secret"
         assert connection.schema == "production"
 
+    @pytest.mark.parametrize("port", [1, 22, 5432, 65535])
+    def test_port_within_valid_range_is_accepted(self, port):
+        """Ports in the valid TCP/UDP range (1-65535) should be accepted."""
+        conn = Connection(conn_id="test_conn", conn_type="http", host="example.com", port=port)
+        assert conn.port == port
+
+    def test_port_none_is_accepted(self):
+        """``port`` is optional, ``None`` must remain a valid value."""
+        conn = Connection(conn_id="test_conn", conn_type="http", host="example.com", port=None)
+        assert conn.port is None
+
+    @pytest.mark.parametrize("port", [0, -1, 65536, 99999])
+    def test_port_out_of_range_is_rejected(self, port):
+        """Ports outside 1-65535 should raise ValueError on Connection() (closes #68382)."""
+        with pytest.raises(ValueError, match="must be between 1 and 65535"):
+            Connection(conn_id="test_conn", conn_type="http", host="example.com", port=port)
+
+    @pytest.mark.parametrize("port", [0, -1, 99999])
+    def test_from_json_rejects_out_of_range_port(self, port):
+        """``Connection.from_json`` should also enforce the port range."""
+        payload = json.dumps({"conn_type": "http", "host": "example.com", "port": port})
+        with pytest.raises(ValueError, match="must be between 1 and 65535"):
+            Connection.from_json(payload, conn_id="test_conn")
+
     def test_extra_dejson_property(self):
         """Test that extra_dejson property correctly deserializes JSON extra field."""
         connection = Connection(

@@ -352,6 +352,19 @@ class TestPostConnection(TestConnectionEndpoint):
             {"connection_id": "iam_not@#$_connection_id", "conn_type": TEST_CONN_TYPE},
         ],
     )
+    @pytest.mark.parametrize("port", [0, -1, 65536, 99999])
+    def test_post_should_respond_422_for_out_of_range_port(self, test_client, port):
+        """REST API must reject port values outside 1-65535 (closes #68382)."""
+        response = test_client.post(
+            "/connections",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "port": port,
+            },
+        )
+        assert response.status_code == 422
+
     def test_post_should_respond_422_for_invalid_conn_id(self, test_client, body):
         response = test_client.post("/connections", json=body)
         assert response.status_code == 422
